@@ -1,6 +1,6 @@
 use crate::{
 	hkt::{Apply, Inject, Kind, Project},
-	typeclasses::Functor,
+	typeclasses::{Empty, Functor, Pure, Sequence},
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -55,5 +55,39 @@ impl<A> Functor<MaybeBrand, A> for Maybe<A> {
 		MaybeBrand: Kind<B>,
 	{
 		move |fa| Maybe::from(Option::from(fa).map(f)).inject()
+	}
+}
+
+impl<A> Pure<MaybeBrand, A> for Maybe<A> {
+	fn pure(a: A) -> Apply<MaybeBrand, A>
+	where
+		MaybeBrand: Kind<A>,
+	{
+		Maybe::Just(a).inject()
+	}
+}
+
+impl<A> Empty<MaybeBrand, A> for Maybe<A> {
+	fn empty() -> Maybe<A> {
+		Maybe::Nothing
+	}
+}
+
+impl<A> Sequence<MaybeBrand, A> for Maybe<A> {
+	fn sequence<F, B>(
+		f: Apply<MaybeBrand, F>
+	) -> impl Fn(Apply<MaybeBrand, A>) -> Apply<MaybeBrand, B>
+	where
+		F: Fn(A) -> B + Copy,
+		MaybeBrand: Kind<F> + Kind<B>,
+	{
+		let ff: Maybe<F> = f.project();
+		move |fa| {
+			(match (&ff, fa.project()) {
+				(Maybe::Just(f), Maybe::Just(a)) => Maybe::Just(f(a)),
+				_ => Maybe::Nothing,
+			})
+			.inject()
+		}
 	}
 }

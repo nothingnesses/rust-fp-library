@@ -1,6 +1,6 @@
 use crate::{
 	hkt::{Apply2, Inject2, Kind2, Project2},
-	typeclasses::Functor2,
+	typeclasses::{Functor2, Pure2},
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -55,5 +55,14 @@ impl<A, B> Functor2<EitherBrand, A, B> for Either<A, B> {
 		EitherBrand: Kind2<A, C>,
 	{
 		move |fa| Either::from(Result::from(fa).map(f)).inject()
+	}
+}
+
+impl<A, B> Pure2<EitherBrand, A, B> for Either<A, B> {
+	fn pure(b: B) -> Apply2<EitherBrand, A, B>
+	where
+		EitherBrand: Kind2<A, B>,
+	{
+		Either::Right(b).inject()
 	}
 }
