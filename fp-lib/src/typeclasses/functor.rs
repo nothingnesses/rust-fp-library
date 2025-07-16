@@ -3,20 +3,20 @@ use crate::{
 	hkt::{Apply, Apply2, Kind, Kind2},
 };
 
-pub trait Functor<Brand: Kind<A>, A> {
+pub trait Functor {
 	/// forall f a b. Functor f => (a -> b) -> f a -> f b
-	fn map<F, B>(f: F) -> impl Fn(Apply<Brand, A>) -> Apply<Brand, B>
+	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
 	where
 		F: Fn(A) -> B + Copy,
-		Brand: Kind<B>;
+		Self: Kind<A> + Kind<B>;
 }
 
-pub trait Functor2<Brand: Kind2<A, B>, A, B> {
+pub trait Functor2 {
 	/// forall f a b. Functor f => (a -> b) -> f a -> f b
-	fn map<F, C>(f: F) -> impl Fn(Apply2<Brand, A, B>) -> Apply2<Brand, A, C>
+	fn map<F, A, B, C>(f: F) -> impl Fn(Apply2<Self, A, B>) -> Apply2<Self, A, C>
 	where
 		F: Fn(B) -> C + Copy,
-		Brand: Kind2<A, C>;
+		Self: Kind2<A, B> + Kind2<A, C>;
 }
 
 impl Functions {
@@ -24,9 +24,8 @@ impl Functions {
 	pub fn map<Brand, F, A, B>(f: F) -> impl Fn(Apply<Brand, A>) -> Apply<Brand, B>
 	where
 		F: Fn(A) -> B + Copy,
-		Brand: Kind<A> + Kind<B>,
-		Apply<Brand, A>: Functor<Brand, A>,
+		Brand: Kind<A> + Kind<B> + Functor,
 	{
-		move |fa| <Apply<Brand, A> as Functor<_, _>>::map::<F, B>(f)(fa)
+		move |fa| Brand::map::<F, A, B>(f)(fa)
 	}
 }

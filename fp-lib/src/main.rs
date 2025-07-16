@@ -13,8 +13,5 @@ fn main() {
 		"{:?}",
 		Functions::sequence::<MaybeBrand, _, _, _>(Maybe::Just(|x| x + 1))(Maybe::Just(0))
 	);
-	println!(
-		"{:?}",
-		<Either<(), usize> as Functor2<EitherBrand, (), usize>>::map(|x| x + 1)(Either::Right(0))
-	);
+	println!("{:?}", EitherBrand::map(|x| x + 1)(Either::Right::<(), _>(0)));
 }

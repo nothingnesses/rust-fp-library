@@ -3,18 +3,19 @@ use crate::{
 	hkt::{Apply, Kind},
 };
 
-pub trait Empty<Brand: Kind<A>, A> {
+pub trait Empty {
 	/// forall f a. Empty f => () -> f a
-	fn empty() -> Apply<Brand, A>;
+	fn empty<A>() -> Apply<Self, A>
+	where
+		Self: Kind<A>;
 }
 
 impl Functions {
 	/// forall f a. Empty f => () -> f a
 	pub fn empty<Brand, A>() -> Apply<Brand, A>
 	where
-		Brand: Kind<A>,
-		Apply<Brand, A>: Empty<Brand, A>,
+		Brand: Kind<A> + Empty,
 	{
-		<Apply<Brand, A>>::empty()
+		Brand::empty()
 	}
 }

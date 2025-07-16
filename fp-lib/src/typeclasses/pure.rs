@@ -3,27 +3,26 @@ use crate::{
 	hkt::{Apply, Apply2, Kind, Kind2},
 };
 
-pub trait Pure<Brand: Kind<A>, A> {
+pub trait Pure {
 	/// forall f a. Pure f => a -> f a
-	fn pure(a: A) -> Apply<Brand, A>
+	fn pure<A>(a: A) -> Apply<Self, A>
 	where
-		Brand: Kind<A>;
+		Self: Kind<A>;
 }
 
-pub trait Pure2<Brand: Kind2<A, B>, A, B> {
+pub trait Pure2 {
 	/// forall f a. Pure f => a -> f a
-	fn pure(b: B) -> Apply2<Brand, A, B>
+	fn pure<A, B>(b: B) -> Apply2<Self, A, B>
 	where
-		Brand: Kind2<A, B>;
+		Self: Kind2<A, B>;
 }
 
 impl Functions {
 	/// forall f a. Pure f => a -> f a
 	pub fn pure<Brand, A>(a: A) -> Apply<Brand, A>
 	where
-		Brand: Kind<A>,
-		Apply<Brand, A>: Pure<Brand, A>,
+		Brand: Kind<A> + Pure,
 	{
-		<Apply<Brand, A>>::pure(a)
+		Brand::pure(a)
 	}
 }
