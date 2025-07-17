@@ -1,5 +1,5 @@
 use crate::{
-	hkt::{Apply2, Kind2},
+	hkt::{Apply2, Kind, Kind2},
 	typeclasses::{Functor2, Pure2, Sequence2},
 };
 
