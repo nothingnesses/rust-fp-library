@@ -1,11 +1,11 @@
 //! Types.
 
-pub mod either;
+pub mod option;
+pub mod result;
 pub mod solo;
-pub mod maybe;
 pub mod tuple;
 
-pub use self::either::*;
+pub use self::option::*;
+pub use self::result::*;
 pub use self::solo::*;
-pub use self::maybe::*;
 pub use self::tuple::*;

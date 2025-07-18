@@ -1,7 +1,4 @@
-use crate::{
-	Functions,
-	hkt::{Apply, Kind},
-};
+use crate::hkt::{Apply, Kind};
 
 pub trait Empty {
 	/// forall f a. Empty f => () -> f a
@@ -9,13 +6,10 @@ pub trait Empty {
 	where
 		Self: Kind<A>;
 }
-
-impl Functions {
-	/// forall f a. Empty f => () -> f a
-	pub fn empty<Brand, A>() -> Apply<Brand, A>
-	where
-		Brand: Kind<A> + Empty,
-	{
-		Brand::empty()
-	}
+/// forall f a. Empty f => () -> f a
+pub fn empty<Brand, A>() -> Apply<Brand, A>
+where
+	Brand: Kind<A> + Empty,
+{
+	Brand::empty()
 }
