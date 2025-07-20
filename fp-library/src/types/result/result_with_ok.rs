@@ -1,4 +1,4 @@
-//! Partially applied form of `Result` with the `Err` constructor filled in.
+//! Implementations for the partially-applied form of `Result` with the `Ok` constructor filled in.
 
 use crate::{
 	brands::Brand,
@@ -7,6 +7,7 @@ use crate::{
 	typeclasses::{Bind, Functor, Pure, Sequence},
 };
 
+/// Brand for the partially-applied form of `Result` with the `Ok` constructor filled in.
 pub struct ResultWithOkBrand<T>(T);
 
 impl<A, T> Kind<A> for ResultWithOkBrand<T> {

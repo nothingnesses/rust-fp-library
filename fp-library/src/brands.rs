@@ -1,4 +1,4 @@
-//! Representations of higher-kinded types.
+//! Higher-kinded representation of types.
 
 use crate::hkt::{Apply, Kind};
 
@@ -8,7 +8,7 @@ pub use super::types::{
 	solo::SoloBrand,
 };
 
-/// Trait containing functions to convert between the concrete type and the
+/// Contains functions to convert between the concrete type and the
 /// corresponding instantiation of [`Apply`](../hkt/apply/type.Apply.html).
 pub trait Brand<Concrete, A>
 where

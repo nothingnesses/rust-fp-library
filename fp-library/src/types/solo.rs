@@ -1,3 +1,5 @@
+//! Implementations for `Solo`, a type that wraps a value.
+
 use crate::{
 	brands::Brand,
 	functions::map,
@@ -5,9 +7,11 @@ use crate::{
 	typeclasses::{Bind, Functor, Pure, Sequence},
 };
 
+/// Wraps a value.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solo<A>(pub A);
 
+/// Brand for [`Solo`](../solo/struct.Solo.html).
 pub struct SoloBrand;
 
 impl<A> Kind<A> for SoloBrand {

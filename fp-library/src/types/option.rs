@@ -1,3 +1,5 @@
+//! Implementations for `Option`.
+
 use crate::{
 	brands::Brand,
 	functions::map,
@@ -5,6 +7,7 @@ use crate::{
 	typeclasses::{Bind, Empty, Functor, Pure, Sequence},
 };
 
+/// Brand for `Option`.
 pub struct OptionBrand;
 
 impl<A> Kind<A> for OptionBrand {
