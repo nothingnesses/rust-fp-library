@@ -4,7 +4,7 @@ use crate::hkt::{Apply, Kind};
 
 pub use super::types::{
 	option::OptionBrand,
-	result::{ResultBrand, ResultWithErrBrand},
+	result::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	solo::SoloBrand,
 };
 
