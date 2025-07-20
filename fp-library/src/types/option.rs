@@ -12,10 +12,10 @@ impl<A> Kind<A> for OptionBrand {
 }
 
 impl<A> Brand<Option<A>, A> for OptionBrand {
-	fn inject(a: &Option<A>) -> &Apply<Self, A> {
+	fn inject(a: Option<A>) -> Apply<Self, A> {
 		a
 	}
-	fn project(a: &Apply<Self, A>) -> &Option<A> {
+	fn project(a: Apply<Self, A>) -> Option<A> {
 		a
 	}
 }
@@ -30,34 +30,36 @@ impl Bind for OptionBrand {
 	/// let add_one = |a: &_| Some(a + 1);
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(&zero)(&add_one), Some(1));
 	/// ```
-	fn bind<F, A, B>(ma: &Apply<Self, A>) -> impl Fn(&F) -> Apply<Self, B>
+	fn bind<F, A, B>(ma: Apply<Self, A>) -> impl Fn(F) -> Apply<Self, B>
 	where
-		Self: Kind<A> + Kind<B>,
-		F: Fn(&A) -> Apply<Self, B>,
-		Apply<Self, B>: Clone,
+		Self: Kind<A> + Kind<B> + Sized,
+		F: Fn(A) -> Apply<Self, B>,
+		Apply<Self, A>: Clone,
 	{
-		|f| match OptionBrand::project(ma) {
-			Some(a) => f(a),
-			_ => (*<OptionBrand as Brand<Option<B>, _>>::inject(&None)).to_owned(),
+		move |f| {
+			Self::inject(
+				Self::project(ma.to_owned()).and_then(|a| -> Option<B> { Self::project(f(a)) }),
+			)
 		}
 	}
 }
 
 impl Functor for OptionBrand {
-	fn map<F, A, B>(f: &F) -> impl Fn(&Apply<Self, A>) -> Apply<Self, B>
+	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
 	where
-		F: Fn(&A) -> B,
+		Self: Kind<A> + Kind<B>,
+		F: Fn(A) -> B,
 	{
-		move |fa| fa.as_ref().map(f)
+		move |fa| Self::inject(Self::project(fa).map(&f))
 	}
 }
 
 impl Pure for OptionBrand {
-	fn pure<A>(a: &A) -> Apply<Self, A>
+	fn pure<A>(a: A) -> Apply<Self, A>
 	where
-		A: Clone,
+		Self: Kind<A>,
 	{
-		Some(a.to_owned())
+		Self::inject(Some(a))
 	}
 }
 
@@ -68,14 +70,15 @@ impl Empty for OptionBrand {
 }
 
 impl Sequence for OptionBrand {
-	fn sequence<F, A, B>(ff: &Apply<Self, F>) -> impl Fn(&Apply<Self, A>) -> Apply<Self, B>
+	fn sequence<F, A, B>(ff: Apply<Self, F>) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
 	where
-		F: Fn(&A) -> B,
-		A: Clone,
+		Self: Kind<F> + Kind<A> + Kind<B>,
+		F: Fn(A) -> B,
+		Apply<Self, F>: Clone,
 	{
-		move |fa| match (ff, fa) {
-			(Some(f), _) => map::<Self, _, _, _>(&f)(fa),
-			_ => None,
+		move |fa| match (Self::project(ff.to_owned()), &fa) {
+			(Some(f), _) => map::<Self, F, _, _>(f)(fa),
+			_ => Self::inject(None::<B>),
 		}
 	}
 }

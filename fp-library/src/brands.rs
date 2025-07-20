@@ -14,6 +14,6 @@ pub trait Brand<Concrete, A>
 where
 	Self: Kind<A>,
 {
-	fn inject(a: &Concrete) -> &Apply<Self, A>;
-	fn project(a: &Apply<Self, A>) -> &Concrete;
+	fn inject(a: Concrete) -> Apply<Self, A>;
+	fn project(a: Apply<Self, A>) -> Concrete;
 }
