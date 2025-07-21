@@ -1,10 +1,10 @@
 [package]
 name = "fp-library"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and typeclasses."
 readme = "../README.md"
-repository = "https://github.com/nothingnesses/rust-fp-lib"
+repository = "https://github.com/nothingnesses/rust-fp-library"
 license = "BlueOak-1.0.0"
 keywords = ["functional", "higher-kinded", "types"]
 categories = ["algorithms", "data-structures", "rust-patterns"]

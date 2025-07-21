@@ -1,24 +1,24 @@
 //! Implementations for the partially-applied form of `Result` with the `Ok` constructor filled in.
 
 use crate::{
-	brands::Brand,
+	brands::Brand1,
 	functions::map,
-	hkt::{Apply, Kind},
+	hkt::{Apply, Kind, Kind1},
 	typeclasses::{Bind, Functor, Pure, Sequence},
 };
 
 /// Brand for the partially-applied form of `Result` with the `Ok` constructor filled in.
 pub struct ResultWithOkBrand<T>(T);
 
-impl<A, T> Kind<A> for ResultWithOkBrand<T> {
+impl<A, T> Kind1<A> for ResultWithOkBrand<T> {
 	type Output = Result<T, A>;
 }
 
-impl<A, T> Brand<Result<T, A>, A> for ResultWithOkBrand<T> {
-	fn inject(a: Result<T, A>) -> Apply<Self, A> {
+impl<A, T> Brand1<Result<T, A>, A> for ResultWithOkBrand<T> {
+	fn inject(a: Result<T, A>) -> Apply<Self, (A,)> {
 		a
 	}
-	fn project(a: Apply<Self, A>) -> Result<T, A> {
+	fn project(a: Apply<Self, (A,)>) -> Result<T, A> {
 		a
 	}
 }
@@ -30,9 +30,9 @@ impl<T> Pure for ResultWithOkBrand<T> {
 	/// use fp_library::{brands::ResultWithOkBrand, functions::pure};
 	///
 	/// assert_eq!(pure::<ResultWithOkBrand<()>, _>(()), Err(()));
-	fn pure<A>(a: A) -> Apply<Self, A>
+	fn pure<A>(a: A) -> Apply<Self, (A,)>
 	where
-		Self: Kind<A>,
+		Self: Kind<(A,)>,
 	{
 		Self::inject(Err(a))
 	}
@@ -50,9 +50,9 @@ where
 	/// assert_eq!(map::<ResultWithOkBrand<()>, _, _, _>(identity)(Err(())), Err(()));
 	/// assert_eq!(map::<ResultWithOkBrand<_>, _, _, _>(identity::<()>)(Ok(())), Ok(()));
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
+	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
-		Self: Kind<A> + Kind<B>,
+		Self: Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,
 	{
 		move |fa| {
@@ -78,11 +78,11 @@ where
 	/// assert_eq!(sequence::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Err(())), Ok(()));
 	/// assert_eq!(sequence::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Ok(())), Ok(()));
 	/// ```
-	fn sequence<F, A, B>(ff: Apply<Self, F>) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
+	fn sequence<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
-		Self: Kind<F> + Kind<A> + Kind<B>,
+		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,
-		Apply<Self, F>: Clone,
+		Apply<Self, (F,)>: Clone,
 	{
 		move |fa| match (ResultWithOkBrand::project(ff.to_owned()), &fa) {
 			(Ok(e), _) => ResultWithOkBrand::inject(Ok::<_, B>(e)),
@@ -103,11 +103,11 @@ where
 	/// assert_eq!(bind::<ResultWithOkBrand<()>, _, _, _>(Err(()))(pure::<ResultWithOkBrand<_>, _>), Err(()));
 	/// assert_eq!(bind::<ResultWithOkBrand<_>, _, _, _>(Ok(()))(pure::<ResultWithOkBrand<_>, ()>), Ok(()));
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, A>) -> impl Fn(F) -> Apply<Self, B>
+	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
-		Self: Kind<A> + Kind<B> + Sized,
-		F: Fn(A) -> Apply<Self, B>,
-		Apply<Self, A>: Clone,
+		Self: Kind<(A,)> + Kind<(B,)> + Sized,
+		F: Fn(A) -> Apply<Self, (B,)>,
+		Apply<Self, (A,)>: Clone,
 	{
 		move |f| {
 			ResultWithOkBrand::inject(

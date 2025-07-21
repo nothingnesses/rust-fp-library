@@ -6,9 +6,9 @@ pub use super::typeclasses::{
 };
 
 /// Returns its input.
-/// 
+///
 /// Examples
-/// 
+///
 /// ```rust
 /// use fp_library::{functions::identity};
 /// assert_eq!(identity(()), ());

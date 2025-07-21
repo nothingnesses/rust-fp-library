@@ -1,9 +1,9 @@
 //! Implementations for `Solo`, a type that wraps a value.
 
 use crate::{
-	brands::Brand,
+	brands::{Brand, Brand1},
 	functions::map,
-	hkt::{Apply, Kind},
+	hkt::{Apply, Kind, Kind1},
 	typeclasses::{Bind, Functor, Pure, Sequence},
 };
 
@@ -14,15 +14,15 @@ pub struct Solo<A>(pub A);
 /// Brand for [`Solo`](../solo/struct.Solo.html).
 pub struct SoloBrand;
 
-impl<A> Kind<A> for SoloBrand {
+impl<A> Kind1<A> for SoloBrand {
 	type Output = Solo<A>;
 }
 
-impl<A> Brand<Solo<A>, A> for SoloBrand {
-	fn inject(a: Solo<A>) -> Apply<Self, A> {
+impl<A> Brand1<Solo<A>, A> for SoloBrand {
+	fn inject(a: Solo<A>) -> Apply<Self, (A,)> {
 		a
 	}
-	fn project(a: Apply<Self, A>) -> Solo<A> {
+	fn project(a: Apply<Self, (A,)>) -> Solo<A> {
 		a
 	}
 }
@@ -35,7 +35,7 @@ impl Pure for SoloBrand {
 	///
 	/// assert_eq!(pure::<SoloBrand, _>(()), Solo(()));
 	/// ```
-	fn pure<A>(a: A) -> Apply<Self, A> {
+	fn pure<A>(a: A) -> Apply<Self, (A,)> {
 		Solo(a)
 	}
 }
@@ -48,12 +48,12 @@ impl Functor for SoloBrand {
 	///
 	/// assert_eq!(map::<SoloBrand, _, _, _>(identity)(Solo(())), Solo(()));
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
+	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
-		Self: Kind<A> + Kind<B>,
+		Self: Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,
 	{
-		move |fa| Self::inject(Solo(f(Self::project(fa).0)))
+		move |fa| <Self as Brand<_, _>>::inject(Solo(f(<Self as Brand<_, _>>::project(fa).0)))
 	}
 }
 
@@ -65,11 +65,11 @@ impl Sequence for SoloBrand {
 	///
 	/// assert_eq!(sequence::<SoloBrand, _, _, _>(Solo(identity))(Solo(())), Solo(()));
 	/// ```
-	fn sequence<F, A, B>(ff: Apply<Self, F>) -> impl Fn(Apply<Self, A>) -> Apply<Self, B>
+	fn sequence<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
-		Self: Kind<F> + Kind<A> + Kind<B>,
+		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,
-		Apply<Self, F>: Clone,
+		Apply<Self, (F,)>: Clone,
 	{
 		map::<Self, _, _, _>(<Self as Brand<Solo<F>, _>>::project(ff.to_owned()).0)
 	}
@@ -83,12 +83,12 @@ impl Bind for SoloBrand {
 	///
 	/// assert_eq!(bind::<SoloBrand, _, _, _>(Solo(()))(pure::<SoloBrand, _>), Solo(()));
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, A>) -> impl Fn(F) -> Apply<Self, B>
+	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
-		Self: Kind<A> + Kind<B> + Sized,
-		F: Fn(A) -> Apply<Self, B>,
-		Apply<Self, A>: Clone,
+		Self: Kind<(A,)> + Kind<(B,)> + Sized,
+		F: Fn(A) -> Apply<Self, (B,)>,
+		Apply<Self, (A,)>: Clone,
 	{
-		move |f| f(Self::project(ma.to_owned()).0)
+		move |f| f(<Self as Brand<_, _>>::project(ma.to_owned()).0)
 	}
 }
