@@ -1,0 +1,3 @@
+//! Macros.
+
+pub mod hkt;

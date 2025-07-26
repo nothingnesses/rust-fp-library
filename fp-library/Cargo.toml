@@ -1,6 +1,6 @@
 [package]
 name = "fp-library"
-version = "0.0.7"
+version = "0.0.8"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and typeclasses."
 readme = "../README.md"

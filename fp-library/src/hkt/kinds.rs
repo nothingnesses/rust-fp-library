@@ -1,7 +1,5 @@
 //! Traits representing type-level application.
 
-use crate::hkt::{Apply1, Apply2, Apply3, Apply4};
-
 /// Unifies the specialised `Kind` traits. Represents all kinds.
 ///
 /// `Parameters` should be a tuple containing the types parameters.
@@ -9,44 +7,5 @@ use crate::hkt::{Apply1, Apply2, Apply3, Apply4};
 pub trait Kind<Parameters> {
 	type Output;
 }
-/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> *`.
-pub trait Kind1<A> {
-	type Output;
-}
-/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> *`.
-pub trait Kind2<A, B> {
-	type Output;
-}
-/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> * -> *`.
-pub trait Kind3<A, B, C> {
-	type Output;
-}
-/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> * -> * -> *`.
-pub trait Kind4<A, B, C, D> {
-	type Output;
-}
 
-impl<Brand, A> Kind<(A,)> for Brand
-where
-	Brand: Kind1<A>,
-{
-	type Output = Apply1<Brand, A>;
-}
-impl<Brand, A, B> Kind<(A, B)> for Brand
-where
-	Brand: Kind2<A, B>,
-{
-	type Output = Apply2<Brand, A, B>;
-}
-impl<Brand, A, B, C> Kind<(A, B, C)> for Brand
-where
-	Brand: Kind3<A, B, C>,
-{
-	type Output = Apply3<Brand, A, B, C>;
-}
-impl<Brand, A, B, C, D> Kind<(A, B, C, D)> for Brand
-where
-	Brand: Kind4<A, B, C, D>,
-{
-	type Output = Apply4<Brand, A, B, C, D>;
-}
+pub use crate::macros::hkt::{Kind1, Kind2, Kind3, Kind4};
