@@ -1,4 +1,4 @@
-//! Implementations for the partially-applied form of `Result` with the `Err` constructor filled in.
+//! Implementations for the partially-applied form of [`Result`] with the [`Err`] constructor filled in.
 
 use crate::{
 	brands::{Brand, Brand1},
@@ -7,7 +7,7 @@ use crate::{
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
-/// Brand for the partially-applied form of `Result` with the `Err` constructor filled in.
+/// [Brand][crate::brands] for the partially-applied form of [`Result`] with the [`Err`] constructor filled in.
 pub struct ResultWithErrBrand<E>(E);
 
 impl<A, E> Kind1<A> for ResultWithErrBrand<E> {

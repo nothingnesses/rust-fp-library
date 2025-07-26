@@ -1,4 +1,4 @@
-//! Implementations for `Option`.
+//! Implementations for [`Option`].
 
 use crate::{
 	brands::{Brand, Brand1},
@@ -7,7 +7,7 @@ use crate::{
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
-/// Brand for `Option`.
+/// [Brand][crate::brands] for [`Option`].
 pub struct OptionBrand;
 
 impl<A> Kind1<A> for OptionBrand {

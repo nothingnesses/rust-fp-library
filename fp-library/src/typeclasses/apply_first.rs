@@ -5,7 +5,9 @@ pub trait ApplyFirst {
 	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone;
+		Apply<Self, (A,)>: Clone,
+		A: Clone,
+		B: Clone;
 }
 
 /// forall a b. ApplyFirst f => f a -> f b -> f a
@@ -15,6 +17,8 @@ pub fn apply_first<Brand, A, B>(
 where
 	Brand: Kind<(A,)> + Kind<(B,)> + ApplyFirst,
 	Apply<Brand, (A,)>: Clone,
+	A: Clone,
+	B: Clone,
 {
 	Brand::apply_first::<A, B>(fa)
 }

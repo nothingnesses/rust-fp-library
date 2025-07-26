@@ -3,24 +3,25 @@
 use crate::hkt::{Apply1, Apply2, Apply3, Apply4};
 
 /// Unifies the specialised `Kind` traits. Represents all kinds.
+///
 /// `Parameters` should be a tuple containing the types parameters.
 /// `Output` represents the reified, concrete type.
 pub trait Kind<Parameters> {
 	type Output;
 }
-/// \* -> *
+/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> *`.
 pub trait Kind1<A> {
 	type Output;
 }
-/// \* -> * -> *
+/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> *`.
 pub trait Kind2<A, B> {
 	type Output;
 }
-/// \* -> * -> * -> *
+/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> * -> *`.
 pub trait Kind3<A, B, C> {
 	type Output;
 }
-/// \* -> * -> * -> * -> *
+/// Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> * -> * -> *`.
 pub trait Kind4<A, B, C, D> {
 	type Output;
 }

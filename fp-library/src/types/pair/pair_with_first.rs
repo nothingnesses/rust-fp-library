@@ -1,4 +1,4 @@
-//! Implementations for the partially-applied form of `Pair` with the first value filled in.
+//! Implementations for the partially-applied form of [`Pair`] with [the first value][Pair#structfield.0] filled in.
 
 use crate::{
 	brands::{Brand, Brand1},
@@ -7,7 +7,7 @@ use crate::{
 	types::Pair,
 };
 
-/// Brand for the partially-applied form of `Pair` with the first value filled in.
+/// [Brand][crate::brands] for the partially-applied form of [`Pair`] with [the first value][Pair#structfield.0] filled in.
 pub struct PairWithFirstBrand<First>(First);
 
 impl<First, Second> Kind1<Second> for PairWithFirstBrand<First> {

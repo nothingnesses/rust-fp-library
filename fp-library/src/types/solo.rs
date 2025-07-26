@@ -1,4 +1,4 @@
-//! Implementations for `Solo`, a type that wraps a value.
+//! Implementations for [`Solo`], a type that wraps a value.
 
 use crate::{
 	brands::{Brand, Brand1},
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solo<A>(pub A);
 
-/// Brand for [`Solo`](../solo/struct.Solo.html).
+/// [Brand][crate::brands] for [`Solo`].
 pub struct SoloBrand;
 
 impl<A> Kind1<A> for SoloBrand {

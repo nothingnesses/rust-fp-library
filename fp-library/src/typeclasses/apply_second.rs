@@ -5,7 +5,8 @@ pub trait ApplySecond {
 	fn apply_second<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone;
+		Apply<Self, (A,)>: Clone,
+		B: Clone;
 }
 
 /// forall a b. ApplySecond f => f a -> f b -> f b
@@ -15,6 +16,7 @@ pub fn apply_second<Brand, A, B>(
 where
 	Brand: Kind<(A,)> + Kind<(B,)> + ApplySecond,
 	Apply<Brand, (A,)>: Clone,
+	B: Clone,
 {
 	Brand::apply_second::<A, B>(fa)
 }

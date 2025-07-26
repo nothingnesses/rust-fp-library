@@ -1,4 +1,4 @@
-//! Higher-kinded representation of types.
+//! Higher-kinded representation of [types][crate::types].
 
 use crate::hkt::{Apply, Kind};
 
@@ -7,15 +7,17 @@ pub use super::types::{
 	pair::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
 	result::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	solo::SoloBrand,
+	vec::VecBrand,
 };
 
 /// Contains functions to convert between the concrete type and the
-/// corresponding instantiation of [`Apply`](../hkt/apply/type.Apply.html).
+/// corresponding instantiation of [`Apply`].
 pub trait Brand<Concrete, Parameters>: Kind<Parameters> {
 	fn inject(a: Concrete) -> Self::Output;
 	fn project(a: Self::Output) -> Concrete;
 }
 
+/// Brand trait for [types][crate::types] with kind `* -> *`.
 pub trait Brand1<Concrete, A>
 where
 	Self: Kind<(A,)>,
@@ -24,6 +26,7 @@ where
 	fn project(a: Apply<Self, (A,)>) -> Concrete;
 }
 
+/// Brand trait for [types][crate::types] with kind `* -> * -> *`.
 pub trait Brand2<Concrete, A, B>
 where
 	Self: Kind<(A, B)>,
@@ -32,6 +35,7 @@ where
 	fn project(a: Apply<Self, (A, B)>) -> Concrete;
 }
 
+/// Brand trait for [types][crate::types] with kind `* -> * -> * -> *`.
 pub trait Brand3<Concrete, A, B, C>
 where
 	Self: Kind<(A, B, C)>,
@@ -40,6 +44,7 @@ where
 	fn project(a: Apply<Self, (A, B, C)>) -> Concrete;
 }
 
+/// Brand trait for [types][crate::types] with kind `* -> * -> * -> * -> *`.
 pub trait Brand4<Concrete, A, B, C, D>
 where
 	Self: Kind<(A, B, C, D)>,

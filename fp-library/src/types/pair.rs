@@ -1,4 +1,4 @@
-//! Implementations for `Pair`, a type that wraps two values.
+//! Implementations for [`Pair`], a type that wraps two values.
 
 use crate::hkt::Kind2;
 
@@ -12,7 +12,7 @@ pub mod pair_with_second;
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
-/// Brand for [`Pair`](../pair/struct.Pair.html).
+/// [Brand][crate::brands] for [`Pair`].
 pub struct PairBrand;
 
 impl<A, B> Kind2<A, B> for PairBrand {
