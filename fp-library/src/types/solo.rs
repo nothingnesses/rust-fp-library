@@ -2,9 +2,9 @@
 
 use crate::{
 	brands::{Brand, Brand1},
-	functions::map,
+	functions::{identity, map},
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Apply as TypeclassApply, Bind, Functor, Pure},
+	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
 /// Wraps a value.
@@ -72,6 +72,39 @@ impl TypeclassApply for SoloBrand {
 		Apply<Self, (F,)>: Clone,
 	{
 		map::<Self, _, _, _>(<Self as Brand<Solo<F>, _>>::project(ff.to_owned()).0)
+	}
+}
+
+impl ApplyFirst for SoloBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::SoloBrand, functions::{apply_first, identity}, types::Solo};
+	///
+	/// assert_eq!(apply_first::<SoloBrand, _, _>(Solo(true))(Solo(false)), Solo(true));
+	/// ```
+	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	where
+		Self: Kind<(A,)> + Kind<(B,)>,
+		Apply<Self, (A,)>: Clone,
+	{
+		move |_fb| fa.to_owned()
+	}
+}
+
+impl ApplySecond for SoloBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::SoloBrand, functions::{apply_second, identity}, types::Solo};
+	///
+	/// assert_eq!(apply_second::<SoloBrand, _, _>(Solo(true))(Solo(false)), Solo(false));
+	/// ```
+	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	where
+		Self: Kind<(A,)> + Kind<(B,)>,
+	{
+		identity
 	}
 }
 

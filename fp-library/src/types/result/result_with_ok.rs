@@ -1,10 +1,10 @@
 //! Implementations for the partially-applied form of `Result` with the `Ok` constructor filled in.
 
 use crate::{
-	brands::Brand1,
+	brands::{Brand, Brand1},
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Apply as TypeclassApply, Bind, Functor, Pure},
+	typeclasses::{Apply as TypeclassApply, ApplyFirst, Bind, Functor, Pure},
 };
 
 /// Brand for the partially-applied form of `Result` with the `Ok` constructor filled in.
@@ -34,7 +34,7 @@ impl<T> Pure for ResultWithOkBrand<T> {
 	where
 		Self: Kind<(A,)>,
 	{
-		Self::inject(Err(a))
+		<Self as Brand<_, _>>::inject(Err(a))
 	}
 }
 
@@ -47,8 +47,8 @@ where
 	/// ```
 	/// use fp_library::{brands::ResultWithOkBrand, functions::{identity, map}};
 	///
-	/// assert_eq!(map::<ResultWithOkBrand<()>, _, _, _>(identity)(Err(())), Err(()));
-	/// assert_eq!(map::<ResultWithOkBrand<_>, _, _, _>(identity::<()>)(Ok(())), Ok(()));
+	/// assert_eq!(map::<ResultWithOkBrand<_>, _, _, _>(identity::<()>)(Ok(true)), Ok(true));
+	/// assert_eq!(map::<ResultWithOkBrand<bool>, _, _, _>(identity)(Err(())), Err(()));
 	/// ```
 	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -56,7 +56,7 @@ where
 		F: Fn(A) -> B,
 	{
 		move |fa| {
-			ResultWithOkBrand::inject(match ResultWithOkBrand::project(fa) {
+			<Self as Brand<_, _>>::inject(match <Self as Brand<_, _>>::project(fa) {
 				Ok(a) => Ok(a),
 				Err(e) => Err(f(e)),
 			})
@@ -73,10 +73,10 @@ where
 	/// ```
 	/// use fp_library::{brands::ResultWithOkBrand, functions::{apply, identity}};
 	///
-	/// assert_eq!(apply::<ResultWithOkBrand<()>, _, _, _>(Err(identity))(Err(())), Err(()));
-	/// assert_eq!(apply::<ResultWithOkBrand<_>, _, _, _>(Err(identity::<()>))(Ok(())), Ok(()));
-	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Err(())), Ok(()));
-	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Ok(())), Ok(()));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(true))(Ok(true)), Ok(true));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(true))(Err(())), Ok(true));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, _, _, _>(Err(identity::<()>))(Ok(true)), Ok(true));
+	/// assert_eq!(apply::<ResultWithOkBrand<bool>, _, _, _>(Err(identity))(Err(())), Err(()));
 	/// ```
 	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -84,9 +84,39 @@ where
 		F: Fn(A) -> B,
 		Apply<Self, (F,)>: Clone,
 	{
-		move |fa| match (ResultWithOkBrand::project(ff.to_owned()), &fa) {
-			(Ok(e), _) => ResultWithOkBrand::inject(Ok::<_, B>(e)),
+		move |fa| match (<Self as Brand<_, _>>::project(ff.to_owned()), &fa) {
+			(Ok(e), _) => <Self as Brand<_, _>>::inject(Ok::<_, B>(e)),
 			(Err(f), _) => map::<ResultWithOkBrand<_>, F, _, _>(f)(fa),
+		}
+	}
+}
+
+impl<T> ApplyFirst for ResultWithOkBrand<T> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::ResultWithOkBrand, functions::{apply_first, identity}};
+	///
+	/// assert_eq!(apply_first::<ResultWithOkBrand<_>, bool, bool>(Ok(()))(Ok(())), Ok(()));
+	/// assert_eq!(apply_first::<ResultWithOkBrand<_>, bool, _>(Ok(()))(Err(false)), Ok(()));
+	/// assert_eq!(apply_first::<ResultWithOkBrand<_>, _, bool>(Err(true))(Ok(())), Ok(()));
+	/// assert_eq!(apply_first::<ResultWithOkBrand<()>, _, _>(Err(true))(Err(false)), Err(true));
+	/// ```
+	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	where
+		Self: Kind<(A,)> + Kind<(B,)>,
+		Apply<Self, (A,)>: Clone,
+	{
+		move |fb| {
+			<Self as Brand<_, (A,)>>::inject(
+				match (
+					<Self as Brand<_, _>>::project(fa.to_owned()),
+					<Self as Brand<_, (B,)>>::project(fb),
+				) {
+					(Err(a), Err(_a)) => Err(a),
+					(Ok(e), _) | (_, Ok(e)) => Ok(e),
+				},
+			)
 		}
 	}
 }
@@ -100,8 +130,8 @@ where
 	/// ```
 	/// use fp_library::{brands::ResultWithOkBrand, functions::{bind, pure}};
 	///
-	/// assert_eq!(bind::<ResultWithOkBrand<()>, _, _, _>(Err(()))(pure::<ResultWithOkBrand<_>, _>), Err(()));
 	/// assert_eq!(bind::<ResultWithOkBrand<_>, _, _, _>(Ok(()))(pure::<ResultWithOkBrand<_>, ()>), Ok(()));
+	/// assert_eq!(bind::<ResultWithOkBrand<()>, _, _, _>(Err(()))(pure::<ResultWithOkBrand<_>, _>), Err(()));
 	/// ```
 	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
@@ -110,9 +140,9 @@ where
 		Apply<Self, (A,)>: Clone,
 	{
 		move |f| {
-			ResultWithOkBrand::inject(
-				ResultWithOkBrand::project(ma.to_owned())
-					.or_else(|a| -> Result<_, B> { ResultWithOkBrand::project(f(a)) }),
+			<Self as Brand<_, _>>::inject(
+				<Self as Brand<_, _>>::project(ma.to_owned())
+					.or_else(|a| -> Result<_, B> { <Self as Brand<_, _>>::project(f(a)) }),
 			)
 		}
 	}
