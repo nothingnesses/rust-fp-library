@@ -9,3 +9,7 @@ license = "BlueOak-1.0.0"
 keywords = ["functional", "higher-kinded", "types"]
 categories = ["algorithms", "data-structures", "rust-patterns"]
 workspace = "../"
+
+[dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"
