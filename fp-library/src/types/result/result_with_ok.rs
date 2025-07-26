@@ -4,7 +4,7 @@ use crate::{
 	brands::Brand1,
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Bind, Functor, Pure, Sequence},
+	typeclasses::{Apply as TypeclassApply, Bind, Functor, Pure},
 };
 
 /// Brand for the partially-applied form of `Result` with the `Ok` constructor filled in.
@@ -64,21 +64,21 @@ where
 	}
 }
 
-impl<T> Sequence for ResultWithOkBrand<T>
+impl<T> TypeclassApply for ResultWithOkBrand<T>
 where
 	T: Clone,
 {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::ResultWithOkBrand, functions::{identity, sequence}};
+	/// use fp_library::{brands::ResultWithOkBrand, functions::{apply, identity}};
 	///
-	/// assert_eq!(sequence::<ResultWithOkBrand<()>, _, _, _>(Err(identity))(Err(())), Err(()));
-	/// assert_eq!(sequence::<ResultWithOkBrand<_>, _, _, _>(Err(identity::<()>))(Ok(())), Ok(()));
-	/// assert_eq!(sequence::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Err(())), Ok(()));
-	/// assert_eq!(sequence::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Ok(())), Ok(()));
+	/// assert_eq!(apply::<ResultWithOkBrand<()>, _, _, _>(Err(identity))(Err(())), Err(()));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, _, _, _>(Err(identity::<()>))(Ok(())), Ok(()));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Err(())), Ok(()));
+	/// assert_eq!(apply::<ResultWithOkBrand<_>, fn(()) -> (), _, _>(Ok(()))(Ok(())), Ok(()));
 	/// ```
-	fn sequence<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,

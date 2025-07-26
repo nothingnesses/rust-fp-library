@@ -4,7 +4,7 @@ use crate::{
 	brands::{Brand, Brand1},
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Bind, Functor, Pure, Sequence},
+	typeclasses::{Apply as TypeclassApply, Bind, Functor, Pure},
 };
 
 /// Wraps a value.
@@ -57,15 +57,15 @@ impl Functor for SoloBrand {
 	}
 }
 
-impl Sequence for SoloBrand {
+impl TypeclassApply for SoloBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::SoloBrand, functions::{identity, sequence}, types::Solo};
+	/// use fp_library::{brands::SoloBrand, functions::{apply, identity}, types::Solo};
 	///
-	/// assert_eq!(sequence::<SoloBrand, _, _, _>(Solo(identity))(Solo(())), Solo(()));
+	/// assert_eq!(apply::<SoloBrand, _, _, _>(Solo(identity))(Solo(())), Solo(()));
 	/// ```
-	fn sequence<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,

@@ -4,7 +4,7 @@ use crate::{
 	brands::Brand1,
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Bind, Empty, Functor, Pure, Sequence},
+	typeclasses::{Apply as TypeclassApply, Bind, Functor, Pure},
 };
 
 /// Brand for `Option`.
@@ -20,18 +20,6 @@ impl<A> Brand1<Option<A>, A> for OptionBrand {
 	}
 	fn project(a: Apply<Self, (A,)>) -> Option<A> {
 		a
-	}
-}
-
-impl Empty for OptionBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::OptionBrand, functions::empty};
-	///
-	/// assert_eq!(empty::<OptionBrand, ()>(), None);
-	fn empty<A>() -> Apply<Self, (A,)> {
-		None
 	}
 }
 
@@ -68,18 +56,18 @@ impl Functor for OptionBrand {
 	}
 }
 
-impl Sequence for OptionBrand {
+impl TypeclassApply for OptionBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::OptionBrand, functions::{identity, sequence}};
+	/// use fp_library::{brands::OptionBrand, functions::{apply, identity}};
 	///
-	/// assert_eq!(sequence::<OptionBrand, _, _, _>(Some(identity))(Some(())), Some(()));
-	/// assert_eq!(sequence::<OptionBrand, _, _, _>(Some(identity::<()>))(None), None);
-	/// assert_eq!(sequence::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())), None);
-	/// assert_eq!(sequence::<OptionBrand, fn(()) -> (), _, _>(None)(None), None);
+	/// assert_eq!(apply::<OptionBrand, _, _, _>(Some(identity))(Some(())), Some(()));
+	/// assert_eq!(apply::<OptionBrand, _, _, _>(Some(identity::<()>))(None), None);
+	/// assert_eq!(apply::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())), None);
+	/// assert_eq!(apply::<OptionBrand, fn(()) -> (), _, _>(None)(None), None);
 	/// ```
-	fn sequence<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		F: Fn(A) -> B,

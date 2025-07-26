@@ -1,9 +1,7 @@
 //! Generic, free helper functions, combinators and typeclass functions that
 //! dispatch to instance methods.
 
-pub use super::typeclasses::{
-	bind::bind, empty::empty, functor::map, pure::pure, sequence::sequence,
-};
+pub use super::typeclasses::{apply::apply, bind::bind, functor::map, pure::pure};
 
 /// Returns its input.
 ///
