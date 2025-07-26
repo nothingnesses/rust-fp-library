@@ -4,7 +4,7 @@ use crate::{
 	brands::{Brand, Brand1},
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
-	typeclasses::{Apply as TypeclassApply, ApplyFirst, Bind, Functor, Pure},
+	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
 /// [Brand][crate::brands] for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
@@ -114,6 +114,36 @@ impl<T> ApplyFirst for ResultWithOkBrand<T> {
 					<Self as Brand<_, (B,)>>::project(fb),
 				) {
 					(Err(a), Err(_a)) => Err(a),
+					(Ok(e), _) | (_, Ok(e)) => Ok(e),
+				},
+			)
+		}
+	}
+}
+
+impl<T> ApplySecond for ResultWithOkBrand<T> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::ResultWithOkBrand, functions::{apply_second, identity}};
+	///
+	/// assert_eq!(apply_second::<ResultWithOkBrand<_>, bool, bool>(Ok(()))(Ok(())), Ok(()));
+	/// assert_eq!(apply_second::<ResultWithOkBrand<_>, bool, _>(Ok(()))(Err(false)), Ok(()));
+	/// assert_eq!(apply_second::<ResultWithOkBrand<_>, _, bool>(Err(true))(Ok(())), Ok(()));
+	/// assert_eq!(apply_second::<ResultWithOkBrand<()>, _, _>(Err(true))(Err(false)), Err(false));
+	/// ```
+	fn apply_second<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	where
+		Self: Kind<(A,)> + Kind<(B,)>,
+		Apply<Self, (A,)>: Clone,
+	{
+		move |fb| {
+			<Self as Brand<_, (B,)>>::inject(
+				match (
+					<Self as Brand<_, (A,)>>::project(fa.to_owned()),
+					<Self as Brand<_, _>>::project(fb),
+				) {
+					(Err(_a), Err(a)) => Err(a),
 					(Ok(e), _) | (_, Ok(e)) => Ok(e),
 				},
 			)
