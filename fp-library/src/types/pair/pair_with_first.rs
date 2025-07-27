@@ -1,8 +1,7 @@
 //! Implementations for the partially-applied form of [`Pair`] with [the first value][Pair#structfield.0] filled in.
 
 use crate::{
-	brands::{Brand, Brand1},
-	hkt::{Apply, Kind, Kind1},
+	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	typeclasses::Functor,
 	types::Pair,
 };

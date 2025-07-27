@@ -1,21 +1,13 @@
 //! Implementations for [`Option`].
 
 use crate::{
-	brands::{Brand, Brand1},
 	functions::map,
-	hkt::{Apply, Kind, Kind1},
+	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
-impl_brand!(
-	/// [Brand][crate::brands] for [`Option`].
-	OptionBrand,
-	Option,
-	Kind1,
-	Brand1,
-	(A)
-);
+impl_brand!(OptionBrand, Option, Kind1, Brand1, (A));
 
 impl Pure for OptionBrand {
 	/// # Examples

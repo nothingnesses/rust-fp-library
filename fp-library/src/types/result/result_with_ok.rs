@@ -1,9 +1,8 @@
 //! Implementations for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
 
 use crate::{
-	brands::{Brand, Brand1},
 	functions::map,
-	hkt::{Apply, Kind, Kind1},
+	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 

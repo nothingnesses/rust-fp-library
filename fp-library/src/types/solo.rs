@@ -1,9 +1,8 @@
 //! Implementations for [`Solo`], a type that wraps a value.
 
 use crate::{
-	brands::{Brand, Brand1},
 	functions::{identity, map},
-	hkt::{Apply, Kind, Kind1},
+	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
@@ -12,14 +11,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solo<A>(pub A);
 
-impl_brand!(
-	/// [Brand][crate::brands] for [`Solo`].
-	SoloBrand,
-	Solo,
-	Kind1,
-	Brand1,
-	(A)
-);
+impl_brand!(SoloBrand, Solo, Kind1, Brand1, (A));
 
 impl Pure for SoloBrand {
 	/// # Examples

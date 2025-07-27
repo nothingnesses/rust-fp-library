@@ -1,7 +1,7 @@
-//! Generic, free helper functions, combinators and re-exports of [typeclass][crate::typeclasses]
+//! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
 //! functions that dispatch to instance methods.
 
-pub use super::typeclasses::{
+pub use crate::typeclasses::{
 	apply::apply, apply_first::apply_first, apply_second::apply_second, bind::bind, functor::map,
 	pure::pure,
 };

@@ -1,6 +1,6 @@
 //! Implementations for [`Result`].
 
-use crate::hkt::Kind2;
+use crate::hkt::{Apply, Brand2, Kind2};
 
 pub mod result_with_err;
 pub mod result_with_ok;
@@ -13,4 +13,14 @@ pub struct ResultBrand;
 
 impl<A, B> Kind2<A, B> for ResultBrand {
 	type Output = Result<B, A>;
+}
+
+impl<A, B> Brand2<Result<B, A>, A, B> for ResultBrand {
+	fn inject(a: Result<B, A>) -> Apply<Self, (A, B)> {
+		a
+	}
+
+	fn project(a: Apply<Self, (A, B)>) -> Result<B, A> {
+		a
+	}
 }

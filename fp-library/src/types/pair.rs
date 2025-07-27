@@ -1,8 +1,7 @@
 //! Implementations for [`Pair`], a type that wraps two values.
 
 use crate::{
-	brands::Brand2,
-	hkt::{Apply, Kind2},
+	hkt::{Apply, Brand2, Kind2},
 	impl_brand,
 };
 
@@ -16,11 +15,4 @@ pub mod pair_with_second;
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
-impl_brand!(
-	/// [Brand][crate::brands] for [`Pair`].
-	PairBrand,
-	Pair,
-	Kind2,
-	Brand2,
-	(A, B)
-);
+impl_brand!(PairBrand, Pair, Kind2, Brand2, (A, B));
