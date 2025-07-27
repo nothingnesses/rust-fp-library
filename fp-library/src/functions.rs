@@ -52,8 +52,8 @@ where
 	move |_b| a.to_owned()
 }
 
-/// Returns a curried version of the input binary function,
-/// but with its arguments flipped.
+/// Returns a version of the input curried binary function
+/// with its arguments flipped.
 ///
 /// forall a b c. (a -> b -> c) -> b -> a -> c
 ///
