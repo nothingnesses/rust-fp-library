@@ -17,4 +17,4 @@ pub trait Brand<Concrete, Parameters>: Kind<Parameters> {
 	fn project(a: Self::Output) -> Concrete;
 }
 
-pub use crate::macros::hkt::{Brand1, Brand2, Brand3, Brand4};
+pub use crate::macros::generate_kind::{Brand1, Brand2, Brand3, Brand4};

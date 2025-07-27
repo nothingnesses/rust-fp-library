@@ -8,4 +8,4 @@ pub trait Kind<Parameters> {
 	type Output;
 }
 
-pub use crate::macros::hkt::{Kind1, Kind2, Kind3, Kind4};
+pub use crate::macros::generate_kind::{Kind1, Kind2, Kind3, Kind4};

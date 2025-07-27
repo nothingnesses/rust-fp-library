@@ -4,6 +4,7 @@ use crate::{
 	brands::{Brand, Brand1},
 	functions::{identity, map},
 	hkt::{Apply, Kind, Kind1},
+	impl_brand,
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
@@ -11,21 +12,14 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solo<A>(pub A);
 
-/// [Brand][crate::brands] for [`Solo`].
-pub struct SoloBrand;
-
-impl<A> Kind1<A> for SoloBrand {
-	type Output = Solo<A>;
-}
-
-impl<A> Brand1<Solo<A>, A> for SoloBrand {
-	fn inject(a: Solo<A>) -> Apply<Self, (A,)> {
-		a
-	}
-	fn project(a: Apply<Self, (A,)>) -> Solo<A> {
-		a
-	}
-}
+impl_brand!(
+	/// [Brand][crate::brands] for [`Solo`].
+	SoloBrand,
+	Solo,
+	Kind1,
+	Brand1,
+	(A)
+);
 
 impl Pure for SoloBrand {
 	/// # Examples

@@ -5,8 +5,9 @@ use crate::{
 	hkt::{Apply, Kind},
 };
 
-/// Macro to generate boilerplate for [HKTs][crate::hkt] of a specific arity.
-macro_rules! hkt {
+/// Generates boilerplate for [HKTs][crate::hkt] of a specific arity.
+#[macro_export]
+macro_rules! generate_kind {
 	(
 		// Kind trait name (e.g., Kind1).
 		$KindN:ident,
@@ -14,7 +15,7 @@ macro_rules! hkt {
 		$ApplyN:ident,
 		// Brand trait name (e.g., Brand1).
 		$BrandN:ident,
-		// Documentation string for the kind (e.g., "* -> *").
+		// String representation of the kind (e.g., "* -> *").
 		$kind_str:literal,
 		// List of generic type parameters (e.g., (A, B)).
 		($($T:ident),+)
@@ -64,7 +65,7 @@ macro_rules! hkt {
 	};
 }
 
-hkt!(Kind1, Apply1, Brand1, "* -> *", (A));
-hkt!(Kind2, Apply2, Brand2, "* -> * -> *", (A, B));
-hkt!(Kind3, Apply3, Brand3, "* -> * -> * -> *", (A, B, C));
-hkt!(Kind4, Apply4, Brand4, "* -> * -> * -> * -> *", (A, B, C, D));
+generate_kind!(Kind1, Apply1, Brand1, "* -> *", (A));
+generate_kind!(Kind2, Apply2, Brand2, "* -> * -> *", (A, B));
+generate_kind!(Kind3, Apply3, Brand3, "* -> * -> * -> *", (A, B, C));
+generate_kind!(Kind4, Apply4, Brand4, "* -> * -> * -> * -> *", (A, B, C, D));

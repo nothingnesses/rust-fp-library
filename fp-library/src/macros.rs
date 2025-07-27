@@ -1,3 +1,4 @@
 //! Macros.
 
-pub mod hkt;
+pub mod generate_kind;
+pub mod impl_brand;

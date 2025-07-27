@@ -4,24 +4,18 @@ use crate::{
 	brands::{Brand, Brand1},
 	functions::map,
 	hkt::{Apply, Kind, Kind1},
+	impl_brand,
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
-/// [Brand][crate::brands] for [`Option`].
-pub struct OptionBrand;
-
-impl<A> Kind1<A> for OptionBrand {
-	type Output = Option<A>;
-}
-
-impl<A> Brand1<Option<A>, A> for OptionBrand {
-	fn inject(a: Option<A>) -> Apply<Self, (A,)> {
-		a
-	}
-	fn project(a: Apply<Self, (A,)>) -> Option<A> {
-		a
-	}
-}
+impl_brand!(
+	/// [Brand][crate::brands] for [`Option`].
+	OptionBrand,
+	Option,
+	Kind1,
+	Brand1,
+	(A)
+);
 
 impl Pure for OptionBrand {
 	/// # Examples

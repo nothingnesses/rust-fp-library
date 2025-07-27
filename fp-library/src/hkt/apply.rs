@@ -8,4 +8,4 @@ use crate::hkt::Kind;
 /// `Parameters` should be a tuple containing the types parameters.
 pub type Apply<Brand, Parameters> = <Brand as Kind<Parameters>>::Output;
 
-pub use crate::macros::hkt::{Apply1, Apply2, Apply3, Apply4};
+pub use crate::macros::generate_kind::{Apply1, Apply2, Apply3, Apply4};

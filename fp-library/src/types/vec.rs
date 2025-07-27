@@ -3,24 +3,18 @@
 use crate::{
 	brands::{Brand, Brand1},
 	hkt::{Apply, Kind, Kind1},
+	impl_brand,
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
-/// [Brand][crate::brands] for [`Vec`].
-pub struct VecBrand;
-
-impl<A> Kind1<A> for VecBrand {
-	type Output = Vec<A>;
-}
-
-impl<A> Brand1<Vec<A>, A> for VecBrand {
-	fn inject(a: Vec<A>) -> Apply<Self, (A,)> {
-		a
-	}
-	fn project(a: Apply<Self, (A,)>) -> Vec<A> {
-		a
-	}
-}
+impl_brand!(
+	/// [Brand][crate::brands] for [`Vec`].
+	VecBrand,
+	Vec,
+	Kind1,
+	Brand1,
+	(A)
+);
 
 impl Pure for VecBrand {
 	/// # Examples
