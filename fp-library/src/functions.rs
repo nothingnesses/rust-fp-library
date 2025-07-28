@@ -3,7 +3,7 @@
 
 pub use crate::typeclasses::{
 	apply::apply, apply_first::apply_first, apply_second::apply_second, bind::bind, functor::map,
-	pure::pure,
+	pure::pure, semigroup::append,
 };
 
 /// Takes a function `f`, returns a new function that takes a function `g`,

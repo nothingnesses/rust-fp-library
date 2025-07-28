@@ -8,6 +8,7 @@ pub mod bind;
 pub mod functor;
 pub mod monad;
 pub mod pure;
+pub mod semigroup;
 
 pub use self::applicative::*;
 pub use self::apply::*;
@@ -17,3 +18,4 @@ pub use self::bind::*;
 pub use self::functor::*;
 pub use self::monad::*;
 pub use self::pure::*;
+pub use self::semigroup::*;

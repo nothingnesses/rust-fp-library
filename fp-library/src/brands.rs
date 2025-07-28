@@ -5,5 +5,6 @@ pub use crate::types::{
 	pair::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
 	result::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	solo::SoloBrand,
+	string::StringBrand,
 	vec::VecBrand,
 };
