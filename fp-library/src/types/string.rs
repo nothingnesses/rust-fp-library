@@ -1,9 +1,9 @@
 //! Implementations for [`String`].
 
 use crate::{
-	hkt::{Apply, Brand, Brand0, Kind, Kind0},
+	hkt::{Apply, Brand0, Kind0},
 	impl_brand,
-	typeclasses::Semigroup,
+	typeclasses::{Monoid, Semigroup},
 };
 
 impl_brand!(StringBrand, String, Kind0, Brand0, ());
@@ -14,22 +14,31 @@ impl Semigroup for StringBrand {
 	/// ```rust
 	/// use fp_library::{brands::StringBrand, functions::append};
 	///
-	/// let s1 = "Hello, ".to_string();
-	/// let s2 = "World!".to_string();
 	/// assert_eq!(
-	///     append::<StringBrand>(s1, s2),
+	///     append::<StringBrand>("Hello, ".to_string())("World!".to_string()),
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append(
-		a: Apply<Self, ()>,
-		b: Apply<Self, ()>,
-	) -> Apply<Self, ()>
+	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()>
 	where
-		Self: Kind<()>,
+		Apply<Self, ()>: Clone,
 	{
-		let s1 = <Self as Brand<String, ()>>::project(a);
-		let s2 = <Self as Brand<String, ()>>::project(b);
-		<Self as Brand<String, ()>>::inject(s1 + &s2)
+		move |b| a.to_owned() + &b
+	}
+}
+
+impl Monoid for StringBrand {
+	/// # Examples
+	///
+	/// ```rust
+	/// use fp_library::{brands::StringBrand, functions::empty};
+	///
+	/// assert_eq!(
+	///     empty::<StringBrand>(),
+	///     ""
+	/// );
+	/// ```
+	fn empty() -> Apply<Self, ()> {
+		Apply::<Self, ()>::default()
 	}
 }

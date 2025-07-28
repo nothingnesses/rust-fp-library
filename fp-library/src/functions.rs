@@ -3,13 +3,23 @@
 
 pub use crate::typeclasses::{
 	apply::apply, apply_first::apply_first, apply_second::apply_second, bind::bind, functor::map,
-	pure::pure, semigroup::append,
+	monoid::empty, pure::pure, semigroup::append,
 };
 
-/// Takes a function `f`, returns a new function that takes a function `g`,
-/// then returns the final composed function `f . g`.
+/// Takes functions `f` and `g` and returns the function `f . g` (`f` composed with `g`).
 ///
-/// forall a b c. (b -> c) -> (a -> b) -> a -> c
+/// # Type Signature
+///
+/// `forall a b c. (b -> c) -> (a -> b) -> a -> c`
+///
+/// # Parameters
+///
+/// * `f`: A function from values of type `B` to values of type `C`.
+/// * `g`: A function from values of type `A` to values of type `B`.
+///
+/// # Returns
+///
+/// A function from values of type `A` to values of type `C`.
 ///
 /// # Examples
 ///
@@ -35,7 +45,18 @@ where
 
 /// Returns its first argument.
 ///
-/// forall a b. a -> b -> a
+/// # Type Signature
+///
+/// `forall a b. a -> b -> a`
+///
+/// # Parameters
+///
+/// * `a`: A value.
+/// * `b`: Some other value.
+///
+/// # Returns
+///
+/// The first value.
 ///
 /// # Examples
 ///
@@ -55,7 +76,17 @@ where
 /// Returns a version of the input curried binary function
 /// with its arguments flipped.
 ///
-/// forall a b c. (a -> b -> c) -> b -> a -> c
+/// # Type Signature
+///
+/// `forall a b c. (a -> b -> c) -> b -> a -> c`
+///
+/// # Parameters
+///
+/// * `f`: A curried binary function.
+///
+/// # Returns
+///
+/// A version of `f` that takes its arguments in reverse.
 ///
 /// # Examples
 ///
@@ -80,7 +111,17 @@ where
 
 /// Returns its input.
 ///
-/// forall a. a -> a
+/// # Type Signature
+///
+/// `forall a. a -> a`
+///
+/// # Parameters
+///
+/// * `a`: A value.
+///
+/// # Returns
+///
+/// The same value.
 ///
 /// # Examples
 ///

@@ -6,6 +6,10 @@ use crate::{
 	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
 };
 
+pub mod concrete_vec;
+
+pub use concrete_vec::*;
+
 impl_brand!(VecBrand, Vec, Kind1, Brand1, (A));
 
 impl Pure for VecBrand {

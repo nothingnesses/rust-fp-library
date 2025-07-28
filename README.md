@@ -9,6 +9,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
 
 ## References
 * [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)
+* [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
 * [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
 * [PureScript Pursuit](https://pursuit.purescript.org/)
 * [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)

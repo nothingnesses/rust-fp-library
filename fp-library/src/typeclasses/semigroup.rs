@@ -1,31 +1,71 @@
 use crate::hkt::{Apply, Kind};
 
-/// Represents types with an associative binary operation.
-pub trait Semigroup {
+/// A typeclass for semigroups.
+///
+/// A `Semigroup` is a set equipped with an associative binary operation.
+/// This means for any elements `a`, `b`, and `c` in the set, the operation
+/// satisfies: `(a <> b) <> c = a <> (b <> c)`.
+///
+/// In functional programming, semigroups are useful for combining values
+/// in a consistent way. They form the basis for more complex structures
+/// like monoids.
+///
+/// # Laws
+///
+/// Semigroup instances must satisfy the associative law:
+/// * Associativity: `append(append(x)(y))(z) = append(x)(append(y)(z))`
+///
+/// # Examples
+///
+/// Common semigroups include:
+/// * Strings with concatenation.
+/// * Numbers with addition.
+/// * Numbers with multiplication.
+/// * Lists with concatenation.
+pub trait Semigroup: Kind<()> {
 	/// Associative operation that combines two values of the same type.
 	///
-	/// forall a. Semigroup a => a -> a -> a
-	fn append(
-		a: Apply<Self, ()>,
-		b: Apply<Self, ()>,
-	) -> Apply<Self, ()>
+	/// # Parameters
+	///
+	/// * `a`: First value to combine.
+	/// * `b`: Second value to combine.
+	///
+	/// # Returns
+	///
+	/// The result of combining the two values using the semigroup operation.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Semigroup a => a -> a -> a`
+	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()>
 	where
-		Self: Kind<()>;
+		Apply<Self, ()>: Clone;
 }
 
 /// Associative operation that combines two values of the same type.
 ///
-/// Free function version that dispatches to the typeclass method.
+/// Free function version that dispatches to [the typeclass method][`Semigroup::append`].
 ///
-/// forall a. Semigroup a => a -> a -> a
-pub fn append<Brand>(
-	a: Apply<Brand, ()>,
-	b: Apply<Brand, ()>,
-) -> Apply<Brand, ()>
+/// # Type Signature
+///
+/// `forall a. Semigroup a => a -> a -> a`
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::{brands::StringBrand, functions::append};
+///
+/// assert_eq!(
+///     append::<StringBrand>("Hello, ".to_string())("World!".to_string()),
+///     "Hello, World!"
+/// );
+/// ```
+pub fn append<Brand>(a: Apply<Brand, ()>) -> impl Fn(Apply<Brand, ()>) -> Apply<Brand, ()>
 where
 	Brand: Kind<()> + Semigroup,
+	Apply<Brand, ()>: Clone,
 {
-	Brand::append(a, b)
+	move |b| Brand::append(a.to_owned())(b)
 }
 
 #[cfg(test)]
@@ -36,7 +76,7 @@ mod tests {
 	fn test_string_semigroup() {
 		let s1 = "Hello, ".to_string();
 		let s2 = "World!".to_string();
-		assert_eq!(append::<StringBrand>(s1, s2), "Hello, World!");
+		assert_eq!(append::<StringBrand>(s1)(s2), "Hello, World!");
 	}
 
 	#[test]
@@ -47,9 +87,9 @@ mod tests {
 
 		// (a <> b) <> c = a <> (b <> c)
 		let left_associated =
-			append::<StringBrand>(append::<StringBrand>(s1.clone(), s2.clone()), s3.clone());
+			append::<StringBrand>(append::<StringBrand>(s1.clone())(s2.clone()))(s3.clone());
 		let right_associated =
-			append::<StringBrand>(s1.clone(), append::<StringBrand>(s2.clone(), s3.clone()));
+			append::<StringBrand>(s1.clone())(append::<StringBrand>(s2.clone())(s3.clone()));
 
 		assert_eq!(left_associated, right_associated);
 		assert_eq!(left_associated, "abc");
