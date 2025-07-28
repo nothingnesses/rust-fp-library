@@ -13,5 +13,6 @@ pub trait Brand<Concrete, Parameters>: Kind<Parameters> {
 	fn project(a: Self::Output) -> Concrete;
 }
 
+make_trait_brand!(Brand0, "*", ());
 make_trait_brand!(Brand1, "* -> *", (A));
 make_trait_brand!(Brand2, "* -> * -> *", (A, B));

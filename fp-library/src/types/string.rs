@@ -1,6 +1,6 @@
 //! Implementations for [`String`].
 
-use crate::typeclasses::Semigroup;
+use crate::typeclasses::semigroup::Semigroup;
 
 /// Brand for [`String`].
 pub struct StringBrand;
