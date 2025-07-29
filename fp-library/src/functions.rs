@@ -32,10 +32,10 @@ pub use crate::typeclasses::{
 ///
 /// assert_eq!(times_two_add_one(3), 7); // 3 * 2 + 1 = 7
 /// ```
-pub fn compose<'a, A, B, C, F, G>(f: F) -> impl Fn(G) -> Box<dyn Fn(A) -> C + 'a>
+pub fn compose<'a, A, B, C, F, G>(f: F) -> impl Fn(G) -> Box<dyn 'a + Fn(A) -> C>
 where
-	F: Fn(B) -> C + Clone + 'a,
-	G: Fn(A) -> B + 'a,
+	F: 'a + Fn(B) -> C + Clone,
+	G: 'a + Fn(A) -> B,
 {
 	move |g| {
 		let f = f.to_owned();
@@ -97,10 +97,10 @@ where
 ///
 /// assert_eq!(flip(subtract)(1)(0), -1); // 0 - 1 = -1
 /// ```
-pub fn flip<'a, A, B, C, F, G>(f: F) -> impl Fn(B) -> Box<dyn Fn(A) -> C + 'a>
+pub fn flip<'a, A, B, C, F, G>(f: F) -> impl Fn(B) -> Box<dyn 'a + Fn(A) -> C>
 where
-	B: Clone + 'a,
-	F: Fn(A) -> G + Clone + 'a,
+	B: 'a + Clone,
+	F: 'a + Fn(A) -> G + Clone,
 	G: Fn(B) -> C,
 {
 	move |b| {
