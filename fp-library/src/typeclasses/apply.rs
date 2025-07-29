@@ -25,7 +25,7 @@ pub trait Apply {
 	///
 	/// # Returns
 	///
-	/// The result of applying the function to the value, both within the context.
+	/// The result of applying the function to the value, all within the context.
 	fn apply<F, A, B>(ff: App<Self, (F,)>) -> impl Fn(App<Self, (A,)>) -> App<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
@@ -41,6 +41,15 @@ pub trait Apply {
 /// # Type Signature
 ///
 /// `forall f a b. Apply f => f (a -> b) -> f a -> f b`
+///
+/// # Parameters
+///
+/// * `ff`: A function wrapped in the context.
+/// * `fa`: A value wrapped in the context.
+///
+/// # Returns
+///
+/// The result of applying the function to the value, all within the context.
 ///
 /// # Examples
 ///
@@ -59,5 +68,5 @@ where
 	F: Fn(A) -> B,
 	A: Clone,
 {
-	move |fa| Brand::apply::<F, _, _>(ff.to_owned())(fa)
+	Brand::apply::<F, _, _>(ff)
 }

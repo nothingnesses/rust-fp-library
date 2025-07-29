@@ -2,7 +2,7 @@ use crate::{hkt::Apply, typeclasses::Semigroup};
 
 /// A typeclass for monoids.
 ///
-/// `Monoid` extends `Semigroup` with an identity element. A monoid is a set
+/// `Monoid` extends [`Semigroup`] with an identity element. A monoid is a set
 /// equipped with an associative binary operation and an identity element.
 ///
 /// In functional programming, monoids are useful for combining values in
@@ -12,9 +12,9 @@ use crate::{hkt::Apply, typeclasses::Semigroup};
 /// # Laws
 ///
 /// Monoid instances must satisfy the following laws:
-/// * Left identity: `append(empty(), x) = x`
-/// * Right identity: `append(x, empty()) = x`
-/// * Associativity: `append(append(x, y), z) = append(x, append(y, z))`
+/// * Left identity: `append(empty(), x) = x`.
+/// * Right identity: `append(x, empty()) = x`.
+/// * Associativity: `append(append(x, y), z) = append(x, append(y, z))`.
 ///
 /// # Examples
 ///
@@ -32,8 +32,8 @@ pub trait Monoid: Semigroup {
 	///
 	/// # Returns
 	///
-	/// The identity element such that when combined with any other element
-	/// using the semigroup operation, it leaves the other element unchanged.
+	/// The identity element which, when combined with any other element
+	/// using the semigroup operation, leaves the other element unchanged.
 	fn empty() -> Apply<Self, ()>;
 }
 
@@ -47,8 +47,8 @@ pub trait Monoid: Semigroup {
 ///
 /// # Returns
 ///
-/// The identity element such that when combined with any other element
-/// using the semigroup operation, it leaves the other element unchanged.
+/// The identity element which, when combined with any other element
+/// using the semigroup operation, leaves the other element unchanged.
 ///
 /// # Examples
 ///

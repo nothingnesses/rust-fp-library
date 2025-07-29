@@ -8,8 +8,8 @@ use crate::hkt::{Apply, Kind};
 /// # Laws
 ///
 /// Functors must satisfy the following laws:
-/// * Identity: `map(identity) = identity`
-/// * Composition: `map(f . g) = map(f) . map(g)`
+/// * Identity: `map(identity) = identity`.
+/// * Composition: `map(f . g) = map(f) . map(g)`.
 pub trait Functor {
 	/// Maps a function over the values in the functor context.
 	///
@@ -39,6 +39,15 @@ pub trait Functor {
 ///
 /// `forall f a b. Functor f => (a -> b) -> f a -> f b`
 ///
+/// # Parameters
+///
+/// * `f`: A function to apply to the values within the functor context.
+/// * `fa`: A functor containing values of type `A`.
+///
+/// # Returns
+///
+/// A functor containing values of type `B`.
+///
 /// # Examples
 ///
 /// ```
@@ -51,5 +60,5 @@ where
 	Brand: Kind<(A,)> + Kind<(B,)> + Functor,
 	F: Fn(A) -> B,
 {
-	move |fa| Brand::map(&f)(fa)
+	Brand::map(f)
 }

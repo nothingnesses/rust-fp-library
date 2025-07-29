@@ -36,6 +36,15 @@ pub trait ApplySecond {
 ///
 /// `forall f a b. ApplySecond f => f a -> f b -> f b`
 ///
+/// # Parameters
+///
+/// * `fa`: The first context containing a value (will be discarded).
+/// * `fb`: The second context containing a value.
+///
+/// # Returns
+///
+/// The second context with its value preserved.
+///
 /// # Examples
 ///
 /// ```

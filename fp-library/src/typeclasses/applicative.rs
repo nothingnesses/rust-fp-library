@@ -23,13 +23,6 @@ pub trait Applicative: Functor + Pure + Apply + ApplyFirst + ApplySecond {}
 /// Blanket implementation for the [`Applicative`] typeclass.
 ///
 /// Any type that implements all the required supertraits automatically implements [`Applicative`].
-///
-/// The supertraits are:
-/// * [`Functor`]: for mapping functions over values in a context.
-/// * [`Pure`]: for lifting values into a context.
-/// * [`Apply`]: for applying functions in a context to values in a context.
-/// * [`ApplyFirst`]: for combining two contexts, keeping the first value.
-/// * [`ApplySecond`]: for combining two contexts, keeping the second value.
 impl<Brand> Applicative for Brand where Brand: Functor + Pure + Apply + ApplyFirst + ApplySecond {}
 
 #[cfg(test)]

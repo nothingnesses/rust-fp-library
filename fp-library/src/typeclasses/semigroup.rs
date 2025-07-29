@@ -13,7 +13,7 @@ use crate::hkt::{Apply, Kind};
 /// # Laws
 ///
 /// Semigroup instances must satisfy the associative law:
-/// * Associativity: `append(append(x)(y))(z) = append(x)(append(y)(z))`
+/// * Associativity: `append(append(x)(y))(z) = append(x)(append(y)(z))`.
 ///
 /// # Examples
 ///
@@ -25,6 +25,10 @@ use crate::hkt::{Apply, Kind};
 pub trait Semigroup: Kind<()> {
 	/// Associative operation that combines two values of the same type.
 	///
+	/// # Type Signature
+	///
+	/// `forall a. Semigroup a => a -> a -> a`
+	///
 	/// # Parameters
 	///
 	/// * `a`: First value to combine.
@@ -33,13 +37,7 @@ pub trait Semigroup: Kind<()> {
 	/// # Returns
 	///
 	/// The result of combining the two values using the semigroup operation.
-	///
-	/// # Type Signature
-	///
-	/// `forall a. Semigroup a => a -> a -> a`
-	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()>
-	where
-		Apply<Self, ()>: Clone;
+	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()>;
 }
 
 /// Associative operation that combines two values of the same type.
@@ -49,6 +47,15 @@ pub trait Semigroup: Kind<()> {
 /// # Type Signature
 ///
 /// `forall a. Semigroup a => a -> a -> a`
+///
+/// # Parameters
+///
+/// * `a`: First value to combine.
+/// * `b`: Second value to combine.
+///
+/// # Returns
+///
+/// The result of combining the two values using the semigroup operation.
 ///
 /// # Examples
 ///
@@ -63,9 +70,8 @@ pub trait Semigroup: Kind<()> {
 pub fn append<Brand>(a: Apply<Brand, ()>) -> impl Fn(Apply<Brand, ()>) -> Apply<Brand, ()>
 where
 	Brand: Kind<()> + Semigroup,
-	Apply<Brand, ()>: Clone,
 {
-	move |b| Brand::append(a.to_owned())(b)
+	Brand::append(a)
 }
 
 #[cfg(test)]

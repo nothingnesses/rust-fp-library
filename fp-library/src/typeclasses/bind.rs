@@ -2,7 +2,7 @@ use crate::hkt::{Apply, Kind};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
-/// If x has type `m a` and `f` has type `a -> m b`, then `bind(x)(f)` has type `m b`,
+/// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x)(f)` has type `m b`,
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
 ///
@@ -39,6 +39,15 @@ pub trait Bind {
 ///
 /// `forall m a b. Bind m => m a -> (a -> m b) -> m b`
 ///
+/// # Parameters
+///
+/// * `ma`: The first computation in the context.
+/// * `f`: A function that takes the result of the first computation and returns the second computation in the context.
+///
+/// # Returns
+///
+/// A computation that sequences the two operations.
+///
 /// # Examples
 ///
 /// ```
@@ -52,5 +61,5 @@ where
 	Apply<Brand, (A,)>: Clone,
 	F: Fn(A) -> Apply<Brand, (B,)>,
 {
-	move |f| Brand::bind::<F, A, B>(ma.to_owned())(f)
+	Brand::bind::<F, A, B>(ma)
 }

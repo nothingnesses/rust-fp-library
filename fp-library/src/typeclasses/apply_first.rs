@@ -37,6 +37,15 @@ pub trait ApplyFirst {
 ///
 /// `forall f a b. ApplyFirst f => f a -> f b -> f a`
 ///
+/// # Parameters
+///
+/// * `fa`: The first context containing a value.
+/// * `fb`: The second context containing a value (will be discarded).
+///
+/// # Returns
+///
+/// The first context with its value preserved.
+///
 /// # Examples
 ///
 /// ```

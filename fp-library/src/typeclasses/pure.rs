@@ -31,6 +31,14 @@ pub trait Pure {
 ///
 /// `forall f a. Pure f => a -> f a`
 ///
+/// # Parameters
+///
+/// * `a`: A value to be lifted into the context.
+///
+/// # Returns
+///
+/// The value wrapped in the context.
+///
 /// # Examples
 ///
 /// ```

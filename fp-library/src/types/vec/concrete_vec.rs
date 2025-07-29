@@ -33,10 +33,7 @@ where
 	///     vec![true, false]
 	/// );
 	/// ```
-	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()>
-	where
-		Apply<Self, ()>: Clone,
-	{
+	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()> {
 		move |b| [a.to_owned(), b.to_owned()].concat()
 	}
 }
