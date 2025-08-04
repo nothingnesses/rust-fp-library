@@ -33,7 +33,7 @@ pub trait Bind {
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
-/// Free function version that dispatches to [the typeclass method][`Bind::bind`].
+/// Free function version that dispatches to [the typeclass' associated function][`Bind::bind`].
 ///
 /// # Type Signature
 ///

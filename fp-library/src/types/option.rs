@@ -1,6 +1,7 @@
 //! Implementations for [`Option`].
 
 use crate::{
+	aliases::ClonableFn,
 	functions::map,
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
@@ -221,8 +222,8 @@ impl Foldable for OptionBrand {
 	/// );
 	/// ```
 	fn fold_right<'a, A, B>(
-		f: crate::aliases::ClonableFn<'a, A, crate::aliases::ClonableFn<'a, B, B>>
-	) -> crate::aliases::ClonableFn<'a, B, crate::aliases::ClonableFn<'a, Apply<Self, (A,)>, B>>
+		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
+	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
 	where
 		Self: 'a + Kind<(A,)>,
 		A: 'a + Clone,

@@ -39,9 +39,7 @@ pub trait Foldable {
 	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(
-	///         vec![1, 2, 3]
-	///     ),
+	///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
 	///     11
 	/// );
 	/// ```
@@ -56,9 +54,9 @@ pub trait Foldable {
 	{
 		Arc::new(move |b| {
 			Arc::new({
-				let flip_f = flip(f.clone());
+				let f = f.clone();
 				move |fa| {
-					(((Self::fold_right(compose(flip(Arc::new(compose)))(flip_f.clone())))(
+					(((Self::fold_right(compose(flip(Arc::new(compose)))(flip(f.clone()))))(
 						Arc::new(identity),
 					))(fa))(b.clone())
 				}
@@ -140,9 +138,7 @@ pub trait Foldable {
 	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(
-	///         vec![1, 2, 3]
-	///     ),
+	///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
 	///     17
 	/// );
 	/// ```
@@ -158,7 +154,7 @@ pub trait Foldable {
 
 /// Folds the structure by applying a function from left to right.
 ///
-/// Free function version that dispatches to [the typeclass method][`Foldable::fold_left`].
+/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_left`].
 ///
 /// The default implementation of `fold_left` is implemented in terms of [`fold_right`], [`flip`], [`compose`] and [`identity`] where:
 ///
@@ -185,9 +181,7 @@ pub trait Foldable {
 /// use std::sync::Arc;
 ///
 /// assert_eq!(
-///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(
-///         vec![1, 2, 3]
-///     ),
+///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
 ///     11
 /// );
 /// ```
@@ -205,7 +199,7 @@ where
 
 /// Maps values to a monoid and combines them.
 ///
-/// Free function version that dispatches to [the typeclass method][`Foldable::fold_map`].
+/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_map`].
 ///
 /// The default implementation of `fold_map` is implemented in terms of [`fold_right`], [`compose`], [`append`][crate::functions::append] and [`empty`][crate::functions::empty] where:
 ///
@@ -252,7 +246,7 @@ where
 
 /// Folds the structure by applying a function from right to left.
 ///
-/// Free function version that dispatches to [the typeclass method][`Foldable::fold_right`].
+/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_right`].
 ///
 /// # Type Signature
 ///
@@ -275,9 +269,7 @@ where
 /// use std::sync::Arc;
 ///
 /// assert_eq!(
-///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(
-///         vec![1, 2, 3]
-///     ),
+///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
 ///     17
 /// );
 /// ```

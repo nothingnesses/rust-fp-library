@@ -30,7 +30,7 @@ pub trait ApplySecond {
 
 /// Combines two contexts, keeping the value from the second context.
 ///
-/// Free function version that dispatches to [the typeclass method][`ApplySecond::apply_second`].
+/// Free function version that dispatches to [the typeclass' associated function][`ApplySecond::apply_second`].
 ///
 /// # Type Signature
 ///

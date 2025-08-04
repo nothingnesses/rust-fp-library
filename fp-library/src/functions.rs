@@ -1,5 +1,5 @@
 //! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
-//! functions that dispatch to instance methods.
+//! free functions that dispatch to associated functions of typeclass instances.
 
 use crate::aliases::ClonableFn;
 pub use crate::typeclasses::{

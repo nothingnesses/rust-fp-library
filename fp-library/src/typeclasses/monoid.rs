@@ -39,7 +39,7 @@ pub trait Monoid: Semigroup {
 
 /// Returns the identity element for the monoid.
 ///
-/// Free function version that dispatches to [the typeclass method][`Monoid::empty`].
+/// Free function version that dispatches to [the typeclass' associated function][`Monoid::empty`].
 ///
 /// # Type Signature
 ///

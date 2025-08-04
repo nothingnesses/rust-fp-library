@@ -33,7 +33,7 @@ pub trait Functor {
 
 /// Maps a function over the values in the functor context.
 ///
-/// Free function version that dispatches to [the typeclass method][`Functor::map`].
+/// Free function version that dispatches to [the typeclass' associated function][`Functor::map`].
 ///
 /// # Type Signature
 ///

@@ -31,7 +31,7 @@ pub trait ApplyFirst {
 
 /// Combines two contexts, keeping the value from the first context.
 ///
-/// Free function version that dispatches to [the typeclass method][`ApplyFirst::apply_first`].
+/// Free function version that dispatches to [the typeclass' associated function][`ApplyFirst::apply_first`].
 ///
 /// # Type Signature
 ///

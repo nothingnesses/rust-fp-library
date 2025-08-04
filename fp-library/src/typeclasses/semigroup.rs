@@ -42,7 +42,7 @@ pub trait Semigroup: Kind<()> {
 
 /// Associative operation that combines two values of the same type.
 ///
-/// Free function version that dispatches to [the typeclass method][`Semigroup::append`].
+/// Free function version that dispatches to [the typeclass' associated function][`Semigroup::append`].
 ///
 /// # Type Signature
 ///

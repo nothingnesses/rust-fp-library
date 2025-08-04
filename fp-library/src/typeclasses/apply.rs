@@ -36,7 +36,7 @@ pub trait Apply {
 
 /// Applies a function within a context to a value within a context.
 ///
-/// Free function version that dispatches to [the typeclass method][`Apply::apply`].
+/// Free function version that dispatches to [the typeclass' associated function][`Apply::apply`].
 ///
 /// # Type Signature
 ///

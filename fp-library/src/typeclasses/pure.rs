@@ -25,7 +25,7 @@ pub trait Pure {
 
 /// Lifts a value into the context.
 ///
-/// Free function version that dispatches to [the typeclass method][`Pure::pure`].
+/// Free function version that dispatches to [the typeclass' associated function][`Pure::pure`].
 ///
 /// # Type Signature
 ///
