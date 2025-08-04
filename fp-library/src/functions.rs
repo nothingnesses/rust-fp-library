@@ -32,14 +32,14 @@ pub use crate::typeclasses::{
 ///
 /// assert_eq!(times_two_add_one(3), 7); // 3 * 2 + 1 = 7
 /// ```
-pub fn compose<'a, A, B, C, F, G>(f: F) -> impl Fn(G) -> Box<dyn 'a + Fn(A) -> C>
-where
-	F: 'a + Fn(B) -> C + Clone,
-	G: 'a + Fn(A) -> B,
-{
+pub fn compose<'a, A: 'a, B: 'a, C, G>(
+	f: impl 'a + Fn(B) -> C + Clone
+) -> impl Fn(Box<dyn 'a + Fn(A) -> B>) -> Box<dyn 'a + Fn(A) -> C> {
 	move |g| {
-		let f = f.to_owned();
-		Box::new(move |a: A| f(g(a)))
+		Box::new({
+			let f = f.to_owned();
+			move |a| f(g(a))
+		})
 	}
 }
 
@@ -97,15 +97,14 @@ where
 ///
 /// assert_eq!(flip(subtract)(1)(0), -1); // 0 - 1 = -1
 /// ```
-pub fn flip<'a, A, B, C, F, G>(f: F) -> impl Fn(B) -> Box<dyn 'a + Fn(A) -> C>
-where
-	B: 'a + Clone,
-	F: 'a + Fn(A) -> G + Clone,
-	G: Fn(B) -> C,
-{
+pub fn flip<'a, A, B: 'a + Clone, C>(
+	f: impl 'a + Fn(A) -> Box<dyn 'a + Fn(B) -> C> + Clone
+) -> impl Fn(B) -> Box<dyn 'a + Fn(A) -> C> {
 	move |b| {
-		let f = f.to_owned();
-		Box::new(move |a| (f(a))(b.to_owned()))
+		Box::new({
+			let f = f.to_owned();
+			move |a| f(a)(b.to_owned())
+		})
 	}
 }
 
