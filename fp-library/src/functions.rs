@@ -1,10 +1,19 @@
 //! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
 //! functions that dispatch to instance methods.
 
+use crate::aliases::ClonableFn;
 pub use crate::typeclasses::{
-	apply::apply, apply_first::apply_first, apply_second::apply_second, bind::bind, functor::map,
-	monoid::empty, pure::pure, semigroup::append,
+	apply::apply,
+	apply_first::apply_first,
+	apply_second::apply_second,
+	bind::bind,
+	foldable::{fold_left, fold_map, fold_right},
+	functor::map,
+	monoid::empty,
+	pure::pure,
+	semigroup::append,
 };
+use std::sync::Arc;
 
 /// Takes functions `f` and `g` and returns the function `f . g` (`f` composed with `g`).
 ///
@@ -25,22 +34,21 @@ pub use crate::typeclasses::{
 ///
 /// ```rust
 /// use fp_library::functions::compose;
+/// use std::sync::Arc;
 ///
-/// let add_one = |x: i32| x + 1;
-/// let times_two = |x: i32| x * 2;
+/// let add_one = Arc::new(|x: i32| x + 1);
+/// let times_two = Arc::new(|x: i32| x * 2);
 /// let times_two_add_one = compose(add_one)(times_two);
 ///
 /// assert_eq!(times_two_add_one(3), 7); // 3 * 2 + 1 = 7
 /// ```
-pub fn compose<'a, A, B, C, F, G>(f: F) -> impl Fn(G) -> Box<dyn Fn(A) -> C + 'a>
-where
-	F: Fn(B) -> C + Clone + 'a,
-	G: Fn(A) -> B + 'a,
-{
-	move |g| {
-		let f = f.to_owned();
-		Box::new(move |a: A| f(g(a)))
-	}
+pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
+	f: ClonableFn<'a, B, C>
+) -> ClonableFn<'a, ClonableFn<'a, A, B>, ClonableFn<'a, A, C>> {
+	Arc::new(move |g: ClonableFn<'a, A, B>| {
+		let f = f.clone();
+		Arc::new(move |a: A| f(g(a)))
+	})
 }
 
 /// Returns its first argument.
@@ -91,22 +99,20 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::functions::flip;
+/// use fp_library::{aliases::ClonableFn, functions::flip};
+/// use std::sync::Arc;
 ///
-/// let subtract = |a| move |b| a - b;
+/// let subtract: ClonableFn<_, ClonableFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
 ///
 /// assert_eq!(flip(subtract)(1)(0), -1); // 0 - 1 = -1
 /// ```
-pub fn flip<'a, A, B, C, F, G>(f: F) -> impl Fn(B) -> Box<dyn Fn(A) -> C + 'a>
-where
-	B: Clone + 'a,
-	F: Fn(A) -> G + Clone + 'a,
-	G: Fn(B) -> C,
-{
-	move |b| {
-		let f = f.to_owned();
-		Box::new(move |a| (f(a))(b.to_owned()))
-	}
+pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
+	f: ClonableFn<'a, A, ClonableFn<'a, B, C>>
+) -> ClonableFn<'a, B, ClonableFn<'a, A, C>> {
+	Arc::new(move |b: B| {
+		let f = f.clone();
+		Arc::new(move |a: A| (f(a))(b.to_owned()))
+	})
 }
 
 /// Returns its input.

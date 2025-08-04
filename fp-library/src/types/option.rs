@@ -4,8 +4,11 @@ use crate::{
 	functions::map,
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
-	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
+	typeclasses::{
+		Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor, Pure,
+	},
 };
+use std::sync::Arc;
 
 impl_brand!(OptionBrand, Option, Kind1, Brand1, (A));
 
@@ -15,7 +18,10 @@ impl Pure for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::pure};
 	///
-	/// assert_eq!(pure::<OptionBrand, _>(()), Some(()));
+	/// assert_eq!(
+	///     pure::<OptionBrand, _>(()),
+	///     Some(())
+	/// );
 	fn pure<A>(a: A) -> Apply<Self, (A,)>
 	where
 		Self: Kind<(A,)>,
@@ -30,8 +36,14 @@ impl Functor for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{identity, map}};
 	///
-	/// assert_eq!(map::<OptionBrand, _, _, _>(identity::<()>)(None), None);
-	/// assert_eq!(map::<OptionBrand, _, _, _>(identity)(Some(())), Some(()));
+	/// assert_eq!(
+	///     map::<OptionBrand, _, _, _>(identity::<()>)(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     map::<OptionBrand, _, _, _>(identity)(Some(())),
+	///     Some(())
+	/// );
 	/// ```
 	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -48,10 +60,22 @@ impl TypeclassApply for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{apply, identity}};
 	///
-	/// assert_eq!(apply::<OptionBrand, fn(()) -> (), _, _>(None)(None), None);
-	/// assert_eq!(apply::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())), None);
-	/// assert_eq!(apply::<OptionBrand, _, _, _>(Some(identity::<()>))(None), None);
-	/// assert_eq!(apply::<OptionBrand, _, _, _>(Some(identity))(Some(())), Some(()));
+	/// assert_eq!(
+	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply::<OptionBrand, _, _, _>(Some(identity::<()>))(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply::<OptionBrand, _, _, _>(Some(identity))(Some(())),
+	///     Some(())
+	/// );
 	/// ```
 	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -72,10 +96,22 @@ impl ApplyFirst for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{apply_first, identity}};
 	///
-	/// assert_eq!(apply_first::<OptionBrand, bool, bool>(None)(None), None);
-	/// assert_eq!(apply_first::<OptionBrand, bool, _>(None)(Some(false)), None);
-	/// assert_eq!(apply_first::<OptionBrand, _, bool>(Some(true))(None), None);
-	/// assert_eq!(apply_first::<OptionBrand, _, _>(Some(true))(Some(false)), Some(true));
+	/// assert_eq!(
+	///     apply_first::<OptionBrand, bool, bool>(None)(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_first::<OptionBrand, bool, _>(None)(Some(false)),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_first::<OptionBrand, _, bool>(Some(true))(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_first::<OptionBrand, _, _>(Some(true))(Some(false)),
+	///     Some(true)
+	/// );
 	/// ```
 	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
 	where
@@ -102,10 +138,22 @@ impl ApplySecond for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{apply_second, identity}};
 	///
-	/// assert_eq!(apply_second::<OptionBrand, bool, bool>(None)(None), None);
-	/// assert_eq!(apply_second::<OptionBrand, bool, _>(None)(Some(false)), None);
-	/// assert_eq!(apply_second::<OptionBrand, _, bool>(Some(true))(None), None);
-	/// assert_eq!(apply_second::<OptionBrand, _, _>(Some(true))(Some(false)), Some(false));
+	/// assert_eq!(
+	///     apply_second::<OptionBrand, bool, bool>(None)(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_second::<OptionBrand, bool, _>(None)(Some(false)),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_second::<OptionBrand, _, bool>(Some(true))(None),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     apply_second::<OptionBrand, _, _>(Some(true))(Some(false)),
+	///     Some(false)
+	/// );
 	/// ```
 	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
 	where
@@ -132,8 +180,14 @@ impl Bind for OptionBrand {
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{bind, pure}};
 	///
-	/// assert_eq!(bind::<OptionBrand, _, _, _>(None)(pure::<OptionBrand, ()>), None);
-	/// assert_eq!(bind::<OptionBrand, _, _, _>(Some(()))(pure::<OptionBrand, _>), Some(()));
+	/// assert_eq!(
+	///     bind::<OptionBrand, _, _, _>(None)(pure::<OptionBrand, ()>),
+	///     None
+	/// );
+	/// assert_eq!(
+	///     bind::<OptionBrand, _, _, _>(Some(()))(pure::<OptionBrand, _>),
+	///     Some(())
+	/// );
 	/// ```
 	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
@@ -147,5 +201,43 @@ impl Bind for OptionBrand {
 					.and_then(|a| -> Option<B> { <Self as Brand<_, _>>::project(f(a)) }),
 			)
 		}
+	}
+}
+
+impl Foldable for OptionBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::OptionBrand, functions::fold_right};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     fold_right::<OptionBrand, _, _>(Arc::new(|a| Arc::new(move |b| a + b)))(1)(Some(1)),
+	///     2
+	/// );
+	/// assert_eq!(
+	///     fold_right::<OptionBrand, i32, _>(Arc::new(|a| Arc::new(move |b| a + b)))(1)(None),
+	///     1
+	/// );
+	/// ```
+	fn fold_right<'a, A, B>(
+		f: crate::aliases::ClonableFn<'a, A, crate::aliases::ClonableFn<'a, B, B>>
+	) -> crate::aliases::ClonableFn<'a, B, crate::aliases::ClonableFn<'a, Apply<Self, (A,)>, B>>
+	where
+		Self: 'a + Kind<(A,)>,
+		A: 'a + Clone,
+		B: 'a + Clone,
+		Apply<Self, (A,)>: 'a,
+	{
+		Arc::new(move |b| {
+			Arc::new({
+				let f = f.clone();
+				move |fa| match (f.clone(), b.to_owned(), <OptionBrand as Brand<_, _>>::project(fa))
+				{
+					(_, b, None) => b,
+					(f, b, Some(a)) => f(a)(b),
+				}
+			})
+		})
 	}
 }

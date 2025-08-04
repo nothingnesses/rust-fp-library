@@ -25,9 +25,8 @@ impl<Brand> Monad for Brand where Brand: Applicative + Bind {}
 #[cfg(test)]
 mod tests {
 	use crate::{
-		brands::OptionBrand,
+		brands::{OptionBrand, ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
 		typeclasses::Monad,
-		types::{ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
 	};
 
 	/// Asserts that a type implements [`Monad`].

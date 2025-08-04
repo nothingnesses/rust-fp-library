@@ -28,9 +28,8 @@ impl<Brand> Applicative for Brand where Brand: Functor + Pure + Apply + ApplyFir
 #[cfg(test)]
 mod tests {
 	use crate::{
-		brands::OptionBrand,
+		brands::{OptionBrand, ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
 		typeclasses::Applicative,
-		types::{ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
 	};
 
 	/// Asserts that a type implements [`Applicative`].

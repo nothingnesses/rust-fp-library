@@ -1,10 +1,9 @@
 //! Implementations for [`Result`].
 
-use crate::hkt::{Apply, Brand2, Kind2};
-
 pub mod result_with_err;
 pub mod result_with_ok;
 
+use crate::hkt::{Apply, Brand2, Kind2};
 pub use result_with_err::*;
 pub use result_with_ok::*;
 

@@ -1,4 +1,4 @@
-//! Types.
+//! Data types and their corresponding implementations.
 
 pub mod option;
 pub mod pair;
@@ -7,9 +7,5 @@ pub mod solo;
 pub mod string;
 pub mod vec;
 
-pub use self::option::*;
-pub use self::pair::*;
-pub use self::result::*;
-pub use self::solo::*;
-pub use self::string::*;
-pub use self::vec::*;
+pub use self::pair::Pair;
+pub use self::solo::Solo;

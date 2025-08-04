@@ -19,7 +19,10 @@ impl Pure for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::pure, types::Solo};
 	///
-	/// assert_eq!(pure::<SoloBrand, _>(()), Solo(()));
+	/// assert_eq!(
+	///     pure::<SoloBrand, _>(()),
+	///     Solo(())
+	/// );
 	/// ```
 	fn pure<A>(a: A) -> Apply<Self, (A,)> {
 		Solo(a)
@@ -32,7 +35,10 @@ impl Functor for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{identity, map}, types::Solo};
 	///
-	/// assert_eq!(map::<SoloBrand, _, _, _>(identity)(Solo(())), Solo(()));
+	/// assert_eq!(
+	///     map::<SoloBrand, _, _, _>(identity)(Solo(())),
+	///     Solo(())
+	/// );
 	/// ```
 	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -49,7 +55,10 @@ impl TypeclassApply for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{apply, identity}, types::Solo};
 	///
-	/// assert_eq!(apply::<SoloBrand, _, _, _>(Solo(identity))(Solo(())), Solo(()));
+	/// assert_eq!(
+	///     apply::<SoloBrand, _, _, _>(Solo(identity))(Solo(())),
+	///     Solo(())
+	/// );
 	/// ```
 	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
@@ -67,7 +76,10 @@ impl ApplyFirst for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{apply_first, identity}, types::Solo};
 	///
-	/// assert_eq!(apply_first::<SoloBrand, _, _>(Solo(true))(Solo(false)), Solo(true));
+	/// assert_eq!(
+	///     apply_first::<SoloBrand, _, _>(Solo(true))(Solo(false)),
+	///     Solo(true)
+	/// );
 	/// ```
 	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
 	where
@@ -84,7 +96,10 @@ impl ApplySecond for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{apply_second, identity}, types::Solo};
 	///
-	/// assert_eq!(apply_second::<SoloBrand, _, _>(Solo(true))(Solo(false)), Solo(false));
+	/// assert_eq!(
+	///     apply_second::<SoloBrand, _, _>(Solo(true))(Solo(false)),
+	///     Solo(false)
+	/// );
 	/// ```
 	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
 	where
@@ -100,7 +115,10 @@ impl Bind for SoloBrand {
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{bind, pure}, types::Solo};
 	///
-	/// assert_eq!(bind::<SoloBrand, _, _, _>(Solo(()))(pure::<SoloBrand, _>), Solo(()));
+	/// assert_eq!(
+	///     bind::<SoloBrand, _, _, _>(Solo(()))(pure::<SoloBrand, _>),
+	///     Solo(())
+	/// );
 	/// ```
 	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
