@@ -107,10 +107,8 @@ pub trait Foldable {
 		Apply<M, ()>: 'a + Clone,
 	{
 		Arc::new(move |fa| {
-			let f = f.clone();
-			((Self::fold_right(Arc::new(move |a: A| {
-				let f = f.clone();
-				Arc::new(move |m| ((compose(Arc::new(M::append))(f.clone()))(a.to_owned()))(m))
+			((Self::fold_right(Arc::new(|a| {
+				Arc::new((compose(Arc::new(M::append))(f.clone()))(a))
 			})))(M::empty()))(fa)
 		})
 	}
