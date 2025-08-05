@@ -49,9 +49,9 @@ use std::sync::Arc;
 pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 	f: ClonableFn<'a, B, C>
 ) -> ClonableFn<'a, ClonableFn<'a, A, B>, ClonableFn<'a, A, C>> {
-	Arc::new(move |g: ClonableFn<'a, A, B>| {
+	Arc::new(move |g| {
 		let f = f.clone();
-		Arc::new(move |a: A| f(g(a)))
+		Arc::new(move |a| f(g(a)))
 	})
 }
 
@@ -120,9 +120,9 @@ where
 pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
 	f: ClonableFn<'a, A, ClonableFn<'a, B, C>>
 ) -> ClonableFn<'a, B, ClonableFn<'a, A, C>> {
-	Arc::new(move |b: B| {
+	Arc::new(move |b| {
 		let f = f.clone();
-		Arc::new(move |a: A| (f(a))(b.to_owned()))
+		Arc::new(move |a| (f(a))(b.to_owned()))
 	})
 }
 
