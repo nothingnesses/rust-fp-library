@@ -40,7 +40,11 @@ use std::sync::Arc;
 /// let times_two = Arc::new(|x: i32| x * 2);
 /// let times_two_add_one = compose(add_one)(times_two);
 ///
-/// assert_eq!(times_two_add_one(3), 7); // 3 * 2 + 1 = 7
+/// // 3 * 2 + 1 = 7
+/// assert_eq!(
+///     times_two_add_one(3),
+///     7
+/// );
 /// ```
 pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 	f: ClonableFn<'a, B, C>
@@ -71,7 +75,10 @@ pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 /// ```rust
 /// use fp_library::{functions::constant};
 ///
-/// assert_eq!(constant(true)(false), true);
+/// assert_eq!(
+///     constant(true)(false),
+///     true
+/// );
 /// ```
 pub fn constant<A, B>(a: A) -> impl Fn(B) -> A
 where
@@ -104,7 +111,11 @@ where
 ///
 /// let subtract: ClonableFn<_, ClonableFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
 ///
-/// assert_eq!(flip(subtract)(1)(0), -1); // 0 - 1 = -1
+/// // 0 - 1 = -1
+/// assert_eq!(
+///     flip(subtract)(1)(0),
+///     -1
+/// );
 /// ```
 pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
 	f: ClonableFn<'a, A, ClonableFn<'a, B, C>>
@@ -134,7 +145,10 @@ pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
 /// ```rust
 /// use fp_library::functions::identity;
 ///
-/// assert_eq!(identity(()), ());
+/// assert_eq!(
+///     identity(()),
+///     ()
+/// );
 /// ```
 pub fn identity<A>(a: A) -> A {
 	a
