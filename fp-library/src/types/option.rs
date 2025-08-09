@@ -36,22 +36,22 @@ impl Functor for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{identity, map}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<OptionBrand, _, _, _>(identity::<()>)(None),
+	///     map::<OptionBrand, _, _>(Arc::new(identity::<()>))(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     map::<OptionBrand, _, _, _>(identity)(Some(())),
+	///     map::<OptionBrand, _, _>(Arc::new(identity))(Some(())),
 	///     Some(())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
 	{
-		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&f))
+		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&*f))
 	}
 }
 
@@ -78,14 +78,14 @@ impl TypeclassApply for OptionBrand {
 	///     Some(())
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
+		F: 'a + Fn(A) -> B,
 		Apply<Self, (F,)>: Clone,
 	{
-		move |fa| match (<Self as Brand<_, _>>::project(ff.to_owned()), &fa) {
-			(Some(f), _) => map::<Self, F, _, _>(f)(fa),
+		move |fa| match (<Self as Brand<_, (F,)>>::project(ff.to_owned()), &fa) {
+			(Some(f), _) => map::<Self, _, _>(Arc::new(f))(fa),
 			_ => <Self as Brand<_, _>>::inject(None::<B>),
 		}
 	}

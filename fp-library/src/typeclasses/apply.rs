@@ -26,11 +26,11 @@ pub trait Apply {
 	/// # Returns
 	///
 	/// The result of applying the function to the value, all within the context.
-	fn apply<F, A, B>(ff: App<Self, (F,)>) -> impl Fn(App<Self, (A,)>) -> App<Self, (B,)>
+	fn apply<'a, F, A, B>(ff: App<Self, (F,)>) -> impl Fn(App<Self, (A,)>) -> App<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
 		App<Self, (F,)>: Clone,
-		F: Fn(A) -> B,
+		F: 'a + Fn(A) -> B,
 		A: Clone;
 }
 
@@ -61,11 +61,13 @@ pub trait Apply {
 ///     Some(10)
 /// );
 /// ```
-pub fn apply<Brand, F, A, B>(ff: App<Brand, (F,)>) -> impl Fn(App<Brand, (A,)>) -> App<Brand, (B,)>
+pub fn apply<'a, Brand, F, A, B>(
+	ff: App<Brand, (F,)>
+) -> impl Fn(App<Brand, (A,)>) -> App<Brand, (B,)>
 where
 	Brand: Kind<(F,)> + Kind<(A,)> + Kind<(B,)> + Apply,
 	App<Brand, (F,)>: Clone,
-	F: Fn(A) -> B,
+	F: 'a + Fn(A) -> B,
 	A: Clone,
 {
 	Brand::apply::<F, _, _>(ff)

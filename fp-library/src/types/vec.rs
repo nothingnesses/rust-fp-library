@@ -39,24 +39,24 @@ impl Functor for VecBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::VecBrand, functions::{identity, map}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<VecBrand, _, _, _>(identity)(vec![] as Vec<()>),
+	///     map::<VecBrand, _, _>(Arc::new(identity))(vec![] as Vec<()>),
 	///     vec![]
 	/// );
 	/// assert_eq!(
-	///     map::<VecBrand, _, _, _>(|x: i32| x * 2)(vec![1, 2, 3]),
+	///     map::<VecBrand, _, _>(Arc::new(|x: i32| x * 2))(vec![1, 2, 3]),
 	///     vec![2, 4, 6]
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
 	{
 		move |fa| {
 			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (_,)>>::project(fa).into_iter().map(&f).collect(),
+				<Self as Brand<_, (_,)>>::project(fa).into_iter().map(&*f).collect(),
 			)
 		}
 	}
@@ -77,10 +77,10 @@ impl TypeclassApply for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
+		F: 'a + Fn(A) -> B,
 		A: Clone,
 		Apply<Self, (F,)>: Clone,
 	{

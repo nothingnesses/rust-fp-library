@@ -32,16 +32,16 @@ where
 	///
 	/// ```
 	/// use fp_library::{brands::PairWithSecondBrand, functions::{identity, map}, types::Pair};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<PairWithSecondBrand<_>, _, _, _>(|x: bool| !x)(Pair(true, ())),
+	///     map::<PairWithSecondBrand<_>, _, _>(Arc::new(|x: bool| !x))(Pair(true, ())),
 	///     Pair(false, ())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
 	{
 		move |fa| {
 			let fa = <Self as Brand<_, (A,)>>::project(fa);

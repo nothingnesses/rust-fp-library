@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use crate::{
+	aliases::ClonableFn,
 	hkt::{Apply, Brand0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
@@ -19,9 +22,9 @@ impl<A> Brand0<Vec<A>> for ConcreteVecBrand<A> {
 	}
 }
 
-impl<A> Semigroup for ConcreteVecBrand<A>
+impl<'a, A> Semigroup<'a> for ConcreteVecBrand<A>
 where
-	A: Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///
@@ -33,14 +36,14 @@ where
 	///     vec![true, false]
 	/// );
 	/// ```
-	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()> {
-		move |b| [a.to_owned(), b.to_owned()].concat()
+	fn append(a: Apply<Self, ()>) -> ClonableFn<'a, Apply<Self, ()>, Apply<Self, ()>> {
+		Arc::new(move |b: Apply<Self, ()>| [a.to_owned(), b.to_owned()].concat())
 	}
 }
 
-impl<A> Monoid for ConcreteVecBrand<A>
+impl<'a, A> Monoid<'a> for ConcreteVecBrand<A>
 where
-	A: Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///

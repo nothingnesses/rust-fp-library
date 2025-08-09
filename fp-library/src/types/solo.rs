@@ -1,10 +1,16 @@
 //! Implementations for [`Solo`], a type that wraps a value.
 
+use std::sync::Arc;
+
 use crate::{
-	functions::{identity, map},
+	aliases::ClonableFn,
+	functions::{identity, map, pure},
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
-	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
+	typeclasses::{
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
+		Pure, Traversable,
+	},
 };
 
 /// Wraps a value.
@@ -34,16 +40,16 @@ impl Functor for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{identity, map}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<SoloBrand, _, _, _>(identity)(Solo(())),
+	///     map::<SoloBrand, _, _>(Arc::new(identity))(Solo(())),
 	///     Solo(())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
 	{
 		move |fa| <Self as Brand<_, _>>::inject(Solo(f(<Self as Brand<_, _>>::project(fa).0)))
 	}
@@ -60,13 +66,13 @@ impl TypeclassApply for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
+		F: 'a + Fn(A) -> B,
 		Apply<Self, (F,)>: Clone,
 	{
-		map::<Self, _, _, _>(<Self as Brand<Solo<F>, _>>::project(ff.to_owned()).0)
+		map::<Self, _, _>(Arc::new(<Self as Brand<Solo<F>, _>>::project(ff.to_owned()).0))
 	}
 }
 
@@ -127,5 +133,40 @@ impl Bind for SoloBrand {
 		Apply<Self, (A,)>: Clone,
 	{
 		move |f| f(<Self as Brand<_, _>>::project(ma.to_owned()).0)
+	}
+}
+
+impl Foldable for SoloBrand {
+	fn fold_right<'a, A, B>(
+		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
+	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
+	where
+		Self: 'a + Kind<(A,)>,
+		A: 'a + Clone,
+		B: 'a + Clone,
+		Apply<Self, (A,)>: 'a,
+	{
+		Arc::new(move |b| {
+			Arc::new({
+				let f = f.clone();
+				move |fa| f(<Self as Brand<_, _>>::project(fa).0)(b.to_owned())
+			})
+		})
+	}
+}
+
+impl Traversable for SoloBrand {
+	fn traverse<'a, F, A, B>(
+		f: ClonableFn<'a, A, Apply<F, (B,)>>
+	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	where
+		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
+		A: 'a,
+		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
+		Apply<F, (B,)>: 'a,
+	{
+		Arc::new(move |ta| {
+			map::<F, B, _>(Arc::new(pure::<SoloBrand, _>))(f(<Self as Brand<_, _>>::project(ta).0))
+		})
 	}
 }

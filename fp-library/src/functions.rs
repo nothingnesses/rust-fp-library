@@ -12,6 +12,7 @@ pub use crate::typeclasses::{
 	monoid::empty,
 	pure::pure,
 	semigroup::append,
+	traversable::{sequence, traverse},
 };
 use std::sync::Arc;
 

@@ -52,22 +52,22 @@ where
 	///
 	/// ```
 	/// use fp_library::{brands::ResultWithErrBrand, functions::{identity, map}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<ResultWithErrBrand<_>, _, _, _>(identity::<()>)(Err(true)),
+	///     map::<ResultWithErrBrand<_>, _, _>(Arc::new(identity::<()>))(Err(true)),
 	///     Err(true)
 	/// );
 	/// assert_eq!(
-	///     map::<ResultWithErrBrand<bool>, _, _, _>(identity)(Ok(())),
+	///     map::<ResultWithErrBrand<bool>, _, _>(Arc::new(identity))(Ok(())),
 	///     Ok(())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
 	{
-		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&f))
+		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&*f))
 	}
 }
 
@@ -97,14 +97,14 @@ where
 	///     Ok(())
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
 		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
+		F: 'a + Fn(A) -> B,
 		Apply<Self, (F,)>: Clone,
 	{
-		move |fa| match (<Self as Brand<_, _>>::project(ff.to_owned()), &fa) {
-			(Ok(f), _) => map::<ResultWithErrBrand<_>, F, _, _>(f)(fa),
+		move |fa| match (<Self as Brand<_, (F,)>>::project(ff.to_owned()), &fa) {
+			(Ok(f), _) => map::<ResultWithErrBrand<_>, _, _>(Arc::new(f))(fa),
 			(Err(e), _) => <Self as Brand<_, _>>::inject(Err::<B, _>(e)),
 		}
 	}

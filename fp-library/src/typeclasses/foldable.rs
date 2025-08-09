@@ -3,6 +3,7 @@ use crate::{
 	functions::{compose, flip, identity},
 	hkt::{Apply, Kind},
 	typeclasses::Monoid,
+	types::{Endomorphism, endomorphism::EndomorphismBrand},
 };
 use std::sync::Arc;
 
@@ -11,6 +12,8 @@ use std::sync::Arc;
 /// A `Foldable` represents a structure that can be folded over to combine its elements
 /// into a single result. This is useful for operations like summing values, collecting into a collection,
 /// or applying monoidal operations.
+///
+/// A minimum implementation of `Foldable` requires the manual implementation of at least [`Foldable::fold_right`] or [`Foldable::fold_map`].
 pub trait Foldable {
 	/// Folds the structure by applying a function from left to right.
 	///
@@ -103,17 +106,21 @@ pub trait Foldable {
 	where
 		Self: Kind<(A,)>,
 		A: 'a + Clone,
-		M: Monoid,
+		M: Monoid<'a>,
 		Apply<M, ()>: 'a + Clone,
 	{
 		Arc::new(move |fa| {
-			((Self::fold_right(Arc::new(|a| {
-				Arc::new((compose(Arc::new(M::append))(f.clone()))(a))
-			})))(M::empty()))(fa)
+			((Self::fold_right(Arc::new(|a| (compose(Arc::new(M::append))(f.clone()))(a))))(
+				M::empty(),
+			))(fa)
 		})
 	}
 
 	/// Folds the structure by applying a function from right to left.
+	///
+	/// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endomorphism` monoid][`crate::types::Endomorphism`] where:
+	///
+	/// `((fold_right f) b) fa = ((fold_map f) fa) b`
 	///
 	/// # Type Signature
 	///
@@ -147,7 +154,19 @@ pub trait Foldable {
 		Self: 'a + Kind<(A,)>,
 		A: 'a + Clone,
 		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a;
+		Apply<Self, (A,)>: 'a,
+	{
+		Arc::new(move |b| {
+			let f = f.clone();
+			Arc::new(move |fa| {
+				((Self::fold_map::<A, EndomorphismBrand<B>>(Arc::new({
+					let f = f.clone();
+					move |a| Endomorphism(f(a))
+				}))(fa))
+				.0)(b.to_owned())
+			})
+		})
+	}
 }
 
 /// Folds the structure by applying a function from left to right.
@@ -236,7 +255,7 @@ pub fn fold_map<'a, Brand, A, M>(
 where
 	Brand: Kind<(A,)> + Foldable,
 	A: 'a + Clone,
-	M: Monoid,
+	M: Monoid<'a>,
 	Apply<M, ()>: 'a + Clone,
 {
 	Brand::fold_map::<_, M>(f)
@@ -245,6 +264,10 @@ where
 /// Folds the structure by applying a function from right to left.
 ///
 /// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_right`].
+///
+/// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endomorphism` monoid][`crate::types::Endomorphism`] where:
+///
+/// `((fold_right f) b) fa = ((fold_map f) fa) b`
 ///
 /// # Type Signature
 ///

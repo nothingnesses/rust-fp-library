@@ -1,4 +1,7 @@
-use crate::hkt::{Apply, Kind};
+use crate::{
+	aliases::ClonableFn,
+	hkt::{Apply, Kind},
+};
 
 /// A typeclass for types that can be mapped over.
 ///
@@ -25,10 +28,9 @@ pub trait Functor {
 	/// # Returns
 	///
 	/// A functor containing values of type `B`.
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B;
+		Self: Kind<(A,)> + Kind<(B,)>;
 }
 
 /// Maps a function over the values in the functor context.
@@ -52,13 +54,15 @@ pub trait Functor {
 ///
 /// ```
 /// use fp_library::{brands::OptionBrand, functions::map};
+/// use std::sync::Arc;
 ///
-/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2)(Some(5)), Some(10));
+/// assert_eq!(map::<OptionBrand, _, _>(Arc::new(|x: i32| x * 2))(Some(5)), Some(10));
 /// ```
-pub fn map<Brand, F, A, B>(f: F) -> impl Fn(Apply<Brand, (A,)>) -> Apply<Brand, (B,)>
+pub fn map<'a, Brand, A, B>(
+	f: ClonableFn<'a, A, B>
+) -> impl Fn(Apply<Brand, (A,)>) -> Apply<Brand, (B,)>
 where
-	Brand: Kind<(A,)> + Kind<(B,)> + Functor,
-	F: Fn(A) -> B,
+	Brand: Kind<(A,)> + Kind<(B,)> + Functor + ?Sized,
 {
 	Brand::map(f)
 }

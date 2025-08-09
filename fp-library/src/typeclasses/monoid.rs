@@ -23,7 +23,7 @@ use crate::{hkt::Apply, typeclasses::Semigroup};
 /// * Numbers with addition and zero.
 /// * Numbers with multiplication and one.
 /// * Lists with concatenation and empty list.
-pub trait Monoid: Semigroup {
+pub trait Monoid<'a>: Semigroup<'a> {
 	/// Returns the identity element for the monoid.
 	///
 	/// # Type Signature
@@ -59,7 +59,7 @@ pub trait Monoid: Semigroup {
 /// ```
 pub fn empty<Brand>() -> Apply<Brand, ()>
 where
-	Brand: Monoid,
+	for<'a> Brand: Monoid<'a>,
 {
 	Brand::empty()
 }

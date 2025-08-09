@@ -26,7 +26,7 @@ pub trait Bind {
 	/// A computation that sequences the two operations.
 	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
+		Self: Kind<(A,)> + Kind<(B,)>,
 		Apply<Self, (A,)>: Clone,
 		F: Fn(A) -> Apply<Self, (B,)>;
 }
