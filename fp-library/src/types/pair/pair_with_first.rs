@@ -2,8 +2,9 @@
 
 use crate::{
 	aliases::ClonableFn,
+	functions::map,
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
-	typeclasses::{Foldable, Functor},
+	typeclasses::{Applicative, Foldable, Functor, Traversable},
 	types::Pair,
 };
 use std::sync::Arc;
@@ -24,10 +25,7 @@ impl<First, Second> Brand1<Pair<First, Second>, Second> for PairWithFirstBrand<F
 	}
 }
 
-impl<First> Functor for PairWithFirstBrand<First>
-where
-	First: Clone,
-{
+impl<First> Functor for PairWithFirstBrand<First> {
 	/// # Examples
 	///
 	/// ```
@@ -80,6 +78,28 @@ impl<First> Foldable for PairWithFirstBrand<First> {
 					f(a)(b)
 				}
 			})
+		})
+	}
+}
+
+impl<First> Traversable for PairWithFirstBrand<First>
+where
+	First: Clone,
+{
+	fn traverse<'a, F, A, B>(
+		f: ClonableFn<'a, A, Apply<F, (B,)>>
+	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	where
+		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
+		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
+		A: 'a,
+		B: Clone,
+		Apply<F, (B,)>: 'a,
+	{
+		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
+			(f, Pair(first, second)) => map::<F, B, Apply<Self, (B,)>>(Arc::new(move |second| {
+				<Self as Brand<_, _>>::inject(Pair::new(first.to_owned())(second))
+			}))(f(second)),
 		})
 	}
 }

@@ -4,16 +4,38 @@ pub mod concrete_vec;
 
 use crate::{
 	aliases::ClonableFn,
+	functions::pure,
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	impl_brand,
 	typeclasses::{
-		Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor, Pure,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
+		Pure, Traversable,
 	},
+	types::Pair,
 };
 pub use concrete_vec::*;
 use std::sync::Arc;
 
 impl_brand!(VecBrand, Vec, Kind1, Brand1, (A));
+
+impl VecBrand {
+	pub fn construct<A>(head: A) -> impl Fn(Vec<A>) -> Vec<A>
+	where
+		A: Clone,
+	{
+		move |tail| [vec![head.to_owned()], tail].concat()
+	}
+
+	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Vec<A>>>
+	where
+		A: Clone,
+	{
+		match &slice {
+			[] => None,
+			[head, tail @ ..] => Some(Pair(head.to_owned(), tail.to_owned())),
+		}
+	}
+}
 
 impl Pure for VecBrand {
 	/// # Examples
@@ -233,6 +255,28 @@ impl Foldable for VecBrand {
 					move |b, a| f(b, a.to_owned())
 				})
 			})
+		})
+	}
+}
+
+impl Traversable for VecBrand {
+	/// Vec.empty = pure Vec.empty
+	/// Vec.constructor a as = (apply ((map Vec.constructor) (f a))) ((traverse f) as)
+	fn traverse<'a, F, A, B>(
+		f: ClonableFn<'a, A, Apply<F, (B,)>>
+	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	where
+		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
+		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
+		A: 'a + Clone,
+		B: Clone,
+		Apply<F, (B,)>: 'a,
+	{
+		Arc::new(move |ta| {
+			match VecBrand::deconstruct(&(<Self as Brand<Vec<A>, _>>::project(ta))) {
+				Some(_) => todo!(),
+				None => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(vec![])),
+			}
 		})
 	}
 }

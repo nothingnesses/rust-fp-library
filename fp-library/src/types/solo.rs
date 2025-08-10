@@ -161,12 +161,13 @@ impl Traversable for SoloBrand {
 	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
 	where
 		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		A: 'a,
 		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
+		A: 'a,
+		B: Clone,
 		Apply<F, (B,)>: 'a,
 	{
 		Arc::new(move |ta| {
-			map::<F, B, _>(Arc::new(pure::<SoloBrand, _>))(f(<Self as Brand<_, _>>::project(ta).0))
+			map::<F, B, _>(Arc::new(pure::<Self, _>))(f(<Self as Brand<_, _>>::project(ta).0))
 		})
 	}
 }

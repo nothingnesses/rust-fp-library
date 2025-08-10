@@ -2,10 +2,11 @@
 
 use crate::{
 	aliases::ClonableFn,
-	functions::map,
+	functions::{map, pure},
 	hkt::{Apply, Brand, Brand1, Kind, Kind1},
 	typeclasses::{
-		Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor, Pure,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
+		Pure, Traversable,
 	},
 };
 use std::sync::Arc;
@@ -44,10 +45,7 @@ impl<E> Pure for ResultWithErrBrand<E> {
 	}
 }
 
-impl<E> Functor for ResultWithErrBrand<E>
-where
-	E: Clone,
-{
+impl<E> Functor for ResultWithErrBrand<E> {
 	/// # Examples
 	///
 	/// ```
@@ -255,15 +253,29 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
-				move |fa| match (
-					f.clone(),
-					b.to_owned(),
-					<ResultWithErrBrand<E> as Brand<_, _>>::project(fa),
-				) {
+				move |fa| match (f.clone(), b.to_owned(), <Self as Brand<_, _>>::project(fa)) {
 					(_, b, Err(_)) => b,
 					(f, b, Ok(a)) => f(a)(b),
 				}
 			})
+		})
+	}
+}
+
+impl<E> Traversable for ResultWithErrBrand<E> {
+	fn traverse<'a, F, A, B>(
+		f: ClonableFn<'a, A, Apply<F, (B,)>>
+	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	where
+		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
+		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
+		A: 'a,
+		B: Clone,
+		Apply<F, (B,)>: 'a,
+	{
+		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
+			(_, Err(e)) => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(Err(e))),
+			(f, Ok(a)) => map::<F, B, _>(Arc::new(pure::<Self, _>))(f(a)),
 		})
 	}
 }

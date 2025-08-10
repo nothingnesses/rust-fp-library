@@ -52,9 +52,10 @@ pub trait Traversable: Functor + Foldable {
 	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
 	where
 		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		A: 'a,
 		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
-		Apply<F, (B,)>: 'a,
+		A: 'a + Clone,
+		B: Clone,
+		Apply<F, (B,)>: 'a + Clone,
 	{
 		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply<F, (B,)>>(f.clone())(ta)))
 	}
@@ -92,6 +93,8 @@ pub trait Traversable: Functor + Foldable {
 	where
 		Self: Kind<(Apply<F, (A,)>,)> + Kind<(A,)>,
 		F: Kind<(A,)> + Kind<(Apply<Self, (A,)>,)> + Applicative,
+		A: Clone,
+		Apply<F, (A,)>: Clone,
 	{
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
@@ -102,9 +105,10 @@ pub fn traverse<'a, Brand, F, A, B>(
 ) -> ClonableFn<'a, Apply<Brand, (A,)>, Apply<F, (Apply<Brand, (B,)>,)>>
 where
 	Brand: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)> + Traversable,
-	A: 'a,
 	F: 'a + Kind<(B,)> + Kind<(Apply<Brand, (B,)>,)> + Applicative,
-	Apply<F, (B,)>: 'a,
+	A: 'a + Clone,
+	B: Clone,
+	Apply<F, (B,)>: 'a + Clone,
 {
 	Brand::traverse::<F, _, B>(f)
 }
@@ -113,6 +117,8 @@ pub fn sequence<Brand, F, A>(t: Apply<Brand, (Apply<F, (A,)>,)>) -> Apply<F, (Ap
 where
 	Brand: Kind<(Apply<F, (A,)>,)> + Kind<(A,)> + Traversable,
 	F: Kind<(A,)> + Kind<(Apply<Brand, (A,)>,)> + Applicative,
+	A: Clone,
+	Apply<F, (A,)>: Clone,
 {
 	Brand::sequence::<F, A>(t)
 }
