@@ -56,6 +56,7 @@ pub trait Traversable: Functor + Foldable {
 		A: 'a + Clone,
 		B: Clone,
 		Apply<F, (B,)>: 'a + Clone,
+		Apply<Self, (B,)>: Clone,
 	{
 		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply<F, (B,)>>(f.clone())(ta)))
 	}
@@ -95,6 +96,7 @@ pub trait Traversable: Functor + Foldable {
 		F: Kind<(A,)> + Kind<(Apply<Self, (A,)>,)> + Applicative,
 		A: Clone,
 		Apply<F, (A,)>: Clone,
+		Apply<Self, (A,)>: Clone,
 	{
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
@@ -109,6 +111,7 @@ where
 	A: 'a + Clone,
 	B: Clone,
 	Apply<F, (B,)>: 'a + Clone,
+	Apply<Brand, (B,)>: Clone,
 {
 	Brand::traverse::<F, _, B>(f)
 }
@@ -119,6 +122,7 @@ where
 	F: Kind<(A,)> + Kind<(Apply<Brand, (A,)>,)> + Applicative,
 	A: Clone,
 	Apply<F, (A,)>: Clone,
+	Apply<Brand, (A,)>: Clone,
 {
 	Brand::sequence::<F, A>(t)
 }
