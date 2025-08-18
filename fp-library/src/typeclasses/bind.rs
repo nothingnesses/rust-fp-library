@@ -1,4 +1,7 @@
-use crate::hkt::{Apply, Kind};
+use crate::{
+	aliases::ArcFn,
+	hkt::{Apply1, Kind1},
+};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
@@ -9,7 +12,7 @@ use crate::hkt::{Apply, Kind};
 /// Note that `Bind` is a separate typeclass from [`Monad`][`crate::typeclasses::Monad`]. In this library's
 /// hierarchy, [`Monad`][`crate::typeclasses::Monad`] is a typeclass that extends both
 /// [`Applicative`][`crate::typeclasses::Applicative`] and `Bind`.
-pub trait Bind {
+pub trait Bind: Kind1 {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// # Type Signature
@@ -24,11 +27,9 @@ pub trait Bind {
 	/// # Returns
 	///
 	/// A computation that sequences the two operations.
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
-		F: Fn(A) -> Apply<Self, (B,)>;
+	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, F, Apply1<Self, B>>;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -55,11 +56,8 @@ pub trait Bind {
 ///
 /// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5))(|x| Some(x * 2)), Some(10));
 /// ```
-pub fn bind<Brand, F, A, B>(ma: Apply<Brand, (A,)>) -> impl Fn(F) -> Apply<Brand, (B,)>
-where
-	Brand: Kind<(A,)> + Kind<(B,)> + Bind,
-	Apply<Brand, (A,)>: Clone,
-	F: Fn(A) -> Apply<Brand, (B,)>,
-{
+pub fn bind<'a, Brand: Bind, F: Fn(A) -> Apply1<Brand, B>, A: 'a + Clone, B>(
+	ma: Apply1<Brand, A>
+) -> ArcFn<'a, F, Apply1<Brand, B>> {
 	Brand::bind::<F, A, B>(ma)
 }

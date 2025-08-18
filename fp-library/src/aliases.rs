@@ -8,4 +8,4 @@ use std::sync::Arc;
 /// This type alias provides a way to store heap-allocated functions that can be cloned
 /// and shared across contexts. The lifetime `'a` ensures the function doesn't outlive
 /// referenced data, while `A` and `B` represent the input and output types, respectively.
-pub type ClonableFn<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
+pub type ArcFn<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;

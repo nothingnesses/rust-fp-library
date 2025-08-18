@@ -3,10 +3,9 @@
 pub mod concrete_vec;
 
 use crate::{
-	aliases::ClonableFn,
+	aliases::ArcFn,
 	functions::{apply, map, pure, traverse},
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
-	impl_brand,
+	hkt::{Apply1, Brand1, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -16,17 +15,21 @@ use crate::{
 pub use concrete_vec::*;
 use std::sync::Arc;
 
-impl_brand!(VecBrand, Vec, Kind1, Brand1, (A));
+pub struct VecBrand;
 
-impl<'a> VecBrand {
-	pub fn construct<A>(head: A) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<Self, (A,)>>
+impl Kind1 for VecBrand {
+	type Output<A> = Vec<A>;
+}
+
+impl VecBrand {
+	pub fn construct<'a, A>(head: A) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>
 	where
 		A: 'a + Clone,
 	{
 		Arc::new(move |tail| [vec![head.to_owned()], tail].concat())
 	}
 
-	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply<Self, (A,)>>>
+	pub fn deconstruct<'a, A>(slice: &[A]) -> Option<Pair<A, Apply1<Self, A>>>
 	where
 		A: Clone,
 	{
@@ -48,11 +51,8 @@ impl Pure for VecBrand {
 	///     vec![1]
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply<Self, (A,)>
-	where
-		Self: Kind<(A,)>,
-	{
-		<Self as Brand<Vec<A>, (A,)>>::inject(vec![a])
+	fn pure<A>(a: A) -> Apply1<Self, A> {
+		vec![a]
 	}
 }
 
@@ -72,15 +72,8 @@ impl Functor for VecBrand {
 	///     vec![2, 4, 6]
 	/// );
 	/// ```
-	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-	{
-		move |fa| {
-			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (_,)>>::project(fa).into_iter().map(&*f).collect(),
-			)
-		}
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
+		Arc::new(move |fa| fa.into_iter().map(&*f).collect())
 	}
 }
 
@@ -99,22 +92,15 @@ impl TypeclassApply for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, F>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: 'a + Fn(A) -> B,
-		A: Clone,
-		Apply<Self, (F,)>: Clone,
+		Apply1<Self, F>: Clone,
 	{
-		move |fa| {
-			let fa = <Self as Brand<_, (_,)>>::project(fa);
-			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (F,)>>::project(ff.to_owned())
-					.into_iter()
-					.flat_map(|f| fa.iter().cloned().map(f))
-					.collect(),
-			)
-		}
+		Arc::new(move |fa| {
+			ff.to_owned().into_iter().flat_map(|f| fa.iter().cloned().map(f)).collect()
+		})
 	}
 }
 
@@ -137,22 +123,15 @@ impl ApplyFirst for VecBrand {
 	///     vec![1, 1, 2, 2]
 	/// );
 	/// ```
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		A: Clone,
-		B: Clone,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			let fb = <Self as Brand<_, (B,)>>::project(fb);
-			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (A,)>>::project(fa.to_owned())
-					.into_iter()
-					.flat_map(|a| fb.iter().cloned().map(move |_b| a.to_owned()))
-					.collect(),
-			)
-		}
+		Arc::new(move |fb| {
+			fa.to_owned().into_iter().flat_map(|a| fb.iter().map(move |_b| a.to_owned())).collect()
+		})
 	}
 }
 
@@ -175,21 +154,13 @@ impl ApplySecond for VecBrand {
 	///     vec![3, 4, 3, 4]
 	/// );
 	/// ```
-	fn apply_second<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	fn apply_second<'a, A: 'a, B: 'a + Clone>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
-		B: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			let fb = <Self as Brand<_, (B,)>>::project(fb);
-			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (A,)>>::project(fa.to_owned())
-					.into_iter()
-					.flat_map(|_a| fb.iter().cloned())
-					.collect(),
-			)
-		}
+		Arc::new(move |fb| fa.to_owned().into_iter().flat_map(|_a| fb.iter().cloned()).collect())
 	}
 }
 
@@ -208,20 +179,10 @@ impl Bind for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
-		F: Fn(A) -> Apply<Self, (B,)>,
-		Apply<Self, (A,)>: Clone,
-	{
-		move |f| {
-			<Self as Brand<_, (_,)>>::inject(
-				<Self as Brand<_, (_,)>>::project(ma.to_owned())
-					.into_iter()
-					.flat_map(|a| <Self as Brand<_, (B,)>>::project(f(a)))
-					.collect(),
-			)
-		}
+	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, F, Apply1<Self, B>> {
+		Arc::new(move |f| ma.to_owned().into_iter().flat_map(|a| f(a)).collect())
 	}
 }
 
@@ -237,100 +198,18 @@ impl Foldable for VecBrand {
 	///     17
 	/// );
 	/// ```
-	fn fold_right<'a, A, B>(
-		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
-	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
-	where
-		Self: 'a + Kind<(A,)>,
-		A: 'a + Clone,
-		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a,
-	{
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
 		Arc::new(move |b| {
 			let f = f.clone();
 			Arc::new(move |fa| {
-				<VecBrand as Brand<_, _>>::project(fa).iter().rfold(b.to_owned(), {
+				fa.iter().rfold(b.to_owned(), {
 					let f = f.clone();
 					let f = move |b, a| f(a)(b);
 					move |b, a| f(b, a.to_owned())
 				})
 			})
-		})
-	}
-}
-
-impl Traversable for VecBrand {
-	/// traverse f Vec.empty = pure Vec.empty
-	/// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
-	fn traverse<'a, F, A, B>(
-		f: ClonableFn<'a, A, Apply<F, (B,)>>
-	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
-	where
-		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		F: 'a
-			+ Kind<(B,)>
-			+ Kind<(Apply<Self, (B,)>,)>
-			+ Applicative
-			+ Kind1<A>
-			+ Kind1<ClonableFn<'a, Apply<Self, (A,)>, Apply<Self, (A,)>>>
-			+ Kind1<ClonableFn<'a, Apply<Self, (B,)>, Apply<Self, (B,)>>>
-			+ Kind1<Apply<F, (ClonableFn<'a, Apply<Self, (B,)>, Apply<Self, (B,)>>,)>>,
-		A: 'a + Clone,
-		B: Clone,
-		Apply<F, (B,)>: 'a + Clone,
-		Apply<Self, (B,)>: Clone,
-		Apply<F, (ClonableFn<'a, Apply<Self, (B,)>, Apply<Self, (B,)>>,)>:
-			Clone + Fn(<VecBrand as Kind<(B,)>>::Output),
-		Apply<F, (Apply<F, (ClonableFn<'a, Apply<Self, (B,)>, Apply<Self, (B,)>>,)>,)>: Clone,
-	{
-		Arc::new(move |ta| {
-			match VecBrand::deconstruct(&(<Self as Brand<Vec<A>, _>>::project(ta))) {
-				None => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(vec![])),
-				Some(Pair(head, tail)) => {
-					// cons: a -> (t a -> t a)
-					let cons: ClonableFn<
-						'a,
-						A,
-						ClonableFn<'a, Apply<Self, (A,)>, Apply<Self, (A,)>>,
-					> = Arc::new(VecBrand::construct);
-					// map: (a -> b) -> f a -> f b
-					// cons: a -> (t a -> t a)
-					// map cons = f a -> f (t a -> t a)
-					let map_cons: ClonableFn<
-						'a,
-						Apply<F, (_,)>,
-						Apply<F, (ClonableFn<'a, Apply<Self, (_,)>, Apply<Self, (_,)>>,)>,
-					> = Arc::new(map(cons));
-					// f: a -> f b
-					// head: a
-					// f head: f b
-					let f_head: Apply<F, (B,)> = f(head);
-					// traverse: (a -> f b) -> t a -> f (t b)
-					// f: a -> f b
-					// traverse f: t a -> f (t b)
-					// tail: t a
-					// (traverse f) tail: f (t b)
-					let traverse_f_tail: Apply<F, (Apply<Self, (B,)>,)> = traverse(f)(tail);
-					// map cons: f a -> f (t a -> t a)
-					// f head: f b
-					// (map cons) (f head): f (t b -> t b)
-					let map_cons_f_head: Apply<
-						F,
-						(ClonableFn<'a, Apply<Self, (_,)>, Apply<Self, (_,)>>,),
-					> = map_cons(f_head);
-					// apply: f (a -> b) -> f a -> f b
-					// (map cons) (f head): f (t b -> t b)
-					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					// (traverse f) tail: f (t b)
-					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)
-					apply::<
-						F,
-						Apply<F, (ClonableFn<'a, Apply<Self, (B,)>, Apply<Self, (B,)>>,)>,
-						Apply<Self, (B,)>,
-						Apply<Self, (B,)>,
-					>(map_cons_f_head)(traverse_f_tail)
-				}
-			}
 		})
 	}
 }

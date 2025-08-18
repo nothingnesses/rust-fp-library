@@ -1,4 +1,7 @@
-use crate::hkt::{Apply as App, Kind};
+use crate::{
+	aliases::ArcFn,
+	hkt::{Apply1, Kind1},
+};
 
 /// A typeclass for types that support function application within a context.
 ///
@@ -11,7 +14,7 @@ use crate::hkt::{Apply as App, Kind};
 ///
 /// Apply instances must satisfy the following law:
 /// * Composition: `apply(apply(f)(g))(x) = apply(f)(apply(g)(x))`.
-pub trait Apply {
+pub trait Apply: Kind1 {
 	/// Applies a function within a context to a value within a context.
 	///
 	/// # Type Signature
@@ -26,12 +29,11 @@ pub trait Apply {
 	/// # Returns
 	///
 	/// The result of applying the function to the value, all within the context.
-	fn apply<'a, F, A, B>(ff: App<Self, (F,)>) -> impl Fn(App<Self, (A,)>) -> App<Self, (B,)>
+	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, F>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		App<Self, (F,)>: Clone,
-		F: 'a + Fn(A) -> B,
-		A: Clone;
+		Apply1<Self, F>: Clone,;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -61,14 +63,11 @@ pub trait Apply {
 ///     Some(10)
 /// );
 /// ```
-pub fn apply<'a, Brand, F, A, B>(
-	ff: App<Brand, (F,)>
-) -> impl Fn(App<Brand, (A,)>) -> App<Brand, (B,)>
+pub fn apply<'a, Brand: Apply, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
+	ff: Apply1<Brand, F>
+) -> ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, B>>
 where
-	Brand: Kind<(F,)> + Kind<(A,)> + Kind<(B,)> + Apply,
-	App<Brand, (F,)>: Clone,
-	F: 'a + Fn(A) -> B,
-	A: Clone,
+	Apply1<Brand, F>: Clone,
 {
 	Brand::apply::<F, _, _>(ff)
 }

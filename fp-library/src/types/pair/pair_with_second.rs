@@ -1,9 +1,9 @@
 //! Implementations for the partially-applied form of [`Pair`] with [the second value][Pair#structfield.1] filled in.
 
 use crate::{
-	aliases::ClonableFn,
+	aliases::ArcFn,
 	functions::map,
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
+	hkt::{Apply, Apply1, Brand, Brand1, Kind, Kind1},
 	typeclasses::{Applicative, Foldable, Functor, Traversable},
 	types::Pair,
 };
@@ -37,9 +37,7 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
 	///     Pair(false, ())
 	/// );
 	/// ```
-	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	{
 		move |fa| {
 			let fa = <Self as Brand<_, (A,)>>::project(fa);
@@ -60,14 +58,9 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
 	///     2
 	/// );
 	/// ```
-	fn fold_right<'a, A, B>(
-		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
-	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
-	where
-		Self: 'a + Kind<(A,)>,
-		A: 'a + Clone,
-		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a,
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>>
 	{
 		Arc::new(move |b| {
 			Arc::new({
@@ -86,15 +79,11 @@ impl<Second> Traversable for PairWithSecondBrand<Second>
 where
 	Second: Clone,
 {
-	fn traverse<'a, F, A, B>(
-		f: ClonableFn<'a, A, Apply<F, (B,)>>
-	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	fn traverse<'a, F: Applicative, A: 'a, B>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
-		A: 'a,
-		B: Clone,
-		Apply<F, (B,)>: 'a,
+		Apply1<F, B>: 'a,
 	{
 		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
 			(f, Pair(first, second)) => map::<F, B, Apply<Self, (B,)>>(Arc::new(move |first| {

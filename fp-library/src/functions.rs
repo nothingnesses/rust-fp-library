@@ -1,7 +1,7 @@
 //! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
 //! free functions that dispatch to associated functions of typeclass instances.
 
-use crate::aliases::ClonableFn;
+use crate::aliases::ArcFn;
 pub use crate::typeclasses::{
 	apply::apply,
 	apply_first::apply_first,
@@ -48,8 +48,8 @@ use std::sync::Arc;
 /// );
 /// ```
 pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
-	f: ClonableFn<'a, B, C>
-) -> ClonableFn<'a, ClonableFn<'a, A, B>, ClonableFn<'a, A, C>> {
+	f: ArcFn<'a, B, C>
+) -> ArcFn<'a, ArcFn<'a, A, B>, ArcFn<'a, A, C>> {
 	Arc::new(move |g| {
 		let f = f.clone();
 		Arc::new(move |a| f(g(a)))
@@ -119,8 +119,8 @@ where
 /// );
 /// ```
 pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
-	f: ClonableFn<'a, A, ClonableFn<'a, B, C>>
-) -> ClonableFn<'a, B, ClonableFn<'a, A, C>> {
+	f: ArcFn<'a, A, ArcFn<'a, B, C>>
+) -> ArcFn<'a, B, ArcFn<'a, A, C>> {
 	Arc::new(move |b| {
 		let f = f.clone();
 		Arc::new(move |a| (f(a))(b.to_owned()))

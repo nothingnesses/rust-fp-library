@@ -1,10 +1,11 @@
-use crate::hkt::{Apply, Kind};
+use crate::hkt::{Apply1, Kind1};
+
 
 /// A typeclass for types that can lift values into a context.
 ///
 /// `Pure` provides the ability to lift a value into a context without
 /// adding any additional structure or effects.
-pub trait Pure {
+pub trait Pure: Kind1 {
 	/// Lifts a value into the context.
 	///
 	/// # Type Signature
@@ -18,9 +19,7 @@ pub trait Pure {
 	/// # Returns
 	///
 	/// The value wrapped in the context.
-	fn pure<A>(a: A) -> Apply<Self, (A,)>
-	where
-		Self: Kind<(A,)>;
+	fn pure<A>(a: A) -> Apply1<Self, A>;
 }
 
 /// Lifts a value into the context.
@@ -46,9 +45,7 @@ pub trait Pure {
 ///
 /// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 /// ```
-pub fn pure<Brand, A>(a: A) -> Apply<Brand, (A,)>
-where
-	Brand: Kind<(A,)> + Pure,
+pub fn pure<Brand: Pure, A>(a: A) -> Apply1<Brand, A>
 {
 	Brand::pure(a)
 }

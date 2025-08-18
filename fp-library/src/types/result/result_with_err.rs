@@ -1,9 +1,9 @@
 //! Implementations for the partially-applied form of [`Result`] with the [`Err`] constructor filled in.
 
 use crate::{
-	aliases::ClonableFn,
+	aliases::ArcFn,
 	functions::{map, pure},
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
+	hkt::{Apply, Apply1, Brand, Brand1, Kind, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -37,9 +37,7 @@ impl<E> Pure for ResultWithErrBrand<E> {
 	///     pure::<ResultWithErrBrand<()>, _>(()),
 	///     Ok(())
 	/// );
-	fn pure<A>(a: A) -> Apply<Self, (A,)>
-	where
-		Self: Kind<(A,)>,
+	fn pure<A>(a: A) -> Apply1<Self, A>
 	{
 		<Self as Brand<_, _>>::inject(Ok(a))
 	}
@@ -61,9 +59,7 @@ impl<E> Functor for ResultWithErrBrand<E> {
 	///     Ok(())
 	/// );
 	/// ```
-	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	{
 		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&*f))
 	}
@@ -95,11 +91,11 @@ where
 	///     Ok(())
 	/// );
 	/// ```
-	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, F>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: 'a + Fn(A) -> B,
-		Apply<Self, (F,)>: Clone,
+		Apply1<Self, F>: Clone,
 	{
 		move |fa| match (<Self as Brand<_, (F,)>>::project(ff.to_owned()), &fa) {
 			(Ok(f), _) => map::<ResultWithErrBrand<_>, _, _>(Arc::new(f))(fa),
@@ -131,10 +127,11 @@ impl<E> ApplyFirst for ResultWithErrBrand<E> {
 	///     Ok(true)
 	/// );
 	/// ```
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
 		move |fb| {
 			<Self as Brand<_, (A,)>>::inject(
@@ -173,10 +170,11 @@ impl<E> ApplySecond for ResultWithErrBrand<E> {
 	///     Ok(false)
 	/// );
 	/// ```
-	fn apply_second<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	fn apply_second<'a, A: 'a, B: 'a + Clone>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
 		move |fb| {
 			<Self as Brand<_, (B,)>>::inject(
@@ -210,11 +208,9 @@ where
 	///     Ok(())
 	/// );
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
-		F: Fn(A) -> Apply<Self, (B,)>,
-		Apply<Self, (A,)>: Clone,
+	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, F, Apply1<Self, B>>
 	{
 		move |f| {
 			<Self as Brand<_, _>>::inject(
@@ -241,14 +237,9 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 	///     1
 	/// );
 	/// ```
-	fn fold_right<'a, A, B>(
-		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
-	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
-	where
-		Self: 'a + Kind<(A,)>,
-		A: 'a + Clone,
-		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a,
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>>
 	{
 		Arc::new(move |b| {
 			Arc::new({
@@ -263,15 +254,11 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 }
 
 impl<E> Traversable for ResultWithErrBrand<E> {
-	fn traverse<'a, F, A, B>(
-		f: ClonableFn<'a, A, Apply<F, (B,)>>
-	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	fn traverse<'a, F: Applicative, A: 'a, B>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
-		A: 'a,
-		B: Clone,
-		Apply<F, (B,)>: 'a,
+		Apply1<F, B>: 'a,
 	{
 		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
 			(_, Err(e)) => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(Err(e))),

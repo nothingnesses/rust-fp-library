@@ -1,10 +1,9 @@
 //! Implementations for [`Option`].
 
 use crate::{
-	aliases::ClonableFn,
+	aliases::ArcFn,
 	functions::{map, pure},
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
-	impl_brand,
+	hkt::{Apply1, Brand1, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -12,7 +11,11 @@ use crate::{
 };
 use std::sync::Arc;
 
-impl_brand!(OptionBrand, Option, Kind1, Brand1, (A));
+pub struct OptionBrand;
+
+impl Kind1 for OptionBrand {
+	type Output<A> = Option<A>;
+}
 
 impl Pure for OptionBrand {
 	/// # Examples
@@ -24,11 +27,8 @@ impl Pure for OptionBrand {
 	///     pure::<OptionBrand, _>(()),
 	///     Some(())
 	/// );
-	fn pure<A>(a: A) -> Apply<Self, (A,)>
-	where
-		Self: Kind<(A,)>,
-	{
-		<Self as Brand<_, _>>::inject(Some(a))
+	fn pure<A>(a: A) -> Apply1<Self, A> {
+		Some(a)
 	}
 }
 
@@ -48,11 +48,8 @@ impl Functor for OptionBrand {
 	///     Some(())
 	/// );
 	/// ```
-	fn map<'a, A, B>(f: ClonableFn<'a, A, B>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-	{
-		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&*f))
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
+		Arc::new(move |fa: Apply1<Self, A>| fa.map(&*f))
 	}
 }
 
@@ -79,16 +76,16 @@ impl TypeclassApply for OptionBrand {
 	///     Some(())
 	/// );
 	/// ```
-	fn apply<'a, F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, F>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: 'a + Fn(A) -> B,
-		Apply<Self, (F,)>: Clone,
+		Apply1<Self, F>: Clone,
 	{
-		move |fa| match (<Self as Brand<_, (F,)>>::project(ff.to_owned()), &fa) {
+		Arc::new(move |fa| match (ff.to_owned(), &fa) {
 			(Some(f), _) => map::<Self, _, _>(Arc::new(f))(fa),
-			_ => <Self as Brand<_, _>>::inject(None::<B>),
-		}
+			_ => None::<B>,
+		})
 	}
 }
 
@@ -115,22 +112,16 @@ impl ApplyFirst for OptionBrand {
 	///     Some(true)
 	/// );
 	/// ```
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (A,)>>::inject(
-				match (
-					<Self as Brand<_, _>>::project(fa.to_owned()),
-					<Self as Brand<_, (B,)>>::project(fb),
-				) {
-					(Some(a), Some(_)) => Some(a),
-					_ => None,
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Some(a), Some(_)) => Some(a),
+			_ => None,
+		})
 	}
 }
 
@@ -157,22 +148,16 @@ impl ApplySecond for OptionBrand {
 	///     Some(false)
 	/// );
 	/// ```
-	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	fn apply_second<'a, A: 'a, B: 'a + Clone>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (B,)>>::inject(
-				match (
-					<Self as Brand<_, (A,)>>::project(_fa.to_owned()),
-					<Self as Brand<_, (B,)>>::project(fb),
-				) {
-					(Some(_), Some(a)) => Some(a),
-					_ => None,
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Some(_), Some(a)) => Some(a),
+			_ => None,
+		})
 	}
 }
 
@@ -191,18 +176,10 @@ impl Bind for OptionBrand {
 	///     Some(())
 	/// );
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
-		F: Fn(A) -> Apply<Self, (B,)>,
-		Apply<Self, (A,)>: Clone,
-	{
-		move |f| {
-			<Self as Brand<_, _>>::inject(
-				<Self as Brand<_, _>>::project(ma.to_owned())
-					.and_then(|a| -> Option<B> { <Self as Brand<_, _>>::project(f(a)) }),
-			)
-		}
+	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, F, Apply1<Self, B>> {
+		Arc::new(move |f| ma.to_owned().and_then(|a| -> Option<B> { f(a) }))
 	}
 }
 
@@ -222,19 +199,13 @@ impl Foldable for OptionBrand {
 	///     1
 	/// );
 	/// ```
-	fn fold_right<'a, A, B>(
-		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
-	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
-	where
-		Self: 'a + Kind<(A,)>,
-		A: 'a + Clone,
-		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a,
-	{
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
-				move |fa| match (f.clone(), b.to_owned(), <Self as Brand<_, _>>::project(fa)) {
+				move |fa| match (f.clone(), b.to_owned(), fa) {
 					(_, b, None) => b,
 					(f, b, Some(a)) => f(a)(b),
 				}
@@ -244,18 +215,14 @@ impl Foldable for OptionBrand {
 }
 
 impl Traversable for OptionBrand {
-	fn traverse<'a, F, A, B>(
-		f: ClonableFn<'a, A, Apply<F, (B,)>>
-	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	fn traverse<'a, F: Applicative, A: 'a, B>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
-		A: 'a,
-		B: Clone,
-		Apply<F, (B,)>: 'a,
+		Apply1<F, B>: 'a,
 	{
-		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
-			(_, None) => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(None)),
+		Arc::new(move |ta| match (f.clone(), ta) {
+			(_, None) => pure::<F, _>(None),
 			(f, Some(a)) => map::<F, B, _>(Arc::new(pure::<Self, _>))(f(a)),
 		})
 	}

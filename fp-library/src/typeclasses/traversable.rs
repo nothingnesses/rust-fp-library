@@ -1,9 +1,9 @@
-use std::{convert::identity, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
-	aliases::ClonableFn,
-	functions::map,
-	hkt::{Apply, Kind},
+	aliases::ArcFn,
+	functions::{identity, map},
+	hkt::Apply1,
 	typeclasses::{Applicative, Foldable, Functor},
 };
 
@@ -47,18 +47,13 @@ pub trait Traversable: Functor + Foldable {
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// ```
-	fn traverse<'a, F, A, B>(
-		f: ClonableFn<'a, A, Apply<F, (B,)>>
-	) -> ClonableFn<'a, Apply<Self, (A,)>, Apply<F, (Apply<Self, (B,)>,)>>
+	fn traverse<'a, F: Applicative, A: 'a, B>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)>,
-		F: 'a + Kind<(B,)> + Kind<(Apply<Self, (B,)>,)> + Applicative,
-		A: 'a + Clone,
-		B: Clone,
-		Apply<F, (B,)>: 'a + Clone,
-		Apply<Self, (B,)>: Clone,
+		Apply1<F, B>: 'a,
 	{
-		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply<F, (B,)>>(f.clone())(ta)))
+		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply1<F, B>>(f.clone())(ta)))
 	}
 
 	/// Collects applicative actions within a traversable structure into a single applicative action containing the traversed structure.
@@ -90,39 +85,22 @@ pub trait Traversable: Functor + Foldable {
 	///     Some(vec![1, 2, 3])
 	/// );
 	/// ```
-	fn sequence<F, A>(t: Apply<Self, (Apply<F, (A,)>,)>) -> Apply<F, (Apply<Self, (A,)>,)>
-	where
-		Self: Kind<(Apply<F, (A,)>,)> + Kind<(A,)>,
-		F: Kind<(A,)> + Kind<(Apply<Self, (A,)>,)> + Applicative,
-		A: Clone,
-		Apply<F, (A,)>: Clone,
-		Apply<Self, (A,)>: Clone,
-	{
+	fn sequence<F: Applicative, A>(t: Apply1<Self, Apply1<F, A>>) -> Apply1<F, Apply1<Self, A>> {
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
 }
 
-pub fn traverse<'a, Brand, F, A, B>(
-	f: ClonableFn<'a, A, Apply<F, (B,)>>
-) -> ClonableFn<'a, Apply<Brand, (A,)>, Apply<F, (Apply<Brand, (B,)>,)>>
+pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a, B>(
+	f: ArcFn<'a, A, Apply1<F, B>>
+) -> ArcFn<'a, Apply1<Brand, A>, Apply1<F, Apply1<Brand, B>>>
 where
-	Brand: Kind<(A,)> + Kind<(B,)> + Kind<(Apply<F, (B,)>,)> + Traversable,
-	F: 'a + Kind<(B,)> + Kind<(Apply<Brand, (B,)>,)> + Applicative,
-	A: 'a + Clone,
-	B: Clone,
-	Apply<F, (B,)>: 'a + Clone,
-	Apply<Brand, (B,)>: Clone,
+	Apply1<F, B>: 'a,
 {
 	Brand::traverse::<F, _, B>(f)
 }
 
-pub fn sequence<Brand, F, A>(t: Apply<Brand, (Apply<F, (A,)>,)>) -> Apply<F, (Apply<Brand, (A,)>,)>
-where
-	Brand: Kind<(Apply<F, (A,)>,)> + Kind<(A,)> + Traversable,
-	F: Kind<(A,)> + Kind<(Apply<Brand, (A,)>,)> + Applicative,
-	A: Clone,
-	Apply<F, (A,)>: Clone,
-	Apply<Brand, (A,)>: Clone,
-{
+pub fn sequence<Brand: Traversable, F: Applicative, A>(
+	t: Apply1<Brand, Apply1<F, A>>
+) -> Apply1<F, Apply1<Brand, A>> {
 	Brand::sequence::<F, A>(t)
 }

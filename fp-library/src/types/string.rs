@@ -3,15 +3,18 @@
 use std::sync::Arc;
 
 use crate::{
-	aliases::ClonableFn,
-	hkt::{Apply, Brand0, Kind0},
-	impl_brand,
+	aliases::ArcFn,
+	hkt::{Apply0, Brand0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
 
-impl_brand!(StringBrand, String, Kind0, Brand0, ());
+pub struct StringBrand;
 
-impl<'a> Semigroup<'a> for StringBrand {
+impl Kind0 for StringBrand {
+	type Output = String;
+}
+
+impl Semigroup for StringBrand {
 	/// # Examples
 	///
 	/// ```rust
@@ -22,12 +25,12 @@ impl<'a> Semigroup<'a> for StringBrand {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append(a: Apply<Self, ()>) -> ClonableFn<'a, Apply<Self, ()>, Apply<Self, ()>> {
+	fn append<'a>(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
 		Arc::new(move |b| a.to_owned() + &b)
 	}
 }
 
-impl<'a> Monoid<'a> for StringBrand {
+impl Monoid for StringBrand {
 	/// # Examples
 	///
 	/// ```rust
@@ -38,7 +41,7 @@ impl<'a> Monoid<'a> for StringBrand {
 	///     ""
 	/// );
 	/// ```
-	fn empty() -> Apply<Self, ()> {
-		Apply::<Self, ()>::default()
+	fn empty() -> Apply0<Self> {
+		Apply0::<Self>::default()
 	}
 }

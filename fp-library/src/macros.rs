@@ -32,13 +32,6 @@ macro_rules! make_trait_kind {
 		pub trait $KindN {
 			type Output;
 		}
-
-		impl<Brand> Kind<()> for Brand
-		where
-			Brand: $KindN,
-		{
-			type Output = $ApplyN<Brand>;
-		}
 	};
 	(
 		$KindN:ident,
@@ -51,15 +44,8 @@ macro_rules! make_trait_kind {
 			$kind_string,
 			"`."
 		)]
-		pub trait $KindN<$($Generics),+> {
-			type Output;
-		}
-
-		impl<Brand, $($Generics),+> Kind<($($Generics,)+)> for Brand
-		where
-			Brand: $KindN<$($Generics),+>,
-		{
-			type Output = $ApplyN<Brand, $($Generics),+>;
+		pub trait $KindN {
+			type Output<$($Generics),+>;
 		}
 	};
 }
@@ -102,7 +88,7 @@ macro_rules! make_type_apply {
 			$kind_string,
 			"`."
 		)]
-		pub type $ApplyN<Brand, $($Generics),+> = <Brand as $KindN<$($Generics),+>>::Output;
+		pub type $ApplyN<Brand, $($Generics),+> = <Brand as $KindN>::Output<$($Generics),+>;
 	};
 }
 
@@ -114,12 +100,16 @@ macro_rules! make_type_apply {
 /// # Parameters
 ///
 /// - `$BrandN`: The name of the brand trait to generate (e.g., `Brand0`, `Brand1`, `Brand2`).
+/// - `$KindN`: The kind trait name (e.g., `Kind0`, `Kind1`, `Kind2`).
+/// - `$ApplyN`: The corresponding type alias name (e.g., `Apply0`, `Apply1`, `Apply2`).
 /// - `$kind_string`: A string representation of the kind (e.g., `"*"`, `"* -> *"`, `"* -> * -> *"`).
 /// - `$Generics`: A tuple of generic type parameters (e.g., `()`, `(A)`, `(A, B)`).
 #[macro_export]
 macro_rules! make_trait_brand {
 	(
 		$BrandN:ident,
+		$KindN:ident,
+		$ApplyN:ident,
 		$kind_string:literal,
 		()
 	) => {
@@ -128,29 +118,16 @@ macro_rules! make_trait_brand {
 			$kind_string,
 			"`."
 		)]
-		pub trait $BrandN<Concrete>
-		where
-			Self: Kind<()>,
+		pub trait $BrandN<Concrete>: $KindN
 		{
-			fn inject(a: Concrete) -> Apply<Self, ()>;
-			fn project(a: Apply<Self, ()>) -> Concrete;
-		}
-
-		impl<Me, Concrete> Brand<Concrete, ()> for Me
-		where
-			Me: Kind<()> + $BrandN<Concrete>,
-		{
-			fn inject(a: Concrete) -> Apply<Self, ()> {
-				<Me as $BrandN<Concrete>>::inject(a)
-			}
-
-			fn project(a: Apply<Self, ()>) -> Concrete {
-				<Me as $BrandN<Concrete>>::project(a)
-			}
+			fn inject(a: Concrete) -> $ApplyN<Self>;
+			fn project(a: $ApplyN<Self>) -> Concrete;
 		}
 	};
 	(
 		$BrandN:ident,
+		$KindN:ident,
+		$ApplyN:ident,
 		$kind_string:literal,
 		($($Generics:ident),+)
 	) => {
@@ -159,98 +136,10 @@ macro_rules! make_trait_brand {
 			$kind_string,
 			"`."
 		)]
-		pub trait $BrandN<Concrete, $($Generics),+>
-		where
-			Self: Kind<($($Generics,)+)>,
+		pub trait $BrandN<Concrete, $($Generics),+>: $KindN
 		{
-			fn inject(a: Concrete) -> Apply<Self, ($($Generics,)+)>;
-			fn project(a: Apply<Self, ($($Generics,)+)>) -> Concrete;
-		}
-
-		impl<Me, Concrete, $($Generics),+> Brand<Concrete, ($($Generics,)+)> for Me
-		where
-			Me: Kind<($($Generics,)+)> + $BrandN<Concrete, $($Generics),+>,
-		{
-			fn inject(a: Concrete) -> Apply<Self, ($($Generics,)+)> {
-				<Me as $BrandN<Concrete, $($Generics),+>>::inject(a)
-			}
-
-			fn project(a: Apply<Self, ($($Generics,)+)>) -> Concrete {
-				<Me as $BrandN<Concrete, $($Generics),+>>::project(a)
-			}
+			fn inject(a: Concrete) -> $ApplyN<Self, $($Generics),+>;
+			fn project(a: $ApplyN<Self, $($Generics),+>) -> Concrete;
 		}
 	};
-}
-
-/// Generates a [brand type][crate::brands] and its [`BrandN` trait][crate::hkt::brands] implementation.
-///
-/// This macro creates a concrete brand struct and implements the appropriate kind and brand traits
-/// for it. It's the primary way to create brand types that connect concrete types with their
-/// higher-kinded representations, enabling them to work with typeclasses.
-///
-/// # Parameters
-///
-/// - `$Brand`: The name of the brand struct to generate (e.g., `StringBrand`, `OptionBrand`).
-/// - `$Concrete`: The concrete type this brand represents (e.g., `String`, `Option`).
-/// - `$KindN`: The kind trait to implement (e.g., `Kind0`, `Kind1`, `Kind2`).
-/// - `$BrandN`: The brand trait to implement (e.g., `Brand0`, `Brand1`, `Brand2`).
-/// - `$Generics`: A tuple of generic type parameters (e.g., `()`, `(A)`, `(A, B)`).
-#[macro_export]
-macro_rules! impl_brand {
-	(
-		$Brand:ident,
-		$Concrete:ident,
-		$KindN:ident,
-		$BrandN:ident,
-		()
-	) => {
-		#[doc = concat!(
-			"[Brand][crate::brands] for [`",
-			stringify!($Concrete),
-			"`]."
-		)]
-		pub struct $Brand;
-
-		impl $KindN for $Brand {
-			type Output = $Concrete;
-		}
-
-		impl $BrandN<$Concrete> for $Brand {
-			fn inject(a: $Concrete) -> Apply<Self, ()> {
-				a
-			}
-
-			fn project(a: Apply<Self, ()>) -> $Concrete {
-				a
-			}
-		}
-	};
-	(
-		$Brand:ident,
-		$Concrete:ident,
-		$KindN:ident,
-		$BrandN:ident,
-		($($Generics:ident),+)
-	) => {
-		#[doc = concat!(
-			"[Brand][crate::brands] for [`",
-			stringify!($Concrete),
-			"`]."
-		)]
-		pub struct $Brand;
-
-		impl<$($Generics),+> $KindN<$($Generics),+> for $Brand {
-			type Output = $Concrete<$($Generics),+>;
-		}
-
-		impl<$($Generics),+> $BrandN<$Concrete<$($Generics),+>, $($Generics,)+> for $Brand {
-			fn inject(a: $Concrete<$($Generics),+>) -> Apply<Self, ($($Generics,)+)> {
-				a
-			}
-
-			fn project(a: Apply<Self, ($($Generics,)+)>) -> $Concrete<$($Generics),+> {
-				a
-			}
-		}
-	}
 }
