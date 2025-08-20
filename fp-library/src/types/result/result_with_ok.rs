@@ -3,7 +3,7 @@
 use crate::{
 	aliases::ArcFn,
 	functions::{map, pure},
-	hkt::{Apply, Apply1, Brand, Brand1, Kind, Kind1},
+	hkt::{Apply1, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -14,17 +14,8 @@ use std::sync::Arc;
 /// [Brand][crate::brands] for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
 pub struct ResultWithOkBrand<T>(T);
 
-impl<A, T> Kind1<A> for ResultWithOkBrand<T> {
-	type Output = Result<T, A>;
-}
-
-impl<A, T> Brand1<Result<T, A>, A> for ResultWithOkBrand<T> {
-	fn inject(a: Result<T, A>) -> Apply<Self, (A,)> {
-		a
-	}
-	fn project(a: Apply<Self, (A,)>) -> Result<T, A> {
-		a
-	}
+impl<T> Kind1 for ResultWithOkBrand<T> {
+	type Output<A> = Result<T, A>;
 }
 
 impl<T> Pure for ResultWithOkBrand<T> {
@@ -37,9 +28,8 @@ impl<T> Pure for ResultWithOkBrand<T> {
 	///     pure::<ResultWithOkBrand<()>, _>(()),
 	///     Err(())
 	/// );
-	fn pure<A>(a: A) -> Apply1<Self, A>
-	{
-		<Self as Brand<_, _>>::inject(Err(a))
+	fn pure<A>(a: A) -> Apply1<Self, A> {
+		Err(a)
 	}
 }
 
@@ -59,20 +49,18 @@ impl<T> Functor for ResultWithOkBrand<T> {
 	///     Err(())
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	{
-		move |fa| {
-			<Self as Brand<_, _>>::inject(match <Self as Brand<_, _>>::project(fa) {
-				Ok(a) => Ok(a),
-				Err(e) => Err(f(e)),
-			})
-		}
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
+		Arc::new(move |fa| match fa {
+			Ok(a) => Ok(a),
+			Err(e) => Err(f(e)),
+		})
 	}
 }
 
 impl<T> TypeclassApply for ResultWithOkBrand<T>
 where
 	T: Clone,
+	for<'a> T: 'a,
 {
 	/// # Examples
 	///
@@ -102,14 +90,17 @@ where
 	where
 		Apply1<Self, F>: Clone,
 	{
-		move |fa| match (<Self as Brand<_, (F,)>>::project(ff.to_owned()), &fa) {
-			(Ok(e), _) => <Self as Brand<_, _>>::inject(Ok::<_, B>(e)),
+		Arc::new(move |fa| match (ff.to_owned(), &fa) {
+			(Ok(e), _) => Ok::<_, B>(e),
 			(Err(f), _) => map::<ResultWithOkBrand<_>, _, _>(Arc::new(f))(fa),
-		}
+		})
 	}
 }
 
-impl<T> ApplyFirst for ResultWithOkBrand<T> {
+impl<T> ApplyFirst for ResultWithOkBrand<T>
+where
+	for<'a> T: 'a,
+{
 	/// # Examples
 	///
 	/// ```
@@ -138,21 +129,17 @@ impl<T> ApplyFirst for ResultWithOkBrand<T> {
 	where
 		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (A,)>>::inject(
-				match (
-					<Self as Brand<_, _>>::project(fa.to_owned()),
-					<Self as Brand<_, (B,)>>::project(fb),
-				) {
-					(Err(a), Err(_a)) => Err(a),
-					(Ok(e), _) | (_, Ok(e)) => Ok(e),
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Err(a), Err(_a)) => Err(a),
+			(Ok(e), _) | (_, Ok(e)) => Ok(e),
+		})
 	}
 }
 
-impl<T> ApplySecond for ResultWithOkBrand<T> {
+impl<T> ApplySecond for ResultWithOkBrand<T>
+where
+	for<'a> T: 'a,
+{
 	/// # Examples
 	///
 	/// ```
@@ -181,23 +168,17 @@ impl<T> ApplySecond for ResultWithOkBrand<T> {
 	where
 		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (B,)>>::inject(
-				match (
-					<Self as Brand<_, (A,)>>::project(fa.to_owned()),
-					<Self as Brand<_, _>>::project(fb),
-				) {
-					(Err(_a), Err(a)) => Err(a),
-					(Ok(e), _) | (_, Ok(e)) => Ok(e),
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Err(_a), Err(a)) => Err(a),
+			(Ok(e), _) | (_, Ok(e)) => Ok(e),
+		})
 	}
 }
 
 impl<T> Bind for ResultWithOkBrand<T>
 where
 	T: Clone,
+	for<'a> T: 'a,
 {
 	/// # Examples
 	///
@@ -215,14 +196,8 @@ where
 	/// ```
 	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>>
-	{
-		move |f| {
-			<Self as Brand<_, _>>::inject(
-				<Self as Brand<_, _>>::project(ma.to_owned())
-					.or_else(|a| -> Result<_, B> { <Self as Brand<_, _>>::project(f(a)) }),
-			)
-		}
+	) -> ArcFn<'a, F, Apply1<Self, B>> {
+		Arc::new(move |f| ma.to_owned().or_else(|a| -> Result<_, B> { f(a) }))
 	}
 }
 
@@ -244,12 +219,11 @@ impl<T> Foldable for ResultWithOkBrand<T> {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>>
-	{
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
-				move |fa| match (f.clone(), b.to_owned(), <Self as Brand<_, _>>::project(fa)) {
+				move |fa| match (f.clone(), b.to_owned(), fa) {
 					(_, b, Ok(_)) => b,
 					(f, b, Err(a)) => f(a)(b),
 				}
@@ -259,14 +233,14 @@ impl<T> Foldable for ResultWithOkBrand<T> {
 }
 
 impl<T> Traversable for ResultWithOkBrand<T> {
-	fn traverse<'a, F: Applicative, A: 'a, B>(
+	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Apply1<F, B>: 'a,
+		Apply1<F, B>: 'a + Clone,
 	{
-		Arc::new(move |ta| match (f.clone(), <Self as Brand<_, _>>::project(ta)) {
-			(_, Ok(e)) => pure::<F, _>(<Self as Brand<_, (B,)>>::inject(Ok(e))),
+		Arc::new(move |ta| match (f.clone(), ta) {
+			(_, Ok(e)) => pure::<F, _>(Ok(e)),
 			(f, Err(a)) => map::<F, B, _>(Arc::new(pure::<Self, _>))(f(a)),
 		})
 	}

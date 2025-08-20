@@ -1,10 +1,9 @@
-use std::sync::Arc;
-
 use crate::{
 	aliases::ArcFn,
-	hkt::{Apply0, Brand0, Kind0},
+	hkt::{Apply0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
+use std::sync::Arc;
 
 /// [Brand][crate::brands] for the concrete form of [`Vec`], `Vec<A>`.
 pub struct ConcreteVecBrand<A>(A);
@@ -13,9 +12,9 @@ impl<A> Kind0 for ConcreteVecBrand<A> {
 	type Output = Vec<A>;
 }
 
-impl<A> Semigroup for ConcreteVecBrand<A>
+impl<'a, A> Semigroup<'a> for ConcreteVecBrand<A>
 where
-	for<'a> A: 'a + Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///
@@ -27,14 +26,14 @@ where
 	///     vec![true, false]
 	/// );
 	/// ```
-	fn append<'a>(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
 		Arc::new(move |b| [a.to_owned(), b.to_owned()].concat())
 	}
 }
 
-impl<A> Monoid for ConcreteVecBrand<A>
+impl<'a, A> Monoid<'a> for ConcreteVecBrand<A>
 where
-	for<'a> A: 'a + Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///

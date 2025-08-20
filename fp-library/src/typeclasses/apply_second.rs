@@ -28,7 +28,7 @@ pub trait ApplySecond: Kind1 {
 		fa: Apply1<Self, A>
 	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Apply1<Self, A>: Clone,;
+		Apply1<Self, A>: Clone;
 }
 
 /// Combines two contexts, keeping the value from the second context.

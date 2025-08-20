@@ -33,7 +33,7 @@ pub trait Apply: Kind1 {
 		ff: Apply1<Self, F>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Apply1<Self, F>: Clone,;
+		Apply1<Self, F>: Clone;
 }
 
 /// Applies a function within a context to a value within a context.

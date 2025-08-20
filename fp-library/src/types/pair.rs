@@ -3,7 +3,7 @@
 pub mod pair_with_first;
 pub mod pair_with_second;
 
-use crate::hkt::{Brand2, Kind2};
+use crate::hkt::Kind2;
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 

@@ -39,19 +39,19 @@ pub trait Traversable: Functor + Foldable {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::traverse};
+	/// use fp_library::{brands::{VecBrand, OptionBrand}, functions::traverse};
 	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     traverse::<VecBrand, Option, i32, i32>(Arc::new(|x| Arc::new(Some(x * 2))))(vec![1, 2, 3]),
+	///     traverse::<VecBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a, B>(
+	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Apply1<F, B>: 'a,
+		Apply1<F, B>: 'a + Clone,
 	{
 		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply1<F, B>>(f.clone())(ta)))
 	}
@@ -77,30 +77,38 @@ pub trait Traversable: Functor + Foldable {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::sequence};
+	/// use fp_library::{brands::{VecBrand, OptionBrand}, functions::sequence};
 	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     sequence::<VecBrand, Option, i32>(vec![Some(1), Some(2), Some(3)]),
+	///     sequence::<VecBrand, OptionBrand, i32>(vec![Some(1), Some(2), Some(3)]),
 	///     Some(vec![1, 2, 3])
 	/// );
 	/// ```
-	fn sequence<F: Applicative, A>(t: Apply1<Self, Apply1<F, A>>) -> Apply1<F, Apply1<Self, A>> {
+	fn sequence<F: Applicative, A: Clone>(
+		t: Apply1<Self, Apply1<F, A>>
+	) -> Apply1<F, Apply1<Self, A>>
+	where
+		Apply1<F, A>: Clone,
+	{
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
 }
 
-pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a, B>(
+pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: Clone>(
 	f: ArcFn<'a, A, Apply1<F, B>>
 ) -> ArcFn<'a, Apply1<Brand, A>, Apply1<F, Apply1<Brand, B>>>
 where
-	Apply1<F, B>: 'a,
+	Apply1<F, B>: 'a + Clone,
 {
 	Brand::traverse::<F, _, B>(f)
 }
 
-pub fn sequence<Brand: Traversable, F: Applicative, A>(
+pub fn sequence<Brand: Traversable, F: Applicative, A: Clone>(
 	t: Apply1<Brand, Apply1<F, A>>
-) -> Apply1<F, Apply1<Brand, A>> {
+) -> Apply1<F, Apply1<Brand, A>>
+where
+	Apply1<F, A>: Clone,
+{
 	Brand::sequence::<F, A>(t)
 }

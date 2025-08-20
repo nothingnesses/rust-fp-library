@@ -1,11 +1,7 @@
 //! Convenience type aliases for the [kind traits][crate::hkt::kinds].
 
 use crate::{
-	hkt::{
-		Kind0,
-		Kind1,
-		Kind2,
-	},
+	hkt::{Kind0, Kind1, Kind2},
 	make_type_apply,
 };
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::{
 	aliases::ArcFn,
 	functions::{identity, map, pure},
-	hkt::{Apply1, Brand1, Kind1},
+	hkt::{Apply1, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -20,16 +20,6 @@ pub struct SoloBrand;
 
 impl Kind1 for SoloBrand {
 	type Output<A> = Solo<A>;
-}
-
-impl<A> Brand1<Solo<A>, A> for SoloBrand {
-	fn inject(a: Solo<A>) -> Apply1<Self, A> {
-		a
-	}
-
-	fn project(a: Apply1<Self, A>) -> Solo<A> {
-		a
-	}
 }
 
 impl Pure for SoloBrand {
@@ -119,7 +109,7 @@ impl ApplySecond for SoloBrand {
 	/// );
 	/// ```
 	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		fa: Apply1<Self, A>
+		_fa: Apply1<Self, A>
 	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
 		Apply1<Self, A>: Clone,
@@ -160,11 +150,11 @@ impl Foldable for SoloBrand {
 }
 
 impl Traversable for SoloBrand {
-	fn traverse<'a, F: Applicative, A: 'a, B>(
+	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Apply1<F, B>: 'a,
+		Apply1<F, B>: 'a + Clone,
 	{
 		Arc::new(move |ta| map::<F, B, _>(Arc::new(pure::<Self, _>))(f(ta.0)))
 	}

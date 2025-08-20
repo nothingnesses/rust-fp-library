@@ -96,14 +96,16 @@ pub trait Foldable: Kind1 {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn fold_map<'a, A: Clone, M: Monoid>(
+	fn fold_map<'a, A: 'a + Clone, M: Monoid<'a>>(
 		f: ArcFn<'a, A, Apply0<M>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply0<M>>
 	where
-		Apply0<M>: Clone,
+		Apply0<M>: 'a + Clone,
 	{
 		Arc::new(move |fa| {
-			((Self::fold_right(Arc::new(|a| (compose(Arc::new(M::append))(f))(a))))(M::empty()))(fa)
+			((Self::fold_right(Arc::new(|a| (compose(Arc::new(M::append))(f.clone()))(a))))(
+				M::empty(),
+			))(fa)
 		})
 	}
 
@@ -230,11 +232,11 @@ pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn fold_map<'a, Brand: Foldable, A: Clone, M: Monoid>(
+pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M: Monoid<'a>>(
 	f: ArcFn<'a, A, Apply0<M>>
 ) -> ArcFn<'a, Apply1<Brand, A>, Apply0<M>>
 where
-	Apply0<M>: Clone,
+	Apply0<M>: 'a + Clone,
 {
 	Brand::fold_map::<_, M>(f)
 }

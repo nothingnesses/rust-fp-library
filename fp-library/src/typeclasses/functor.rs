@@ -1,11 +1,6 @@
 use crate::{
 	aliases::ArcFn,
-	hkt::{
-		// Apply,
-		// Kind,
-		Apply1,
-		Kind1,
-	},
+	hkt::{Apply1, Kind1},
 };
 
 /// A typeclass for types that can be mapped over.

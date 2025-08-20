@@ -1,6 +1,5 @@
 use crate::hkt::{Apply1, Kind1};
 
-
 /// A typeclass for types that can lift values into a context.
 ///
 /// `Pure` provides the ability to lift a value into a context without
@@ -45,7 +44,6 @@ pub trait Pure: Kind1 {
 ///
 /// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 /// ```
-pub fn pure<Brand: Pure, A>(a: A) -> Apply1<Brand, A>
-{
+pub fn pure<Brand: Pure, A>(a: A) -> Apply1<Brand, A> {
 	Brand::pure(a)
 }

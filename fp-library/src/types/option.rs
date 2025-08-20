@@ -3,7 +3,7 @@
 use crate::{
 	aliases::ArcFn,
 	functions::{map, pure},
-	hkt::{Apply1, Brand1, Kind1},
+	hkt::{Apply1, Kind1},
 	typeclasses::{
 		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
 		Pure, Traversable,
@@ -215,11 +215,11 @@ impl Foldable for OptionBrand {
 }
 
 impl Traversable for OptionBrand {
-	fn traverse<'a, F: Applicative, A: 'a, B>(
+	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Apply1<F, B>: 'a,
+		Apply1<F, B>: 'a + Clone,
 	{
 		Arc::new(move |ta| match (f.clone(), ta) {
 			(_, None) => pure::<F, _>(None),

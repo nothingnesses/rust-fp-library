@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
 	aliases::ArcFn,
-	hkt::{Apply0, Brand0, Kind0},
+	hkt::{Apply0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
 
@@ -14,7 +14,7 @@ impl Kind0 for StringBrand {
 	type Output = String;
 }
 
-impl Semigroup for StringBrand {
+impl<'a> Semigroup<'a> for StringBrand {
 	/// # Examples
 	///
 	/// ```rust
@@ -25,12 +25,12 @@ impl Semigroup for StringBrand {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append<'a>(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
 		Arc::new(move |b| a.to_owned() + &b)
 	}
 }
 
-impl Monoid for StringBrand {
+impl<'a> Monoid<'a> for StringBrand {
 	/// # Examples
 	///
 	/// ```rust

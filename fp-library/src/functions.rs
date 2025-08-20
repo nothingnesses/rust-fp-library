@@ -107,10 +107,10 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{aliases::ClonableFn, functions::flip};
+/// use fp_library::{aliases::ArcFn, functions::flip};
 /// use std::sync::Arc;
 ///
-/// let subtract: ClonableFn<_, ClonableFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
+/// let subtract: ArcFn<_, ArcFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
