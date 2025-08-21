@@ -58,32 +58,33 @@ impl TypeclassApply for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{apply, identity}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(None),
+	///     apply::<OptionBrand, (), ()>(None)(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())),
+	///     apply::<OptionBrand, (), ()>(None)(Some(())),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, _, _, _>(Some(identity::<()>))(None),
+	///     apply::<OptionBrand, (), ()>(Some(Arc::new(identity::<()>)))(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, _, _, _>(Some(identity))(Some(())),
+	///     apply::<OptionBrand, (), ()>(Some(Arc::new(identity)))(Some(())),
 	///     Some(())
 	/// );
 	/// ```
-	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, F>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Apply1<Self, F>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
 		Arc::new(move |fa| match (ff.to_owned(), &fa) {
-			(Some(f), _) => map::<Self, _, _>(Arc::new(f))(fa),
+			(Some(f), _) => map::<Self, _, _>(f)(fa),
 			_ => None::<B>,
 		})
 	}
@@ -215,11 +216,12 @@ impl Foldable for OptionBrand {
 }
 
 impl<'a> Traversable<'a> for OptionBrand {
-	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
 		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| match (f.clone(), ta) {
 			(_, None) => pure::<F, _>(None),

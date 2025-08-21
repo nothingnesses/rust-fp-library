@@ -82,24 +82,28 @@ impl TypeclassApply for VecBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::VecBrand, functions::{apply, identity}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<VecBrand, _, _, _>(vec![] as Vec<fn(i32) -> i32>)(vec![1, 2, 3]),
+	///     apply::<VecBrand, _, _>(vec![] as Vec<Arc<dyn Fn(i32) -> i32>>)(vec![1, 2, 3]),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply::<VecBrand, _, _, _>(vec![identity, |x: i32| x * 2])(vec![1, 2]),
+	///     apply::<VecBrand, _, _>(vec![Arc::new(identity), Arc::new(|x: i32| x * 2)])(vec![1, 2]),
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, F>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Apply1<Self, F>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
 		Arc::new(move |fa| {
-			ff.to_owned().into_iter().flat_map(|f| fa.iter().cloned().map(f)).collect()
+			ff.iter()
+				.cloned()
+				.flat_map(|f| fa.iter().cloned().map(&*f).collect::<Vec<_>>())
+				.collect()
 		})
 	}
 }
@@ -215,9 +219,9 @@ impl Foldable for VecBrand {
 }
 
 impl<'a> Traversable<'a> for VecBrand {
-	/// traverse f Vec.empty = pure Vec.empty
-	/// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
-	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
+	// traverse f Vec.empty = pure Vec.empty
+	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
@@ -241,7 +245,7 @@ impl<'a> Traversable<'a> for VecBrand {
 					// traverse: (a -> f b) -> t a -> f (t b)
 					// f: a -> f b
 					// traverse f: t a -> f (t b)
-					let traverse_f = traverse::<Self, F, _, _>(f);
+					let traverse_f = traverse::<Self, F, _, _>(f.clone());
 					// traverse f: t a -> f (t b)
 					// tail: t a
 					// (traverse f) tail: f (t b)
@@ -253,10 +257,7 @@ impl<'a> Traversable<'a> for VecBrand {
 					// apply: f (a -> b) -> f a -> f b
 					// (map cons) (f head): f (t b -> t b)
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					let apply_map_cons_f_head =
-						apply::<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>, Vec<B>, Vec<B>>(
-							map_cons_f_head,
-						);
+					let apply_map_cons_f_head = apply::<F, _, _>(map_cons_f_head);
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
 					// (traverse f) tail: f (t b)
 					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)

@@ -60,19 +60,20 @@ impl TypeclassApply for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{apply, identity}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<SoloBrand, _, _, _>(Solo(identity))(Solo(())),
+	///     apply::<SoloBrand, _, _>(Solo(Arc::new(identity)))(Solo(())),
 	///     Solo(())
 	/// );
 	/// ```
-	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, F>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Apply1<Self, F>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
-		map::<Self, A, B>(Arc::new(ff.0))
+		map::<Self, A, B>(ff.0)
 	}
 }
 
@@ -150,11 +151,12 @@ impl Foldable for SoloBrand {
 }
 
 impl<'a> Traversable<'a> for SoloBrand {
-	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
 		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| map::<F, B, _>(Arc::new(pure::<Self, _>))(f(ta.0)))
 	}

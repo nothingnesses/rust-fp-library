@@ -63,32 +63,33 @@ where
 	///
 	/// ```
 	/// use fp_library::{brands::ResultWithErrBrand, functions::{apply, identity}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<ResultWithErrBrand<_>, fn(()) -> (), _, _>(Err(true))(Err(true)),
+	///     apply::<ResultWithErrBrand<_>, (), ()>(Err(true))(Err(true)),
 	///     Err(true)
 	/// );
 	/// assert_eq!(
-	///     apply::<ResultWithErrBrand<_>, fn(()) -> (), _, _>(Err(true))(Ok(())),
+	///     apply::<ResultWithErrBrand<_>, (), ()>(Err(true))(Ok(())),
 	///     Err(true)
 	/// );
 	/// assert_eq!(
-	///     apply::<ResultWithErrBrand<_>, _, _, _>(Ok(identity::<()>))(Err(true)),
+	///     apply::<ResultWithErrBrand<_>, (), ()>(Ok(Arc::new(identity::<()>)))(Err(true)),
 	///     Err(true)
 	/// );
 	/// assert_eq!(
-	///     apply::<ResultWithErrBrand<bool>, _, _, _>(Ok(identity))(Ok(())),
+	///     apply::<ResultWithErrBrand<bool>, (), ()>(Ok(Arc::new(identity)))(Ok(())),
 	///     Ok(())
 	/// );
 	/// ```
-	fn apply<'a, F: 'a + Fn(A) -> B, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, F>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Apply1<Self, F>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
 		Arc::new(move |fa| match (ff.to_owned(), &fa) {
-			(Ok(f), _) => map::<ResultWithErrBrand<_>, _, _>(Arc::new(f))(fa),
+			(Ok(f), _) => map::<ResultWithErrBrand<_>, _, _>(f)(fa),
 			(Err(e), _) => Err::<B, _>(e),
 		})
 	}
@@ -230,11 +231,12 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 }
 
 impl<'a, E> Traversable<'a> for ResultWithErrBrand<E> {
-	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
 		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| match (f.clone(), ta) {
 			(_, Err(e)) => pure::<F, _>(Err(e)),
