@@ -214,8 +214,8 @@ impl Foldable for OptionBrand {
 	}
 }
 
-impl Traversable for OptionBrand {
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
+impl<'a> Traversable<'a> for OptionBrand {
+	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where

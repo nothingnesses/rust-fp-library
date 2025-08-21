@@ -229,8 +229,8 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 	}
 }
 
-impl<E> Traversable for ResultWithErrBrand<E> {
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
+impl<'a, E> Traversable<'a> for ResultWithErrBrand<E> {
+	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where

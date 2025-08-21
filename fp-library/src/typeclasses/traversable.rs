@@ -16,7 +16,7 @@ use crate::{
 /// performing I/O on collections, or applying transformations within an effectful context.
 ///
 /// A minimum implementation of `Traversable` requires the manual implementation of at least [`Traversable::traverse`] or [`Traversable::sequence`].
-pub trait Traversable: Functor + Foldable {
+pub trait Traversable<'a>: Functor + Foldable {
 	/// Traverses the structure with an applicative action, producing a new structure within the applicative context.
 	///
 	/// The default implementation of `traverse` is implemented in terms of [`sequence`] and [`map`] where:
@@ -47,11 +47,12 @@ pub trait Traversable: Functor + Foldable {
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
 		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply1<F, B>>(f.clone())(ta)))
 	}
@@ -90,25 +91,28 @@ pub trait Traversable: Functor + Foldable {
 	) -> Apply1<F, Apply1<Self, A>>
 	where
 		Apply1<F, A>: Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>>: Clone,
 	{
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
 }
 
-pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: Clone>(
+pub fn traverse<'a, Brand: Traversable<'a>, F: Applicative, A: 'a + Clone, B: Clone>(
 	f: ArcFn<'a, A, Apply1<F, B>>
 ) -> ArcFn<'a, Apply1<Brand, A>, Apply1<F, Apply1<Brand, B>>>
 where
 	Apply1<F, B>: 'a + Clone,
+	Apply1<F, ArcFn<'a, Apply1<Brand, B>, Apply1<Brand, B>>>: Clone,
 {
 	Brand::traverse::<F, _, B>(f)
 }
 
-pub fn sequence<Brand: Traversable, F: Applicative, A: Clone>(
+pub fn sequence<'a, Brand: Traversable<'a>, F: Applicative, A: Clone>(
 	t: Apply1<Brand, Apply1<F, A>>
 ) -> Apply1<F, Apply1<Brand, A>>
 where
 	Apply1<F, A>: Clone,
+	Apply1<F, ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, A>>>: Clone,
 {
 	Brand::sequence::<F, A>(t)
 }

@@ -60,11 +60,11 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second> Traversable for PairWithSecondBrand<Second>
+impl<'a, Second> Traversable<'a> for PairWithSecondBrand<Second>
 where
 	Second: Clone,
 {
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where

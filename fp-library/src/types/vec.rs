@@ -214,14 +214,15 @@ impl Foldable for VecBrand {
 	}
 }
 
-impl Traversable for VecBrand {
+impl<'a> Traversable<'a> for VecBrand {
 	/// traverse f Vec.empty = pure Vec.empty
 	/// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: Clone>(
+	fn traverse<F: Applicative, A: 'a + Clone, B: Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
 		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| {
 			match VecBrand::deconstruct(&ta) {
@@ -252,7 +253,10 @@ impl Traversable for VecBrand {
 					// apply: f (a -> b) -> f a -> f b
 					// (map cons) (f head): f (t b -> t b)
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					let apply_map_cons_f_head = apply::<_, _, _, _>(map_cons_f_head);
+					let apply_map_cons_f_head =
+						apply::<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>, Vec<B>, Vec<B>>(
+							map_cons_f_head,
+						);
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
 					// (traverse f) tail: f (t b)
 					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)
