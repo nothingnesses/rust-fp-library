@@ -27,9 +27,9 @@ pub trait Bind: Kind1 {
 	/// # Returns
 	///
 	/// A computation that sequences the two operations.
-	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+	fn bind<'a, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>>;
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>>;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -53,11 +53,12 @@ pub trait Bind: Kind1 {
 ///
 /// ```
 /// use fp_library::{brands::OptionBrand, functions::{bind, pure}};
+/// use std::sync::Arc;
 ///
-/// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5))(|x| Some(x * 2)), Some(10));
+/// assert_eq!(bind::<OptionBrand, _, _>(Some(5))(Arc::new(|x| Some(x * 2))), Some(10));
 /// ```
-pub fn bind<'a, Brand: Bind, F: Fn(A) -> Apply1<Brand, B>, A: 'a + Clone, B>(
+pub fn bind<'a, Brand: Bind, A: 'a + Clone, B>(
 	ma: Apply1<Brand, A>
-) -> ArcFn<'a, F, Apply1<Brand, B>> {
-	Brand::bind::<F, A, B>(ma)
+) -> ArcFn<'a, ArcFn<'a, A, Apply1<Brand, B>>, Apply1<Brand, B>> {
+	Brand::bind::<A, B>(ma)
 }

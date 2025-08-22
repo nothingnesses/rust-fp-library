@@ -167,19 +167,20 @@ impl Bind for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{bind, pure}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<OptionBrand, _, _, _>(None)(pure::<OptionBrand, ()>),
+	///     bind::<OptionBrand, _, _>(None)(Arc::new(pure::<OptionBrand, ()>)),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     bind::<OptionBrand, _, _, _>(Some(()))(pure::<OptionBrand, _>),
+	///     bind::<OptionBrand, _, _>(Some(()))(Arc::new(pure::<OptionBrand, _>)),
 	///     Some(())
 	/// );
 	/// ```
-	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+	fn bind<'a, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>> {
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
 		Arc::new(move |f| ma.to_owned().and_then(|a| -> Option<B> { f(a) }))
 	}
 }

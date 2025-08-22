@@ -81,12 +81,8 @@ pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 ///     true
 /// );
 /// ```
-pub fn constant<A, B>(a: A) -> impl Fn(B) -> A
-where
-	A: Clone,
-	B: Clone,
-{
-	move |_b| a.to_owned()
+pub fn constant<'a, A: 'a + Clone, B: Clone>(a: A) -> ArcFn<'a, B, A> {
+	Arc::new(move |_b| a.to_owned())
 }
 
 /// Returns a version of the input curried binary function

@@ -182,19 +182,20 @@ where
 	///
 	/// ```
 	/// use fp_library::{brands::ResultWithErrBrand, functions::{bind, pure}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<ResultWithErrBrand<_>, _, _, _>(Err(()))(pure::<ResultWithErrBrand<_>, ()>),
+	///     bind::<ResultWithErrBrand<_>, _, _>(Err(()))(Arc::new(pure::<ResultWithErrBrand<_>, ()>)),
 	///     Err(())
 	/// );
 	/// assert_eq!(
-	///     bind::<ResultWithErrBrand<()>, _, _, _>(Ok(()))(pure::<ResultWithErrBrand<_>, _>),
+	///     bind::<ResultWithErrBrand<()>, _, _>(Ok(()))(Arc::new(pure::<ResultWithErrBrand<_>, _>)),
 	///     Ok(())
 	/// );
 	/// ```
-	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+	fn bind<'a, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>> {
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
 		Arc::new(move |f| ma.to_owned().and_then(|a| -> Result<B, _> { f(a) }))
 	}
 }

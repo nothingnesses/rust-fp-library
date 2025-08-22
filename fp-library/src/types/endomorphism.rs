@@ -8,7 +8,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 /// Endomorphism monoid.
 #[derive(Clone)]
-pub struct Endomorphism<'a, A>(pub Arc<dyn 'a + Fn(A) -> A>);
+pub struct Endomorphism<'a, A>(pub ArcFn<'a, A, A>);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<'a, A>(&'a A, PhantomData<&'a A>);

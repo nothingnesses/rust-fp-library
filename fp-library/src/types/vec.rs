@@ -173,20 +173,21 @@ impl Bind for VecBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::VecBrand, functions::{bind, pure}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<VecBrand, _, _, _>(vec![] as Vec<()>)(|_| pure::<VecBrand, _>(1)),
+	///     bind::<VecBrand, _, _>(vec![] as Vec<()>)(Arc::new(|_| pure::<VecBrand, _>(1))),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     bind::<VecBrand, _, _, _>(vec![1, 2])(|x| vec![x, x * 2]),
+	///     bind::<VecBrand, _, _>(vec![1, 2])(Arc::new(|x| vec![x, x * 2])),
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+	fn bind<'a, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>> {
-		Arc::new(move |f| ma.iter().cloned().flat_map(&f).collect())
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
+		Arc::new(move |f| ma.iter().cloned().flat_map(&*f).collect())
 	}
 }
 

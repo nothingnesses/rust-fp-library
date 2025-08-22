@@ -124,15 +124,16 @@ impl Bind for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{bind, pure}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<SoloBrand, _, _, _>(Solo(()))(pure::<SoloBrand, _>),
+	///     bind::<SoloBrand, _, _>(Solo(()))(Arc::new(pure::<SoloBrand, _>)),
 	///     Solo(())
 	/// );
 	/// ```
-	fn bind<'a, F: Fn(A) -> Apply1<Self, B>, A: 'a + Clone, B>(
+	fn bind<'a, A: 'a + Clone, B>(
 		ma: Apply1<Self, A>
-	) -> ArcFn<'a, F, Apply1<Self, B>> {
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
 		Arc::new(move |f| f(ma.to_owned().0))
 	}
 }
