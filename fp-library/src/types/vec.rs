@@ -22,6 +22,35 @@ impl Kind1 for VecBrand {
 }
 
 impl VecBrand {
+	/// Constructs a new vector by prepending a value to an existing vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. a -> Vec a -> Vec a`
+	///
+	/// # Parameters
+	///
+	/// * `head`: A value to prepend to the vector.
+	/// * `tail`: A vector to prepend the value to.
+	///
+	/// # Returns
+	///
+	/// A new vector consisting of the `head` element prepended to the `tail` vector.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::VecBrand;
+	///
+	/// let head = 1;
+	/// let tail = vec![2, 3];
+	/// let new_vec = (VecBrand::construct(head))(tail);
+	/// assert_eq!(new_vec, vec![1, 2, 3]);
+	///
+	/// let empty_tail = vec![];
+	/// let single_element = (VecBrand::construct(42))(empty_tail);
+	/// assert_eq!(single_element, vec![42]);
+	/// ```
 	pub fn construct<'a, A>(head: A) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>
 	where
 		A: 'a + Clone,
