@@ -13,7 +13,6 @@
 /// # Parameters
 ///
 /// - `$KindN`: The name of the trait to generate (e.g., `Kind0`, `Kind1`, `Kind2`).
-/// - `$ApplyN`: The corresponding type alias name (e.g., `Apply0`, `Apply1`, `Apply2`).
 /// - `$kind_string`: A string representation of the kind (e.g., `"*"`, `"* -> *"`, `"* -> * -> *"`).
 /// - `$Generics`: A tuple of generic type parameters (e.g., `()`, `(A)`, `(A, B)`).
 #[macro_export]
@@ -35,7 +34,7 @@ macro_rules! make_trait_kind {
 	(
 		@impl $KindN:ident,
 		$kind_string:literal,
-		$($output_generics:tt)*
+		$($generics:tt)*
 	) => {
 		#[doc = concat!(
 			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
@@ -43,7 +42,7 @@ macro_rules! make_trait_kind {
 			"`."
 		)]
 		pub trait $KindN {
-			type Output $($output_generics)*;
+			type Output $($generics)*;
 		}
 	};
 }
