@@ -3,7 +3,9 @@
 pub mod pair_with_first;
 pub mod pair_with_second;
 
-use crate::hkt::Kind2;
+use std::sync::Arc;
+
+use crate::{aliases::ArcFn, hkt::Kind2};
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
@@ -17,11 +19,11 @@ impl Kind2 for PairBrand {
 	type Output<A, B> = Pair<A, B>;
 }
 
-impl<First, Second> Pair<First, Second>
+impl<'a, First, Second> Pair<First, Second>
 where
-	First: Clone,
+	First: 'a + Clone,
 {
-	pub fn new(first: First) -> impl Fn(Second) -> Self {
-		move |second| Pair(first.to_owned(), second)
+	pub fn new(first: First) -> ArcFn<'a, Second, Self> {
+		Arc::new(move |second| Pair(first.to_owned(), second))
 	}
 }
