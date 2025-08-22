@@ -58,6 +58,33 @@ impl VecBrand {
 		Arc::new(move |tail| [vec![head.to_owned()], tail].concat())
 	}
 
+	/// Deconstructs a slice into its head element and tail vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. &[a] -> Option (Pair a (Vec a))`
+	///
+	/// # Parameters
+	///
+	/// * `slice`: The vector slice to deconstruct.
+	///
+	/// # Returns
+	///
+	/// An [`Option`] containing a [`Pair`] of the head element and the remaining tail vector,
+	/// or [`None`] if the slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::VecBrand, types::Pair};
+	///
+	/// let vec = vec![1, 2, 3];
+	/// let deconstructed = VecBrand::deconstruct(&vec);
+	/// assert_eq!(deconstructed, Some(Pair(1, vec![2, 3])));
+	///
+	/// let empty: Vec<i32> = vec![];
+	/// assert_eq!(VecBrand::deconstruct(&empty), None);
+	/// ```
 	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply1<Self, A>>>
 	where
 		A: Clone,
