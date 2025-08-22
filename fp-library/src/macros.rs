@@ -20,24 +20,22 @@
 macro_rules! make_trait_kind {
 	(
 		$KindN:ident,
-		$ApplyN:ident,
 		$kind_string:literal,
 		()
 	) => {
-		#[doc = concat!(
-			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
-			$kind_string,
-			"`."
-		)]
-		pub trait $KindN {
-			type Output;
-		}
+		make_trait_kind!(@impl $KindN, $kind_string,);
 	};
 	(
 		$KindN:ident,
-		$ApplyN:ident,
 		$kind_string:literal,
 		($($Generics:ident),+)
+	) => {
+		make_trait_kind!(@impl $KindN, $kind_string, <$($Generics),+>);
+	};
+	(
+		@impl $KindN:ident,
+		$kind_string:literal,
+		$($output_generics:tt)*
 	) => {
 		#[doc = concat!(
 			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
@@ -45,7 +43,7 @@ macro_rules! make_trait_kind {
 			"`."
 		)]
 		pub trait $KindN {
-			type Output<$($Generics),+>;
+			type Output $($output_generics)*;
 		}
 	};
 }
