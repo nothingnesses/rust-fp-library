@@ -235,6 +235,21 @@ impl<T> Foldable for ResultWithOkBrand<T> {
 }
 
 impl<'a, T> Traversable<'a> for ResultWithOkBrand<T> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{ResultWithOkBrand, OptionBrand}, functions::traverse};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     traverse::<ResultWithOkBrand<String>, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Ok(String::from("success"))),
+	///     Some(Ok(String::from("success")))
+	/// );
+	/// assert_eq!(
+	///     traverse::<ResultWithOkBrand<String>, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Err(5)),
+	///     Some(Err(10))
+	/// );
+	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>

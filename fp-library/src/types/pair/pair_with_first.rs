@@ -64,6 +64,17 @@ impl<'a, First> Traversable<'a> for PairWithFirstBrand<First>
 where
 	First: Clone,
 {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithFirstBrand, OptionBrand}, functions::traverse, types::Pair};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     traverse::<PairWithFirstBrand<_>, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Pair((), 3)),
+	///     Some(Pair((), 6))
+	/// );
+	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>

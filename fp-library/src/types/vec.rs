@@ -222,6 +222,21 @@ impl Foldable for VecBrand {
 impl<'a> Traversable<'a> for VecBrand {
 	// traverse f Vec.empty = pure Vec.empty
 	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{VecBrand, OptionBrand}, functions::traverse};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     traverse::<VecBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
+	///     Some(vec![2, 4, 6])
+	/// );
+	/// assert_eq!(
+	///     traverse::<VecBrand, OptionBrand, i32, i32>(Arc::new(|_x| None))(vec![1, 2, 3]),
+	///     None
+	/// );
+	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>

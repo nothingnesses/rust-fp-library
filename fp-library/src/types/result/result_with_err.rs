@@ -231,6 +231,21 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 	}
 }
 
+/// # Examples
+///
+/// ```
+/// use fp_library::{brands::{ResultWithErrBrand, OptionBrand}, functions::traverse};
+/// use std::sync::Arc;
+///
+/// assert_eq!(
+///     traverse::<ResultWithErrBrand<String>, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Ok(3)),
+///     Some(Ok(6))
+/// );
+/// assert_eq!(
+///     traverse::<ResultWithErrBrand<String>, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Err("error".to_string())),
+///     Some(Err("error".to_string()))
+/// );
+/// ```
 impl<'a, E> Traversable<'a> for ResultWithErrBrand<E> {
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>

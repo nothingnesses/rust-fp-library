@@ -217,6 +217,21 @@ impl Foldable for OptionBrand {
 }
 
 impl<'a> Traversable<'a> for OptionBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{OptionBrand}, functions::traverse};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     traverse::<OptionBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Some(3)),
+	///     Some(Some(6))
+	/// );
+	/// assert_eq!(
+	///     traverse::<OptionBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(None),
+	///     Some(None)
+	/// );
+	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
 	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>

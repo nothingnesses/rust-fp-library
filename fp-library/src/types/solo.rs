@@ -139,6 +139,21 @@ impl Bind for SoloBrand {
 }
 
 impl Foldable for SoloBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::SoloBrand, functions::fold_right, types::Solo};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     fold_right::<SoloBrand, i32, i32>(Arc::new(|x| Arc::new(move |y| x + y)))(0)(Solo(3)),
+	///     3
+	/// );
+	/// assert_eq!(
+	///     fold_right::<SoloBrand, i32, i32>(Arc::new(|x| Arc::new(move |y| x * y)))(2)(Solo(4)),
+	///     8
+	/// );
+	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
 	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
@@ -151,6 +166,21 @@ impl Foldable for SoloBrand {
 	}
 }
 
+/// # Examples
+///
+/// ```
+/// use fp_library::{brands::{SoloBrand, OptionBrand}, functions::traverse, types::Solo};
+/// use std::sync::Arc;
+///
+/// assert_eq!(
+///     traverse::<SoloBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Solo(3)),
+///     Some(Solo(6))
+/// );
+/// assert_eq!(
+///     traverse::<SoloBrand, OptionBrand, i32, i32>(Arc::new(|x| None))(Solo(3)),
+///     None
+/// );
+/// ```
 impl<'a> Traversable<'a> for SoloBrand {
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, Apply1<F, B>>
