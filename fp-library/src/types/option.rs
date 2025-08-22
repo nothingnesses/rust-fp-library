@@ -1,17 +1,21 @@
 //! Implementations for [`Option`].
 
 use crate::{
-	aliases::ClonableFn,
-	functions::map,
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
-	impl_brand,
+	aliases::ArcFn,
+	functions::{map, pure},
+	hkt::{Apply1, Kind1},
 	typeclasses::{
-		Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor, Pure,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
+		Pure, Traversable,
 	},
 };
 use std::sync::Arc;
 
-impl_brand!(OptionBrand, Option, Kind1, Brand1, (A));
+pub struct OptionBrand;
+
+impl Kind1 for OptionBrand {
+	type Output<A> = Option<A>;
+}
 
 impl Pure for OptionBrand {
 	/// # Examples
@@ -23,11 +27,8 @@ impl Pure for OptionBrand {
 	///     pure::<OptionBrand, _>(()),
 	///     Some(())
 	/// );
-	fn pure<A>(a: A) -> Apply<Self, (A,)>
-	where
-		Self: Kind<(A,)>,
-	{
-		<Self as Brand<_, _>>::inject(Some(a))
+	fn pure<A>(a: A) -> Apply1<Self, A> {
+		Some(a)
 	}
 }
 
@@ -36,22 +37,19 @@ impl Functor for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{identity, map}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<OptionBrand, _, _, _>(identity::<()>)(None),
+	///     map::<OptionBrand, _, _>(Arc::new(identity::<()>))(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     map::<OptionBrand, _, _, _>(identity)(Some(())),
+	///     map::<OptionBrand, _, _>(Arc::new(identity))(Some(())),
 	///     Some(())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
-	{
-		move |fa| <Self as Brand<_, _>>::inject(<Self as Brand<_, _>>::project(fa).map(&f))
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
+		Arc::new(move |fa: Apply1<Self, A>| fa.map(&*f))
 	}
 }
 
@@ -60,34 +58,35 @@ impl TypeclassApply for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{apply, identity}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(None),
+	///     apply::<OptionBrand, (), ()>(None)(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, fn(()) -> (), _, _>(None)(Some(())),
+	///     apply::<OptionBrand, (), ()>(None)(Some(())),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, _, _, _>(Some(identity::<()>))(None),
+	///     apply::<OptionBrand, (), ()>(Some(Arc::new(identity::<()>)))(None),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     apply::<OptionBrand, _, _, _>(Some(identity))(Some(())),
+	///     apply::<OptionBrand, (), ()>(Some(Arc::new(identity)))(Some(())),
 	///     Some(())
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
-		Apply<Self, (F,)>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
-		move |fa| match (<Self as Brand<_, _>>::project(ff.to_owned()), &fa) {
-			(Some(f), _) => map::<Self, F, _, _>(f)(fa),
-			_ => <Self as Brand<_, _>>::inject(None::<B>),
-		}
+		Arc::new(move |fa| match (ff.to_owned(), &fa) {
+			(Some(f), _) => map::<Self, _, _>(f)(fa),
+			_ => None::<B>,
+		})
 	}
 }
 
@@ -114,22 +113,16 @@ impl ApplyFirst for OptionBrand {
 	///     Some(true)
 	/// );
 	/// ```
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (A,)>>::inject(
-				match (
-					<Self as Brand<_, _>>::project(fa.to_owned()),
-					<Self as Brand<_, (B,)>>::project(fb),
-				) {
-					(Some(a), Some(_)) => Some(a),
-					_ => None,
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Some(a), Some(_)) => Some(a),
+			_ => None,
+		})
 	}
 }
 
@@ -156,22 +149,16 @@ impl ApplySecond for OptionBrand {
 	///     Some(false)
 	/// );
 	/// ```
-	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	fn apply_second<'a, A: 'a, B: 'a + Clone>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |fb| {
-			<Self as Brand<_, (B,)>>::inject(
-				match (
-					<Self as Brand<_, (A,)>>::project(_fa.to_owned()),
-					<Self as Brand<_, (B,)>>::project(fb),
-				) {
-					(Some(_), Some(a)) => Some(a),
-					_ => None,
-				},
-			)
-		}
+		Arc::new(move |fb| match (fa.to_owned(), fb) {
+			(Some(_), Some(a)) => Some(a),
+			_ => None,
+		})
 	}
 }
 
@@ -180,28 +167,21 @@ impl Bind for OptionBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::OptionBrand, functions::{bind, pure}};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<OptionBrand, _, _, _>(None)(pure::<OptionBrand, ()>),
+	///     bind::<OptionBrand, _, _>(None)(Arc::new(pure::<OptionBrand, ()>)),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     bind::<OptionBrand, _, _, _>(Some(()))(pure::<OptionBrand, _>),
+	///     bind::<OptionBrand, _, _>(Some(()))(Arc::new(pure::<OptionBrand, _>)),
 	///     Some(())
 	/// );
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
-		F: Fn(A) -> Apply<Self, (B,)>,
-		Apply<Self, (A,)>: Clone,
-	{
-		move |f| {
-			<Self as Brand<_, _>>::inject(
-				<Self as Brand<_, _>>::project(ma.to_owned())
-					.and_then(|a| -> Option<B> { <Self as Brand<_, _>>::project(f(a)) }),
-			)
-		}
+	fn bind<'a, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
+		Arc::new(move |f| ma.to_owned().and_then(|a| -> Option<B> { f(a) }))
 	}
 }
 
@@ -221,24 +201,47 @@ impl Foldable for OptionBrand {
 	///     1
 	/// );
 	/// ```
-	fn fold_right<'a, A, B>(
-		f: ClonableFn<'a, A, ClonableFn<'a, B, B>>
-	) -> ClonableFn<'a, B, ClonableFn<'a, Apply<Self, (A,)>, B>>
-	where
-		Self: 'a + Kind<(A,)>,
-		A: 'a + Clone,
-		B: 'a + Clone,
-		Apply<Self, (A,)>: 'a,
-	{
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
-				move |fa| match (f.clone(), b.to_owned(), <OptionBrand as Brand<_, _>>::project(fa))
-				{
+				move |fa| match (f.clone(), b.to_owned(), fa) {
 					(_, b, None) => b,
 					(f, b, Some(a)) => f(a)(b),
 				}
 			})
+		})
+	}
+}
+
+impl<'a> Traversable<'a> for OptionBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{OptionBrand}, functions::traverse};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     traverse::<OptionBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Some(3)),
+	///     Some(Some(6))
+	/// );
+	/// assert_eq!(
+	///     traverse::<OptionBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(None),
+	///     Some(None)
+	/// );
+	/// ```
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+	where
+		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+	{
+		Arc::new(move |ta| match (f.clone(), ta) {
+			(_, None) => pure::<F, _>(None),
+			(f, Some(a)) => map::<F, B, _>(Arc::new(pure::<Self, _>))(f(a)),
 		})
 	}
 }

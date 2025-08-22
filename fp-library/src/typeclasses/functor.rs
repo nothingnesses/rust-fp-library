@@ -1,4 +1,7 @@
-use crate::hkt::{Apply, Kind};
+use crate::{
+	aliases::ArcFn,
+	hkt::{Apply1, Kind1},
+};
 
 /// A typeclass for types that can be mapped over.
 ///
@@ -10,7 +13,7 @@ use crate::hkt::{Apply, Kind};
 /// Functors must satisfy the following laws:
 /// * Identity: `map(identity) = identity`.
 /// * Composition: `map(f . g) = map(f) . map(g)`.
-pub trait Functor {
+pub trait Functor: Kind1 {
 	/// Maps a function over the values in the functor context.
 	///
 	/// # Type Signature
@@ -25,10 +28,7 @@ pub trait Functor {
 	/// # Returns
 	///
 	/// A functor containing values of type `B`.
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B;
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>;
 }
 
 /// Maps a function over the values in the functor context.
@@ -52,13 +52,12 @@ pub trait Functor {
 ///
 /// ```
 /// use fp_library::{brands::OptionBrand, functions::map};
+/// use std::sync::Arc;
 ///
-/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2)(Some(5)), Some(10));
+/// assert_eq!(map::<OptionBrand, _, _>(Arc::new(|x: i32| x * 2))(Some(5)), Some(10));
 /// ```
-pub fn map<Brand, F, A, B>(f: F) -> impl Fn(Apply<Brand, (A,)>) -> Apply<Brand, (B,)>
-where
-	Brand: Kind<(A,)> + Kind<(B,)> + Functor,
-	F: Fn(A) -> B,
-{
+pub fn map<'a, Brand: Functor + ?Sized, A: 'a, B: 'a>(
+	f: ArcFn<'a, A, B>
+) -> ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, B>> {
 	Brand::map(f)
 }

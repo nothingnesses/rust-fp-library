@@ -1,4 +1,7 @@
-use crate::hkt::{Apply as App, Kind};
+use crate::{
+	aliases::ArcFn,
+	hkt::{Apply1, Kind1},
+};
 
 /// A typeclass for types that support function application within a context.
 ///
@@ -11,7 +14,7 @@ use crate::hkt::{Apply as App, Kind};
 ///
 /// Apply instances must satisfy the following law:
 /// * Composition: `apply(apply(f)(g))(x) = apply(f)(apply(g)(x))`.
-pub trait Apply {
+pub trait Apply: Kind1 {
 	/// Applies a function within a context to a value within a context.
 	///
 	/// # Type Signature
@@ -26,12 +29,11 @@ pub trait Apply {
 	/// # Returns
 	///
 	/// The result of applying the function to the value, all within the context.
-	fn apply<F, A, B>(ff: App<Self, (F,)>) -> impl Fn(App<Self, (A,)>) -> App<Self, (B,)>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		App<Self, (F,)>: Clone,
-		F: Fn(A) -> B,
-		A: Clone;
+		Apply1<Self, ArcFn<'a, A, B>>: Clone;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -55,18 +57,18 @@ pub trait Apply {
 ///
 /// ```
 /// use fp_library::{brands::OptionBrand, functions::apply};
+/// use std::sync::Arc;
 ///
 /// assert_eq!(
-///     apply::<OptionBrand, _, _, _>(Some(|x: i32| x * 2))(Some(5)),
+///     apply::<OptionBrand, _, _>(Some(Arc::new(|x: i32| x * 2)))(Some(5)),
 ///     Some(10)
 /// );
 /// ```
-pub fn apply<Brand, F, A, B>(ff: App<Brand, (F,)>) -> impl Fn(App<Brand, (A,)>) -> App<Brand, (B,)>
+pub fn apply<'a, Brand: Apply, A: 'a + Clone, B: 'a>(
+	ff: Apply1<Brand, ArcFn<'a, A, B>>
+) -> ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, B>>
 where
-	Brand: Kind<(F,)> + Kind<(A,)> + Kind<(B,)> + Apply,
-	App<Brand, (F,)>: Clone,
-	F: Fn(A) -> B,
-	A: Clone,
+	Apply1<Brand, ArcFn<'a, A, B>>: Clone,
 {
-	Brand::apply::<F, _, _>(ff)
+	Brand::apply::<_, _>(ff)
 }

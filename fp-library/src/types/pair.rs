@@ -3,15 +3,27 @@
 pub mod pair_with_first;
 pub mod pair_with_second;
 
-use crate::{
-	hkt::{Apply, Brand2, Kind2},
-	impl_brand,
-};
+use std::sync::Arc;
+
+use crate::{aliases::ArcFn, hkt::Kind2};
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
 /// Wraps two values.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Pair<A, B>(pub A, pub B);
+pub struct Pair<First, Second>(pub First, pub Second);
 
-impl_brand!(PairBrand, Pair, Kind2, Brand2, (A, B));
+pub struct PairBrand;
+
+impl Kind2 for PairBrand {
+	type Output<A, B> = Pair<A, B>;
+}
+
+impl<'a, First, Second> Pair<First, Second>
+where
+	First: 'a + Clone,
+{
+	pub fn new(first: First) -> ArcFn<'a, Second, Self> {
+		Arc::new(move |second| Pair(first.to_owned(), second))
+	}
+}

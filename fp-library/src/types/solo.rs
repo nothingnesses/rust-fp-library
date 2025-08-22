@@ -1,17 +1,26 @@
 //! Implementations for [`Solo`], a type that wraps a value.
 
+use std::sync::Arc;
+
 use crate::{
-	functions::{identity, map},
-	hkt::{Apply, Brand, Brand1, Kind, Kind1},
-	impl_brand,
-	typeclasses::{Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Functor, Pure},
+	aliases::ArcFn,
+	functions::{identity, map, pure},
+	hkt::{Apply1, Kind1},
+	typeclasses::{
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
+		Pure, Traversable,
+	},
 };
 
 /// Wraps a value.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solo<A>(pub A);
 
-impl_brand!(SoloBrand, Solo, Kind1, Brand1, (A));
+pub struct SoloBrand;
+
+impl Kind1 for SoloBrand {
+	type Output<A> = Solo<A>;
+}
 
 impl Pure for SoloBrand {
 	/// # Examples
@@ -24,7 +33,7 @@ impl Pure for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply<Self, (A,)> {
+	fn pure<A>(a: A) -> Apply1<Self, A> {
 		Solo(a)
 	}
 }
@@ -34,18 +43,15 @@ impl Functor for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{identity, map}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     map::<SoloBrand, _, _, _>(identity)(Solo(())),
+	///     map::<SoloBrand, _, _>(Arc::new(identity))(Solo(())),
 	///     Solo(())
 	/// );
 	/// ```
-	fn map<F, A, B>(f: F) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
-	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
-	{
-		move |fa| <Self as Brand<_, _>>::inject(Solo(f(<Self as Brand<_, _>>::project(fa).0)))
+	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
+		Arc::new(move |fa| Solo(f(fa.0)))
 	}
 }
 
@@ -54,19 +60,20 @@ impl TypeclassApply for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{apply, identity}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     apply::<SoloBrand, _, _, _>(Solo(identity))(Solo(())),
+	///     apply::<SoloBrand, _, _>(Solo(Arc::new(identity)))(Solo(())),
 	///     Solo(())
 	/// );
 	/// ```
-	fn apply<F, A, B>(ff: Apply<Self, (F,)>) -> impl Fn(Apply<Self, (A,)>) -> Apply<Self, (B,)>
+	fn apply<'a, A: 'a + Clone, B: 'a>(
+		ff: Apply1<Self, ArcFn<'a, A, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
 	where
-		Self: Kind<(F,)> + Kind<(A,)> + Kind<(B,)>,
-		F: Fn(A) -> B,
-		Apply<Self, (F,)>: Clone,
+		Apply1<Self, ArcFn<'a, A, B>>: Clone,
 	{
-		map::<Self, _, _, _>(<Self as Brand<Solo<F>, _>>::project(ff.to_owned()).0)
+		map::<Self, A, B>(ff.0)
 	}
 }
 
@@ -81,12 +88,13 @@ impl ApplyFirst for SoloBrand {
 	///     Solo(true)
 	/// );
 	/// ```
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<Self, A>: Clone,
 	{
-		move |_fb| fa.to_owned()
+		Arc::new(move |_fb| fa.to_owned())
 	}
 }
 
@@ -101,11 +109,13 @@ impl ApplySecond for SoloBrand {
 	///     Solo(false)
 	/// );
 	/// ```
-	fn apply_second<A, B>(_fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (B,)>
+	fn apply_second<'a, A: 'a, B: 'a + Clone>(
+		_fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
+		Apply1<Self, A>: Clone,
 	{
-		identity
+		Arc::new(identity)
 	}
 }
 
@@ -114,18 +124,71 @@ impl Bind for SoloBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::SoloBrand, functions::{bind, pure}, types::Solo};
+	/// use std::sync::Arc;
 	///
 	/// assert_eq!(
-	///     bind::<SoloBrand, _, _, _>(Solo(()))(pure::<SoloBrand, _>),
+	///     bind::<SoloBrand, _, _>(Solo(()))(Arc::new(pure::<SoloBrand, _>)),
 	///     Solo(())
 	/// );
 	/// ```
-	fn bind<F, A, B>(ma: Apply<Self, (A,)>) -> impl Fn(F) -> Apply<Self, (B,)>
+	fn bind<'a, A: 'a + Clone, B>(
+		ma: Apply1<Self, A>
+	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
+		Arc::new(move |f| f(ma.to_owned().0))
+	}
+}
+
+impl Foldable for SoloBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::SoloBrand, functions::fold_right, types::Solo};
+	/// use std::sync::Arc;
+	///
+	/// assert_eq!(
+	///     fold_right::<SoloBrand, i32, i32>(Arc::new(|x| Arc::new(move |y| x + y)))(0)(Solo(3)),
+	///     3
+	/// );
+	/// assert_eq!(
+	///     fold_right::<SoloBrand, i32, i32>(Arc::new(|x| Arc::new(move |y| x * y)))(2)(Solo(4)),
+	///     8
+	/// );
+	/// ```
+	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, ArcFn<'a, B, B>>
+	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+		Arc::new(move |b| {
+			Arc::new({
+				let f = f.clone();
+				move |fa| f(fa.0)(b.to_owned())
+			})
+		})
+	}
+}
+
+/// # Examples
+///
+/// ```
+/// use fp_library::{brands::{SoloBrand, OptionBrand}, functions::traverse, types::Solo};
+/// use std::sync::Arc;
+///
+/// assert_eq!(
+///     traverse::<SoloBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(Solo(3)),
+///     Some(Solo(6))
+/// );
+/// assert_eq!(
+///     traverse::<SoloBrand, OptionBrand, i32, i32>(Arc::new(|x| None))(Solo(3)),
+///     None
+/// );
+/// ```
+impl<'a> Traversable<'a> for SoloBrand {
+	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
+		f: ArcFn<'a, A, Apply1<F, B>>
+	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)> + Sized,
-		F: Fn(A) -> Apply<Self, (B,)>,
-		Apply<Self, (A,)>: Clone,
+		Apply1<F, B>: 'a + Clone,
+		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
 	{
-		move |f| f(<Self as Brand<_, _>>::project(ma.to_owned()).0)
+		Arc::new(move |ta| map::<F, B, _>(Arc::new(pure::<Self, _>))(f(ta.0)))
 	}
 }

@@ -1,4 +1,7 @@
-use crate::hkt::{Apply, Kind};
+use crate::{
+	aliases::ArcFn,
+	hkt::{Apply1, Kind1},
+};
 
 /// A typeclass for types that support combining two contexts, keeping the first value.
 ///
@@ -6,7 +9,7 @@ use crate::hkt::{Apply, Kind};
 /// the result of the second computation, keeping only the result of the first.
 /// This is useful for executing side effects in sequence while preserving the
 /// primary result.
-pub trait ApplyFirst {
+pub trait ApplyFirst: Kind1 {
 	/// Combines two contexts, keeping the value from the first context.
 	///
 	/// # Type Signature
@@ -21,12 +24,11 @@ pub trait ApplyFirst {
 	/// # Returns
 	///
 	/// The first context with its value preserved.
-	fn apply_first<A, B>(fa: Apply<Self, (A,)>) -> impl Fn(Apply<Self, (B,)>) -> Apply<Self, (A,)>
+	fn apply_first<'a, A: 'a + Clone, B>(
+		fa: Apply1<Self, A>
+	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
 	where
-		Self: Kind<(A,)> + Kind<(B,)>,
-		Apply<Self, (A,)>: Clone,
-		A: Clone,
-		B: Clone;
+		Apply1<Self, A>: Clone;
 }
 
 /// Combines two contexts, keeping the value from the first context.
@@ -53,14 +55,11 @@ pub trait ApplyFirst {
 ///
 /// assert_eq!(apply_first::<OptionBrand, _, _>(Some(5))(Some("hello")), Some(5));
 /// ```
-pub fn apply_first<Brand, A, B>(
-	fa: Apply<Brand, (A,)>
-) -> impl Fn(Apply<Brand, (B,)>) -> Apply<Brand, (A,)>
+pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B>(
+	fa: Apply1<Brand, A>
+) -> ArcFn<'a, Apply1<Brand, B>, Apply1<Brand, A>>
 where
-	Brand: Kind<(A,)> + Kind<(B,)> + ApplyFirst,
-	Apply<Brand, (A,)>: Clone,
-	A: Clone,
-	B: Clone,
+	Apply1<Brand, A>: Clone,
 {
 	Brand::apply_first::<A, B>(fa)
 }

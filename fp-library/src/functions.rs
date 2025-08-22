@@ -1,7 +1,7 @@
 //! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
 //! free functions that dispatch to associated functions of typeclass instances.
 
-use crate::aliases::ClonableFn;
+use crate::aliases::ArcFn;
 pub use crate::typeclasses::{
 	apply::apply,
 	apply_first::apply_first,
@@ -12,6 +12,7 @@ pub use crate::typeclasses::{
 	monoid::empty,
 	pure::pure,
 	semigroup::append,
+	traversable::{sequence, traverse},
 };
 use std::sync::Arc;
 
@@ -47,8 +48,8 @@ use std::sync::Arc;
 /// );
 /// ```
 pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
-	f: ClonableFn<'a, B, C>
-) -> ClonableFn<'a, ClonableFn<'a, A, B>, ClonableFn<'a, A, C>> {
+	f: ArcFn<'a, B, C>
+) -> ArcFn<'a, ArcFn<'a, A, B>, ArcFn<'a, A, C>> {
 	Arc::new(move |g| {
 		let f = f.clone();
 		Arc::new(move |a| f(g(a)))
@@ -80,12 +81,8 @@ pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 ///     true
 /// );
 /// ```
-pub fn constant<A, B>(a: A) -> impl Fn(B) -> A
-where
-	A: Clone,
-	B: Clone,
-{
-	move |_b| a.to_owned()
+pub fn constant<'a, A: 'a + Clone, B: Clone>(a: A) -> ArcFn<'a, B, A> {
+	Arc::new(move |_b| a.to_owned())
 }
 
 /// Returns a version of the input curried binary function
@@ -106,10 +103,10 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{aliases::ClonableFn, functions::flip};
+/// use fp_library::{aliases::ArcFn, functions::flip};
 /// use std::sync::Arc;
 ///
-/// let subtract: ClonableFn<_, ClonableFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
+/// let subtract: ArcFn<_, ArcFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
@@ -118,8 +115,8 @@ where
 /// );
 /// ```
 pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
-	f: ClonableFn<'a, A, ClonableFn<'a, B, C>>
-) -> ClonableFn<'a, B, ClonableFn<'a, A, C>> {
+	f: ArcFn<'a, A, ArcFn<'a, B, C>>
+) -> ArcFn<'a, B, ArcFn<'a, A, C>> {
 	Arc::new(move |b| {
 		let f = f.clone();
 		Arc::new(move |a| (f(a))(b.to_owned()))

@@ -1,7 +1,9 @@
 use crate::{
-	hkt::{Apply, Brand0, Kind0},
+	aliases::ArcFn,
+	hkt::{Apply0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
+use std::sync::Arc;
 
 /// [Brand][crate::brands] for the concrete form of [`Vec`], `Vec<A>`.
 pub struct ConcreteVecBrand<A>(A);
@@ -10,18 +12,9 @@ impl<A> Kind0 for ConcreteVecBrand<A> {
 	type Output = Vec<A>;
 }
 
-impl<A> Brand0<Vec<A>> for ConcreteVecBrand<A> {
-	fn inject(a: Vec<A>) -> Apply<Self, ()> {
-		a
-	}
-	fn project(a: Apply<Self, ()>) -> Vec<A> {
-		a
-	}
-}
-
-impl<A> Semigroup for ConcreteVecBrand<A>
+impl<'a, A> Semigroup<'a> for ConcreteVecBrand<A>
 where
-	A: Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///
@@ -33,14 +26,14 @@ where
 	///     vec![true, false]
 	/// );
 	/// ```
-	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()> {
-		move |b| [a.to_owned(), b.to_owned()].concat()
+	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+		Arc::new(move |b| [a.to_owned(), b.to_owned()].concat())
 	}
 }
 
-impl<A> Monoid for ConcreteVecBrand<A>
+impl<'a, A> Monoid<'a> for ConcreteVecBrand<A>
 where
-	A: Clone,
+	A: 'a + Clone,
 {
 	/// # Examples
 	///
@@ -52,7 +45,7 @@ where
 	///     []
 	/// );
 	/// ```
-	fn empty() -> Apply<Self, ()> {
-		Apply::<Self, ()>::default()
+	fn empty() -> Apply0<Self> {
+		Apply0::<Self>::default()
 	}
 }

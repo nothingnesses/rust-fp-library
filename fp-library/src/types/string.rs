@@ -1,14 +1,20 @@
 //! Implementations for [`String`].
 
+use std::sync::Arc;
+
 use crate::{
-	hkt::{Apply, Brand0, Kind0},
-	impl_brand,
+	aliases::ArcFn,
+	hkt::{Apply0, Kind0},
 	typeclasses::{Monoid, Semigroup},
 };
 
-impl_brand!(StringBrand, String, Kind0, Brand0, ());
+pub struct StringBrand;
 
-impl Semigroup for StringBrand {
+impl Kind0 for StringBrand {
+	type Output = String;
+}
+
+impl<'a> Semigroup<'a> for StringBrand {
 	/// # Examples
 	///
 	/// ```rust
@@ -19,12 +25,12 @@ impl Semigroup for StringBrand {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append(a: Apply<Self, ()>) -> impl Fn(Apply<Self, ()>) -> Apply<Self, ()> {
-		move |b| a.to_owned() + &b
+	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+		Arc::new(move |b| a.to_owned() + &b)
 	}
 }
 
-impl Monoid for StringBrand {
+impl<'a> Monoid<'a> for StringBrand {
 	/// # Examples
 	///
 	/// ```rust
@@ -35,7 +41,7 @@ impl Monoid for StringBrand {
 	///     ""
 	/// );
 	/// ```
-	fn empty() -> Apply<Self, ()> {
-		Apply::<Self, ()>::default()
+	fn empty() -> Apply0<Self> {
+		Apply0::<Self>::default()
 	}
 }
