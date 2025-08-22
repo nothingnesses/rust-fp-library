@@ -62,30 +62,33 @@ macro_rules! make_trait_kind {
 /// - `$Generics`: A tuple of generic type parameters (e.g., `()`, `(A)`, `(A, B)`).
 #[macro_export]
 macro_rules! make_type_apply {
-	(
-		$KindN:ident,
-		$ApplyN:ident,
-		$kind_string:literal,
-		()
-	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_string,
-			"`."
-		)]
-		pub type $ApplyN<Brand> = <Brand as $KindN>::Output;
-	};
-	(
-		$KindN:ident,
-		$ApplyN:ident,
-		$kind_string:literal,
-		($($Generics:ident),+)
-	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_string,
-			"`."
-		)]
-		pub type $ApplyN<Brand, $($Generics),+> = <Brand as $KindN>::Output<$($Generics),+>;
-	};
+    (
+        $KindN:ident,
+        $ApplyN:ident,
+        $kind_string:literal,
+        ()
+    ) => {
+        make_type_apply!(@impl $KindN, $ApplyN, $kind_string, ());
+    };
+    (
+        $KindN:ident,
+        $ApplyN:ident,
+        $kind_string:literal,
+        ($($Generics:ident),+)
+    ) => {
+        make_type_apply!(@impl $KindN, $ApplyN, $kind_string, ($($Generics),+));
+    };
+    (
+        @impl $KindN:ident,
+        $ApplyN:ident,
+        $kind_string:literal,
+        ($($Generics:ident),*)
+    ) => {
+        #[doc = concat!(
+            "Alias for [types][crate::types] of kind `",
+            $kind_string,
+            "`."
+        )]
+        pub type $ApplyN<Brand $(, $Generics)*> = <Brand as $KindN>::Output<$($Generics),*>;
+    };
 }
