@@ -5,7 +5,7 @@ pub mod pair_with_second;
 
 use std::sync::Arc;
 
-use crate::{aliases::ArcFn, hkt::Kind2};
+use crate::{aliases::ArcFn, hkt::Kind0L2T};
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
@@ -15,7 +15,7 @@ pub struct Pair<First, Second>(pub First, pub Second);
 
 pub struct PairBrand;
 
-impl Kind2 for PairBrand {
+impl Kind0L2T for PairBrand {
 	type Output<A, B> = Pair<A, B>;
 }
 

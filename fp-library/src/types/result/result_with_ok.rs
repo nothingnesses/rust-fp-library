@@ -3,10 +3,10 @@
 use crate::{
 	aliases::ArcFn,
 	functions::{map, pure},
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
-		Pure, Traversable,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
+		Functor, Pure, Traversable, clonable_fn::ApplyFn,
 	},
 };
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// [Brand][crate::brands] for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
 pub struct ResultWithOkBrand<T>(T);
 
-impl<T> Kind1 for ResultWithOkBrand<T> {
+impl<T> Kind0L1T for ResultWithOkBrand<T> {
 	type Output<A> = Result<T, A>;
 }
 
@@ -28,7 +28,7 @@ impl<T> Pure for ResultWithOkBrand<T> {
 	///     pure::<ResultWithOkBrand<()>, _>(()),
 	///     Err(())
 	/// );
-	fn pure<A>(a: A) -> Apply1<Self, A> {
+	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
 		Err(a)
 	}
 }
@@ -49,17 +49,18 @@ impl<T> Functor for ResultWithOkBrand<T> {
 	///     Err(())
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
-		Arc::new(move |fa| match fa {
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa| match fa {
 			Ok(a) => Ok(a),
 			Err(e) => Err(f(e)),
 		})
 	}
 }
 
-impl<T> TypeclassApply for ResultWithOkBrand<T>
+impl<T: Clone> TypeclassApply for ResultWithOkBrand<T>
 where
-	T: Clone,
 	for<'a> T: 'a,
 {
 	/// # Examples
@@ -85,20 +86,17 @@ where
 	///     Err(())
 	/// );
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	where
-		Apply1<Self, ArcFn<'a, A, B>>: Clone,
-	{
-		Arc::new(move |fa| match (ff.to_owned(), &fa) {
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa| match (ff.to_owned(), &fa) {
 			(Ok(e), _) => Ok::<_, B>(e),
-			(Err(f), _) => map::<ResultWithOkBrand<_>, _, _>(f)(fa),
+			(Err(f), _) => map::<ResultWithOkBrand<_>, ClonableFnBrand, _, _>(f)(fa),
 		})
 	}
 }
 
-impl<T> ApplyFirst for ResultWithOkBrand<T>
+impl<T: Clone> ApplyFirst for ResultWithOkBrand<T>
 where
 	for<'a> T: 'a,
 {
@@ -124,20 +122,17 @@ where
 	///     Err(true)
 	/// );
 	/// ```
-	fn apply_first<'a, A: 'a + Clone, B>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| match (fa.to_owned(), fb) {
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| match (fa.to_owned(), fb) {
 			(Err(a), Err(_a)) => Err(a),
 			(Ok(e), _) | (_, Ok(e)) => Ok(e),
 		})
 	}
 }
 
-impl<T> ApplySecond for ResultWithOkBrand<T>
+impl<T: Clone> ApplySecond for ResultWithOkBrand<T>
 where
 	for<'a> T: 'a,
 {
@@ -163,22 +158,18 @@ where
 	///     Err(false)
 	/// );
 	/// ```
-	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| match (fa.to_owned(), fb) {
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fb| match (fa.to_owned(), fb) {
 			(Err(_a), Err(a)) => Err(a),
 			(Ok(e), _) | (_, Ok(e)) => Ok(e),
 		})
 	}
 }
 
-impl<T> Bind for ResultWithOkBrand<T>
+impl<T: Clone> Bind for ResultWithOkBrand<T>
 where
-	T: Clone,
 	for<'a> T: 'a,
 {
 	/// # Examples
@@ -196,10 +187,17 @@ where
 	///     Err(())
 	/// );
 	/// ```
-	fn bind<'a, A: 'a + Clone, B>(
-		ma: Apply1<Self, A>
-	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
-		Arc::new(move |f| ma.to_owned().or_else(|a| -> Result<_, B> { f(a) }))
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		ma: Apply0L1T<Self, A>
+	) -> ApplyFn<
+		'a,
+		ClonableFnBrand,
+		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		Apply0L1T<Self, B>,
+	> {
+		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| {
+			ma.to_owned().or_else(|a| -> Result<_, B> { f(a) })
+		})
 	}
 }
 
@@ -221,7 +219,7 @@ impl<T> Foldable for ResultWithOkBrand<T> {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
@@ -251,11 +249,11 @@ impl<'a, T> Traversable<'a> for ResultWithOkBrand<T> {
 	/// );
 	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+		f: ArcFn<'a, A, Apply0L1T<F, B>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| match (f.clone(), ta) {
 			(_, Ok(e)) => pure::<F, _>(Ok(e)),

@@ -3,8 +3,8 @@
 use crate::{
 	aliases::ArcFn,
 	functions::map,
-	hkt::{Apply1, Kind1},
-	typeclasses::{Applicative, Foldable, Functor, Traversable},
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::{Applicative, ClonableFn, Foldable, Functor, Traversable, clonable_fn::ApplyFn},
 	types::Pair,
 };
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// [Brand][crate::brands] for the partially-applied form of [`Pair`] with [the first value][Pair#structfield.0] filled in.
 pub struct PairWithFirstBrand<First>(First);
 
-impl<First> Kind1 for PairWithFirstBrand<First> {
+impl<First> Kind0L1T for PairWithFirstBrand<First> {
 	type Output<Second> = Pair<First, Second>;
 }
 
@@ -28,8 +28,10 @@ impl<First> Functor for PairWithFirstBrand<First> {
 	///     Pair((), false)
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
-		Arc::new(move |fa| Pair(fa.0, f(fa.1)))
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Pair(fa.0, f(fa.1)))
 	}
 }
 
@@ -47,7 +49,7 @@ impl<First> Foldable for PairWithFirstBrand<First> {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
@@ -76,15 +78,15 @@ where
 	/// );
 	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+		f: ArcFn<'a, A, Apply0L1T<F, B>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| {
 			let (f, Pair(first, second)) = (f.clone(), ta);
-			map::<F, B, Apply1<Self, B>>(Arc::new(move |second| {
+			map::<F, B, Apply0L1T<Self, B>>(Arc::new(move |second| {
 				Pair::new(first.to_owned())(second)
 			}))(f(second))
 		})

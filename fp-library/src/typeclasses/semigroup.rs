@@ -1,6 +1,6 @@
 use crate::{
 	aliases::ArcFn,
-	hkt::{Apply0, Kind0},
+	hkt::{Apply0L0T, Kind0L0T},
 };
 
 /// A typeclass for semigroups.
@@ -25,7 +25,7 @@ use crate::{
 /// * Numbers with addition.
 /// * Numbers with multiplication.
 /// * Lists with concatenation.
-pub trait Semigroup<'a>: Kind0 {
+pub trait Semigroup<'a>: Kind0L0T {
 	/// Associative operation that combines two values of the same type.
 	///
 	/// # Type Signature
@@ -40,7 +40,7 @@ pub trait Semigroup<'a>: Kind0 {
 	/// # Returns
 	///
 	/// The result of combining the two values using the semigroup operation.
-	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>>;
+	fn append(a: Apply0L0T<Self>) -> ArcFn<'a, Apply0L0T<Self>, Apply0L0T<Self>>;
 }
 
 /// Associative operation that combines two values of the same type.
@@ -71,8 +71,8 @@ pub trait Semigroup<'a>: Kind0 {
 /// );
 /// ```
 pub fn append<'a, Brand: Semigroup<'a>>(
-	a: Apply0<Brand>
-) -> ArcFn<'a, Apply0<Brand>, Apply0<Brand>> {
+	a: Apply0L0T<Brand>
+) -> ArcFn<'a, Apply0L0T<Brand>, Apply0L0T<Brand>> {
 	Brand::append(a)
 }
 

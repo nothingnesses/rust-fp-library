@@ -1,7 +1,7 @@
 use crate::{
 	aliases::ArcFn,
 	functions::{compose, flip, identity},
-	hkt::{Apply0, Apply1, Kind1},
+	hkt::{Apply0L0T, Apply0L1T, Kind0L1T},
 	typeclasses::Monoid,
 	types::{Endomorphism, endomorphism::EndomorphismBrand},
 };
@@ -14,7 +14,7 @@ use std::sync::Arc;
 /// or applying monoidal operations.
 ///
 /// A minimum implementation of `Foldable` requires the manual implementation of at least [`Foldable::fold_right`] or [`Foldable::fold_map`].
-pub trait Foldable: Kind1 {
+pub trait Foldable: Kind0L1T {
 	/// Folds the structure by applying a function from left to right.
 	///
 	/// The default implementation of `fold_left` is implemented in terms of [`fold_right`], [`flip`], [`compose`] and [`identity`] where:
@@ -48,7 +48,7 @@ pub trait Foldable: Kind1 {
 	/// ```
 	fn fold_left<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, B, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				{
@@ -97,10 +97,10 @@ pub trait Foldable: Kind1 {
 	/// );
 	/// ```
 	fn fold_map<'a, A: 'a + Clone, M: Monoid<'a>>(
-		f: ArcFn<'a, A, Apply0<M>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply0<M>>
+		f: ArcFn<'a, A, Apply0L0T<M>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L0T<M>>
 	where
-		Apply0<M>: 'a + Clone,
+		Apply0L0T<M>: 'a + Clone,
 	{
 		Arc::new(move |fa| {
 			((Self::fold_right(Arc::new(|a| (compose(Arc::new(M::append))(f.clone()))(a))))(
@@ -142,7 +142,7 @@ pub trait Foldable: Kind1 {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
@@ -193,7 +193,7 @@ pub trait Foldable: Kind1 {
 /// ```
 pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
 	f: ArcFn<'a, B, ArcFn<'a, A, B>>
-) -> ArcFn<'a, B, ArcFn<'a, Apply1<Brand, A>, B>> {
+) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Brand, A>, B>> {
 	Brand::fold_left(f)
 }
 
@@ -233,10 +233,10 @@ pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
 /// );
 /// ```
 pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M: Monoid<'a>>(
-	f: ArcFn<'a, A, Apply0<M>>
-) -> ArcFn<'a, Apply1<Brand, A>, Apply0<M>>
+	f: ArcFn<'a, A, Apply0L0T<M>>
+) -> ArcFn<'a, Apply0L1T<Brand, A>, Apply0L0T<M>>
 where
-	Apply0<M>: 'a + Clone,
+	Apply0L0T<M>: 'a + Clone,
 {
 	Brand::fold_map::<_, M>(f)
 }
@@ -276,6 +276,6 @@ where
 /// ```
 pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
 	f: ArcFn<'a, A, ArcFn<'a, B, B>>
-) -> ArcFn<'a, B, ArcFn<'a, Apply1<Brand, A>, B>> {
+) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Brand, A>, B>> {
 	Brand::fold_right(f)
 }

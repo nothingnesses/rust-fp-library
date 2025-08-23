@@ -1,4 +1,4 @@
-use crate::{hkt::Apply0, typeclasses::Semigroup};
+use crate::{hkt::Apply0L0T, typeclasses::Semigroup};
 
 /// A typeclass for monoids.
 ///
@@ -34,7 +34,7 @@ pub trait Monoid<'a>: Semigroup<'a> {
 	///
 	/// The identity element which, when combined with any other element
 	/// using the semigroup operation, leaves the other element unchanged.
-	fn empty() -> Apply0<Self>;
+	fn empty() -> Apply0L0T<Self>;
 }
 
 /// Returns the identity element for the monoid.
@@ -57,6 +57,6 @@ pub trait Monoid<'a>: Semigroup<'a> {
 ///
 /// assert_eq!(empty::<StringBrand>(), "".to_string());
 /// ```
-pub fn empty<'a, Brand: Monoid<'a>>() -> Apply0<Brand> {
+pub fn empty<'a, Brand: Monoid<'a>>() -> Apply0L0T<Brand> {
 	Brand::empty()
 }

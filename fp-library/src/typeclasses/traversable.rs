@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
 	aliases::ArcFn,
 	functions::{identity, map},
-	hkt::Apply1,
+	hkt::Apply0L1T,
 	typeclasses::{Applicative, Foldable, Functor},
 };
 
@@ -44,13 +44,13 @@ pub trait Traversable<'a>: Functor + Foldable {
 	/// );
 	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+		f: ArcFn<'a, A, Apply0L1T<F, B>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
 	{
-		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply1<F, B>>(f.clone())(ta)))
+		Arc::new(move |ta| Self::sequence::<F, B>(map::<Self, _, Apply0L1T<F, B>>(f.clone())(ta)))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -83,11 +83,11 @@ pub trait Traversable<'a>: Functor + Foldable {
 	/// );
 	/// ```
 	fn sequence<F: Applicative, A: 'a + Clone>(
-		t: Apply1<Self, Apply1<F, A>>
-	) -> Apply1<F, Apply1<Self, A>>
+		t: Apply0L1T<Self, Apply0L1T<F, A>>
+	) -> Apply0L1T<F, Apply0L1T<Self, A>>
 	where
-		Apply1<F, A>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>>: Clone,
+		Apply0L1T<F, A>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<Self, A>>>: Clone,
 	{
 		(Self::traverse::<F, _, A>(Arc::new(identity)))(t)
 	}
@@ -126,11 +126,11 @@ pub trait Traversable<'a>: Functor + Foldable {
 /// );
 /// ```
 pub fn traverse<'a, Brand: Traversable<'a>, F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-	f: ArcFn<'a, A, Apply1<F, B>>
-) -> ArcFn<'a, Apply1<Brand, A>, Apply1<F, Apply1<Brand, B>>>
+	f: ArcFn<'a, A, Apply0L1T<F, B>>
+) -> ArcFn<'a, Apply0L1T<Brand, A>, Apply0L1T<F, Apply0L1T<Brand, B>>>
 where
-	Apply1<F, B>: 'a + Clone,
-	Apply1<F, ArcFn<'a, Apply1<Brand, B>, Apply1<Brand, B>>>: Clone,
+	Apply0L1T<F, B>: 'a + Clone,
+	Apply0L1T<F, ArcFn<'a, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>>>: Clone,
 {
 	Brand::traverse::<F, _, B>(f)
 }
@@ -167,11 +167,11 @@ where
 /// );
 /// ```
 pub fn sequence<'a, Brand: Traversable<'a>, F: Applicative, A: 'a + Clone>(
-	t: Apply1<Brand, Apply1<F, A>>
-) -> Apply1<F, Apply1<Brand, A>>
+	t: Apply0L1T<Brand, Apply0L1T<F, A>>
+) -> Apply0L1T<F, Apply0L1T<Brand, A>>
 where
-	Apply1<F, A>: 'a + Clone,
-	Apply1<F, ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, A>>>: Clone,
+	Apply0L1T<F, A>: 'a + Clone,
+	Apply0L1T<F, ArcFn<'a, Apply0L1T<Brand, A>, Apply0L1T<Brand, A>>>: Clone,
 {
 	Brand::sequence::<F, A>(t)
 }

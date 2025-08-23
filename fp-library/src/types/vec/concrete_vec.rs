@@ -1,6 +1,6 @@
 use crate::{
 	aliases::ArcFn,
-	hkt::{Apply0, Kind0},
+	hkt::{Apply0L0T, Kind0L0T},
 	typeclasses::{Monoid, Semigroup},
 };
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 /// [Brand][crate::brands] for the concrete form of [`Vec`], `Vec<A>`.
 pub struct ConcreteVecBrand<A>(A);
 
-impl<A> Kind0 for ConcreteVecBrand<A> {
+impl<A> Kind0L0T for ConcreteVecBrand<A> {
 	type Output = Vec<A>;
 }
 
@@ -26,7 +26,7 @@ where
 	///     vec![true, false]
 	/// );
 	/// ```
-	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+	fn append(a: Apply0L0T<Self>) -> ArcFn<'a, Apply0L0T<Self>, Apply0L0T<Self>> {
 		Arc::new(move |b| [a.to_owned(), b.to_owned()].concat())
 	}
 }
@@ -45,7 +45,7 @@ where
 	///     []
 	/// );
 	/// ```
-	fn empty() -> Apply0<Self> {
-		Apply0::<Self>::default()
+	fn empty() -> Apply0L0T<Self> {
+		Apply0L0T::<Self>::default()
 	}
 }

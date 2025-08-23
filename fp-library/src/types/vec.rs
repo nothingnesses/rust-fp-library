@@ -5,10 +5,10 @@ pub mod concrete_vec;
 use crate::{
 	aliases::ArcFn,
 	functions::{apply, map, pure, traverse},
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
-		Pure, Traversable,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
+		Functor, Pure, Traversable, clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 pub struct VecBrand;
 
-impl Kind1 for VecBrand {
+impl Kind0L1T for VecBrand {
 	type Output<A> = Vec<A>;
 }
 
@@ -51,7 +51,7 @@ impl VecBrand {
 	/// let single_element = (VecBrand::construct(42))(empty_tail);
 	/// assert_eq!(single_element, vec![42]);
 	/// ```
-	pub fn construct<'a, A>(head: A) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>
+	pub fn construct<'a, A>(head: A) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<Self, A>>
 	where
 		A: 'a + Clone,
 	{
@@ -85,7 +85,7 @@ impl VecBrand {
 	/// let empty: Vec<i32> = vec![];
 	/// assert_eq!(VecBrand::deconstruct(&empty), None);
 	/// ```
-	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply1<Self, A>>>
+	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply0L1T<Self, A>>>
 	where
 		A: Clone,
 	{
@@ -107,7 +107,7 @@ impl Pure for VecBrand {
 	///     vec![1]
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply1<Self, A> {
+	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
 		vec![a]
 	}
 }
@@ -128,8 +128,10 @@ impl Functor for VecBrand {
 	///     vec![2, 4, 6]
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
-		Arc::new(move |fa| fa.into_iter().map(&*f).collect())
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| fa.into_iter().map(&*f).collect())
 	}
 }
 
@@ -149,13 +151,10 @@ impl TypeclassApply for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	where
-		Apply1<Self, ArcFn<'a, A, B>>: Clone,
-	{
-		Arc::new(move |fa| {
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
 			ff.iter()
 				.cloned()
 				.flat_map(|f| fa.iter().cloned().map(&*f).collect::<Vec<_>>())
@@ -183,13 +182,10 @@ impl ApplyFirst for VecBrand {
 	///     vec![1, 1, 2, 2]
 	/// );
 	/// ```
-	fn apply_first<'a, A: 'a + Clone, B>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| {
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
 			fa.iter().cloned().flat_map(|a| fb.iter().map(move |_b| a.to_owned())).collect()
 		})
 	}
@@ -214,13 +210,12 @@ impl ApplySecond for VecBrand {
 	///     vec![3, 4, 3, 4]
 	/// );
 	/// ```
-	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| fa.to_owned().into_iter().flat_map(|_a| fb.iter().cloned()).collect())
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
+			fa.to_owned().into_iter().flat_map(|_a| fb.iter().cloned()).collect()
+		})
 	}
 }
 
@@ -240,10 +235,17 @@ impl Bind for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, A: 'a + Clone, B>(
-		ma: Apply1<Self, A>
-	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
-		Arc::new(move |f| ma.iter().cloned().flat_map(&*f).collect())
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		ma: Apply0L1T<Self, A>
+	) -> ApplyFn<
+		'a,
+		ClonableFnBrand,
+		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		Apply0L1T<Self, B>,
+	> {
+		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| {
+			ma.iter().cloned().flat_map(&*f).collect()
+		})
 	}
 }
 
@@ -261,7 +263,7 @@ impl Foldable for VecBrand {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			let f = f.clone();
 			Arc::new(move |fa| {
@@ -294,11 +296,11 @@ impl<'a> Traversable<'a> for VecBrand {
 	/// );
 	/// ```
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+		f: ArcFn<'a, A, Apply0L1T<F, B>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| {
 			match VecBrand::deconstruct(&ta) {

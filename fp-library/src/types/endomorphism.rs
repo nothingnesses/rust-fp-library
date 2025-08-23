@@ -3,7 +3,7 @@
 use crate::{
 	aliases::ArcFn,
 	functions::{compose, identity},
-	hkt::{Apply0, Kind0},
+	hkt::{Apply0L0T, Kind0L0T},
 	typeclasses::{Monoid, Semigroup},
 };
 use std::{marker::PhantomData, sync::Arc};
@@ -47,7 +47,7 @@ pub struct Endomorphism<'a, A>(pub ArcFn<'a, A, A>);
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<'a, A>(&'a A, PhantomData<&'a A>);
 
-impl<'a, A> Kind0 for EndomorphismBrand<'a, A> {
+impl<'a, A> Kind0L0T for EndomorphismBrand<'a, A> {
 	type Output = Endomorphism<'a, A>;
 }
 
@@ -70,7 +70,7 @@ impl<'a, A> Semigroup<'a> for EndomorphismBrand<'a, A> {
 	///     5
 	/// );
 	/// ```
-	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
+	fn append(a: Apply0L0T<Self>) -> ArcFn<'a, Apply0L0T<Self>, Apply0L0T<Self>> {
 		Arc::new(move |b| Endomorphism(compose(a.0.clone())(b.0)))
 	}
 }
@@ -84,7 +84,7 @@ impl<'a, A> Monoid<'a> for EndomorphismBrand<'a, A> {
 	/// assert_eq!(empty::<EndomorphismBrand<i32>>().0(5), 5);
 	/// assert_eq!(empty::<EndomorphismBrand<String>>().0("test".to_string()), "test");
 	/// ```
-	fn empty() -> Apply0<Self> {
+	fn empty() -> Apply0L0T<Self> {
 		Endomorphism(Arc::new(identity))
 	}
 }

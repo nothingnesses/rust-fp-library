@@ -1,6 +1,7 @@
 use crate::{
 	aliases::ArcFn,
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
 /// A typeclass for types that support combining two contexts, keeping the second value.
@@ -9,7 +10,7 @@ use crate::{
 /// the result of the first computation, keeping only the result of the second.
 /// This is useful for executing side effects in sequence while preserving the
 /// final result.
-pub trait ApplySecond: Kind1 {
+pub trait ApplySecond: Kind0L1T {
 	/// Combines two contexts, keeping the value from the second context.
 	///
 	/// # Type Signature
@@ -24,11 +25,9 @@ pub trait ApplySecond: Kind1 {
 	/// # Returns
 	///
 	/// The second context with its value preserved.
-	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
-	where
-		Apply1<Self, A>: Clone;
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>;
 }
 
 /// Combines two contexts, keeping the value from the second context.
@@ -55,11 +54,14 @@ pub trait ApplySecond: Kind1 {
 ///
 /// assert_eq!(apply_second::<OptionBrand, _, _>(Some(5))(Some("hello")), Some("hello"));
 /// ```
-pub fn apply_second<'a, Brand: ApplySecond, A: 'a, B: 'a + Clone>(
-	fa: Apply1<Brand, A>
-) -> ArcFn<'a, Apply1<Brand, B>, Apply1<Brand, B>>
-where
-	Apply1<Brand, A>: Clone,
-{
-	Brand::apply_second::<A, B>(fa)
+fn apply_second<
+	'a,
+	Brand: ApplySecond,
+	ClonableFnBrand: 'a + ClonableFn,
+	A: 'a + Clone,
+	B: 'a + Clone,
+>(
+	fa: Apply0L1T<Brand, A>
+) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>> {
+	Brand::apply_second::<ClonableFnBrand, A, B>(fa)
 }

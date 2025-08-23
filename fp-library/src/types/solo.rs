@@ -5,10 +5,10 @@ use std::sync::Arc;
 use crate::{
 	aliases::ArcFn,
 	functions::{identity, map, pure},
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
-		Pure, Traversable,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
+		Functor, Pure, Traversable, clonable_fn::ApplyFn,
 	},
 };
 
@@ -18,7 +18,7 @@ pub struct Solo<A>(pub A);
 
 pub struct SoloBrand;
 
-impl Kind1 for SoloBrand {
+impl Kind0L1T for SoloBrand {
 	type Output<A> = Solo<A>;
 }
 
@@ -33,7 +33,7 @@ impl Pure for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply1<Self, A> {
+	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
 		Solo(a)
 	}
 }
@@ -50,8 +50,10 @@ impl Functor for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
-		Arc::new(move |fa| Solo(f(fa.0)))
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Solo(f(fa.0)))
 	}
 }
 
@@ -67,13 +69,10 @@ impl TypeclassApply for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	where
-		Apply1<Self, ArcFn<'a, A, B>>: Clone,
-	{
-		map::<Self, A, B>(ff.0)
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		map::<Self, ClonableFnBrand, A, B>(ff.0)
 	}
 }
 
@@ -88,13 +87,10 @@ impl ApplyFirst for SoloBrand {
 	///     Solo(true)
 	/// );
 	/// ```
-	fn apply_first<'a, A: 'a + Clone, B>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |_fb| fa.to_owned())
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		ClonableFnBrand::new(move |_fb| fa.to_owned())
 	}
 }
 
@@ -109,13 +105,10 @@ impl ApplySecond for SoloBrand {
 	///     Solo(false)
 	/// );
 	/// ```
-	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		_fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(identity)
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(identity)
 	}
 }
 
@@ -131,10 +124,15 @@ impl Bind for SoloBrand {
 	///     Solo(())
 	/// );
 	/// ```
-	fn bind<'a, A: 'a + Clone, B>(
-		ma: Apply1<Self, A>
-	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
-		Arc::new(move |f| f(ma.to_owned().0))
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		ma: Apply0L1T<Self, A>
+	) -> ApplyFn<
+		'a,
+		ClonableFnBrand,
+		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		Apply0L1T<Self, B>,
+	> {
+		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| f(ma.to_owned().0))
 	}
 }
 
@@ -156,7 +154,7 @@ impl Foldable for SoloBrand {
 	/// ```
 	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
 		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
+	) -> ArcFn<'a, B, ArcFn<'a, Apply0L1T<Self, A>, B>> {
 		Arc::new(move |b| {
 			Arc::new({
 				let f = f.clone();
@@ -183,11 +181,11 @@ impl Foldable for SoloBrand {
 /// ```
 impl<'a> Traversable<'a> for SoloBrand {
 	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+		f: ArcFn<'a, A, Apply0L1T<F, B>>
+	) -> ArcFn<'a, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: 'a + Clone,
+		Apply0L1T<F, ArcFn<'a, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
 	{
 		Arc::new(move |ta| map::<F, B, _>(Arc::new(pure::<Self, _>))(f(ta.0)))
 	}
