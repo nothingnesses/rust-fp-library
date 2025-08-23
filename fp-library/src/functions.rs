@@ -1,7 +1,7 @@
 //! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
 //! free functions that dispatch to associated functions of typeclass instances.
 
-use crate::aliases::ArcFn;
+use crate::typeclasses::{ClonableFn, clonable_fn::ApplyFn};
 pub use crate::typeclasses::{
 	apply::apply,
 	apply_first::apply_first,
@@ -14,7 +14,6 @@ pub use crate::typeclasses::{
 	semigroup::append,
 	traversable::{sequence, traverse},
 };
-use std::sync::Arc;
 
 /// Takes functions `f` and `g` and returns the function `f . g` (`f` composed with `g`).
 ///
@@ -34,12 +33,12 @@ use std::sync::Arc;
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::functions::compose;
-/// use std::sync::Arc;
+/// use fp_library::{brands::RcFnBrand, functions::compose};
+/// use std::rc::Rc;
 ///
-/// let add_one = Arc::new(|x: i32| x + 1);
-/// let times_two = Arc::new(|x: i32| x * 2);
-/// let times_two_add_one = compose(add_one)(times_two);
+/// let add_one = Rc::new(|x: i32| x + 1);
+/// let times_two = Rc::new(|x: i32| x * 2);
+/// let times_two_add_one = compose::<RcFnBrand, _, _, _>(add_one)(times_two);
 ///
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(
@@ -47,12 +46,17 @@ use std::sync::Arc;
 ///     7
 /// );
 /// ```
-pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
-	f: ArcFn<'a, B, C>
-) -> ArcFn<'a, ArcFn<'a, A, B>, ArcFn<'a, A, C>> {
-	Arc::new(move |g| {
+pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
+	f: ApplyFn<'a, ClonableFnBrand, B, C>
+) -> ApplyFn<
+	'a,
+	ClonableFnBrand,
+	ApplyFn<'a, ClonableFnBrand, A, B>,
+	ApplyFn<'a, ClonableFnBrand, A, C>,
+> {
+	ClonableFnBrand::new(move |g: ApplyFn<'a, ClonableFnBrand, _, _>| {
 		let f = f.clone();
-		Arc::new(move |a| f(g(a)))
+		ClonableFnBrand::new(move |a| f(g(a)))
 	})
 }
 
@@ -74,15 +78,17 @@ pub fn compose<'a, A: 'a, B: 'a, C: 'a>(
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{functions::constant};
+/// use fp_library::{brands::RcFnBrand, functions::constant};
 ///
 /// assert_eq!(
-///     constant(true)(false),
+///     constant::<RcFnBrand, _, _>(true)(false),
 ///     true
 /// );
 /// ```
-pub fn constant<'a, A: 'a + Clone, B: Clone>(a: A) -> ArcFn<'a, B, A> {
-	Arc::new(move |_b| a.to_owned())
+pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
+	a: A
+) -> ApplyFn<'a, ClonableFnBrand, B, A> {
+	ClonableFnBrand::new(move |_b| a.to_owned())
 }
 
 /// Returns a version of the input curried binary function
@@ -103,23 +109,23 @@ pub fn constant<'a, A: 'a + Clone, B: Clone>(a: A) -> ArcFn<'a, B, A> {
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{aliases::ArcFn, functions::flip};
-/// use std::sync::Arc;
+/// use fp_library::{brands::RcFnBrand, functions::flip, typeclasses::clonable_fn::ApplyFn};
+/// use std::rc::Rc;
 ///
-/// let subtract: ArcFn<_, ArcFn<_, _>> = Arc::new(|a| Arc::new(move |b| a - b));
+/// let subtract: ApplyFn<RcFnBrand, _, ApplyFn<RcFnBrand, _, _>> = Rc::new(|a| Rc::new(move |b| a - b));
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
-///     flip(subtract)(1)(0),
+///     flip::<RcFnBrand, _, _, _>(subtract)(1)(0),
 ///     -1
 /// );
 /// ```
-pub fn flip<'a, A: 'a, B: 'a + Clone, C: 'a>(
-	f: ArcFn<'a, A, ArcFn<'a, B, C>>
-) -> ArcFn<'a, B, ArcFn<'a, A, C>> {
-	Arc::new(move |b| {
+pub fn flip<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a + Clone, C: 'a>(
+	f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, C>>
+) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, C>> {
+	ClonableFnBrand::new(move |b: B| {
 		let f = f.clone();
-		Arc::new(move |a| (f(a))(b.to_owned()))
+		ClonableFnBrand::new(move |a| (f(a))(b.to_owned()))
 	})
 }
 

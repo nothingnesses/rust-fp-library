@@ -1,6 +1,6 @@
 use crate::{
-	aliases::ArcFn,
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
 /// A typeclass for types that support function application within a context.
@@ -14,7 +14,7 @@ use crate::{
 ///
 /// Apply instances must satisfy the following law:
 /// * Composition: `apply(apply(f)(g))(x) = apply(f)(apply(g)(x))`.
-pub trait Apply: Kind1 {
+pub trait Apply: Kind0L1T {
 	/// Applies a function within a context to a value within a context.
 	///
 	/// # Type Signature
@@ -29,11 +29,9 @@ pub trait Apply: Kind1 {
 	/// # Returns
 	///
 	/// The result of applying the function to the value, all within the context.
-	fn apply<'a, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	where
-		Apply1<Self, ArcFn<'a, A, B>>: Clone;
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -56,19 +54,16 @@ pub trait Apply: Kind1 {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::OptionBrand, functions::apply};
-/// use std::sync::Arc;
+/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::apply};
+/// use std::rc::Rc;
 ///
 /// assert_eq!(
-///     apply::<OptionBrand, _, _>(Some(Arc::new(|x: i32| x * 2)))(Some(5)),
+///     apply::<RcFnBrand, OptionBrand, _, _>(Some(Rc::new(|x: i32| x * 2)))(Some(5)),
 ///     Some(10)
 /// );
 /// ```
-pub fn apply<'a, Brand: Apply, A: 'a + Clone, B: 'a>(
-	ff: Apply1<Brand, ArcFn<'a, A, B>>
-) -> ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, B>>
-where
-	Apply1<Brand, ArcFn<'a, A, B>>: Clone,
-{
-	Brand::apply::<_, _>(ff)
+pub fn apply<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Apply, A: 'a + Clone, B: 'a>(
+	ff: Apply0L1T<Brand, ApplyFn<'a, ClonableFnBrand, A, B>>
+) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
+	Brand::apply::<ClonableFnBrand, _, _>(ff)
 }

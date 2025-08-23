@@ -1,4 +1,4 @@
-use crate::{hkt::Apply0, typeclasses::Semigroup};
+use crate::typeclasses::Semigroup;
 
 /// A typeclass for monoids.
 ///
@@ -23,7 +23,7 @@ use crate::{hkt::Apply0, typeclasses::Semigroup};
 /// * Numbers with addition and zero.
 /// * Numbers with multiplication and one.
 /// * Lists with concatenation and empty list.
-pub trait Monoid<'a>: Semigroup<'a> {
+pub trait Monoid: Semigroup {
 	/// Returns the identity element for the monoid.
 	///
 	/// # Type Signature
@@ -34,7 +34,7 @@ pub trait Monoid<'a>: Semigroup<'a> {
 	///
 	/// The identity element which, when combined with any other element
 	/// using the semigroup operation, leaves the other element unchanged.
-	fn empty() -> Apply0<Self>;
+	fn empty() -> Self;
 }
 
 /// Returns the identity element for the monoid.
@@ -53,10 +53,10 @@ pub trait Monoid<'a>: Semigroup<'a> {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::StringBrand, functions::empty};
+/// use fp_library::functions::empty;
 ///
-/// assert_eq!(empty::<StringBrand>(), "".to_string());
+/// assert_eq!(empty::<String>(), "".to_string());
 /// ```
-pub fn empty<'a, Brand: Monoid<'a>>() -> Apply0<Brand> {
+pub fn empty<Brand: Monoid>() -> Brand {
 	Brand::empty()
 }

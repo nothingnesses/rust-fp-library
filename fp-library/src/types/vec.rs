@@ -3,21 +3,18 @@
 pub mod concrete_vec;
 
 use crate::{
-	aliases::ArcFn,
 	functions::{apply, map, pure, traverse},
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, Foldable, Functor,
-		Pure, Traversable,
+		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
+		Functor, Pure, Traversable, clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
-pub use concrete_vec::*;
-use std::sync::Arc;
 
 pub struct VecBrand;
 
-impl Kind1 for VecBrand {
+impl Kind0L1T for VecBrand {
 	type Output<A> = Vec<A>;
 }
 
@@ -40,22 +37,24 @@ impl VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::brands::VecBrand;
+	/// use fp_library::brands::{RcFnBrand, VecBrand};
 	///
 	/// let head = 1;
 	/// let tail = vec![2, 3];
-	/// let new_vec = (VecBrand::construct(head))(tail);
+	/// let new_vec = (VecBrand::construct::<RcFnBrand, _>(head))(tail);
 	/// assert_eq!(new_vec, vec![1, 2, 3]);
 	///
 	/// let empty_tail = vec![];
-	/// let single_element = (VecBrand::construct(42))(empty_tail);
+	/// let single_element = (VecBrand::construct::<RcFnBrand, _>(42))(empty_tail);
 	/// assert_eq!(single_element, vec![42]);
 	/// ```
-	pub fn construct<'a, A>(head: A) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, A>>
+	pub fn construct<'a, ClonableFnBrand: 'a + ClonableFn, A>(
+		head: A
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>
 	where
-		A: 'a + Clone,
+		A: Clone,
 	{
-		Arc::new(move |tail| [vec![head.to_owned()], tail].concat())
+		ClonableFnBrand::new(move |tail| [vec![head.to_owned()], tail].concat())
 	}
 
 	/// Deconstructs a slice into its head element and tail vector.
@@ -85,7 +84,7 @@ impl VecBrand {
 	/// let empty: Vec<i32> = vec![];
 	/// assert_eq!(VecBrand::deconstruct(&empty), None);
 	/// ```
-	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply1<Self, A>>>
+	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply0L1T<Self, A>>>
 	where
 		A: Clone,
 	{
@@ -107,7 +106,7 @@ impl Pure for VecBrand {
 	///     vec![1]
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply1<Self, A> {
+	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
 		vec![a]
 	}
 }
@@ -116,20 +115,22 @@ impl Functor for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::{identity, map}};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{identity, map}};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     map::<VecBrand, _, _>(Arc::new(identity))(vec![] as Vec<()>),
+	///     map::<RcFnBrand, VecBrand, _, _>(Rc::new(identity))(vec![] as Vec<()>),
 	///     vec![]
 	/// );
 	/// assert_eq!(
-	///     map::<VecBrand, _, _>(Arc::new(|x: i32| x * 2))(vec![1, 2, 3]),
+	///     map::<RcFnBrand, VecBrand, _, _>(Rc::new(|x: i32| x * 2))(vec![1, 2, 3]),
 	///     vec![2, 4, 6]
 	/// );
 	/// ```
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>> {
-		Arc::new(move |fa| fa.into_iter().map(&*f).collect())
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| fa.into_iter().map(&*f).collect())
 	}
 }
 
@@ -137,25 +138,22 @@ impl TypeclassApply for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::{apply, identity}};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{apply, identity}};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply::<VecBrand, _, _>(vec![] as Vec<Arc<dyn Fn(i32) -> i32>>)(vec![1, 2, 3]),
+	///     apply::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<Rc<dyn Fn(i32) -> i32>>)(vec![1, 2, 3]),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply::<VecBrand, _, _>(vec![Arc::new(identity), Arc::new(|x: i32| x * 2)])(vec![1, 2]),
+	///     apply::<RcFnBrand, VecBrand, _, _>(vec![Rc::new(identity), Rc::new(|x: i32| x * 2)])(vec![1, 2]),
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a>(
-		ff: Apply1<Self, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>
-	where
-		Apply1<Self, ArcFn<'a, A, B>>: Clone,
-	{
-		Arc::new(move |fa| {
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
 			ff.iter()
 				.cloned()
 				.flat_map(|f| fa.iter().cloned().map(&*f).collect::<Vec<_>>())
@@ -168,28 +166,26 @@ impl ApplyFirst for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::apply_first};
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::apply_first};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply_first::<VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
+	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply_first::<VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
+	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply_first::<VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
+	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
 	///     vec![1, 1, 2, 2]
 	/// );
 	/// ```
-	fn apply_first<'a, A: 'a + Clone, B>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, A>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| {
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
 			fa.iter().cloned().flat_map(|a| fb.iter().map(move |_b| a.to_owned())).collect()
 		})
 	}
@@ -199,28 +195,28 @@ impl ApplySecond for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::apply_second};
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::apply_second};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply_second::<VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
+	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply_second::<VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
+	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     apply_second::<VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
+	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
 	///     vec![3, 4, 3, 4]
 	/// );
 	/// ```
-	fn apply_second<'a, A: 'a, B: 'a + Clone>(
-		fa: Apply1<Self, A>
-	) -> ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>
-	where
-		Apply1<Self, A>: Clone,
-	{
-		Arc::new(move |fb| fa.to_owned().into_iter().flat_map(|_a| fb.iter().cloned()).collect())
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
+			fa.iter().cloned().flat_map(|_a| fb.iter().cloned()).collect()
+		})
 	}
 }
 
@@ -228,22 +224,29 @@ impl Bind for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::{bind, pure}};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{bind, pure}};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<VecBrand, _, _>(vec![] as Vec<()>)(Arc::new(|_| pure::<VecBrand, _>(1))),
+	///     bind::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<()>)(Rc::new(|_| pure::<VecBrand, _>(1))),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
-	///     bind::<VecBrand, _, _>(vec![1, 2])(Arc::new(|x| vec![x, x * 2])),
+	///     bind::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(Rc::new(|x| vec![x, x * 2])),
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, A: 'a + Clone, B>(
-		ma: Apply1<Self, A>
-	) -> ArcFn<'a, ArcFn<'a, A, Apply1<Self, B>>, Apply1<Self, B>> {
-		Arc::new(move |f| ma.iter().cloned().flat_map(&*f).collect())
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+		ma: Apply0L1T<Self, A>
+	) -> ApplyFn<
+		'a,
+		ClonableFnBrand,
+		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		Apply0L1T<Self, B>,
+	> {
+		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| {
+			ma.iter().cloned().flat_map(&*f).collect()
+		})
 	}
 }
 
@@ -251,20 +254,20 @@ impl Foldable for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::fold_right};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
+	///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
 	///     17
 	/// );
 	/// ```
-	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
-		Arc::new(move |b| {
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+		ClonableFnBrand::new(move |b: B| {
 			let f = f.clone();
-			Arc::new(move |fa| {
+			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
 				fa.iter().rfold(b.to_owned(), {
 					let f = f.clone();
 					let f = move |b, a| f(a)(b);
@@ -275,41 +278,49 @@ impl Foldable for VecBrand {
 	}
 }
 
-impl<'a> Traversable<'a> for VecBrand {
+impl Traversable for VecBrand {
 	// traverse f Vec.empty = pure Vec.empty
 	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, OptionBrand}, functions::traverse};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand, OptionBrand}, functions::traverse};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     traverse::<VecBrand, OptionBrand, i32, i32>(Arc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
+	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// assert_eq!(
-	///     traverse::<VecBrand, OptionBrand, i32, i32>(Arc::new(|_x| None))(vec![1, 2, 3]),
+	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|_x| None))(vec![1, 2, 3]),
 	///     None
 	/// );
 	/// ```
-	fn traverse<F: Applicative, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, Apply1<F, B>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply1<F, Apply1<Self, B>>>
+	fn traverse<
+		'a,
+		ClonableFnBrand: 'a + ClonableFn,
+		F: Applicative,
+		A: 'a + Clone,
+		B: 'a + Clone,
+	>(
+		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
-		Apply1<F, B>: 'a + Clone,
-		Apply1<F, ArcFn<'a, Apply1<Self, B>, Apply1<Self, B>>>: Clone,
+		Apply0L1T<F, B>: Clone,
+		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<Self, B>: 'a,
+		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
-		Arc::new(move |ta| {
+		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
 			match VecBrand::deconstruct(&ta) {
 				None => pure::<F, _>(vec![]),
 				Some(Pair(head, tail)) => {
 					// cons: a -> (t a -> t a)
-					let cons = Arc::new(VecBrand::construct);
+					let cons = ClonableFnBrand::new(VecBrand::construct::<ClonableFnBrand, _>);
 					// map: (a -> b) -> f a -> f b
 					// cons: a -> (t a -> t a)
 					// map cons = f a -> f (t a -> t a)
-					let map_cons = map::<F, _, _>(cons);
+					let map_cons = map::<ClonableFnBrand, F, _, _>(cons);
 					// f: a -> f b
 					// head: a
 					// f head: f b
@@ -317,7 +328,7 @@ impl<'a> Traversable<'a> for VecBrand {
 					// traverse: (a -> f b) -> t a -> f (t b)
 					// f: a -> f b
 					// traverse f: t a -> f (t b)
-					let traverse_f = traverse::<Self, F, _, _>(f.clone());
+					let traverse_f = traverse::<ClonableFnBrand, Self, F, _, _>(f.clone());
 					// traverse f: t a -> f (t b)
 					// tail: t a
 					// (traverse f) tail: f (t b)
@@ -329,7 +340,7 @@ impl<'a> Traversable<'a> for VecBrand {
 					// apply: f (a -> b) -> f a -> f b
 					// (map cons) (f head): f (t b -> t b)
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					let apply_map_cons_f_head = apply::<F, _, _>(map_cons_f_head);
+					let apply_map_cons_f_head = apply::<ClonableFnBrand, F, _, _>(map_cons_f_head);
 					// apply ((map cons) (f head)): f (t b) -> f (t b)
 					// (traverse f) tail: f (t b)
 					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)

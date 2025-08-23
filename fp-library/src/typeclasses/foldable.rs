@@ -1,11 +1,9 @@
 use crate::{
-	aliases::ArcFn,
 	functions::{compose, flip, identity},
-	hkt::{Apply0, Apply1, Kind1},
-	typeclasses::Monoid,
-	types::{Endomorphism, endomorphism::EndomorphismBrand},
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::{ClonableFn, Monoid, clonable_fn::ApplyFn},
+	types::Endomorphism,
 };
-use std::sync::Arc;
 
 /// A typeclass for structures that can be folded to a single value.
 ///
@@ -14,7 +12,7 @@ use std::sync::Arc;
 /// or applying monoidal operations.
 ///
 /// A minimum implementation of `Foldable` requires the manual implementation of at least [`Foldable::fold_right`] or [`Foldable::fold_map`].
-pub trait Foldable: Kind1 {
+pub trait Foldable: Kind0L1T {
 	/// Folds the structure by applying a function from left to right.
 	///
 	/// The default implementation of `fold_left` is implemented in terms of [`fold_right`], [`flip`], [`compose`] and [`identity`] where:
@@ -38,26 +36,39 @@ pub trait Foldable: Kind1 {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::fold_left};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_left};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
+	///     fold_left::<RcFnBrand, VecBrand, _, _>(Rc::new(|carry| Rc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
 	///     11
 	/// );
 	/// ```
-	fn fold_left<'a, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, B, ArcFn<'a, A, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
-		Arc::new(move |b| {
-			Arc::new({
-				{
-					let f = f.clone();
-					move |fa| {
-						(((Self::fold_right(compose(flip(Arc::new(compose)))(flip(f.clone()))))(
-							Arc::new(identity),
-						))(fa))(b.to_owned())
-					}
+	fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+		ClonableFnBrand::new(move |b: B| {
+			ClonableFnBrand::new({
+				let f = f.clone();
+				move |fa| {
+					(((Self::fold_right::<ClonableFnBrand, _, _>(compose::<
+						ClonableFnBrand,
+						_,
+						_,
+						_,
+					>(flip::<
+						ClonableFnBrand,
+						_,
+						_,
+						_,
+					>(
+						ClonableFnBrand::new(compose::<ClonableFnBrand, _, _, _>),
+					))(flip::<
+						ClonableFnBrand,
+						_,
+						_,
+						_,
+					>(f.clone()))))(ClonableFnBrand::new(identity)))(fa))(b.to_owned())
 				}
 			})
 		})
@@ -85,27 +96,28 @@ pub trait Foldable: Kind1 {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{StringBrand, VecBrand}, functions::{fold_map, identity}};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{fold_map, identity}};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     fold_map::<VecBrand, _, StringBrand>(Arc::new(identity))(vec![
+	///     fold_map::<RcFnBrand, VecBrand, _, String>(Rc::new(identity))(vec![
 	///         "Hello, ".to_string(),
 	///         "World!".to_string()
 	///     ]),
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a + Clone, M: Monoid<'a>>(
-		f: ArcFn<'a, A, Apply0<M>>
-	) -> ArcFn<'a, Apply1<Self, A>, Apply0<M>>
-	where
-		Apply0<M>: 'a + Clone,
-	{
-		Arc::new(move |fa| {
-			((Self::fold_right(Arc::new(|a| (compose(Arc::new(M::append))(f.clone()))(a))))(
-				M::empty(),
-			))(fa)
+	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, M: 'a + Monoid + Clone>(
+		f: ApplyFn<'a, ClonableFnBrand, A, M>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
+		ClonableFnBrand::new(move |fa| {
+			let f = f.clone();
+			((Self::fold_right::<ClonableFnBrand, _, _>(ClonableFnBrand::new(move |a: A| {
+				let f = f.clone();
+				compose::<ClonableFnBrand, _, _, _>(ClonableFnBrand::new(
+					M::append::<ClonableFnBrand>,
+				))(f)(a.to_owned())
+			})))(M::empty()))(fa)
 		})
 	}
 
@@ -132,25 +144,27 @@ pub trait Foldable: Kind1 {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::fold_right};
-	/// use std::sync::Arc;
+	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
+	///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
 	///     17
 	/// );
 	/// ```
-	fn fold_right<'a, A: 'a + Clone, B: 'a + Clone>(
-		f: ArcFn<'a, A, ArcFn<'a, B, B>>
-	) -> ArcFn<'a, B, ArcFn<'a, Apply1<Self, A>, B>> {
-		Arc::new(move |b| {
-			Arc::new({
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+		ClonableFnBrand::new(move |b: B| {
+			ClonableFnBrand::new({
 				let f = f.clone();
 				move |fa| {
-					((Self::fold_map::<A, EndomorphismBrand<B>>(Arc::new({
-						let f = f.clone();
-						move |a| Endomorphism(f(a))
-					}))(fa))
+					((Self::fold_map::<ClonableFnBrand, A, Endomorphism<'a, ClonableFnBrand, B>>(
+						ClonableFnBrand::new({
+							let f = f.clone();
+							move |a| Endomorphism(f(a))
+						}),
+					)(fa))
 					.0)(b.to_owned())
 				}
 			})
@@ -183,18 +197,24 @@ pub trait Foldable: Kind1 {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::VecBrand, functions::fold_left};
-/// use std::sync::Arc;
+/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_left};
+/// use std::rc::Rc;
 ///
 /// assert_eq!(
-///     fold_left::<VecBrand, _, _>(Arc::new(|carry| Arc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
+///     fold_left::<RcFnBrand, VecBrand, _, _>(Rc::new(|carry| Rc::new(move |item| carry * 2 + item)))(0)(vec![1, 2, 3]),
 ///     11
 /// );
 /// ```
-pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
-	f: ArcFn<'a, B, ArcFn<'a, A, B>>
-) -> ArcFn<'a, B, ArcFn<'a, Apply1<Brand, A>, B>> {
-	Brand::fold_left(f)
+pub fn fold_left<
+	'a,
+	ClonableFnBrand: 'a + ClonableFn,
+	Brand: Foldable,
+	A: 'a + Clone,
+	B: 'a + Clone,
+>(
+	f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
+) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
+	Brand::fold_left::<ClonableFnBrand, _, _>(f)
 }
 
 /// Maps values to a monoid and combines them.
@@ -221,24 +241,27 @@ pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::{StringBrand, VecBrand}, functions::{fold_map, identity}};
-/// use std::sync::Arc;
+/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{fold_map, identity}};
+/// use std::rc::Rc;
 ///
 /// assert_eq!(
-///     fold_map::<VecBrand, _, StringBrand>(Arc::new(identity))(vec![
+///     fold_map::<RcFnBrand, VecBrand, _, String>(Rc::new(identity))(vec![
 ///         "Hello, ".to_string(),
 ///         "World!".to_string()
 ///     ]),
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M: Monoid<'a>>(
-	f: ArcFn<'a, A, Apply0<M>>
-) -> ArcFn<'a, Apply1<Brand, A>, Apply0<M>>
-where
-	Apply0<M>: 'a + Clone,
-{
-	Brand::fold_map::<_, M>(f)
+pub fn fold_map<
+	'a,
+	ClonableFnBrand: 'a + ClonableFn,
+	Brand: Foldable,
+	A: 'a + Clone,
+	M: 'a + Monoid + Clone,
+>(
+	f: ApplyFn<'a, ClonableFnBrand, A, M>
+) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, M> {
+	Brand::fold_map::<ClonableFnBrand, _, M>(f)
 }
 
 /// Folds the structure by applying a function from right to left.
@@ -266,16 +289,22 @@ where
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::VecBrand, functions::fold_right};
-/// use std::sync::Arc;
+/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
+/// use std::rc::Rc;
 ///
 /// assert_eq!(
-///     fold_right::<VecBrand, _, _>(Arc::new(|item| Arc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
+///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
 ///     17
 /// );
 /// ```
-pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a + Clone>(
-	f: ArcFn<'a, A, ArcFn<'a, B, B>>
-) -> ArcFn<'a, B, ArcFn<'a, Apply1<Brand, A>, B>> {
-	Brand::fold_right(f)
+pub fn fold_right<
+	'a,
+	ClonableFnBrand: 'a + ClonableFn,
+	Brand: Foldable,
+	A: 'a + Clone,
+	B: 'a + Clone,
+>(
+	f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
+	Brand::fold_right::<ClonableFnBrand, _, _>(f)
 }

@@ -2,6 +2,13 @@
 
 use crate::make_trait_kind;
 
-make_trait_kind!(Kind0, "*", ());
-make_trait_kind!(Kind1, "* -> *", (A));
-make_trait_kind!(Kind2, "* -> * -> *", (A, B));
+make_trait_kind!(Kind0L1T, (), (A), "* -> *");
+
+make_trait_kind!(Kind0L2T, (), (A, B), "* -> * -> *");
+
+make_trait_kind!(
+	Kind1L2T,
+	('a),
+	(A, B),
+	"' -> * -> * -> *"
+);
