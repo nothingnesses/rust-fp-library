@@ -3,9 +3,10 @@
 pub mod pair_with_first;
 pub mod pair_with_second;
 
-use std::sync::Arc;
-
-use crate::{aliases::ArcFn, hkt::Kind2};
+use crate::{
+	hkt::Kind0L2T,
+	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
+};
 pub use pair_with_first::*;
 pub use pair_with_second::*;
 
@@ -15,7 +16,7 @@ pub struct Pair<First, Second>(pub First, pub Second);
 
 pub struct PairBrand;
 
-impl Kind2 for PairBrand {
+impl Kind0L2T for PairBrand {
 	type Output<A, B> = Pair<A, B>;
 }
 
@@ -23,7 +24,9 @@ impl<'a, First, Second> Pair<First, Second>
 where
 	First: 'a + Clone,
 {
-	pub fn new(first: First) -> ArcFn<'a, Second, Self> {
-		Arc::new(move |second| Pair(first.to_owned(), second))
+	pub fn new<ClonableFnBrand: 'a + ClonableFn>(
+		first: First
+	) -> ApplyFn<'a, ClonableFnBrand, Second, Self> {
+		ClonableFnBrand::new(move |second| Pair(first.to_owned(), second))
 	}
 }

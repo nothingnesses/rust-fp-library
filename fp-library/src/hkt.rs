@@ -1,5 +1,8 @@
-//! Higher-kinded types using type-level defunctionalisation based on Yallop
+//! Simulates higher-kinded types using type-level defunctionalisation based on Yallop
 //! and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
+//!
+//! [`Kind` traits][crate::hkt::kinds] represent the arity of a kind.
+//! These traits are implemented by [`Brand` types][crate::brands], representing (partially-applied) type constructors of [concrete types][crate::types].
 
 pub mod apply;
 pub mod kinds;

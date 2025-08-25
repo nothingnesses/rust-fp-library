@@ -1,47 +1,41 @@
 //! Implementations for [`String`].
 
-use std::sync::Arc;
+use crate::typeclasses::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
 
-use crate::{
-	aliases::ArcFn,
-	hkt::{Apply0, Kind0},
-	typeclasses::{Monoid, Semigroup},
-};
-
-pub struct StringBrand;
-
-impl Kind0 for StringBrand {
-	type Output = String;
-}
-
-impl<'a> Semigroup<'a> for StringBrand {
+impl Semigroup for String {
 	/// # Examples
 	///
 	/// ```rust
-	/// use fp_library::{brands::StringBrand, functions::append};
+	/// use fp_library::{brands::RcFnBrand, functions::append};
+	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     append::<StringBrand>("Hello, ".to_string())("World!".to_string()),
+	///     append::<RcFnBrand, String>("Hello, ".to_string())("World!".to_string()),
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append(a: Apply0<Self>) -> ArcFn<'a, Apply0<Self>, Apply0<Self>> {
-		Arc::new(move |b| a.to_owned() + &b)
+	fn append<'a, ClonableFnBrand: 'a + ClonableFn>(
+		a: Self
+	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	where
+		Self: Sized,
+	{
+		ClonableFnBrand::new(move |b: Self| a.to_owned() + &b)
 	}
 }
 
-impl<'a> Monoid<'a> for StringBrand {
+impl Monoid for String {
 	/// # Examples
 	///
 	/// ```rust
-	/// use fp_library::{brands::StringBrand, functions::empty};
+	/// use fp_library::functions::empty;
 	///
 	/// assert_eq!(
-	///     empty::<StringBrand>(),
+	///     empty::<String>(),
 	///     ""
 	/// );
 	/// ```
-	fn empty() -> Apply0<Self> {
-		Apply0::<Self>::default()
+	fn empty() -> Self {
+		Self::default()
 	}
 }

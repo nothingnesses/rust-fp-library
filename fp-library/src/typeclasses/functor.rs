@@ -1,6 +1,6 @@
 use crate::{
-	aliases::ArcFn,
-	hkt::{Apply1, Kind1},
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
 /// A typeclass for types that can be mapped over.
@@ -13,7 +13,7 @@ use crate::{
 /// Functors must satisfy the following laws:
 /// * Identity: `map(identity) = identity`.
 /// * Composition: `map(f . g) = map(f) . map(g)`.
-pub trait Functor: Kind1 {
+pub trait Functor: Kind0L1T {
 	/// Maps a function over the values in the functor context.
 	///
 	/// # Type Signature
@@ -28,7 +28,9 @@ pub trait Functor: Kind1 {
 	/// # Returns
 	///
 	/// A functor containing values of type `B`.
-	fn map<'a, A: 'a, B: 'a>(f: ArcFn<'a, A, B>) -> ArcFn<'a, Apply1<Self, A>, Apply1<Self, B>>;
+	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
+		f: ApplyFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
 }
 
 /// Maps a function over the values in the functor context.
@@ -51,13 +53,13 @@ pub trait Functor: Kind1 {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::OptionBrand, functions::map};
-/// use std::sync::Arc;
+/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::map};
+/// use std::rc::Rc;
 ///
-/// assert_eq!(map::<OptionBrand, _, _>(Arc::new(|x: i32| x * 2))(Some(5)), Some(10));
+/// assert_eq!(map::<RcFnBrand, OptionBrand, _, _>(Rc::new(|x: i32| x * 2))(Some(5)), Some(10));
 /// ```
-pub fn map<'a, Brand: Functor + ?Sized, A: 'a, B: 'a>(
-	f: ArcFn<'a, A, B>
-) -> ArcFn<'a, Apply1<Brand, A>, Apply1<Brand, B>> {
-	Brand::map(f)
+pub fn map<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Functor + ?Sized, A: 'a, B: 'a>(
+	f: ApplyFn<'a, ClonableFnBrand, A, B>
+) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
+	Brand::map::<ClonableFnBrand, _, _>(f)
 }
