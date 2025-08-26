@@ -1,10 +1,11 @@
 //! Implementations for the partially-applied form of [`Pair`] with [the first value][Pair#structfield.0] filled in.
 
 use crate::{
-	functions::map,
+	functions::{append, map},
 	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, ClonableFn, Foldable, Functor, Monoid, Pure, Traversable, clonable_fn::ApplyFn,
+		Applicative, Apply, ClonableFn, Foldable, Functor, Monoid, Pure, Semigroup, Traversable,
+		clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
@@ -14,22 +15,6 @@ pub struct PairWithFirstBrand<First>(First);
 
 impl<First> Kind0L1T for PairWithFirstBrand<First> {
 	type Output<Second> = Pair<First, Second>;
-}
-
-impl<First: Monoid + Clone> Pure for PairWithFirstBrand<First> {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{PairWithFirstBrand, RcFnBrand}, functions::pure, types::Pair};
-	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, PairWithFirstBrand<String>, _>(()),
-	///     Pair("".to_string(), ())
-	/// );
-	/// ```
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Pair::new::<ClonableFnBrand>(First::empty())(a)
-	}
 }
 
 impl<First> Functor for PairWithFirstBrand<First> {
@@ -48,6 +33,51 @@ impl<First> Functor for PairWithFirstBrand<First> {
 		f: ApplyFn<'a, ClonableFnBrand, A, B>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
 		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Pair(fa.0, f(fa.1)))
+	}
+}
+
+impl<First: Semigroup + Clone> Apply for PairWithFirstBrand<First> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{
+	///     brands::{PairWithFirstBrand, RcFnBrand},
+	///     functions::{apply, identity},
+	///     types::Pair
+	/// };
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
+	///         Pair("Hello, ".to_string(), Rc::new(identity))
+	///     )(
+	///         Pair("World!".to_string(), true)
+	///     ),
+	///     Pair("Hello, World!".to_string(), true)
+	/// );
+	/// ```
+	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
+			Pair(append::<ClonableFnBrand, First>(ff.0.to_owned())(fa.0), ff.1(fa.1))
+		})
+	}
+}
+
+impl<First: Monoid + Clone> Pure for PairWithFirstBrand<First> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithFirstBrand, RcFnBrand}, functions::pure, types::Pair};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, PairWithFirstBrand<String>, _>(()),
+	///     Pair("".to_string(), ())
+	/// );
+	/// ```
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		Pair::new::<ClonableFnBrand>(First::empty())(a)
 	}
 }
 

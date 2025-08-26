@@ -15,21 +15,6 @@ impl Kind0L1T for OptionBrand {
 	type Output<A> = Option<A>;
 }
 
-impl Pure for OptionBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::pure};
-	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, OptionBrand, _>(()),
-	///     Some(())
-	/// );
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Some(a)
-	}
-}
-
 impl Functor for OptionBrand {
 	/// # Examples
 	///
@@ -152,6 +137,21 @@ impl ApplySecond for OptionBrand {
 			(Some(_), Some(a)) => Some(a),
 			_ => None,
 		})
+	}
+}
+
+impl Pure for OptionBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::pure};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, OptionBrand, _>(()),
+	///     Some(())
+	/// );
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		Some(a)
 	}
 }
 

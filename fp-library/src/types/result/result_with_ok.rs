@@ -16,21 +16,6 @@ impl<T> Kind0L1T for ResultWithOkBrand<T> {
 	type Output<A> = Result<T, A>;
 }
 
-impl<T> Pure for ResultWithOkBrand<T> {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{RcFnBrand, ResultWithOkBrand}, functions::pure};
-	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, ResultWithOkBrand<()>, _>(()),
-	///     Err(())
-	/// );
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Err(a)
-	}
-}
-
 impl<T> Functor for ResultWithOkBrand<T> {
 	/// # Examples
 	///
@@ -163,6 +148,21 @@ where
 			(Err(_a), Err(a)) => Err(a),
 			(Ok(e), _) | (_, Ok(e)) => Ok(e),
 		})
+	}
+}
+
+impl<T> Pure for ResultWithOkBrand<T> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{RcFnBrand, ResultWithOkBrand}, functions::pure};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, ResultWithOkBrand<()>, _>(()),
+	///     Err(())
+	/// );
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		Err(a)
 	}
 }
 

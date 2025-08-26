@@ -19,22 +19,6 @@ impl Kind0L1T for SoloBrand {
 	type Output<A> = Solo<A>;
 }
 
-impl Pure for SoloBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{RcFnBrand, SoloBrand}, functions::pure, types::Solo};
-	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, SoloBrand, _>(()),
-	///     Solo(())
-	/// );
-	/// ```
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Solo(a)
-	}
-}
-
 impl Functor for SoloBrand {
 	/// # Examples
 	///
@@ -108,6 +92,22 @@ impl ApplySecond for SoloBrand {
 		_fa: Apply0L1T<Self, A>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
 		ClonableFnBrand::new(identity)
+	}
+}
+
+impl Pure for SoloBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{RcFnBrand, SoloBrand}, functions::pure, types::Solo};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, SoloBrand, _>(()),
+	///     Solo(())
+	/// );
+	/// ```
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		Solo(a)
 	}
 }
 

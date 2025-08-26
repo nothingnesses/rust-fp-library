@@ -95,22 +95,6 @@ impl VecBrand {
 	}
 }
 
-impl Pure for VecBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{RcFnBrand, VecBrand}, functions::pure};
-	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, VecBrand, _>(1),
-	///     vec![1]
-	/// );
-	/// ```
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		vec![a]
-	}
-}
-
 impl Functor for VecBrand {
 	/// # Examples
 	///
@@ -217,6 +201,22 @@ impl ApplySecond for VecBrand {
 		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
 			fa.iter().cloned().flat_map(|_a| fb.iter().cloned()).collect()
 		})
+	}
+}
+
+impl Pure for VecBrand {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{RcFnBrand, VecBrand}, functions::pure};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, VecBrand, _>(1),
+	///     vec![1]
+	/// );
+	/// ```
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		vec![a]
 	}
 }
 
