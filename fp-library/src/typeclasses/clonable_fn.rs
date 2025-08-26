@@ -1,11 +1,15 @@
 use crate::{hkt::Kind1L2T, make_type_apply};
 use std::ops::Deref;
 
-/// Abstracts over smart pointers for clonable closures.
+/// Abstraction for clonable wrappers over closures.
 ///
-/// This trait is implemented by zero-sized "Brand" types (like `ArcBrand` and `RcBrand`)
-/// to provide a way to construct and type-check function wrappers (`Arc<dyn Fn...>`
-/// or `Rc<dyn Fn...>`) in a generic context.
+/// This trait is implemented by "Brand" types (like [`ArcFnBrand`][crate::brands::ArcFnBrand]
+/// and [`RcFnBrand`][crate::brands::RcFnBrand]) to provide a way to construct
+/// and type-check clonable wrappers over closures (`Arc<dyn Fn...>` or
+/// `Rc<dyn Fn...>`) in a generic context.
+///
+/// The lifetime `'a` ensures the function doesn't outlive referenced data,
+/// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait ClonableFn: Kind1L2T + Clone {
 	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 

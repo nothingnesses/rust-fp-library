@@ -4,7 +4,7 @@
 //! allowing the library to work with types of varying complexity from concrete types
 //! (kind `*`) to type constructors (kinds `* -> *`, `* -> * -> *`, etc.).
 
-/// Generates a [`Kind` trait][crate::hkt::kinds] of a specific arity and its corresponding blanket implementation.
+/// Generates a [`Kind` trait][crate::hkt::kinds] of a specific arity.
 ///
 /// This macro creates traits that represent type-level applications for different kind arities.
 /// Each generated trait has an `Output` associated type that represents the concrete type

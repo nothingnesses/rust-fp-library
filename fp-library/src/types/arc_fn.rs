@@ -1,8 +1,11 @@
 use crate::{hkt::Kind1L2T, typeclasses::ClonableFn};
 use std::sync::Arc;
 
-pub struct ArcFn;
-
+/// A brand type for atomically reference-counted closures (`Arc<dyn Fn(A) -> B>`).
+///
+/// This struct implements [`ClonableFn`](crate::typeclasses::ClonableFn) to provide a way to construct
+/// and type-check `Arc`-wrapped closures in a generic context. The lifetime `'a` ensures the closure
+/// doesn't outlive referenced data, while `A` and `B` represent input and output types.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcFnBrand;
 

@@ -9,9 +9,10 @@ use crate::{
 /// A wrapper for endomorphisms (functions from a type to itself) that enables monoidal operations.
 ///
 /// `Endomorphism<A>` represents a function `A -> A`.
+///
 /// It exists to provide a monoid instance where:
-/// - The binary operation (`append`) is function composition
-/// - The identity element (`empty`) is the identity function
+/// * The binary operation (`append`) is function composition.
+/// * The identity element (`empty`) is the identity function.
 ///
 /// This allows combining transformations in a composable, associative way with a clear identity,
 /// which is useful for building pipelines of transformations or accumulating operations.

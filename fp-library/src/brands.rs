@@ -1,4 +1,4 @@
-//! Higher-kinded representation of [types][crate::types].
+//! Higher-kinded representations of [types][crate::types].
 
 pub use crate::types::{
 	arc_fn::ArcFnBrand,
