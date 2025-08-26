@@ -4,8 +4,8 @@ use crate::{
 	functions::{map, pure},
 	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
-		Functor, Pure, Traversable, clonable_fn::ApplyFn,
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pure,
+		Traversable, clonable_fn::ApplyFn,
 	},
 };
 
@@ -54,7 +54,7 @@ impl<E> Functor for ResultWithErrBrand<E> {
 	}
 }
 
-impl<E: Clone> TypeclassApply for ResultWithErrBrand<E>
+impl<E: Clone> Apply for ResultWithErrBrand<E>
 where
 	for<'a> E: 'a,
 {

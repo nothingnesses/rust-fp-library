@@ -6,8 +6,8 @@ use crate::{
 	functions::{apply, map, pure, traverse},
 	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply as TypeclassApply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable,
-		Functor, Pure, Traversable, clonable_fn::ApplyFn,
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pure,
+		Traversable, clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
@@ -134,7 +134,7 @@ impl Functor for VecBrand {
 	}
 }
 
-impl TypeclassApply for VecBrand {
+impl Apply for VecBrand {
 	/// # Examples
 	///
 	/// ```
