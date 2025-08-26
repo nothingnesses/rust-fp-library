@@ -1,4 +1,7 @@
-use crate::hkt::{Apply0L1T, Kind0L1T};
+use crate::{
+	hkt::{Apply0L1T, Kind0L1T},
+	typeclasses::ClonableFn,
+};
 
 /// A typeclass for types that can lift values into a context.
 ///
@@ -18,7 +21,7 @@ pub trait Pure: Kind0L1T {
 	/// # Returns
 	///
 	/// The value wrapped in the context.
-	fn pure<A>(a: A) -> Apply0L1T<Self, A>;
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A>;
 }
 
 /// Lifts a value into the context.
@@ -40,10 +43,10 @@ pub trait Pure: Kind0L1T {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::OptionBrand, functions::pure};
+/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::pure};
 ///
-/// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
+/// assert_eq!(pure::<RcFnBrand, OptionBrand, _>(5), Some(5));
 /// ```
-pub fn pure<Brand: Pure, A>(a: A) -> Apply0L1T<Brand, A> {
-	Brand::pure(a)
+pub fn pure<ClonableFnBrand: ClonableFn, Brand: Pure, A: Clone>(a: A) -> Apply0L1T<Brand, A> {
+	Brand::pure::<ClonableFnBrand, _>(a)
 }

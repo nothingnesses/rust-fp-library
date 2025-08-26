@@ -3,7 +3,9 @@
 use crate::{
 	functions::map,
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{Applicative, ClonableFn, Foldable, Functor, Traversable, clonable_fn::ApplyFn},
+	typeclasses::{
+		Applicative, ClonableFn, Foldable, Functor, Monoid, Pure, Traversable, clonable_fn::ApplyFn,
+	},
 	types::Pair,
 };
 
@@ -12,6 +14,22 @@ pub struct PairWithSecondBrand<Second>(Second);
 
 impl<Second> Kind0L1T for PairWithSecondBrand<Second> {
 	type Output<First> = Pair<First, Second>;
+}
+
+impl<Second: Monoid + Clone> Pure for PairWithSecondBrand<Second> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithSecondBrand, RcFnBrand}, functions::pure, types::Pair};
+	///
+	/// assert_eq!(
+	///     pure::<RcFnBrand, PairWithSecondBrand<String>, _>(()),
+	///     Pair((), "".to_string())
+	/// );
+	/// ```
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+		Pair::new::<ClonableFnBrand>(a)(Second::empty())
+	}
 }
 
 impl<Second> Functor for PairWithSecondBrand<Second> {

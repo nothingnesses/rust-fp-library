@@ -23,14 +23,14 @@ impl Pure for SoloBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::SoloBrand, functions::pure, types::Solo};
+	/// use fp_library::{brands::{RcFnBrand, SoloBrand}, functions::pure, types::Solo};
 	///
 	/// assert_eq!(
-	///     pure::<SoloBrand, _>(()),
+	///     pure::<RcFnBrand, SoloBrand, _>(()),
 	///     Solo(())
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
 		Solo(a)
 	}
 }
@@ -119,7 +119,7 @@ impl Bind for SoloBrand {
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, SoloBrand, _, _>(Solo(()))(Rc::new(pure::<SoloBrand, _>)),
+	///     bind::<RcFnBrand, SoloBrand, _, _>(Solo(()))(Rc::new(pure::<RcFnBrand, SoloBrand, _>)),
 	///     Solo(())
 	/// );
 	/// ```
@@ -195,7 +195,9 @@ impl Traversable for SoloBrand {
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
-			map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(pure::<Self, _>))(f(ta.0))
+			map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(pure::<ClonableFnBrand, Self, _>))(
+				f(ta.0),
+			)
 		})
 	}
 }

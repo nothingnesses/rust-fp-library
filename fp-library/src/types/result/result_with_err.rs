@@ -20,13 +20,13 @@ impl<E> Pure for ResultWithErrBrand<E> {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::ResultWithErrBrand, functions::pure};
+	/// use fp_library::{brands::{RcFnBrand, ResultWithErrBrand}, functions::pure};
 	///
 	/// assert_eq!(
-	///     pure::<ResultWithErrBrand<()>, _>(()),
+	///     pure::<RcFnBrand, ResultWithErrBrand<()>, _>(()),
 	///     Ok(())
 	/// );
-	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
 		Ok(a)
 	}
 }
@@ -174,11 +174,11 @@ where
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, ResultWithErrBrand<_>, _, _>(Err(()))(Rc::new(pure::<ResultWithErrBrand<_>, ()>)),
+	///     bind::<RcFnBrand, ResultWithErrBrand<_>, _, _>(Err(()))(Rc::new(pure::<RcFnBrand, ResultWithErrBrand<_>, ()>)),
 	///     Err(())
 	/// );
 	/// assert_eq!(
-	///     bind::<RcFnBrand, ResultWithErrBrand<()>, _, _>(Ok(()))(Rc::new(pure::<ResultWithErrBrand<_>, _>)),
+	///     bind::<RcFnBrand, ResultWithErrBrand<()>, _, _>(Ok(()))(Rc::new(pure::<RcFnBrand, ResultWithErrBrand<_>, _>)),
 	///     Ok(())
 	/// );
 	/// ```
@@ -242,7 +242,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 ///     Some(Err("error".to_string()))
 /// );
 /// ```
-impl<E> Traversable for ResultWithErrBrand<E> {
+impl<E: Clone> Traversable for ResultWithErrBrand<E> {
 	fn traverse<
 		'a,
 		ClonableFnBrand: 'a + ClonableFn,
@@ -259,10 +259,10 @@ impl<E> Traversable for ResultWithErrBrand<E> {
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| match (f.clone(), ta) {
-			(_, Err(e)) => pure::<F, _>(Err(e)),
-			(f, Ok(a)) => {
-				map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(pure::<Self, _>))(f(a))
-			}
+			(_, Err(e)) => pure::<ClonableFnBrand, F, _>(Err(e)),
+			(f, Ok(a)) => map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(
+				pure::<ClonableFnBrand, Self, _>,
+			))(f(a)),
 		})
 	}
 }

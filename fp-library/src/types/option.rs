@@ -19,13 +19,13 @@ impl Pure for OptionBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::OptionBrand, functions::pure};
+	/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::pure};
 	///
 	/// assert_eq!(
-	///     pure::<OptionBrand, _>(()),
+	///     pure::<RcFnBrand, OptionBrand, _>(()),
 	///     Some(())
 	/// );
-	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
 		Some(a)
 	}
 }
@@ -163,11 +163,11 @@ impl Bind for OptionBrand {
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, OptionBrand, _, _>(None)(Rc::new(pure::<OptionBrand, ()>)),
+	///     bind::<RcFnBrand, OptionBrand, _, _>(None)(Rc::new(pure::<RcFnBrand, OptionBrand, ()>)),
 	///     None
 	/// );
 	/// assert_eq!(
-	///     bind::<RcFnBrand, OptionBrand, _, _>(Some(()))(Rc::new(pure::<OptionBrand, _>)),
+	///     bind::<RcFnBrand, OptionBrand, _, _>(Some(()))(Rc::new(pure::<RcFnBrand, OptionBrand, _>)),
 	///     Some(())
 	/// );
 	/// ```
@@ -248,10 +248,10 @@ impl Traversable for OptionBrand {
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| match (f.clone(), ta) {
-			(_, None) => pure::<F, _>(None),
-			(f, Some(a)) => {
-				map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(pure::<Self, _>))(f(a))
-			}
+			(_, None) => pure::<ClonableFnBrand, F, _>(None),
+			(f, Some(a)) => map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(
+				pure::<ClonableFnBrand, Self, _>,
+			))(f(a)),
 		})
 	}
 }

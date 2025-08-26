@@ -99,14 +99,14 @@ impl Pure for VecBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::VecBrand, functions::pure};
+	/// use fp_library::{brands::{RcFnBrand, VecBrand}, functions::pure};
 	///
 	/// assert_eq!(
-	///     pure::<VecBrand, _>(1),
+	///     pure::<RcFnBrand, VecBrand, _>(1),
 	///     vec![1]
 	/// );
 	/// ```
-	fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
 		vec![a]
 	}
 }
@@ -228,7 +228,7 @@ impl Bind for VecBrand {
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<()>)(Rc::new(|_| pure::<VecBrand, _>(1))),
+	///     bind::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<()>)(Rc::new(|_| pure::<RcFnBrand, VecBrand, _>(1))),
 	///     vec![] as Vec<i32>
 	/// );
 	/// assert_eq!(
@@ -313,7 +313,7 @@ impl Traversable for VecBrand {
 	{
 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
 			match VecBrand::deconstruct(&ta) {
-				None => pure::<F, _>(vec![]),
+				None => pure::<ClonableFnBrand, F, _>(vec![]),
 				Some(Pair(head, tail)) => {
 					// cons: a -> (t a -> t a)
 					let cons = ClonableFnBrand::new(VecBrand::construct::<ClonableFnBrand, _>);
