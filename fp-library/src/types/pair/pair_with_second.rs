@@ -1,11 +1,11 @@
 //! Implementations for the partially-applied form of [`Pair`] with [the second value][Pair#structfield.1] filled in.
 
 use crate::{
-	functions::{append, map},
+	functions::{append, apply, constant, identity, map},
 	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply, ClonableFn, Foldable, Functor, Monoid, Pure, Semigroup, Traversable,
-		clonable_fn::ApplyFn,
+		Applicative, Apply, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Monoid, Pure,
+		Semigroup, Traversable, clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
@@ -61,6 +61,68 @@ impl<Second: Semigroup + Clone> Apply for PairWithSecondBrand<Second> {
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
 		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
 			Pair(ff.0(fa.0), append::<ClonableFnBrand, Second>(ff.1.to_owned())(fa.1))
+		})
+	}
+}
+
+impl<Second: Clone + Semigroup> ApplyFirst for PairWithSecondBrand<Second> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{
+	///     brands::{PairWithSecondBrand, RcFnBrand},
+	///     functions::{apply_first, identity},
+	///     types::Pair
+	/// };
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     apply_first::<RcFnBrand, PairWithSecondBrand<String>, _, _>(
+	///         Pair(false, "Hello, ".to_string())
+	///     )(
+	///         Pair(true, "World!".to_string())
+	///     ),
+	///     Pair(false, "Hello, World!".to_string())
+	/// );
+	/// ```
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		ClonableFnBrand::new(move |fb| {
+			apply::<ClonableFnBrand, Self, _, _>(map::<ClonableFnBrand, Self, _, _>(
+				ClonableFnBrand::new(constant::<ClonableFnBrand, _, _>),
+			)(fa.to_owned()))(fb)
+		})
+	}
+}
+
+impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{
+	///     brands::{PairWithSecondBrand, RcFnBrand},
+	///     functions::apply_second,
+	///     types::Pair
+	/// };
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     apply_second::<RcFnBrand, PairWithSecondBrand<String>, _, _>(
+	///         Pair(false, "Hello, ".to_string())
+	///     )(
+	///         Pair(true, "World!".to_string())
+	///     ),
+	///     Pair(true, "Hello, World!".to_string())
+	/// );
+	/// ```
+	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply0L1T<Self, A>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		ClonableFnBrand::new(move |fb| {
+			(apply::<ClonableFnBrand, Self, _, _>((map::<ClonableFnBrand, Self, _, _>(
+				constant::<ClonableFnBrand, _, _>(ClonableFnBrand::new(identity)),
+			))(fa.to_owned())))(fb)
 		})
 	}
 }

@@ -24,7 +24,7 @@ pub trait ApplyFirst: Kind0L1T {
 	/// # Returns
 	///
 	/// The first context with its value preserved.
-	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		fa: Apply0L1T<Self, A>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>>;
 }
@@ -53,7 +53,13 @@ pub trait ApplyFirst: Kind0L1T {
 ///
 /// assert_eq!(apply_first::<RcFnBrand, OptionBrand, _, _>(Some(5))(Some("hello")), Some(5));
 /// ```
-pub fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, Brand: ApplyFirst, A: 'a + Clone, B>(
+pub fn apply_first<
+	'a,
+	ClonableFnBrand: 'a + ClonableFn,
+	Brand: ApplyFirst,
+	A: 'a + Clone,
+	B: Clone,
+>(
 	fa: Apply0L1T<Brand, A>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, A>> {
 	Brand::apply_first::<ClonableFnBrand, A, B>(fa)
