@@ -11,6 +11,7 @@ use crate::{
 /// `Endomorphism<A>` represents a function `A -> A`.
 ///
 /// It exists to provide a monoid instance where:
+///
 /// * The binary operation (`append`) is function composition.
 /// * The identity element (`empty`) is the identity function.
 ///

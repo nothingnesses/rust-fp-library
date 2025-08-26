@@ -236,7 +236,7 @@ impl Bind for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
 	) -> ApplyFn<
 		'a,

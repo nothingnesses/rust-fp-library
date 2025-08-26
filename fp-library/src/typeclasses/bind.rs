@@ -27,7 +27,7 @@ pub trait Bind: Kind0L1T {
 	/// # Returns
 	///
 	/// A computation that sequences the two operations.
-	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
 	) -> ApplyFn<
 		'a,
@@ -62,7 +62,7 @@ pub trait Bind: Kind0L1T {
 ///
 /// assert_eq!(bind::<RcFnBrand, OptionBrand, _, _>(Some(5))(Rc::new(|x| Some(x * 2))), Some(10));
 /// ```
-pub fn bind<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Bind, A: 'a + Clone, B>(
+pub fn bind<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Bind, A: 'a + Clone, B: Clone>(
 	ma: Apply0L1T<Brand, A>
 ) -> ApplyFn<
 	'a,

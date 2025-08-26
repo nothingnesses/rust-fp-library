@@ -171,7 +171,7 @@ impl Bind for OptionBrand {
 	///     Some(())
 	/// );
 	/// ```
-	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B>(
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
 	) -> ApplyFn<
 		'a,

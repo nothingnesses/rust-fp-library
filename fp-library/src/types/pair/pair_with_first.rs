@@ -4,8 +4,8 @@ use crate::{
 	functions::{append, apply, constant, identity, map},
 	hkt::{Apply0L1T, Kind0L1T},
 	typeclasses::{
-		Applicative, Apply, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Monoid, Pure,
-		Semigroup, Traversable, clonable_fn::ApplyFn,
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
+		Pure, Semigroup, Traversable, clonable_fn::ApplyFn,
 	},
 	types::Pair,
 };
@@ -140,6 +140,40 @@ impl<First: Monoid + Clone> Pure for PairWithFirstBrand<First> {
 	/// ```
 	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
 		Pair::new::<ClonableFnBrand>(First::empty())(a)
+	}
+}
+
+impl<First: Semigroup + Clone> Bind for PairWithFirstBrand<First> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithFirstBrand, RcFnBrand}, functions::bind, types::Pair};
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     bind::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
+	///         Pair("Hello, ".to_string(), true)
+	///     )(
+	///         Rc::new(|b: bool| Pair("World!".to_string(), b))
+	///     ),
+	///     Pair("Hello, World!".to_string(), true)
+	/// );
+	/// ```
+	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
+		ma: Apply0L1T<Self, A>
+	) -> ApplyFn<
+		'a,
+		ClonableFnBrand,
+		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		Apply0L1T<Self, B>,
+	> {
+		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>| {
+			let Pair(ma_first, ma_second) = &ma;
+			let Pair(f_ma_second_first, f_ma_second_second) = f(ma_second.to_owned());
+			Pair::new::<ClonableFnBrand>(append::<ClonableFnBrand, _>(ma_first.to_owned())(
+				f_ma_second_first,
+			))(f_ma_second_second)
+		})
 	}
 }
 
