@@ -1,4 +1,4 @@
-//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (functions from a type to itself) that enables monoidal operations.
+//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
 
 use crate::{
 	functions::{compose, identity},
@@ -6,19 +6,19 @@ use crate::{
 };
 
 #[derive(Clone)]
-/// A wrapper for endomorphisms (functions from a type to itself) that enables monoidal operations.
+/// A wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
 ///
 /// `Endomorphism<A>` represents a function `A -> A`.
 ///
 /// It exists to provide a monoid instance where:
 ///
-/// * The binary operation (`append`) is function composition.
-/// * The identity element (`empty`) is the identity function.
+/// * The binary operation [`append`][Semigroup::append] is [function composition][crate::functions::compose].
+/// * The identity element [`empty`][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// This allows combining transformations in a composable, associative way with a clear identity,
 /// which is useful for building pipelines of transformations or accumulating operations.
 ///
-/// The wrapped function can be accessed directly via the `.0` field.
+/// The wrapped function can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 ///
 /// # Examples
 ///
