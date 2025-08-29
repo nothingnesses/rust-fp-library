@@ -11,18 +11,10 @@ use crate::classes::Semigroup;
 ///
 /// # Laws
 ///
-/// Monoid instances must satisfy the following laws:
+/// `Monoid` instances must satisfy the following laws:
 /// * Left identity: `append(empty(), x) = x`.
 /// * Right identity: `append(x, empty()) = x`.
 /// * Associativity: `append(append(x, y), z) = append(x, append(y, z))`.
-///
-/// # Examples
-///
-/// Common monoids include:
-/// * Strings with concatenation and empty string.
-/// * Numbers with addition and zero.
-/// * Numbers with multiplication and one.
-/// * Lists with concatenation and empty list.
 pub trait Monoid: Semigroup {
 	/// Returns the identity element for the monoid.
 	///

@@ -13,7 +13,7 @@ use crate::classes::{Apply, ApplyFirst, ApplySecond, Functor, Pointed};
 ///
 /// # Laws
 ///
-/// Applicative instances must satisfy the following laws:
+/// `Applicative` instances must satisfy the following laws:
 /// * Identity: `apply(pure(identity))(v) = v`.
 /// * Composition: `apply(apply(apply(pure(compose))(u))(v))(w) = apply(u)(apply(v)(w))`.
 /// * Homomorphism: `apply(pure(f))(pure(x)) = pure(f(x))`.

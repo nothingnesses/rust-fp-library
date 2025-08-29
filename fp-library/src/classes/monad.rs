@@ -11,7 +11,7 @@ use crate::classes::{Applicative, Bind};
 ///
 /// # Laws
 ///
-/// Monad instances must satisfy the following laws:
+/// `Monad` instances must satisfy the following laws:
 /// * Left identity: `bind(pure(a))(f) = f(a)`.
 /// * Right identity: `bind(m)(pure) = m`.
 /// * Associativity: `bind(bind(m)(f))(g) = bind(m)(x => bind(f(x))(g))`.

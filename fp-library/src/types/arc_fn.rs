@@ -1,5 +1,6 @@
 use crate::{
-	classes::{ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
+	classes::{Category, ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
+	functions::identity,
 	hkt::{Apply1L2T, Kind1L2T},
 };
 use std::sync::Arc;
@@ -30,10 +31,16 @@ impl Semigroupoid for ArcFnBrand {
 		f: Apply1L2T<'a, Self, C, D>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
-			ArcFnBrand::new::<'a, _, _>({
+			Self::new::<'a, _, _>({
 				let f = f.clone();
 				move |a| f(g(a))
 			})
 		})
+	}
+}
+
+impl Category for ArcFnBrand {
+	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
+		Self::new::<'a, _, _>(identity)
 	}
 }

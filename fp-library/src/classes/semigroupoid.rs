@@ -5,8 +5,8 @@ use crate::{
 
 /// A type class for semigroupoids.
 ///
-/// A `Semigroupoid` is similar to a `Category` but does not require an
-/// identity element `identity`, just composable morphisms.
+/// A `Semigroupoid` is a set of objects and composable relationships
+/// (morphisms) between them.
 ///
 /// # Laws
 ///

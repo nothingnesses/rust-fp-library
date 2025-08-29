@@ -10,9 +10,9 @@ use crate::{
 ///
 /// # Laws
 ///
-/// Functors must satisfy the following laws:
+/// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity) = identity`.
-/// * Composition: `map(f . g) = map(f) . map(g)`.
+/// * Composition: `map(compose(f)(g)) = compose(map(f))(map(g))`.
 pub trait Functor: Kind0L1T {
 	/// Maps a function over the values in the functor context.
 	///

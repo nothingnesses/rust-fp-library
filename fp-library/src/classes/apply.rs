@@ -12,7 +12,7 @@ use crate::{
 ///
 /// # Laws
 ///
-/// Apply instances must satisfy the following law:
+/// `Apply` instances must satisfy the following law:
 /// * Composition: `apply(apply(f)(g))(x) = apply(f)(apply(g)(x))`.
 pub trait Apply: Kind0L1T {
 	/// Applies a function within a context to a value within a context.
