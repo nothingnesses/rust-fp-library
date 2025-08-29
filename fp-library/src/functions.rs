@@ -13,6 +13,7 @@ pub use crate::classes::{
 	monoid::empty,
 	pointed::pure,
 	semigroup::append,
+	semigroupoid::compose as semigroupoid_compose,
 	traversable::{sequence, traverse},
 };
 

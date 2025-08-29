@@ -1,4 +1,7 @@
-use crate::{classes::ClonableFn, hkt::Kind1L2T};
+use crate::{
+	classes::{ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
+	hkt::{Apply1L2T, Kind1L2T},
+};
 use std::sync::Arc;
 
 /// A brand type for atomically reference-counted closures (`Arc<dyn Fn(A) -> B>`).
@@ -19,5 +22,18 @@ impl ClonableFn for ArcFnBrand {
 
 	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
 		Arc::new(f)
+	}
+}
+
+impl Semigroupoid for ArcFnBrand {
+	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
+		f: Apply1L2T<'a, Self, C, D>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
+		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
+			ArcFnBrand::new::<'a, _, _>({
+				let f = f.clone();
+				move |a| f(g(a))
+			})
+		})
 	}
 }

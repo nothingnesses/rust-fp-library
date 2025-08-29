@@ -12,6 +12,7 @@ pub mod monad;
 pub mod monoid;
 pub mod pointed;
 pub mod semigroup;
+pub mod semigroupoid;
 pub mod traversable;
 
 pub use self::applicative::Applicative;
@@ -26,4 +27,5 @@ pub use self::monad::Monad;
 pub use self::monoid::Monoid;
 pub use self::pointed::Pointed;
 pub use self::semigroup::Semigroup;
+pub use self::semigroupoid::Semigroupoid;
 pub use self::traversable::Traversable;
