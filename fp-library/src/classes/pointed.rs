@@ -12,7 +12,7 @@ pub trait Pointed: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a. Pointed f => a -> f a`
+	/// `forall a. Pointed f => a -> f a`
 	///
 	/// # Parameters
 	///
@@ -30,7 +30,7 @@ pub trait Pointed: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a. Pointed f => a -> f a`
+/// `forall a. Pointed f => a -> f a`
 ///
 /// # Parameters
 ///

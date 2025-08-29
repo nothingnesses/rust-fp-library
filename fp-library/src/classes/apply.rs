@@ -19,7 +19,7 @@ pub trait Apply: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. Apply f => f (a -> b) -> f a -> f b`
+	/// `forall a b. Apply f => f (a -> b) -> f a -> f b`
 	///
 	/// # Parameters
 	///
@@ -40,7 +40,7 @@ pub trait Apply: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a b. Apply f => f (a -> b) -> f a -> f b`
+/// `forall a b. Apply f => f (a -> b) -> f a -> f b`
 ///
 /// # Parameters
 ///

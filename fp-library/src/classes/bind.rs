@@ -17,7 +17,7 @@ pub trait Bind: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall m a b. Bind m => m a -> (a -> m b) -> m b`
+	/// `forall a b. Bind m => m a -> (a -> m b) -> m b`
 	///
 	/// # Parameters
 	///
@@ -43,7 +43,7 @@ pub trait Bind: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall m a b. Bind m => m a -> (a -> m b) -> m b`
+/// `forall a b. Bind m => m a -> (a -> m b) -> m b`
 ///
 /// # Parameters
 ///

@@ -27,7 +27,7 @@ pub trait Semigroup {
 	///
 	/// # Type Signature
 	///
-	/// `forall a. Semigroup a => a -> a -> a`
+	/// `Semigroup a => a -> a -> a`
 	///
 	/// # Parameters
 	///
@@ -50,7 +50,7 @@ pub trait Semigroup {
 ///
 /// # Type Signature
 ///
-/// `forall a. Semigroup a => a -> a -> a`
+/// `Semigroup a => a -> a -> a`
 ///
 /// # Parameters
 ///

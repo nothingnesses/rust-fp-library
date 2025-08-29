@@ -14,7 +14,7 @@ pub trait ApplyFirst: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. ApplyFirst f => f a -> f b -> f a`
+	/// `forall a b. ApplyFirst f => f a -> f b -> f a`
 	///
 	/// # Parameters
 	///
@@ -35,7 +35,7 @@ pub trait ApplyFirst: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a b. ApplyFirst f => f a -> f b -> f a`
+/// `forall a b. ApplyFirst f => f a -> f b -> f a`
 ///
 /// # Parameters
 ///

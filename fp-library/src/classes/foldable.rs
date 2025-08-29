@@ -21,7 +21,7 @@ pub trait Foldable: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. Foldable f => (b -> a -> b) -> b -> f a -> b`
+	/// `forall a b. Foldable f => (b -> a -> b) -> b -> f a -> b`
 	///
 	/// # Parameters
 	///
@@ -82,7 +82,7 @@ pub trait Foldable: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a m. Foldable f, Monoid m => (a -> m) -> f a -> m`
+	/// `forall a. Foldable f, Monoid m => (a -> m) -> f a -> m`
 	///
 	/// # Parameters
 	///
@@ -129,7 +129,7 @@ pub trait Foldable: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. Foldable f => (a -> b -> b) -> b -> f a -> b`
+	/// `forall a b. Foldable f => (a -> b -> b) -> b -> f a -> b`
 	///
 	/// # Parameters
 	///
@@ -182,7 +182,7 @@ pub trait Foldable: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a b. Foldable f => (b -> a -> b) -> b -> f a -> b`
+/// `forall a b. Foldable f => (b -> a -> b) -> b -> f a -> b`
 ///
 /// # Parameters
 ///
@@ -227,7 +227,7 @@ pub fn fold_left<
 ///
 /// # Type Signature
 ///
-/// `forall f a m. Foldable f, Monoid m => (a -> m) -> f a -> m`
+/// `forall a. Foldable f, Monoid m => (a -> m) -> f a -> m`
 ///
 /// # Parameters
 ///
@@ -274,7 +274,7 @@ pub fn fold_map<
 ///
 /// # Type Signature
 ///
-/// `forall f a b. Foldable f => (a -> b -> b) -> b -> f a -> b`
+/// `forall a b. Foldable f => (a -> b -> b) -> b -> f a -> b`
 ///
 /// # Parameters
 ///

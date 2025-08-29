@@ -18,7 +18,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// # Type Signature
 	///
-	/// `forall t f a b. Traversable t, Applicative f => (a -> f b) -> t a -> f (t b)`
+	/// `forall a b. Traversable t, Applicative f => (a -> f b) -> t a -> f (t b)`
 	///
 	/// # Parameters
 	///
@@ -70,7 +70,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// # Type Signature
 	///
-	/// `forall t f a. Traversable t, Applicative f => t (f a) -> f (t a)`
+	/// `forall a. Traversable t, Applicative f => t (f a) -> f (t a)`
 	///
 	/// # Parameters
 	///
@@ -114,7 +114,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// # Type Signature
 ///
-/// `forall t f a b. Traversable t, Applicative f => (a -> f b) -> t a -> f (t b)`
+/// `forall a b. Traversable t, Applicative f => (a -> f b) -> t a -> f (t b)`
 ///
 /// # Parameters
 ///
@@ -165,7 +165,7 @@ where
 ///
 /// # Type Signature
 ///
-/// `forall t f a. Traversable t, Applicative f => t (f a) -> f (t a)`
+/// `forall a. Traversable t, Applicative f => t (f a) -> f (t a)`
 ///
 /// # Parameters
 ///

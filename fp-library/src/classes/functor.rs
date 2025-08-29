@@ -18,7 +18,7 @@ pub trait Functor: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. Functor f => (a -> b) -> f a -> f b`
+	/// `forall a b. Functor f => (a -> b) -> f a -> f b`
 	///
 	/// # Parameters
 	///
@@ -39,7 +39,7 @@ pub trait Functor: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a b. Functor f => (a -> b) -> f a -> f b`
+/// `forall a b. Functor f => (a -> b) -> f a -> f b`
 ///
 /// # Parameters
 ///

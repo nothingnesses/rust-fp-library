@@ -14,7 +14,7 @@ pub trait ApplySecond: Kind0L1T {
 	///
 	/// # Type Signature
 	///
-	/// `forall f a b. ApplySecond f => f a -> f b -> f b`
+	/// `forall a b. ApplySecond f => f a -> f b -> f b`
 	///
 	/// # Parameters
 	///
@@ -35,7 +35,7 @@ pub trait ApplySecond: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall f a b. ApplySecond f => f a -> f b -> f b`
+/// `forall a b. ApplySecond f => f a -> f b -> f b`
 ///
 /// # Parameters
 ///
