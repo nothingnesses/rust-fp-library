@@ -1,4 +1,4 @@
-use crate::{hkt::Kind1L2T, typeclasses::ClonableFn};
+use crate::{classes::ClonableFn, hkt::Kind1L2T};
 use std::sync::Arc;
 
 /// A brand type for atomically reference-counted closures (`Arc<dyn Fn(A) -> B>`).

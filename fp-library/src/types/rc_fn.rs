@@ -1,4 +1,4 @@
-use crate::{hkt::Kind1L2T, typeclasses::ClonableFn};
+use crate::{classes::ClonableFn, hkt::Kind1L2T};
 use std::rc::Rc;
 
 /// A brand type for reference-counted closures (`Rc<dyn Fn(A) -> B>`).

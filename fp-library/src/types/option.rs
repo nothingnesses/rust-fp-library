@@ -1,12 +1,12 @@
 //! Implementations for [`Option`].
 
 use crate::{
-	functions::{map, pure},
-	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pure,
+	classes::{
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
 		Traversable, clonable_fn::ApplyFn,
 	},
+	functions::{map, pure},
+	hkt::{Apply0L1T, Kind0L1T},
 };
 
 pub struct OptionBrand;
@@ -140,7 +140,7 @@ impl ApplySecond for OptionBrand {
 	}
 }
 
-impl Pure for OptionBrand {
+impl Pointed for OptionBrand {
 	/// # Examples
 	///
 	/// ```

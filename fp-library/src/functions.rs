@@ -1,8 +1,9 @@
-//! Generic, helper free functions, combinators and re-exports of [typeclass][crate::typeclasses]
-//! free functions that dispatch to associated functions of typeclass instances.
+//! Generic, helper free functions, combinators and re-exports of free versions
+//! of [type class][crate::classes] functions that dispatch to associated
+//! functions of type class instances.
 
-use crate::typeclasses::{ClonableFn, clonable_fn::ApplyFn};
-pub use crate::typeclasses::{
+use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
+pub use crate::classes::{
 	apply::apply,
 	apply_first::apply_first,
 	apply_second::apply_second,
@@ -10,7 +11,7 @@ pub use crate::typeclasses::{
 	foldable::{fold_left, fold_map, fold_right},
 	functor::map,
 	monoid::empty,
-	pure::pure,
+	pointed::pure,
 	semigroup::append,
 	traversable::{sequence, traverse},
 };
@@ -109,7 +110,7 @@ pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{brands::RcFnBrand, functions::flip, typeclasses::clonable_fn::ApplyFn};
+/// use fp_library::{brands::RcFnBrand, functions::flip, classes::clonable_fn::ApplyFn};
 /// use std::rc::Rc;
 ///
 /// let subtract: ApplyFn<RcFnBrand, _, ApplyFn<RcFnBrand, _, _>> = Rc::new(|a| Rc::new(move |b| a - b));

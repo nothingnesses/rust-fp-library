@@ -1,11 +1,11 @@
 use crate::{
+	classes::{ClonableFn, Monoid, clonable_fn::ApplyFn},
 	functions::{compose, flip, identity},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{ClonableFn, Monoid, clonable_fn::ApplyFn},
 	types::Endomorphism,
 };
 
-/// A typeclass for structures that can be folded to a single value.
+/// A type class for structures that can be folded to a single value.
 ///
 /// A `Foldable` represents a structure that can be folded over to combine its elements
 /// into a single result. This is useful for operations like summing values, collecting into a collection,
@@ -174,7 +174,7 @@ pub trait Foldable: Kind0L1T {
 
 /// Folds the structure by applying a function from left to right.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_left`].
+/// Free function version that dispatches to [the type class' associated function][`Foldable::fold_left`].
 ///
 /// The default implementation of `fold_left` is implemented in terms of [`fold_right`], [`flip`], [`compose`] and [`identity`] where:
 ///
@@ -219,7 +219,7 @@ pub fn fold_left<
 
 /// Maps values to a monoid and combines them.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_map`].
+/// Free function version that dispatches to [the type class' associated function][`Foldable::fold_map`].
 ///
 /// The default implementation of `fold_map` is implemented in terms of [`fold_right`], [`compose`], [`append`][crate::functions::append] and [`empty`][crate::functions::empty] where:
 ///
@@ -266,7 +266,7 @@ pub fn fold_map<
 
 /// Folds the structure by applying a function from right to left.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Foldable::fold_right`].
+/// Free function version that dispatches to [the type class' associated function][`Foldable::fold_right`].
 ///
 /// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endomorphism` monoid][`crate::types::Endomorphism`] where:
 ///

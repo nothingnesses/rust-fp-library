@@ -1,6 +1,6 @@
-use crate::typeclasses::Semigroup;
+use crate::classes::Semigroup;
 
-/// A typeclass for monoids.
+/// A type class for monoids.
 ///
 /// `Monoid` extends [`Semigroup`] with an identity element. A monoid is a set
 /// equipped with an associative binary operation and an identity element.
@@ -39,7 +39,7 @@ pub trait Monoid: Semigroup {
 
 /// Returns the identity element for the monoid.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Monoid::empty`].
+/// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
 ///
 /// # Type Signature
 ///

@@ -1,6 +1,6 @@
-use crate::typeclasses::{ClonableFn, clonable_fn::ApplyFn};
+use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
 
-/// A typeclass for semigroups.
+/// A type class for semigroups.
 ///
 /// A `Semigroup` is a set equipped with an associative binary operation.
 /// This means for any elements `a`, `b`, and `c` in the set, the operation
@@ -46,7 +46,7 @@ pub trait Semigroup {
 
 /// Associative operation that combines two values of the same type.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Semigroup::append`].
+/// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
 ///
 /// # Type Signature
 ///

@@ -1,9 +1,9 @@
 use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
-/// A typeclass for types that can be mapped over.
+/// A type class for types that can be mapped over.
 ///
 /// A `Functor` represents a context or container that allows functions to be applied
 /// to values within that context without altering the structure of the context itself.
@@ -35,7 +35,7 @@ pub trait Functor: Kind0L1T {
 
 /// Maps a function over the values in the functor context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Functor::map`].
+/// Free function version that dispatches to [the type class' associated function][`Functor::map`].
 ///
 /// # Type Signature
 ///

@@ -1,4 +1,4 @@
-use crate::typeclasses::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
+use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
 
 impl<A> Semigroup for Vec<A>
 where

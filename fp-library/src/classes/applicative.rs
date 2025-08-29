@@ -1,6 +1,6 @@
-use crate::typeclasses::{Apply, ApplyFirst, ApplySecond, Functor, Pure};
+use crate::classes::{Apply, ApplyFirst, ApplySecond, Functor, Pointed};
 
-/// A typeclass for applicative functors.
+/// A type class for applicative functors.
 ///
 /// `Applicative` extends `Functor` with the ability to lift values into a context
 /// (`pure`) and to apply functions within a context to values within a context
@@ -18,18 +18,18 @@ use crate::typeclasses::{Apply, ApplyFirst, ApplySecond, Functor, Pure};
 /// * Composition: `apply(apply(apply(pure(compose))(u))(v))(w) = apply(u)(apply(v)(w))`.
 /// * Homomorphism: `apply(pure(f))(pure(x)) = pure(f(x))`.
 /// * Interchange: `apply(u)(pure(y)) = apply(pure(f => f(y)))(u)`.
-pub trait Applicative: Functor + Pure + Apply + ApplyFirst + ApplySecond {}
+pub trait Applicative: Functor + Pointed + Apply + ApplyFirst + ApplySecond {}
 
-/// Blanket implementation for the [`Applicative`] typeclass.
+/// Blanket implementation for the [`Applicative`] type class.
 ///
 /// Any type that implements all the required supertraits automatically implements [`Applicative`].
-impl<Brand> Applicative for Brand where Brand: Functor + Pure + Apply + ApplyFirst + ApplySecond {}
+impl<Brand> Applicative for Brand where Brand: Functor + Pointed + Apply + ApplyFirst + ApplySecond {}
 
 #[cfg(test)]
 mod tests {
 	use crate::{
-		brands::{OptionBrand, ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
-		typeclasses::Applicative,
+		brands::{IdentityBrand, OptionBrand, ResultWithErrBrand, ResultWithOkBrand, VecBrand},
+		classes::Applicative,
 	};
 
 	/// Asserts that a type implements [`Applicative`].
@@ -37,10 +37,10 @@ mod tests {
 
 	#[test]
 	/// Assert that brands implementing the required supertraits ([`Functor`],
-	/// [`Pure`], [`Apply`], [`ApplyFirst`], [`ApplySecond`]) also implement
+	/// [`Pointed`], [`Apply`], [`ApplyFirst`], [`ApplySecond`]) also implement
 	/// [`Applicative`].
 	fn test_brands_implement_applicative() {
-		assert_applicative::<SoloBrand>();
+		assert_applicative::<IdentityBrand>();
 		assert_applicative::<OptionBrand>();
 		assert_applicative::<ResultWithErrBrand<()>>();
 		assert_applicative::<ResultWithOkBrand<()>>();

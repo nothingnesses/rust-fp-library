@@ -4,8 +4,8 @@ pub mod pair_with_first;
 pub mod pair_with_second;
 
 use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
 	hkt::Kind0L2T,
-	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 pub use pair_with_first::*;
 pub use pair_with_second::*;

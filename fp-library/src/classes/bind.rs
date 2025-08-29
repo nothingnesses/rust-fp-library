@@ -1,6 +1,6 @@
 use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -9,9 +9,9 @@ use crate::{
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
 ///
-/// Note that `Bind` is a separate typeclass from [`Monad`][`crate::typeclasses::Monad`]. In this library's
-/// hierarchy, [`Monad`][`crate::typeclasses::Monad`] is a typeclass that extends both
-/// [`Applicative`][`crate::typeclasses::Applicative`] and `Bind`.
+/// Note that `Bind` is a separate type class from [`Monad`][`crate::classes::Monad`]. In this library's
+/// hierarchy, [`Monad`][`crate::classes::Monad`] is a type class that extends both
+/// [`Applicative`][`crate::classes::Applicative`] and `Bind`.
 pub trait Bind: Kind0L1T {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
@@ -39,7 +39,7 @@ pub trait Bind: Kind0L1T {
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Bind::bind`].
+/// Free function version that dispatches to [the type class' associated function][`Bind::bind`].
 ///
 /// # Type Signature
 ///

@@ -1,8 +1,8 @@
 //! Implementations for [`Endomorphism`], a wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
 
 use crate::{
+	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
 	functions::{compose, identity},
-	typeclasses::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
 };
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ use crate::{
 /// use fp_library::{
 ///     brands::RcFnBrand,
 ///     functions::{append, empty},
-///     typeclasses::ClonableFn,
+///     classes::ClonableFn,
 ///     types::endomorphism::Endomorphism
 /// };
 /// use std::rc::Rc;
@@ -56,7 +56,7 @@ impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
 	/// use fp_library::{
 	///     brands::RcFnBrand,
 	///     functions::append,
-	///     typeclasses::ClonableFn,
+	///     classes::ClonableFn,
 	///     types::endomorphism::Endomorphism
 	/// };
 	/// use std::rc::Rc;

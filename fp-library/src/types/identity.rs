@@ -1,53 +1,53 @@
-//! Implementations for [`Solo`], a type that wraps a value.
+//! Implementations for [`Identity`], a type that wraps a value.
 
 use crate::{
-	functions::{identity, map, pure},
-	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pure,
+	classes::{
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
 		Traversable, clonable_fn::ApplyFn,
 	},
+	functions::{identity, map, pure},
+	hkt::{Apply0L1T, Kind0L1T},
 };
 
 /// Wraps a value.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Solo<A>(pub A);
+pub struct Identity<A>(pub A);
 
-pub struct SoloBrand;
+pub struct IdentityBrand;
 
-impl Kind0L1T for SoloBrand {
-	type Output<A> = Solo<A>;
+impl Kind0L1T for IdentityBrand {
+	type Output<A> = Identity<A>;
 }
 
-impl Functor for SoloBrand {
+impl Functor for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::{identity, map}, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::{identity, map}, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     map::<RcFnBrand, SoloBrand, _, _>(Rc::new(identity))(Solo(())),
-	///     Solo(())
+	///     map::<RcFnBrand, IdentityBrand, _, _>(Rc::new(identity))(Identity(())),
+	///     Identity(())
 	/// );
 	/// ```
 	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
 		f: ApplyFn<'a, ClonableFnBrand, A, B>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Solo(f(fa.0)))
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Identity(f(fa.0)))
 	}
 }
 
-impl Apply for SoloBrand {
+impl Apply for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::{apply, identity}, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::{apply, identity}, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply::<RcFnBrand, SoloBrand, _, _>(Solo(Rc::new(identity)))(Solo(())),
-	///     Solo(())
+	///     apply::<RcFnBrand, IdentityBrand, _, _>(Identity(Rc::new(identity)))(Identity(())),
+	///     Identity(())
 	/// );
 	/// ```
 	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
@@ -57,16 +57,16 @@ impl Apply for SoloBrand {
 	}
 }
 
-impl ApplyFirst for SoloBrand {
+impl ApplyFirst for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::{apply_first, identity}, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::{apply_first, identity}, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply_first::<RcFnBrand, SoloBrand, _, _>(Solo(true))(Solo(false)),
-	///     Solo(true)
+	///     apply_first::<RcFnBrand, IdentityBrand, _, _>(Identity(true))(Identity(false)),
+	///     Identity(true)
 	/// );
 	/// ```
 	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
@@ -76,16 +76,16 @@ impl ApplyFirst for SoloBrand {
 	}
 }
 
-impl ApplySecond for SoloBrand {
+impl ApplySecond for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::{apply_second, identity}, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::{apply_second, identity}, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     apply_second::<RcFnBrand, SoloBrand, _, _>(Solo(true))(Solo(false)),
-	///     Solo(false)
+	///     apply_second::<RcFnBrand, IdentityBrand, _, _>(Identity(true))(Identity(false)),
+	///     Identity(false)
 	/// );
 	/// ```
 	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
@@ -95,32 +95,32 @@ impl ApplySecond for SoloBrand {
 	}
 }
 
-impl Pure for SoloBrand {
+impl Pointed for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{RcFnBrand, SoloBrand}, functions::pure, types::Solo};
+	/// use fp_library::{brands::{RcFnBrand, IdentityBrand}, functions::pure, types::Identity};
 	///
 	/// assert_eq!(
-	///     pure::<RcFnBrand, SoloBrand, _>(()),
-	///     Solo(())
+	///     pure::<RcFnBrand, IdentityBrand, _>(()),
+	///     Identity(())
 	/// );
 	/// ```
 	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Solo(a)
+		Identity(a)
 	}
 }
 
-impl Bind for SoloBrand {
+impl Bind for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::{bind, pure}, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::{bind, pure}, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, SoloBrand, _, _>(Solo(()))(Rc::new(pure::<RcFnBrand, SoloBrand, _>)),
-	///     Solo(())
+	///     bind::<RcFnBrand, IdentityBrand, _, _>(Identity(()))(Rc::new(pure::<RcFnBrand, IdentityBrand, _>)),
+	///     Identity(())
 	/// );
 	/// ```
 	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
@@ -135,19 +135,19 @@ impl Bind for SoloBrand {
 	}
 }
 
-impl Foldable for SoloBrand {
+impl Foldable for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, RcFnBrand}, functions::fold_right, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, RcFnBrand}, functions::fold_right, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     fold_right::<RcFnBrand, SoloBrand, i32, i32>(Rc::new(|x| Rc::new(move |y| x + y)))(0)(Solo(3)),
+	///     fold_right::<RcFnBrand, IdentityBrand, i32, i32>(Rc::new(|x| Rc::new(move |y| x + y)))(0)(Identity(3)),
 	///     3
 	/// );
 	/// assert_eq!(
-	///     fold_right::<RcFnBrand, SoloBrand, i32, i32>(Rc::new(|x| Rc::new(move |y| x * y)))(2)(Solo(4)),
+	///     fold_right::<RcFnBrand, IdentityBrand, i32, i32>(Rc::new(|x| Rc::new(move |y| x * y)))(2)(Identity(4)),
 	///     8
 	/// );
 	/// ```
@@ -163,19 +163,19 @@ impl Foldable for SoloBrand {
 	}
 }
 
-impl Traversable for SoloBrand {
+impl Traversable for IdentityBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{SoloBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Solo};
+	/// use fp_library::{brands::{IdentityBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Identity};
 	/// use std::rc::Rc;
 	///
 	/// assert_eq!(
-	///     traverse::<RcFnBrand, SoloBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Solo(3)),
-	///     Some(Solo(6))
+	///     traverse::<RcFnBrand, IdentityBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Identity(3)),
+	///     Some(Identity(6))
 	/// );
 	/// assert_eq!(
-	///     traverse::<RcFnBrand, SoloBrand, OptionBrand, i32, i32>(Rc::new(|x| None))(Solo(3)),
+	///     traverse::<RcFnBrand, IdentityBrand, OptionBrand, i32, i32>(Rc::new(|x| None))(Identity(3)),
 	///     None
 	/// );
 	/// ```

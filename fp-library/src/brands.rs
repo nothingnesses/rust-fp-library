@@ -2,10 +2,10 @@
 
 pub use crate::types::{
 	arc_fn::ArcFnBrand,
+	identity::IdentityBrand,
 	option::OptionBrand,
 	pair::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
 	rc_fn::RcFnBrand,
 	result::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
-	solo::SoloBrand,
 	vec::VecBrand,
 };

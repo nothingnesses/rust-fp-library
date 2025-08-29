@@ -2,7 +2,7 @@
 name = "fp-library"
 version = "0.0.19"
 edition = "2024"
-description = "A functional programming library for Rust featuring your favourite higher-kinded types and typeclasses."
+description = "A functional programming library for Rust featuring your favourite higher-kinded types and type classes."
 readme = "../README.md"
 repository = "https://github.com/nothingnesses/rust-fp-library"
 license = "BlueOak-1.0.0"

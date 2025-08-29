@@ -1,9 +1,9 @@
 use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
-/// A typeclass for types that support combining two contexts, keeping the first value.
+/// A type class for types that support combining two contexts, keeping the first value.
 ///
 /// `ApplyFirst` provides the ability to sequence two computations but discard
 /// the result of the second computation, keeping only the result of the first.
@@ -31,7 +31,7 @@ pub trait ApplyFirst: Kind0L1T {
 
 /// Combines two contexts, keeping the value from the first context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`ApplyFirst::apply_first`].
+/// Free function version that dispatches to [the type class' associated function][`ApplyFirst::apply_first`].
 ///
 /// # Type Signature
 ///

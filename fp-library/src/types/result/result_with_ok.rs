@@ -1,12 +1,12 @@
 //! Implementations for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
 
 use crate::{
-	functions::{map, pure},
-	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pure,
+	classes::{
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
 		Traversable, clonable_fn::ApplyFn,
 	},
+	functions::{map, pure},
+	hkt::{Apply0L1T, Kind0L1T},
 };
 
 /// [Brand][crate::brands] for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
@@ -151,7 +151,7 @@ where
 	}
 }
 
-impl<T> Pure for ResultWithOkBrand<T> {
+impl<T> Pointed for ResultWithOkBrand<T> {
 	/// # Examples
 	///
 	/// ```

@@ -1,6 +1,6 @@
 //! Implementations for [`String`].
 
-use crate::typeclasses::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
+use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
 
 impl Semigroup for String {
 	/// # Examples

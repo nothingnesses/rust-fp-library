@@ -1,6 +1,6 @@
-use crate::typeclasses::{Applicative, Bind};
+use crate::classes::{Applicative, Bind};
 
-/// A typeclass for monads.
+/// A type class for monads.
 ///
 /// `Monad` combines the capabilities of [`Applicative`] and [`Bind`], providing
 /// a powerful abstraction for sequencing computations with context.
@@ -17,7 +17,7 @@ use crate::typeclasses::{Applicative, Bind};
 /// * Associativity: `bind(bind(m)(f))(g) = bind(m)(x => bind(f(x))(g))`.
 pub trait Monad: Applicative + Bind {}
 
-/// Blanket implementation for the `Monad` typeclass.
+/// Blanket implementation for the `Monad` type class.
 ///
 /// Any type that implements all the required supertraits automatically implements `Monad`.
 impl<Brand> Monad for Brand where Brand: Applicative + Bind {}
@@ -25,8 +25,8 @@ impl<Brand> Monad for Brand where Brand: Applicative + Bind {}
 #[cfg(test)]
 mod tests {
 	use crate::{
-		brands::{OptionBrand, ResultWithErrBrand, ResultWithOkBrand, SoloBrand, VecBrand},
-		typeclasses::Monad,
+		brands::{IdentityBrand, OptionBrand, ResultWithErrBrand, ResultWithOkBrand, VecBrand},
+		classes::Monad,
 	};
 
 	/// Asserts that a type implements [`Monad`].
@@ -34,10 +34,10 @@ mod tests {
 
 	#[test]
 	/// Assert that brands implementing the required supertraits
-	/// ([`Applicative`][crate::typeclasses::Applicative], [`Bind`][crate::typeclasses::Bind])
+	/// ([`Applicative`][crate::classes::Applicative], [`Bind`][crate::classes::Bind])
 	/// also implement [`Monad`].
 	fn test_brands_implement_monad() {
-		assert_monad::<SoloBrand>();
+		assert_monad::<IdentityBrand>();
 		assert_monad::<OptionBrand>();
 		assert_monad::<ResultWithErrBrand<()>>();
 		assert_monad::<ResultWithOkBrand<()>>();

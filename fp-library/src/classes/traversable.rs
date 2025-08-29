@@ -1,10 +1,10 @@
 use crate::{
+	classes::{Applicative, ClonableFn, Foldable, Functor, clonable_fn::ApplyFn},
 	functions::{identity, map},
 	hkt::Apply0L1T,
-	typeclasses::{Applicative, ClonableFn, Foldable, Functor, clonable_fn::ApplyFn},
 };
 
-/// A typeclass for traversable functors.
+/// A type class for traversable functors.
 ///
 /// `Traversable` functors can be traversed, which accumulates results and effects in some [`Applicative`] context.
 ///
@@ -106,7 +106,7 @@ pub trait Traversable: Functor + Foldable {
 
 /// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Traversable::traverse`].
+/// Free function version that dispatches to [the type class' associated function][`Traversable::traverse`].
 ///
 /// The default implementation of `traverse` is implemented in terms of [`sequence`] and [`map`] where:
 ///
@@ -157,7 +157,7 @@ where
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Traversable::sequence`].
+/// Free function version that dispatches to [the type class' associated function][`Traversable::sequence`].
 ///
 /// The default implementation of `sequence` is implemented in terms of [`traverse`] and [`identity`] where:
 ///

@@ -1,12 +1,12 @@
 //! Implementations for the partially-applied form of [`Pair`] with [the second value][Pair#structfield.1] filled in.
 
 use crate::{
+	classes::{
+		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
+		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn,
+	},
 	functions::{append, apply, constant, identity, map},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
-		Pure, Semigroup, Traversable, clonable_fn::ApplyFn,
-	},
 	types::Pair,
 };
 
@@ -127,7 +127,7 @@ impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Monoid + Clone> Pure for PairWithSecondBrand<Second> {
+impl<Second: Monoid + Clone> Pointed for PairWithSecondBrand<Second> {
 	/// # Examples
 	///
 	/// ```

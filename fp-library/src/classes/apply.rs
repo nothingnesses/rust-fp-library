@@ -1,9 +1,9 @@
 use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::{ClonableFn, clonable_fn::ApplyFn},
 };
 
-/// A typeclass for types that support function application within a context.
+/// A type class for types that support function application within a context.
 ///
 /// `Apply` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.
@@ -36,7 +36,7 @@ pub trait Apply: Kind0L1T {
 
 /// Applies a function within a context to a value within a context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Apply::apply`].
+/// Free function version that dispatches to [the type class' associated function][`Apply::apply`].
 ///
 /// # Type Signature
 ///

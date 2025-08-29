@@ -1,18 +1,18 @@
 use crate::{
+	classes::ClonableFn,
 	hkt::{Apply0L1T, Kind0L1T},
-	typeclasses::ClonableFn,
 };
 
-/// A typeclass for types that can lift values into a context.
+/// A type class for types that can lift values into a context.
 ///
-/// `Pure` provides the ability to lift a value into a context without
+/// `Pointed` provides the ability to lift a value into a context without
 /// adding any additional structure or effects.
-pub trait Pure: Kind0L1T {
+pub trait Pointed: Kind0L1T {
 	/// Lifts a value into the context.
 	///
 	/// # Type Signature
 	///
-	/// `forall f a. Pure f => a -> f a`
+	/// `forall f a. Pointed f => a -> f a`
 	///
 	/// # Parameters
 	///
@@ -26,11 +26,11 @@ pub trait Pure: Kind0L1T {
 
 /// Lifts a value into the context.
 ///
-/// Free function version that dispatches to [the typeclass' associated function][`Pure::pure`].
+/// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
 ///
 /// # Type Signature
 ///
-/// `forall f a. Pure f => a -> f a`
+/// `forall f a. Pointed f => a -> f a`
 ///
 /// # Parameters
 ///
@@ -47,6 +47,6 @@ pub trait Pure: Kind0L1T {
 ///
 /// assert_eq!(pure::<RcFnBrand, OptionBrand, _>(5), Some(5));
 /// ```
-pub fn pure<ClonableFnBrand: ClonableFn, Brand: Pure, A: Clone>(a: A) -> Apply0L1T<Brand, A> {
+pub fn pure<ClonableFnBrand: ClonableFn, Brand: Pointed, A: Clone>(a: A) -> Apply0L1T<Brand, A> {
 	Brand::pure::<ClonableFnBrand, _>(a)
 }
