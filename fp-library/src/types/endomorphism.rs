@@ -1,8 +1,12 @@
 //! Implementations for [`Endomorphism`], a wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
 
 use crate::{
-	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
-	functions::{compose, identity},
+	classes::{
+		Category, ClonableFn, Monoid, Semigroup, Semigroupoid, SmartPointer, clonable_fn::ApplyFn,
+		smart_pointer::SmartPointerInner,
+	},
+	hkt::Apply1L2T,
+	types::rc::RcBrand,
 };
 
 #[derive(Clone)]
@@ -43,12 +47,12 @@ use crate::{
 /// let id = empty::<Endomorphism<'_, RcFnBrand, i32>>();
 /// assert_eq!(id.0(42), 42);
 /// ```
-pub struct Endomorphism<'a, ClonableFnBrand: ClonableFn, A: 'a>(
-	pub ApplyFn<'a, ClonableFnBrand, A, A>,
+pub struct Endomorphism<'a, SmartPointerBrand: SmartPointer, C: Semigroupoid, A: 'a>(
+	pub SmartPointerInner<SmartPointerBrand, Apply1L2T<'a, C, A, A>>,
 );
 
-impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
-	for Endomorphism<'b, ClonableFnBrandSelf, A>
+impl<'b, SmartPointerBrand: SmartPointer, C: Semigroupoid, A: 'b> Semigroup
+	for Endomorphism<'b, SmartPointerBrand, C, A>
 {
 	/// # Examples
 	///
@@ -56,13 +60,11 @@ impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
 	/// use fp_library::{
 	///     brands::RcFnBrand,
 	///     functions::append,
-	///     classes::ClonableFn,
 	///     types::endomorphism::Endomorphism
 	/// };
-	/// use std::rc::Rc;
 	///
-	/// let double = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
-	/// let increment = <RcFnBrand as ClonableFn>::new(|x: i32| x + 1);
+	/// let double = RcFnBrand::new(|x: i32| x * 2);
+	/// let increment = RcFnBrand::new(|x: i32| x + 1);
 	///
 	/// assert_eq!(
 	///     (append::<RcFnBrand, Endomorphism<'static, RcFnBrand, i32>>(Endomorphism(double))(Endomorphism(increment.clone()))).0(3),
@@ -79,13 +81,19 @@ impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
 	where
 		Self: Sized,
 	{
-		ClonableFnBrand::new(move |b: Self| {
-			Endomorphism(compose::<ClonableFnBrandSelf, _, _, _>(a.0.clone())(b.0))
+		ClonableFnBrand::new::<'a, _, _>(move |b: Self| {
+			let meh = {
+				let bla = C::compose::<'a, ClonableFnBrand, _, _, _>(*a.0)(*b.0);
+				bla
+			};
+			Endomorphism::<SmartPointerBrand, C, A>(meh).0
 		})
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn + 'a, A: 'a> Monoid for Endomorphism<'a, ClonableFnBrand, A> {
+impl<'a, SmartPointerBrand: SmartPointer, C: Category, A: 'a> Monoid
+	for Endomorphism<'a, SmartPointerBrand, C, A>
+{
 	/// # Examples
 	///
 	/// ```
@@ -95,6 +103,7 @@ impl<'a, ClonableFnBrand: ClonableFn + 'a, A: 'a> Monoid for Endomorphism<'a, Cl
 	/// assert_eq!(empty::<Endomorphism<'static, RcFnBrand, String>>().0("test".to_string()), "test");
 	/// ```
 	fn empty() -> Self {
-		Endomorphism(ClonableFnBrand::new(identity))
+		let aaa = C::identity::<'a, A>();
+		*Endomorphism::<SmartPointerBrand, C, A>(aaa).0
 	}
 }
