@@ -1,4 +1,7 @@
-use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
+use crate::{
+	classes::{ClonableFn, clonable_fn::ApplyFn},
+	hkt::{Apply1L0T, Kind1L0T},
+};
 
 /// A type class for semigroups.
 ///
@@ -12,7 +15,7 @@ use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
 ///
 /// Semigroup instances must satisfy the associative law:
 /// * Associativity: `append(append(a)(b))(c) = append(a)(append(b)(c))`.
-pub trait Semigroup {
+pub trait Semigroup<'b> {
 	/// Associative operation that combines two values of the same type.
 	///
 	/// # Type Signature
@@ -27,11 +30,19 @@ pub trait Semigroup {
 	/// # Returns
 	///
 	/// The result of combining the two values using the semigroup operation.
-	fn append<'a, ClonableFnBrand: 'a + ClonableFn>(
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
 	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
 	where
-		Self: Sized;
+		Self: Sized,
+		'b: 'a;
+}
+
+/// A higher-kinded Semigroup, abstracting over the lifetime parameter.
+pub trait HktSemigroup: Kind1L0T
+where
+	for<'a> Apply1L0T<'a, Self>: Semigroup<'a>,
+{
 }
 
 /// Associative operation that combines two values of the same type.
@@ -61,10 +72,13 @@ pub trait Semigroup {
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroup + Sized>(
-	a: Brand
-) -> ApplyFn<'a, ClonableFnBrand, Brand, Brand> {
-	Brand::append::<'a, ClonableFnBrand>(a)
+pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: HktSemigroup>(
+	a: Apply1L0T<'a, HktBrand>
+) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
+where
+	for<'b> Apply1L0T<'b, HktBrand>: Semigroup<'b>,
+{
+	<Apply1L0T<'a, HktBrand> as Semigroup<'a>>::append::<ClonableFnBrand>(a)
 }
 
 // #[cfg(test)]

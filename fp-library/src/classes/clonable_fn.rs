@@ -14,7 +14,7 @@ use std::ops::Deref;
 pub trait ClonableFn: Kind1L2T + Clone {
 	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B>;
 }
 
 make_type_apply!(ApplyFn, ClonableFn, ('a), (A, B), "' -> * -> *");

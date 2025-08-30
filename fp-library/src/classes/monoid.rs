@@ -1,4 +1,4 @@
-use crate::classes::Semigroup;
+use crate::{classes::{semigroup::HktSemigroup, Semigroup}, hkt::Apply1L0T};
 
 /// A type class for monoids.
 ///
@@ -15,7 +15,7 @@ use crate::classes::Semigroup;
 /// * Left identity: `append(empty(), x) = x`.
 /// * Right identity: `append(x, empty()) = x`.
 /// * Associativity: `append(append(x, y), z) = append(x, append(y, z))`.
-pub trait Monoid: Semigroup {
+pub trait Monoid<'a>: Semigroup<'a> {
 	/// Returns the identity element for the monoid.
 	///
 	/// # Type Signature
@@ -27,6 +27,13 @@ pub trait Monoid: Semigroup {
 	/// The identity element which, when combined with any other element
 	/// using the semigroup operation, leaves the other element unchanged.
 	fn empty() -> Self;
+}
+
+/// A higher-kinded Monoid, abstracting over the lifetime parameter.
+pub trait HktMonoid: HktSemigroup
+where
+	for<'a> Apply1L0T<'a, Self>: Monoid<'a>,
+{
 }
 
 /// Returns the identity element for the monoid.
@@ -48,7 +55,11 @@ pub trait Monoid: Semigroup {
 /// use fp_library::functions::empty;
 ///
 /// assert_eq!(empty::<String>(), "".to_string());
-/// ```
-pub fn empty<Brand: Monoid>() -> Brand {
-	Brand::empty()
+///
+pub fn empty<'a, HktBrand>() -> Apply1L0T<'a, HktBrand>
+where
+	HktBrand: HktMonoid,
+	for<'b> Apply1L0T<'b, HktBrand>: Monoid<'b>,
+{
+	<Apply1L0T<'a, HktBrand> as Monoid<'a>>::empty()
 }

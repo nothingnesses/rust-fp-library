@@ -1,24 +1,31 @@
-//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
+//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (morphisms from an object to itself) that enables monoidal operations.
 
-use crate::{
-	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
-	functions::{compose, identity},
+use core::fmt;
+use std::{
+	fmt::{Debug, Formatter},
+	marker::PhantomData,
 };
 
-#[derive(Clone)]
-/// A wrapper for endomorphisms (functions from a type to the same type) that enables monoidal operations.
+use crate::{
+	brands::RcFnBrand,
+	classes::{
+		Category, ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::HktMonoid,
+		semigroup::HktSemigroup,
+	},
+	hkt::{Apply1L2T, Kind1L0T},
+};
+
+/// A wrapper for endomorphisms (morphisms from an object to itself) that enables monoidal operations.
 ///
-/// `Endomorphism<A>` represents a function `A -> A`.
+/// `Endomorphism c a` represents a morphism `c a a` where `c` is a `Category`.
+/// For the category of functions, this represents functions of type `a -> a`.
 ///
 /// It exists to provide a monoid instance where:
 ///
-/// * The binary operation [`append`][Semigroup::append] is [function composition][crate::functions::compose].
-/// * The identity element [`empty`][Monoid::empty] is the [identity function][crate::functions::identity].
+/// * The binary operation [append][Semigroup::append] is [morphism composition][Semigroupoid::compose].
+/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
 ///
-/// This allows combining transformations in a composable, associative way with a clear identity,
-/// which is useful for building pipelines of transformations or accumulating operations.
-///
-/// The wrapped function can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
+/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 ///
 /// # Examples
 ///
@@ -43,12 +50,38 @@ use crate::{
 /// let id = empty::<Endomorphism<'_, RcFnBrand, i32>>();
 /// assert_eq!(id.0(42), 42);
 /// ```
-pub struct Endomorphism<'a, ClonableFnBrand: ClonableFn, A: 'a>(
-	pub ApplyFn<'a, ClonableFnBrand, A, A>,
-);
+pub struct Endomorphism<'a, CategoryBrand: Category, A: 'a>(pub Apply1L2T<'a, CategoryBrand, A, A>);
 
-impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
-	for Endomorphism<'b, ClonableFnBrandSelf, A>
+impl<'a, CategoryBrand, A> Clone for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Clone,
+{
+	fn clone(&self) -> Self {
+		Endomorphism(self.0.clone())
+	}
+}
+
+impl<'a, CategoryBrand, A> Debug for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Debug,
+{
+	fn fmt(
+		&self,
+		f: &mut Formatter<'_>,
+	) -> fmt::Result {
+		f.debug_tuple("Endomorphism").field(&self.0).finish()
+	}
+}
+
+impl<'b, CategoryBrand, A> Semigroup<'b> for Endomorphism<'b, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'b,
+	A: 'b,
+	Apply1L2T<'b, CategoryBrand, A, A>: Clone,
 {
 	/// # Examples
 	///
@@ -73,19 +106,25 @@ impl<'b, ClonableFnBrandSelf: ClonableFn + 'b, A: 'b> Semigroup
 	///     5
 	/// );
 	/// ```
-	fn append<'a, ClonableFnBrand: 'a + ClonableFn>(
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
 	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
+		'b: 'a,
 	{
 		ClonableFnBrand::new(move |b: Self| {
-			Endomorphism(compose::<ClonableFnBrandSelf, _, _, _>(a.0.clone())(b.0))
+			Endomorphism(CategoryBrand::compose::<'b, RcFnBrand, _, _, _>(a.0.clone())(b.0))
 		})
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn + 'a, A: 'a> Monoid for Endomorphism<'a, ClonableFnBrand, A> {
+impl<'a, CategoryBrand, A> Monoid<'a> for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Clone,
+{
 	/// # Examples
 	///
 	/// ```
@@ -95,6 +134,32 @@ impl<'a, ClonableFnBrand: ClonableFn + 'a, A: 'a> Monoid for Endomorphism<'a, Cl
 	/// assert_eq!(empty::<Endomorphism<'static, RcFnBrand, String>>().0("test".to_string()), "test");
 	/// ```
 	fn empty() -> Self {
-		Endomorphism(ClonableFnBrand::new(identity))
+		Endomorphism(CategoryBrand::identity::<'a, _>())
 	}
+}
+
+pub struct EndomorphismHkt<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
+
+impl<CategoryBrand, A> Kind1L0T for EndomorphismHkt<CategoryBrand, A>
+where
+	A: 'static,
+	CategoryBrand: Category,
+{
+	type Output<'a> = Endomorphism<'a, CategoryBrand, A>;
+}
+
+impl<CategoryBrand, A> HktSemigroup for EndomorphismHkt<CategoryBrand, A>
+where
+	CategoryBrand: Category + 'static,
+	A: 'static,
+	for<'a> Apply1L2T<'a, CategoryBrand, A, A>: Clone,
+{
+}
+
+impl<CategoryBrand, A> HktMonoid for EndomorphismHkt<CategoryBrand, A>
+where
+	CategoryBrand: Category + 'static,
+	A: 'static,
+	for<'a> Apply1L2T<'a, CategoryBrand, A, A>: Clone,
+{
 }

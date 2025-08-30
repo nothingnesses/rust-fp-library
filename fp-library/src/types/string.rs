@@ -2,7 +2,7 @@
 
 use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
 
-impl Semigroup for String {
+impl<'b> Semigroup<'b> for String {
 	/// # Examples
 	///
 	/// ```rust
@@ -14,17 +14,18 @@ impl Semigroup for String {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn append<'a, ClonableFnBrand: 'a + ClonableFn>(
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
 	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
+		'b: 'a,
 	{
 		ClonableFnBrand::new(move |b: Self| a.to_owned() + &b)
 	}
 }
 
-impl Monoid for String {
+impl<'a> Monoid<'a> for String {
 	/// # Examples
 	///
 	/// ```rust

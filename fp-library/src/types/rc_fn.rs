@@ -1,6 +1,6 @@
 use crate::{
 	classes::{Category, ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
-	functions::identity,
+	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
 use std::rc::Rc;
@@ -19,9 +19,9 @@ impl Kind1L2T for RcFnBrand {
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = <Self as Kind1L2T>::Output<'a, A, B>;
+	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
 		Rc::new(f)
 	}
 }
@@ -33,7 +33,7 @@ impl Semigroupoid for RcFnBrand {
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
 			Self::new::<'a, _, _>({
 				let f = f.clone();
-				move |a| f(g(a))
+				move |a| compose::<'a, Self, _, _, _>(f.clone())(g.clone())(a)
 			})
 		})
 	}

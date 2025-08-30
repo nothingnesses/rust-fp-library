@@ -3,10 +3,11 @@
 use crate::{
 	classes::{
 		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
-		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn,
+		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn, monoid::HktMonoid,
+		semigroup::HktSemigroup,
 	},
-	functions::{append, apply, constant, identity, map},
-	hkt::{Apply0L1T, Kind0L1T},
+	functions::{append, apply, constant, empty, identity, map},
+	hkt::{Apply0L1T, Apply1L0T, Kind0L1T},
 	types::Pair,
 };
 
@@ -36,7 +37,11 @@ impl<First> Functor for PairWithFirstBrand<First> {
 	}
 }
 
-impl<First: Semigroup + Clone> Apply for PairWithFirstBrand<First> {
+impl<First: Clone> Apply for PairWithFirstBrand<First>
+where
+	for<'a> Apply1L0T<'a, First>: Semigroup<'a>,
+	for<'a> First: HktSemigroup<Output<'a> = First>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -65,7 +70,11 @@ impl<First: Semigroup + Clone> Apply for PairWithFirstBrand<First> {
 	}
 }
 
-impl<First: Clone + Semigroup> ApplyFirst for PairWithFirstBrand<First> {
+impl<First: Clone> ApplyFirst for PairWithFirstBrand<First>
+where
+	for<'a> Apply1L0T<'a, First>: Semigroup<'a>,
+	for<'a> First: HktSemigroup<Output<'a> = First>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -96,7 +105,11 @@ impl<First: Clone + Semigroup> ApplyFirst for PairWithFirstBrand<First> {
 	}
 }
 
-impl<First: Clone + Semigroup> ApplySecond for PairWithFirstBrand<First> {
+impl<First: Clone> ApplySecond for PairWithFirstBrand<First>
+where
+	for<'a> Apply1L0T<'a, First>: Semigroup<'a>,
+	for<'a> First: HktSemigroup<Output<'a> = First>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -127,7 +140,11 @@ impl<First: Clone + Semigroup> ApplySecond for PairWithFirstBrand<First> {
 	}
 }
 
-impl<First: Monoid + Clone> Pointed for PairWithFirstBrand<First> {
+impl<First: Clone> Pointed for PairWithFirstBrand<First>
+where
+	for<'a> Apply1L0T<'a, First>: Monoid<'a>,
+	for<'a> First: HktMonoid<Output<'a> = First>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -139,11 +156,15 @@ impl<First: Monoid + Clone> Pointed for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
-		Pair::new::<ClonableFnBrand>(First::empty())(a)
+		Pair::new::<ClonableFnBrand>(empty::<First>())(a)
 	}
 }
 
-impl<First: Semigroup + Clone> Bind for PairWithFirstBrand<First> {
+impl<First: HktSemigroup + Clone> Bind for PairWithFirstBrand<First>
+where
+	for<'a> Apply1L0T<'a, First>: Semigroup<'a>,
+	for<'a> First: HktSemigroup<Output<'a> = First>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -170,7 +191,7 @@ impl<First: Semigroup + Clone> Bind for PairWithFirstBrand<First> {
 		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>| {
 			let Pair(ma_first, ma_second) = &ma;
 			let Pair(f_ma_second_first, f_ma_second_second) = f(ma_second.to_owned());
-			Pair::new::<ClonableFnBrand>(append::<ClonableFnBrand, _>(ma_first.to_owned())(
+			Pair::new::<ClonableFnBrand>(append::<ClonableFnBrand, First>(ma_first.to_owned())(
 				f_ma_second_first,
 			))(f_ma_second_second)
 		})

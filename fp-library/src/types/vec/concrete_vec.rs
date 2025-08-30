@@ -1,6 +1,6 @@
 use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
 
-impl<A> Semigroup for Vec<A>
+impl<'b, A> Semigroup<'b> for Vec<A>
 where
 	A: Clone,
 {
@@ -24,7 +24,7 @@ where
 	}
 }
 
-impl<A> Monoid for Vec<A>
+impl<'a, A> Monoid<'a> for Vec<A>
 where
 	A: Clone,
 {

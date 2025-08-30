@@ -54,12 +54,12 @@ pub trait Semigroupoid: Kind1L2T {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::RcFnBrand, functions::semigroupoid_compose};
+/// use fp_library::{brands::RcFnBrand, functions::compose};
 /// use std::rc::Rc;
 ///
 /// let add_one = Rc::new(|x: i32| x + 1);
 /// let times_two = Rc::new(|x: i32| x * 2);
-/// let times_two_add_one = semigroupoid_compose::<RcFnBrand, RcFnBrand, _, _, _>(add_one)(times_two);
+/// let times_two_add_one = compose::<RcFnBrand, RcFnBrand, _, _, _>(add_one)(times_two);
 ///
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(times_two_add_one(3), 7);
