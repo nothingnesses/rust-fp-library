@@ -3,8 +3,6 @@ use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
 /// A type class for semigroups.
 ///
 /// A `Semigroup` is a set equipped with an associative binary operation.
-/// This means for any elements `a`, `b`, and `c` in the set, the operation
-/// satisfies: `(a <> b) <> c = a <> (b <> c)`.
 ///
 /// In functional programming, semigroups are useful for combining values
 /// in a consistent way. They form the basis for more complex structures
@@ -13,15 +11,7 @@ use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
 /// # Laws
 ///
 /// Semigroup instances must satisfy the associative law:
-/// * Associativity: `append(append(x)(y))(z) = append(x)(append(y)(z))`.
-///
-/// # Examples
-///
-/// Common semigroups include:
-/// * Strings with concatenation.
-/// * Numbers with addition.
-/// * Numbers with multiplication.
-/// * Lists with concatenation.
+/// * Associativity: `append(append(a)(b))(c) = append(a)(append(b)(c))`.
 pub trait Semigroup {
 	/// Associative operation that combines two values of the same type.
 	///
