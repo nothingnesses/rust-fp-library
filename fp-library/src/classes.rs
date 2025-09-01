@@ -15,8 +15,10 @@ pub mod pointed;
 pub mod semigroup;
 pub mod semigroupoid;
 pub mod traversable;
+pub mod function;
 
 pub use self::applicative::Applicative;
+pub use self::function::Function;
 pub use self::apply::Apply;
 pub use self::apply_first::ApplyFirst;
 pub use self::apply_second::ApplySecond;

@@ -3,6 +3,7 @@
 use core::fmt;
 use std::{
 	fmt::{Debug, Formatter},
+	hash::Hash,
 	marker::PhantomData,
 };
 
@@ -52,6 +53,12 @@ use crate::{
 /// ```
 pub struct Endomorphism<'a, CategoryBrand: Category, A: 'a>(pub Apply1L2T<'a, CategoryBrand, A, A>);
 
+impl<'a, CategoryBrand: Category, A> Endomorphism<'a, CategoryBrand, A> {
+	pub fn new(a: Apply1L2T<'a, CategoryBrand, A, A>) -> Self {
+		Self(a)
+	}
+}
+
 impl<'a, CategoryBrand, A> Clone for Endomorphism<'a, CategoryBrand, A>
 where
 	CategoryBrand: Category + 'a,
@@ -71,9 +78,73 @@ where
 {
 	fn fmt(
 		&self,
-		f: &mut Formatter<'_>,
+		fmt: &mut Formatter<'_>,
 	) -> fmt::Result {
-		f.debug_tuple("Endomorphism").field(&self.0).finish()
+		fmt.debug_tuple("Endomorphism").field(&self.0).finish()
+	}
+}
+
+impl<'a, CategoryBrand, A> Eq for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Eq,
+{
+}
+
+impl<'a, CategoryBrand, A> Hash for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Hash,
+{
+	fn hash<H: std::hash::Hasher>(
+		&self,
+		state: &mut H,
+	) {
+		self.0.hash(state);
+	}
+}
+
+impl<'a, CategoryBrand, A> Ord for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: Ord,
+{
+	fn cmp(
+		&self,
+		other: &Self,
+	) -> std::cmp::Ordering {
+		self.0.cmp(&other.0)
+	}
+}
+
+impl<'a, CategoryBrand, A> PartialEq for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: PartialEq,
+{
+	fn eq(
+		&self,
+		other: &Self,
+	) -> bool {
+		self.0 == other.0
+	}
+}
+
+impl<'a, CategoryBrand, A> PartialOrd for Endomorphism<'a, CategoryBrand, A>
+where
+	CategoryBrand: Category + 'a,
+	A: 'a,
+	Apply1L2T<'a, CategoryBrand, A, A>: PartialOrd,
+{
+	fn partial_cmp(
+		&self,
+		other: &Self,
+	) -> Option<std::cmp::Ordering> {
+		self.0.partial_cmp(&other.0)
 	}
 }
 
@@ -138,6 +209,7 @@ where
 	}
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismHkt<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
 
 impl<CategoryBrand, A> Kind1L0T for EndomorphismHkt<CategoryBrand, A>

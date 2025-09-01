@@ -1,11 +1,12 @@
 use crate::{
-	classes::{Category, ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
-	functions::{compose, identity},
-	hkt::{Apply1L2T, Kind1L2T},
+	classes::{Category, ClonableFn, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
+	functions::{append, compose, identity},
+	hkt::{Apply1L2T, Kind0L1T, Kind1L2T},
 };
 use core::fmt;
 use std::{
 	fmt::{Debug, Formatter},
+	marker::PhantomData,
 	rc::Rc,
 };
 
@@ -14,8 +15,13 @@ use std::{
 // * https://github.com/purescript/purescript-prelude/blob/master/src/Data/Semigroup.purs#L48-L49
 // * https://github.com/purescript/purescript-prelude/blob/master/src/Data/Monoid.purs#L55-L56
 
-#[derive(Clone)]
 pub struct RcFn<'a, A, B>(pub Rc<dyn 'a + Fn(A) -> B>);
+
+impl<'a, A, B> Clone for RcFn<'a, A, B> {
+	fn clone(&self) -> Self {
+		Self(self.0.clone())
+	}
+}
 
 impl<'a, A, B> Debug for RcFn<'a, A, B> {
 	fn fmt(
@@ -42,15 +48,7 @@ impl<'a, A, B> RcFn<'a, A, B> {
 pub struct RcFnBrand;
 
 impl Kind1L2T for RcFnBrand {
-	type Output<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
-}
-
-impl ClonableFn for RcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
-
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
-		Rc::new(f)
-	}
+	type Output<'a, A, B> = RcFn<'a, A, B>;
 }
 
 impl Semigroupoid for RcFnBrand {
@@ -58,9 +56,9 @@ impl Semigroupoid for RcFnBrand {
 		f: Apply1L2T<'a, Self, C, D>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
-			Self::new::<'a, _, _>({
+			<Self as Kind1L2T>::Output::new({
 				let f = f.clone();
-				move |a| compose::<'a, Self, _, _, _>(f.clone())(g.clone())(a)
+				move |a| f.0(g.0(a)) // refactor using compose
 			})
 		})
 	}
@@ -68,6 +66,25 @@ impl Semigroupoid for RcFnBrand {
 
 impl Category for RcFnBrand {
 	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
-		Self::new::<'a, _, _>(identity)
+		<Self as Kind1L2T>::Output::new(identity)
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcFnWithOutputBrand<'a, Output: 'a>(PhantomData<&'a Output>);
+
+impl<'a, Output> Kind0L1T for RcFnWithOutputBrand<'a, Output> {
+	type Output<A> = RcFn<'a, A, Output>;
+}
+
+impl<'b, Output: Semigroup<'b>> Semigroup<'b> for RcFnWithOutputBrand<'b, Output> {
+	fn append<'a, ClonableFnBrand: 'a + 'a + ClonableFn>(
+		a: Self
+	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	where
+		Self: Sized,
+		'a: 'a,
+	{
+		ClonableFnBrand::new(move |b| ClonableFnBrand::new(move |c| append(a(c))(b(c))))
 	}
 }
