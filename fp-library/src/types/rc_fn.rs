@@ -1,36 +1,10 @@
+use std::rc::Rc;
+
 use crate::{
-	classes::{Category, ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
+	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
 	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
-use core::fmt;
-use std::{
-	fmt::{Debug, Formatter},
-	rc::Rc,
-};
-
-// todo:
-// * implement instance (Monoid b) => Monoid (a -> b)
-// * https://github.com/purescript/purescript-prelude/blob/master/src/Data/Semigroup.purs#L48-L49
-// * https://github.com/purescript/purescript-prelude/blob/master/src/Data/Monoid.purs#L55-L56
-
-#[derive(Clone)]
-pub struct RcFn<'a, A, B>(pub Rc<dyn 'a + Fn(A) -> B>);
-
-impl<'a, A, B> Debug for RcFn<'a, A, B> {
-	fn fmt(
-		&self,
-		fmt: &mut Formatter<'_>,
-	) -> fmt::Result {
-		fmt.debug_tuple("RcFn").field(&"{closure}").finish()
-	}
-}
-
-impl<'a, A, B> RcFn<'a, A, B> {
-	fn new(f: impl 'a + Fn(A) -> B) -> Self {
-		Self(Rc::new(f))
-	}
-}
 
 /// A brand type for reference-counted closures (`Rc<dyn Fn(A) -> B>`).
 ///
@@ -69,5 +43,28 @@ impl Semigroupoid for RcFnBrand {
 impl Category for RcFnBrand {
 	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
 		Self::new::<'a, _, _>(identity)
+	}
+}
+
+impl<'b, A: 'b + Clone, B: Semigroup<'b> + 'b> Semigroup<'b> for Rc<dyn 'b + Fn(A) -> B> {
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+		a: Self
+	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	where
+		Self: Sized,
+		'b: 'a,
+	{
+		ClonableFnBrand::new(move |b: Self| {
+			RcFnBrand::new({
+				let a = a.clone();
+				move |c: A| B::append::<ClonableFnBrand>(a(c.clone()))(b(c))
+			})
+		})
+	}
+}
+
+impl<'b, A: 'b + Clone, B: Monoid<'b> + 'b> Monoid<'b> for Rc<dyn 'b + Fn(A) -> B> {
+	fn empty() -> Self {
+		RcFnBrand::new(move |_| B::empty())
 	}
 }
