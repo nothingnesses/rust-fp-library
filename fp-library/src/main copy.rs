@@ -210,7 +210,6 @@ macro_rules! make_type_apply {
 	};
 }
 
-make_trait_kind!(Kind0L1T, (), (A), "* -> *");
 make_trait_kind!(
   Kind1L0T,
   ('a),
@@ -225,7 +224,6 @@ make_trait_kind!(
 	"' -> * -> * -> *"
 );
 
-make_type_apply!(Apply0L1T, Kind0L1T, (), (A), "* -> *");
 make_type_apply!(
   Apply1L0T,
   Kind1L0T,
@@ -242,79 +240,6 @@ make_type_apply!(
 	"' -> * -> * -> *"
 );
 
-/// Takes functions `f` and `g` and returns the function `f . g` (`f` composed with `g`).
-///
-/// # Type Signature
-///
-/// `forall a b c. (b -> c) -> (a -> b) -> a -> c`
-///
-/// # Parameters
-///
-/// * `f`: A function from values of type `B` to values of type `C`.
-/// * `g`: A function from values of type `A` to values of type `B`.
-///
-/// # Returns
-///
-/// A function from values of type `A` to values of type `C`.
-///
-/// # Examples
-///
-/// ```rust
-/// use fp_library::{brands::RcFnBrand, functions::compose};
-/// use std::rc::Rc;
-///
-/// let add_one = Rc::new(|x: i32| x + 1);
-/// let times_two = Rc::new(|x: i32| x * 2);
-/// let times_two_add_one = compose::<RcFnBrand, _, _, _>(add_one)(times_two);
-///
-/// // 3 * 2 + 1 = 7
-/// assert_eq!(
-///     times_two_add_one(3),
-///     7
-/// );
-/// ```
-pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
-	f: ApplyFn<'a, ClonableFnBrand, B, C>
-) -> ApplyFn<
-	'a,
-	ClonableFnBrand,
-	ApplyFn<'a, ClonableFnBrand, A, B>,
-	ApplyFn<'a, ClonableFnBrand, A, C>,
-> {
-	ClonableFnBrand::new(move |g: ApplyFn<'a, ClonableFnBrand, _, _>| {
-		let f = f.clone();
-		ClonableFnBrand::new(move |a| f(g(a)))
-	})
-}
-
-/// Returns its input.
-///
-/// # Type Signature
-///
-/// `forall a. a -> a`
-///
-/// # Parameters
-///
-/// * `a`: A value.
-///
-/// # Returns
-///
-/// The same value.
-///
-/// # Examples
-///
-/// ```rust
-/// use fp_library::functions::identity;
-///
-/// assert_eq!(
-///     identity(()),
-///     ()
-/// );
-/// ```
-pub fn identity<A>(a: A) -> A {
-	a
-}
-
 /// Abstraction for clonable wrappers over closures.
 ///
 /// This trait is implemented by "Brand" types (like [`ArcFnBrand`][crate::brands::ArcFnBrand]
@@ -325,13 +250,13 @@ pub fn identity<A>(a: A) -> A {
 ///
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
-pub trait ClonableFn: Category {
+pub trait ClonableFn: Kind1L2T + Clone {
 	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B>;
 }
 
-pub type ApplyFn<'a, Brand, A, B> = <Brand as ClonableFn>::Output<'a, A, B>;
+make_type_apply!(ApplyFn, ClonableFn, ('a), (A, B), "' -> * -> *");
 
 /// A type class for semigroupoids.
 ///
@@ -394,7 +319,7 @@ pub trait Semigroupoid: Kind1L2T {
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(times_two_add_one(3), 7);
 /// ```
-pub fn semigroupoid_compose<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroupoid, B, C, D>(
+pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroupoid, B, C, D>(
 	f: Apply1L2T<'a, Brand, C, D>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>> {
 	Brand::compose::<'a, ClonableFnBrand, B, C, D>(f)
@@ -440,7 +365,7 @@ pub trait Category: Semigroupoid {
 ///
 /// assert_eq!(identity::<RcFnBrand, _>()(()), ());
 /// ```
-pub fn category_identity<'a, Brand: Category, T: 'a>() -> Apply1L2T<'a, Brand, T, T> {
+pub fn identity<'a, Brand: Category, T: 'a>() -> Apply1L2T<'a, Brand, T, T> {
 	Brand::identity::<'a, T>()
 }
 
@@ -600,9 +525,9 @@ impl Kind1L2T for RcFnBrand {
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = <Self as Kind1L2T>::Output<'a, A, B>;
+	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
 		Rc::new(f)
 	}
 }
@@ -612,14 +537,17 @@ impl Semigroupoid for RcFnBrand {
 		f: Apply1L2T<'a, Self, C, D>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
-			compose::<'a, Self, _, _, _>(f.clone())(g)
+			Self::new::<'a, _, _>({
+				let f = f.clone();
+				move |a| f(g(a))
+			})
 		})
 	}
 }
 
 impl Category for RcFnBrand {
 	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
-		Self::new::<'a, _, _>(identity)
+		Self::new::<'a, _, _>(|x| x)
 	}
 }
 
@@ -670,9 +598,7 @@ where
 		'b: 'a,
 	{
 		ClonableFnBrand::new(move |b: Self| {
-			Endomorphism(semigroupoid_compose::<'b, ClonableFnBrand, CategoryBrand, _, _, _>(
-				a.0.clone(),
-			)(b.0))
+			Endomorphism(compose::<'b, RcFnBrand, CategoryBrand, _, _, _>(a.0.clone())(b.0))
 		})
 	}
 }
@@ -712,101 +638,4 @@ where
 	A: 'static,
 	for<'a> Apply1L2T<'a, CategoryBrand, A, A>: Clone,
 {
-}
-
-/// A type class for structures that can be folded to a single value.
-///
-/// A `Foldable` represents a structure that can be folded over to combine its elements
-/// into a single result. This is useful for operations like summing values, collecting into a collection,
-/// or applying monoidal operations.
-///
-/// A minimum implementation of `Foldable` requires the manual implementation of at least [`Foldable::fold_right`] or [`Foldable::fold_map`].
-pub trait Foldable: Kind0L1T {
-	/// Maps values to a monoid and combines them.
-	///
-	/// The default implementation of `fold_map` is implemented in terms of [`fold_right`], [`compose`], [`append`][crate::functions::append] and [`empty`][crate::functions::empty] where:
-	///
-	/// `fold_map f = (fold_right ((compose append) f)) empty`
-	///
-	/// # Type Signature
-	///
-	/// `forall a. Foldable f, Monoid m => (a -> m) -> f a -> m`
-	///
-	/// # Parameters
-	///
-	/// * `f`: A function that converts from values into monoidal elements.
-	/// * `fa`: A foldable structure containing values of type `A`.
-	///
-	/// # Returns
-	///
-	/// Final monoid obtained from the folding operation.
-	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, M: Monoid<'a> + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, M>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-			let append_ =
-				ClonableFnBrand::new::<'a, M, _>(Semigroup::<'a>::append::<ClonableFnBrand>);
-			let compose_append = compose::<'a, ClonableFnBrand, A, M, _>(append_);
-			let compose_append_f: ApplyFn<
-				'a,
-				ClonableFnBrand,
-				A,
-				ApplyFn<'a, ClonableFnBrand, M, M>,
-			> = compose_append(f.clone());
-			let fold_right_compose_append_f =
-				Self::fold_right::<'a, ClonableFnBrand, A, M>(compose_append_f);
-			let fold_right_compose_append_f_empty: ApplyFn<
-				'a,
-				ClonableFnBrand,
-				Apply0L1T<Self, A>,
-				M,
-			> = fold_right_compose_append_f(M::empty());
-			fold_right_compose_append_f_empty(fa)
-		})
-	}
-
-	/// Folds the structure by applying a function from right to left.
-	///
-	/// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endomorphism` monoid][`crate::types::Endomorphism`] where:
-	///
-	/// `((fold_right f) b) fa = ((fold_map f) fa) b`
-	///
-	/// # Type Signature
-	///
-	/// `forall a b. Foldable f => (a -> b -> b) -> b -> f a -> b`
-	///
-	/// # Parameters
-	///
-	/// * `f`: A curried binary function that takes in the next item in the structure, the current value of the accumulator and returns the next value of accumulator.
-	/// * `b`: Initial value of type `B`.
-	/// * `fa`: A foldable structure containing values of type `A`.
-	///
-	/// # Returns
-	///
-	/// Final value of type `B` obtained from the folding operation.
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new::<'a, B, _>(move |b: B| {
-			ClonableFnBrand::new::<'a, _, B>({
-				let f = f.clone();
-				move |fa: Apply0L1T<Self, A>| {
-					let fold_map_f: ApplyFn<
-						'a,
-						ClonableFnBrand,
-						Apply0L1T<Self, A>,
-						Endomorphism<'a, ClonableFnBrand, B>,
-					> = Self::fold_map::<ClonableFnBrand, A, Endomorphism<'a, ClonableFnBrand, B>>(
-						ClonableFnBrand::new({
-							let f = f.clone();
-							move |a: A| Endomorphism::<'a, ClonableFnBrand, B>(f(a))
-						}),
-					);
-					let fold_map_f_fa: Endomorphism<'a, ClonableFnBrand, B> = fold_map_f(fa);
-					let fold_map_f_fa_b: B = (fold_map_f_fa.0)(b.to_owned());
-					fold_map_f_fa_b
-				}
-			})
-		})
-	}
 }

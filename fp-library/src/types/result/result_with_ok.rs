@@ -199,73 +199,73 @@ where
 	}
 }
 
-impl<T> Foldable for ResultWithOkBrand<T> {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{ResultWithOkBrand, RcFnBrand}, functions::fold_right};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Err(1)),
-	///     2
-	/// );
-	/// assert_eq!(
-	///     fold_right::<RcFnBrand, ResultWithOkBrand<_>, i32, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Ok(())),
-	///     1
-	/// );
-	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
-				let f = f.clone();
-				move |fa| match (f.clone(), b.to_owned(), fa) {
-					(_, b, Ok(_)) => b,
-					(f, b, Err(a)) => f(a)(b),
-				}
-			})
-		})
-	}
-}
+// impl<T> Foldable for ResultWithOkBrand<T> {
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{ResultWithOkBrand, RcFnBrand}, functions::fold_right};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Err(1)),
+// 	///     2
+// 	/// );
+// 	/// assert_eq!(
+// 	///     fold_right::<RcFnBrand, ResultWithOkBrand<_>, i32, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Ok(())),
+// 	///     1
+// 	/// );
+// 	/// ```
+// 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+// 		ClonableFnBrand::new(move |b: B| {
+// 			ClonableFnBrand::new({
+// 				let f = f.clone();
+// 				move |fa| match (f.clone(), b.to_owned(), fa) {
+// 					(_, b, Ok(_)) => b,
+// 					(f, b, Err(a)) => f(a)(b),
+// 				}
+// 			})
+// 		})
+// 	}
+// }
 
-impl<T: Clone> Traversable for ResultWithOkBrand<T> {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{ResultWithOkBrand, RcFnBrand, OptionBrand}, functions::traverse};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     traverse::<RcFnBrand, ResultWithOkBrand<String>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Ok(String::from("success"))),
-	///     Some(Ok(String::from("success")))
-	/// );
-	/// assert_eq!(
-	///     traverse::<RcFnBrand, ResultWithOkBrand<String>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Err(5)),
-	///     Some(Err(10))
-	/// );
-	/// ```
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
-	where
-		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
-		Apply0L1T<Self, B>: 'a,
-		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
-	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| match (f.clone(), ta) {
-			(_, Ok(e)) => pure::<ClonableFnBrand, F, _>(Ok(e)),
-			(f, Err(a)) => map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(
-				pure::<ClonableFnBrand, Self, _>,
-			))(f(a)),
-		})
-	}
-}
+// impl<T: Clone> Traversable for ResultWithOkBrand<T> {
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{ResultWithOkBrand, RcFnBrand, OptionBrand}, functions::traverse};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     traverse::<RcFnBrand, ResultWithOkBrand<String>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Ok(String::from("success"))),
+// 	///     Some(Ok(String::from("success")))
+// 	/// );
+// 	/// assert_eq!(
+// 	///     traverse::<RcFnBrand, ResultWithOkBrand<String>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Err(5)),
+// 	///     Some(Err(10))
+// 	/// );
+// 	/// ```
+// 	fn traverse<
+// 		'a,
+// 		ClonableFnBrand: 'a + ClonableFn,
+// 		F: Applicative,
+// 		A: 'a + Clone,
+// 		B: 'a + Clone,
+// 	>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+// 	where
+// 		Apply0L1T<F, B>: Clone,
+// 		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+// 		Apply0L1T<Self, B>: 'a,
+// 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
+// 	{
+// 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| match (f.clone(), ta) {
+// 			(_, Ok(e)) => pure::<ClonableFnBrand, F, _>(Ok(e)),
+// 			(f, Err(a)) => map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(
+// 				pure::<ClonableFnBrand, Self, _>,
+// 			))(f(a)),
+// 		})
+// 	}
+// }

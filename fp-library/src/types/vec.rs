@@ -250,103 +250,103 @@ impl Bind for VecBrand {
 	}
 }
 
-impl Foldable for VecBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
-	///     17
-	/// );
-	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			let f = f.clone();
-			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-				fa.iter().rfold(b.to_owned(), {
-					let f = f.clone();
-					let f = move |b, a| f(a)(b);
-					move |b, a| f(b, a.to_owned())
-				})
-			})
-		})
-	}
-}
+// impl Foldable for VecBrand {
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
+// 	///     17
+// 	/// );
+// 	/// ```
+// 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+// 		ClonableFnBrand::new(move |b: B| {
+// 			let f = f.clone();
+// 			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
+// 				fa.iter().rfold(b.to_owned(), {
+// 					let f = f.clone();
+// 					let f = move |b, a| f(a)(b);
+// 					move |b, a| f(b, a.to_owned())
+// 				})
+// 			})
+// 		})
+// 	}
+// }
 
-impl Traversable for VecBrand {
-	// traverse f Vec.empty = pure Vec.empty
-	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand, OptionBrand}, functions::traverse};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
-	///     Some(vec![2, 4, 6])
-	/// );
-	/// assert_eq!(
-	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|_x| None))(vec![1, 2, 3]),
-	///     None
-	/// );
-	/// ```
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
-	where
-		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
-		Apply0L1T<Self, B>: 'a,
-		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
-	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
-			match VecBrand::deconstruct(&ta) {
-				None => pure::<ClonableFnBrand, F, _>(vec![]),
-				Some(Pair(head, tail)) => {
-					// cons: a -> (t a -> t a)
-					let cons = ClonableFnBrand::new(VecBrand::construct::<ClonableFnBrand, _>);
-					// map: (a -> b) -> f a -> f b
-					// cons: a -> (t a -> t a)
-					// map cons = f a -> f (t a -> t a)
-					let map_cons = map::<ClonableFnBrand, F, _, _>(cons);
-					// f: a -> f b
-					// head: a
-					// f head: f b
-					let f_head = f(head);
-					// traverse: (a -> f b) -> t a -> f (t b)
-					// f: a -> f b
-					// traverse f: t a -> f (t b)
-					let traverse_f = traverse::<ClonableFnBrand, Self, F, _, _>(f.clone());
-					// traverse f: t a -> f (t b)
-					// tail: t a
-					// (traverse f) tail: f (t b)
-					let traverse_f_tail = traverse_f(tail);
-					// map cons: f a -> f (t a -> t a)
-					// f head: f b
-					// (map cons) (f head): f (t b -> t b)
-					let map_cons_f_head = map_cons(f_head);
-					// apply: f (a -> b) -> f a -> f b
-					// (map cons) (f head): f (t b -> t b)
-					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					let apply_map_cons_f_head = apply::<ClonableFnBrand, F, _, _>(map_cons_f_head);
-					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					// (traverse f) tail: f (t b)
-					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)
-					apply_map_cons_f_head(traverse_f_tail)
-				}
-			}
-		})
-	}
-}
+// impl Traversable for VecBrand {
+// 	// traverse f Vec.empty = pure Vec.empty
+// 	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{VecBrand, RcFnBrand, OptionBrand}, functions::traverse};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
+// 	///     Some(vec![2, 4, 6])
+// 	/// );
+// 	/// assert_eq!(
+// 	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|_x| None))(vec![1, 2, 3]),
+// 	///     None
+// 	/// );
+// 	/// ```
+// 	fn traverse<
+// 		'a,
+// 		ClonableFnBrand: 'a + ClonableFn,
+// 		F: Applicative,
+// 		A: 'a + Clone,
+// 		B: 'a + Clone,
+// 	>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+// 	where
+// 		Apply0L1T<F, B>: Clone,
+// 		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+// 		Apply0L1T<Self, B>: 'a,
+// 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
+// 	{
+// 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
+// 			match VecBrand::deconstruct(&ta) {
+// 				None => pure::<ClonableFnBrand, F, _>(vec![]),
+// 				Some(Pair(head, tail)) => {
+// 					// cons: a -> (t a -> t a)
+// 					let cons = ClonableFnBrand::new(VecBrand::construct::<ClonableFnBrand, _>);
+// 					// map: (a -> b) -> f a -> f b
+// 					// cons: a -> (t a -> t a)
+// 					// map cons = f a -> f (t a -> t a)
+// 					let map_cons = map::<ClonableFnBrand, F, _, _>(cons);
+// 					// f: a -> f b
+// 					// head: a
+// 					// f head: f b
+// 					let f_head = f(head);
+// 					// traverse: (a -> f b) -> t a -> f (t b)
+// 					// f: a -> f b
+// 					// traverse f: t a -> f (t b)
+// 					let traverse_f = traverse::<ClonableFnBrand, Self, F, _, _>(f.clone());
+// 					// traverse f: t a -> f (t b)
+// 					// tail: t a
+// 					// (traverse f) tail: f (t b)
+// 					let traverse_f_tail = traverse_f(tail);
+// 					// map cons: f a -> f (t a -> t a)
+// 					// f head: f b
+// 					// (map cons) (f head): f (t b -> t b)
+// 					let map_cons_f_head = map_cons(f_head);
+// 					// apply: f (a -> b) -> f a -> f b
+// 					// (map cons) (f head): f (t b -> t b)
+// 					// apply ((map cons) (f head)): f (t b) -> f (t b)
+// 					let apply_map_cons_f_head = apply::<ClonableFnBrand, F, _, _>(map_cons_f_head);
+// 					// apply ((map cons) (f head)): f (t b) -> f (t b)
+// 					// (traverse f) tail: f (t b)
+// 					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)
+// 					apply_map_cons_f_head(traverse_f_tail)
+// 				}
+// 			}
+// 		})
+// 	}
+// }

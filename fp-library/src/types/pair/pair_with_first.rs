@@ -198,68 +198,68 @@ where
 	}
 }
 
-impl<First> Foldable for PairWithFirstBrand<First> {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{PairWithFirstBrand, RcFnBrand}, functions::fold_right, types::Pair};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     fold_right::<RcFnBrand, PairWithFirstBrand<_>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Pair((), 1)),
-	///     2
-	/// );
-	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
-				let f = f.clone();
-				move |fa| {
-					let (f, b, Pair(_, a)) = (f.clone(), b.to_owned(), fa);
-					f(a)(b)
-				}
-			})
-		})
-	}
-}
+// impl<First> Foldable for PairWithFirstBrand<First> {
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{PairWithFirstBrand, RcFnBrand}, functions::fold_right, types::Pair};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     fold_right::<RcFnBrand, PairWithFirstBrand<_>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Pair((), 1)),
+// 	///     2
+// 	/// );
+// 	/// ```
+// 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+// 		ClonableFnBrand::new(move |b: B| {
+// 			ClonableFnBrand::new({
+// 				let f = f.clone();
+// 				move |fa| {
+// 					let (f, b, Pair(_, a)) = (f.clone(), b.to_owned(), fa);
+// 					f(a)(b)
+// 				}
+// 			})
+// 		})
+// 	}
+// }
 
-impl<First> Traversable for PairWithFirstBrand<First>
-where
-	First: Clone,
-{
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{PairWithFirstBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Pair};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     traverse::<RcFnBrand, PairWithFirstBrand<_>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Pair((), 3)),
-	///     Some(Pair((), 6))
-	/// );
-	/// ```
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
-	where
-		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
-		Apply0L1T<Self, B>: 'a,
-		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
-	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
-			let (f, Pair(first, second)) = (f.clone(), ta);
-			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(ClonableFnBrand::new(move |second| {
-				Pair::new::<ClonableFnBrand>(first.to_owned())(second)
-			}))(f(second))
-		})
-	}
-}
+// impl<First> Traversable for PairWithFirstBrand<First>
+// where
+// 	First: Clone,
+// {
+// 	/// # Examples
+// 	///
+// 	/// ```
+// 	/// use fp_library::{brands::{PairWithFirstBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Pair};
+// 	/// use std::rc::Rc;
+// 	///
+// 	/// assert_eq!(
+// 	///     traverse::<RcFnBrand, PairWithFirstBrand<_>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Pair((), 3)),
+// 	///     Some(Pair((), 6))
+// 	/// );
+// 	/// ```
+// 	fn traverse<
+// 		'a,
+// 		ClonableFnBrand: 'a + ClonableFn,
+// 		F: Applicative,
+// 		A: 'a + Clone,
+// 		B: 'a + Clone,
+// 	>(
+// 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+// 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+// 	where
+// 		Apply0L1T<F, B>: Clone,
+// 		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+// 		Apply0L1T<Self, B>: 'a,
+// 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
+// 	{
+// 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
+// 			let (f, Pair(first, second)) = (f.clone(), ta);
+// 			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(ClonableFnBrand::new(move |second| {
+// 				Pair::new::<ClonableFnBrand>(first.to_owned())(second)
+// 			}))(f(second))
+// 		})
+// 	}
+// }
