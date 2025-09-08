@@ -1,8 +1,8 @@
 use crate::{
-	classes::{ClonableFn, Monoid, clonable_fn::ApplyFn},
+	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
 	functions::{compose, flip, identity},
 	hkt::{Apply0L1T, Kind0L1T},
-	types::Endomorphism,
+	types::Endofunction,
 };
 
 /// A type class for structures that can be folded to a single value.
@@ -44,7 +44,7 @@ pub trait Foldable: Kind0L1T {
 	///     11
 	/// );
 	/// ```
-	fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+	fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
 		ClonableFnBrand::new(move |b: B| {
@@ -107,23 +107,29 @@ pub trait Foldable: Kind0L1T {
 	///     "Hello, World!"
 	/// );
 	/// ```
-	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, M: 'a + Monoid + Clone>(
+	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, M: Monoid<'a> + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, M>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
-		ClonableFnBrand::new(move |fa| {
-			let f = f.clone();
-			((Self::fold_right::<ClonableFnBrand, _, _>(ClonableFnBrand::new(move |a: A| {
-				let f = f.clone();
-				compose::<ClonableFnBrand, _, _, _>(ClonableFnBrand::new(
-					M::append::<ClonableFnBrand>,
-				))(f)(a.to_owned())
-			})))(M::empty()))(fa)
+		ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
+			((Self::fold_right::<'a, ClonableFnBrand, A, M>((compose::<
+				'a,
+				ClonableFnBrand,
+				A,
+				M,
+				_,
+			>(ClonableFnBrand::new::<
+				'a,
+				M,
+				_,
+			>(
+				Semigroup::<'a>::append::<ClonableFnBrand>,
+			)))(f.clone())))(M::empty()))(fa)
 		})
 	}
 
 	/// Folds the structure by applying a function from right to left.
 	///
-	/// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endomorphism` monoid][`crate::types::Endomorphism`] where:
+	/// The default implementation of `fold_right` is implemented in terms of [`fold_map`] using the [`Endofunction` monoid][`crate::types::Endofunction`] where:
 	///
 	/// `((fold_right f) b) fa = ((fold_map f) fa) b`
 	///
@@ -152,21 +158,17 @@ pub trait Foldable: Kind0L1T {
 	///     17
 	/// );
 	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
 		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
-				let f = f.clone();
-				move |fa| {
-					((Self::fold_map::<ClonableFnBrand, A, Endomorphism<'a, ClonableFnBrand, B>>(
-						ClonableFnBrand::new({
-							let f = f.clone();
-							move |a| Endomorphism(f(a))
-						}),
-					)(fa))
-					.0)(b.to_owned())
-				}
+			let f = f.clone();
+			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
+				(Self::fold_map::<'a, ClonableFnBrand, _, _>(ClonableFnBrand::new({
+					let f = f.clone();
+					move |a: A| Endofunction::<'a, ClonableFnBrand, _>::new(f(a))
+				}))(fa)
+				.0)(b.clone())
 			})
 		})
 	}
@@ -205,13 +207,7 @@ pub trait Foldable: Kind0L1T {
 ///     11
 /// );
 /// ```
-pub fn fold_left<
-	'a,
-	ClonableFnBrand: 'a + ClonableFn,
-	Brand: Foldable,
-	A: 'a + Clone,
-	B: 'a + Clone,
->(
+pub fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Foldable, A: Clone, B: Clone>(
 	f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
 ) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
 	Brand::fold_left::<ClonableFnBrand, _, _>(f)
@@ -256,8 +252,8 @@ pub fn fold_map<
 	'a,
 	ClonableFnBrand: 'a + ClonableFn,
 	Brand: Foldable,
-	A: 'a + Clone,
-	M: 'a + Monoid + Clone,
+	A: Clone,
+	M: Monoid<'a> + Clone,
 >(
 	f: ApplyFn<'a, ClonableFnBrand, A, M>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, M> {
@@ -297,13 +293,7 @@ pub fn fold_map<
 ///     17
 /// );
 /// ```
-pub fn fold_right<
-	'a,
-	ClonableFnBrand: 'a + ClonableFn,
-	Brand: Foldable,
-	A: 'a + Clone,
-	B: 'a + Clone,
->(
+pub fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Foldable, A: Clone, B: Clone>(
 	f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 ) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
 	Brand::fold_right::<ClonableFnBrand, _, _>(f)

@@ -1,6 +1,16 @@
-use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
+use crate::{
+	classes::{
+		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		semigroup::Semigroup1L0T,
+	},
+	hkt::Kind1L0T,
+};
 
-impl<A> Semigroup for Vec<A>
+impl<A> Kind1L0T for Vec<A> {
+	type Output<'a> = Vec<A>;
+}
+
+impl<'b, A> Semigroup<'b> for Vec<A>
 where
 	A: Clone,
 {
@@ -24,7 +34,9 @@ where
 	}
 }
 
-impl<A> Monoid for Vec<A>
+impl<A: Clone> Semigroup1L0T for Vec<A> {}
+
+impl<'a, A> Monoid<'a> for Vec<A>
 where
 	A: Clone,
 {
@@ -42,3 +54,5 @@ where
 		Self::default()
 	}
 }
+
+impl<A: Clone> Monoid1L0T for Vec<A> {}

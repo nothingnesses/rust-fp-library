@@ -4,17 +4,17 @@
 
 use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
 pub use crate::classes::{
-	apply::apply,
 	apply_first::apply_first,
 	apply_second::apply_second,
-	bind::bind,
-	category::identity as category_identity,
+	category::category_identity,
 	foldable::{fold_left, fold_map, fold_right},
 	functor::map,
 	monoid::empty,
 	pointed::pure,
+	semiapplicative::apply,
 	semigroup::append,
-	semigroupoid::compose as semigroupoid_compose,
+	semigroupoid::semigroupoid_compose,
+	semimonad::bind,
 	traversable::{sequence, traverse},
 };
 

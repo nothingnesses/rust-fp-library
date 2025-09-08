@@ -2,11 +2,12 @@
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
-		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Monoid, Pointed,
+		Semiapplicative, Semigroup, Semimonad, Traversable, clonable_fn::ApplyFn,
+		monoid::Monoid1L0T, semigroup::Semigroup1L0T,
 	},
 	functions::{append, apply, constant, identity, map},
-	hkt::{Apply0L1T, Kind0L1T},
+	hkt::{Apply0L1T, Apply1L0T, Kind0L1T},
 	types::Pair,
 };
 
@@ -36,7 +37,11 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Semigroup + Clone> Apply for PairWithSecondBrand<Second> {
+impl<Second: Clone> Semiapplicative for PairWithSecondBrand<Second>
+where
+	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -65,7 +70,11 @@ impl<Second: Semigroup + Clone> Apply for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Clone + Semigroup> ApplyFirst for PairWithSecondBrand<Second> {
+impl<Second: Clone> ApplyFirst for PairWithSecondBrand<Second>
+where
+	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -96,7 +105,11 @@ impl<Second: Clone + Semigroup> ApplyFirst for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {
+impl<Second: Clone> ApplySecond for PairWithSecondBrand<Second>
+where
+	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -127,7 +140,11 @@ impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Monoid + Clone> Pointed for PairWithSecondBrand<Second> {
+impl<Second: Clone> Pointed for PairWithSecondBrand<Second>
+where
+	for<'a> Apply1L0T<'a, Second>: Monoid<'a>,
+	for<'a> Second: Monoid1L0T<Output<'a> = Second>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -143,7 +160,11 @@ impl<Second: Monoid + Clone> Pointed for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Semigroup + Clone> Bind for PairWithSecondBrand<Second> {
+impl<Second: Clone> Semimonad for PairWithSecondBrand<Second>
+where
+	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
+{
 	/// # Examples
 	///
 	/// ```
@@ -170,7 +191,7 @@ impl<Second: Semigroup + Clone> Bind for PairWithSecondBrand<Second> {
 		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>| {
 			let Pair(ma_first, ma_second) = &ma;
 			let Pair(f_ma_first_first, f_ma_first_second) = f(ma_first.to_owned());
-			Pair::new::<ClonableFnBrand>(f_ma_first_first)(append::<ClonableFnBrand, _>(
+			Pair::new::<ClonableFnBrand>(f_ma_first_first)(append::<ClonableFnBrand, Second>(
 				ma_second.to_owned(),
 			)(f_ma_first_second))
 		})
@@ -189,7 +210,7 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
 	///     2
 	/// );
 	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
 		ClonableFnBrand::new(move |b: B| {
@@ -219,13 +240,7 @@ where
 	///     Some(Pair(6, ()))
 	/// );
 	/// ```
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
+	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where

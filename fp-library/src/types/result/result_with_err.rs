@@ -2,8 +2,8 @@
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
-		Traversable, clonable_fn::ApplyFn,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
 	},
 	functions::{map, pure},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -39,7 +39,7 @@ impl<E> Functor for ResultWithErrBrand<E> {
 	}
 }
 
-impl<E: Clone> Apply for ResultWithErrBrand<E>
+impl<E: Clone> Semiapplicative for ResultWithErrBrand<E>
 where
 	for<'a> E: 'a,
 {
@@ -163,7 +163,7 @@ impl<E> Pointed for ResultWithErrBrand<E> {
 	}
 }
 
-impl<E: Clone> Bind for ResultWithErrBrand<E>
+impl<E: Clone> Semimonad for ResultWithErrBrand<E>
 where
 	for<'a> E: 'a,
 {
@@ -212,7 +212,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 	///     1
 	/// );
 	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
 		ClonableFnBrand::new(move |b: B| {
@@ -243,13 +243,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 /// );
 /// ```
 impl<E: Clone> Traversable for ResultWithErrBrand<E> {
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
+	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where

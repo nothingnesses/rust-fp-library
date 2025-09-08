@@ -1,8 +1,8 @@
-use crate::classes::{Applicative, Bind};
+use crate::classes::{Applicative, Semimonad};
 
 /// A type class for monads.
 ///
-/// `Monad` combines the capabilities of [`Applicative`] and [`Bind`], providing
+/// `Monad` combines the capabilities of [`Applicative`] and [`Semimonad`], providing
 /// a powerful abstraction for sequencing computations with context.
 ///
 /// Monads are more powerful than applicative functors because they allow
@@ -15,12 +15,12 @@ use crate::classes::{Applicative, Bind};
 /// * Left identity: `bind(pure(a))(f) = f(a)`.
 /// * Right identity: `bind(m)(pure) = m`.
 /// * Associativity: `bind(bind(m)(f))(g) = bind(m)(x => bind(f(x))(g))`.
-pub trait Monad: Applicative + Bind {}
+pub trait Monad: Applicative + Semimonad {}
 
 /// Blanket implementation for the `Monad` type class.
 ///
 /// Any type that implements all the required supertraits automatically implements `Monad`.
-impl<Brand> Monad for Brand where Brand: Applicative + Bind {}
+impl<Brand> Monad for Brand where Brand: Applicative + Semimonad {}
 
 #[cfg(test)]
 mod tests {
@@ -34,7 +34,7 @@ mod tests {
 
 	#[test]
 	/// Assert that brands implementing the required supertraits
-	/// ([`Applicative`][crate::classes::Applicative], [`Bind`][crate::classes::Bind])
+	/// ([`Applicative`][crate::classes::Applicative], [`Semimonad`][crate::classes::Semimonad])
 	/// also implement [`Monad`].
 	fn test_brands_implement_monad() {
 		assert_monad::<IdentityBrand>();

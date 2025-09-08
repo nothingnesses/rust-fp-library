@@ -3,7 +3,8 @@
 //!
 //! [`Kind` traits][crate::hkt::kinds] represent the arity of a kind.
 //! These traits are implemented by [`Brand` types][crate::brands],
-//! representing (partially-applied) type constructors of [concrete types][crate::types].
+//! which represent higher-kinded (unapplied/partially-applied) forms
+//! (type constructors) of [types][crate::types].
 
 pub mod apply;
 pub mod kinds;

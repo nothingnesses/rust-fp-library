@@ -13,12 +13,12 @@ pub trait Category: Semigroupoid {
 	///
 	/// # Type Signature
 	///
-	/// `forall t. Category a => () -> a t t`
+	/// `forall a. Category c => () -> c a a`
 	///
 	/// # Returns
 	///
 	/// The identity morphism.
-	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T>;
+	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A>;
 }
 
 /// Returns the identity morphism.
@@ -27,7 +27,7 @@ pub trait Category: Semigroupoid {
 ///
 /// # Type Signature
 ///
-/// `forall t. Category a => () -> a t t`
+/// `forall a. Category c => () -> c a a`
 ///
 /// # Returns
 ///
@@ -40,6 +40,6 @@ pub trait Category: Semigroupoid {
 ///
 /// assert_eq!(category_identity::<RcFnBrand, _>()(()), ());
 /// ```
-pub fn identity<'a, Brand: Category, T: 'a>() -> Apply1L2T<'a, Brand, T, T> {
-	Brand::identity::<'a, T>()
+pub fn category_identity<'a, Brand: Category, A: 'a>() -> Apply1L2T<'a, Brand, A, A> {
+	Brand::identity::<'a, _>()
 }

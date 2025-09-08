@@ -1,11 +1,15 @@
+//! Implementations for [atomically reference-counted][std::sync::Arc]
+//! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
+
 use crate::{
-	classes::{Category, ClonableFn, Semigroupoid, clonable_fn::ApplyFn},
-	functions::identity,
+	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
+	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
 use std::sync::Arc;
 
-/// A brand type for atomically reference-counted closures (`Arc<dyn Fn(A) -> B>`).
+/// A brand type for [atomically reference-counted][std::sync::Arc]
+/// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
 /// This struct implements [`ClonableFn`] to provide a way to construct and
 /// type-check [`Arc`]-wrapped closures in a generic context. The lifetime `'a`
@@ -19,9 +23,9 @@ impl Kind1L2T for ArcFnBrand {
 }
 
 impl ClonableFn for ArcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = <Self as Kind1L2T>::Output<'a, A, B>;
+	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
 		Arc::new(f)
 	}
 }
@@ -33,14 +37,37 @@ impl Semigroupoid for ArcFnBrand {
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
 			Self::new::<'a, _, _>({
 				let f = f.clone();
-				move |a| f(g(a))
+				move |a| compose::<'a, Self, _, _, _>(f.clone())(g.clone())(a)
 			})
 		})
 	}
 }
 
 impl Category for ArcFnBrand {
-	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
+	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A> {
 		Self::new::<'a, _, _>(identity)
+	}
+}
+
+impl<'b, A: 'b + Clone, B: Semigroup<'b> + 'b> Semigroup<'b> for Arc<dyn 'b + Fn(A) -> B> {
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+		a: Self
+	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	where
+		Self: Sized,
+		'b: 'a,
+	{
+		ClonableFnBrand::new(move |b: Self| {
+			ArcFnBrand::new({
+				let a = a.clone();
+				move |c: A| B::append::<ClonableFnBrand>(a(c.clone()))(b(c))
+			})
+		})
+	}
+}
+
+impl<'b, A: 'b + Clone, B: Monoid<'b> + 'b> Monoid<'b> for Arc<dyn 'b + Fn(A) -> B> {
+	fn empty() -> Self {
+		ArcFnBrand::new(move |_| B::empty())
 	}
 }
