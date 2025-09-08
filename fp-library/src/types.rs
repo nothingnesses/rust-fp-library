@@ -11,7 +11,7 @@ pub mod result;
 pub mod string;
 pub mod vec;
 
-pub use self::endofunction::{Endofunction, EndofunctionBrand};
-pub use self::endomorphism::{Endomorphism, EndomorphismBrand};
+pub use self::endofunction::Endofunction;
+pub use self::endomorphism::Endomorphism;
 pub use self::identity::Identity;
 pub use self::pair::Pair;

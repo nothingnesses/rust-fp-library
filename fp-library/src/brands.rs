@@ -2,6 +2,8 @@
 
 pub use crate::types::{
 	arc_fn::ArcFnBrand,
+	endofunction::EndofunctionBrand,
+	endomorphism::EndomorphismBrand,
 	identity::IdentityBrand,
 	option::OptionBrand,
 	pair::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},

@@ -31,10 +31,10 @@ use crate::{
 ///
 /// ```
 /// use fp_library::{
-///     brands::RcFnBrand,
+///     brands::{EndofunctionBrand, RcFnBrand},
 ///     functions::{append, empty},
 ///     classes::ClonableFn,
-///     types::{Endofunction, EndofunctionBrand}
+///     types::Endofunction,
 /// };
 /// use std::rc::Rc;
 ///
@@ -138,10 +138,10 @@ impl<'b, ClonableFnBrand: 'b + ClonableFn, A> Semigroup<'b>
 	///
 	/// ```
 	/// use fp_library::{
-	///     brands::RcFnBrand,
+	///     brands::{EndofunctionBrand, RcFnBrand},
 	///     functions::append,
 	///     classes::ClonableFn,
-	///     types::{Endofunction, EndofunctionBrand}
+	///     types::Endofunction,
 	/// };
 	/// use std::rc::Rc;
 	///
@@ -172,7 +172,11 @@ impl<'a, ClonableFnBrand: 'a + ClonableFn, A> Monoid<'a> for Endofunction<'a, Cl
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::RcFnBrand, functions::empty, types::{Endofunction, EndofunctionBrand}};
+	/// use fp_library::{
+	///     brands::{EndofunctionBrand, RcFnBrand},
+	///     functions::empty,
+	///     types::Endofunction,
+	/// };
 	///
 	/// assert_eq!(empty::<EndofunctionBrand<RcFnBrand, i32>>().0(5), 5);
 	/// assert_eq!(empty::<EndofunctionBrand<RcFnBrand, String>>().0("test".to_string()), "test");
