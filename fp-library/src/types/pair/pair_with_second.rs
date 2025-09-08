@@ -2,9 +2,9 @@
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
-		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn, monoid::Monoid1L0T,
-		semigroup::Semigroup1L0T,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Monoid, Pointed,
+		Semiapplicative, Semigroup, Semimonad, Traversable, clonable_fn::ApplyFn,
+		monoid::Monoid1L0T, semigroup::Semigroup1L0T,
 	},
 	functions::{append, apply, constant, identity, map},
 	hkt::{Apply0L1T, Apply1L0T, Kind0L1T},
@@ -37,7 +37,7 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Clone> Apply for PairWithSecondBrand<Second>
+impl<Second: Clone> Semiapplicative for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
 	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
@@ -160,7 +160,7 @@ where
 	}
 }
 
-impl<Second: Clone> Bind for PairWithSecondBrand<Second>
+impl<Second: Clone> Semimonad for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
 	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,

@@ -1,4 +1,4 @@
-use crate::classes::{Apply, ApplyFirst, ApplySecond, Functor, Pointed};
+use crate::classes::{ApplyFirst, ApplySecond, Functor, Pointed, Semiapplicative};
 
 /// A type class for applicative functors.
 ///
@@ -18,12 +18,15 @@ use crate::classes::{Apply, ApplyFirst, ApplySecond, Functor, Pointed};
 /// * Composition: `apply(apply(apply(pure(compose))(u))(v))(w) = apply(u)(apply(v)(w))`.
 /// * Homomorphism: `apply(pure(f))(pure(x)) = pure(f(x))`.
 /// * Interchange: `apply(u)(pure(y)) = apply(pure(f => f(y)))(u)`.
-pub trait Applicative: Functor + Pointed + Apply + ApplyFirst + ApplySecond {}
+pub trait Applicative: Functor + Pointed + Semiapplicative + ApplyFirst + ApplySecond {}
 
 /// Blanket implementation for the [`Applicative`] type class.
 ///
 /// Any type that implements all the required supertraits automatically implements [`Applicative`].
-impl<Brand> Applicative for Brand where Brand: Functor + Pointed + Apply + ApplyFirst + ApplySecond {}
+impl<Brand> Applicative for Brand where
+	Brand: Functor + Pointed + Semiapplicative + ApplyFirst + ApplySecond
+{
+}
 
 #[cfg(test)]
 mod tests {
@@ -37,7 +40,7 @@ mod tests {
 
 	#[test]
 	/// Assert that brands implementing the required supertraits ([`Functor`],
-	/// [`Pointed`], [`Apply`], [`ApplyFirst`], [`ApplySecond`]) also implement
+	/// [`Pointed`], [`Semiapplicative`], [`ApplyFirst`], [`ApplySecond`]) also implement
 	/// [`Applicative`].
 	fn test_brands_implement_applicative() {
 		assert_applicative::<IdentityBrand>();

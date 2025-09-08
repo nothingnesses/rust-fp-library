@@ -2,8 +2,8 @@
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
-		Traversable, clonable_fn::ApplyFn,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
 	},
 	functions::{map, pure},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -42,7 +42,7 @@ impl<T> Functor for ResultWithOkBrand<T> {
 	}
 }
 
-impl<T: Clone> Apply for ResultWithOkBrand<T>
+impl<T: Clone> Semiapplicative for ResultWithOkBrand<T>
 where
 	for<'a> T: 'a,
 {
@@ -166,7 +166,7 @@ impl<T> Pointed for ResultWithOkBrand<T> {
 	}
 }
 
-impl<T: Clone> Bind for ResultWithOkBrand<T>
+impl<T: Clone> Semimonad for ResultWithOkBrand<T>
 where
 	for<'a> T: 'a,
 {

@@ -2,8 +2,8 @@
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
-		Traversable, clonable_fn::ApplyFn,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
 	},
 	functions::{map, pure},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -38,7 +38,7 @@ impl Functor for OptionBrand {
 	}
 }
 
-impl Apply for OptionBrand {
+impl Semiapplicative for OptionBrand {
 	/// # Examples
 	///
 	/// ```
@@ -155,7 +155,7 @@ impl Pointed for OptionBrand {
 	}
 }
 
-impl Bind for OptionBrand {
+impl Semimonad for OptionBrand {
 	/// # Examples
 	///
 	/// ```

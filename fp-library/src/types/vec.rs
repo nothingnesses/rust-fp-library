@@ -4,8 +4,8 @@ pub mod concrete_vec;
 
 use crate::{
 	classes::{
-		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Pointed,
-		Traversable, clonable_fn::ApplyFn,
+		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
 	},
 	functions::{apply, map, pure, traverse},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -118,7 +118,7 @@ impl Functor for VecBrand {
 	}
 }
 
-impl Apply for VecBrand {
+impl Semiapplicative for VecBrand {
 	/// # Examples
 	///
 	/// ```
@@ -220,7 +220,7 @@ impl Pointed for VecBrand {
 	}
 }
 
-impl Bind for VecBrand {
+impl Semimonad for VecBrand {
 	/// # Examples
 	///
 	/// ```

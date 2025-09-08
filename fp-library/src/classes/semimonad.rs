@@ -9,15 +9,15 @@ use crate::{
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
 ///
-/// Note that `Bind` is a separate type class from [`Monad`][`crate::classes::Monad`]. In this library's
+/// Note that `Semimonad` is a separate type class from [`Monad`][`crate::classes::Monad`]. In this library's
 /// hierarchy, [`Monad`][`crate::classes::Monad`] is a type class that extends both
-/// [`Applicative`][`crate::classes::Applicative`] and `Bind`.
-pub trait Bind: Kind0L1T {
+/// [`Applicative`][`crate::classes::Applicative`] and `Semimonad`.
+pub trait Semimonad: Kind0L1T {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// # Type Signature
 	///
-	/// `forall a b. Bind m => m a -> (a -> m b) -> m b`
+	/// `forall a b. Semimonad m => m a -> (a -> m b) -> m b`
 	///
 	/// # Parameters
 	///
@@ -39,11 +39,11 @@ pub trait Bind: Kind0L1T {
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
-/// Free function version that dispatches to [the type class' associated function][`Bind::bind`].
+/// Free function version that dispatches to [the type class' associated function][`Semimonad::bind`].
 ///
 /// # Type Signature
 ///
-/// `forall a b. Bind m => m a -> (a -> m b) -> m b`
+/// `forall a b. Semimonad m => m a -> (a -> m b) -> m b`
 ///
 /// # Parameters
 ///
@@ -62,7 +62,7 @@ pub trait Bind: Kind0L1T {
 ///
 /// assert_eq!(bind::<RcFnBrand, OptionBrand, _, _>(Some(5))(Rc::new(|x| Some(x * 2))), Some(10));
 /// ```
-pub fn bind<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Bind, A: 'a + Clone, B: Clone>(
+pub fn bind<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semimonad, A: 'a + Clone, B: Clone>(
 	ma: Apply0L1T<Brand, A>
 ) -> ApplyFn<
 	'a,

@@ -5,21 +5,21 @@ use crate::{
 
 /// A type class for types that support function application within a context.
 ///
-/// `Apply` provides the ability to apply functions that are themselves
+/// `Semiapplicative` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.
 /// This allows for sequencing computations where both the function and
 /// the value are in a context.
 ///
 /// # Laws
 ///
-/// `Apply` instances must satisfy the following law:
+/// `Semiapplicative` instances must satisfy the following law:
 /// * Composition: `apply(apply(f)(g))(x) = apply(f)(apply(g)(x))`.
-pub trait Apply: Kind0L1T {
+pub trait Semiapplicative: Kind0L1T {
 	/// Applies a function within a context to a value within a context.
 	///
 	/// # Type Signature
 	///
-	/// `forall a b. Apply f => f (a -> b) -> f a -> f b`
+	/// `forall a b. Semiapplicative f => f (a -> b) -> f a -> f b`
 	///
 	/// # Parameters
 	///
@@ -36,11 +36,11 @@ pub trait Apply: Kind0L1T {
 
 /// Applies a function within a context to a value within a context.
 ///
-/// Free function version that dispatches to [the type class' associated function][`Apply::apply`].
+/// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
 ///
 /// # Type Signature
 ///
-/// `forall a b. Apply f => f (a -> b) -> f a -> f b`
+/// `forall a b. Semiapplicative f => f (a -> b) -> f a -> f b`
 ///
 /// # Parameters
 ///
@@ -62,7 +62,7 @@ pub trait Apply: Kind0L1T {
 ///     Some(10)
 /// );
 /// ```
-pub fn apply<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Apply, A: 'a + Clone, B: 'a>(
+pub fn apply<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
 	ff: Apply0L1T<Brand, ApplyFn<'a, ClonableFnBrand, A, B>>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
 	Brand::apply::<ClonableFnBrand, _, _>(ff)
