@@ -2,7 +2,10 @@
 //! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 
 use crate::{
-	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
+	classes::{
+		Category, ClonableFn, Function, Monoid, Semigroup, Semigroupoid,
+		clonable_fn::ApplyClonableFn, function::ApplyFunction,
+	},
 	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
@@ -22,10 +25,18 @@ impl Kind1L2T for ArcFnBrand {
 	type Output<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
 }
 
+impl Function for ArcFnBrand {
+	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
+
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
+		Arc::new(f)
+	}
+}
+
 impl ClonableFn for ArcFnBrand {
 	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
 		Arc::new(f)
 	}
 }
@@ -33,9 +44,10 @@ impl ClonableFn for ArcFnBrand {
 impl Semigroupoid for ArcFnBrand {
 	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
 		f: Apply1L2T<'a, Self, C, D>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
-		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
-			Self::new::<'a, _, _>({
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>
+	{
+		<ClonableFnBrand as ClonableFn>::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
+			<Self as ClonableFn>::new::<'a, _, _>({
 				let f = f.clone();
 				move |a| compose::<'a, Self, _, _, _>(f.clone())(g.clone())(a)
 			})
@@ -45,20 +57,20 @@ impl Semigroupoid for ArcFnBrand {
 
 impl Category for ArcFnBrand {
 	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A> {
-		Self::new::<'a, _, _>(identity)
+		<Self as ClonableFn>::new::<'a, _, _>(identity)
 	}
 }
 
 impl<'b, A: 'b + Clone, B: Semigroup<'b> + 'b> Semigroup<'b> for Arc<dyn 'b + Fn(A) -> B> {
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
 	{
-		ClonableFnBrand::new(move |b: Self| {
-			ArcFnBrand::new({
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+			<ArcFnBrand as ClonableFn>::new({
 				let a = a.clone();
 				move |c: A| B::append::<ClonableFnBrand>(a(c.clone()))(b(c))
 			})
@@ -68,6 +80,6 @@ impl<'b, A: 'b + Clone, B: Semigroup<'b> + 'b> Semigroup<'b> for Arc<dyn 'b + Fn
 
 impl<'b, A: 'b + Clone, B: Monoid<'b> + 'b> Monoid<'b> for Arc<dyn 'b + Fn(A) -> B> {
 	fn empty() -> Self {
-		ArcFnBrand::new(move |_| B::empty())
+		<ArcFnBrand as ClonableFn>::new(move |_| B::empty())
 	}
 }

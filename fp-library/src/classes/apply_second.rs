@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::{Apply0L1T, Kind0L1T},
 };
 
@@ -26,7 +26,7 @@ pub trait ApplySecond: Kind0L1T {
 	/// The second context with its value preserved.
 	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>;
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>;
 }
 
 /// Combines two contexts, keeping the value from the second context.
@@ -61,6 +61,6 @@ pub fn apply_second<
 	B: 'a + Clone,
 >(
 	fa: Apply0L1T<Brand, A>
-) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>> {
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>> {
 	Brand::apply_second::<ClonableFnBrand, A, B>(fa)
 }

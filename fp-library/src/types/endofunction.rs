@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
 	classes::{
-		Category, ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		Category, ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn, monoid::Monoid1L0T,
 		semigroup::Semigroup1L0T,
 	},
 	functions::{compose, identity},
@@ -51,24 +51,24 @@ use crate::{
 /// assert_eq!(id.0(42), 42);
 /// ```
 pub struct Endofunction<'a, ClonableFnBrand: ClonableFn, A: 'a>(
-	pub ApplyFn<'a, ClonableFnBrand, A, A>,
+	pub ApplyClonableFn<'a, ClonableFnBrand, A, A>,
 );
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Endofunction<'a, ClonableFnBrand, A> {
-	pub fn new(a: ApplyFn<'a, ClonableFnBrand, A, A>) -> Self {
+	pub fn new(a: ApplyClonableFn<'a, ClonableFnBrand, A, A>) -> Self {
 		Self(a)
 	}
 }
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Clone for Endofunction<'a, ClonableFnBrand, A> {
 	fn clone(&self) -> Self {
-		Endofunction(self.0.clone())
+		Self::new(self.0.clone())
 	}
 }
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Debug for Endofunction<'a, ClonableFnBrand, A>
 where
-	ApplyFn<'a, ClonableFnBrand, A, A>: Debug,
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: Debug,
 {
 	fn fmt(
 		&self,
@@ -79,13 +79,13 @@ where
 }
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Eq for Endofunction<'a, ClonableFnBrand, A> where
-	ApplyFn<'a, ClonableFnBrand, A, A>: Eq
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: Eq
 {
 }
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Hash for Endofunction<'a, ClonableFnBrand, A>
 where
-	ApplyFn<'a, ClonableFnBrand, A, A>: Hash,
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -97,7 +97,7 @@ where
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Ord for Endofunction<'a, ClonableFnBrand, A>
 where
-	ApplyFn<'a, ClonableFnBrand, A, A>: Ord,
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: Ord,
 {
 	fn cmp(
 		&self,
@@ -109,7 +109,7 @@ where
 
 impl<'a, ClonableFnBrand: ClonableFn, A> PartialEq for Endofunction<'a, ClonableFnBrand, A>
 where
-	ApplyFn<'a, ClonableFnBrand, A, A>: PartialEq,
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: PartialEq,
 {
 	fn eq(
 		&self,
@@ -121,7 +121,7 @@ where
 
 impl<'a, ClonableFnBrand: ClonableFn, A> PartialOrd for Endofunction<'a, ClonableFnBrand, A>
 where
-	ApplyFn<'a, ClonableFnBrand, A, A>: PartialOrd,
+	ApplyClonableFn<'a, ClonableFnBrand, A, A>: PartialOrd,
 {
 	fn partial_cmp(
 		&self,
@@ -157,13 +157,13 @@ impl<'b, ClonableFnBrand: 'b + ClonableFn, A> Semigroup<'b>
 	///     5
 	/// );
 	/// ```
-	fn append<'a, CFB: 'a + 'b + ClonableFn>(a: Self) -> ApplyFn<'a, CFB, Self, Self>
+	fn append<'a, CFB: 'a + 'b + ClonableFn>(a: Self) -> ApplyClonableFn<'a, CFB, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
 	{
-		CFB::new(move |b: Self| {
-			Endofunction(compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
+		<CFB as ClonableFn>::new(move |b: Self| {
+			Self::new(compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
 		})
 	}
 }
@@ -182,7 +182,7 @@ impl<'a, ClonableFnBrand: 'a + ClonableFn, A> Monoid<'a> for Endofunction<'a, Cl
 	/// assert_eq!(empty::<EndofunctionBrand<RcFnBrand, String>>().0("test".to_string()), "test");
 	/// ```
 	fn empty() -> Self {
-		Endofunction(ClonableFnBrand::new(identity))
+		Self::new(<ClonableFnBrand as ClonableFn>::new(identity))
 	}
 }
 
@@ -196,13 +196,13 @@ impl<ClonableFnBrand: ClonableFn, A: 'static> Kind1L0T for EndofunctionBrand<Clo
 impl<ClonableFnBrand: 'static + ClonableFn, A: 'static> Semigroup1L0T
 	for EndofunctionBrand<ClonableFnBrand, A>
 where
-	for<'a> ApplyFn<'a, ClonableFnBrand, A, A>: Clone,
+	for<'a> ApplyClonableFn<'a, ClonableFnBrand, A, A>: Clone,
 {
 }
 
 impl<ClonableFnBrand: 'static + ClonableFn, A: 'static> Monoid1L0T
 	for EndofunctionBrand<ClonableFnBrand, A>
 where
-	for<'a> ApplyFn<'a, ClonableFnBrand, A, A>: Clone,
+	for<'a> ApplyClonableFn<'a, ClonableFnBrand, A, A>: Clone,
 {
 }

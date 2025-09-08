@@ -2,7 +2,7 @@
 
 use crate::{
 	classes::{
-		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn, monoid::Monoid1L0T,
 		semigroup::Semigroup1L0T,
 	},
 	hkt::Kind1L0T,
@@ -26,12 +26,12 @@ impl<'b> Semigroup<'b> for String {
 	/// ```
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
 	{
-		ClonableFnBrand::new(move |b: Self| a.to_owned() + &b)
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| a.to_owned() + &b)
 	}
 }
 

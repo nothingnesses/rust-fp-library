@@ -5,7 +5,7 @@ pub mod concrete_vec;
 use crate::{
 	classes::{
 		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
-		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyClonableFn,
 	},
 	functions::{apply, map, pure, traverse},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -50,11 +50,11 @@ impl VecBrand {
 	/// ```
 	pub fn construct<'a, ClonableFnBrand: 'a + ClonableFn, A>(
 		head: A
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>
 	where
 		A: Clone,
 	{
-		ClonableFnBrand::new(move |tail| [vec![head.to_owned()], tail].concat())
+		<ClonableFnBrand as ClonableFn>::new(move |tail| [vec![head.to_owned()], tail].concat())
 	}
 
 	/// Deconstructs a slice into its head element and tail vector.
@@ -112,9 +112,11 @@ impl Functor for VecBrand {
 	/// );
 	/// ```
 	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-		f: ApplyFn<'a, ClonableFnBrand, A, B>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| fa.into_iter().map(&*f).collect())
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| {
+			fa.into_iter().map(&*f).collect()
+		})
 	}
 }
 
@@ -135,9 +137,9 @@ impl Semiapplicative for VecBrand {
 	/// );
 	/// ```
 	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
+		ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| {
 			ff.iter()
 				.cloned()
 				.flat_map(|f| fa.iter().cloned().map(&*f).collect::<Vec<_>>())
@@ -168,8 +170,8 @@ impl ApplyFirst for VecBrand {
 	/// ```
 	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
-		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fb: Apply0L1T<Self, _>| {
 			fa.iter().cloned().flat_map(|a| fb.iter().map(move |_b| a.to_owned())).collect()
 		})
 	}
@@ -197,8 +199,8 @@ impl ApplySecond for VecBrand {
 	/// ```
 	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fb: Apply0L1T<Self, _>| {
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fb: Apply0L1T<Self, _>| {
 			fa.iter().cloned().flat_map(|_a| fb.iter().cloned()).collect()
 		})
 	}
@@ -238,15 +240,17 @@ impl Semimonad for VecBrand {
 	/// ```
 	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
-	) -> ApplyFn<
+	) -> ApplyClonableFn<
 		'a,
 		ClonableFnBrand,
-		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
 		Apply0L1T<Self, B>,
 	> {
-		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| {
-			ma.iter().cloned().flat_map(&*f).collect()
-		})
+		<ClonableFnBrand as ClonableFn>::new(
+			move |f: ApplyClonableFn<'a, ClonableFnBrand, _, _>| {
+				ma.iter().cloned().flat_map(&*f).collect()
+			},
+		)
 	}
 }
 
@@ -263,11 +267,16 @@ impl Foldable for VecBrand {
 	/// );
 	/// ```
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyClonableFn<
+		'a,
+		ClonableFnBrand,
+		B,
+		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
+	> {
+		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
 			let f = f.clone();
-			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
+			<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, A>| {
 				fa.iter().rfold(b.to_owned(), {
 					let f = f.clone();
 					let f = move |b, a| f(a)(b);
@@ -297,20 +306,23 @@ impl Traversable for VecBrand {
 	/// );
 	/// ```
 	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
 		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>:
+			Clone,
 		Apply0L1T<Self, B>: 'a,
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
+		<ClonableFnBrand as ClonableFn>::new(move |ta: Apply0L1T<Self, _>| {
 			match VecBrand::deconstruct(&ta) {
 				None => pure::<ClonableFnBrand, F, _>(vec![]),
 				Some(Pair(head, tail)) => {
 					// cons: a -> (t a -> t a)
-					let cons = ClonableFnBrand::new(VecBrand::construct::<ClonableFnBrand, _>);
+					let cons = <ClonableFnBrand as ClonableFn>::new(
+						VecBrand::construct::<ClonableFnBrand, _>,
+					);
 					// map: (a -> b) -> f a -> f b
 					// cons: a -> (t a -> t a)
 					// map cons = f a -> f (t a -> t a)

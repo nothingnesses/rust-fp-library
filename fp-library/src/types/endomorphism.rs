@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
 	classes::{
-		Category, ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		Category, ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn, monoid::Monoid1L0T,
 		semigroup::Semigroup1L0T,
 	},
 	hkt::{Apply1L2T, Kind1L0T},
@@ -39,7 +39,7 @@ where
 	Apply1L2T<'a, CategoryBrand, A, A>: Clone,
 {
 	fn clone(&self) -> Self {
-		Endomorphism(self.0.clone())
+		Self::new(self.0.clone())
 	}
 }
 
@@ -114,13 +114,13 @@ where
 {
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
 	{
-		ClonableFnBrand::new(move |b: Self| {
-			Endomorphism(CategoryBrand::compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+			Self::new(CategoryBrand::compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
 		})
 	}
 }
@@ -130,7 +130,7 @@ where
 	Apply1L2T<'a, CategoryBrand, A, A>: Clone,
 {
 	fn empty() -> Self {
-		Endomorphism(CategoryBrand::identity::<'a, _>())
+		Self::new(CategoryBrand::identity::<'a, _>())
 	}
 }
 

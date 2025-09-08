@@ -3,7 +3,7 @@
 use crate::{
 	classes::{
 		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
-		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyFn,
+		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyClonableFn,
 	},
 	functions::{identity, map, pure},
 	hkt::{Apply0L1T, Kind0L1T},
@@ -32,9 +32,9 @@ impl Functor for IdentityBrand {
 	/// );
 	/// ```
 	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-		f: ApplyFn<'a, ClonableFnBrand, A, B>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Identity(f(fa.0)))
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| Identity(f(fa.0)))
 	}
 }
 
@@ -51,8 +51,8 @@ impl Semiapplicative for IdentityBrand {
 	/// );
 	/// ```
 	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
 		map::<ClonableFnBrand, Self, A, B>(ff.0)
 	}
 }
@@ -71,8 +71,8 @@ impl ApplyFirst for IdentityBrand {
 	/// ```
 	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
-		ClonableFnBrand::new(move |_fb| fa.to_owned())
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		<ClonableFnBrand as ClonableFn>::new(move |_fb| fa.to_owned())
 	}
 }
 
@@ -90,8 +90,8 @@ impl ApplySecond for IdentityBrand {
 	/// ```
 	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		_fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(identity)
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(identity)
 	}
 }
 
@@ -125,13 +125,15 @@ impl Semimonad for IdentityBrand {
 	/// ```
 	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
-	) -> ApplyFn<
+	) -> ApplyClonableFn<
 		'a,
 		ClonableFnBrand,
-		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
 		Apply0L1T<Self, B>,
 	> {
-		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, _, _>| f(ma.to_owned().0))
+		<ClonableFnBrand as ClonableFn>::new(
+			move |f: ApplyClonableFn<'a, ClonableFnBrand, _, _>| f(ma.to_owned().0),
+		)
 	}
 }
 
@@ -152,10 +154,15 @@ impl Foldable for IdentityBrand {
 	/// );
 	/// ```
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyClonableFn<
+		'a,
+		ClonableFnBrand,
+		B,
+		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
+	> {
+		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
+			<ClonableFnBrand as ClonableFn>::new({
 				let f = f.clone();
 				move |fa: Apply0L1T<Self, _>| f(fa.0)(b.to_owned())
 			})
@@ -180,18 +187,19 @@ impl Traversable for IdentityBrand {
 	/// );
 	/// ```
 	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
 		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>:
+			Clone,
 		Apply0L1T<Self, B>: 'a,
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
-			map::<ClonableFnBrand, F, B, _>(ClonableFnBrand::new(pure::<ClonableFnBrand, Self, _>))(
-				f(ta.0),
-			)
+		<ClonableFnBrand as ClonableFn>::new(move |ta: Apply0L1T<Self, _>| {
+			map::<ClonableFnBrand, F, B, _>(<ClonableFnBrand as ClonableFn>::new(
+				pure::<ClonableFnBrand, Self, _>,
+			))(f(ta.0))
 		})
 	}
 }

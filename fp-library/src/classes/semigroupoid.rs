@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::{Apply1L2T, Kind1L2T},
 };
 
@@ -31,7 +31,7 @@ pub trait Semigroupoid: Kind1L2T {
 	/// The morphism `f` composed with `g` of type `a b d`.
 	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
 		f: Apply1L2T<'a, Self, C, D>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>;
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>;
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -66,6 +66,6 @@ pub trait Semigroupoid: Kind1L2T {
 /// ```
 pub fn semigroupoid_compose<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroupoid, B, C, D>(
 	f: Apply1L2T<'a, Brand, C, D>
-) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>> {
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>> {
 	Brand::compose::<'a, ClonableFnBrand, B, C, D>(f)
 }

@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::{Apply0L1T, Kind0L1T},
 };
 
@@ -25,10 +25,10 @@ pub trait Semimonad: Kind0L1T {
 	/// A computation that sequences the two operations.
 	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
-	) -> ApplyFn<
+	) -> ApplyClonableFn<
 		'a,
 		ClonableFnBrand,
-		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
 		Apply0L1T<Self, B>,
 	>;
 }
@@ -60,10 +60,10 @@ pub trait Semimonad: Kind0L1T {
 /// ```
 pub fn bind<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semimonad, A: 'a + Clone, B: Clone>(
 	ma: Apply0L1T<Brand, A>
-) -> ApplyFn<
+) -> ApplyClonableFn<
 	'a,
 	ClonableFnBrand,
-	ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Brand, B>>,
+	ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Brand, B>>,
 	Apply0L1T<Brand, B>,
 > {
 	Brand::bind::<ClonableFnBrand, A, B>(ma)

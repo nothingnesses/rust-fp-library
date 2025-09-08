@@ -4,7 +4,7 @@ pub mod pair_with_first;
 pub mod pair_with_second;
 
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::Kind0L2T,
 };
 pub use pair_with_first::*;
@@ -26,7 +26,7 @@ where
 {
 	pub fn new<ClonableFnBrand: 'a + ClonableFn>(
 		first: First
-	) -> ApplyFn<'a, ClonableFnBrand, Second, Self> {
-		ClonableFnBrand::new(move |second| Pair(first.to_owned(), second))
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Second, Self> {
+		<ClonableFnBrand as ClonableFn>::new(move |second| Pair(first.to_owned(), second))
 	}
 }

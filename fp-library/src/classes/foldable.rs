@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn},
+	classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn},
 	functions::{compose, flip, identity},
 	hkt::{Apply0L1T, Kind0L1T},
 	types::Endofunction,
@@ -45,10 +45,15 @@ pub trait Foldable: Kind0L1T {
 	/// );
 	/// ```
 	fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
+		f: ApplyClonableFn<'a, ClonableFnBrand, B, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyClonableFn<
+		'a,
+		ClonableFnBrand,
+		B,
+		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
+	> {
+		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
+			<ClonableFnBrand as ClonableFn>::new({
 				let f = f.clone();
 				move |fa| {
 					(((Self::fold_right::<ClonableFnBrand, _, _>(compose::<
@@ -62,13 +67,15 @@ pub trait Foldable: Kind0L1T {
 						_,
 						_,
 					>(
-						ClonableFnBrand::new(compose::<ClonableFnBrand, _, _, _>),
+						<ClonableFnBrand as ClonableFn>::new(compose::<ClonableFnBrand, _, _, _>),
 					))(flip::<
 						ClonableFnBrand,
 						_,
 						_,
 						_,
-					>(f.clone()))))(ClonableFnBrand::new(identity)))(fa))(b.to_owned())
+					>(f.clone()))))(<ClonableFnBrand as ClonableFn>::new(identity)))(fa))(
+						b.to_owned()
+					)
 				}
 			})
 		})
@@ -108,22 +115,20 @@ pub trait Foldable: Kind0L1T {
 	/// );
 	/// ```
 	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, M: Monoid<'a> + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, M>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, M>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, A>| {
 			((Self::fold_right::<'a, ClonableFnBrand, A, M>((compose::<
 				'a,
 				ClonableFnBrand,
 				A,
 				M,
 				_,
-			>(ClonableFnBrand::new::<
-				'a,
-				M,
-				_,
 			>(
-				Semigroup::<'a>::append::<ClonableFnBrand>,
-			)))(f.clone())))(M::empty()))(fa)
+				<ClonableFnBrand as ClonableFn>::new::<'a, M, _>(
+					Semigroup::<'a>::append::<ClonableFnBrand>,
+				),
+			))(f.clone())))(M::empty()))(fa)
 		})
 	}
 
@@ -159,15 +164,22 @@ pub trait Foldable: Kind0L1T {
 	/// );
 	/// ```
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyClonableFn<
+		'a,
+		ClonableFnBrand,
+		B,
+		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
+	> {
+		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
 			let f = f.clone();
-			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-				(Self::fold_map::<'a, ClonableFnBrand, _, _>(ClonableFnBrand::new({
-					let f = f.clone();
-					move |a: A| Endofunction::<'a, ClonableFnBrand, _>::new(f(a))
-				}))(fa)
+			<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, A>| {
+				(Self::fold_map::<'a, ClonableFnBrand, _, _>(<ClonableFnBrand as ClonableFn>::new(
+					{
+						let f = f.clone();
+						move |a: A| Endofunction::<'a, ClonableFnBrand, _>::new(f(a))
+					},
+				))(fa)
 				.0)(b.clone())
 			})
 		})
@@ -208,8 +220,13 @@ pub trait Foldable: Kind0L1T {
 /// );
 /// ```
 pub fn fold_left<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Foldable, A: Clone, B: Clone>(
-	f: ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, B>>
-) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
+	f: ApplyClonableFn<'a, ClonableFnBrand, B, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+) -> ApplyClonableFn<
+	'a,
+	ClonableFnBrand,
+	B,
+	ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>,
+> {
 	Brand::fold_left::<ClonableFnBrand, _, _>(f)
 }
 
@@ -255,8 +272,8 @@ pub fn fold_map<
 	A: Clone,
 	M: Monoid<'a> + Clone,
 >(
-	f: ApplyFn<'a, ClonableFnBrand, A, M>
-) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, M> {
+	f: ApplyClonableFn<'a, ClonableFnBrand, A, M>
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, M> {
 	Brand::fold_map::<ClonableFnBrand, _, M>(f)
 }
 
@@ -294,7 +311,12 @@ pub fn fold_map<
 /// );
 /// ```
 pub fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Foldable, A: Clone, B: Clone>(
-	f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>> {
+	f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
+) -> ApplyClonableFn<
+	'a,
+	ClonableFnBrand,
+	B,
+	ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, B>,
+> {
 	Brand::fold_right::<ClonableFnBrand, _, _>(f)
 }

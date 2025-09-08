@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::{Apply0L1T, Kind0L1T},
 };
 
@@ -30,8 +30,8 @@ pub trait Semiapplicative: Kind0L1T {
 	///
 	/// The result of applying the function to the value, all within the context.
 	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
+		ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -63,7 +63,7 @@ pub trait Semiapplicative: Kind0L1T {
 /// );
 /// ```
 pub fn apply<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
-	ff: Apply0L1T<Brand, ApplyFn<'a, ClonableFnBrand, A, B>>
-) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
+	ff: Apply0L1T<Brand, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
 	Brand::apply::<ClonableFnBrand, _, _>(ff)
 }

@@ -1,6 +1,6 @@
 use crate::{
 	classes::{
-		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn, monoid::Monoid1L0T,
 		semigroup::Semigroup1L0T,
 	},
 	hkt::Kind1L0T,
@@ -26,11 +26,11 @@ where
 	/// ```
 	fn append<'a, ClonableFnBrand: 'a + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 	{
-		ClonableFnBrand::new(move |b: Self| [a.to_owned(), b.to_owned()].concat())
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| [a.to_owned(), b.to_owned()].concat())
 	}
 }
 

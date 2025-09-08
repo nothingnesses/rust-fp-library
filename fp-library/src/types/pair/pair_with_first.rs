@@ -3,7 +3,7 @@
 use crate::{
 	classes::{
 		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Monoid, Pointed,
-		Semiapplicative, Semigroup, Semimonad, Traversable, clonable_fn::ApplyFn,
+		Semiapplicative, Semigroup, Semimonad, Traversable, clonable_fn::ApplyClonableFn,
 		monoid::Monoid1L0T, semigroup::Semigroup1L0T,
 	},
 	functions::{append, apply, constant, empty, identity, map},
@@ -31,9 +31,9 @@ impl<First> Functor for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-		f: ApplyFn<'a, ClonableFnBrand, A, B>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| Pair(fa.0, f(fa.1)))
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| Pair(fa.0, f(fa.1)))
 	}
 }
 
@@ -62,9 +62,9 @@ where
 	/// );
 	/// ```
 	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply0L1T<Self, ApplyFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fa: Apply0L1T<Self, _>| {
+		ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| {
 			Pair(append::<ClonableFnBrand, First>(ff.0.to_owned())(fa.0), ff.1(fa.1))
 		})
 	}
@@ -96,10 +96,10 @@ where
 	/// ```
 	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
-		ClonableFnBrand::new(move |fb| {
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fb| {
 			apply::<ClonableFnBrand, Self, _, _>(map::<ClonableFnBrand, Self, _, _>(
-				ClonableFnBrand::new(constant::<ClonableFnBrand, _, _>),
+				<ClonableFnBrand as ClonableFn>::new(constant::<ClonableFnBrand, _, _>),
 			)(fa.to_owned()))(fb)
 		})
 	}
@@ -131,10 +131,10 @@ where
 	/// ```
 	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		fa: Apply0L1T<Self, A>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
-		ClonableFnBrand::new(move |fb| {
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
+		<ClonableFnBrand as ClonableFn>::new(move |fb| {
 			(apply::<ClonableFnBrand, Self, _, _>((map::<ClonableFnBrand, Self, _, _>(
-				constant::<ClonableFnBrand, _, _>(ClonableFnBrand::new(identity)),
+				constant::<ClonableFnBrand, _, _>(<ClonableFnBrand as ClonableFn>::new(identity)),
 			))(fa.to_owned())))(fb)
 		})
 	}
@@ -182,19 +182,21 @@ where
 	/// ```
 	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 		ma: Apply0L1T<Self, A>
-	) -> ApplyFn<
+	) -> ApplyClonableFn<
 		'a,
 		ClonableFnBrand,
-		ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
+		ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
 		Apply0L1T<Self, B>,
 	> {
-		ClonableFnBrand::new(move |f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>| {
-			let Pair(ma_first, ma_second) = &ma;
-			let Pair(f_ma_second_first, f_ma_second_second) = f(ma_second.to_owned());
-			Pair::new::<ClonableFnBrand>(append::<ClonableFnBrand, First>(ma_first.to_owned())(
-				f_ma_second_first,
-			))(f_ma_second_second)
-		})
+		<ClonableFnBrand as ClonableFn>::new(
+			move |f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>| {
+				let Pair(ma_first, ma_second) = &ma;
+				let Pair(f_ma_second_first, f_ma_second_second) = f(ma_second.to_owned());
+				Pair::new::<ClonableFnBrand>(append::<ClonableFnBrand, First>(ma_first.to_owned())(
+					f_ma_second_first,
+				))(f_ma_second_second)
+			},
+		)
 	}
 }
 
@@ -211,10 +213,15 @@ impl<First> Foldable for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |b: B| {
-			ClonableFnBrand::new({
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyClonableFn<
+		'a,
+		ClonableFnBrand,
+		B,
+		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
+	> {
+		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
+			<ClonableFnBrand as ClonableFn>::new({
 				let f = f.clone();
 				move |fa| {
 					let (f, b, Pair(_, a)) = (f.clone(), b.to_owned(), fa);
@@ -241,19 +248,20 @@ where
 	/// );
 	/// ```
 	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
 		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>:
+			Clone,
 		Apply0L1T<Self, B>: 'a,
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
-		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
+		<ClonableFnBrand as ClonableFn>::new(move |ta: Apply0L1T<Self, _>| {
 			let (f, Pair(first, second)) = (f.clone(), ta);
-			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(ClonableFnBrand::new(move |second| {
-				Pair::new::<ClonableFnBrand>(first.to_owned())(second)
-			}))(f(second))
+			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(<ClonableFnBrand as ClonableFn>::new(
+				move |second| Pair::new::<ClonableFnBrand>(first.to_owned())(second),
+			))(f(second))
 		})
 	}
 }

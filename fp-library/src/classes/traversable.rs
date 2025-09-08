@@ -1,5 +1,5 @@
 use crate::{
-	classes::{Applicative, ClonableFn, Foldable, Functor, clonable_fn::ApplyFn},
+	classes::{Applicative, ClonableFn, Foldable, Functor, clonable_fn::ApplyClonableFn},
 	functions::{identity, map},
 	hkt::Apply0L1T,
 };
@@ -41,15 +41,16 @@ pub trait Traversable: Functor + Foldable {
 	/// );
 	/// ```
 	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
-		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+		f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
 		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>:
+			Clone,
 		Apply0L1T<Self, B>: 'a,
 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
 	{
-		ClonableFnBrand::new(move |ta| {
+		<ClonableFnBrand as ClonableFn>::new(move |ta| {
 			Self::sequence::<ClonableFnBrand, F, B>(
 				map::<ClonableFnBrand, Self, _, Apply0L1T<F, B>>(f.clone())(ta),
 			)
@@ -89,12 +90,15 @@ pub trait Traversable: Functor + Foldable {
 	) -> Apply0L1T<F, Apply0L1T<Self, A>>
 	where
 		Apply0L1T<F, A>: 'a + Clone,
-		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>>: Clone,
+		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>>:
+			Clone,
 		Apply0L1T<Self, A>: 'a,
 		Apply0L1T<Self, Apply0L1T<F, A>>: 'a,
 		Apply0L1T<F, Apply0L1T<Self, A>>: 'a,
 	{
-		(Self::traverse::<ClonableFnBrand, F, _, A>(ClonableFnBrand::new(identity)))(t)
+		(Self::traverse::<ClonableFnBrand, F, _, A>(<ClonableFnBrand as ClonableFn>::new(identity)))(
+			t,
+		)
 	}
 }
 
@@ -138,11 +142,12 @@ pub fn traverse<
 	A: Clone,
 	B: 'a + Clone,
 >(
-	f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<F, Apply0L1T<Brand, B>>>
+	f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<F, Apply0L1T<Brand, B>>>
 where
 	Apply0L1T<F, B>: Clone,
-	Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>>>: Clone,
+	Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>>>:
+		Clone,
 	Apply0L1T<Brand, B>: 'a,
 	Apply0L1T<Brand, Apply0L1T<F, B>>: 'a,
 {
@@ -191,7 +196,8 @@ pub fn sequence<
 ) -> Apply0L1T<F, Apply0L1T<Brand, A>>
 where
 	Apply0L1T<F, A>: 'a + Clone,
-	Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, A>>>: Clone,
+	Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, A>>>:
+		Clone,
 	Apply0L1T<Brand, A>: 'a,
 	Apply0L1T<Brand, Apply0L1T<F, A>>: 'a,
 	Apply0L1T<F, Apply0L1T<Brand, A>>: 'a,

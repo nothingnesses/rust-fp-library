@@ -2,7 +2,7 @@
 //! of [type class][crate::classes] functions that dispatch to associated
 //! functions of type class instances.
 
-use crate::classes::{ClonableFn, clonable_fn::ApplyFn};
+use crate::classes::{ClonableFn, clonable_fn::ApplyClonableFn};
 pub use crate::classes::{
 	apply_first::apply_first,
 	apply_second::apply_second,
@@ -50,16 +50,16 @@ pub use crate::classes::{
 /// );
 /// ```
 pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
-	f: ApplyFn<'a, ClonableFnBrand, B, C>
-) -> ApplyFn<
+	f: ApplyClonableFn<'a, ClonableFnBrand, B, C>
+) -> ApplyClonableFn<
 	'a,
 	ClonableFnBrand,
-	ApplyFn<'a, ClonableFnBrand, A, B>,
-	ApplyFn<'a, ClonableFnBrand, A, C>,
+	ApplyClonableFn<'a, ClonableFnBrand, A, B>,
+	ApplyClonableFn<'a, ClonableFnBrand, A, C>,
 > {
-	ClonableFnBrand::new(move |g: ApplyFn<'a, ClonableFnBrand, _, _>| {
+	<ClonableFnBrand as ClonableFn>::new(move |g: ApplyClonableFn<'a, ClonableFnBrand, _, _>| {
 		let f = f.clone();
-		ClonableFnBrand::new(move |a| f(g(a)))
+		<ClonableFnBrand as ClonableFn>::new(move |a| f(g(a)))
 	})
 }
 
@@ -90,8 +90,8 @@ pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
 /// ```
 pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 	a: A
-) -> ApplyFn<'a, ClonableFnBrand, B, A> {
-	ClonableFnBrand::new(move |_b| a.to_owned())
+) -> ApplyClonableFn<'a, ClonableFnBrand, B, A> {
+	<ClonableFnBrand as ClonableFn>::new(move |_b| a.to_owned())
 }
 
 /// Returns a version of the input curried binary function
@@ -112,10 +112,10 @@ pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 /// # Examples
 ///
 /// ```rust
-/// use fp_library::{brands::RcFnBrand, functions::flip, classes::clonable_fn::ApplyFn};
+/// use fp_library::{brands::RcFnBrand, functions::flip, classes::clonable_fn::ApplyClonableFn};
 /// use std::rc::Rc;
 ///
-/// let subtract: ApplyFn<RcFnBrand, _, ApplyFn<RcFnBrand, _, _>> = Rc::new(|a| Rc::new(move |b| a - b));
+/// let subtract: ApplyClonableFn<RcFnBrand, _, ApplyClonableFn<RcFnBrand, _, _>> = Rc::new(|a| Rc::new(move |b| a - b));
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
@@ -124,11 +124,11 @@ pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
 /// );
 /// ```
 pub fn flip<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a + Clone, C: 'a>(
-	f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, C>>
-) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, A, C>> {
-	ClonableFnBrand::new(move |b: B| {
+	f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, C>>
+) -> ApplyClonableFn<'a, ClonableFnBrand, B, ApplyClonableFn<'a, ClonableFnBrand, A, C>> {
+	<ClonableFnBrand as ClonableFn>::new(move |b: B| {
 		let f = f.clone();
-		ClonableFnBrand::new(move |a| (f(a))(b.to_owned()))
+		<ClonableFnBrand as ClonableFn>::new(move |a| (f(a))(b.to_owned()))
 	})
 }
 

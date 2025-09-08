@@ -1,5 +1,5 @@
 use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyFn},
+	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
 	hkt::{Apply1L0T, Kind1L0T},
 };
 
@@ -32,7 +32,7 @@ pub trait Semigroup<'b> {
 	/// The result of combining the two values using the semigroup operation.
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a;
@@ -74,7 +74,7 @@ where
 /// ```
 pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroup1L0T>(
 	a: Apply1L0T<'a, Brand>
-) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, Brand>, Apply1L0T<'a, Brand>>
+) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L0T<'a, Brand>, Apply1L0T<'a, Brand>>
 where
 	for<'b> Apply1L0T<'b, Brand>: Semigroup<'b>,
 {
