@@ -243,13 +243,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
 /// );
 /// ```
 impl<E: Clone> Traversable for ResultWithErrBrand<E> {
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
+	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where

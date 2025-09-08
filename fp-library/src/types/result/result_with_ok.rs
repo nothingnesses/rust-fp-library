@@ -246,13 +246,7 @@ impl<T: Clone> Traversable for ResultWithOkBrand<T> {
 	///     Some(Err(10))
 	/// );
 	/// ```
-	fn traverse<
-		'a,
-		ClonableFnBrand: 'a + ClonableFn,
-		F: Applicative,
-		A: 'a + Clone,
-		B: 'a + Clone,
-	>(
+	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
 	where
