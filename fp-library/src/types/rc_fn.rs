@@ -1,12 +1,15 @@
-use std::rc::Rc;
+//! Implementations for [reference-counted][std::rc::Rc] [closures][Fn]
+//! (`Rc<dyn Fn(A) -> B>`).
 
 use crate::{
 	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
 	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
+use std::rc::Rc;
 
-/// A brand type for reference-counted closures (`Rc<dyn Fn(A) -> B>`).
+/// A brand type for [reference-counted][std::rc::Rc] [closures][Fn]
+/// (`Rc<dyn Fn(A) -> B>`).
 ///
 /// This struct implements [`ClonableFn`] to provide a way to construct and
 /// type-check [`Rc`]-wrapped closures in a generic context. The lifetime `'a`

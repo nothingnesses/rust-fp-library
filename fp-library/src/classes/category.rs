@@ -13,7 +13,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// # Type Signature
 	///
-	/// `forall t. Category c => () -> c a a`
+	/// `forall a. Category c => () -> c a a`
 	///
 	/// # Returns
 	///
@@ -27,7 +27,7 @@ pub trait Category: Semigroupoid {
 ///
 /// # Type Signature
 ///
-/// `forall t. Category c => () -> c a a`
+/// `forall a. Category c => () -> c a a`
 ///
 /// # Returns
 ///

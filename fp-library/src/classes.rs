@@ -1,4 +1,10 @@
 //! Type classes.
+//!
+//! Higher-kinded type classes (those with arities > 0, e.g., [`Functor`],
+//! which has arity 1) are usually implemented by
+//! [`Brand` types][crate::brands], which are higher-kinded (arities > 0)
+//! representation of [types][crate::types], instead of directly by concrete
+//! types (which have arity 0).
 
 pub mod applicative;
 pub mod apply_first;

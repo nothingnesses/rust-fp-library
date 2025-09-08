@@ -1,4 +1,12 @@
 //! Higher-kinded representations of [types][crate::types].
+//!
+//! Brands represent higher-kinded (unapplied/partially-applied) forms of
+//! [types][crate::types], as opposed to concrete types, which are
+//! fully-applied.
+//!
+//! For example, [`VecBrand`] represents the higher-kinded type `Vec`, whereas
+//! `Vec A`/`Vec<A>` is the concrete type where `Vec` has been applied to some
+//! generic type `A`.
 
 pub use crate::types::{
 	arc_fn::ArcFnBrand,

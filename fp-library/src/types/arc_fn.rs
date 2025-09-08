@@ -1,3 +1,6 @@
+//! Implementations for [atomically reference-counted][std::sync::Arc]
+//! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
+
 use crate::{
 	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
 	functions::{compose, identity},
@@ -5,7 +8,8 @@ use crate::{
 };
 use std::sync::Arc;
 
-/// A brand type for atomically reference-counted closures (`Arc<dyn Fn(A) -> B>`).
+/// A brand type for [atomically reference-counted][std::sync::Arc]
+/// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
 /// This struct implements [`ClonableFn`] to provide a way to construct and
 /// type-check [`Arc`]-wrapped closures in a generic context. The lifetime `'a`
