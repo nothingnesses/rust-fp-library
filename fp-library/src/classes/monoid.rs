@@ -59,10 +59,9 @@ where
 ///
 /// assert_eq!(empty::<String>(), "".to_string());
 ///
-pub fn empty<'a, HktBrand>() -> Apply1L0T<'a, HktBrand>
+pub fn empty<'a, Brand: Monoid1L0T>() -> Apply1L0T<'a, Brand>
 where
-	HktBrand: Monoid1L0T,
-	for<'b> Apply1L0T<'b, HktBrand>: Monoid<'b>,
+	for<'b> Apply1L0T<'b, Brand>: Monoid<'b>,
 {
-	<Apply1L0T<'a, HktBrand> as Monoid<'a>>::empty()
+	<Apply1L0T<'a, Brand> as Monoid<'a>>::empty()
 }

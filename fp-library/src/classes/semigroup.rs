@@ -72,13 +72,13 @@ where
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: Semigroup1L0T>(
-	a: Apply1L0T<'a, HktBrand>
-) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
+pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroup1L0T>(
+	a: Apply1L0T<'a, Brand>
+) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, Brand>, Apply1L0T<'a, Brand>>
 where
-	for<'b> Apply1L0T<'b, HktBrand>: Semigroup<'b>,
+	for<'b> Apply1L0T<'b, Brand>: Semigroup<'b>,
 {
-	<Apply1L0T<'a, HktBrand> as Semigroup<'a>>::append::<ClonableFnBrand>(a)
+	<Apply1L0T<'a, Brand> as Semigroup<'a>>::append::<ClonableFnBrand>(a)
 }
 
 // #[cfg(test)]
