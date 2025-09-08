@@ -1,7 +1,7 @@
 //! Convenience type aliases for the [`Kind` traits][crate::hkt::kinds].
 //!
 //! The naming convention used by these aliases is `ApplyNLMT` where `N`
-//! represents the number of lifetimes and `T` represents the number of
+//! represents the number of lifetimes and `M` represents the number of
 //! generic types.
 //!
 //! If a [`Brand`][crate::brands] `FooBrand` for concrete type `Foo<A>`
