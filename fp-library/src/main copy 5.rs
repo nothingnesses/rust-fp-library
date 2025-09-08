@@ -274,16 +274,33 @@ make_type_apply!(
 /// );
 /// ```
 pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
-	f: ApplyFn<'a, ClonableFnBrand, B, C>
-) -> ApplyFn<
+	f: Apply1L2T<'a, ClonableFnBrand, B, C>
+) -> Apply1L2T<
 	'a,
 	ClonableFnBrand,
-	ApplyFn<'a, ClonableFnBrand, A, B>,
-	ApplyFn<'a, ClonableFnBrand, A, C>,
-> {
-	ClonableFnBrand::new(move |g: ApplyFn<'a, ClonableFnBrand, _, _>| {
+	Apply1L2T<'a, ClonableFnBrand, A, B>,
+	Apply1L2T<'a, ClonableFnBrand, A, C>,
+>
+where
+	Apply1L2T<'a, ClonableFnBrand, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>,
+	Apply1L2T<'a, ClonableFnBrand, B, C>: Clone + Deref<Target = dyn 'a + Fn(B) -> C>,
+	Apply1L2T<'a, ClonableFnBrand, A, C>: Clone + Deref<Target = dyn 'a + Fn(A) -> C>,
+	Apply1L2T<
+		'a,
+		ClonableFnBrand,
+		Apply1L2T<'a, ClonableFnBrand, A, B>,
+		Apply1L2T<'a, ClonableFnBrand, A, C>,
+	>: Clone
+		+ Deref<
+			Target = dyn 'a
+			             + Fn(
+				Apply1L2T<'a, ClonableFnBrand, A, B>,
+			) -> Apply1L2T<'a, ClonableFnBrand, A, C>,
+		>,
+{
+	ClonableFnBrand::new(move |g: Apply1L2T<'a, ClonableFnBrand, A, B>| {
 		let f = f.clone();
-		ClonableFnBrand::new(move |a| f(g(a)))
+		ClonableFnBrand::new(move |a: A| f(g(a)))
 	})
 }
 
@@ -326,12 +343,10 @@ pub fn identity<A>(a: A) -> A {
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait ClonableFn: Category {
-	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
-
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Apply1L2T<'a, Self, A, B>
+	where
+		Apply1L2T<'a, Self, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 }
-
-pub type ApplyFn<'a, Brand, A, B> = <Brand as ClonableFn>::Output<'a, A, B>;
 
 /// A type class for semigroupoids.
 ///
@@ -359,9 +374,12 @@ pub trait Semigroupoid: Kind1L2T {
 	/// # Returns
 	///
 	/// The morphism `f` composed with `g` of type `a b d`.
-	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
+	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B: 'a, C: 'a, D: 'a>(
 		f: Apply1L2T<'a, Self, C, D>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>;
+	) -> Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>
+	where
+		Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>: Clone
+			+ Deref<Target = dyn 'a + Fn(Apply1L2T<'a, Self, B, C>) -> Apply1L2T<'a, Self, B, D>>;
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -394,9 +412,20 @@ pub trait Semigroupoid: Kind1L2T {
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(times_two_add_one(3), 7);
 /// ```
-pub fn semigroupoid_compose<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroupoid, B, C, D>(
+pub fn semigroupoid_compose<
+	'a,
+	ClonableFnBrand: 'a + ClonableFn,
+	Brand: Semigroupoid,
+	B: 'a,
+	C: 'a,
+	D: 'a,
+>(
 	f: Apply1L2T<'a, Brand, C, D>
-) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>> {
+) -> Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>>
+where
+	Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Brand, B, C>, Apply1L2T<'a, Brand, B, D>>: Clone
+		+ Deref<Target = dyn 'a + Fn(Apply1L2T<'a, Brand, B, C>) -> Apply1L2T<'a, Brand, B, D>>,
+{
 	Brand::compose::<'a, ClonableFnBrand, B, C, D>(f)
 }
 
@@ -446,7 +475,7 @@ pub fn category_identity<'a, Brand: Category, T: 'a>() -> Apply1L2T<'a, Brand, T
 
 /// A type class for semigroups.
 ///
-/// A `Semigroup` is a set equipped with an associative binary operation.
+/// A `Semigroup` is a set equipped wiCategoryBrandth an associative binary operation.
 ///
 /// In functional programming, semigroups are useful for combining values
 /// in a consistent way. They form the basis for more complex structures
@@ -473,10 +502,12 @@ pub trait Semigroup<'b> {
 	/// The result of combining the two values using the semigroup operation.
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> Apply1L2T<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
-		'b: 'a;
+		'b: 'a,
+		Apply1L2T<'a, ClonableFnBrand, Self, Self>:
+			Clone + Deref<Target = dyn 'a + Fn(Self) -> Self>;
 }
 
 /// A higher-kinded Semigroup, abstracting over the lifetime parameter.
@@ -515,9 +546,11 @@ where
 /// ```
 pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: HktSemigroup>(
 	a: Apply1L0T<'a, HktBrand>
-) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
+) -> Apply1L2T<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
 where
 	for<'b> Apply1L0T<'b, HktBrand>: Semigroup<'b>,
+	Apply1L2T<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>:
+		Clone + Deref<Target = dyn 'a + Fn(Apply1L0T<'a, HktBrand>) -> Apply1L0T<'a, HktBrand>>,
 {
 	<Apply1L0T<'a, HktBrand> as Semigroup<'a>>::append::<ClonableFnBrand>(a)
 }
@@ -600,17 +633,22 @@ impl Kind1L2T for RcFnBrand {
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = <Self as Kind1L2T>::Output<'a, A, B>;
-
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Apply1L2T<'a, Self, A, B>
+	where
+		Apply1L2T<'a, Self, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>,
+	{
 		Rc::new(f)
 	}
 }
 
 impl Semigroupoid for RcFnBrand {
-	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
+	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B: 'a, C: 'a, D: 'a>(
 		f: Apply1L2T<'a, Self, C, D>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>> {
+	) -> Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>
+	where
+		Apply1L2T<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>: Clone
+			+ Deref<Target = dyn 'a + Fn(Apply1L2T<'a, Self, B, C>) -> Apply1L2T<'a, Self, B, D>>,
+	{
 		ClonableFnBrand::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
 			compose::<'a, Self, _, _, _>(f.clone())(g)
 		})
@@ -664,10 +702,12 @@ where
 {
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
-	) -> ApplyFn<'a, ClonableFnBrand, Self, Self>
+	) -> Apply1L2T<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
+		Apply1L2T<'a, ClonableFnBrand, Self, Self>:
+			Clone + Deref<Target = dyn 'a + Fn(Self) -> Self>,
 	{
 		ClonableFnBrand::new(move |b: Self| {
 			Endomorphism(semigroupoid_compose::<'b, ClonableFnBrand, CategoryBrand, _, _, _>(
@@ -787,63 +827,25 @@ pub trait Foldable: Kind0L1T {
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |initial_b: B| {
-			let f = f.clone();
-			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-				// We'll define a simple wrapper struct for B -> B functions to make it a Monoid.
-				// This is a local "Endo" monoid specific to this function's needs.
-				struct Endo<'c, F: ClonableFn, T: 'c>(ApplyFn<'c, F, T, T>);
-
-				impl<'c, F, T> Clone for Endo<'c, F, T>
-				where
-					F: ClonableFn,
-					T: 'c,
-				{
-					fn clone(&self) -> Self {
-						Endo(self.0.clone())
-					}
+		ClonableFnBrand::new::<'a, B, _>(move |b: B| {
+			ClonableFnBrand::new::<'a, _, B>({
+				let f = f.clone();
+				move |fa: Apply0L1T<Self, A>| {
+					let fold_map_f: ApplyFn<
+						'a,
+						ClonableFnBrand,
+						Apply0L1T<Self, A>,
+						Endomorphism<'a, ClonableFnBrand, B>,
+					> = Self::fold_map::<ClonableFnBrand, A, Endomorphism<'a, ClonableFnBrand, B>>(
+						ClonableFnBrand::new({
+							let f = f.clone();
+							move |a: A| Endomorphism::<'a, ClonableFnBrand, B>(f(a))
+						}),
+					);
+					let fold_map_f_fa: Endomorphism<'a, ClonableFnBrand, B> = fold_map_f(fa);
+					let fold_map_f_fa_b: B = (fold_map_f_fa.0)(b.to_owned());
+					fold_map_f_fa_b
 				}
-
-				// Implement Semigroup for our local Endo wrapper
-				impl<'c, F, T> Semigroup<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn append<'d, CFB: 'd + 'c + ClonableFn>(
-						a: Self
-					) -> ApplyFn<'d, CFB, Self, Self>
-					where
-						Self: Sized,
-						'c: 'd,
-					{
-						CFB::new(move |b: Self| Endo(compose::<'c, F, _, _, _>(a.0.clone())(b.0)))
-					}
-				}
-
-				// Implement Monoid for our local Endo wrapper
-				impl<'c, F, T> Monoid<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn empty() -> Self {
-						Endo(F::new(identity))
-					}
-				}
-
-				// 1. Create a function that maps an `A` to our `Endo<B>` monoid.
-				let a_to_endo_b = ClonableFnBrand::new({
-					let f = f.clone();
-					move |a: A| Endo(f(a))
-				});
-
-				// 2. Use fold_map to combine all `A`s into a single `Endo<B>`.
-				let combined_endo: Endo<'a, ClonableFnBrand, B> =
-					Self::fold_map::<'a, ClonableFnBrand, _, _>(a_to_endo_b)(fa);
-
-				// 3. Apply the resulting composed function to the initial value.
-				(combined_endo.0)(initial_b.clone())
 			})
 		})
 	}

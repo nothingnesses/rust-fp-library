@@ -742,25 +742,26 @@ pub trait Foldable: Kind0L1T {
 	/// Final monoid obtained from the folding operation.
 	fn fold_map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, M: Monoid<'a> + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, M>
-	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M>
+	where
+		// for<'b> Apply1L0T<'b, M>: Monoid<'b>,
+		// for<'b> M: HktMonoid<Output<'b> = M>,
+		// for<'b> ApplyFn<'a, ClonableFnBrand, M, M>:
+		// 	HktMonoid<Output<'b> = ApplyFn<'a, ClonableFnBrand, M, M>>,
+		// for<'b> ApplyFn<'a, ClonableFnBrand, M, M>: Monoid<'b>,
+	{
 		ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-			let append_ =
-				ClonableFnBrand::new::<'a, M, _>(Semigroup::<'a>::append::<ClonableFnBrand>);
-			let compose_append = compose::<'a, ClonableFnBrand, A, M, _>(append_);
-			let compose_append_f: ApplyFn<
-				'a,
-				ClonableFnBrand,
-				A,
-				ApplyFn<'a, ClonableFnBrand, M, M>,
-			> = compose_append(f.clone());
+			let app = ClonableFnBrand::new::<'a, M, _>(move |a: M| {
+				Semigroup::<'a>::append::<ClonableFnBrand>(a)
+			});
+			// let compose_append = compose::<'a, ClonableFnBrand, A, M, _>(app);
+			let compose_append = compose::<'a, ClonableFnBrand, _, _, _>(app);
+			let compose_append_f = compose_append(f.clone());
+			let compose_append_f =
+				ClonableFnBrand::new::<'a, A, _>(move |a: A| compose_append_f(a));
 			let fold_right_compose_append_f =
 				Self::fold_right::<'a, ClonableFnBrand, A, M>(compose_append_f);
-			let fold_right_compose_append_f_empty: ApplyFn<
-				'a,
-				ClonableFnBrand,
-				Apply0L1T<Self, A>,
-				M,
-			> = fold_right_compose_append_f(M::empty());
+			let fold_right_compose_append_f_empty = fold_right_compose_append_f(Monoid::empty());
 			fold_right_compose_append_f_empty(fa)
 		})
 	}
@@ -786,64 +787,28 @@ pub trait Foldable: Kind0L1T {
 	/// Final value of type `B` obtained from the folding operation.
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |initial_b: B| {
-			let f = f.clone();
-			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-				// We'll define a simple wrapper struct for B -> B functions to make it a Monoid.
-				// This is a local "Endo" monoid specific to this function's needs.
-				struct Endo<'c, F: ClonableFn, T: 'c>(ApplyFn<'c, F, T, T>);
-
-				impl<'c, F, T> Clone for Endo<'c, F, T>
-				where
-					F: ClonableFn,
-					T: 'c,
-				{
-					fn clone(&self) -> Self {
-						Endo(self.0.clone())
-					}
+	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>>
+	where
+		Apply1L2T<'a, ClonableFnBrand, B, B>: Clone
+		// for<'b> ApplyFn<'a, ClonableFnBrand, B, B>:
+		// 	HktMonoid<Output<'b> = ApplyFn<'a, ClonableFnBrand, B, B>>,
+		// for<'b> ApplyFn<'a, ClonableFnBrand, B, B>: Monoid<'b>,
+	{
+		ClonableFnBrand::new::<'a, B, _>(move |b: B| {
+			ClonableFnBrand::new::<'a, _, B>({
+				let f = f.clone();
+				move |fa: Apply0L1T<Self, A>| {
+					let fold_map_f =
+						Self::fold_map::<ClonableFnBrand, A, Endomorphism<'a, ClonableFnBrand, B>>(
+							ClonableFnBrand::new({
+								let f = f.clone();
+								move |a| Endomorphism(f(a))
+							}),
+						);
+					let fold_map_f_fa = fold_map_f(fa);
+					let fold_map_f_fa_b = fold_map_f_fa(b.to_owned());
+					fold_map_f_fa_b
 				}
-
-				// Implement Semigroup for our local Endo wrapper
-				impl<'c, F, T> Semigroup<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn append<'d, CFB: 'd + 'c + ClonableFn>(
-						a: Self
-					) -> ApplyFn<'d, CFB, Self, Self>
-					where
-						Self: Sized,
-						'c: 'd,
-					{
-						CFB::new(move |b: Self| Endo(compose::<'c, F, _, _, _>(a.0.clone())(b.0)))
-					}
-				}
-
-				// Implement Monoid for our local Endo wrapper
-				impl<'c, F, T> Monoid<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn empty() -> Self {
-						Endo(F::new(identity))
-					}
-				}
-
-				// 1. Create a function that maps an `A` to our `Endo<B>` monoid.
-				let a_to_endo_b = ClonableFnBrand::new({
-					let f = f.clone();
-					move |a: A| Endo(f(a))
-				});
-
-				// 2. Use fold_map to combine all `A`s into a single `Endo<B>`.
-				let combined_endo: Endo<'a, ClonableFnBrand, B> =
-					Self::fold_map::<'a, ClonableFnBrand, _, _>(a_to_endo_b)(fa);
-
-				// 3. Apply the resulting composed function to the initial value.
-				(combined_endo.0)(initial_b.clone())
 			})
 		})
 	}
