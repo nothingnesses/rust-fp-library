@@ -8,10 +8,6 @@ use crate::{
 /// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x)(f)` has type `m b`,
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
-///
-/// Note that `Semimonad` is a separate type class from [`Monad`][`crate::classes::Monad`]. In this library's
-/// hierarchy, [`Monad`][`crate::classes::Monad`] is a type class that extends both
-/// [`Applicative`][`crate::classes::Applicative`] and `Semimonad`.
 pub trait Semimonad: Kind0L1T {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
