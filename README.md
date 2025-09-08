@@ -16,3 +16,4 @@ A functional programming library for Rust featuring your favourite higher-kinded
 * [Counterexamples of Type Classes](https://blog.functorial.com/posts/2015-12-06-Counterexamples.html)
 * [Haskell semigroupoids package](https://github.com/ekmett/semigroupoids)
 * [https://wiki.haskell.org/Why_not_Pointed%3F](https://wiki.haskell.org/Why_not_Pointed%3F)
+* [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
