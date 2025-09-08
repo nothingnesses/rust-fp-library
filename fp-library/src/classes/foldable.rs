@@ -111,24 +111,19 @@ pub trait Foldable: Kind0L1T {
 		f: ApplyFn<'a, ClonableFnBrand, A, M>
 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, M> {
 		ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-			let append_ =
-				ClonableFnBrand::new::<'a, M, _>(Semigroup::<'a>::append::<ClonableFnBrand>);
-			let compose_append = compose::<'a, ClonableFnBrand, A, M, _>(append_);
-			let compose_append_f: ApplyFn<
+			((Self::fold_right::<'a, ClonableFnBrand, A, M>((compose::<
 				'a,
 				ClonableFnBrand,
 				A,
-				ApplyFn<'a, ClonableFnBrand, M, M>,
-			> = compose_append(f.clone());
-			let fold_right_compose_append_f =
-				Self::fold_right::<'a, ClonableFnBrand, A, M>(compose_append_f);
-			let fold_right_compose_append_f_empty: ApplyFn<
-				'a,
-				ClonableFnBrand,
-				Apply0L1T<Self, A>,
 				M,
-			> = fold_right_compose_append_f(M::empty());
-			fold_right_compose_append_f_empty(fa)
+				_,
+			>(ClonableFnBrand::new::<
+				'a,
+				M,
+				_,
+			>(
+				Semigroup::<'a>::append::<ClonableFnBrand>,
+			)))(f.clone())))(M::empty()))(fa)
 		})
 	}
 
