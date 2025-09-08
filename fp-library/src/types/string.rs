@@ -1,6 +1,16 @@
 //! Implementations for [`String`].
 
-use crate::classes::{ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn};
+use crate::{
+	classes::{
+		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		semigroup::Semigroup1L0T,
+	},
+	hkt::Kind1L0T,
+};
+
+impl Kind1L0T for String {
+	type Output<'a> = String;
+}
 
 impl<'b> Semigroup<'b> for String {
 	/// # Examples
@@ -25,6 +35,8 @@ impl<'b> Semigroup<'b> for String {
 	}
 }
 
+impl Semigroup1L0T for String {}
+
 impl<'a> Monoid<'a> for String {
 	/// # Examples
 	///
@@ -40,3 +52,5 @@ impl<'a> Monoid<'a> for String {
 		Self::default()
 	}
 }
+
+impl Monoid1L0T for String {}

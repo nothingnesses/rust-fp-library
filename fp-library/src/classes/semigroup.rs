@@ -39,7 +39,7 @@ pub trait Semigroup<'b> {
 }
 
 /// A higher-kinded Semigroup, abstracting over the lifetime parameter.
-pub trait HktSemigroup: Kind1L0T
+pub trait Semigroup1L0T: Kind1L0T
 where
 	for<'a> Apply1L0T<'a, Self>: Semigroup<'a>,
 {
@@ -72,7 +72,7 @@ where
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: HktSemigroup>(
+pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: Semigroup1L0T>(
 	a: Apply1L0T<'a, HktBrand>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
 where

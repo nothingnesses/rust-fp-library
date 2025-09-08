@@ -17,13 +17,13 @@ fn main() {
 
 	// Use the HKT `append` function. Note the composition order is (b)(a) -> b . a
 	let composed_endo: Endomorphism<RcFnBrand, i32> =
-		append::<RcFnBrand, EndomorphismHkt<RcFnBrand, i32>>(endo_add_one)(endo_times_two);
+		append::<RcFnBrand, EndomorphismBrand<RcFnBrand, i32>>(endo_add_one)(endo_times_two);
 
 	// (5 * 2) + 1 = 11
 	assert_eq!(composed_endo.0(5), 11);
 
 	// Test the identity element from the HKT `empty` function
-	let identity_endo: Endomorphism<RcFnBrand, i32> = empty::<EndomorphismHkt<RcFnBrand, i32>>();
+	let identity_endo: Endomorphism<RcFnBrand, i32> = empty::<EndomorphismBrand<RcFnBrand, i32>>();
 	assert_eq!(identity_endo.0(100), 100);
 }
 
@@ -328,7 +328,7 @@ pub fn identity<A>(a: A) -> A {
 pub trait ClonableFn: Category {
 	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B>;
 }
 
 pub type ApplyFn<'a, Brand, A, B> = <Brand as ClonableFn>::Output<'a, A, B>;
@@ -480,7 +480,7 @@ pub trait Semigroup<'b> {
 }
 
 /// A higher-kinded Semigroup, abstracting over the lifetime parameter.
-pub trait HktSemigroup: Kind1L0T
+pub trait Semigroup1L0T: Kind1L0T
 where
 	for<'a> Apply1L0T<'a, Self>: Semigroup<'a>,
 {
@@ -513,7 +513,7 @@ where
 ///     "Hello, World!"
 /// );
 /// ```
-pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: HktSemigroup>(
+pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, HktBrand: Semigroup1L0T>(
 	a: Apply1L0T<'a, HktBrand>
 ) -> ApplyFn<'a, ClonableFnBrand, Apply1L0T<'a, HktBrand>, Apply1L0T<'a, HktBrand>>
 where
@@ -552,7 +552,7 @@ pub trait Monoid<'a>: Semigroup<'a> {
 }
 
 /// A higher-kinded Monoid, abstracting over the lifetime parameter.
-pub trait HktMonoid: HktSemigroup
+pub trait Monoid1L0T: Semigroup1L0T
 where
 	for<'a> Apply1L0T<'a, Self>: Monoid<'a>,
 {
@@ -580,7 +580,7 @@ where
 ///
 pub fn empty<'a, HktBrand>() -> Apply1L0T<'a, HktBrand>
 where
-	HktBrand: HktMonoid,
+	HktBrand: Monoid1L0T,
 	for<'b> Apply1L0T<'b, HktBrand>: Monoid<'b>,
 {
 	<Apply1L0T<'a, HktBrand> as Monoid<'a>>::empty()
@@ -600,9 +600,9 @@ impl Kind1L2T for RcFnBrand {
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = <Self as Kind1L2T>::Output<'a, A, B>;
+	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Output<'a, A, B> {
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B> {
 		Rc::new(f)
 	}
 }
@@ -688,9 +688,9 @@ where
 	}
 }
 
-pub struct EndomorphismHkt<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
+pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
 
-impl<CategoryBrand, A> Kind1L0T for EndomorphismHkt<CategoryBrand, A>
+impl<CategoryBrand, A> Kind1L0T for EndomorphismBrand<CategoryBrand, A>
 where
 	A: 'static,
 	CategoryBrand: Category,
@@ -698,7 +698,7 @@ where
 	type Output<'a> = Endomorphism<'a, CategoryBrand, A>;
 }
 
-impl<CategoryBrand, A> HktSemigroup for EndomorphismHkt<CategoryBrand, A>
+impl<CategoryBrand, A> Semigroup1L0T for EndomorphismBrand<CategoryBrand, A>
 where
 	CategoryBrand: Category + 'static,
 	A: 'static,
@@ -706,12 +706,50 @@ where
 {
 }
 
-impl<CategoryBrand, A> HktMonoid for EndomorphismHkt<CategoryBrand, A>
+impl<CategoryBrand, A> Monoid1L0T for EndomorphismBrand<CategoryBrand, A>
 where
 	CategoryBrand: Category + 'static,
 	A: 'static,
 	for<'a> Apply1L2T<'a, CategoryBrand, A, A>: Clone,
 {
+}
+
+pub struct Endofunction<'a, ClonableFnBrand: ClonableFn, A: 'a>(ApplyFn<'a, ClonableFnBrand, A, A>);
+
+impl<'a, ClonableFnBrand, A> Clone for Endofunction<'a, ClonableFnBrand, A>
+where
+	ClonableFnBrand: ClonableFn,
+	A: 'a,
+{
+	fn clone(&self) -> Self {
+		Endofunction(self.0.clone())
+	}
+}
+
+impl<'b, ClonableFnBrand, A> Semigroup<'b> for Endofunction<'b, ClonableFnBrand, A>
+where
+	ClonableFnBrand: ClonableFn + 'b,
+	A: 'b,
+{
+	fn append<'a, CFB: 'a + 'b + ClonableFn>(a: Self) -> ApplyFn<'a, CFB, Self, Self>
+	where
+		Self: Sized,
+		'b: 'a,
+	{
+		CFB::new(move |b: Self| {
+			Endofunction(compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
+		})
+	}
+}
+
+impl<'a, ClonableFnBrand, A> Monoid<'a> for Endofunction<'a, ClonableFnBrand, A>
+where
+	ClonableFnBrand: ClonableFn + 'a,
+	A: 'a,
+{
+	fn empty() -> Self {
+		Endofunction(ClonableFnBrand::new(identity))
+	}
 }
 
 /// A type class for structures that can be folded to a single value.
@@ -787,63 +825,14 @@ pub trait Foldable: Kind0L1T {
 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-		ClonableFnBrand::new(move |initial_b: B| {
+		ClonableFnBrand::new(move |b: B| {
 			let f = f.clone();
 			ClonableFnBrand::new(move |fa: Apply0L1T<Self, A>| {
-				// We'll define a simple wrapper struct for B -> B functions to make it a Monoid.
-				// This is a local "Endo" monoid specific to this function's needs.
-				struct Endo<'c, F: ClonableFn, T: 'c>(ApplyFn<'c, F, T, T>);
-
-				impl<'c, F, T> Clone for Endo<'c, F, T>
-				where
-					F: ClonableFn,
-					T: 'c,
-				{
-					fn clone(&self) -> Self {
-						Endo(self.0.clone())
-					}
-				}
-
-				// Implement Semigroup for our local Endo wrapper
-				impl<'c, F, T> Semigroup<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn append<'d, CFB: 'd + 'c + ClonableFn>(
-						a: Self
-					) -> ApplyFn<'d, CFB, Self, Self>
-					where
-						Self: Sized,
-						'c: 'd,
-					{
-						CFB::new(move |b: Self| Endo(compose::<'c, F, _, _, _>(a.0.clone())(b.0)))
-					}
-				}
-
-				// Implement Monoid for our local Endo wrapper
-				impl<'c, F, T> Monoid<'c> for Endo<'c, F, T>
-				where
-					F: ClonableFn + 'c,
-					T: 'c,
-				{
-					fn empty() -> Self {
-						Endo(F::new(identity))
-					}
-				}
-
-				// 1. Create a function that maps an `A` to our `Endo<B>` monoid.
-				let a_to_endo_b = ClonableFnBrand::new({
+				(Self::fold_map::<'a, ClonableFnBrand, _, _>(ClonableFnBrand::new({
 					let f = f.clone();
-					move |a: A| Endo(f(a))
-				});
-
-				// 2. Use fold_map to combine all `A`s into a single `Endo<B>`.
-				let combined_endo: Endo<'a, ClonableFnBrand, B> =
-					Self::fold_map::<'a, ClonableFnBrand, _, _>(a_to_endo_b)(fa);
-
-				// 3. Apply the resulting composed function to the initial value.
-				(combined_endo.0)(initial_b.clone())
+					move |a: A| Endofunction::<'a, ClonableFnBrand, _>(f(a))
+				}))(fa)
+				.0)(b.clone())
 			})
 		})
 	}

@@ -36,10 +36,10 @@ pub trait Category: Semigroupoid {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::RcFnBrand, functions::identity};
+/// use fp_library::{brands::RcFnBrand, functions::category_identity};
 ///
-/// assert_eq!(identity::<RcFnBrand, _>()(()), ());
+/// assert_eq!(category_identity::<RcFnBrand, _>()(()), ());
 /// ```
-pub fn identity<'a, Brand: Category, A: 'a>() -> Apply1L2T<'a, Brand, A, A> {
+pub fn category_identity<'a, Brand: Category, A: 'a>() -> Apply1L2T<'a, Brand, A, A> {
 	Brand::identity::<'a, _>()
 }

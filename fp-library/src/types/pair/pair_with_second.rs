@@ -3,8 +3,8 @@
 use crate::{
 	classes::{
 		Applicative, Apply, ApplyFirst, ApplySecond, Bind, ClonableFn, Foldable, Functor, Monoid,
-		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn, monoid::HktMonoid,
-		semigroup::HktSemigroup,
+		Pointed, Semigroup, Traversable, clonable_fn::ApplyFn, monoid::Monoid1L0T,
+		semigroup::Semigroup1L0T,
 	},
 	functions::{append, apply, constant, identity, map},
 	hkt::{Apply0L1T, Apply1L0T, Kind0L1T},
@@ -40,7 +40,7 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
 impl<Second: Clone> Apply for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
-	for<'a> Second: HktSemigroup<Output<'a> = Second>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
 {
 	/// # Examples
 	///
@@ -73,7 +73,7 @@ where
 impl<Second: Clone> ApplyFirst for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
-	for<'a> Second: HktSemigroup<Output<'a> = Second>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
 {
 	/// # Examples
 	///
@@ -108,7 +108,7 @@ where
 impl<Second: Clone> ApplySecond for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
-	for<'a> Second: HktSemigroup<Output<'a> = Second>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
 {
 	/// # Examples
 	///
@@ -143,7 +143,7 @@ where
 impl<Second: Clone> Pointed for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Monoid<'a>,
-	for<'a> Second: HktMonoid<Output<'a> = Second>,
+	for<'a> Second: Monoid1L0T<Output<'a> = Second>,
 {
 	/// # Examples
 	///
@@ -163,7 +163,7 @@ where
 impl<Second: Clone> Bind for PairWithSecondBrand<Second>
 where
 	for<'a> Apply1L0T<'a, Second>: Semigroup<'a>,
-	for<'a> Second: HktSemigroup<Output<'a> = Second>,
+	for<'a> Second: Semigroup1L0T<Output<'a> = Second>,
 {
 	/// # Examples
 	///
@@ -198,68 +198,68 @@ where
 	}
 }
 
-// impl<Second> Foldable for PairWithSecondBrand<Second> {
-// 	/// # Examples
-// 	///
-// 	/// ```
-// 	/// use fp_library::{brands::{PairWithSecondBrand, RcFnBrand}, functions::fold_right, types::Pair};
-// 	/// use std::rc::Rc;
-// 	///
-// 	/// assert_eq!(
-// 	///     fold_right::<RcFnBrand, PairWithSecondBrand<_>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Pair(1, ())),
-// 	///     2
-// 	/// );
-// 	/// ```
-// 	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-// 		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
-// 	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
-// 		ClonableFnBrand::new(move |b: B| {
-// 			ClonableFnBrand::new({
-// 				let f = f.clone();
-// 				move |fa| {
-// 					let (f, b, Pair(a, _)) = (f.clone(), b.to_owned(), fa);
-// 					f(a)(b)
-// 				}
-// 			})
-// 		})
-// 	}
-// }
+impl<Second> Foldable for PairWithSecondBrand<Second> {
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithSecondBrand, RcFnBrand}, functions::fold_right, types::Pair};
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     fold_right::<RcFnBrand, PairWithSecondBrand<_>, _, _>(Rc::new(|a| Rc::new(move |b| a + b)))(1)(Pair(1, ())),
+	///     2
+	/// );
+	/// ```
+	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
+		f: ApplyFn<'a, ClonableFnBrand, A, ApplyFn<'a, ClonableFnBrand, B, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, B, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>> {
+		ClonableFnBrand::new(move |b: B| {
+			ClonableFnBrand::new({
+				let f = f.clone();
+				move |fa| {
+					let (f, b, Pair(a, _)) = (f.clone(), b.to_owned(), fa);
+					f(a)(b)
+				}
+			})
+		})
+	}
+}
 
-// impl<Second> Traversable for PairWithSecondBrand<Second>
-// where
-// 	Second: Clone,
-// {
-// 	/// # Examples
-// 	///
-// 	/// ```
-// 	/// use fp_library::{brands::{PairWithSecondBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Pair};
-// 	/// use std::rc::Rc;
-// 	///
-// 	/// assert_eq!(
-// 	///     traverse::<RcFnBrand, PairWithSecondBrand<_>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Pair(3, ())),
-// 	///     Some(Pair(6, ()))
-// 	/// );
-// 	/// ```
-// 	fn traverse<
-// 		'a,
-// 		ClonableFnBrand: 'a + ClonableFn,
-// 		F: Applicative,
-// 		A: 'a + Clone,
-// 		B: 'a + Clone,
-// 	>(
-// 		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-// 	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
-// 	where
-// 		Apply0L1T<F, B>: Clone,
-// 		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
-// 		Apply0L1T<Self, B>: 'a,
-// 		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
-// 	{
-// 		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
-// 			let (f, Pair(first, second)) = (f.clone(), ta);
-// 			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(ClonableFnBrand::new(move |first| {
-// 				Pair::new::<ClonableFnBrand>(first)(second.to_owned())
-// 			}))(f(first))
-// 		})
-// 	}
-// }
+impl<Second> Traversable for PairWithSecondBrand<Second>
+where
+	Second: Clone,
+{
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::{brands::{PairWithSecondBrand, OptionBrand, RcFnBrand}, functions::traverse, types::Pair};
+	/// use std::rc::Rc;
+	///
+	/// assert_eq!(
+	///     traverse::<RcFnBrand, PairWithSecondBrand<_>, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(Pair(3, ())),
+	///     Some(Pair(6, ()))
+	/// );
+	/// ```
+	fn traverse<
+		'a,
+		ClonableFnBrand: 'a + ClonableFn,
+		F: Applicative,
+		A: 'a + Clone,
+		B: 'a + Clone,
+	>(
+		f: ApplyFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
+	) -> ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+	where
+		Apply0L1T<F, B>: Clone,
+		Apply0L1T<F, ApplyFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>: Clone,
+		Apply0L1T<Self, B>: 'a,
+		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
+	{
+		ClonableFnBrand::new(move |ta: Apply0L1T<Self, _>| {
+			let (f, Pair(first, second)) = (f.clone(), ta);
+			map::<ClonableFnBrand, F, B, Apply0L1T<Self, B>>(ClonableFnBrand::new(move |first| {
+				Pair::new::<ClonableFnBrand>(first)(second.to_owned())
+			}))(f(first))
+		})
+	}
+}

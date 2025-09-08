@@ -41,7 +41,7 @@ impl Semigroupoid for RcFnBrand {
 }
 
 impl Category for RcFnBrand {
-	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
+	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A> {
 		Self::new::<'a, _, _>(identity)
 	}
 }

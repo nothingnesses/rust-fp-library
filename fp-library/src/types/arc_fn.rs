@@ -1,5 +1,5 @@
 use crate::{
-	classes::{clonable_fn::ApplyFn, Category, ClonableFn, Monoid, Semigroup, Semigroupoid},
+	classes::{Category, ClonableFn, Monoid, Semigroup, Semigroupoid, clonable_fn::ApplyFn},
 	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
@@ -40,7 +40,7 @@ impl Semigroupoid for ArcFnBrand {
 }
 
 impl Category for ArcFnBrand {
-	fn identity<'a, T: 'a>() -> Apply1L2T<'a, Self, T, T> {
+	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A> {
 		Self::new::<'a, _, _>(identity)
 	}
 }

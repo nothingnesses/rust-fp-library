@@ -1,4 +1,4 @@
-use crate::{classes::Category, hkt::Kind1L2T, make_type_apply};
+use crate::{classes::Category, make_type_apply};
 use std::ops::Deref;
 
 /// Abstraction for clonable wrappers over closures.
@@ -11,7 +11,7 @@ use std::ops::Deref;
 ///
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
-pub trait ClonableFn: Clone + Category {
+pub trait ClonableFn: Category {
 	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFn<'a, Self, A, B>;

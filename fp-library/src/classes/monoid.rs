@@ -1,4 +1,7 @@
-use crate::{classes::{semigroup::HktSemigroup, Semigroup}, hkt::Apply1L0T};
+use crate::{
+	classes::{Semigroup, semigroup::Semigroup1L0T},
+	hkt::Apply1L0T,
+};
 
 /// A type class for monoids.
 ///
@@ -30,7 +33,7 @@ pub trait Monoid<'a>: Semigroup<'a> {
 }
 
 /// A higher-kinded Monoid, abstracting over the lifetime parameter.
-pub trait HktMonoid: HktSemigroup
+pub trait Monoid1L0T: Semigroup1L0T
 where
 	for<'a> Apply1L0T<'a, Self>: Monoid<'a>,
 {
@@ -58,7 +61,7 @@ where
 ///
 pub fn empty<'a, HktBrand>() -> Apply1L0T<'a, HktBrand>
 where
-	HktBrand: HktMonoid,
+	HktBrand: Monoid1L0T,
 	for<'b> Apply1L0T<'b, HktBrand>: Monoid<'b>,
 {
 	<Apply1L0T<'a, HktBrand> as Monoid<'a>>::empty()
