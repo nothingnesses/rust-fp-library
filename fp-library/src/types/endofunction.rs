@@ -131,9 +131,7 @@ where
 	}
 }
 
-impl<'b, ClonableFnBrand: 'b + ClonableFn, A> Semigroup<'b>
-	for Endofunction<'b, ClonableFnBrand, A>
-{
+impl<'b, CFB: 'b + ClonableFn, A> Semigroup<'b> for Endofunction<'b, CFB, A> {
 	/// # Examples
 	///
 	/// ```
@@ -157,13 +155,15 @@ impl<'b, ClonableFnBrand: 'b + ClonableFn, A> Semigroup<'b>
 	///     5
 	/// );
 	/// ```
-	fn append<'a, CFB: 'a + 'b + ClonableFn>(a: Self) -> ApplyClonableFn<'a, CFB, Self, Self>
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+		a: Self
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
 	where
 		Self: Sized,
 		'b: 'a,
 	{
-		<CFB as ClonableFn>::new(move |b: Self| {
-			Self::new(compose::<'b, ClonableFnBrand, _, _, _>(a.0.clone())(b.0))
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+			Self::new(compose::<'b, CFB, _, _, _>(a.0.clone())(b.0))
 		})
 	}
 }

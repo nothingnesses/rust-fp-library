@@ -1,12 +1,11 @@
 //! Implementations for [`Lazy`], the type of lazily-computed, memoized values.
 
+use crate::classes::{ClonableFn, Defer, Semigroup, clonable_fn::ApplyClonableFn};
 use core::fmt;
 use std::{
 	fmt::{Debug, Formatter},
 	hash::Hash,
 };
-
-use crate::classes::{ClonableFn, Defer, clonable_fn::ApplyClonableFn};
 
 /// Represents a lazily-computed, memoized value.
 pub struct Lazy<'a, ClonableFnBrand: ClonableFn, A: 'a>(
@@ -15,21 +14,14 @@ pub struct Lazy<'a, ClonableFnBrand: ClonableFn, A: 'a>(
 );
 
 impl<'a, ClonableFnBrand: ClonableFn, A> Lazy<'a, ClonableFnBrand, A> {
-	pub fn new(a: impl 'a + Fn(()) -> A) -> Self {
-		Self(None, <ClonableFnBrand as ClonableFn>::new(a))
+	pub fn new(a: ApplyClonableFn<'a, ClonableFnBrand, (), A>) -> Self {
+		Self(None, a)
 	}
 
-	pub fn force(&mut self) -> A
-	where
-		A: Clone,
-	{
-		match self {
-			Self(Some(a), _) => a.clone(),
-			Self(_, f) => {
-				let a = f(());
-				self.0 = Some(a.clone());
-				a
-			}
+	pub fn force(a: Self) -> Self {
+		match a {
+			Self(Some(_), _) => a,
+			Self(_, f) => Self(Some(f(())), f.clone()),
 		}
 	}
 }
@@ -106,8 +98,34 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, ClonableFnBrand, A> {
-	fn defer(f: impl 'a + Fn(()) -> Self) -> Self {
-		Self::new(move |_| f(()).force())
+impl<'b, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b> for Lazy<'b, CFB, A> {
+	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+		a: Self
+	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
+	where
+		Self: Sized,
+		'b: 'a,
+	{
+		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+			Self::new(<CFB as ClonableFn>::new({
+				let a = a.clone();
+				move |_: ()| {
+					A::append::<ClonableFnBrand>(Lazy::force(a.clone()).0.unwrap())(
+						Lazy::force(b.clone()).0.unwrap(),
+					)
+				}
+			}))
+		})
+	}
+}
+
+impl<'a, CFB: ClonableFn, A> Defer<'a> for Lazy<'a, CFB, A> {
+	fn defer<ClonableFnBrand: 'a + ClonableFn>(
+		f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>
+	) -> Self
+	where
+		Self: Sized,
+	{
+		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, CFB, A>::force(f(())).0.unwrap()))
 	}
 }
