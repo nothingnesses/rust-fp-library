@@ -108,6 +108,6 @@ where
 
 impl<'a, ClonableFnBrand: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, ClonableFnBrand, A> {
 	fn defer(f: impl 'a + Fn(()) -> Self) -> Self {
-		Self::defer(<ClonableFnBrand as ClonableFn>::new(|_| f(()).force()))
+		Self::new(move |_| f(()).force())
 	}
 }
