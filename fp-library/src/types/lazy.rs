@@ -6,7 +6,7 @@ use std::{
 	hash::Hash,
 };
 
-use crate::classes::{ClonableFn, clonable_fn::ApplyClonableFn};
+use crate::classes::{ClonableFn, Defer, clonable_fn::ApplyClonableFn};
 
 /// Represents a lazily-computed, memoized value.
 pub struct Lazy<'a, ClonableFnBrand: ClonableFn, A: 'a>(
@@ -34,18 +34,14 @@ impl<'a, ClonableFnBrand: ClonableFn, A> Lazy<'a, ClonableFnBrand, A> {
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: 'a> Clone for Lazy<'a, ClonableFnBrand, A>
-where
-	A: Clone,
-{
+impl<'a, ClonableFnBrand: ClonableFn, A: 'a + Clone> Clone for Lazy<'a, ClonableFnBrand, A> {
 	fn clone(&self) -> Self {
 		Self(self.0.clone(), self.1.clone())
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> Debug for Lazy<'a, ClonableFnBrand, A>
+impl<'a, ClonableFnBrand: ClonableFn, A: Debug> Debug for Lazy<'a, ClonableFnBrand, A>
 where
-	A: Debug,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Debug,
 {
 	fn fmt(
@@ -56,16 +52,13 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> Eq for Lazy<'a, ClonableFnBrand, A>
-where
-	A: Eq,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Eq,
+impl<'a, ClonableFnBrand: ClonableFn, A: Eq> Eq for Lazy<'a, ClonableFnBrand, A> where
+	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Eq
 {
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> Hash for Lazy<'a, ClonableFnBrand, A>
+impl<'a, ClonableFnBrand: ClonableFn, A: Hash> Hash for Lazy<'a, ClonableFnBrand, A>
 where
-	A: Hash,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
@@ -77,9 +70,8 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> Ord for Lazy<'a, ClonableFnBrand, A>
+impl<'a, ClonableFnBrand: ClonableFn, A: Ord> Ord for Lazy<'a, ClonableFnBrand, A>
 where
-	A: Ord,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Ord,
 {
 	fn cmp(
@@ -90,9 +82,8 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> PartialEq for Lazy<'a, ClonableFnBrand, A>
+impl<'a, ClonableFnBrand: ClonableFn, A: PartialEq> PartialEq for Lazy<'a, ClonableFnBrand, A>
 where
-	A: PartialEq,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialEq,
 {
 	fn eq(
@@ -103,9 +94,8 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A> PartialOrd for Lazy<'a, ClonableFnBrand, A>
+impl<'a, ClonableFnBrand: ClonableFn, A: PartialOrd> PartialOrd for Lazy<'a, ClonableFnBrand, A>
 where
-	A: PartialOrd,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialOrd,
 {
 	fn partial_cmp(
@@ -113,5 +103,11 @@ where
 		other: &Self,
 	) -> Option<std::cmp::Ordering> {
 		self.0.partial_cmp(&other.0)
+	}
+}
+
+impl<'a, ClonableFnBrand: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, ClonableFnBrand, A> {
+	fn defer(f: impl 'a + Fn(()) -> Self) -> Self {
+		Self::defer(<ClonableFnBrand as ClonableFn>::new(|_| f(()).force()))
 	}
 }
