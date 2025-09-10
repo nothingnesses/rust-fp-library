@@ -18,11 +18,15 @@ impl<'a, ClonableFnBrand: ClonableFn, A> Lazy<'a, ClonableFnBrand, A> {
 		Self(None, a)
 	}
 
-	pub fn force(a: Self) -> Self {
+	pub fn evaluate(a: Self) -> Self {
 		match a {
 			Self(Some(_), _) => a,
 			Self(_, f) => Self(Some(f(())), f.clone()),
 		}
+	}
+
+	pub fn force(a: Self) -> A {
+		Self::evaluate(a).0.unwrap()
 	}
 }
 
@@ -110,9 +114,7 @@ impl<'b, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b> for Lazy<
 			Self::new(<CFB as ClonableFn>::new({
 				let a = a.clone();
 				move |_: ()| {
-					A::append::<ClonableFnBrand>(Lazy::force(a.clone()).0.unwrap())(
-						Lazy::force(b.clone()).0.unwrap(),
-					)
+					A::append::<ClonableFnBrand>(Lazy::force(a.clone()))(Lazy::force(b.clone()))
 				}
 			}))
 		})
@@ -126,6 +128,6 @@ impl<'a, CFB: ClonableFn, A> Defer<'a> for Lazy<'a, CFB, A> {
 	where
 		Self: Sized,
 	{
-		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, CFB, A>::force(f(())).0.unwrap()))
+		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, CFB, A>::force(f(()))))
 	}
 }
