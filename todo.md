@@ -1,5 +1,7 @@
 ### Todos/ideas to look into
 
+* Serde (de)serialisation for types.
+* Paralellisation using rayon.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * [Mutation testing](https://github.com/sourcefrog/cargo-mutants).
