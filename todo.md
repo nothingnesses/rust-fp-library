@@ -1,5 +1,6 @@
 ### Todos/ideas to look into
 
+* Look into making a Function/ClonableFn trait that doesn't input a lifetime parameter so we can implement Kind0L1T (and, consequently, Functor, etc.) for LazyBrand.
 * Serde (de)serialisation for types.
 * Paralellisation using rayon.
 * Property-based tests for type class laws.
