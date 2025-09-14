@@ -5,6 +5,8 @@ pub mod endofunction;
 pub mod endomorphism;
 pub mod identity;
 pub mod lazy;
+pub mod once_cell;
+pub mod once_lock;
 pub mod option;
 pub mod pair;
 pub mod rc_fn;

@@ -1,43 +1,50 @@
 //! Implementations for [`Lazy`], the type of lazily-computed, memoized values.
 
-use crate::classes::{ClonableFn, Defer, Semigroup, clonable_fn::ApplyClonableFn};
+use crate::{
+	classes::{
+		ClonableFn, Defer, Monoid, Once, Semigroup, clonable_fn::ApplyClonableFn, once::ApplyOnce,
+	},
+	hkt::Kind0L1T,
+};
 use core::fmt;
 use std::{
 	fmt::{Debug, Formatter},
-	hash::Hash,
+	hash::{Hash, Hasher},
 };
 
 /// Represents a lazily-computed, memoized value.
-pub struct Lazy<'a, ClonableFnBrand: ClonableFn, A: 'a>(
-	pub Option<A>,
+pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: 'a>(
+	pub ApplyOnce<OnceBrand, A>,
 	pub ApplyClonableFn<'a, ClonableFnBrand, (), A>,
 );
 
-impl<'a, ClonableFnBrand: ClonableFn, A> Lazy<'a, ClonableFnBrand, A> {
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, ClonableFnBrand, A> {
 	pub fn new(a: ApplyClonableFn<'a, ClonableFnBrand, (), A>) -> Self {
-		Self(None, a)
+		Self(OnceBrand::new(), a)
 	}
 
-	pub fn evaluate(a: Self) -> Self {
-		match a {
-			Self(Some(_), _) => a,
-			Self(_, f) => Self(Some(f(())), f.clone()),
-		}
-	}
-
-	pub fn force(a: Self) -> A {
-		Self::evaluate(a).0.unwrap()
+	pub fn force(a: Self) -> A
+	where
+		A: Clone,
+	{
+		<OnceBrand as Once>::get_or_init(&a.0, move || (a.1)(())).clone()
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: 'a + Clone> Clone for Lazy<'a, ClonableFnBrand, A> {
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: 'a + Clone> Clone
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
+where
+	ApplyOnce<OnceBrand, A>: Clone,
+{
 	fn clone(&self) -> Self {
 		Self(self.0.clone(), self.1.clone())
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: Debug> Debug for Lazy<'a, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Debug> Debug
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
+	ApplyOnce<OnceBrand, A>: Debug,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Debug,
 {
 	fn fmt(
@@ -48,16 +55,21 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: Eq> Eq for Lazy<'a, ClonableFnBrand, A> where
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Eq
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Eq> Eq
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
+where
+	ApplyOnce<OnceBrand, A>: Eq,
+	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Eq,
 {
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: Hash> Hash for Lazy<'a, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Hash> Hash
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
+	ApplyOnce<OnceBrand, A>: Hash,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Hash,
 {
-	fn hash<H: std::hash::Hasher>(
+	fn hash<H: Hasher>(
 		&self,
 		state: &mut H,
 	) {
@@ -66,8 +78,10 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: Ord> Ord for Lazy<'a, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Ord> Ord
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
+	ApplyOnce<OnceBrand, A>: Ord,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Ord,
 {
 	fn cmp(
@@ -78,8 +92,10 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: PartialEq> PartialEq for Lazy<'a, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: PartialEq> PartialEq
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
+	ApplyOnce<OnceBrand, A>: PartialEq,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialEq,
 {
 	fn eq(
@@ -90,8 +106,10 @@ where
 	}
 }
 
-impl<'a, ClonableFnBrand: ClonableFn, A: PartialOrd> PartialOrd for Lazy<'a, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: PartialOrd> PartialOrd
+	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
+	ApplyOnce<OnceBrand, A>: PartialOrd,
 	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialOrd,
 {
 	fn partial_cmp(
@@ -102,7 +120,11 @@ where
 	}
 }
 
-impl<'b, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b> for Lazy<'b, CFB, A> {
+impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b>
+	for Lazy<'b, OnceBrand, CFB, A>
+where
+	ApplyOnce<OnceBrand, A>: Clone,
+{
 	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
 		a: Self
 	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
@@ -121,13 +143,33 @@ impl<'b, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b> for Lazy<
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Defer<'a> for Lazy<'a, CFB, A> {
+impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid<'b> + Clone> Monoid<'b>
+	for Lazy<'b, OnceBrand, CFB, A>
+where
+	ApplyOnce<OnceBrand, A>: Clone,
+{
+	fn empty() -> Self {
+		Self::new(<CFB as ClonableFn>::new(move |_| <A as Monoid<'b>>::empty()))
+	}
+}
+
+impl<'a, OnceBrand: Once, CFB: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, OnceBrand, CFB, A> {
 	fn defer<ClonableFnBrand: 'a + ClonableFn>(
 		f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>
 	) -> Self
 	where
 		Self: Sized,
 	{
-		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, CFB, A>::force(f(()))))
+		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, OnceBrand, CFB, A>::force(f(()))))
 	}
+}
+
+pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(OnceBrand, ClonableFnBrand);
+
+impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
+	for LazyBrand<OnceBrand, ClonableFnBrand>
+where
+	A: 'static,
+{
+	type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
 }
