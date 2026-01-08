@@ -7,6 +7,7 @@
 3. [Refactoring Plan](#refactoring-plan)
 4. [Reasoning and Justification](#reasoning-and-justification)
 5. [Migration Strategy](#migration-strategy)
+6. [Future Considerations](#future-considerations)
 
 ---
 
@@ -91,20 +92,44 @@ A **hybrid approach** was recommended:
 1. **Use uncurried + `impl Fn`** for most operations (`map`, `bind`, `fold`, `traverse`):
 
    ```rust
-   fn map<F: Fn(A) -> B>(f: F, fa: Vec<A>) -> Vec<B>
+   fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+   where
+       F: Fn(A) -> B;
    ```
 
    → Zero-cost, fully monomorphized
 
-2. **Accept type erasure only for `apply`** where functions are genuinely data:
+   **Reasoning**: The HKT type `Apply0L1T<Self, A>` must be preserved to maintain generic programming over type constructors. The function type `F` is generic (not `dyn Fn`), enabling full monomorphization. Taking `f` and `fa` together (uncurried) eliminates the need to create intermediate closures.
+
+2. **Accept type erasure for operations where functions are stored or cloned as data values**:
+
+   | Operation                | Where Functions Are Data                        | Why Dynamic Dispatch Needed                                                      |
+   | ------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+   | `Semiapplicative::apply` | `ff: F<A -> B>` - functions inside a functor    | Multiple heterogeneous functions stored in container                             |
+   | `Lazy` type              | Stores thunk `() -> A` for deferred computation | Thunk must be clonable for lazy evaluation semantics                             |
+   | `Defer::defer`           | Takes `() -> Self` thunk                        | Deferred construction pattern                                                    |
+   | `Endofunction`           | Stores `A -> A` for Monoid composition          | `Monoid::append` requires `Self -> Self`, so composed type must equal input type |
+   | `Endomorphism`           | Same as Endofunction for category morphisms     | Same reason as Endofunction                                                      |
+
+   Example for `apply` (preserving brand abstraction for user choice of `Rc`/`Arc`):
 
    ```rust
-   fn apply<A, B>(ff: Vec<Rc<dyn Fn(A) -> B>>, fa: Vec<A>) -> Vec<B>
+   fn apply<'a, A, B, FnBrand>(
+       ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+       fa: Apply0L1T<Self, A>
+   ) -> Apply0L1T<Self, B>
+   where
+       FnBrand: ClonableFn,
+       A: Clone;
    ```
 
-   → Overhead is inherent to the abstraction
+   → Overhead is inherent to these abstractions
 
-3. **Optionally provide defunctionalized variants** for performance-critical paths where the function set is known
+   **Reasoning**: These operations fundamentally require storing functions in data structures. The brand abstraction (`FnBrand: ClonableFn`) is preserved rather than hardcoding `Rc` because:
+
+   - Users can choose between `RcFnBrand` (single-threaded, lower overhead) and `ArcFnBrand` (thread-safe)
+   - Consistent with the library's existing abstraction pattern
+   - Type erasure (`dyn Fn`) is unavoidable when heterogeneous functions must be stored in a container (e.g., `Vec<Rc<dyn Fn>>`)
 
 ---
 
@@ -178,28 +203,60 @@ A **hybrid approach** was recommended:
 
 ## Refactoring Plan
 
-### Phase 1: Remove/Simplify Function Wrapper Traits
+### Phase 1: Simplify and Restrict Function Wrapper Traits
 
-**Goal**: Eliminate the `Function` trait and restrict `ClonableFn` usage.
+**Goal**: Retain the `Function` trait hierarchy but restrict usage to operations that inherently require stored/clonable functions.
 
-#### Step 1.1: Delete Unused `Function` Trait
+#### Step 1.1: Keep `Function` Trait
 
 **File**: `fp-library/src/classes/function.rs`
 
-**Action**: Delete the entire file. The `Function` trait is never used standalone—only `ClonableFn` is used throughout the codebase.
+**Action**: Keep this trait. It provides a valuable base abstraction in the trait hierarchy.
 
-**Impact**:
+**Reasoning for Keeping `Function`**:
 
-- Remove from `fp-library/src/classes.rs` exports
-- Update `ClonableFn` to not extend `Function`
+1. **Enables `BoxFnBrand`**: A hypothetical brand using `Box<dyn Fn>` instead of `Rc`/`Arc`:
 
-#### Step 1.2: Restrict `ClonableFn` Usage
+   ```rust
+   pub struct BoxFnBrand;
+   impl Function for BoxFnBrand {
+       type Output<'a, A: 'a, B: 'a> = Box<dyn 'a + Fn(A) -> B>;
+       fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Self::Output<'a, A, B> {
+           Box::new(f)
+       }
+   }
+   // BoxFnBrand does NOT implement ClonableFn because Box<dyn Fn> isn't Clone
+   ```
+
+   **Use case**: When a function will only be called (not cloned), avoiding reference counting overhead.
+
+2. **Future subtraits**: A hypothetical `OnceFn` trait for `FnOnce` wrappers could extend `Function`:
+
+   ```rust
+   pub trait OnceFn: Function {
+       type Output<'a, A: 'a, B: 'a>: FnOnce(A) -> B;
+       fn new_once<'a, A: 'a, B: 'a>(f: impl 'a + FnOnce(A) -> B) -> Self::Output<'a, A, B>;
+   }
+   ```
+
+   **Use case**: Single-use callbacks, resource-consuming operations.
+
+3. **Conceptual hierarchy**: `Function` represents "all function wrappers", while `ClonableFn` adds clonability. This mirrors Rust's `Fn` trait hierarchy (`FnOnce` ⊃ `FnMut` ⊃ `Fn`).
+
+**Impact**: Minimal code savings from deletion, but significant loss of extension potential.
+
+#### Step 1.2: Keep `ClonableFn` Trait for Functions-as-Data
 
 **File**: `fp-library/src/classes/clonable_fn.rs`
 
-**Action**: Keep this trait, but remove it from the signatures of `Functor`, `Monad`, etc. It will only be used for types that inherently need to store functions (`Lazy`, `Defer`, `Endofunction`).
+**Action**: Keep this trait, but remove it from the signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable`, etc. It will only be used for operations that inherently need to store or clone functions:
 
-**Reasoning**: `Lazy` and `Defer` store thunks that must be clonable. We cannot easily replace this with `Box<dyn Fn>` because `Box` is not `Clone`.
+- `Semiapplicative::apply` (functions inside containers)
+- `Lazy` type (stores deferred thunks)
+- `Defer::defer` (deferred construction)
+- `Endofunction` / `Endomorphism` (function composition as Monoid)
+
+**Reasoning**: `Lazy` and `Defer` store thunks that must be clonable. `Semiapplicative::apply` stores functions inside containers (e.g., `Vec<fn>`). We cannot easily replace `Rc`/`Arc` with `Box<dyn Fn>` because `Box` is not `Clone`, and cloning is often required (e.g., `Vec::apply` needs to apply each function to each element).
 
 ---
 
@@ -633,17 +690,15 @@ This is considered an acceptable trade-off because:
 ### Approach: Parallel Implementation
 
 1. **Create new module structure** alongside existing code
-2. **Implement new traits** with `_v2` suffix initially
-3. **Migrate implementations** one type at a time
-4. **Update tests** to cover both versions
-5. **Deprecate old API** with compiler warnings
-6. **Remove old API** in next major version
+2. **Implement new traits**, including documentation and doc tests, in the new module
+3. **Reimplement types using new traits** including documentation and doc tests, in the new module
+4. **Fully replace old API with new one** in next minor version
 
 ### Versioning
 
 - **Current version**: 0.x.y (curried)
-- **Intermediate version**: 0.(x+1).0 (both APIs available, old deprecated)
-- **New version**: 1.0.0 (uncurried only)
+- **Intermediate version**: 0.x.(y+1) (both APIs available, old deprecated)
+- **New version**: 0.(x+1).0 (uncurried only)
 
 ### Testing Strategy
 
@@ -651,3 +706,87 @@ This is considered an acceptable trade-off because:
 2. **Property tests**: Verify laws hold for both APIs
 3. **Benchmark tests**: Add benchmarks comparing both approaches
 4. **Doc tests**: Rewrite all examples
+
+---
+
+## Future Considerations
+
+### Defunctionalization for Performance-Critical Paths
+
+**What it is**: Defunctionalization is a technique where instead of storing actual closures, you define an enum representing all possible operations, then interpret that enum when needed.
+
+**Example**:
+
+```rust
+// Instead of storing closures:
+// Vec<Rc<dyn Fn(i32) -> i32>>
+
+// Define an enum of known operations:
+enum IntOp {
+    AddOne,
+    Double,
+    AddN(i32),
+    Negate,
+}
+
+impl IntOp {
+    fn apply(&self, x: i32) -> i32 {
+        match self {
+            IntOp::AddOne => x + 1,
+            IntOp::Double => x * 2,
+            IntOp::AddN(n) => x + n,
+            IntOp::Negate => -x,
+        }
+    }
+}
+
+// Then use: apply(vec![IntOp::AddOne, IntOp::Double], vec![1, 2])
+```
+
+**Benefits**:
+
+1. **Zero dynamic dispatch**: The `match` is fully monomorphized
+2. **No heap allocation**: Enum variants are stack-allocated
+3. **No reference counting**: No `Rc`/`Arc` overhead
+4. **Serializable**: Enum can implement `Serialize`/`Deserialize`
+
+**Drawbacks**:
+
+1. **Closed world assumption**: Must know all possible functions at compile time
+2. **Boilerplate**: Requires defining enum variants for each operation
+3. **Less composable**: Cannot easily create arbitrary function compositions
+
+**When to consider this**:
+
+- Performance-critical inner loops where profiling shows dynamic dispatch overhead
+- Scenarios where the set of functions is known and finite (e.g., parser combinators, query DSLs)
+- When serialization of "computations" is needed
+
+**Reasoning for deferral**: This is an advanced optimization technique that:
+
+1. Adds significant API complexity
+2. Only benefits specific use cases
+3. Requires users to define custom enum types for their domain
+4. Most users will not need this level of optimization
+
+The hybrid approach (zero-cost for most operations, dynamic dispatch only for functions-as-data) provides a good balance. Defunctionalization can be explored as an optional add-on for users who have profiled their code and identified dynamic dispatch as a bottleneck.
+
+### Alternative HKT Encodings
+
+**Background**: The current library uses the "brand" pattern for HKT emulation. Other approaches exist:
+
+1. **GAT-based encoding**: Using Rust's Generic Associated Types more directly
+2. **Macro-based codegen**: Generate concrete implementations for each type
+3. **Const generics**: Future Rust features may enable new patterns
+
+**Reasoning for deferral**: The current HKT infrastructure works well and is orthogonal to the currying/uncurrying refactoring. Changes to HKT encoding can be considered independently.
+
+### Async/Effect System Integration
+
+**Background**: The current design is synchronous. Future work could explore:
+
+1. **Async Functor/Monad**: Working with `Future` types
+2. **Effect handlers**: Algebraic effects for composable side effects
+3. **IO monad**: Explicit effect tracking
+
+**Reasoning for deferral**: These are significant extensions beyond the scope of the zero-cost refactoring effort.
