@@ -180,7 +180,7 @@ A **hybrid approach** was recommended:
 
 ### Phase 1: Remove/Simplify Function Wrapper Traits
 
-**Goal**: Eliminate the `Function` and `ClonableFn` traits and their associated brand infrastructure.
+**Goal**: Eliminate the `Function` trait and restrict `ClonableFn` usage.
 
 #### Step 1.1: Delete Unused `Function` Trait
 
@@ -193,34 +193,19 @@ A **hybrid approach** was recommended:
 - Remove from `fp-library/src/classes.rs` exports
 - Update `ClonableFn` to not extend `Function`
 
-#### Step 1.2: Delete `ClonableFn` Trait and Infrastructure
+#### Step 1.2: Restrict `ClonableFn` Usage
 
 **File**: `fp-library/src/classes/clonable_fn.rs`
 
-**Action**: Delete the entire file. With uncurried semantics, wrapped closures are no longer needed for most operations.
+**Action**: Keep this trait, but remove it from the signatures of `Functor`, `Monad`, etc. It will only be used for types that inherently need to store functions (`Lazy`, `Defer`, `Endofunction`).
 
-**Impact**:
-
-- Remove from `fp-library/src/classes.rs` exports
-- Remove all `ClonableFnBrand` generic parameters from type class traits and functions
-- Remove all `ApplyClonableFn` usages
-
-#### Step 1.3: Update Brand Types
-
-**Files**:
-
-- `fp-library/src/types/arc_fn.rs`
-- `fp-library/src/types/rc_fn.rs`
-
-**Action**: Remove `Function` and `ClonableFn` implementations. Keep these types only for the `apply` operation where functions-as-data is required.
-
-**New Purpose**: These brands will only be used when functions need to be stored in containers (for `Semiapplicative::apply`).
+**Reasoning**: `Lazy` and `Defer` store thunks that must be clonable. We cannot easily replace this with `Box<dyn Fn>` because `Box` is not `Clone`.
 
 ---
 
 ### Phase 2: Uncurry Type Class Traits
 
-**Goal**: Convert all curried type class methods to uncurried form with `impl Fn` parameters.
+**Goal**: Convert all curried type class methods to uncurried form with `impl Fn` parameters, while **preserving HKT infrastructure**.
 
 #### Step 2.1: Refactor `Functor` Trait
 
@@ -240,119 +225,103 @@ pub trait Functor: Kind0L1T {
 
 ```rust
 pub trait Functor: Kind0L1T {
-    fn map<A, B, F: Fn(A) -> B>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>;
+    fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    where
+        F: Fn(A) -> B;
 }
 
-pub fn map<Brand: Functor, A, B, F: Fn(A) -> B>(f: F, fa: Apply0L1T<Brand, A>) -> Apply0L1T<Brand, B> {
+pub fn map<Brand: Functor, A, B, F>(f: F, fa: Apply0L1T<Brand, A>) -> Apply0L1T<Brand, B>
+where
+    F: Fn(A) -> B
+{
     Brand::map(f, fa)
 }
 ```
+
+**Reasoning**:
+
+- **HKT Preserved**: `Apply0L1T<Self, A>` is kept.
+- **Zero-Cost**: `F` is generic, allowing monomorphization and inlining.
+- **Uncurried**: `f` and `fa` are passed together.
 
 #### Step 2.2: Refactor `Semiapplicative` Trait
 
 **File**: `fp-library/src/classes/semiapplicative.rs`
 
-**Note**: This trait requires special handling because `ff: F<A -> B>` contains functions-as-data.
-
-**Current**:
+**Proposed**:
 
 ```rust
 pub trait Semiapplicative: Kind0L1T {
-    fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
-    ) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
-}
-```
-
-**Proposed** (Option A - Keep type erasure for functions-as-data):
-
-```rust
-pub trait Semiapplicative: Kind0L1T {
-    fn apply<'a, A: 'a + Clone, B: 'a>(
-        ff: Apply0L1T<Self, Rc<dyn 'a + Fn(A) -> B>>,
+    // Primary method: apply (functions in context)
+    fn apply<A, B, F>(
+        ff: Apply0L1T<Self, F>,
         fa: Apply0L1T<Self, A>
-    ) -> Apply0L1T<Self, B>;
+    ) -> Apply0L1T<Self, B>
+    where
+        F: Fn(A) -> B + Clone, // Clone often needed for cartesian products (e.g. Vec)
+        A: Clone;
+
+    // New method: map2 (lift2) - Enables zero-cost combination
+    fn map2<A, B, C, F>(
+        fa: Apply0L1T<Self, A>,
+        fb: Apply0L1T<Self, B>,
+        f: F
+    ) -> Apply0L1T<Self, C>
+    where
+        F: Fn(A, B) -> C,
+        A: Clone,
+        B: Clone;
 }
 ```
 
-**Proposed** (Option B - Generic over function wrapper):
+**Reasoning**:
 
-```rust
-pub trait Semiapplicative: Kind0L1T {
-    fn apply<A: Clone, B, Func: Fn(A) -> B + Clone>(
-        ff: Apply0L1T<Self, Func>,
-        fa: Apply0L1T<Self, A>
-    ) -> Apply0L1T<Self, B>;
-}
-```
-
-**Recommendation**: Use Option B for maximum flexibility, accepting that users may need to wrap in `Rc` when using heterogeneous function collections.
+- **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`. For `Vec`, `F` must be a concrete type. To store multiple different functions, users must use `Box<dyn Fn>` or `Rc<dyn Fn>` as `F`. This preserves the "functions as data" capability while making the cost explicit.
+- **`map2`**: Added to allow combining two contexts _without_ creating intermediate closures stored in the container. This enables zero-cost `traverse` and `apply_first`.
 
 #### Step 2.3: Refactor `Semimonad` Trait
 
 **File**: `fp-library/src/classes/semimonad.rs`
 
-**Current**:
-
-```rust
-pub trait Semimonad: Kind0L1T {
-    fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
-        ma: Apply0L1T<Self, A>
-    ) -> ApplyClonableFn<
-        'a,
-        ClonableFnBrand,
-        ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
-        Apply0L1T<Self, B>,
-    >;
-}
-```
-
 **Proposed**:
 
 ```rust
 pub trait Semimonad: Kind0L1T {
-    fn bind<A, B, F: Fn(A) -> Apply0L1T<Self, B>>(
+    fn bind<A, B, F>(
         ma: Apply0L1T<Self, A>,
         f: F
-    ) -> Apply0L1T<Self, B>;
-}
-
-pub fn bind<Brand: Semimonad, A, B, F: Fn(A) -> Apply0L1T<Brand, B>>(
-    ma: Apply0L1T<Brand, A>,
-    f: F
-) -> Apply0L1T<Brand, B> {
-    Brand::bind(ma, f)
+    ) -> Apply0L1T<Self, B>
+    where
+        F: Fn(A) -> Apply0L1T<Self, B>;
 }
 ```
+
+**Reasoning**: Standard `flat_map` signature. Zero-cost.
 
 #### Step 2.4: Refactor `Foldable` Trait
 
 **File**: `fp-library/src/classes/foldable.rs`
 
-**Current** (heavily curried):
-
-```rust
-fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-    f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
-) -> ApplyClonableFn<
-    'a,
-    ClonableFnBrand,
-    B,
-    ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
->;
-```
-
 **Proposed**:
 
 ```rust
 pub trait Foldable: Kind0L1T {
-    fn fold_right<A, B, F: Fn(A, B) -> B>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B;
+    fn fold_right<A, B, F>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    where
+        F: Fn(A, B) -> B;
 
-    fn fold_left<A, B, F: Fn(B, A) -> B>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B;
+    fn fold_left<A, B, F>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    where
+        F: Fn(B, A) -> B;
 
-    fn fold_map<A, M: Monoid, F: Fn(A) -> M>(f: F, fa: Apply0L1T<Self, A>) -> M;
+    fn fold_map<A, M, F>(f: F, fa: Apply0L1T<Self, A>) -> M
+    where
+        M: Monoid,
+        F: Fn(A) -> M;
 }
 ```
+
+**Reasoning**: Standard uncurried fold signatures.
 
 #### Step 2.5: Refactor `Traversable` Trait
 
@@ -362,22 +331,21 @@ pub trait Foldable: Kind0L1T {
 
 ```rust
 pub trait Traversable: Functor + Foldable {
-    fn traverse<F: Applicative, A, B, Func: Fn(A) -> Apply0L1T<F, B>>(
+    fn traverse<F, A, B, Func>(
         f: Func,
         ta: Apply0L1T<Self, A>
     ) -> Apply0L1T<F, Apply0L1T<Self, B>>
     where
+        F: Applicative,
+        Func: Fn(A) -> Apply0L1T<F, B>,
         Apply0L1T<F, B>: Clone,
         Apply0L1T<Self, B>: Clone;
 
-    fn sequence<F: Applicative, A>(
-        t: Apply0L1T<Self, Apply0L1T<F, A>>
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
-    where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone;
+    // sequence remains similar but uncurried
 }
 ```
+
+**Reasoning**: `traverse` can now use `Applicative::map2` (if available) or `apply` to combine results.
 
 #### Step 2.6: Refactor `ApplyFirst` and `ApplySecond` Traits
 
@@ -390,30 +358,18 @@ pub trait Traversable: Functor + Foldable {
 
 ```rust
 pub trait ApplyFirst: Kind0L1T {
-    fn apply_first<A, B>(fa: Apply0L1T<Self, A>, fb: Apply0L1T<Self, B>) -> Apply0L1T<Self, A>;
-}
-
-pub trait ApplySecond: Kind0L1T {
-    fn apply_second<A, B>(fa: Apply0L1T<Self, A>, fb: Apply0L1T<Self, B>) -> Apply0L1T<Self, B>;
+    fn apply_first<A, B>(
+        fa: Apply0L1T<Self, A>,
+        fb: Apply0L1T<Self, B>
+    ) -> Apply0L1T<Self, A>;
 }
 ```
+
+**Reasoning**: Default implementation can use `map2` (zero-cost) or `apply` (requires boxing in default impl).
 
 #### Step 2.7: Refactor `Semigroup` Trait
 
 **File**: `fp-library/src/classes/semigroup.rs`
-
-**Current**:
-
-```rust
-pub trait Semigroup<'b> {
-    fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
-        a: Self
-    ) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
-    where
-        Self: Sized,
-        'b: 'a;
-}
-```
 
 **Proposed**:
 
@@ -421,11 +377,9 @@ pub trait Semigroup<'b> {
 pub trait Semigroup {
     fn append(a: Self, b: Self) -> Self;
 }
-
-pub fn append<S: Semigroup>(a: S, b: S) -> S {
-    S::append(a, b)
-}
 ```
+
+**Reasoning**: Simplified to standard Rust style. Removed lifetime `'b` and `ClonableFnBrand` as they are implementation details of specific semigroups (like `Endofunction`), not the trait itself.
 
 #### Step 2.8: Refactor `Semigroupoid` Trait
 
@@ -467,8 +421,14 @@ fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
 **Proposed**:
 
 ```rust
-fn map<A, B, F: Fn(A) -> B>(f: F, fa: Option<A>) -> Option<B> {
-    fa.map(f)
+impl Functor for OptionBrand {
+    fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    where
+        F: Fn(A) -> B
+    {
+        // fa is Option<A>
+        fa.map(f)
+    }
 }
 ```
 
@@ -476,31 +436,12 @@ fn map<A, B, F: Fn(A) -> B>(f: F, fa: Option<A>) -> Option<B> {
 
 **File**: `fp-library/src/types/vec.rs`
 
-Similar transformations for all type class implementations.
+**Action**: Implement `map`, `apply`, `bind`, etc. using standard iterator methods (`map`, `flat_map`).
+**Optimization**: Implement `fold_right` / `fold_left` directly using `DoubleEndedIterator` / `Iterator::fold` to avoid `Endofunction` overhead.
 
-#### Step 3.3: Update `IdentityBrand` Implementation
+#### Step 3.3: Update Other Brands
 
-**File**: `fp-library/src/types/identity.rs`
-
-Similar transformations for all type class implementations.
-
-#### Step 3.4: Update `ResultWithErrBrand` and `ResultWithOkBrand` Implementations
-
-**Files**:
-
-- `fp-library/src/types/result/result_with_err.rs`
-- `fp-library/src/types/result/result_with_ok.rs`
-
-Similar transformations for all type class implementations.
-
-#### Step 3.5: Update `PairWithFirstBrand` and `PairWithSecondBrand` Implementations
-
-**Files**:
-
-- `fp-library/src/types/pair/pair_with_first.rs`
-- `fp-library/src/types/pair/pair_with_second.rs`
-
-Similar transformations.
+Update `IdentityBrand`, `ResultWithErrBrand`, `ResultWithOkBrand`, `PairWithFirstBrand`, `PairWithSecondBrand` similarly.
 
 ---
 
@@ -512,43 +453,19 @@ Similar transformations.
 
 **File**: `fp-library/src/functions.rs`
 
-**Current**:
-
-```rust
-pub fn compose<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a, C: 'a>(
-    f: ApplyClonableFn<'a, ClonableFnBrand, B, C>
-) -> ApplyClonableFn<
-    'a,
-    ClonableFnBrand,
-    ApplyClonableFn<'a, ClonableFnBrand, A, B>,
-    ApplyClonableFn<'a, ClonableFnBrand, A, C>,
-> {
-    <ClonableFnBrand as ClonableFn>::new(move |g: ApplyClonableFn<'a, ClonableFnBrand, _, _>| {
-        let f = f.clone();
-        <ClonableFnBrand as ClonableFn>::new(move |a| f(g(a)))
-    })
-}
-```
-
 **Proposed**:
 
 ```rust
-pub fn compose<A, B, C, F: Fn(B) -> C, G: Fn(A) -> B>(f: F, g: G) -> impl Fn(A) -> C {
+pub fn compose<A, B, C, F, G>(f: F, g: G) -> impl Fn(A) -> C
+where
+    F: Fn(B) -> C,
+    G: Fn(A) -> B
+{
     move |a| f(g(a))
 }
 ```
 
 #### Step 4.2: Update `constant` Function
-
-**Current**:
-
-```rust
-pub fn constant<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
-    a: A
-) -> ApplyClonableFn<'a, ClonableFnBrand, B, A> {
-    <ClonableFnBrand as ClonableFn>::new(move |_b| a.to_owned())
-}
-```
 
 **Proposed**:
 
@@ -560,20 +477,13 @@ pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
 
 #### Step 4.3: Update `flip` Function
 
-**Current**:
-
-```rust
-pub fn flip<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a + Clone, C: 'a>(
-    f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, C>>
-) -> ApplyClonableFn<'a, ClonableFnBrand, B, ApplyClonableFn<'a, ClonableFnBrand, A, C>> {
-    // ...
-}
-```
-
 **Proposed**:
 
 ```rust
-pub fn flip<A, B, C, F: Fn(A, B) -> C>(f: F) -> impl Fn(B, A) -> C {
+pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
+where
+    F: Fn(A, B) -> C
+{
     move |b, a| f(a, b)
 }
 ```
@@ -582,45 +492,16 @@ pub fn flip<A, B, C, F: Fn(A, B) -> C>(f: F) -> impl Fn(B, A) -> C {
 
 ### Phase 5: Update Endofunction/Endomorphism Types
 
-**Goal**: Simplify or remove these types that were primarily needed for curried fold operations.
+**Goal**: Maintain these types for `Foldable` defaults but allow optimization.
 
-#### Step 5.1: Simplify `Endofunction`
+#### Step 5.1: Keep `Endofunction` Wrapper
 
 **File**: `fp-library/src/types/endofunction.rs`
 
-**Current**: Wraps `ApplyClonableFn<'a, ClonableFnBrand, A, A>` for monoidal composition.
+**Action**: Keep the current design (wrapping `ClonableFn`).
+**Reasoning**: `Endofunction` is primarily used in the default implementation of `fold_right`. Since `fold_right` composes functions dynamically based on the list length, the composed function type changes at runtime (conceptually). Rust requires a single concrete type for the accumulator. `Rc<dyn Fn>` / `Arc<dyn Fn>` provides this type erasure.
 
-**Proposed**: With uncurried semantics, this can be simplified to:
-
-```rust
-pub struct Endofunction<A>(pub Box<dyn Fn(A) -> A>);
-
-impl<A> Semigroup for Endofunction<A> {
-    fn append(a: Self, b: Self) -> Self {
-        Endofunction(Box::new(move |x| a.0(b.0(x))))
-    }
-}
-
-impl<A> Monoid for Endofunction<A> {
-    fn empty() -> Self {
-        Endofunction(Box::new(identity))
-    }
-}
-```
-
-**Note**: For zero-cost, consider providing a generic version:
-
-```rust
-pub struct Endofunction<F>(pub F);
-
-impl<A, F: Fn(A) -> A, G: Fn(A) -> A> ... // More complex but zero-cost
-```
-
-#### Step 5.2: Simplify `Endomorphism`
-
-**File**: `fp-library/src/types/endomorphism.rs`
-
-Similar simplification.
+**Optimization**: Ensure concrete types like `Vec` implement `fold_right` directly to bypass this wrapper.
 
 ---
 
@@ -635,15 +516,7 @@ Similar simplification.
 - `fp-library/src/types/arc_fn.rs`
 - `fp-library/src/types/rc_fn.rs`
 
-**Action**: Keep these as simple type aliases or wrapper types for use in `apply`:
-
-```rust
-// In arc_fn.rs
-pub type ArcFn<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
-
-// In rc_fn.rs
-pub type RcFn<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
-```
+**Action**: Keep these brands. They are needed when users want to use `apply` with heterogeneous functions (e.g. `Vec<Rc<dyn Fn>>`).
 
 ---
 
@@ -700,37 +573,36 @@ All doc tests need to be rewritten to use the new uncurried API.
 
    Without needing to clone functions for capture, `Rc`/`Arc` wrapping is unnecessary for most operations.
 
-### Why Functions-as-Data Still Requires Overhead
+### Why `map2` is Necessary for Zero-Cost
 
-The `apply` operation has type `f (a -> b) -> f a -> f b`. The functions are **inside** the functor:
+Relying solely on `apply` (even uncurried) forces currying of combining functions.
+To combine `fa` and `fb` using `apply`:
 
-```rust
-apply(Some(|x| x * 2), Some(5))  // The function is stored in `Option`
-apply(vec![|x| x+1, |x| x*2], vec![1,2])  // Functions are stored in `Vec`
-```
+1. `map(|a| |b| (a, b), fa)` -> produces `F<Closure>`
+2. `apply(F<Closure>, fb)` -> produces `F<(A, B)>`
 
-With `impl Fn`, each closure has a unique anonymous type. You cannot put different closures in the same `Vec` without type erasure:
+This forces the creation of an intermediate closure stored in the container. For `Vec`, this means `Vec<Closure>`. While Rust handles `Vec<Closure>` efficiently if they are homogeneous, `map2` avoids this entirely:
+`map2(fa, fb, |a, b| (a, b))` -> combines directly without intermediate storage.
 
-```rust
-// Won't compile - different closure types
-let funcs: Vec<impl Fn(i32) -> i32> = vec![|x| x+1, |x| x*2];
+### Why `Endofunction` Must Remain Dynamic
 
-// Requires type erasure
-let funcs: Vec<Box<dyn Fn(i32) -> i32>> = vec![Box::new(|x| x+1), Box::new(|x| x*2)];
-```
-
-This overhead is **inherent to the abstraction**, not a design flaw.
+`Endofunction` implements `Monoid`. The `append` operation composes two functions: `f ∘ g`.
+In Rust, the type of `f ∘ g` is distinct from the type of `f` and `g`.
+`Monoid::append` requires `(Self, Self) -> Self`.
+Therefore, `Self` must be a type that can represent any composition of functions. Only a trait object (`dyn Fn`) satisfies this. Thus, `Endofunction` must wrap a dynamic function pointer (`Rc` or `Arc`).
 
 ### Trade-offs Summary
 
-| Aspect                    | Current Design        | Proposed Design                     |
-| ------------------------- | --------------------- | ----------------------------------- |
-| **`map`, `bind`, `fold`** | Dynamic dispatch + Rc | Zero-cost (monomorphized)           |
-| **`apply`**               | Dynamic dispatch + Rc | Dynamic dispatch + Rc (unavoidable) |
-| **Ergonomics**            | Very verbose          | Much cleaner                        |
-| **Type errors**           | Complex               | Simpler                             |
-| **Currying**              | Native                | Requires manual wrapping            |
-| **Partial application**   | Built-in              | Requires explicit closures          |
+| Aspect                  | Current Design             | Proposed Design                                      |
+| ----------------------- | -------------------------- | ---------------------------------------------------- |
+| **`map`, `bind`**       | Dynamic dispatch + Rc      | Zero-cost (monomorphized)                            |
+| **`traverse`**          | Dynamic dispatch + Rc      | Zero-cost (via `map2`)                               |
+| **`apply`**             | Dynamic dispatch + Rc      | Zero-cost for homogeneous, Dynamic for heterogeneous |
+| **`fold`**              | Dynamic dispatch (default) | Zero-cost (direct impls)                             |
+| **Ergonomics**          | Very verbose               | Much cleaner                                         |
+| **Type errors**         | Complex                    | Simpler                                              |
+| **Currying**            | Native                     | Requires manual wrapping                             |
+| **Partial application** | Built-in                   | Requires explicit closures                           |
 
 ### Loss of Currying
 
@@ -779,54 +651,3 @@ This is considered an acceptable trade-off because:
 2. **Property tests**: Verify laws hold for both APIs
 3. **Benchmark tests**: Add benchmarks comparing both approaches
 4. **Doc tests**: Rewrite all examples
-
----
-
-## Files to Modify Summary
-
-### Delete
-
-- `fp-library/src/classes/function.rs`
-- `fp-library/src/classes/clonable_fn.rs`
-
-### Major Refactor
-
-- `fp-library/src/classes/functor.rs`
-- `fp-library/src/classes/semiapplicative.rs`
-- `fp-library/src/classes/semimonad.rs`
-- `fp-library/src/classes/foldable.rs`
-- `fp-library/src/classes/traversable.rs`
-- `fp-library/src/classes/apply_first.rs`
-- `fp-library/src/classes/apply_second.rs`
-- `fp-library/src/classes/semigroup.rs`
-- `fp-library/src/classes/semigroupoid.rs`
-- `fp-library/src/functions.rs`
-- `fp-library/src/types/option.rs`
-- `fp-library/src/types/vec.rs`
-- `fp-library/src/types/identity.rs`
-- `fp-library/src/types/result/result_with_err.rs`
-- `fp-library/src/types/result/result_with_ok.rs`
-- `fp-library/src/types/pair/pair_with_first.rs`
-- `fp-library/src/types/pair/pair_with_second.rs`
-- `fp-library/src/types/endofunction.rs`
-- `fp-library/src/types/endomorphism.rs`
-
-### Minor Updates
-
-- `fp-library/src/classes.rs` (remove exports)
-- `fp-library/src/brands.rs` (update exports)
-- `fp-library/src/types/arc_fn.rs` (simplify)
-- `fp-library/src/types/rc_fn.rs` (simplify)
-
-### No Changes Needed
-
-- `fp-library/src/hkt/kinds.rs`
-- `fp-library/src/hkt/apply.rs`
-- `fp-library/src/macros.rs`
-- `fp-library/src/classes/category.rs`
-- `fp-library/src/classes/pointed.rs`
-- `fp-library/src/classes/monoid.rs`
-- `fp-library/src/classes/applicative.rs`
-- `fp-library/src/classes/monad.rs`
-- `fp-library/src/classes/once.rs`
-- `fp-library/src/classes/defer.rs` (minor update)
