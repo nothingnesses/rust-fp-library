@@ -1,4 +1,4 @@
-use crate::hkt::{Apply0L1T, Kind0L1T};
+use crate::hkt::Apply0L1T;
 use super::lift::Lift;
 
 /// A type class for types that support combining two contexts, keeping the first value.

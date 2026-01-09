@@ -5,3 +5,5 @@ use super::{applicative::Applicative, semimonad::Semimonad};
 /// `Monad` extends [`Applicative`] and [`Semimonad`].
 /// It allows for sequencing computations where the structure of the computation depends on the result of the previous computation.
 pub trait Monad: Applicative + Semimonad {}
+
+impl<Brand> Monad for Brand where Brand: Applicative + Semimonad {}

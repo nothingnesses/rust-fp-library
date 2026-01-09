@@ -1,4 +1,4 @@
-use crate::hkt::{Apply0L1T, Kind0L1T};
+use crate::hkt::Apply0L1T;
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
 
 /// A type class for traversable functors.
