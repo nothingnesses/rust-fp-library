@@ -1,5 +1,17 @@
 # Zero-Cost Abstractions Refactoring Plan
 
+## Baseline Commit
+
+**Commit**: `5355cde26271bcbb37f930a92cf3430604621749`
+
+Use this commit as the reference point for tracking refactoring progress. To see what has changed since the baseline:
+
+```bash
+git diff 5355cde26271bcbb37f930a92cf3430604621749
+```
+
+---
+
 ## Table of Contents
 
 1. [Conversation Summary](#conversation-summary)
