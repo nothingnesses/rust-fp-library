@@ -33,16 +33,16 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
     - [x] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
 - [x] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
     - [x] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
-- [ ] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
-    - [ ] Update `fold_right`, `fold_left`, `fold_map` to be uncurried.
+- [x] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
+    - [x] Update `fold_right`, `fold_left`, `fold_map` to be uncurried.
 - [ ] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.
     - [ ] Update `traverse` and `sequence` to be uncurried.
     - [ ] Ensure `Clone` bounds are present where necessary.
 - [ ] **Step 2.7**: Refactor `ApplyFirst` and `ApplySecond`.
     - [ ] Update `fp-library/src/classes/apply_first.rs` to extend `Lift` and use `lift2`.
     - [ ] Update `fp-library/src/classes/apply_second.rs` to extend `Lift` and use `lift2`.
-- [ ] **Step 2.8**: Refactor `Semigroup` in `fp-library/src/classes/semigroup.rs`.
-    - [ ] Simplify `append` signature: `fn append(a: Self, b: Self) -> Self`.
+- [x] **Step 2.8**: Refactor `Semigroup` in `fp-library/src/classes/semigroup.rs`.
+    - [x] Simplify `append` signature: `fn append(a: Self, b: Self) -> Self`.
 - [ ] **Step 2.9**: Refactor `Semigroupoid` and `Category`.
     - [ ] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
     - [ ] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
