@@ -1237,3 +1237,26 @@ mod tests {
     }
 }
 ```
+
+## Implementation Findings (Phase 3)
+
+### HKT Lifetime Support (`Kind1L1T`)
+
+During the implementation of `Lazy`, it became apparent that `Kind0L1T` (types with 0 lifetimes) was insufficient because `Lazy` inherently captures the lifetime of its environment.
+
+**Solution**:
+- Introduced `Kind1L1T` trait: `type Output<'a, A: 'a>: 'a;`.
+- Updated all `v2` traits (`Functor`, `Monad`, etc.) to extend `Kind1L1T`.
+- Updated all `v2` types to implement `Kind1L1T`.
+
+**Consequences**:
+- `Result<A, E>` and `Pair<First, A>` can only implement `Kind1L1T` if their fixed parameters (`E`, `First`) are `'static`. This is because `Kind1L1T` requires the type constructor to be valid for *any* lifetime `'a`, which is impossible if `E` has a shorter lifetime.
+
+### Lazy and Type Classes
+
+`Lazy` requires `A: Clone` to be memoized (forced). However, standard type classes like `Functor`, `Pointed`, and `Semimonad` do not enforce `A: Clone`.
+
+**Decision**:
+- `Lazy` does **not** implement `Functor`, `Pointed`, or `Semimonad`.
+- `Lazy` **does** implement `Semiapplicative` (which has `A: Clone` bounds).
+- This preserves the generality of the library for other types (e.g., `Option<NonClone>`) while acknowledging `Lazy`'s specific constraints.

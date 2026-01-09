@@ -1,6 +1,6 @@
 use crate::{
     brands::OptionBrand,
-    hkt::Apply0L1T,
+    hkt::{Apply1L1T, Kind1L1T},
     v2::classes::{
         applicative::Applicative,
         apply_first::ApplyFirst,
@@ -17,6 +17,10 @@ use crate::{
     },
 };
 
+impl Kind1L1T for OptionBrand {
+    type Output<'a, A: 'a> = Option<A>;
+}
+
 impl Functor for OptionBrand {
     /// Maps a function over the value in the option.
     ///
@@ -29,7 +33,7 @@ impl Functor for OptionBrand {
     /// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5)), Some(10));
     /// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, None), None);
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -51,9 +55,9 @@ impl Lift for OptionBrand {
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -74,7 +78,7 @@ impl Pointed for OptionBrand {
     ///
     /// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Some(a)
     }
 }
@@ -98,9 +102,9 @@ impl Semiapplicative for OptionBrand {
     /// assert_eq!(apply::<OptionBrand, _, _, RcFnBrand>(f, Some(5)), Some(10));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         match (ff, fa) {
             (Some(f), Some(a)) => Some(f(a)),
             _ => None,
@@ -121,11 +125,11 @@ impl Semimonad for OptionBrand {
     /// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         ma.and_then(f)
     }
@@ -143,7 +147,7 @@ impl Foldable for OptionBrand {
     /// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
     /// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -163,7 +167,7 @@ impl Foldable for OptionBrand {
     ///
     /// assert_eq!(fold_left::<OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -184,7 +188,7 @@ impl Foldable for OptionBrand {
     ///
     /// assert_eq!(fold_map::<OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -209,11 +213,11 @@ impl Traversable for OptionBrand {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         match ta {
             Some(a) => F::map(|b| Some(b), f(a)),
@@ -232,11 +236,11 @@ impl Traversable for OptionBrand {
     /// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         match ta {
             Some(fa) => F::map(|a| Some(a), fa),

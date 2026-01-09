@@ -9,7 +9,7 @@
 //! represents `Foo<()>`.
 
 use crate::{
-	hkt::{Kind0L1T, Kind0L2T, Kind1L0T, Kind1L2T},
+	hkt::{Kind0L1T, Kind0L2T, Kind1L0T, Kind1L1T, Kind1L2T},
 	make_type_apply,
 };
 
@@ -31,4 +31,12 @@ make_type_apply!(
 	('a),
 	(A, B),
 	"' -> * -> * -> *"
+);
+
+make_type_apply!(
+	Apply1L1T,
+	Kind1L1T,
+	('a),
+	(A),
+	"' -> * -> *"
 );

@@ -1,6 +1,6 @@
 use crate::{
     brands::IdentityBrand,
-    hkt::Apply0L1T,
+    hkt::{Apply1L1T, Kind1L1T},
     types::Identity,
     v2::classes::{
         applicative::Applicative,
@@ -18,6 +18,10 @@ use crate::{
     },
 };
 
+impl Kind1L1T for IdentityBrand {
+    type Output<'a, A: 'a> = Identity<A>;
+}
+
 impl Functor for IdentityBrand {
     /// Maps a function over the value in the identity.
     ///
@@ -30,7 +34,7 @@ impl Functor for IdentityBrand {
     ///
     /// assert_eq!(map::<IdentityBrand, _, _, _>(|x: i32| x * 2, Identity(5)), Identity(10));
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -49,15 +53,15 @@ impl Lift for IdentityBrand {
     /// use fp_library::types::Identity;
     ///
     /// assert_eq!(
-    ///     lift2::<IdentityBrand, _, _, _, _>(|x, y| x + y, Identity(1), Identity(2)),
+    ///     lift2::<IdentityBrand, _, _, _, _>(|x: i32, y: i32| x + y, Identity(1), Identity(2)),
     ///     Identity(3)
     /// );
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -79,7 +83,7 @@ impl Pointed for IdentityBrand {
     ///
     /// assert_eq!(pure::<IdentityBrand, _>(5), Identity(5));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Identity(a)
     }
 }
@@ -95,7 +99,7 @@ impl Semiapplicative for IdentityBrand {
     /// ```
     /// use fp_library::v2::classes::semiapplicative::apply;
     /// use fp_library::v2::classes::clonable_fn::ClonableFn;
-    /// use fp_library::brands::IdentityBrand;
+    /// use fp_library::brands::{IdentityBrand};
     /// use fp_library::types::Identity;
     /// use fp_library::v2::types::rc_fn::RcFnBrand;
     /// use std::rc::Rc;
@@ -104,9 +108,9 @@ impl Semiapplicative for IdentityBrand {
     /// assert_eq!(apply::<IdentityBrand, _, _, RcFnBrand>(f, Identity(5)), Identity(10));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         Identity(ff.0(fa.0))
     }
 }
@@ -121,14 +125,17 @@ impl Semimonad for IdentityBrand {
     /// use fp_library::brands::IdentityBrand;
     /// use fp_library::types::Identity;
     ///
-    /// assert_eq!(bind::<IdentityBrand, _, _, _>(Identity(5), |x| Identity(x * 2)), Identity(10));
+    /// assert_eq!(
+    ///     bind::<IdentityBrand, _, _, _>(Identity(5), |x| Identity(x * 2)),
+    ///     Identity(10)
+    /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         f(ma.0)
     }
@@ -144,9 +151,9 @@ impl Foldable for IdentityBrand {
     /// use fp_library::brands::IdentityBrand;
     /// use fp_library::types::Identity;
     ///
-    /// assert_eq!(fold_right::<IdentityBrand, _, _, _>(|x, acc| x + acc, 0, Identity(5)), 5);
+    /// assert_eq!(fold_right::<IdentityBrand, _, _, _>(|x: i32, acc| x + acc, 0, Identity(5)), 5);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -162,9 +169,9 @@ impl Foldable for IdentityBrand {
     /// use fp_library::brands::IdentityBrand;
     /// use fp_library::types::Identity;
     ///
-    /// assert_eq!(fold_left::<IdentityBrand, _, _, _>(|acc, x| acc + x, 0, Identity(5)), 5);
+    /// assert_eq!(fold_left::<IdentityBrand, _, _, _>(|acc, x: i32| acc + x, 0, Identity(5)), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -179,11 +186,11 @@ impl Foldable for IdentityBrand {
     /// use fp_library::v2::classes::foldable::fold_map;
     /// use fp_library::brands::IdentityBrand;
     /// use fp_library::types::Identity;
-    /// use fp_library::v2::types::string;
+    /// use fp_library::v2::types::string; // Import to bring Monoid impl for String into scope
     ///
     /// assert_eq!(fold_map::<IdentityBrand, _, _, _>(|x: i32| x.to_string(), Identity(5)), "5".to_string());
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -209,11 +216,11 @@ impl Traversable for IdentityBrand {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         F::map(|b| Identity(b), f(ta.0))
     }
@@ -233,11 +240,11 @@ impl Traversable for IdentityBrand {
     /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         F::map(|a| Identity(a), ta.0)
     }

@@ -1,6 +1,6 @@
 use crate::{
     brands::{PairWithFirstBrand, PairWithSecondBrand},
-    hkt::Apply0L1T,
+    hkt::{Apply1L1T, Kind1L1T},
     types::Pair,
     v2::classes::{
         applicative::Applicative,
@@ -21,7 +21,11 @@ use crate::{
 
 // PairWithFirstBrand<First> (Functor over Second)
 
-impl<First> Functor for PairWithFirstBrand<First> {
+impl<First: 'static> Kind1L1T for PairWithFirstBrand<First> {
+    type Output<'a, A: 'a> = Pair<First, A>;
+}
+
+impl<First: 'static> Functor for PairWithFirstBrand<First> {
     /// Maps a function over the second value in the pair.
     ///
     /// # Examples
@@ -33,7 +37,7 @@ impl<First> Functor for PairWithFirstBrand<First> {
     ///
     /// assert_eq!(map::<PairWithFirstBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -41,7 +45,7 @@ impl<First> Functor for PairWithFirstBrand<First> {
     }
 }
 
-impl<First: Clone> Lift for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Lift for PairWithFirstBrand<First>
 where
     First: Semigroup,
 {
@@ -62,9 +66,9 @@ where
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -74,7 +78,7 @@ where
     }
 }
 
-impl<First: Clone> Pointed for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Pointed for PairWithFirstBrand<First>
 where
     First: Monoid,
 {
@@ -90,15 +94,15 @@ where
     ///
     /// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Pair(Monoid::empty(), a)
     }
 }
 
-impl<First: Clone + Semigroup> ApplyFirst for PairWithFirstBrand<First> {}
-impl<First: Clone + Semigroup> ApplySecond for PairWithFirstBrand<First> {}
+impl<First: Clone + Semigroup + 'static> ApplyFirst for PairWithFirstBrand<First> {}
+impl<First: Clone + Semigroup + 'static> ApplySecond for PairWithFirstBrand<First> {}
 
-impl<First: Clone> Semiapplicative for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Semiapplicative for PairWithFirstBrand<First>
 where
     First: Semigroup,
 {
@@ -119,14 +123,14 @@ where
     /// assert_eq!(apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         Pair(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
     }
 }
 
-impl<First: Clone> Semimonad for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Semimonad for PairWithFirstBrand<First>
 where
     First: Semigroup,
 {
@@ -146,11 +150,11 @@ where
     /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         let Pair(first, second) = ma;
         let Pair(next_first, next_second) = f(second);
@@ -158,7 +162,7 @@ where
     }
 }
 
-impl<First> Foldable for PairWithFirstBrand<First> {
+impl<First: 'static> Foldable for PairWithFirstBrand<First> {
     /// Folds the pair from the right (over second).
     ///
     /// # Examples
@@ -170,7 +174,7 @@ impl<First> Foldable for PairWithFirstBrand<First> {
     ///
     /// assert_eq!(fold_right::<PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -188,7 +192,7 @@ impl<First> Foldable for PairWithFirstBrand<First> {
     ///
     /// assert_eq!(fold_left::<PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -210,7 +214,7 @@ impl<First> Foldable for PairWithFirstBrand<First> {
     ///     "5".to_string()
     /// );
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -219,7 +223,7 @@ impl<First> Foldable for PairWithFirstBrand<First> {
     }
 }
 
-impl<First: Clone> Traversable for PairWithFirstBrand<First> {
+impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
     /// Traverses the pair with an applicative function (over second).
     ///
     /// # Examples
@@ -236,11 +240,11 @@ impl<First: Clone> Traversable for PairWithFirstBrand<First> {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         let Pair(first, second) = ta;
         F::map(move |b| Pair(first.clone(), b), f(second))
@@ -261,11 +265,11 @@ impl<First: Clone> Traversable for PairWithFirstBrand<First> {
     /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         let Pair(first, second) = ta;
         F::map(move |a| Pair(first.clone(), a), second)
@@ -274,7 +278,11 @@ impl<First: Clone> Traversable for PairWithFirstBrand<First> {
 
 // PairWithSecondBrand<Second> (Functor over First)
 
-impl<Second> Functor for PairWithSecondBrand<Second> {
+impl<Second: 'static> Kind1L1T for PairWithSecondBrand<Second> {
+    type Output<'a, A: 'a> = Pair<A, Second>;
+}
+
+impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
     /// Maps a function over the first value in the pair.
     ///
     /// # Examples
@@ -286,7 +294,7 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
     ///
     /// assert_eq!(map::<PairWithSecondBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -294,7 +302,7 @@ impl<Second> Functor for PairWithSecondBrand<Second> {
     }
 }
 
-impl<Second: Clone> Lift for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Lift for PairWithSecondBrand<Second>
 where
     Second: Semigroup,
 {
@@ -315,9 +323,9 @@ where
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -327,7 +335,7 @@ where
     }
 }
 
-impl<Second: Clone> Pointed for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Pointed for PairWithSecondBrand<Second>
 where
     Second: Monoid,
 {
@@ -343,15 +351,15 @@ where
     ///
     /// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Pair(a, Monoid::empty())
     }
 }
 
-impl<Second: Clone + Semigroup> ApplyFirst for PairWithSecondBrand<Second> {}
-impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {}
+impl<Second: Clone + Semigroup + 'static> ApplyFirst for PairWithSecondBrand<Second> {}
+impl<Second: Clone + Semigroup + 'static> ApplySecond for PairWithSecondBrand<Second> {}
 
-impl<Second: Clone> Semiapplicative for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Semiapplicative for PairWithSecondBrand<Second>
 where
     Second: Semigroup,
 {
@@ -372,14 +380,14 @@ where
     /// assert_eq!(apply::<PairWithSecondBrand<String>, _, _, RcFnBrand>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         Pair(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
     }
 }
 
-impl<Second: Clone> Semimonad for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Semimonad for PairWithSecondBrand<Second>
 where
     Second: Semigroup,
 {
@@ -399,11 +407,11 @@ where
     /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         let Pair(first, second) = ma;
         let Pair(next_first, next_second) = f(first);
@@ -411,7 +419,7 @@ where
     }
 }
 
-impl<Second> Foldable for PairWithSecondBrand<Second> {
+impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
     /// Folds the pair from the right (over first).
     ///
     /// # Examples
@@ -423,7 +431,7 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
     ///
     /// assert_eq!(fold_right::<PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -441,7 +449,7 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
     ///
     /// assert_eq!(fold_left::<PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -463,7 +471,7 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
     ///     "5".to_string()
     /// );
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -472,7 +480,7 @@ impl<Second> Foldable for PairWithSecondBrand<Second> {
     }
 }
 
-impl<Second: Clone> Traversable for PairWithSecondBrand<Second> {
+impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
     /// Traverses the pair with an applicative function (over first).
     ///
     /// # Examples
@@ -489,11 +497,11 @@ impl<Second: Clone> Traversable for PairWithSecondBrand<Second> {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         let Pair(first, second) = ta;
         F::map(move |b| Pair(b, second.clone()), f(first))
@@ -514,11 +522,11 @@ impl<Second: Clone> Traversable for PairWithSecondBrand<Second> {
     /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         let Pair(first, second) = ta;
         F::map(move |a| Pair(a, second.clone()), first)

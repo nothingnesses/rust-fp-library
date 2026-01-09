@@ -1,4 +1,4 @@
-use crate::hkt::Apply0L1T;
+use crate::hkt::Apply1L1T;
 use super::{clonable_fn::{ApplyClonableFn, ClonableFn}, functor::Functor, lift::Lift};
 
 /// A type class for types that support function application within a context.
@@ -18,17 +18,17 @@ pub trait Semiapplicative: Lift + Functor {
     /// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
     /// distinct anonymous type.
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>
-    ) -> Apply0L1T<Self, B>;
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>
+    ) -> Apply1L1T<'a, Self, B>;
 }
 
 /// Applies a function within a context to a value within a context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
 pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-    ff: Apply0L1T<Brand, ApplyClonableFn<'a, FnBrand, A, B>>,
-    fa: Apply0L1T<Brand, A>
-) -> Apply0L1T<Brand, B> {
+    ff: Apply1L1T<'a, Brand, ApplyClonableFn<'a, FnBrand, A, B>>,
+    fa: Apply1L1T<'a, Brand, A>
+) -> Apply1L1T<'a, Brand, B> {
     Brand::apply::<A, B, FnBrand>(ff, fa)
 }

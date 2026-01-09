@@ -144,7 +144,7 @@ After approval:
 
 1. **Implement the approved solution**
 2. **Write well-documented code**:
-   - Include doc comments (`///`) for all public items
+   - Include doc comments (`///`) and doc-tests for all public items
    - Add inline comments for non-obvious logic
    - Follow Rust idioms and the existing code style
 3. **Preserve existing tests** where possible, update where necessary

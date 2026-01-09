@@ -1,6 +1,6 @@
 use crate::{
     brands::{ResultWithErrBrand, ResultWithOkBrand},
-    hkt::Apply0L1T,
+    hkt::{Apply1L1T, Kind1L1T},
     v2::classes::{
         applicative::Applicative,
         apply_first::ApplyFirst,
@@ -19,7 +19,11 @@ use crate::{
 
 // ResultWithErrBrand<E> (Functor over T)
 
-impl<E> Functor for ResultWithErrBrand<E> {
+impl<E: 'static> Kind1L1T for ResultWithErrBrand<E> {
+    type Output<'a, A: 'a> = Result<A, E>;
+}
+
+impl<E: 'static> Functor for ResultWithErrBrand<E> {
     /// Maps a function over the value in the result.
     ///
     /// # Examples
@@ -31,7 +35,7 @@ impl<E> Functor for ResultWithErrBrand<E> {
     /// assert_eq!(map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
     /// assert_eq!(map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -39,7 +43,7 @@ impl<E> Functor for ResultWithErrBrand<E> {
     }
 }
 
-impl<E: Clone> Lift for ResultWithErrBrand<E> {
+impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
     /// Lifts a binary function into the result context.
     ///
     /// # Examples
@@ -59,9 +63,9 @@ impl<E: Clone> Lift for ResultWithErrBrand<E> {
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -75,7 +79,7 @@ impl<E: Clone> Lift for ResultWithErrBrand<E> {
     }
 }
 
-impl<E> Pointed for ResultWithErrBrand<E> {
+impl<E: 'static> Pointed for ResultWithErrBrand<E> {
     /// Wraps a value in a result.
     ///
     /// # Examples
@@ -86,15 +90,15 @@ impl<E> Pointed for ResultWithErrBrand<E> {
     ///
     /// assert_eq!(pure::<ResultWithErrBrand<()>, _>(5), Ok(5));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Ok(a)
     }
 }
 
-impl<E: Clone> ApplyFirst for ResultWithErrBrand<E> {}
-impl<E: Clone> ApplySecond for ResultWithErrBrand<E> {}
+impl<E: Clone + 'static> ApplyFirst for ResultWithErrBrand<E> {}
+impl<E: Clone + 'static> ApplySecond for ResultWithErrBrand<E> {}
 
-impl<E: Clone> Semiapplicative for ResultWithErrBrand<E> {
+impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
     /// Applies a wrapped function to a wrapped value.
     ///
     /// # Examples
@@ -110,9 +114,9 @@ impl<E: Clone> Semiapplicative for ResultWithErrBrand<E> {
     /// assert_eq!(apply::<ResultWithErrBrand<()>, _, _, RcFnBrand>(f, Ok(5)), Ok(10));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         match (ff, fa) {
             (Ok(f), Ok(a)) => Ok(f(a)),
             (Err(e), _) => Err(e),
@@ -121,7 +125,7 @@ impl<E: Clone> Semiapplicative for ResultWithErrBrand<E> {
     }
 }
 
-impl<E: Clone> Semimonad for ResultWithErrBrand<E> {
+impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
     /// Chains result computations.
     ///
     /// # Examples
@@ -136,17 +140,17 @@ impl<E: Clone> Semimonad for ResultWithErrBrand<E> {
     /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         ma.and_then(f)
     }
 }
 
-impl<E> Foldable for ResultWithErrBrand<E> {
+impl<E: 'static> Foldable for ResultWithErrBrand<E> {
     /// Folds the result from the right.
     ///
     /// # Examples
@@ -158,7 +162,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
     /// assert_eq!(fold_right::<ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
     /// assert_eq!(fold_right::<ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -178,7 +182,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
     ///
     /// assert_eq!(fold_left::<ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -202,7 +206,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
     ///     "5".to_string()
     /// );
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -214,7 +218,7 @@ impl<E> Foldable for ResultWithErrBrand<E> {
     }
 }
 
-impl<E: Clone> Traversable for ResultWithErrBrand<E> {
+impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
     /// Traverses the result with an applicative function.
     ///
     /// # Examples
@@ -230,11 +234,11 @@ impl<E: Clone> Traversable for ResultWithErrBrand<E> {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         match ta {
             Ok(a) => F::map(|b| Ok(b), f(a)),
@@ -256,11 +260,11 @@ impl<E: Clone> Traversable for ResultWithErrBrand<E> {
     /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         match ta {
             Ok(fa) => F::map(|a| Ok(a), fa),
@@ -271,7 +275,11 @@ impl<E: Clone> Traversable for ResultWithErrBrand<E> {
 
 // ResultWithOkBrand<T> (Functor over E)
 
-impl<T> Functor for ResultWithOkBrand<T> {
+impl<T: 'static> Kind1L1T for ResultWithOkBrand<T> {
+    type Output<'a, A: 'a> = Result<T, A>;
+}
+
+impl<T: 'static> Functor for ResultWithOkBrand<T> {
     /// Maps a function over the error value in the result.
     ///
     /// # Examples
@@ -283,7 +291,7 @@ impl<T> Functor for ResultWithOkBrand<T> {
     /// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
     /// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
     /// ```
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B,
     {
@@ -294,7 +302,7 @@ impl<T> Functor for ResultWithOkBrand<T> {
     }
 }
 
-impl<T: Clone> Lift for ResultWithOkBrand<T> {
+impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
     /// Lifts a binary function into the result context (over error).
     ///
     /// # Examples
@@ -310,9 +318,9 @@ impl<T: Clone> Lift for ResultWithOkBrand<T> {
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>,
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -326,7 +334,7 @@ impl<T: Clone> Lift for ResultWithOkBrand<T> {
     }
 }
 
-impl<T> Pointed for ResultWithOkBrand<T> {
+impl<T: 'static> Pointed for ResultWithOkBrand<T> {
     /// Wraps a value in a result (as error).
     ///
     /// # Examples
@@ -337,15 +345,15 @@ impl<T> Pointed for ResultWithOkBrand<T> {
     ///
     /// assert_eq!(pure::<ResultWithOkBrand<()>, _>(5), Err(5));
     /// ```
-    fn pure<A>(a: A) -> Apply0L1T<Self, A> {
+    fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
         Err(a)
     }
 }
 
-impl<T: Clone> ApplyFirst for ResultWithOkBrand<T> {}
-impl<T: Clone> ApplySecond for ResultWithOkBrand<T> {}
+impl<T: Clone + 'static> ApplyFirst for ResultWithOkBrand<T> {}
+impl<T: Clone + 'static> ApplySecond for ResultWithOkBrand<T> {}
 
-impl<T: Clone> Semiapplicative for ResultWithOkBrand<T> {
+impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
     /// Applies a wrapped function to a wrapped value (over error).
     ///
     /// # Examples
@@ -361,9 +369,9 @@ impl<T: Clone> Semiapplicative for ResultWithOkBrand<T> {
     /// assert_eq!(apply::<ResultWithOkBrand<()>, _, _, RcFnBrand>(f, Err(5)), Err(10));
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<Self, B> {
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, Self, B> {
         match (ff, fa) {
             (Err(f), Err(a)) => Err(f(a)),
             (Ok(t), _) => Ok(t),
@@ -372,7 +380,7 @@ impl<T: Clone> Semiapplicative for ResultWithOkBrand<T> {
     }
 }
 
-impl<T: Clone> Semimonad for ResultWithOkBrand<T> {
+impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
     /// Chains result computations (over error).
     ///
     /// # Examples
@@ -387,11 +395,11 @@ impl<T: Clone> Semimonad for ResultWithOkBrand<T> {
     /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F,
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>,
+        F: Fn(A) -> Apply1L1T<'a, Self, B>,
     {
         match ma {
             Ok(t) => Ok(t),
@@ -400,7 +408,7 @@ impl<T: Clone> Semimonad for ResultWithOkBrand<T> {
     }
 }
 
-impl<T> Foldable for ResultWithOkBrand<T> {
+impl<T: 'static> Foldable for ResultWithOkBrand<T> {
     /// Folds the result from the right (over error).
     ///
     /// # Examples
@@ -412,7 +420,7 @@ impl<T> Foldable for ResultWithOkBrand<T> {
     /// assert_eq!(fold_right::<ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
     /// assert_eq!(fold_right::<ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
     /// ```
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
@@ -432,7 +440,7 @@ impl<T> Foldable for ResultWithOkBrand<T> {
     ///
     /// assert_eq!(fold_left::<ResultWithOkBrand<()>, _, _, _>(|acc, x| acc + x, 0, Err(5)), 5);
     /// ```
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
@@ -456,7 +464,7 @@ impl<T> Foldable for ResultWithOkBrand<T> {
     ///     "5".to_string()
     /// );
     /// ```
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
@@ -468,7 +476,7 @@ impl<T> Foldable for ResultWithOkBrand<T> {
     }
 }
 
-impl<T: Clone> Traversable for ResultWithOkBrand<T> {
+impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
     /// Traverses the result with an applicative function (over error).
     ///
     /// # Examples
@@ -484,11 +492,11 @@ impl<T: Clone> Traversable for ResultWithOkBrand<T> {
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone,
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone,
     {
         match ta {
             Err(e) => F::map(|b| Err(b), f(e)),
@@ -510,11 +518,11 @@ impl<T: Clone> Traversable for ResultWithOkBrand<T> {
     /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>,
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>,
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone,
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone,
     {
         match ta {
             Err(fe) => F::map(|e| Err(e), fe),
