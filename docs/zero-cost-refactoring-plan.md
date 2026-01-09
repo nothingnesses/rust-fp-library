@@ -282,12 +282,12 @@ pub trait Functor: Kind0L1T {
 
 ```rust
 pub trait Functor: Kind0L1T {
-    fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
     where
         F: Fn(A) -> B;
 }
 
-pub fn map<Brand: Functor, A, B, F>(f: F, fa: Apply0L1T<Brand, A>) -> Apply0L1T<Brand, B>
+pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Brand, A>) -> Apply0L1T<Brand, B>
 where
     F: Fn(A) -> B
 {
@@ -310,7 +310,7 @@ where
 ```rust
 pub trait Lift: Kind0L1T {
     // lift2 (equivalent to map2) - Enables zero-cost combination
-    fn lift2<A, B, C, F>(
+    fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
         fa: Apply0L1T<Self, A>,
         fb: Apply0L1T<Self, B>
@@ -323,6 +323,7 @@ pub trait Lift: Kind0L1T {
 ```
 
 **Reasoning**:
+
 - **Decoupled from Functor**: `Lift` is defined independently of `Functor`. This allows for a granular hierarchy where "combining contexts" (`Lift`) and "mapping over contexts" (`Functor`) are orthogonal traits.
 - **Zero-Cost Combination**: Allows combining two contexts _without_ creating intermediate closures stored in the container.
 - **Base for Semiapplicative**: Serves as a supertrait for `Semiapplicative`, `ApplyFirst`, and `ApplySecond`.
@@ -335,21 +336,25 @@ pub trait Lift: Kind0L1T {
 
 ```rust
 pub trait Semiapplicative: Lift + Functor {
-    // Primary method: apply (functions in context)
-    fn apply<A, B, F>(
-        ff: Apply0L1T<Self, F>,
+    /// Applies functions stored in a context to values stored in a context.
+    ///
+    /// **Important**: This operation requires type erasure for heterogeneous functions.
+    /// When a container (like `Vec`) holds multiple different closures, they must be
+    /// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
+    /// distinct anonymous type.
+    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
         fa: Apply0L1T<Self, A>
-    ) -> Apply0L1T<Self, B>
-    where
-        F: Fn(A) -> B,
-        A: Clone;
+    ) -> Apply0L1T<Self, B>;
 }
 ```
 
 **Reasoning**:
+
 - **Composition**: Extends both `Lift` and `Functor`, combining the ability to lift binary functions and map unary functions.
-- **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`.
-- **Clone Bounds**: `Clone` bounds are required to support `Vec` implementation.
+- **Type Erasure Required**: The `ff` parameter uses `ApplyClonableFn<'a, FnBrand, A, B>` (e.g., `Rc<dyn Fn(A) -> B>`) because containers like `Vec` cannot hold heterogeneous generic function types. Each Rust closure `|x| ...` is a unique anonymous type, so `Vec<F>` where `F: Fn(A) -> B` can only hold closures of the exact same concrete type—useless for any practical multi-function container. Type erasure via `dyn Fn` is the only way to store different closures in the same container.
+- **Clone Bounds**: `Clone` bounds are required to support `Vec` implementation (Cartesian product).
+- **Brand Abstraction**: Users can choose between `RcFnBrand` (single-threaded) and `ArcFnBrand` (thread-safe).
 
 #### Step 2.4: Refactor `Semimonad` Trait
 
@@ -359,7 +364,7 @@ pub trait Semiapplicative: Lift + Functor {
 
 ```rust
 pub trait Semimonad: Kind0L1T {
-    fn bind<A, B, F>(
+    fn bind<'a, A: 'a, B: 'a, F: 'a>(
         ma: Apply0L1T<Self, A>,
         f: F
     ) -> Apply0L1T<Self, B>
@@ -368,7 +373,7 @@ pub trait Semimonad: Kind0L1T {
 }
 ```
 
-**Reasoning**: Standard `flat_map` signature. Zero-cost.
+**Reasoning**: Standard `flat_map` signature. Zero-cost. Lifetime `'a` bounds ensure closures that borrow data can be used.
 
 #### Step 2.5: Refactor `Foldable` Trait
 
@@ -378,15 +383,15 @@ pub trait Semimonad: Kind0L1T {
 
 ```rust
 pub trait Foldable: Kind0L1T {
-    fn fold_right<A, B, F>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
     where
         F: Fn(A, B) -> B;
 
-    fn fold_left<A, B, F>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
     where
         F: Fn(B, A) -> B;
 
-    fn fold_map<A, M, F>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M;
@@ -403,15 +408,16 @@ pub trait Foldable: Kind0L1T {
 
 ```rust
 pub trait Traversable: Functor + Foldable {
-    fn traverse<F, A, B, Func>(
+    fn traverse<'a, F: Applicative, A: 'a, B: 'a, Func: 'a>(
         f: Func,
         ta: Apply0L1T<Self, A>
     ) -> Apply0L1T<F, Apply0L1T<Self, B>>
     where
-        F: Applicative,
         Func: Fn(A) -> Apply0L1T<F, B>;
 
-    // sequence remains similar but uncurried
+    fn sequence<'a, F: Applicative, A: 'a>(
+        ta: Apply0L1T<Self, Apply0L1T<F, A>>
+    ) -> Apply0L1T<F, Apply0L1T<Self, A>>;
 }
 ```
 
@@ -615,16 +621,70 @@ where
 
 ### Phase 5: Update Endofunction/Endomorphism Types
 
-**Goal**: Maintain these types for `Foldable` defaults but allow optimization.
+**Goal**: Reimplement these types to work with the new uncurried `Semigroup` trait while maintaining their role for `Foldable` defaults.
 
-#### Step 5.1: Keep `Endofunction` Wrapper
+#### Step 5.1: Reimplement `Endofunction` for Uncurried `Semigroup`
 
 **File**: `fp-library/src/types/endofunction.rs`
 
-**Action**: Keep the current design (wrapping `ClonableFn`).
-**Reasoning**: `Endofunction` is primarily used in the default implementation of `fold_right`. Since `fold_right` composes functions dynamically based on the list length, the composed function type changes at runtime (conceptually). Rust requires a single concrete type for the accumulator. `Rc<dyn Fn>` / `Arc<dyn Fn>` provides this type erasure.
+**Current Signature** (curried):
 
-**Optimization**: Ensure concrete types like `Vec` implement `fold_right` directly to bypass this wrapper.
+```rust
+impl<'b, CFB: 'b + ClonableFn, A> Semigroup<'b> for Endofunction<'b, CFB, A> {
+    fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+        a: Self
+    ) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
+    where
+        Self: Sized,
+        'b: 'a,
+    {
+        <ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+            Self::new(compose::<'b, CFB, _, _, _>(a.0.clone())(b.0))
+        })
+    }
+}
+```
+
+**Proposed Reimplementation** (uncurried):
+
+```rust
+impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
+    fn append(a: Self, b: Self) -> Self {
+        // a.0 and b.0 are both ApplyClonableFn<'a, CFB, A, A>
+        // which implements Deref<Target = dyn Fn(A) -> A>
+        // We compose them by creating a new closure and wrapping it
+        Self::new(<CFB as ClonableFn>::new(move |x| a.0(b.0(x))))
+    }
+}
+```
+
+**Reasoning**: This works because:
+
+1. **Type-erased inner functions**: `Endofunction<'a, CFB, A>` wraps `ApplyClonableFn<'a, CFB, A, A>`, which is `Rc<dyn Fn(A) -> A>` or `Arc<dyn Fn(A) -> A>` depending on the brand. Both `a.0` and `b.0` implement `Deref<Target = dyn Fn(A) -> A>`, so they can be called directly.
+
+2. **Brand-aware construction**: The struct is parameterized by `CFB: ClonableFn`, so it knows how to construct new wrapped functions using `<CFB as ClonableFn>::new(...)`.
+
+3. **Composition creates same type**: The new closure `move |x| a.0(b.0(x))` is wrapped into a fresh `Rc<dyn Fn>` or `Arc<dyn Fn>`, producing another `Endofunction<'a, CFB, A>`.
+
+4. **No currying needed**: The uncurried `append(a, b) -> Self` signature works naturally because we're composing two already-type-erased functions.
+
+**Monoid Implementation** (unchanged in structure):
+
+```rust
+impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
+    fn empty() -> Self {
+        Self::new(<CFB as ClonableFn>::new(identity))
+    }
+}
+```
+
+**Optimization**: Concrete types like `Vec` should still implement `fold_right` directly using `Iterator::rfold` to bypass `Endofunction` overhead entirely.
+
+#### Step 5.2: Apply Same Pattern to `Endomorphism`
+
+**File**: `fp-library/src/types/endomorphism.rs`
+
+Apply the same uncurried `Semigroup` reimplementation to `Endomorphism`, which uses `Category` instead of `ClonableFn` but follows the same composition pattern.
 
 ---
 
@@ -775,10 +835,70 @@ This is considered an acceptable trade-off because:
 
 ### Approach: Parallel Implementation
 
-1. **Create new module structure** alongside existing code
-2. **Implement new traits**, including documentation and doc tests, in the new module
-3. **Reimplement types using new traits** including documentation and doc tests, in the new module
-4. **Fully replace old API with new one** in next minor version
+#### Step M.1: Create New Module Structure
+
+Create a parallel module structure for the new API:
+
+```
+fp-library/src/
+├── classes/           # Current curried API
+│   ├── functor.rs
+│   ├── semiapplicative.rs
+│   └── ...
+├── v2/                # New uncurried API (temporary during migration)
+│   ├── mod.rs
+│   ├── classes/
+│   │   ├── mod.rs
+│   │   ├── functor.rs
+│   │   ├── semiapplicative.rs
+│   │   ├── lift.rs    # New trait
+│   │   └── ...
+│   └── types/
+│       ├── mod.rs
+│       ├── option.rs
+│       ├── vec.rs
+│       └── ...
+└── lib.rs
+```
+
+#### Step M.2: Re-export Strategy
+
+In `lib.rs`, use feature flags to control which API is exported:
+
+```rust
+// lib.rs
+#[cfg(feature = "v1")]
+pub mod classes;
+
+#[cfg(feature = "v2")]
+pub mod v2;
+
+// Default to v1 during transition
+#[cfg(all(not(feature = "v1"), not(feature = "v2")))]
+pub use classes as default_classes;
+```
+
+#### Step M.3: Deprecation Annotations
+
+Add deprecation warnings to the old API:
+
+```rust
+// In classes/functor.rs (old)
+#[deprecated(
+    since = "0.x.y",
+    note = "Use fp_library::v2::classes::Functor instead. The curried API will be removed in 0.(x+1).0."
+)]
+pub trait Functor: Kind0L1T { ... }
+```
+
+#### Step M.4: Migration Timeline
+
+| Version   | API State      | Actions                                 |
+| --------- | -------------- | --------------------------------------- |
+| 0.x.y     | Curried only   | Current state                           |
+| 0.x.(y+1) | Both available | Add `v2` module, deprecate `classes`    |
+| 0.x.(y+2) | Both available | Additional migration period             |
+| 0.(x+1).0 | Uncurried only | Move `v2` to root, remove old `classes` |
 
 ### Versioning
 
@@ -792,6 +912,7 @@ This is considered an acceptable trade-off because:
 2. **Property tests**: Verify laws hold for both APIs
 3. **Benchmark tests**: Add benchmarks comparing both approaches
 4. **Doc tests**: Rewrite all examples
+5. **Migration tests**: Test that equivalent operations produce same results between v1 and v2
 
 ---
 
@@ -870,6 +991,7 @@ vec.map(|x| { counter += 1; x + counter });
 ```
 
 **Reasoning for deferral**:
+
 1.  **Purity**: `Fn` aligns better with functional programming principles (pure functions).
 2.  **Complexity**: `FnMut` introduces complications when functions are used multiple times (e.g., `apply` on a `Vec` performs a Cartesian product, reusing the function).
 3.  **Safety**: `Fn` is safer as it prevents accidental state mutation.
@@ -895,3 +1017,67 @@ vec.map(|x| { counter += 1; x + counter });
 3. **IO monad**: Explicit effect tracking
 
 **Reasoning for deferral**: These are significant extensions beyond the scope of the zero-cost refactoring effort.
+
+---
+
+## Appendix: Bug Fixes
+
+### A.1: Fix `LazyBrand` Compilation Error
+
+**File**: `fp-library/src/types/lazy.rs`
+
+**Current Code (lines 169-175)**:
+
+```rust
+impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
+    for LazyBrand<OnceBrand, ClonableFnBrand>
+where
+    A: 'static,  // ERROR: `A` is not in scope
+{
+    type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
+}
+```
+
+**Problem**: The `where A: 'static` clause references `A`, but `A` is a parameter of the associated type `Output<A>`, not of the impl block. This is a syntax error—`A` is not in scope at the impl level.
+
+**Fix**: Remove the erroneous where clause. The `'static` bound on the output type should be sufficient:
+
+```rust
+impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
+    for LazyBrand<OnceBrand, ClonableFnBrand>
+{
+    type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
+}
+```
+
+**Action**: Apply this fix as part of Phase 3 (Step 3.4) when updating `LazyBrand`.
+
+**Note**: If there are actual lifetime constraints needed for correctness, they should be expressed differently—either:
+
+- As bounds on the associated type: `type Output<A: 'static> = ...`
+- Or as bounds in the methods that use the type
+
+### A.2: Verify `LazyBrand` Works After Fix
+
+After fixing the compilation error, verify that:
+
+1. `LazyBrand` can be instantiated with various `OnceBrand` and `ClonableFnBrand` combinations
+2. The `Lazy` type's `Functor`, `Semimonad`, and other implementations work correctly
+3. Thunks are properly deferred and memoized
+
+Add test cases:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use crate::types::{Lazy, LazyBrand};
+    use crate::brands::{RcFnBrand, OnceCellBrand};
+
+    #[test]
+    fn test_lazy_brand_kind() {
+        // Verify Kind0L1T implementation compiles
+        fn assert_kind<K: Kind0L1T>() {}
+        assert_kind::<LazyBrand<OnceCellBrand, RcFnBrand>>();
+    }
+}
+```
