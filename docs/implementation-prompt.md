@@ -1,6 +1,6 @@
 # Implementation Prompt for Zero-Cost Refactoring
 
-You are implementing the Zero-Cost Abstractions Refactoring Plan for a Rust functional programming library. Your task is to systematically refactor the codebase from a curried, dynamic-dispatch architecture to an uncurried, monomorphized architecture while preserving the HKT (Higher-Kinded Types) infrastructure.
+You are in the process of implementing the Zero-Cost Abstractions Refactoring Plan for a Rust functional programming library. Your task is to systematically refactor the codebase from a curried, dynamic-dispatch architecture to an uncurried, monomorphized architecture while preserving the HKT (Higher-Kinded Types) infrastructure.
 
 ## Reference Documents
 
@@ -20,6 +20,7 @@ git log --oneline 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
 ```
 
 Use this to:
+
 - Verify changes align with the plan
 - Ensure no unintended modifications have occurred
 - Track which files have been modified
@@ -37,6 +38,7 @@ Instead, follow the **Parallel Implementation** strategy described in the Refact
 3.  The existing code must remain compile-able and unchanged until the final switch-over.
 
 **Directory Structure:**
+
 ```
 fp-library/src/
 ├── classes/           # EXISTING (Do not modify)
@@ -73,6 +75,7 @@ Before implementing, analyze the current step:
 - **Solution B**: An alternative approach you've identified
 
 For each solution, document:
+
 - **Advantages**: Performance, ergonomics, maintainability
 - **Disadvantages**: Complexity, breaking changes, edge cases
 - **Trade-offs**: What does this solution optimize for vs. sacrifice?
@@ -93,31 +96,40 @@ Example format:
 ## Step X.Y: [Step Name]
 
 ### Current State
+
 [Description of current implementation]
 
 ### Proposed Solution (Recommended)
+
 [Detailed description of the recommended approach]
 
 **Advantages:**
+
 - ...
 
 **Disadvantages:**
+
 - ...
 
 ### Alternative Solution
+
 [Description of alternative approach]
 
 **Advantages:**
+
 - ...
 
 **Disadvantages:**
+
 - ...
 
 ### Potential Issues
+
 - [Issue 1]
 - [Issue 2]
 
 ### Questions for Review
+
 - [Question 1]
 - [Question 2]
 
@@ -151,6 +163,7 @@ After implementing:
 4. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
 
 If issues are found:
+
 - Analyze the failure
 - Propose fixes
 - Get approval before applying fixes
@@ -170,7 +183,7 @@ After completing the implementation and verification:
 
 All public items must have doc comments following this pattern:
 
-```rust
+````rust
 /// Brief one-line description.
 ///
 /// Longer description if needed, explaining the purpose and behavior.
@@ -196,7 +209,7 @@ All public items must have doc comments following this pattern:
 /// // Example code
 /// ```
 pub fn example_function() { ... }
-```
+````
 
 #### Code Style
 
@@ -208,6 +221,7 @@ pub fn example_function() { ... }
 #### Error Messages
 
 When encountering type errors, provide context:
+
 - What types were expected vs. actual
 - Which bounds are missing
 - Suggestions for fixing
@@ -237,34 +251,41 @@ When encountering type errors, provide context:
 ### 6. Phase-by-Phase Guidance
 
 #### Phase 1: Function Wrapper Traits
+
 - Focus on understanding the current trait hierarchy
 - Minimal code changes expected
 - Primary goal is planning and documentation
 
 #### Phase 2: Uncurry Type Class Traits
+
 - This is the core refactoring work
 - Changes will cascade through the codebase
 - Implement traits before their implementations
 - Use `cargo check` frequently to catch type errors early
 
 #### Phase 3: Update Type Implementations
+
 - Each type should be updated independently
 - Verify type class laws still hold after changes
 - Pay attention to `Clone` bounds and lifetime requirements
 
 #### Phase 4: Update Helper Functions
+
 - These are standalone and can be updated independently
 - Ensure backward compatibility where sensible
 
 #### Phase 5: Endofunction/Endomorphism
+
 - These types are more complex due to their use of `dyn Fn`
 - Test thoroughly with different function brands
 
 #### Phase 6: Brand Infrastructure
+
 - Minimal changes expected
 - Focus on verification
 
 #### Phase 7: Documentation
+
 - Update all doc comments to reflect new API
 - Ensure all examples compile and run correctly
 - Update README with new usage patterns
