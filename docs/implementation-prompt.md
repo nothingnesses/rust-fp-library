@@ -12,11 +12,10 @@ You are in the process of implementing the Zero-Cost Abstractions Refactoring Pl
 
 ### 1. Progress Tracking
 
-Before making changes and periodically during implementation, check your progress against the baseline:
+Before making changes and periodically during implementation, check your current progress against the baseline:
 
 ```bash
-git diff 7f50bd37912f175dc706f00d6f96e690d11fb488
-git -P log 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
+git diff 7f50bd37912f175dc706f00d6f96e690d11fb488; git -P log 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
 ```
 
 Use this to:
@@ -158,7 +157,7 @@ After implementing:
    ```bash
    cargo test; cargo check; cargo clippy
    ```
-2. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
+2. **Verify the diff**: `git add .; git diff --cached`
 3. **Update the checklist**: Mark the step as complete
 4. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
 
@@ -176,6 +175,7 @@ After completing the implementation and verification:
 2. **Identify new knowledge**: Did you learn something about the codebase or Rust that affects future steps?
 3. **Review documentation**: Check if `docs/zero-cost-refactoring-plan.md` or other docs need updates to reflect reality.
 4. **Propose updates**: If changes are needed, present them to the user for approval before modifying documentation.
+5. **Verify the diff and formulate commit message**: If changes were made, run `git add .; git diff --cached` then output a Markdown-formatted summary of the recent changes for the user to use in the git commit.
 
 ### 4. Code Standards
 

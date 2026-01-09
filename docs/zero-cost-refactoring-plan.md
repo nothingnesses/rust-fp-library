@@ -295,13 +295,13 @@ pub trait Functor: Kind0L1T {
 **Proposed**:
 
 ```rust
-pub trait Functor: Kind0L1T {
-    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+pub trait Functor: Kind1L1T {
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B;
 }
 
-pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Brand, A>) -> Apply0L1T<Brand, B>
+pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Brand, A>) -> Apply1L1T<'a, Brand, B>
 where
     F: Fn(A) -> B
 {
@@ -311,7 +311,7 @@ where
 
 **Reasoning**:
 
-- **HKT Preserved**: `Apply0L1T<Self, A>` is kept.
+- **HKT Preserved**: `Apply1L1T<Self, A>` is used instead of `Apply0L1T` to support types that require a lifetime parameter (like `Lazy`).
 - **Zero-Cost**: `F` is generic, allowing monomorphization and inlining.
 - **Uncurried**: `f` and `fa` are passed together.
 
@@ -322,13 +322,13 @@ where
 **Proposed**:
 
 ```rust
-pub trait Lift: Kind0L1T {
+pub trait Lift: Kind1L1T {
     // lift2 (equivalent to map2) - Enables zero-cost combination
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>
-    ) -> Apply0L1T<Self, C>
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>
+    ) -> Apply1L1T<'a, Self, C>
     where
         F: Fn(A, B) -> C,
         A: Clone,
@@ -357,9 +357,9 @@ pub trait Semiapplicative: Lift + Functor {
     /// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
     /// distinct anonymous type.
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-        fa: Apply0L1T<Self, A>
-    ) -> Apply0L1T<Self, B>;
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>
+    ) -> Apply1L1T<'a, Self, B>;
 }
 ```
 
@@ -377,13 +377,13 @@ pub trait Semiapplicative: Lift + Functor {
 **Proposed**:
 
 ```rust
-pub trait Semimonad: Kind0L1T {
+pub trait Semimonad: Kind1L1T {
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
-        ma: Apply0L1T<Self, A>,
+        ma: Apply1L1T<'a, Self, A>,
         f: F
-    ) -> Apply0L1T<Self, B>
+    ) -> Apply1L1T<'a, Self, B>
     where
-        F: Fn(A) -> Apply0L1T<Self, B>;
+        F: Fn(A) -> Apply1L1T<'a, Self, B>;
 }
 ```
 
@@ -396,16 +396,16 @@ pub trait Semimonad: Kind0L1T {
 **Proposed**:
 
 ```rust
-pub trait Foldable: Kind0L1T {
-    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+pub trait Foldable: Kind1L1T {
+    fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(A, B) -> B;
 
-    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
+    fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply1L1T<'a, Self, A>) -> B
     where
         F: Fn(B, A) -> B;
 
-    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
+    fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M;
@@ -424,18 +424,18 @@ pub trait Foldable: Kind0L1T {
 pub trait Traversable: Functor + Foldable {
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
-        ta: Apply0L1T<Self, A>
-    ) -> Apply0L1T<F, Apply0L1T<Self, B>>
+        ta: Apply1L1T<'a, Self, A>
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<Self, B>: Clone;
+        Func: Fn(A) -> Apply1L1T<'a, F, B>,
+        Apply1L1T<'a, Self, B>: Clone;
 
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
-        ta: Apply0L1T<Self, Apply0L1T<F, A>>
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+        ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>
+    ) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
     where
-        Apply0L1T<F, A>: Clone,
-        Apply0L1T<Self, A>: Clone;
+        Apply1L1T<'a, F, A>: Clone,
+        Apply1L1T<'a, Self, A>: Clone;
 }
 ```
 
@@ -446,7 +446,7 @@ pub trait Traversable: Functor + Foldable {
 1. **Rust does not allow trait implementations to add bounds** that don't exist on the trait definition
 2. Types like `Vec` need `Clone` in their `traverse` implementation (which uses `apply` internally)
 3. While types like `Option` don't strictly need `Clone`, a unified trait hierarchy requires the bounds at the trait level
-4. The `Apply0L1T<Self, B>: Clone` bound is needed when `traverse` recursively combines results using `apply` or `lift2`
+4. The `Apply1L1T<'a, Self, B>: Clone` bound is needed when `traverse` recursively combines results using `apply` or `lift2`
 
 #### Step 2.7: Refactor `ApplyFirst` and `ApplySecond` Traits
 
@@ -460,18 +460,18 @@ pub trait Traversable: Functor + Foldable {
 ```rust
 pub trait ApplyFirst: Lift {
     fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>
-    ) -> Apply0L1T<Self, A> {
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>
+    ) -> Apply1L1T<'a, Self, A> {
         Self::lift2(|a, _| a, fa, fb)
     }
 }
 
 pub trait ApplySecond: Lift {
     fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>
-    ) -> Apply0L1T<Self, B> {
+        fa: Apply1L1T<'a, Self, A>,
+        fb: Apply1L1T<'a, Self, B>
+    ) -> Apply1L1T<'a, Self, B> {
         Self::lift2(|_, b| b, fa, fb)
     }
 }
@@ -575,7 +575,7 @@ fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
 
 ```rust
 impl Functor for OptionBrand {
-    fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
     where
         F: Fn(A) -> B
     {
@@ -607,21 +607,21 @@ Update `IdentityBrand`, `ResultWithErrBrand`, `ResultWithOkBrand`, `PairWithFirs
 **Proposed**:
 
 1. Keep `ClonableFnBrand` in the struct definition
-2. Add new implementations for `Functor`, `Semiapplicative`, `Semimonad`, etc. using patterns that preserve laziness:
+2. Add new implementations for `Semiapplicative`, `Semigroup`, `Monoid`, `Defer`.
+3. **Note**: `Functor`, `Pointed`, and `Semimonad` are **omitted** because `Lazy` requires `A: Clone` for memoization, which conflicts with the trait definitions (which must work for all `A`).
 
 ```rust
-impl<OnceBrand: Once, CFB: ClonableFn> Functor for LazyBrand<OnceBrand, CFB> {
-    fn map<'a, A: 'a + Clone, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
-    where
-        F: Fn(A) -> B,
-    {
-        // Create a new Lazy that applies f to the forced value of fa
-        Lazy::new(<CFB as ClonableFn>::new(move |_| f(Lazy::force(fa.clone()))))
+impl<OnceBrand: Once, CFB: ClonableFn> Semiapplicative for LazyBrand<OnceBrand, CFB> {
+    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+        fa: Apply1L1T<'a, Self, A>
+    ) -> Apply1L1T<'a, Self, B> {
+        // Implementation using Lazy::new and force
     }
 }
 ```
 
-**Note**: These implementations will require `Clone` bounds on `A` because lazy evaluation may need to clone the thunk or its result. This is a fundamental requirement of the lazy semantics, not a limitation of the refactoring.
+**Note**: These implementations will require `Clone` bounds on `A` because lazy evaluation may need to clone the thunk or its result. This is a fundamental requirement of the lazy semantics.
 
 ---
 
@@ -1171,6 +1171,32 @@ vec.map(|x| { counter += 1; x + counter });
 
 **Reasoning for deferral**: These are significant extensions beyond the scope of the zero-cost refactoring effort.
 
+### Supporting `Lazy` as a Functor
+
+**Problem**: `Lazy` requires `A: Clone` to be memoized, but `Functor::map` does not enforce `A: Clone`.
+
+**Potential Solution**: Add `Clone` bounds to `Functor` (and `Pointed`, `Semimonad`).
+
+```rust
+pub trait Functor: Kind1L1T {
+    fn map<'a, A: 'a + Clone, B: 'a + Clone, F: 'a>(f: F, fa: Apply1L1T<'a, Self, A>) -> Apply1L1T<'a, Self, B>
+    where
+        F: Fn(A) -> B;
+}
+```
+
+**Downsides**:
+
+1.  **Loss of Generality**: `Option<NonClone>`, `Vec<NonClone>`, etc., would no longer be Functors. This breaks many standard patterns (e.g., mapping over iterators of non-cloneable items).
+2.  **Performance**: Might encourage unnecessary cloning.
+
+**Alternative**: "Restricted Monads" pattern (using GATs to specify bounds on `A`).
+
+- Rust traits don't fully support this yet in a way that allows `Functor` to be object-safe or easily usable.
+- It would significantly complicate the trait hierarchy.
+
+**Conclusion**: For now, `Lazy` remains a special case that implements `Semiapplicative` (which supports `Clone`) but not the full Monad hierarchy.
+
 ---
 
 ## Appendix: Bug Fixes
@@ -1245,18 +1271,21 @@ mod tests {
 During the implementation of `Lazy`, it became apparent that `Kind0L1T` (types with 0 lifetimes) was insufficient because `Lazy` inherently captures the lifetime of its environment.
 
 **Solution**:
+
 - Introduced `Kind1L1T` trait: `type Output<'a, A: 'a>: 'a;`.
 - Updated all `v2` traits (`Functor`, `Monad`, etc.) to extend `Kind1L1T`.
 - Updated all `v2` types to implement `Kind1L1T`.
 
 **Consequences**:
-- `Result<A, E>` and `Pair<First, A>` can only implement `Kind1L1T` if their fixed parameters (`E`, `First`) are `'static`. This is because `Kind1L1T` requires the type constructor to be valid for *any* lifetime `'a`, which is impossible if `E` has a shorter lifetime.
+
+- `Result<A, E>` and `Pair<First, A>` can only implement `Kind1L1T` if their fixed parameters (`E`, `First`) are `'static`. This is because `Kind1L1T` requires the type constructor to be valid for _any_ lifetime `'a`, which is impossible if `E` has a shorter lifetime.
 
 ### Lazy and Type Classes
 
 `Lazy` requires `A: Clone` to be memoized (forced). However, standard type classes like `Functor`, `Pointed`, and `Semimonad` do not enforce `A: Clone`.
 
 **Decision**:
+
 - `Lazy` does **not** implement `Functor`, `Pointed`, or `Semimonad`.
 - `Lazy` **does** implement `Semiapplicative` (which has `A: Clone` bounds).
 - This preserves the generality of the library for other types (e.g., `Option<NonClone>`) while acknowledging `Lazy`'s specific constraints.
