@@ -28,9 +28,9 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
     - [x] Update free function `map`.
 - [x] **Step 2.2**: Create `Lift` trait in `fp-library/src/classes/lift.rs`.
     - [x] Define `lift2` with signature: `fn lift2<A, B, C, F>(f: F, fa: ..., fb: ...) -> ... where F: Fn(A, B) -> C`.
-- [ ] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
-    - [ ] Make it extend `Lift + Functor`.
-    - [ ] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
+- [x] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
+    - [x] Make it extend `Lift + Functor`.
+    - [x] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
 - [ ] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
     - [ ] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
 - [ ] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
