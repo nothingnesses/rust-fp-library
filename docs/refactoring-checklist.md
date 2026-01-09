@@ -4,19 +4,19 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 
 ## Phase 0: Setup Parallel Module Structure
 
-- [ ] **Step 0.1**: Create `v2` module structure.
-    - [ ] Create `fp-library/src/v2/mod.rs`.
-    - [ ] Create `fp-library/src/v2/classes/mod.rs`.
-    - [ ] Create `fp-library/src/v2/types/mod.rs`.
-- [ ] **Step 0.2**: Configure feature flags in `lib.rs`.
-    - [ ] Add `v2` module declaration guarded by feature flag (or just pub mod for now).
+- [x] **Step 0.1**: Create `v2` module structure.
+    - [x] Create `fp-library/src/v2/mod.rs`.
+    - [x] Create `fp-library/src/v2/classes/mod.rs`.
+    - [x] Create `fp-library/src/v2/types/mod.rs`.
+- [x] **Step 0.2**: Configure feature flags in `lib.rs`.
+    - [x] Add `v2` module declaration guarded by feature flag (or just pub mod for now).
 
 ## Phase 1: Simplify and Restrict Function Wrapper Traits
 
 *Note: These changes might need to be mirrored or adapted in `v2` if they are foundational, or the `v2` code can import them if they are compatible.*
 
-- [ ] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
-    - [ ] Confirm it is kept as a base abstraction.
+- [x] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
+    - [x] Confirm it is kept as a base abstraction.
 - [ ] **Step 1.2**: Review `ClonableFn` trait in `fp-library/src/classes/clonable_fn.rs`.
     - [ ] Remove it from signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable` (will be done in Phase 2).
     - [ ] Ensure it is retained for `Semiapplicative::apply`, `Lazy`, `Defer`, `Endofunction`, `Endomorphism`.

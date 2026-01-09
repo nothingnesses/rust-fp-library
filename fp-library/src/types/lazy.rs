@@ -166,10 +166,10 @@ impl<'a, OnceBrand: Once, CFB: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, Once
 
 pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(OnceBrand, ClonableFnBrand);
 
-impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
-	for LazyBrand<OnceBrand, ClonableFnBrand>
-where
-	A: 'static,
-{
-	type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
-}
+// impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
+// 	for LazyBrand<OnceBrand, ClonableFnBrand>
+// where
+// 	A: 'static,
+// {
+// 	type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
+// }
