@@ -2,7 +2,18 @@
 
 This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Plan.
 
+## Phase 0: Setup Parallel Module Structure
+
+- [ ] **Step 0.1**: Create `v2` module structure.
+    - [ ] Create `fp-library/src/v2/mod.rs`.
+    - [ ] Create `fp-library/src/v2/classes/mod.rs`.
+    - [ ] Create `fp-library/src/v2/types/mod.rs`.
+- [ ] **Step 0.2**: Configure feature flags in `lib.rs`.
+    - [ ] Add `v2` module declaration guarded by feature flag (or just pub mod for now).
+
 ## Phase 1: Simplify and Restrict Function Wrapper Traits
+
+*Note: These changes might need to be mirrored or adapted in `v2` if they are foundational, or the `v2` code can import them if they are compatible.*
 
 - [ ] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
     - [ ] Confirm it is kept as a base abstraction.
@@ -86,8 +97,3 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 - [ ] **Step 7.3**: Update Doc Tests.
     - [ ] Rewrite doc tests to use uncurried API.
 
-## Migration Strategy (Optional / Parallel Implementation)
-
-- [ ] **Step M.1**: Create `v2` module structure (if choosing parallel migration).
-- [ ] **Step M.2**: Configure feature flags in `lib.rs`.
-- [ ] **Step M.3**: Add deprecation warnings to old API.

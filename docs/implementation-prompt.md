@@ -25,11 +25,38 @@ Use this to:
 
 After completing each step, update the checklist in `docs/refactoring-checklist.md` by marking the appropriate item as complete (`[x]`).
 
-### 2. Per-Step Implementation Process
+### 2. Module Strategy (CRITICAL)
+
+**Do NOT modify the existing files in `fp-library/src/classes/` or `fp-library/src/types/` directly.**
+
+Instead, follow the **Parallel Implementation** strategy described in the Refactoring Plan:
+
+1.  Create a new module structure under `fp-library/src/v2/`.
+2.  Implement the new uncurried traits and types in this `v2` namespace.
+3.  The existing code must remain compile-able and unchanged until the final switch-over.
+
+**Directory Structure:**
+```
+fp-library/src/
+├── classes/           # EXISTING (Do not modify)
+├── v2/                # NEW (Implement here)
+│   ├── mod.rs
+│   ├── classes/
+│   │   ├── mod.rs
+│   │   ├── functor.rs
+│   │   └── ...
+│   └── types/
+│       ├── mod.rs
+│       ├── option.rs
+│       └── ...
+└── lib.rs             # Update to export v2
+```
+
+### 3. Per-Step Implementation Process
 
 For **each step** in the refactoring plan, follow this process:
 
-#### 2.1. Analysis Phase
+#### 3.1. Analysis Phase
 
 Before implementing, analyze the current step:
 
@@ -37,7 +64,7 @@ Before implementing, analyze the current step:
 2. **Identify dependencies** - what other code depends on the code you're changing?
 3. **Consider edge cases** - are there type bounds, lifetimes, or trait interactions that could cause issues?
 
-#### 2.2. Solution Formulation
+#### 3.2. Solution Formulation
 
 **Formulate at least two alternative solutions** when possible:
 
@@ -49,7 +76,7 @@ For each solution, document:
 - **Disadvantages**: Complexity, breaking changes, edge cases
 - **Trade-offs**: What does this solution optimize for vs. sacrifice?
 
-#### 2.3. Review Gate
+#### 3.3. Review Gate
 
 **STOP and present your findings to the user before implementing.** Include:
 
@@ -98,7 +125,7 @@ Example format:
 
 Wait for user approval before implementing.
 
-#### 2.4. Implementation Phase
+#### 3.4. Implementation Phase
 
 After approval:
 
@@ -110,7 +137,7 @@ After approval:
 3. **Preserve existing tests** where possible, update where necessary
 4. **Add new tests** for changed functionality
 
-#### 2.5. Verification Phase
+#### 3.5. Verification Phase
 
 After implementing:
 
@@ -125,7 +152,7 @@ If issues are found:
 - Propose fixes
 - Get approval before applying fixes
 
-### 3. Code Standards
+### 4. Code Standards
 
 #### Documentation
 
@@ -173,7 +200,7 @@ When encountering type errors, provide context:
 - Which bounds are missing
 - Suggestions for fixing
 
-### 4. Handling Challenges
+### 5. Handling Challenges
 
 #### If the plan seems incorrect or incomplete
 
@@ -195,7 +222,7 @@ When encountering type errors, provide context:
 3. **Propose a fix** or explain why the test expectation should change
 4. **Get approval** before modifying tests
 
-### 5. Phase-by-Phase Guidance
+### 6. Phase-by-Phase Guidance
 
 #### Phase 1: Function Wrapper Traits
 - Focus on understanding the current trait hierarchy
@@ -230,7 +257,7 @@ When encountering type errors, provide context:
 - Ensure all examples compile and run correctly
 - Update README with new usage patterns
 
-### 6. Communication Guidelines
+### 7. Communication Guidelines
 
 - **Be explicit** about what you're doing and why
 - **Show your work** - include relevant code snippets
@@ -238,7 +265,7 @@ When encountering type errors, provide context:
 - **Report progress** at each step completion
 - **Flag blockers** immediately when encountered
 
-### 7. Success Criteria
+### 8. Success Criteria
 
 The refactoring is complete when:
 
