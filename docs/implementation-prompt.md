@@ -153,6 +153,15 @@ If issues are found:
 - Propose fixes
 - Get approval before applying fixes
 
+#### 3.6. Reflection Phase
+
+After completing the implementation and verification:
+
+1. **Reflect on challenges**: Did you encounter issues that required deviating from the plan?
+2. **Identify new knowledge**: Did you learn something about the codebase or Rust that affects future steps?
+3. **Review documentation**: Check if `docs/zero-cost-refactoring-plan.md` or other docs need updates to reflect reality.
+4. **Propose updates**: If changes are needed, present them to the user for approval before modifying documentation.
+
 ### 4. Code Standards
 
 #### Documentation
