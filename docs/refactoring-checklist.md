@@ -92,8 +92,10 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 ## Phase 6: Update Brand Infrastructure
 
-- [ ] **Step 6.1**: Verify `RcFnBrand` and `ArcFnBrand`.
-  - [ ] Ensure they still work for `apply` with heterogeneous functions.
+- [x] **Step 6.1**: Verify `RcFnBrand` and `ArcFnBrand`.
+  - [x] Ensure they still work for `apply` with heterogeneous functions.
+  - *`RcFnBrand` verified in `fp-library/src/v2/types/rc_fn.rs`*
+  - *`ArcFnBrand` implemented in `fp-library/src/v2/types/arc_fn.rs`*
 
 ## Phase 7: Update Documentation and Examples
 
