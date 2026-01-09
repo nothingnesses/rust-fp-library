@@ -141,10 +141,10 @@ After approval:
 
 After implementing:
 
-1. **Run the test suite**: `cargo test`
-2. **Check for compilation errors**: `cargo check`
-3. **Run clippy**: `cargo clippy`
-4. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
+1. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
+2. **Run the test suite**: `cargo test`
+3. **Check for compilation errors**: `cargo check`
+4. **Run clippy**: `cargo clippy`
 5. **Update the checklist**: Mark the step as complete
 6. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
 
