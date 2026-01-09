@@ -1,0 +1,93 @@
+# Zero-Cost Refactoring Checklist
+
+This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Plan.
+
+## Phase 1: Simplify and Restrict Function Wrapper Traits
+
+- [ ] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
+    - [ ] Confirm it is kept as a base abstraction.
+- [ ] **Step 1.2**: Review `ClonableFn` trait in `fp-library/src/classes/clonable_fn.rs`.
+    - [ ] Remove it from signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable` (will be done in Phase 2).
+    - [ ] Ensure it is retained for `Semiapplicative::apply`, `Lazy`, `Defer`, `Endofunction`, `Endomorphism`.
+
+## Phase 2: Uncurry Type Class Traits
+
+- [ ] **Step 2.1**: Refactor `Functor` in `fp-library/src/classes/functor.rs`.
+    - [ ] Update `map` signature to be uncurried: `fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B> where F: Fn(A) -> B`.
+    - [ ] Update free function `map`.
+- [ ] **Step 2.2**: Create `Lift` trait in `fp-library/src/classes/lift.rs`.
+    - [ ] Define `lift2` with signature: `fn lift2<A, B, C, F>(f: F, fa: ..., fb: ...) -> ... where F: Fn(A, B) -> C`.
+- [ ] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
+    - [ ] Make it extend `Lift + Functor`.
+    - [ ] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
+- [ ] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
+    - [ ] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
+- [ ] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
+    - [ ] Update `fold_right`, `fold_left`, `fold_map` to be uncurried.
+- [ ] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.
+    - [ ] Update `traverse` and `sequence` to be uncurried.
+    - [ ] Ensure `Clone` bounds are present where necessary.
+- [ ] **Step 2.7**: Refactor `ApplyFirst` and `ApplySecond`.
+    - [ ] Update `fp-library/src/classes/apply_first.rs` to extend `Lift` and use `lift2`.
+    - [ ] Update `fp-library/src/classes/apply_second.rs` to extend `Lift` and use `lift2`.
+- [ ] **Step 2.8**: Refactor `Semigroup` in `fp-library/src/classes/semigroup.rs`.
+    - [ ] Simplify `append` signature: `fn append(a: Self, b: Self) -> Self`.
+- [ ] **Step 2.9**: Refactor `Semigroupoid` and `Category`.
+    - [ ] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
+    - [ ] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
+- [ ] **Step 2.10**: Refactor `Pointed` in `fp-library/src/classes/pointed.rs`.
+    - [ ] Remove `ClonableFnBrand` from `pure`.
+- [ ] **Step 2.11**: Verify `Applicative` and `Monad`.
+    - [ ] Check `fp-library/src/classes/applicative.rs` and `fp-library/src/classes/monad.rs` for compatibility.
+
+## Phase 3: Update Type Implementations
+
+- [ ] **Step 3.1**: Update `OptionBrand` in `fp-library/src/types/option.rs`.
+    - [ ] Implement uncurried `Functor`, `Semiapplicative`, `Semimonad`, etc.
+- [ ] **Step 3.2**: Update `VecBrand` in `fp-library/src/types/vec.rs`.
+    - [ ] Implement uncurried traits using iterator methods.
+    - [ ] Optimize `fold` methods.
+- [ ] **Step 3.3**: Update other brands.
+    - [ ] `IdentityBrand` (`fp-library/src/types/identity.rs`).
+    - [ ] `ResultWithErrBrand` (`fp-library/src/types/result/result_with_err.rs`).
+    - [ ] `ResultWithOkBrand` (`fp-library/src/types/result/result_with_ok.rs`).
+    - [ ] `Pair` brands (`fp-library/src/types/pair.rs` etc.).
+- [ ] **Step 3.4**: Update `LazyBrand` in `fp-library/src/types/lazy.rs`.
+    - [ ] **Bug Fix**: Remove erroneous `where A: 'static` clause (Appendix A.1).
+    - [ ] Implement `Functor`, `Semiapplicative`, `Semimonad` preserving laziness.
+
+## Phase 4: Update Helper Functions
+
+- [ ] **Step 4.1**: Update `compose` in `fp-library/src/functions.rs`.
+    - [ ] Make it uncurried: `fn compose<...>(f: F, g: G) -> impl Fn...`.
+- [ ] **Step 4.2**: Update `constant`.
+    - [ ] Make it uncurried.
+- [ ] **Step 4.3**: Update `flip`.
+    - [ ] Make it uncurried.
+
+## Phase 5: Update Endofunction/Endomorphism Types
+
+- [ ] **Step 5.1**: Reimplement `Endofunction` in `fp-library/src/types/endofunction.rs`.
+    - [ ] Update `Semigroup` implementation to be uncurried.
+- [ ] **Step 5.2**: Reimplement `Endomorphism` in `fp-library/src/types/endomorphism.rs`.
+    - [ ] Update `Semigroup` implementation.
+
+## Phase 6: Update Brand Infrastructure
+
+- [ ] **Step 6.1**: Verify `RcFnBrand` and `ArcFnBrand`.
+    - [ ] Ensure they still work for `apply` with heterogeneous functions.
+
+## Phase 7: Update Documentation and Examples
+
+- [ ] **Step 7.1**: Update Doc Comments.
+    - [ ] Update signatures and examples in all modified files.
+- [ ] **Step 7.2**: Update README.
+    - [ ] Update usage patterns in `README.md`.
+- [ ] **Step 7.3**: Update Doc Tests.
+    - [ ] Rewrite doc tests to use uncurried API.
+
+## Migration Strategy (Optional / Parallel Implementation)
+
+- [ ] **Step M.1**: Create `v2` module structure (if choosing parallel migration).
+- [ ] **Step M.2**: Configure feature flags in `lib.rs`.
+- [ ] **Step M.3**: Add deprecation warnings to old API.
