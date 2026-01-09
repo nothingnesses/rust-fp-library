@@ -438,9 +438,12 @@ pub trait Semigroup {
 
 **Reasoning**: Simplified to standard Rust style. Removed lifetime `'b` and `ClonableFnBrand` as they are implementation details of specific semigroups (like `Endofunction`), not the trait itself.
 
-#### Step 2.8: Refactor `Semigroupoid` Trait
+#### Step 2.8: Refactor `Semigroupoid` and `Category` Traits
 
-**File**: `fp-library/src/classes/semigroupoid.rs`
+**Files**:
+
+- `fp-library/src/classes/semigroupoid.rs`
+- `fp-library/src/classes/category.rs`
 
 **Proposed**:
 
@@ -451,7 +454,35 @@ pub trait Semigroupoid: Kind1L2T {
         g: Apply1L2T<'a, Self, B, C>
     ) -> Apply1L2T<'a, Self, B, D>;
 }
+
+// Category inherits from Semigroupoid, so its implementations must be updated
+pub trait Category: Semigroupoid {
+    fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A>;
+}
 ```
+
+#### Step 2.9: Refactor `Pointed` Trait
+
+**File**: `fp-library/src/classes/pointed.rs`
+
+**Proposed**:
+
+```rust
+pub trait Pointed: Kind0L1T {
+    fn pure<A>(a: A) -> Apply0L1T<Self, A>;
+}
+```
+
+**Reasoning**: Remove `ClonableFnBrand` dependency. `pure` simply lifts a value; it doesn't involve function application or storage that requires branding.
+
+#### Step 2.10: Verify `Applicative` and `Monad` Traits
+
+**Files**:
+
+- `fp-library/src/classes/applicative.rs`
+- `fp-library/src/classes/monad.rs`
+
+**Action**: Ensure these traits (which inherit from `Pointed`, `Semiapplicative`, and `Semimonad`) propagate the changes correctly. Update any default implementations or blanket implementations to match the new uncurried signatures of their supertraits.
 
 ---
 
@@ -499,6 +530,15 @@ impl Functor for OptionBrand {
 #### Step 3.3: Update Other Brands
 
 Update `IdentityBrand`, `ResultWithErrBrand`, `ResultWithOkBrand`, `PairWithFirstBrand`, `PairWithSecondBrand` similarly.
+
+#### Step 3.4: Update `LazyBrand`
+
+**File**: `fp-library/src/types/lazy.rs`
+
+**Action**: `Lazy` must continue to use `ClonableFn` (or `ArcFnBrand`/`RcFnBrand`) because it stores a thunk that must be clonable to allow the `Lazy` value itself to be cloned before evaluation.
+
+**Proposed**:
+Keep `ClonableFnBrand` in the struct definition, but update its `Functor`, `Monad`, etc. implementations to use the new uncurried signatures where possible (though `Lazy` operations often inherently involve closures).
 
 ---
 
