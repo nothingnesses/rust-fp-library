@@ -58,11 +58,11 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 - [x] **Step 3.2**: Update `VecBrand` in `fp-library/src/types/vec.rs`.
     - [x] Implement uncurried traits using iterator methods.
     - [x] Optimize `fold` methods.
-- [ ] **Step 3.3**: Update other brands.
-    - [ ] `IdentityBrand` (`fp-library/src/types/identity.rs`).
-    - [ ] `ResultWithErrBrand` (`fp-library/src/types/result/result_with_err.rs`).
-    - [ ] `ResultWithOkBrand` (`fp-library/src/types/result/result_with_ok.rs`).
-    - [ ] `Pair` brands (`fp-library/src/types/pair.rs` etc.).
+- [x] **Step 3.3**: Update other brands.
+    - [x] `IdentityBrand` (`fp-library/src/types/identity.rs`).
+    - [x] `ResultWithErrBrand` (`fp-library/src/types/result/result_with_err.rs`).
+    - [x] `ResultWithOkBrand` (`fp-library/src/types/result/result_with_ok.rs`).
+    - [x] `Pair` brands (`fp-library/src/types/pair.rs` etc.).
 - [ ] **Step 3.4**: Update `LazyBrand` in `fp-library/src/types/lazy.rs`.
     - [ ] **Bug Fix**: Remove erroneous `where A: 'static` clause (Appendix A.1).
     - [ ] Implement `Functor`, `Semiapplicative`, `Semimonad` preserving laziness.

@@ -481,6 +481,8 @@ pub trait ApplySecond: Lift {
 
 **Reasoning**: Both traits extend `Lift` and provide default implementations using `lift2`, enabling zero-cost combination without intermediate closures.
 
+**Update**: `ApplyFirst` and `ApplySecond` now provide default implementations using `lift2`. Implementors of `Lift` get these for free, but must explicitly declare `impl ApplyFirst for Brand {}`.
+
 #### Step 2.8: Refactor `Semigroup` Trait
 
 **File**: `fp-library/src/classes/semigroup.rs`
@@ -544,6 +546,8 @@ pub trait Pointed: Kind0L1T {
 - `fp-library/src/classes/monad.rs`
 
 **Action**: Ensure these traits (which inherit from `Pointed`, `Semiapplicative`, and `Semimonad`) propagate the changes correctly. Update any default implementations or blanket implementations to match the new uncurried signatures of their supertraits.
+
+**Update**: `Applicative` and `Monad` in `v2` now have blanket implementations for any type that implements the required supertraits. This reduces boilerplate for implementors.
 
 ---
 

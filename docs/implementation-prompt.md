@@ -16,6 +16,7 @@ Before making changes and periodically during implementation, check your progres
 
 ```bash
 git diff 7f50bd37912f175dc706f00d6f96e690d11fb488
+git log --oneline 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
 ```
 
 Use this to:
@@ -141,12 +142,13 @@ After approval:
 
 After implementing:
 
-1. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
-2. **Run the test suite**: `cargo test`
-3. **Check for compilation errors**: `cargo check`
-4. **Run clippy**: `cargo clippy`
-5. **Update the checklist**: Mark the step as complete
-6. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
+1. **Run verification suite**:
+   ```bash
+   cargo test; cargo check; cargo clippy
+   ```
+2. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
+3. **Update the checklist**: Mark the step as complete
+4. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
 
 If issues are found:
 - Analyze the failure
