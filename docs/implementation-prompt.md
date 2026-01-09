@@ -8,7 +8,7 @@ You are in the process of implementing the Zero-Cost Abstractions Refactoring Pl
 - **Progress Checklist**: `docs/refactoring-checklist.md`
 - **Baseline Commit**: `7f50bd37912f175dc706f00d6f96e690d11fb488`
 
-## Implementation Protocol
+## Implementation Protocol (FOLLOW EACH OF THESE EXACTLY)
 
 ### 1. Progress Tracking
 
@@ -16,7 +16,7 @@ Before making changes and periodically during implementation, check your progres
 
 ```bash
 git diff 7f50bd37912f175dc706f00d6f96e690d11fb488
-git log --oneline 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
+git -P log 7f50bd37912f175dc706f00d6f96e690d11fb488..HEAD
 ```
 
 Use this to:
@@ -33,7 +33,7 @@ After completing each step, update the checklist in `docs/refactoring-checklist.
 
 Instead, follow the **Parallel Implementation** strategy described in the Refactoring Plan:
 
-1.  Create a new module structure under `fp-library/src/v2/`.
+1.  Create a new module structure under `fp-library/src/v2/` if it does not already exist.
 2.  Implement the new uncurried traits and types in this `v2` namespace.
 3.  The existing code must remain compile-able and unchanged until the final switch-over.
 
