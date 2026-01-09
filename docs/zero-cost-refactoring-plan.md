@@ -308,7 +308,7 @@ where
 **Proposed**:
 
 ```rust
-pub trait Lift: Functor {
+pub trait Lift: Kind0L1T {
     // lift2 (equivalent to map2) - Enables zero-cost combination
     fn lift2<A, B, C, F>(
         f: F,
@@ -321,7 +321,8 @@ pub trait Lift: Functor {
 ```
 
 **Reasoning**:
-- **Zero-Cost Combination**: Allows combining two contexts _without_ creating intermediate closures stored in the container. This enables zero-cost `traverse` and `apply_first`.
+- **Decoupled from Functor**: `Lift` is defined independently of `Functor`. This allows for a granular hierarchy where "combining contexts" (`Lift`) and "mapping over contexts" (`Functor`) are orthogonal traits.
+- **Zero-Cost Combination**: Allows combining two contexts _without_ creating intermediate closures stored in the container.
 - **Base for Semiapplicative**: Serves as a supertrait for `Semiapplicative`, `ApplyFirst`, and `ApplySecond`.
 
 #### Step 2.3: Refactor `Semiapplicative` Trait
@@ -331,7 +332,7 @@ pub trait Lift: Functor {
 **Proposed**:
 
 ```rust
-pub trait Semiapplicative: Lift {
+pub trait Semiapplicative: Lift + Functor {
     // Primary method: apply (functions in context)
     fn apply<A, B, F>(
         ff: Apply0L1T<Self, F>,
@@ -343,8 +344,9 @@ pub trait Semiapplicative: Lift {
 ```
 
 **Reasoning**:
-- **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`. For `Vec`, `F` must be a concrete type. To store multiple different functions, users must use `Box<dyn Fn>` or `Rc<dyn Fn>` as `F`. This preserves the "functions as data" capability while making the cost explicit.
-- **No Clone Bounds**: `Clone` bounds are removed from the trait definition to allow use with non-clonable types (e.g., `Option`, `Result`). Implementations that require cloning (like `Vec`) will add these bounds in their `impl` blocks.
+- **Composition**: Extends both `Lift` and `Functor`, combining the ability to lift binary functions and map unary functions.
+- **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`.
+- **No Clone Bounds**: `Clone` bounds are removed from the trait definition.
 
 #### Step 2.4: Refactor `Semimonad` Trait
 
@@ -702,6 +704,16 @@ To combine `fa` and `fb` using `apply`:
 
 This forces the creation of an intermediate closure stored in the container. For `Vec`, this means `Vec<Closure>`. While Rust handles `Vec<Closure>` efficiently if they are homogeneous, `lift2` avoids this entirely:
 `lift2(|a, b| (a, b), fa, fb)` -> combines directly without intermediate storage.
+
+### Granular Trait Hierarchy
+
+The refactoring introduces a granular hierarchy by decoupling `Lift` from `Functor`.
+
+1.  **`Lift` (Standalone)**: Represents types that can combine contexts (`lift2`). It does not require `Functor`, allowing for types that are "combinable" but not necessarily "mappable" (or where the mapping relationship is implicit).
+2.  **`Functor` (Standalone)**: Represents types that can map values (`map`).
+3.  **`Semiapplicative` (Composition)**: Combines `Lift` and `Functor` to provide the full `apply` capability.
+
+This separation maximizes flexibility while maintaining zero-cost defaults for `ApplyFirst` and `Semiapplicative` via `lift2`.
 
 ### Why `Endofunction` Must Remain Dynamic
 
