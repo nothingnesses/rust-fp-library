@@ -71,12 +71,15 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 ## Phase 4: Update Helper Functions
 
-- [ ] **Step 4.1**: Update `compose` in `fp-library/src/functions.rs`.
-  - [ ] Make it uncurried: `fn compose<...>(f: F, g: G) -> impl Fn...`.
-- [ ] **Step 4.2**: Update `constant`.
-  - [ ] Make it uncurried.
-- [ ] **Step 4.3**: Update `flip`.
-  - [ ] Make it uncurried.
+- [x] **Step 4.1**: Update `compose` in `fp-library/src/functions.rs`.
+  - [x] Make it uncurried: `fn compose<...>(f: F, g: G) -> impl Fn...`.
+  - *Implemented in `fp-library/src/v2/functions.rs`*
+- [x] **Step 4.2**: Update `constant`.
+  - [x] Make it uncurried.
+  - *Implemented in `fp-library/src/v2/functions.rs`*
+- [x] **Step 4.3**: Update `flip`.
+  - [x] Make it uncurried.
+  - *Implemented in `fp-library/src/v2/functions.rs`*
 
 ## Phase 5: Update Endofunction/Endomorphism Types
 
