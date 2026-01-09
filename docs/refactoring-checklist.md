@@ -53,8 +53,8 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 
 ## Phase 3: Update Type Implementations
 
-- [ ] **Step 3.1**: Update `OptionBrand` in `fp-library/src/types/option.rs`.
-    - [ ] Implement uncurried `Functor`, `Semiapplicative`, `Semimonad`, etc.
+- [x] **Step 3.1**: Update `OptionBrand` in `fp-library/src/types/option.rs`.
+    - [x] Implement uncurried `Functor`, `Semiapplicative`, `Semimonad`, etc.
 - [ ] **Step 3.2**: Update `VecBrand` in `fp-library/src/types/vec.rs`.
     - [ ] Implement uncurried traits using iterator methods.
     - [ ] Optimize `fold` methods.
