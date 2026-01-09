@@ -23,9 +23,9 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 
 ## Phase 2: Uncurry Type Class Traits
 
-- [ ] **Step 2.1**: Refactor `Functor` in `fp-library/src/classes/functor.rs`.
-    - [ ] Update `map` signature to be uncurried: `fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B> where F: Fn(A) -> B`.
-    - [ ] Update free function `map`.
+- [x] **Step 2.1**: Refactor `Functor` in `fp-library/src/classes/functor.rs`.
+    - [x] Update `map` signature to be uncurried: `fn map<A, B, F>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B> where F: Fn(A) -> B`.
+    - [x] Update free function `map`.
 - [ ] **Step 2.2**: Create `Lift` trait in `fp-library/src/classes/lift.rs`.
     - [ ] Define `lift2` with signature: `fn lift2<A, B, C, F>(f: F, fa: ..., fb: ...) -> ... where F: Fn(A, B) -> C`.
 - [ ] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
