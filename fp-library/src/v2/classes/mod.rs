@@ -1,11 +1,15 @@
+pub mod applicative;
 pub mod category;
 pub mod clonable_fn;
 pub mod foldable;
 pub mod function;
 pub mod functor;
 pub mod lift;
+pub mod monad;
 pub mod monoid;
+pub mod pointed;
 pub mod semiapplicative;
 pub mod semigroup;
 pub mod semimonad;
 pub mod semigroupoid;
+pub mod traversable;

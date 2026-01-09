@@ -35,9 +35,9 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
     - [x] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
 - [x] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
     - [x] Update `fold_right`, `fold_left`, `fold_map` to be uncurried.
-- [ ] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.
-    - [ ] Update `traverse` and `sequence` to be uncurried.
-    - [ ] Ensure `Clone` bounds are present where necessary.
+- [x] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.
+    - [x] Update `traverse` and `sequence` to be uncurried.
+    - [x] Ensure `Clone` bounds are present where necessary.
 - [ ] **Step 2.7**: Refactor `ApplyFirst` and `ApplySecond`.
     - [ ] Update `fp-library/src/classes/apply_first.rs` to extend `Lift` and use `lift2`.
     - [ ] Update `fp-library/src/classes/apply_second.rs` to extend `Lift` and use `lift2`.
@@ -46,10 +46,10 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 - [ ] **Step 2.9**: Refactor `Semigroupoid` and `Category`.
     - [ ] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
     - [ ] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
-- [ ] **Step 2.10**: Refactor `Pointed` in `fp-library/src/classes/pointed.rs`.
-    - [ ] Remove `ClonableFnBrand` from `pure`.
-- [ ] **Step 2.11**: Verify `Applicative` and `Monad`.
-    - [ ] Check `fp-library/src/classes/applicative.rs` and `fp-library/src/classes/monad.rs` for compatibility.
+- [x] **Step 2.10**: Refactor `Pointed` in `fp-library/src/classes/pointed.rs`.
+    - [x] Remove `ClonableFnBrand` from `pure`.
+- [x] **Step 2.11**: Verify `Applicative` and `Monad`.
+    - [x] Check `fp-library/src/classes/applicative.rs` and `fp-library/src/classes/monad.rs` for compatibility.
 
 ## Phase 3: Update Type Implementations
 
