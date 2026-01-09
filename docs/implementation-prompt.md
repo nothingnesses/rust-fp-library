@@ -146,6 +146,7 @@ After implementing:
 3. **Run clippy**: `cargo clippy`
 4. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
 5. **Update the checklist**: Mark the step as complete
+6. **Formulate commit message**: Output a Markdown-formatted summary of the recent changes for the user to use in the git commit
 
 If issues are found:
 - Analyze the failure
