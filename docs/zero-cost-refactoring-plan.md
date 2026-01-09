@@ -268,6 +268,8 @@ A **hybrid approach** was recommended:
 - `Defer::defer` (deferred construction)
 - `Endofunction` / `Endomorphism` (function composition as Monoid)
 
+**Update**: Remove `A: 'a` and `B: 'a` bounds from `Function` and `ClonableFn` definitions. This relaxation is necessary to allow `RcFnBrand` to implement `Semigroupoid` without conflicting lifetime requirements.
+
 **Reasoning**: `Lazy` and `Defer` store thunks that must be clonable. `Semiapplicative::apply` stores functions inside containers (e.g., `Vec<fn>`). We cannot easily replace `Rc`/`Arc` with `Box<dyn Fn>` because `Box` is not `Clone`, and cloning is often required (e.g., `Vec::apply` needs to apply each function to each element).
 
 ---
@@ -504,7 +506,7 @@ pub trait Semigroup {
 
 ```rust
 pub trait Semigroupoid: Kind1L2T {
-    fn compose<'a, B, C, D>(
+    fn compose<'a, B: 'a, C: 'a, D: 'a>(
         f: Apply1L2T<'a, Self, C, D>,
         g: Apply1L2T<'a, Self, B, C>
     ) -> Apply1L2T<'a, Self, B, D>;
@@ -517,6 +519,8 @@ pub trait Category: Semigroupoid {
 ```
 
 **Note on `RcFnBrand`**: While the trait definition allows for zero-cost implementations, `RcFnBrand` (and `ArcFnBrand`) must still allocate and return `Rc<dyn Fn>` (or `Arc<dyn Fn>`) to fulfill their purpose as type-erased wrappers. Thus, `compose` for these brands will not be zero-cost, which is consistent with their role as dynamic escape hatches.
+
+**Update**: Added `B: 'a, C: 'a, D: 'a` bounds to `compose`. These are required for `RcFnBrand` (and other `dyn Fn` implementations) because the resulting closure `move |b| f(g(b))` captures `f` and `g` (which live for `'a`), implying that the types involved in the function signature must also be valid for `'a`.
 
 #### Step 2.10: Refactor `Pointed` Trait
 
@@ -1194,6 +1198,9 @@ impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
     type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
 }
 ```
+
+**Update**: The proposed fix (removing the `where` clause) was insufficient because `Kind0L1T` does not allow bounds on the associated type `Output`, but `Lazy` requires `A: 'static` (or `'a`).
+**Action**: The `Kind0L1T` implementation for `LazyBrand` has been temporarily commented out in `fp-library/src/types/lazy.rs`. A proper fix (likely introducing `Kind1L1T` or relaxing `Lazy` bounds) is deferred to Phase 3.4.
 
 **Action**: Apply this fix as part of Phase 3 (Step 3.4) when updating `LazyBrand`.
 
