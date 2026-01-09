@@ -408,20 +408,31 @@ pub trait Foldable: Kind0L1T {
 
 ```rust
 pub trait Traversable: Functor + Foldable {
-    fn traverse<'a, F: Applicative, A: 'a, B: 'a, Func: 'a>(
+    fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
         ta: Apply0L1T<Self, A>
     ) -> Apply0L1T<F, Apply0L1T<Self, B>>
     where
-        Func: Fn(A) -> Apply0L1T<F, B>;
+        Func: Fn(A) -> Apply0L1T<F, B>,
+        Apply0L1T<Self, B>: Clone;
 
-    fn sequence<'a, F: Applicative, A: 'a>(
+    fn sequence<'a, F: Applicative, A: 'a + Clone>(
         ta: Apply0L1T<Self, Apply0L1T<F, A>>
-    ) -> Apply0L1T<F, Apply0L1T<Self, A>>;
+    ) -> Apply0L1T<F, Apply0L1T<Self, A>>
+    where
+        Apply0L1T<F, A>: Clone,
+        Apply0L1T<Self, A>: Clone;
 }
 ```
 
-**Reasoning**: `traverse` can now use `Lift::lift2` (if available) or `apply` to combine results. Clone bounds are not required for `Traversable`.
+**Reasoning**: `traverse` can now use `Lift::lift2` (if available) or `apply` to combine results.
+
+**Note on Clone Bounds**: The `Clone` bounds are required because:
+
+1. **Rust does not allow trait implementations to add bounds** that don't exist on the trait definition
+2. Types like `Vec` need `Clone` in their `traverse` implementation (which uses `apply` internally)
+3. While types like `Option` don't strictly need `Clone`, a unified trait hierarchy requires the bounds at the trait level
+4. The `Apply0L1T<Self, B>: Clone` bound is needed when `traverse` recursively combines results using `apply` or `lift2`
 
 #### Step 2.7: Refactor `ApplyFirst` and `ApplySecond` Traits
 
@@ -434,7 +445,7 @@ pub trait Traversable: Functor + Foldable {
 
 ```rust
 pub trait ApplyFirst: Lift {
-    fn apply_first<A, B>(
+    fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
         fa: Apply0L1T<Self, A>,
         fb: Apply0L1T<Self, B>
     ) -> Apply0L1T<Self, A> {
@@ -443,7 +454,7 @@ pub trait ApplyFirst: Lift {
 }
 
 pub trait ApplySecond: Lift {
-    fn apply_second<A, B>(
+    fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
         fa: Apply0L1T<Self, A>,
         fb: Apply0L1T<Self, B>
     ) -> Apply0L1T<Self, B> {
@@ -451,6 +462,8 @@ pub trait ApplySecond: Lift {
     }
 }
 ```
+
+**Note**: The `Clone` bounds are inherited from `Lift::lift2`. Types like `Option` that don't strictly need `Clone` can provide optimized overriding implementations that avoid the bound.
 
 **Reasoning**: Both traits extend `Lift` and provide default implementations using `lift2`, enabling zero-cost combination without intermediate closures.
 
@@ -569,8 +582,26 @@ Update `IdentityBrand`, `ResultWithErrBrand`, `ResultWithOkBrand`, `PairWithFirs
 
 **Action**: `Lazy` must continue to use `ClonableFn` (or `ArcFnBrand`/`RcFnBrand`) because it stores a thunk that must be clonable to allow the `Lazy` value itself to be cloned before evaluation.
 
+**Current State**: The `Lazy` type currently implements only `Semigroup`, `Monoid`, and `Defer`. It does **not** have `Functor`, `Semimonad`, `Semiapplicative`, or other type class implementations yet.
+
 **Proposed**:
-Keep `ClonableFnBrand` in the struct definition, but update its `Functor`, `Monad`, etc. implementations to use the new uncurried signatures where possible (though `Lazy` operations often inherently involve closures).
+
+1. Keep `ClonableFnBrand` in the struct definition
+2. Add new implementations for `Functor`, `Semiapplicative`, `Semimonad`, etc. using patterns that preserve laziness:
+
+```rust
+impl<OnceBrand: Once, CFB: ClonableFn> Functor for LazyBrand<OnceBrand, CFB> {
+    fn map<'a, A: 'a + Clone, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
+    where
+        F: Fn(A) -> B,
+    {
+        // Create a new Lazy that applies f to the forced value of fa
+        Lazy::new(<CFB as ClonableFn>::new(move |_| f(Lazy::force(fa.clone()))))
+    }
+}
+```
+
+**Note**: These implementations will require `Clone` bounds on `A` because lazy evaluation may need to clone the thunk or its result. This is a fundamental requirement of the lazy semantics, not a limitation of the refactoring.
 
 ---
 
@@ -785,7 +816,17 @@ The refactoring introduces a granular hierarchy by decoupling `Lift` from `Funct
 2.  **`Functor` (Standalone)**: Represents types that can map values (`map`).
 3.  **`Semiapplicative` (Composition)**: Combines `Lift` and `Functor` to provide the full `apply` capability.
 
-This separation maximizes flexibility while maintaining zero-cost defaults for `ApplyFirst` and `Semiapplicative` via `lift2`.
+This separation maximizes flexibility while maintaining zero-cost defaults for `ApplyFirst` and `ApplySecond` via `lift2`.
+
+**Design Rationale for Separating `Lift` from `Functor`**:
+
+While in category theory every applicative functor is a functor (and thus `lift2` can be derived from `map` and `apply`), separating them in Rust provides practical benefits:
+
+1. **Zero-cost path**: `ApplyFirst` and `ApplySecond` can use `lift2` directly without requiring `apply` (which needs type erasure for heterogeneous functions)
+2. **Explicit semantics**: Makes clear which operations are "combining" (`lift2`) vs "mapping" (`map`) vs "applying functions-as-data" (`apply`)
+3. **Flexibility**: A type could theoretically implement `Lift` without `Functor` if combining makes sense but mapping doesn't (rare in practice, but the option exists)
+
+In practice, most types will implement both `Lift` and `Functor`, and the blanket impl ensures `Semiapplicative` is derived automatically when both are present.
 
 ### Why `Endofunction` Must Remain Dynamic
 
@@ -799,7 +840,7 @@ Therefore, `Self` must be a type that can represent any composition of functions
 | Aspect                  | Current Design             | Proposed Design                                      |
 | ----------------------- | -------------------------- | ---------------------------------------------------- |
 | **`map`, `bind`**       | Dynamic dispatch + Rc      | Zero-cost (monomorphized)                            |
-| **`traverse`**          | Dynamic dispatch + Rc      | Zero-cost (via `map2`)                               |
+| **`traverse`**          | Dynamic dispatch + Rc      | Zero-cost (via `lift2`)                              |
 | **`apply`**             | Dynamic dispatch + Rc      | Zero-cost for homogeneous, Dynamic for heterogeneous |
 | **`fold`**              | Dynamic dispatch (default) | Zero-cost (direct impls)                             |
 | **Ergonomics**          | Very verbose               | Much cleaner                                         |
@@ -913,6 +954,98 @@ pub trait Functor: Kind0L1T { ... }
 3. **Benchmark tests**: Add benchmarks comparing both approaches
 4. **Doc tests**: Rewrite all examples
 5. **Migration tests**: Test that equivalent operations produce same results between v1 and v2
+
+### Type Inference Considerations
+
+The new uncurried API changes type inference patterns. Users should be aware of the following:
+
+#### Brand Parameter Inference
+
+**Current API** (curried):
+
+```rust
+// Brand must be explicitly specified
+map::<RcFnBrand, OptionBrand, _, _>(Rc::new(|x: i32| x * 2))(Some(5))
+```
+
+**New API** (uncurried):
+
+```rust
+// Brand is inferred from the functor type
+map(|x: i32| x * 2, Some(5))  // OptionBrand inferred from Some(5)
+```
+
+The `Brand` parameter is typically inferred from the `fa` argument's type. However, in generic contexts, explicit type annotations may still be needed:
+
+```rust
+fn double_all<Brand: Functor>(fa: Apply0L1T<Brand, i32>) -> Apply0L1T<Brand, i32> {
+    map(|x| x * 2, fa)  // Brand inferred from fa's type
+}
+```
+
+#### Function Type Inference
+
+With `F: Fn(A) -> B` bounds, Rust usually infers the function type from the closure. If inference fails, users can add type annotations to the closure parameters:
+
+```rust
+// If this fails to infer:
+map(|x| x * 2, vec![1, 2, 3])
+
+// Add explicit types:
+map(|x: i32| x * 2, vec![1, 2, 3])
+```
+
+### Downstream User Migration Guide
+
+#### Step-by-Step Migration
+
+1. **Update imports**: Change from `fp_library::classes::*` to `fp_library::v2::classes::*` during the transition period
+
+2. **Remove `ClonableFnBrand` parameters**: Most functions no longer need them
+
+   ```rust
+   // Before:
+   map::<RcFnBrand, VecBrand, _, _>(Rc::new(|x| x * 2))(vec)
+
+   // After:
+   map(|x| x * 2, vec)
+   ```
+
+3. **Remove `Rc::new` wrapping** for most operations:
+
+   ```rust
+   // Before:
+   bind::<RcFnBrand, OptionBrand, _, _>(Some(5))(Rc::new(|x| Some(x * 2)))
+
+   // After:
+   bind(Some(5), |x| Some(x * 2))
+   ```
+
+4. **Keep `Rc`/`Arc` wrapping for `apply`** when storing heterogeneous functions:
+
+   ```rust
+   // Still needed for apply with different closures:
+   apply(vec![Rc::new(|x| x + 1), Rc::new(|x| x * 2)], vec![1, 2])
+   ```
+
+5. **Update partial application patterns**:
+
+   ```rust
+   // Before (native currying):
+   let double_all = map::<RcFnBrand, VecBrand, _, _>(Rc::new(|x: i32| x * 2));
+
+   // After (explicit closure):
+   let double_all = |v| map(|x: i32| x * 2, v);
+   ```
+
+#### Common Migration Patterns
+
+| Old Pattern                                                                     | New Pattern                          |
+| ------------------------------------------------------------------------------- | ------------------------------------ |
+| `map::<RcFnBrand, B, _, _>(Rc::new(f))(fa)`                                     | `map(f, fa)`                         |
+| `bind::<RcFnBrand, B, _, _>(ma)(Rc::new(f))`                                    | `bind(ma, f)`                        |
+| `fold_right::<RcFnBrand, B, _, _>(Rc::new(\|a\| Rc::new(\|b\| ...)))(init)(fa)` | `fold_right(\|a, b\| ..., init, fa)` |
+| `traverse::<RcFnBrand, T, F, _, _>(Rc::new(f))(ta)`                             | `traverse(f, ta)`                    |
 
 ---
 
@@ -1062,8 +1195,8 @@ impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
 After fixing the compilation error, verify that:
 
 1. `LazyBrand` can be instantiated with various `OnceBrand` and `ClonableFnBrand` combinations
-2. The `Lazy` type's `Functor`, `Semimonad`, and other implementations work correctly
-3. Thunks are properly deferred and memoized
+2. Thunks are properly deferred and memoized
+3. Add `Functor`, `Semimonad`, and other type class implementations (currently missing from codebase)
 
 Add test cases:
 
