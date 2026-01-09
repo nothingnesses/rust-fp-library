@@ -316,7 +316,9 @@ pub trait Lift: Kind0L1T {
         fb: Apply0L1T<Self, B>
     ) -> Apply0L1T<Self, C>
     where
-        F: Fn(A, B) -> C;
+        F: Fn(A, B) -> C,
+        A: Clone,
+        B: Clone;
 }
 ```
 
@@ -339,14 +341,15 @@ pub trait Semiapplicative: Lift + Functor {
         fa: Apply0L1T<Self, A>
     ) -> Apply0L1T<Self, B>
     where
-        F: Fn(A) -> B;
+        F: Fn(A) -> B,
+        A: Clone;
 }
 ```
 
 **Reasoning**:
 - **Composition**: Extends both `Lift` and `Functor`, combining the ability to lift binary functions and map unary functions.
 - **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`.
-- **No Clone Bounds**: `Clone` bounds are removed from the trait definition.
+- **Clone Bounds**: `Clone` bounds are required to support `Vec` implementation.
 
 #### Step 2.4: Refactor `Semimonad` Trait
 
@@ -407,13 +410,12 @@ pub trait Traversable: Functor + Foldable {
     where
         F: Applicative,
         Func: Fn(A) -> Apply0L1T<F, B>;
-        // No Clone bounds here; implementations like Vec will add them if needed.
 
     // sequence remains similar but uncurried
 }
 ```
 
-**Reasoning**: `traverse` can now use `Lift::lift2` (if available) or `apply` to combine results. `Clone` bounds are removed from the trait definition.
+**Reasoning**: `traverse` can now use `Lift::lift2` (if available) or `apply` to combine results. Clone bounds are not required for `Traversable`.
 
 #### Step 2.7: Refactor `ApplyFirst` and `ApplySecond` Traits
 
@@ -704,6 +706,16 @@ To combine `fa` and `fb` using `apply`:
 
 This forces the creation of an intermediate closure stored in the container. For `Vec`, this means `Vec<Closure>`. While Rust handles `Vec<Closure>` efficiently if they are homogeneous, `lift2` avoids this entirely:
 `lift2(|a, b| (a, b), fa, fb)` -> combines directly without intermediate storage.
+
+### Why Clone Bounds are Necessary for Vec
+
+The `Lift` and `Semiapplicative` traits require `Clone` bounds on their type parameters (`A: Clone`, `B: Clone`) to support `Vec` implementation.
+`Vec::apply` performs a Cartesian product (`[f1, f2] <*> [a1, a2]`), which inherently requires reusing elements. Since `apply` consumes the input vectors, elements must be cloned to be used multiple times.
+While this imposes a restriction on other types like `Option` (which don't strictly need `Clone`), it is a necessary trade-off for a unified type class hierarchy that includes collections.
+
+### Note on Heterogeneous Functions in Vec
+
+For `Vec::apply`, if the vector contains multiple functions, they must be of the same type `F`. To store heterogeneous functions (e.g., different closures), users must use a type-erased wrapper like `Rc<dyn Fn>` or `Box<dyn Fn>`.
 
 ### Granular Trait Hierarchy
 
