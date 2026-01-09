@@ -1,0 +1,97 @@
+//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
+
+use crate::v2::classes::{
+    category::Category,
+    monoid::Monoid,
+    semigroup::Semigroup,
+};
+use crate::hkt::Apply1L2T;
+use std::fmt::{self, Debug, Formatter};
+use std::hash::Hash;
+
+/// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
+///
+/// `Endomorphism c a` represents a morphism `c a a` where `c` is a `Category`.
+/// For the category of functions, this represents functions of type `a -> a`.
+///
+/// It exists to provide a monoid instance where:
+///
+/// * The binary operation [append][Semigroup::append] is [morphism composition][crate::v2::classes::semigroupoid::Semigroupoid::compose].
+/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
+///
+/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
+pub struct Endomorphism<'a, C: Category, A>(pub Apply1L2T<'a, C, A, A>);
+
+impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+    pub fn new(f: Apply1L2T<'a, C, A, A>) -> Self {
+        Self(f)
+    }
+}
+
+impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self::new(self.0.clone())
+    }
+}
+
+impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: Debug,
+{
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        fmt.debug_tuple("Endomorphism").field(&self.0).finish()
+    }
+}
+
+impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where Apply1L2T<'a, C, A, A>: Eq {}
+
+impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
+where
+    Apply1L2T<'a, C, A, A>: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
+    fn append(a: Self, b: Self) -> Self {
+        Self::new(C::compose(a.0, b.0))
+    }
+}
+
+impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
+    fn empty() -> Self {
+        Self::new(C::identity())
+    }
+}

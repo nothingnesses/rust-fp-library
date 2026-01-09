@@ -1,3 +1,5 @@
+pub mod endofunction;
+pub mod endomorphism;
 pub mod identity;
 pub mod lazy;
 pub mod once_cell;

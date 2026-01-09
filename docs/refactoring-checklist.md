@@ -83,10 +83,12 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 ## Phase 5: Update Endofunction/Endomorphism Types
 
-- [ ] **Step 5.1**: Reimplement `Endofunction` in `fp-library/src/types/endofunction.rs`.
-  - [ ] Update `Semigroup` implementation to be uncurried.
-- [ ] **Step 5.2**: Reimplement `Endomorphism` in `fp-library/src/types/endomorphism.rs`.
-  - [ ] Update `Semigroup` implementation.
+- [x] **Step 5.1**: Reimplement `Endofunction` in `fp-library/src/types/endofunction.rs`.
+  - [x] Update `Semigroup` implementation to be uncurried.
+  - *Implemented in `fp-library/src/v2/types/endofunction.rs`*
+- [x] **Step 5.2**: Reimplement `Endomorphism` in `fp-library/src/types/endomorphism.rs`.
+  - [x] Update `Semigroup` implementation.
+  - *Implemented in `fp-library/src/v2/types/endomorphism.rs`*
 
 ## Phase 6: Update Brand Infrastructure
 
