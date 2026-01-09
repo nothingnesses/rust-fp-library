@@ -31,8 +31,8 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 - [x] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
     - [x] Make it extend `Lift + Functor`.
     - [x] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
-- [ ] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
-    - [ ] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
+- [x] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
+    - [x] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
 - [ ] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
     - [ ] Update `fold_right`, `fold_left`, `fold_map` to be uncurried.
 - [ ] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.

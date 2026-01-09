@@ -4,4 +4,5 @@ pub mod function;
 pub mod functor;
 pub mod lift;
 pub mod semiapplicative;
+pub mod semimonad;
 pub mod semigroupoid;
