@@ -6,7 +6,7 @@ You are implementing the Zero-Cost Abstractions Refactoring Plan for a Rust func
 
 - **Refactoring Plan**: `docs/zero-cost-refactoring-plan.md`
 - **Progress Checklist**: `docs/refactoring-checklist.md`
-- **Baseline Commit**: `5355cde26271bcbb37f930a92cf3430604621749`
+- **Baseline Commit**: `7f50bd37912f175dc706f00d6f96e690d11fb488`
 
 ## Implementation Protocol
 
@@ -15,7 +15,7 @@ You are implementing the Zero-Cost Abstractions Refactoring Plan for a Rust func
 Before making changes and periodically during implementation, check your progress against the baseline:
 
 ```bash
-git diff 5355cde26271bcbb37f930a92cf3430604621749
+git diff 7f50bd37912f175dc706f00d6f96e690d11fb488
 ```
 
 Use this to:
@@ -144,7 +144,7 @@ After implementing:
 1. **Run the test suite**: `cargo test`
 2. **Check for compilation errors**: `cargo check`
 3. **Run clippy**: `cargo clippy`
-4. **Verify the diff**: `git diff 5355cde26271bcbb37f930a92cf3430604621749`
+4. **Verify the diff**: `git diff 7f50bd37912f175dc706f00d6f96e690d11fb488`
 5. **Update the checklist**: Mark the step as complete
 
 If issues are found:
