@@ -17,9 +17,9 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 
 - [x] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
     - [x] Confirm it is kept as a base abstraction.
-- [ ] **Step 1.2**: Review `ClonableFn` trait in `fp-library/src/classes/clonable_fn.rs`.
-    - [ ] Remove it from signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable` (will be done in Phase 2).
-    - [ ] Ensure it is retained for `Semiapplicative::apply`, `Lazy`, `Defer`, `Endofunction`, `Endomorphism`.
+- [x] **Step 1.2**: Review `ClonableFn` trait in `fp-library/src/classes/clonable_fn.rs`.
+    - [x] Remove it from signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable` (will be done in Phase 2).
+    - [x] Ensure it is retained for `Semiapplicative::apply`, `Lazy`, `Defer`, `Endofunction`, `Endomorphism`.
 
 ## Phase 2: Uncurry Type Class Traits
 
