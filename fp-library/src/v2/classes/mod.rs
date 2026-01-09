@@ -1,4 +1,6 @@
 pub mod applicative;
+pub mod apply_first;
+pub mod apply_second;
 pub mod category;
 pub mod clonable_fn;
 pub mod foldable;

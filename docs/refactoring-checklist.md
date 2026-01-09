@@ -38,14 +38,14 @@ This checklist tracks the progress of the Zero-Cost Abstractions Refactoring Pla
 - [x] **Step 2.6**: Refactor `Traversable` in `fp-library/src/classes/traversable.rs`.
     - [x] Update `traverse` and `sequence` to be uncurried.
     - [x] Ensure `Clone` bounds are present where necessary.
-- [ ] **Step 2.7**: Refactor `ApplyFirst` and `ApplySecond`.
-    - [ ] Update `fp-library/src/classes/apply_first.rs` to extend `Lift` and use `lift2`.
-    - [ ] Update `fp-library/src/classes/apply_second.rs` to extend `Lift` and use `lift2`.
+- [x] **Step 2.7**: Refactor `ApplyFirst` and `ApplySecond`.
+    - [x] Update `fp-library/src/classes/apply_first.rs` to extend `Lift` and use `lift2`.
+    - [x] Update `fp-library/src/classes/apply_second.rs` to extend `Lift` and use `lift2`.
 - [x] **Step 2.8**: Refactor `Semigroup` in `fp-library/src/classes/semigroup.rs`.
     - [x] Simplify `append` signature: `fn append(a: Self, b: Self) -> Self`.
-- [ ] **Step 2.9**: Refactor `Semigroupoid` and `Category`.
-    - [ ] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
-    - [ ] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
+- [x] **Step 2.9**: Refactor `Semigroupoid` and `Category`.
+    - [x] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
+    - [x] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
 - [x] **Step 2.10**: Refactor `Pointed` in `fp-library/src/classes/pointed.rs`.
     - [x] Remove `ClonableFnBrand` from `pure`.
 - [x] **Step 2.11**: Verify `Applicative` and `Monad`.
