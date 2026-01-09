@@ -13,9 +13,9 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait ClonableFn: Function {
-	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Output<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
 }
 
 make_type_apply!(ApplyClonableFn, ClonableFn, ('a), (A, B), "' -> * -> *");

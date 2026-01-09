@@ -13,9 +13,9 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait Function: Category {
-	type Output<'a, A: 'a, B: 'a>: Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Output<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B>;
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B>;
 }
 
 make_type_apply!(ApplyFunction, Function, ('a), (A, B), "' -> * -> *");

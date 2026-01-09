@@ -1,5 +1,5 @@
 use crate::{
-    brands::OptionBrand,
+    brands::VecBrand,
     hkt::Apply0L1T,
     v2::classes::{
         applicative::Applicative,
@@ -17,37 +17,38 @@ use crate::{
     },
 };
 
-impl Functor for OptionBrand {
-    /// Maps a function over the value in the option.
+impl Functor for VecBrand {
+    /// Maps a function over the vector.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::functor::map;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5)), Some(10));
-    /// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, None), None);
+    /// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
     /// ```
     fn map<'a, A: 'a, B: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> Apply0L1T<Self, B>
     where
         F: Fn(A) -> B,
     {
-        fa.map(f)
+        fa.into_iter().map(f).collect()
     }
 }
 
-impl Lift for OptionBrand {
-    /// Lifts a binary function into the option context.
+impl Lift for VecBrand {
+    /// Lifts a binary function into the vector context (Cartesian product).
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::lift::lift2;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), Some(2)), Some(3));
-    /// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), None), None);
+    /// assert_eq!(
+    ///     lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+    ///     vec![11, 21, 12, 22]
+    /// );
     /// ```
     fn lift2<'a, A: 'a, B: 'a, C: 'a, F: 'a>(
         f: F,
@@ -59,66 +60,72 @@ impl Lift for OptionBrand {
         A: Clone,
         B: Clone,
     {
-        fa.zip(fb).map(|(a, b)| f(a, b))
+        fa.iter()
+            .flat_map(|a| fb.iter().map(|b| f(a.clone(), b.clone())))
+            .collect()
     }
 }
 
-impl Pointed for OptionBrand {
-    /// Wraps a value in an option.
+impl Pointed for VecBrand {
+    /// Wraps a value in a vector.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::pointed::pure;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
+    /// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
     /// ```
     fn pure<A>(a: A) -> Apply0L1T<Self, A> {
-        Some(a)
+        vec![a]
     }
 }
 
-impl ApplyFirst for OptionBrand {}
-impl ApplySecond for OptionBrand {}
+impl ApplyFirst for VecBrand {}
+impl ApplySecond for VecBrand {}
 
-impl Semiapplicative for OptionBrand {
-    /// Applies a wrapped function to a wrapped value.
+impl Semiapplicative for VecBrand {
+    /// Applies wrapped functions to wrapped values (Cartesian product).
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::semiapplicative::apply;
     /// use fp_library::v2::classes::clonable_fn::ClonableFn;
-    /// use fp_library::brands::{OptionBrand};
+    /// use fp_library::brands::{VecBrand};
     /// use fp_library::v2::types::rc_fn::RcFnBrand;
     /// use std::rc::Rc;
     ///
-    /// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-    /// assert_eq!(apply::<OptionBrand, _, _, RcFnBrand>(f, Some(5)), Some(10));
+    /// let funcs = vec![
+    ///     <RcFnBrand as ClonableFn>::new(|x: i32| x + 1),
+    ///     <RcFnBrand as ClonableFn>::new(|x: i32| x * 2),
+    /// ];
+    /// assert_eq!(apply::<VecBrand, _, _, RcFnBrand>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
     /// ```
     fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
         ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
         fa: Apply0L1T<Self, A>,
     ) -> Apply0L1T<Self, B> {
-        match (ff, fa) {
-            (Some(f), Some(a)) => Some(f(a)),
-            _ => None,
-        }
+        ff.iter()
+            .flat_map(|f| fa.iter().map(move |a| f(a.clone())))
+            .collect()
     }
 }
 
-impl Semimonad for OptionBrand {
-    /// Chains option computations.
+impl Semimonad for VecBrand {
+    /// Chains vector computations (flat_map).
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::semimonad::bind;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |x| Some(x * 2)), Some(10));
-    /// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
+    /// assert_eq!(
+    ///     bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]),
+    ///     vec![1, 2, 2, 4]
+    /// );
     /// ```
     fn bind<'a, A: 'a, B: 'a, F: 'a>(
         ma: Apply0L1T<Self, A>,
@@ -127,85 +134,81 @@ impl Semimonad for OptionBrand {
     where
         F: Fn(A) -> Apply0L1T<Self, B>,
     {
-        ma.and_then(f)
+        ma.into_iter().flat_map(f).collect()
     }
 }
 
-impl Foldable for OptionBrand {
-    /// Folds the option from the right.
+impl Foldable for VecBrand {
+    /// Folds the vector from the right.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::foldable::fold_right;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
-    /// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
+    /// assert_eq!(fold_right::<VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
     /// ```
     fn fold_right<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
     where
         F: Fn(A, B) -> B,
     {
-        match fa {
-            Some(a) => f(a, init),
-            None => init,
-        }
+        fa.into_iter().rev().fold(init, |acc, x| f(x, acc))
     }
 
-    /// Folds the option from the left.
+    /// Folds the vector from the left.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::foldable::fold_left;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     ///
-    /// assert_eq!(fold_left::<OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
+    /// assert_eq!(fold_left::<VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
     /// ```
     fn fold_left<'a, A: 'a, B: 'a, F: 'a>(f: F, init: B, fa: Apply0L1T<Self, A>) -> B
     where
         F: Fn(B, A) -> B,
     {
-        match fa {
-            Some(a) => f(init, a),
-            None => init,
-        }
+        fa.into_iter().fold(init, f)
     }
 
-    /// Maps the value to a monoid and returns it, or returns empty.
+    /// Maps the values to a monoid and combines them.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::foldable::fold_map;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::VecBrand;
     /// use fp_library::v2::types::string; // Import to bring Monoid impl for String into scope
     ///
-    /// assert_eq!(fold_map::<OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
+    /// assert_eq!(
+    ///     fold_map::<VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+    ///     "123".to_string()
+    /// );
     /// ```
     fn fold_map<'a, A: 'a, M: 'a, F: 'a>(f: F, fa: Apply0L1T<Self, A>) -> M
     where
         M: Monoid,
         F: Fn(A) -> M,
     {
-        match fa {
-            Some(a) => f(a),
-            None => M::empty(),
-        }
+        fa.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
     }
 }
 
-impl Traversable for OptionBrand {
-    /// Traverses the option with an applicative function.
+impl Traversable for VecBrand {
+    /// Traverses the vector with an applicative function.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::traversable::traverse;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::{OptionBrand, VecBrand};
     ///
-    /// assert_eq!(traverse::<OptionBrand, OptionBrand, _, _, _>(|x| Some(x * 2), Some(5)), Some(Some(10)));
+    /// assert_eq!(
+    ///     traverse::<VecBrand, OptionBrand, _, _, _>(|x| Some(x * 2), vec![1, 2, 3]),
+    ///     Some(vec![2, 4, 6])
+    /// );
     /// ```
     fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func: 'a>(
         f: Func,
@@ -215,21 +218,26 @@ impl Traversable for OptionBrand {
         Func: Fn(A) -> Apply0L1T<F, B>,
         Apply0L1T<Self, B>: Clone,
     {
-        match ta {
-            Some(a) => F::map(|b| Some(b), f(a)),
-            None => F::pure(None),
-        }
+        ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+            F::lift2(|mut v, b| {
+                v.push(b);
+                v
+            }, acc, f(x))
+        })
     }
 
-    /// Sequences an option of applicative.
+    /// Sequences a vector of applicative.
     ///
     /// # Examples
     ///
     /// ```
     /// use fp_library::v2::classes::traversable::sequence;
-    /// use fp_library::brands::OptionBrand;
+    /// use fp_library::brands::{OptionBrand, VecBrand};
     ///
-    /// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
+    /// assert_eq!(
+    ///     sequence::<VecBrand, OptionBrand, _>(vec![Some(1), Some(2)]),
+    ///     Some(vec![1, 2])
+    /// );
     /// ```
     fn sequence<'a, F: Applicative, A: 'a + Clone>(
         ta: Apply0L1T<Self, Apply0L1T<F, A>>,
@@ -238,9 +246,11 @@ impl Traversable for OptionBrand {
         Apply0L1T<F, A>: Clone,
         Apply0L1T<Self, A>: Clone,
     {
-        match ta {
-            Some(fa) => F::map(|a| Some(a), fa),
-            None => F::pure(None),
-        }
+        ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+            F::lift2(|mut v, a| {
+                v.push(a);
+                v
+            }, acc, x)
+        })
     }
 }
