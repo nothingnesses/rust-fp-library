@@ -301,42 +301,52 @@ where
 - **Zero-Cost**: `F` is generic, allowing monomorphization and inlining.
 - **Uncurried**: `f` and `fa` are passed together.
 
-#### Step 2.2: Refactor `Semiapplicative` Trait
+#### Step 2.2: Introduce `Lift` Trait
+
+**File**: `fp-library/src/classes/lift.rs` (New File)
+
+**Proposed**:
+
+```rust
+pub trait Lift: Functor {
+    // lift2 (equivalent to map2) - Enables zero-cost combination
+    fn lift2<A, B, C, F>(
+        f: F,
+        fa: Apply0L1T<Self, A>,
+        fb: Apply0L1T<Self, B>
+    ) -> Apply0L1T<Self, C>
+    where
+        F: Fn(A, B) -> C;
+}
+```
+
+**Reasoning**:
+- **Zero-Cost Combination**: Allows combining two contexts _without_ creating intermediate closures stored in the container. This enables zero-cost `traverse` and `apply_first`.
+- **Base for Semiapplicative**: Serves as a supertrait for `Semiapplicative`, `ApplyFirst`, and `ApplySecond`.
+
+#### Step 2.3: Refactor `Semiapplicative` Trait
 
 **File**: `fp-library/src/classes/semiapplicative.rs`
 
 **Proposed**:
 
 ```rust
-pub trait Semiapplicative: Kind0L1T {
+pub trait Semiapplicative: Lift {
     // Primary method: apply (functions in context)
     fn apply<A, B, F>(
         ff: Apply0L1T<Self, F>,
         fa: Apply0L1T<Self, A>
     ) -> Apply0L1T<Self, B>
     where
-        F: Fn(A) -> B + Clone, // Clone often needed for cartesian products (e.g. Vec)
-        A: Clone;
-
-    // New method: map2 (lift2) - Enables zero-cost combination
-    fn map2<A, B, C, F>(
-        fa: Apply0L1T<Self, A>,
-        fb: Apply0L1T<Self, B>,
-        f: F
-    ) -> Apply0L1T<Self, C>
-    where
-        F: Fn(A, B) -> C,
-        A: Clone,
-        B: Clone;
+        F: Fn(A) -> B;
 }
 ```
 
 **Reasoning**:
-
 - **`apply`**: Keeps `ff` as `Apply0L1T<Self, F>`. For `Vec`, `F` must be a concrete type. To store multiple different functions, users must use `Box<dyn Fn>` or `Rc<dyn Fn>` as `F`. This preserves the "functions as data" capability while making the cost explicit.
-- **`map2`**: Added to allow combining two contexts _without_ creating intermediate closures stored in the container. This enables zero-cost `traverse` and `apply_first`.
+- **No Clone Bounds**: `Clone` bounds are removed from the trait definition to allow use with non-clonable types (e.g., `Option`, `Result`). Implementations that require cloning (like `Vec`) will add these bounds in their `impl` blocks.
 
-#### Step 2.3: Refactor `Semimonad` Trait
+#### Step 2.4: Refactor `Semimonad` Trait
 
 **File**: `fp-library/src/classes/semimonad.rs`
 
@@ -355,7 +365,7 @@ pub trait Semimonad: Kind0L1T {
 
 **Reasoning**: Standard `flat_map` signature. Zero-cost.
 
-#### Step 2.4: Refactor `Foldable` Trait
+#### Step 2.5: Refactor `Foldable` Trait
 
 **File**: `fp-library/src/classes/foldable.rs`
 
@@ -380,7 +390,7 @@ pub trait Foldable: Kind0L1T {
 
 **Reasoning**: Standard uncurried fold signatures.
 
-#### Step 2.5: Refactor `Traversable` Trait
+#### Step 2.6: Refactor `Traversable` Trait
 
 **File**: `fp-library/src/classes/traversable.rs`
 
@@ -394,17 +404,16 @@ pub trait Traversable: Functor + Foldable {
     ) -> Apply0L1T<F, Apply0L1T<Self, B>>
     where
         F: Applicative,
-        Func: Fn(A) -> Apply0L1T<F, B>,
-        Apply0L1T<F, B>: Clone,
-        Apply0L1T<Self, B>: Clone;
+        Func: Fn(A) -> Apply0L1T<F, B>;
+        // No Clone bounds here; implementations like Vec will add them if needed.
 
     // sequence remains similar but uncurried
 }
 ```
 
-**Reasoning**: `traverse` can now use `Applicative::map2` (if available) or `apply` to combine results.
+**Reasoning**: `traverse` can now use `Lift::lift2` (if available) or `apply` to combine results. `Clone` bounds are removed from the trait definition.
 
-#### Step 2.6: Refactor `ApplyFirst` and `ApplySecond` Traits
+#### Step 2.7: Refactor `ApplyFirst` and `ApplySecond` Traits
 
 **Files**:
 
@@ -414,17 +423,28 @@ pub trait Traversable: Functor + Foldable {
 **Proposed**:
 
 ```rust
-pub trait ApplyFirst: Kind0L1T {
+pub trait ApplyFirst: Lift {
     fn apply_first<A, B>(
         fa: Apply0L1T<Self, A>,
         fb: Apply0L1T<Self, B>
-    ) -> Apply0L1T<Self, A>;
+    ) -> Apply0L1T<Self, A> {
+        Self::lift2(|a, _| a, fa, fb)
+    }
+}
+
+pub trait ApplySecond: Lift {
+    fn apply_second<A, B>(
+        fa: Apply0L1T<Self, A>,
+        fb: Apply0L1T<Self, B>
+    ) -> Apply0L1T<Self, B> {
+        Self::lift2(|_, b| b, fa, fb)
+    }
 }
 ```
 
-**Reasoning**: Default implementation can use `map2` (zero-cost) or `apply` (requires boxing in default impl).
+**Reasoning**: Both traits extend `Lift` and provide default implementations using `lift2`, enabling zero-cost combination without intermediate closures.
 
-#### Step 2.7: Refactor `Semigroup` Trait
+#### Step 2.8: Refactor `Semigroup` Trait
 
 **File**: `fp-library/src/classes/semigroup.rs`
 
@@ -438,7 +458,7 @@ pub trait Semigroup {
 
 **Reasoning**: Simplified to standard Rust style. Removed lifetime `'b` and `ClonableFnBrand` as they are implementation details of specific semigroups (like `Endofunction`), not the trait itself.
 
-#### Step 2.8: Refactor `Semigroupoid` and `Category` Traits
+#### Step 2.9: Refactor `Semigroupoid` and `Category` Traits
 
 **Files**:
 
@@ -461,7 +481,9 @@ pub trait Category: Semigroupoid {
 }
 ```
 
-#### Step 2.9: Refactor `Pointed` Trait
+**Note on `RcFnBrand`**: While the trait definition allows for zero-cost implementations, `RcFnBrand` (and `ArcFnBrand`) must still allocate and return `Rc<dyn Fn>` (or `Arc<dyn Fn>`) to fulfill their purpose as type-erased wrappers. Thus, `compose` for these brands will not be zero-cost, which is consistent with their role as dynamic escape hatches.
+
+#### Step 2.10: Refactor `Pointed` Trait
 
 **File**: `fp-library/src/classes/pointed.rs`
 
@@ -475,7 +497,7 @@ pub trait Pointed: Kind0L1T {
 
 **Reasoning**: Remove `ClonableFnBrand` dependency. `pure` simply lifts a value; it doesn't involve function application or storage that requires branding.
 
-#### Step 2.10: Verify `Applicative` and `Monad` Traits
+#### Step 2.11: Verify `Applicative` and `Monad` Traits
 
 **Files**:
 
@@ -670,7 +692,7 @@ All doc tests need to be rewritten to use the new uncurried API.
 
    Without needing to clone functions for capture, `Rc`/`Arc` wrapping is unnecessary for most operations.
 
-### Why `map2` is Necessary for Zero-Cost
+### Why `lift2` is Necessary for Zero-Cost
 
 Relying solely on `apply` (even uncurried) forces currying of combining functions.
 To combine `fa` and `fb` using `apply`:
@@ -678,8 +700,8 @@ To combine `fa` and `fb` using `apply`:
 1. `map(|a| |b| (a, b), fa)` -> produces `F<Closure>`
 2. `apply(F<Closure>, fb)` -> produces `F<(A, B)>`
 
-This forces the creation of an intermediate closure stored in the container. For `Vec`, this means `Vec<Closure>`. While Rust handles `Vec<Closure>` efficiently if they are homogeneous, `map2` avoids this entirely:
-`map2(fa, fb, |a, b| (a, b))` -> combines directly without intermediate storage.
+This forces the creation of an intermediate closure stored in the container. For `Vec`, this means `Vec<Closure>`. While Rust handles `Vec<Closure>` efficiently if they are homogeneous, `lift2` avoids this entirely:
+`lift2(|a, b| (a, b), fa, fb)` -> combines directly without intermediate storage.
 
 ### Why `Endofunction` Must Remain Dynamic
 
@@ -810,6 +832,25 @@ impl IntOp {
 4. Most users will not need this level of optimization
 
 The hybrid approach (zero-cost for most operations, dynamic dispatch only for functions-as-data) provides a good balance. Defunctionalization can be explored as an optional add-on for users who have profiled their code and identified dynamic dispatch as a bottleneck.
+
+### Relaxing Function Bounds (`Fn` vs `FnMut`)
+
+**Background**: The current plan uses `Fn` bounds everywhere, which enforces immutability. Rust's `Iterator` trait uses `FnMut` for operations like `map`, allowing closures to mutate captured state.
+
+**Example**:
+
+```rust
+// Works with FnMut, fails with Fn
+let mut counter = 0;
+vec.map(|x| { counter += 1; x + counter });
+```
+
+**Reasoning for deferral**:
+1.  **Purity**: `Fn` aligns better with functional programming principles (pure functions).
+2.  **Complexity**: `FnMut` introduces complications when functions are used multiple times (e.g., `apply` on a `Vec` performs a Cartesian product, reusing the function).
+3.  **Safety**: `Fn` is safer as it prevents accidental state mutation.
+
+**Recommendation**: Consider relaxing bounds to `FnMut` in the future for specific operations where it is safe and idiomatic (e.g., `Functor::map`, `Foldable::fold_left`), while retaining `Fn` for operations that inherently require reuse or cloning.
 
 ### Alternative HKT Encodings
 
