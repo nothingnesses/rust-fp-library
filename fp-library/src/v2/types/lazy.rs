@@ -26,6 +26,18 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
     /// The thunk is wrapped in an `ApplyClonableFn` (e.g., `Rc<dyn Fn() -> A>`) to allow
     /// the `Lazy` value to be cloned.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. (() -> a) -> Lazy a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The thunk that produces the value.
+    ///
+    /// # Returns
+    ///
+    /// A new `Lazy` value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -45,6 +57,18 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
     /// If the value has already been computed, the cached value is returned.
     /// Requires `A: Clone` because the value is stored inside the `Lazy` struct and
     /// must be cloned to be returned to the caller.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Lazy a -> a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The lazy value to force.
+    ///
+    /// # Returns
+    ///
+    /// The computed value.
     ///
     /// # Examples
     ///
@@ -102,6 +126,19 @@ where
     ///
     /// The combination is itself lazy: the result is a new thunk that, when forced,
     /// forces both input values and combines them.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Semigroup a => (Lazy a, Lazy a) -> Lazy a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The first lazy value.
+    /// * `b`: The second lazy value.
+    ///
+    /// # Returns
+    ///
+    /// A new lazy value that combines the results.
     fn append(a: Self, b: Self) -> Self {
         Lazy::new(<CFB as ClonableFn>::new(move |_| {
              Semigroup::append(Lazy::force(a.clone()), Lazy::force(b.clone()))
@@ -117,6 +154,14 @@ where
     /// Returns the identity element for the lazy value.
     ///
     /// The result is a lazy value that evaluates to the underlying type's identity element.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Monoid a => () -> Lazy a`
+    ///
+    /// # Returns
+    ///
+    /// A lazy value containing the identity element.
     fn empty() -> Self {
         Lazy::new(<CFB as ClonableFn>::new(move |_| Monoid::empty()))
     }
@@ -127,6 +172,18 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a> fo
     ///
     /// This allows creating a `Lazy` value from a computation that produces a `Lazy` value.
     /// The outer computation is executed only when the result is forced.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. (() -> Lazy a) -> Lazy a`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: A thunk that produces a lazy value.
+    ///
+    /// # Returns
+    ///
+    /// A new lazy value.
     ///
     /// # Examples
     ///

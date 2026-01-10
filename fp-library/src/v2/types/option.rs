@@ -24,6 +24,19 @@ impl Kind1L1T for OptionBrand {
 impl Functor for OptionBrand {
     /// Maps a function over the value in the option.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Functor Option => (a -> b, Option a) -> Option b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply to the value.
+    /// * `fa`: The option to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new option containing the result of applying the function, or `None`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -43,6 +56,20 @@ impl Functor for OptionBrand {
 
 impl Lift for OptionBrand {
     /// Lifts a binary function into the option context.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply.
+    /// * `fa`: The first option.
+    /// * `fb`: The second option.
+    ///
+    /// # Returns
+    ///
+    /// `Some(f(a, b))` if both options are `Some`, otherwise `None`.
     ///
     /// # Examples
     ///
@@ -70,6 +97,18 @@ impl Lift for OptionBrand {
 impl Pointed for OptionBrand {
     /// Wraps a value in an option.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. Pointed Option => a -> Option a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// `Some(a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -88,6 +127,19 @@ impl ApplySecond for OptionBrand {}
 
 impl Semiapplicative for OptionBrand {
     /// Applies a wrapped function to a wrapped value.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semiapplicative Option => (Option (a -> b), Option a) -> Option b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The option containing the function.
+    /// * `fa`: The option containing the value.
+    ///
+    /// # Returns
+    ///
+    /// `Some(f(a))` if both are `Some`, otherwise `None`.
     ///
     /// # Examples
     ///
@@ -115,6 +167,19 @@ impl Semiapplicative for OptionBrand {
 impl Semimonad for OptionBrand {
     /// Chains option computations.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semimonad Option => (Option a, a -> Option b) -> Option b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first option.
+    /// * `f`: The function to apply to the value inside the option.
+    ///
+    /// # Returns
+    ///
+    /// The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -138,6 +203,20 @@ impl Semimonad for OptionBrand {
 impl Foldable for OptionBrand {
     /// Folds the option from the right.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Option => ((a, b) -> b, b, Option a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The option to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)` if `fa` is `Some(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -159,6 +238,20 @@ impl Foldable for OptionBrand {
 
     /// Folds the option from the left.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Option => ((b, a) -> b, b, Option a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The option to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)` if `fa` is `Some(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -178,6 +271,19 @@ impl Foldable for OptionBrand {
     }
 
     /// Maps the value to a monoid and returns it, or returns empty.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The option to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
     ///
     /// # Examples
     ///
@@ -203,6 +309,19 @@ impl Foldable for OptionBrand {
 impl Traversable for OptionBrand {
     /// Traverses the option with an applicative function.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b f. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The option to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The option wrapped in the applicative context.
+    ///
     /// # Examples
     ///
     /// ```
@@ -226,6 +345,18 @@ impl Traversable for OptionBrand {
     }
 
     /// Sequences an option of applicative.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The option containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The option wrapped in the applicative context.
     ///
     /// # Examples
     ///

@@ -116,10 +116,10 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 ## Phase 8: Update Documentation and Examples
 
-- [ ] **Step 8.1**: Update Doc Comments.
-  - [ ] Update signatures and examples in all modified files.
-  - [ ] Ensure doc tests are included and passing.
-- [ ] **Step 8.2**: Update README.
-  - [ ] Update usage patterns in `README.md`.
-- [ ] **Step 8.3**: Update Doc Tests.
-  - [ ] Rewrite doc tests to use uncurried API.
+- [x] **Step 8.1**: Update Doc Comments.
+  - [x] Update signatures and examples in all modified files.
+  - [x] Ensure doc tests are included and passing.
+- [x] **Step 8.2**: Update README.
+  - [x] Update usage patterns in `README.md`.
+- [x] **Step 8.3**: Update Doc Tests.
+  - [x] Rewrite doc tests to use uncurried API.

@@ -34,6 +34,19 @@ impl<E: 'static> Kind1L1T for ResultWithErrBrand<E> {
 impl<E: 'static> Functor for ResultWithErrBrand<E> {
     /// Maps a function over the value in the result.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b e. Functor (Result e) => (a -> b, Result e a) -> Result e b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `fa`: The result to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new result containing the result of applying the function, or the original error.
+    ///
     /// # Examples
     ///
     /// ```
@@ -53,6 +66,20 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 
 impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
     /// Lifts a binary function into the result context.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c e. Lift (Result e) => ((a, b) -> c, Result e a, Result e b) -> Result e c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply.
+    /// * `fa`: The first result.
+    /// * `fb`: The second result.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered.
     ///
     /// # Examples
     ///
@@ -90,6 +117,18 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 impl<E: 'static> Pointed for ResultWithErrBrand<E> {
     /// Wraps a value in a result.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a e. Pointed (Result e) => a -> Result e a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -108,6 +147,19 @@ impl<E: Clone + 'static> ApplySecond for ResultWithErrBrand<E> {}
 
 impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
     /// Applies a wrapped function to a wrapped value.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b e. Semiapplicative (Result e) => (Result e (a -> b), Result e a) -> Result e b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The result containing the function.
+    /// * `fa`: The result containing the value.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(f(a))` if both are `Ok`, otherwise the first error encountered.
     ///
     /// # Examples
     ///
@@ -136,6 +188,19 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
     /// Chains result computations.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b e. Semimonad (Result e) => (Result e a, a -> Result e b) -> Result e b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first result.
+    /// * `f`: The function to apply to the value inside the result.
+    ///
+    /// # Returns
+    ///
+    /// The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error.
+    ///
     /// # Examples
     ///
     /// ```
@@ -161,6 +226,20 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 impl<E: 'static> Foldable for ResultWithErrBrand<E> {
     /// Folds the result from the right.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b e. Foldable (Result e) => ((a, b) -> b, b, Result e a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)` if `fa` is `Ok(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -182,6 +261,20 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 
     /// Folds the result from the left.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b e. Foldable (Result e) => ((b, a) -> b, b, Result e a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)` if `fa` is `Ok(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -201,6 +294,19 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
     }
 
     /// Maps the value to a monoid and returns it.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m e. (Foldable (Result e), Monoid m) => ((a) -> m, Result e a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.
     ///
     /// # Examples
     ///
@@ -229,6 +335,19 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
     /// Traverses the result with an applicative function.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b f e. (Traversable (Result e), Applicative f) => (a -> f b, Result e a) -> f (Result e b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The result to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The result wrapped in the applicative context.
+    ///
     /// # Examples
     ///
     /// ```
@@ -255,6 +374,18 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
     }
 
     /// Sequences a result of applicative.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f e. (Traversable (Result e), Applicative f) => (Result e (f a)) -> f (Result e a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The result containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The result wrapped in the applicative context.
     ///
     /// # Examples
     ///
@@ -290,6 +421,19 @@ impl<T: 'static> Kind1L1T for ResultWithOkBrand<T> {
 impl<T: 'static> Functor for ResultWithOkBrand<T> {
     /// Maps a function over the error value in the result.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Functor (Result' t) => (a -> b, Result t a) -> Result t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply to the error.
+    /// * `fa`: The result to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new result containing the mapped error, or the original success value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -312,6 +456,20 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 
 impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
     /// Lifts a binary function into the result context (over error).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c t. Lift (Result' t) => ((a, b) -> c, Result t a, Result t b) -> Result t c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply to the errors.
+    /// * `fa`: The first result.
+    /// * `fb`: The second result.
+    ///
+    /// # Returns
+    ///
+    /// `Err(f(a, b))` if both results are `Err`, otherwise the first success encountered.
     ///
     /// # Examples
     ///
@@ -345,6 +503,18 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 impl<T: 'static> Pointed for ResultWithOkBrand<T> {
     /// Wraps a value in a result (as error).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a t. Pointed (Result' t) => a -> Result t a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// `Err(a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -363,6 +533,19 @@ impl<T: Clone + 'static> ApplySecond for ResultWithOkBrand<T> {}
 
 impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
     /// Applies a wrapped function to a wrapped value (over error).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Semiapplicative (Result' t) => (Result t (a -> b), Result t a) -> Result t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The result containing the function (in Err).
+    /// * `fa`: The result containing the value (in Err).
+    ///
+    /// # Returns
+    ///
+    /// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
     ///
     /// # Examples
     ///
@@ -390,6 +573,19 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 
 impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
     /// Chains result computations (over error).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Semimonad (Result' t) => (Result t a, a -> Result t b) -> Result t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first result.
+    /// * `f`: The function to apply to the error value.
+    ///
+    /// # Returns
+    ///
+    /// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
     ///
     /// # Examples
     ///
@@ -419,6 +615,20 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 impl<T: 'static> Foldable for ResultWithOkBrand<T> {
     /// Folds the result from the right (over error).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Result' t) => ((a, b) -> b, b, Result t a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)` if `fa` is `Err(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -440,6 +650,20 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 
     /// Folds the result from the left (over error).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Result' t) => ((b, a) -> b, b, Result t a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)` if `fa` is `Err(a)`, otherwise `init`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -459,6 +683,19 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
     }
 
     /// Maps the value to a monoid and returns it (over error).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m t. (Foldable (Result' t), Monoid m) => ((a) -> m, Result t a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The result to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
     ///
     /// # Examples
     ///
@@ -487,6 +724,19 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
     /// Traverses the result with an applicative function (over error).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b f t. (Traversable (Result' t), Applicative f) => (a -> f b, Result t a) -> f (Result t b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The result to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The result wrapped in the applicative context.
+    ///
     /// # Examples
     ///
     /// ```
@@ -513,6 +763,18 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
     }
 
     /// Sequences a result of applicative (over error).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f t. (Traversable (Result' t), Applicative f) => (Result t (f a)) -> f (Result t a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The result containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The result wrapped in the applicative context.
     ///
     /// # Examples
     ///

@@ -25,6 +25,19 @@ impl Kind1L1T for VecBrand {
 impl Functor for VecBrand {
     /// Maps a function over the vector.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Functor Vec => (a -> b, Vec a) -> Vec b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply to each element.
+    /// * `fa`: The vector to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new vector containing the results of applying the function.
+    ///
     /// # Examples
     ///
     /// ```
@@ -43,6 +56,20 @@ impl Functor for VecBrand {
 
 impl Lift for VecBrand {
     /// Lifts a binary function into the vector context (Cartesian product).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c. Lift Vec => ((a, b) -> c, Vec a, Vec b) -> Vec c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply.
+    /// * `fa`: The first vector.
+    /// * `fb`: The second vector.
+    ///
+    /// # Returns
+    ///
+    /// A new vector containing the results of applying the function to all pairs of elements.
     ///
     /// # Examples
     ///
@@ -74,6 +101,18 @@ impl Lift for VecBrand {
 impl Pointed for VecBrand {
     /// Wraps a value in a vector.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. Pointed Vec => a -> Vec a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// A vector containing the single value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -92,6 +131,19 @@ impl ApplySecond for VecBrand {}
 
 impl Semiapplicative for VecBrand {
     /// Applies wrapped functions to wrapped values (Cartesian product).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semiapplicative Vec => (Vec (a -> b), Vec a) -> Vec b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The vector containing the functions.
+    /// * `fa`: The vector containing the values.
+    ///
+    /// # Returns
+    ///
+    /// A new vector containing the results of applying each function to each value.
     ///
     /// # Examples
     ///
@@ -121,6 +173,19 @@ impl Semiapplicative for VecBrand {
 impl Semimonad for VecBrand {
     /// Chains vector computations (flat_map).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semimonad Vec => (Vec a, a -> Vec b) -> Vec b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first vector.
+    /// * `f`: The function to apply to each element, returning a vector.
+    ///
+    /// # Returns
+    ///
+    /// A new vector containing the flattened results.
+    ///
     /// # Examples
     ///
     /// ```
@@ -146,6 +211,20 @@ impl Semimonad for VecBrand {
 impl Foldable for VecBrand {
     /// Folds the vector from the right.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Vec => ((a, b) -> b, b, Vec a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The vector to fold.
+    ///
+    /// # Returns
+    ///
+    /// The final accumulator value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -163,6 +242,20 @@ impl Foldable for VecBrand {
 
     /// Folds the vector from the left.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Vec => ((b, a) -> b, b, Vec a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The vector to fold.
+    ///
+    /// # Returns
+    ///
+    /// The final accumulator value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -179,6 +272,19 @@ impl Foldable for VecBrand {
     }
 
     /// Maps the values to a monoid and combines them.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m. (Foldable Vec, Monoid m) => ((a) -> m, Vec a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The vector to fold.
+    ///
+    /// # Returns
+    ///
+    /// The combined monoid value.
     ///
     /// # Examples
     ///
@@ -203,6 +309,19 @@ impl Foldable for VecBrand {
 
 impl Traversable for VecBrand {
     /// Traverses the vector with an applicative function.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b f. (Traversable Vec, Applicative f) => (a -> f b, Vec a) -> f (Vec b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The vector to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The vector wrapped in the applicative context.
     ///
     /// # Examples
     ///
@@ -232,6 +351,18 @@ impl Traversable for VecBrand {
     }
 
     /// Sequences a vector of applicative.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f. (Traversable Vec, Applicative f) => (Vec (f a)) -> f (Vec a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The vector containing the applicative values.
+    ///
+    /// # Returns
+    ///
+    /// The vector wrapped in the applicative context.
     ///
     /// # Examples
     ///
@@ -263,6 +394,19 @@ impl Traversable for VecBrand {
 impl<A: Clone> Semigroup for Vec<A> {
     /// Appends one vector to another.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. Semigroup (Vec a) => (Vec a, Vec a) -> Vec a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The first vector.
+    /// * `b`: The second vector.
+    ///
+    /// # Returns
+    ///
+    /// The concatenated vector.
+    ///
     /// # Examples
     ///
     /// ```
@@ -277,6 +421,14 @@ impl<A: Clone> Semigroup for Vec<A> {
 
 impl<A: Clone> Monoid for Vec<A> {
     /// Returns an empty vector.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Monoid (Vec a) => () -> Vec a`
+    ///
+    /// # Returns
+    ///
+    /// An empty vector.
     ///
     /// # Examples
     ///

@@ -25,6 +25,19 @@ impl Kind1L1T for IdentityBrand {
 impl Functor for IdentityBrand {
     /// Maps a function over the value in the identity.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Functor Identity => (a -> b, Identity a) -> Identity b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `fa`: The identity to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new identity containing the result of applying the function.
+    ///
     /// # Examples
     ///
     /// ```
@@ -44,6 +57,20 @@ impl Functor for IdentityBrand {
 
 impl Lift for IdentityBrand {
     /// Lifts a binary function into the identity context.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c. Lift Identity => ((a, b) -> c, Identity a, Identity b) -> Identity c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply.
+    /// * `fa`: The first identity.
+    /// * `fb`: The second identity.
+    ///
+    /// # Returns
+    ///
+    /// A new identity containing the result of applying the function.
     ///
     /// # Examples
     ///
@@ -74,6 +101,18 @@ impl Lift for IdentityBrand {
 impl Pointed for IdentityBrand {
     /// Wraps a value in an identity.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. Pointed Identity => a -> Identity a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// An identity containing the value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -93,6 +132,19 @@ impl ApplySecond for IdentityBrand {}
 
 impl Semiapplicative for IdentityBrand {
     /// Applies a wrapped function to a wrapped value.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semiapplicative Identity => (Identity (a -> b), Identity a) -> Identity b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The identity containing the function.
+    /// * `fa`: The identity containing the value.
+    ///
+    /// # Returns
+    ///
+    /// A new identity containing the result of applying the function.
     ///
     /// # Examples
     ///
@@ -117,6 +169,19 @@ impl Semiapplicative for IdentityBrand {
 
 impl Semimonad for IdentityBrand {
     /// Chains identity computations.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Semimonad Identity => (Identity a, a -> Identity b) -> Identity b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first identity.
+    /// * `f`: The function to apply to the value inside the identity.
+    ///
+    /// # Returns
+    ///
+    /// The result of applying `f` to the value.
     ///
     /// # Examples
     ///
@@ -144,6 +209,20 @@ impl Semimonad for IdentityBrand {
 impl Foldable for IdentityBrand {
     /// Folds the identity from the right.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Identity => ((a, b) -> b, b, Identity a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The identity to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -162,6 +241,20 @@ impl Foldable for IdentityBrand {
 
     /// Folds the identity from the left.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b. Foldable Identity => ((b, a) -> b, b, Identity a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The identity to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -179,6 +272,19 @@ impl Foldable for IdentityBrand {
     }
 
     /// Maps the value to a monoid and returns it.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m. (Foldable Identity, Monoid m) => ((a) -> m, Identity a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The identity to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)`.
     ///
     /// # Examples
     ///
@@ -201,6 +307,19 @@ impl Foldable for IdentityBrand {
 
 impl Traversable for IdentityBrand {
     /// Traverses the identity with an applicative function.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b f. (Traversable Identity, Applicative f) => (a -> f b, Identity a) -> f (Identity b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The identity to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The identity wrapped in the applicative context.
     ///
     /// # Examples
     ///
@@ -226,6 +345,18 @@ impl Traversable for IdentityBrand {
     }
 
     /// Sequences an identity of applicative.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f. (Traversable Identity, Applicative f) => (Identity (f a)) -> f (Identity a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The identity containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The identity wrapped in the applicative context.
     ///
     /// # Examples
     ///

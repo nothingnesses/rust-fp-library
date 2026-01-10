@@ -23,6 +23,19 @@ use std::hash::Hash;
 pub struct Endomorphism<'a, C: Category, A>(pub Apply1L2T<'a, C, A, A>);
 
 impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+    /// Creates a new `Endomorphism`.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a c. Category c => c a a -> Endomorphism c a`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The morphism to wrap.
+    ///
+    /// # Returns
+    ///
+    /// A new `Endomorphism`.
     pub fn new(f: Apply1L2T<'a, C, A, A>) -> Self {
         Self(f)
     }
@@ -85,12 +98,60 @@ where
 }
 
 impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
+    /// Composes two endomorphisms.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a c. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The second morphism to apply.
+    /// * `b`: The first morphism to apply.
+    ///
+    /// # Returns
+    ///
+    /// The composed morphism `a . b`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::types::endomorphism::Endomorphism;
+    /// use fp_library::v2::types::rc_fn::RcFnBrand;
+    /// use fp_library::v2::classes::clonable_fn::ClonableFn;
+    /// use fp_library::v2::classes::semigroup::Semigroup;
+    ///
+    /// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+    /// let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+    /// let h = Semigroup::append(f, g);
+    /// assert_eq!(h.0(5), 12); // (5 + 1) * 2
+    /// ```
     fn append(a: Self, b: Self) -> Self {
         Self::new(C::compose(a.0, b.0))
     }
 }
 
 impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
+    /// Returns the identity endomorphism.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a c. Monoid (Endomorphism c a) => () -> Endomorphism c a`
+    ///
+    /// # Returns
+    ///
+    /// The identity morphism.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::types::endomorphism::Endomorphism;
+    /// use fp_library::v2::types::rc_fn::RcFnBrand;
+    /// use fp_library::v2::classes::monoid::Monoid;
+    ///
+    /// let id = Endomorphism::<RcFnBrand, i32>::empty();
+    /// assert_eq!(id.0(5), 5);
+    /// ```
     fn empty() -> Self {
         Self::new(C::identity())
     }

@@ -7,6 +7,45 @@
 
 A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 
+## Usage
+
+### Zero-Cost Abstractions (v2)
+
+The library provides zero-cost, uncurried type classes in the `v2` module.
+
+#### Functor
+
+```rust
+use fp_library::v2::classes::functor::map;
+use fp_library::brands::OptionBrand;
+
+let x = Some(5);
+let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+assert_eq!(y, Some(10));
+```
+
+#### Monad
+
+```rust
+use fp_library::v2::classes::semimonad::bind;
+use fp_library::brands::OptionBrand;
+
+let x = Some(5);
+let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+assert_eq!(y, Some(10));
+```
+
+#### Traversable
+
+```rust
+use fp_library::v2::classes::traversable::traverse;
+use fp_library::brands::{OptionBrand, VecBrand};
+
+let x = vec![1, 2, 3];
+let y = traverse::<VecBrand, OptionBrand, _, _, _>(|i| Some(i * 2), x);
+assert_eq!(y, Some(vec![2, 4, 6]));
+```
+
 ## References
 * [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)
 * [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)

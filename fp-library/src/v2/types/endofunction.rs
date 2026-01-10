@@ -22,6 +22,19 @@ use std::hash::Hash;
 pub struct Endofunction<'a, CFB: ClonableFn, A>(pub ApplyClonableFn<'a, CFB, A, A>);
 
 impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
+    /// Creates a new `Endofunction`.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. (a -> a) -> Endofunction a`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to wrap.
+    ///
+    /// # Returns
+    ///
+    /// A new `Endofunction`.
     pub fn new(f: ApplyClonableFn<'a, CFB, A, A>) -> Self {
         Self(f)
     }
@@ -81,6 +94,34 @@ where
 }
 
 impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
+    /// Composes two endofunctions.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Semigroup (Endofunction a) => (Endofunction a, Endofunction a) -> Endofunction a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The second function to apply.
+    /// * `b`: The first function to apply.
+    ///
+    /// # Returns
+    ///
+    /// The composed function `a . b`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::types::endofunction::Endofunction;
+    /// use fp_library::v2::types::rc_fn::RcFnBrand;
+    /// use fp_library::v2::classes::clonable_fn::ClonableFn;
+    /// use fp_library::v2::classes::semigroup::Semigroup;
+    ///
+    /// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+    /// let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+    /// let h = Semigroup::append(f, g);
+    /// assert_eq!(h.0(5), 12); // (5 + 1) * 2
+    /// ```
     fn append(a: Self, b: Self) -> Self {
         let f = a.0;
         let g = b.0;
@@ -90,6 +131,26 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 }
 
 impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
+    /// Returns the identity endofunction.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Monoid (Endofunction a) => () -> Endofunction a`
+    ///
+    /// # Returns
+    ///
+    /// The identity function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::types::endofunction::Endofunction;
+    /// use fp_library::v2::types::rc_fn::RcFnBrand;
+    /// use fp_library::v2::classes::monoid::Monoid;
+    ///
+    /// let id = Endofunction::<RcFnBrand, i32>::empty();
+    /// assert_eq!(id.0(5), 5);
+    /// ```
     fn empty() -> Self {
         Self::new(<CFB as ClonableFn>::new(identity))
     }

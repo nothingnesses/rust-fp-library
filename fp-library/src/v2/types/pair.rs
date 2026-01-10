@@ -36,6 +36,19 @@ impl<First: 'static> Kind1L1T for PairWithFirstBrand<First> {
 impl<First: 'static> Functor for PairWithFirstBrand<First> {
     /// Maps a function over the second value in the pair.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Functor (Pair t) => (a -> b, Pair t a) -> Pair t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply to the second value.
+    /// * `fa`: The pair to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new pair containing the result of applying the function to the second value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -58,6 +71,20 @@ where
     First: Semigroup,
 {
     /// Lifts a binary function into the pair context (over second).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c t. (Lift (Pair t), Semigroup t) => ((a, b) -> c, Pair t a, Pair t b) -> Pair t c`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply to the second values.
+    /// * `fa`: The first pair.
+    /// * `fb`: The second pair.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
     ///
     /// # Examples
     ///
@@ -92,6 +119,18 @@ where
 {
     /// Wraps a value in a pair (with empty first).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a t. (Pointed (Pair t), Monoid t) => a -> Pair t a`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// A pair containing the empty value of the first type and `a`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -115,6 +154,19 @@ where
     First: Semigroup,
 {
     /// Applies a wrapped function to a wrapped value (over second).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. (Semiapplicative (Pair t), Semigroup t) => (Pair t (a -> b), Pair t a) -> Pair t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The pair containing the function.
+    /// * `fa`: The pair containing the value.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the first values are combined and the function is applied to the second value.
     ///
     /// # Examples
     ///
@@ -143,6 +195,19 @@ where
     First: Semigroup,
 {
     /// Chains pair computations (over second).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. (Semimonad (Pair t), Semigroup t) => (Pair t a, a -> Pair t b) -> Pair t b`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first pair.
+    /// * `f`: The function to apply to the second value.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the first values are combined.
     ///
     /// # Examples
     ///
@@ -173,6 +238,20 @@ where
 impl<First: 'static> Foldable for PairWithFirstBrand<First> {
     /// Folds the pair from the right (over second).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Pair t) => ((a, b) -> b, b, Pair t a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -191,6 +270,20 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 
     /// Folds the pair from the left (over second).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Pair t) => ((b, a) -> b, b, Pair t a) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -208,6 +301,19 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
     }
 
     /// Maps the value to a monoid and returns it (over second).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m t. (Foldable (Pair t), Monoid m) => ((a) -> m, Pair t a) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)`.
     ///
     /// # Examples
     ///
@@ -234,6 +340,19 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
     /// Traverses the pair with an applicative function (over second).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b f t. (Traversable (Pair t), Applicative f) => (a -> f b, Pair t a) -> f (Pair t b)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The pair to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The pair wrapped in the applicative context.
+    ///
     /// # Examples
     ///
     /// ```
@@ -259,6 +378,18 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
     }
 
     /// Sequences a pair of applicative (over second).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f t. (Traversable (Pair t), Applicative f) => (Pair t (f a)) -> f (Pair t a)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The pair containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The pair wrapped in the applicative context.
     ///
     /// # Examples
     ///
@@ -293,6 +424,19 @@ impl<Second: 'static> Kind1L1T for PairWithSecondBrand<Second> {
 impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
     /// Maps a function over the first value in the pair.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Functor (Pair' t) => (a -> b, Pair a t) -> Pair b t`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply to the first value.
+    /// * `fa`: The pair to map over.
+    ///
+    /// # Returns
+    ///
+    /// A new pair containing the result of applying the function to the first value.
+    ///
     /// # Examples
     ///
     /// ```
@@ -315,6 +459,20 @@ where
     Second: Semigroup,
 {
     /// Lifts a binary function into the pair context (over first).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b c t. (Lift (Pair' t), Semigroup t) => ((a, b) -> c, Pair a t, Pair b t) -> Pair c t`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The binary function to apply to the first values.
+    /// * `fa`: The first pair.
+    /// * `fb`: The second pair.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
     ///
     /// # Examples
     ///
@@ -349,6 +507,18 @@ where
 {
     /// Wraps a value in a pair (with empty second).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a t. (Pointed (Pair' t), Monoid t) => a -> Pair a t`
+    ///
+    /// # Parameters
+    ///
+    /// * `a`: The value to wrap.
+    ///
+    /// # Returns
+    ///
+    /// A pair containing `a` and the empty value of the second type.
+    ///
     /// # Examples
     ///
     /// ```
@@ -372,6 +542,19 @@ where
     Second: Semigroup,
 {
     /// Applies a wrapped function to a wrapped value (over first).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. (Semiapplicative (Pair' t), Semigroup t) => (Pair (a -> b) t, Pair a t) -> Pair b t`
+    ///
+    /// # Parameters
+    ///
+    /// * `ff`: The pair containing the function.
+    /// * `fa`: The pair containing the value.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the function is applied to the first value and the second values are combined.
     ///
     /// # Examples
     ///
@@ -400,6 +583,19 @@ where
     Second: Semigroup,
 {
     /// Chains pair computations (over first).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. (Semimonad (Pair' t), Semigroup t) => (Pair a t, a -> Pair b t) -> Pair b t`
+    ///
+    /// # Parameters
+    ///
+    /// * `ma`: The first pair.
+    /// * `f`: The function to apply to the first value.
+    ///
+    /// # Returns
+    ///
+    /// A new pair where the second values are combined.
     ///
     /// # Examples
     ///
@@ -430,6 +626,20 @@ where
 impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
     /// Folds the pair from the right (over first).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Pair' t) => ((a, b) -> b, b, Pair a t) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a, init)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -448,6 +658,20 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 
     /// Folds the pair from the left (over first).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b t. Foldable (Pair' t) => ((b, a) -> b, b, Pair a t) -> b`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The folding function.
+    /// * `init`: The initial value.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(init, a)`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -465,6 +689,19 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
     }
 
     /// Maps the value to a monoid and returns it (over first).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a m t. (Foldable (Pair' t), Monoid m) => ((a) -> m, Pair a t) -> m`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The mapping function.
+    /// * `fa`: The pair to fold.
+    ///
+    /// # Returns
+    ///
+    /// `f(a)`.
     ///
     /// # Examples
     ///
@@ -491,6 +728,19 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
     /// Traverses the pair with an applicative function (over first).
     ///
+    /// # Type Signature
+    ///
+    /// `forall a b f t. (Traversable (Pair' t), Applicative f) => (a -> f b, Pair a t) -> f (Pair b t)`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: The function to apply.
+    /// * `ta`: The pair to traverse.
+    ///
+    /// # Returns
+    ///
+    /// The pair wrapped in the applicative context.
+    ///
     /// # Examples
     ///
     /// ```
@@ -516,6 +766,18 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
     }
 
     /// Sequences a pair of applicative (over first).
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a f t. (Traversable (Pair' t), Applicative f) => (Pair (f a) t) -> f (Pair a t)`
+    ///
+    /// # Parameters
+    ///
+    /// * `ta`: The pair containing the applicative value.
+    ///
+    /// # Returns
+    ///
+    /// The pair wrapped in the applicative context.
     ///
     /// # Examples
     ///
