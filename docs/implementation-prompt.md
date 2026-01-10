@@ -284,9 +284,16 @@ When encountering type errors, provide context:
 - Minimal changes expected
 - Focus on verification
 
-#### Phase 7: Documentation
+#### Phase 7: Feature Parity Verification
+
+- Systematically compare v1 and v2
+- Ensure no functionality is lost (unless intentional)
+- Highlight discrepancies and propose next steps
+
+#### Phase 8: Documentation
 
 - Update all doc comments to reflect new API
+- **Ensure doc comments include doc tests**
 - Ensure all examples compile and run correctly
 - Update README with new usage patterns
 

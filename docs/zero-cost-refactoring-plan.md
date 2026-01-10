@@ -754,19 +754,42 @@ Apply the same uncurried `Semigroup` reimplementation to `Endomorphism`, which u
 
 ---
 
-### Phase 7: Update Documentation and Examples
+### Phase 7: Feature Parity Verification
+
+**Goal**: Ensure the v2 API provides a superset (or equivalent set) of the functionality provided by v1.
+
+#### Step 7.1: Parity Check
+
+**Action**: Systematically compare v1 and v2 modules.
+
+1. List all public items in `fp-library/src/classes/` and `fp-library/src/types/`.
+2. Verify that corresponding items exist in `fp-library/src/v2/`.
+3. Check that all trait implementations present in v1 are present in v2 (e.g., if `Option` implemented `Monad` in v1, it must in v2).
+4. Identify any missing features or intentional breaking changes.
+
+**If discrepancies are found**:
+
+- Highlight them to the user.
+- Propose implementing missing features or documenting them as intentional changes.
+- Get approval before proceeding.
+
+---
+
+### Phase 8: Update Documentation and Examples
 
 **Goal**: Update all documentation and examples to reflect the new API.
 
-#### Step 7.1: Update Doc Comments
+#### Step 8.1: Update Doc Comments
 
 All trait and function documentation needs to be updated with new signatures and examples.
 
-#### Step 7.2: Update README
+**Crucial**: Ensure that all doc comments include **doc tests** where possible to verify the usage examples against the new API.
+
+#### Step 8.2: Update README
 
 Update the main README.md with new usage patterns.
 
-#### Step 7.3: Update Doc Tests
+#### Step 8.3: Update Doc Tests
 
 All doc tests need to be rewritten to use the new uncurried API.
 

@@ -97,11 +97,18 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
   - *`RcFnBrand` verified in `fp-library/src/v2/types/rc_fn.rs`*
   - *`ArcFnBrand` implemented in `fp-library/src/v2/types/arc_fn.rs`*
 
-## Phase 7: Update Documentation and Examples
+## Phase 7: Feature Parity Verification
 
-- [ ] **Step 7.1**: Update Doc Comments.
+- [ ] **Step 7.1**: Verify feature parity between v1 and v2.
+  - [ ] Check all public items and trait implementations.
+  - [ ] Report discrepancies and propose fixes.
+
+## Phase 8: Update Documentation and Examples
+
+- [ ] **Step 8.1**: Update Doc Comments.
   - [ ] Update signatures and examples in all modified files.
-- [ ] **Step 7.2**: Update README.
+  - [ ] Ensure doc tests are included and passing.
+- [ ] **Step 8.2**: Update README.
   - [ ] Update usage patterns in `README.md`.
-- [ ] **Step 7.3**: Update Doc Tests.
+- [ ] **Step 8.3**: Update Doc Tests.
   - [ ] Rewrite doc tests to use uncurried API.
