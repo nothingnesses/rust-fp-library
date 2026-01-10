@@ -1,358 +1,465 @@
-//! Implementations for [`Vec`].
-
-pub mod concrete_vec;
-
 use crate::{
+	brands::VecBrand,
 	classes::{
-		Applicative, ApplyFirst, ApplySecond, ClonableFn, Foldable, Functor, Pointed,
-		Semiapplicative, Semimonad, Traversable, clonable_fn::ApplyClonableFn,
+		applicative::Applicative,
+		apply_first::ApplyFirst,
+		apply_second::ApplySecond,
+		clonable_fn::{ApplyClonableFn, ClonableFn},
+		foldable::Foldable,
+		functor::Functor,
+		lift::Lift,
+		monoid::Monoid,
+		pointed::Pointed,
+		semiapplicative::Semiapplicative,
+		semigroup::Semigroup,
+		semimonad::Semimonad,
+		traversable::Traversable,
 	},
-	functions::{apply, map, pure, traverse},
-	hkt::{Apply0L1T, Kind0L1T},
-	types::Pair,
+	hkt::{Apply1L1T, Kind1L1T},
 };
 
-pub struct VecBrand;
-
-impl Kind0L1T for VecBrand {
-	type Output<A> = Vec<A>;
-}
-
-impl VecBrand {
-	/// Constructs a new vector by prepending a value to an existing vector.
-	///
-	/// # Type Signature
-	///
-	/// `forall a. a -> Vec a -> Vec a`
-	///
-	/// # Parameters
-	///
-	/// * `head`: A value to prepend to the vector.
-	/// * `tail`: A vector to prepend the value to.
-	///
-	/// # Returns
-	///
-	/// A new vector consisting of the `head` element prepended to the `tail` vector.
-	///
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::brands::{RcFnBrand, VecBrand};
-	///
-	/// let head = 1;
-	/// let tail = vec![2, 3];
-	/// let new_vec = (VecBrand::construct::<RcFnBrand, _>(head))(tail);
-	/// assert_eq!(new_vec, vec![1, 2, 3]);
-	///
-	/// let empty_tail = vec![];
-	/// let single_element = (VecBrand::construct::<RcFnBrand, _>(42))(empty_tail);
-	/// assert_eq!(single_element, vec![42]);
-	/// ```
-	pub fn construct<'a, ClonableFnBrand: 'a + ClonableFn, A>(
-		head: A
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, A>>
-	where
-		A: Clone,
-	{
-		<ClonableFnBrand as ClonableFn>::new(move |tail| [vec![head.to_owned()], tail].concat())
-	}
-
-	/// Deconstructs a slice into its head element and tail vector.
-	///
-	/// # Type Signature
-	///
-	/// `forall a. &[a] -> Option (Pair a (Vec a))`
-	///
-	/// # Parameters
-	///
-	/// * `slice`: The vector slice to deconstruct.
-	///
-	/// # Returns
-	///
-	/// An [`Option`] containing a [`Pair`] of the head element and the remaining tail vector,
-	/// or [`None`] if the slice is empty.
-	///
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::VecBrand, types::Pair};
-	///
-	/// let vec = vec![1, 2, 3];
-	/// let deconstructed = VecBrand::deconstruct(&vec);
-	/// assert_eq!(deconstructed, Some(Pair(1, vec![2, 3])));
-	///
-	/// let empty: Vec<i32> = vec![];
-	/// assert_eq!(VecBrand::deconstruct(&empty), None);
-	/// ```
-	pub fn deconstruct<A>(slice: &[A]) -> Option<Pair<A, Apply0L1T<Self, A>>>
-	where
-		A: Clone,
-	{
-		match &slice {
-			[] => None,
-			[head, tail @ ..] => Some(Pair(head.to_owned(), tail.to_owned())),
-		}
-	}
+impl Kind1L1T for VecBrand {
+	type Output<'a, A: 'a> = Vec<A>;
 }
 
 impl Functor for VecBrand {
+	/// Maps a function over the vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Functor Vec => (a -> b, Vec a) -> Vec b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The function to apply to each element.
+	/// * `fa`: The vector to map over.
+	///
+	/// # Returns
+	///
+	/// A new vector containing the results of applying the function.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{identity, map}};
-	/// use std::rc::Rc;
+	/// use fp_library::classes::functor::map;
+	/// use fp_library::brands::VecBrand;
 	///
-	/// assert_eq!(
-	///     map::<RcFnBrand, VecBrand, _, _>(Rc::new(identity))(vec![] as Vec<()>),
-	///     vec![]
-	/// );
-	/// assert_eq!(
-	///     map::<RcFnBrand, VecBrand, _, _>(Rc::new(|x: i32| x * 2))(vec![1, 2, 3]),
-	///     vec![2, 4, 6]
-	/// );
+	/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 	/// ```
-	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| {
-			fa.into_iter().map(&*f).collect()
-		})
+	fn map<'a, A: 'a, B: 'a, F>(
+		f: F,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> Apply1L1T<'a, Self, B>
+	where
+		F: Fn(A) -> B + 'a,
+	{
+		fa.into_iter().map(f).collect()
 	}
 }
 
-impl Semiapplicative for VecBrand {
+impl Lift for VecBrand {
+	/// Lifts a binary function into the vector context (Cartesian product).
+	///
+	/// # Type Signature
+	///
+	/// `forall a b c. Lift Vec => ((a, b) -> c, Vec a, Vec b) -> Vec c`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The binary function to apply.
+	/// * `fa`: The first vector.
+	/// * `fb`: The second vector.
+	///
+	/// # Returns
+	///
+	/// A new vector containing the results of applying the function to all pairs of elements.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{apply, identity}};
-	/// use std::rc::Rc;
+	/// use fp_library::classes::lift::lift2;
+	/// use fp_library::brands::VecBrand;
 	///
 	/// assert_eq!(
-	///     apply::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<Rc<dyn Fn(i32) -> i32>>)(vec![1, 2, 3]),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     apply::<RcFnBrand, VecBrand, _, _>(vec![Rc::new(identity), Rc::new(|x: i32| x * 2)])(vec![1, 2]),
-	///     vec![1, 2, 2, 4]
+	///     lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+	///     vec![11, 21, 12, 22]
 	/// );
 	/// ```
-	fn apply<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply0L1T<Self, ApplyClonableFn<'a, ClonableFnBrand, A, B>>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-		<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| {
-			ff.iter()
-				.cloned()
-				.flat_map(|f| fa.iter().cloned().map(&*f).collect::<Vec<_>>())
-				.collect()
-		})
-	}
-}
-
-impl ApplyFirst for VecBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::apply_first};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     apply_first::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
-	///     vec![1, 1, 2, 2]
-	/// );
-	/// ```
-	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
-		fa: Apply0L1T<Self, A>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>> {
-		<ClonableFnBrand as ClonableFn>::new(move |fb: Apply0L1T<Self, _>| {
-			fa.iter().cloned().flat_map(|a| fb.iter().map(move |_b| a.to_owned())).collect()
-		})
-	}
-}
-
-impl ApplySecond for VecBrand {
-	/// # Examples
-	///
-	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::apply_second};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<i32>)(vec![1, 2]),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![] as Vec<i32>),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     apply_second::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(vec![3, 4]),
-	///     vec![3, 4, 3, 4]
-	/// );
-	/// ```
-	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply0L1T<Self, A>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>> {
-		<ClonableFnBrand as ClonableFn>::new(move |fb: Apply0L1T<Self, _>| {
-			fa.iter().cloned().flat_map(|_a| fb.iter().cloned()).collect()
-		})
+	fn lift2<'a, A, B, C, F>(
+		f: F,
+		fa: Apply1L1T<'a, Self, A>,
+		fb: Apply1L1T<'a, Self, B>,
+	) -> Apply1L1T<'a, Self, C>
+	where
+		F: Fn(A, B) -> C + 'a,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: 'a,
+	{
+		fa.iter().flat_map(|a| fb.iter().map(|b| f(a.clone(), b.clone()))).collect()
 	}
 }
 
 impl Pointed for VecBrand {
+	/// Wraps a value in a vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Pointed Vec => a -> Vec a`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The value to wrap.
+	///
+	/// # Returns
+	///
+	/// A vector containing the single value.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{RcFnBrand, VecBrand}, functions::pure};
+	/// use fp_library::classes::pointed::pure;
+	/// use fp_library::brands::VecBrand;
 	///
-	/// assert_eq!(
-	///     pure::<RcFnBrand, VecBrand, _>(1),
-	///     vec![1]
-	/// );
+	/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
 	/// ```
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A> {
+	fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
 		vec![a]
 	}
 }
 
-impl Semimonad for VecBrand {
+impl ApplyFirst for VecBrand {}
+impl ApplySecond for VecBrand {}
+
+impl Semiapplicative for VecBrand {
+	/// Applies wrapped functions to wrapped values (Cartesian product).
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Semiapplicative Vec => (Vec (a -> b), Vec a) -> Vec b`
+	///
+	/// # Parameters
+	///
+	/// * `ff`: The vector containing the functions.
+	/// * `fa`: The vector containing the values.
+	///
+	/// # Returns
+	///
+	/// A new vector containing the results of applying each function to each value.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::{bind, pure}};
+	/// use fp_library::classes::semiapplicative::apply;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::brands::{VecBrand};
+	/// use fp_library::types::rc_fn::RcFnBrand;
 	/// use std::rc::Rc;
 	///
+	/// let funcs = vec![
+	///     <RcFnBrand as ClonableFn>::new(|x: i32| x + 1),
+	///     <RcFnBrand as ClonableFn>::new(|x: i32| x * 2),
+	/// ];
+	/// assert_eq!(apply::<VecBrand, _, _, RcFnBrand>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
+	/// ```
+	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+		ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> Apply1L1T<'a, Self, B> {
+		ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
+	}
+}
+
+impl Semimonad for VecBrand {
+	/// Chains vector computations (flat_map).
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Semimonad Vec => (Vec a, a -> Vec b) -> Vec b`
+	///
+	/// # Parameters
+	///
+	/// * `ma`: The first vector.
+	/// * `f`: The function to apply to each element, returning a vector.
+	///
+	/// # Returns
+	///
+	/// A new vector containing the flattened results.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::semimonad::bind;
+	/// use fp_library::brands::VecBrand;
+	///
 	/// assert_eq!(
-	///     bind::<RcFnBrand, VecBrand, _, _>(vec![] as Vec<()>)(Rc::new(|_| pure::<RcFnBrand, VecBrand, _>(1))),
-	///     vec![] as Vec<i32>
-	/// );
-	/// assert_eq!(
-	///     bind::<RcFnBrand, VecBrand, _, _>(vec![1, 2])(Rc::new(|x| vec![x, x * 2])),
+	///     bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]),
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
-		ma: Apply0L1T<Self, A>
-	) -> ApplyClonableFn<
-		'a,
-		ClonableFnBrand,
-		ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<Self, B>>,
-		Apply0L1T<Self, B>,
-	> {
-		<ClonableFnBrand as ClonableFn>::new(
-			move |f: ApplyClonableFn<'a, ClonableFnBrand, _, _>| {
-				ma.iter().cloned().flat_map(&*f).collect()
-			},
-		)
+	fn bind<'a, A: 'a, B: 'a, F>(
+		ma: Apply1L1T<'a, Self, A>,
+		f: F,
+	) -> Apply1L1T<'a, Self, B>
+	where
+		F: Fn(A) -> Apply1L1T<'a, Self, B> + 'a,
+	{
+		ma.into_iter().flat_map(f).collect()
 	}
 }
 
 impl Foldable for VecBrand {
+	/// Folds the vector from the right.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Foldable Vec => ((a, b) -> b, b, Vec a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The vector to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand}, functions::fold_right};
-	/// use std::rc::Rc;
+	/// use fp_library::classes::foldable::fold_right;
+	/// use fp_library::brands::VecBrand;
+	///
+	/// assert_eq!(fold_right::<VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
+	/// ```
+	fn fold_right<'a, A: 'a, B: 'a, F>(
+		f: F,
+		init: B,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> B
+	where
+		F: Fn(A, B) -> B + 'a,
+	{
+		fa.into_iter().rev().fold(init, |acc, x| f(x, acc))
+	}
+
+	/// Folds the vector from the left.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Foldable Vec => ((b, a) -> b, b, Vec a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The vector to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::foldable::fold_left;
+	/// use fp_library::brands::VecBrand;
+	///
+	/// assert_eq!(fold_left::<VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
+	/// ```
+	fn fold_left<'a, A: 'a, B: 'a, F>(
+		f: F,
+		init: B,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> B
+	where
+		F: Fn(B, A) -> B + 'a,
+	{
+		fa.into_iter().fold(init, f)
+	}
+
+	/// Maps the values to a monoid and combines them.
+	///
+	/// # Type Signature
+	///
+	/// `forall a m. (Foldable Vec, Monoid m) => ((a) -> m, Vec a) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The mapping function.
+	/// * `fa`: The vector to fold.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::foldable::fold_map;
+	/// use fp_library::brands::VecBrand;
+	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
 	///
 	/// assert_eq!(
-	///     fold_right::<RcFnBrand, VecBrand, _, _>(Rc::new(|item| Rc::new(move |carry| carry * 2 + item)))(0)(vec![1, 2, 3]),
-	///     17
+	///     fold_map::<VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+	///     "123".to_string()
 	/// );
 	/// ```
-	fn fold_right<'a, ClonableFnBrand: 'a + ClonableFn, A: Clone, B: Clone>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, A, ApplyClonableFn<'a, ClonableFnBrand, B, B>>
-	) -> ApplyClonableFn<
-		'a,
-		ClonableFnBrand,
-		B,
-		ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, B>,
-	> {
-		<ClonableFnBrand as ClonableFn>::new(move |b: B| {
-			let f = f.clone();
-			<ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, A>| {
-				fa.iter().rfold(b.to_owned(), {
-					let f = f.clone();
-					let f = move |b, a| f(a)(b);
-					move |b, a| f(b, a.to_owned())
-				})
-			})
-		})
+	fn fold_map<'a, A: 'a, M, F>(
+		f: F,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> M
+	where
+		M: Monoid + 'a,
+		F: Fn(A) -> M + 'a,
+	{
+		fa.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
 	}
 }
 
 impl Traversable for VecBrand {
-	// traverse f Vec.empty = pure Vec.empty
-	// traverse f (Vec.construct head tail) = (apply ((map Vec.construct) (f head))) ((traverse f) tail)
+	/// Traverses the vector with an applicative function.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b f. (Traversable Vec, Applicative f) => (a -> f b, Vec a) -> f (Vec b)`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The function to apply.
+	/// * `ta`: The vector to traverse.
+	///
+	/// # Returns
+	///
+	/// The vector wrapped in the applicative context.
+	///
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::{brands::{VecBrand, RcFnBrand, OptionBrand}, functions::traverse};
-	/// use std::rc::Rc;
+	/// use fp_library::classes::traversable::traverse;
+	/// use fp_library::brands::{OptionBrand, VecBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|x| Some(x * 2)))(vec![1, 2, 3]),
+	///     traverse::<VecBrand, OptionBrand, _, _, _>(|x| Some(x * 2), vec![1, 2, 3]),
 	///     Some(vec![2, 4, 6])
 	/// );
+	/// ```
+	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+		f: Func,
+		ta: Apply1L1T<'a, Self, A>,
+	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
+	where
+		Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
+		Apply1L1T<'a, Self, B>: Clone,
+	{
+		ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+			F::lift2(
+				|mut v, b| {
+					v.push(b);
+					v
+				},
+				acc,
+				f(x),
+			)
+		})
+	}
+
+	/// Sequences a vector of applicative.
+	///
+	/// # Type Signature
+	///
+	/// `forall a f. (Traversable Vec, Applicative f) => (Vec (f a)) -> f (Vec a)`
+	///
+	/// # Parameters
+	///
+	/// * `ta`: The vector containing the applicative values.
+	///
+	/// # Returns
+	///
+	/// The vector wrapped in the applicative context.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::traversable::sequence;
+	/// use fp_library::brands::{OptionBrand, VecBrand};
+	///
 	/// assert_eq!(
-	///     traverse::<RcFnBrand, VecBrand, OptionBrand, i32, i32>(Rc::new(|_x| None))(vec![1, 2, 3]),
-	///     None
+	///     sequence::<VecBrand, OptionBrand, _>(vec![Some(1), Some(2)]),
+	///     Some(vec![1, 2])
 	/// );
 	/// ```
-	fn traverse<'a, ClonableFnBrand: 'a + ClonableFn, F: Applicative, A: Clone, B: 'a + Clone>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, A, Apply0L1T<F, B>>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<F, Apply0L1T<Self, B>>>
+	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+		ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>
+	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
 	where
-		Apply0L1T<F, B>: Clone,
-		Apply0L1T<F, ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>>:
-			Clone,
-		Apply0L1T<Self, B>: 'a,
-		Apply0L1T<Self, Apply0L1T<F, B>>: 'a,
+		Apply1L1T<'a, F, A>: Clone,
+		Apply1L1T<'a, Self, A>: Clone,
 	{
-		<ClonableFnBrand as ClonableFn>::new(move |ta: Apply0L1T<Self, _>| {
-			match VecBrand::deconstruct(&ta) {
-				None => pure::<ClonableFnBrand, F, _>(vec![]),
-				Some(Pair(head, tail)) => {
-					// cons: a -> (t a -> t a)
-					let cons = <ClonableFnBrand as ClonableFn>::new(
-						VecBrand::construct::<ClonableFnBrand, _>,
-					);
-					// map: (a -> b) -> f a -> f b
-					// cons: a -> (t a -> t a)
-					// map cons = f a -> f (t a -> t a)
-					let map_cons = map::<ClonableFnBrand, F, _, _>(cons);
-					// f: a -> f b
-					// head: a
-					// f head: f b
-					let f_head = f(head);
-					// traverse: (a -> f b) -> t a -> f (t b)
-					// f: a -> f b
-					// traverse f: t a -> f (t b)
-					let traverse_f = traverse::<ClonableFnBrand, Self, F, _, _>(f.clone());
-					// traverse f: t a -> f (t b)
-					// tail: t a
-					// (traverse f) tail: f (t b)
-					let traverse_f_tail = traverse_f(tail);
-					// map cons: f a -> f (t a -> t a)
-					// f head: f b
-					// (map cons) (f head): f (t b -> t b)
-					let map_cons_f_head = map_cons(f_head);
-					// apply: f (a -> b) -> f a -> f b
-					// (map cons) (f head): f (t b -> t b)
-					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					let apply_map_cons_f_head = apply::<ClonableFnBrand, F, _, _>(map_cons_f_head);
-					// apply ((map cons) (f head)): f (t b) -> f (t b)
-					// (traverse f) tail: f (t b)
-					// apply ((map cons) (f head)) ((traverse f) tail): f (t b)
-					apply_map_cons_f_head(traverse_f_tail)
-				}
-			}
+		ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+			F::lift2(
+				|mut v, a| {
+					v.push(a);
+					v
+				},
+				acc,
+				x,
+			)
 		})
+	}
+}
+
+impl<A: Clone> Semigroup for Vec<A> {
+	/// Appends one vector to another.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Semigroup (Vec a) => (Vec a, Vec a) -> Vec a`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The first vector.
+	/// * `b`: The second vector.
+	///
+	/// # Returns
+	///
+	/// The concatenated vector.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::semigroup::append;
+	///
+	/// assert_eq!(append(vec![1, 2], vec![3, 4]), vec![1, 2, 3, 4]);
+	/// ```
+	fn append(
+		a: Self,
+		b: Self,
+	) -> Self {
+		[a, b].concat()
+	}
+}
+
+impl<A: Clone> Monoid for Vec<A> {
+	/// Returns an empty vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Monoid (Vec a) => () -> Vec a`
+	///
+	/// # Returns
+	///
+	/// An empty vector.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::monoid::empty;
+	///
+	/// assert_eq!(empty::<Vec<i32>>(), vec![]);
+	/// ```
+	fn empty() -> Self {
+		Vec::new()
 	}
 }

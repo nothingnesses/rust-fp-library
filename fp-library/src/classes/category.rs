@@ -1,4 +1,5 @@
-use crate::{classes::Semigroupoid, hkt::Apply1L2T};
+use super::semigroupoid::Semigroupoid;
+use crate::hkt::Apply1L2T;
 
 /// A type class for categories.
 ///
@@ -7,18 +8,28 @@ use crate::{classes::Semigroupoid, hkt::Apply1L2T};
 /// # Laws
 ///
 /// `Category` instances must satisfy the identity law:
-/// * Identity: `compose(identity)(p) = compose(p)(identity)`.
+/// * Identity: `compose(identity, p) = compose(p, identity)`.
 pub trait Category: Semigroupoid {
 	/// Returns the identity morphism.
 	///
 	/// # Type Signature
 	///
-	/// `forall a. Category c => () -> c a a`
+	/// `forall a. Category cat => () -> cat a a`
 	///
 	/// # Returns
 	///
 	/// The identity morphism.
-	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A>;
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::category::Category;
+	/// use fp_library::types::rc_fn::RcFnBrand;
+	///
+	/// let id = RcFnBrand::identity::<i32>();
+	/// assert_eq!(id(5), 5);
+	/// ```
+	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A>;
 }
 
 /// Returns the identity morphism.
@@ -27,7 +38,7 @@ pub trait Category: Semigroupoid {
 ///
 /// # Type Signature
 ///
-/// `forall a. Category c => () -> c a a`
+/// `forall a. Category cat => () -> cat a a`
 ///
 /// # Returns
 ///
@@ -36,10 +47,12 @@ pub trait Category: Semigroupoid {
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::RcFnBrand, functions::category_identity};
+/// use fp_library::classes::category::identity;
+/// use fp_library::types::rc_fn::RcFnBrand;
 ///
-/// assert_eq!(category_identity::<RcFnBrand, _>()(()), ());
+/// let id = identity::<RcFnBrand, i32>();
+/// assert_eq!(id(5), 5);
 /// ```
-pub fn category_identity<'a, Brand: Category, A: 'a>() -> Apply1L2T<'a, Brand, A, A> {
-	Brand::identity::<'a, _>()
+pub fn identity<'a, Brand: Category, A>() -> Apply1L2T<'a, Brand, A, A> {
+	Brand::identity()
 }

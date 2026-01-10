@@ -1,28 +1,86 @@
-//! Implementations for [`Lazy`], the type of lazily-computed, memoized values.
-
 use crate::{
 	classes::{
-		ClonableFn, Defer, Monoid, Once, Semigroup, clonable_fn::ApplyClonableFn, once::ApplyOnce,
+		clonable_fn::{ApplyClonableFn, ClonableFn},
+		defer::Defer,
+		monoid::Monoid,
+		once::{ApplyOnce, Once},
+		semigroup::Semigroup,
 	},
-	hkt::Kind0L1T,
+	hkt::Kind1L1T,
 };
-use core::fmt;
-use std::{
-	fmt::{Debug, Formatter},
-	hash::{Hash, Hasher},
-};
+use std::marker::PhantomData;
 
 /// Represents a lazily-computed, memoized value.
-pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: 'a>(
+///
+/// `Lazy` stores a computation (a thunk) that is executed only when the value is needed.
+/// The result is then cached (memoized) so that subsequent accesses return the same value
+/// without re-executing the computation.
+pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A>(
 	pub ApplyOnce<OnceBrand, A>,
 	pub ApplyClonableFn<'a, ClonableFnBrand, (), A>,
 );
 
 impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, ClonableFnBrand, A> {
+	/// Creates a new `Lazy` value from a thunk.
+	///
+	/// The thunk is wrapped in an `ApplyClonableFn` (e.g., `Rc<dyn Fn() -> A>`) to allow
+	/// the `Lazy` value to be cloned.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. (() -> a) -> Lazy a`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The thunk that produces the value.
+	///
+	/// # Returns
+	///
+	/// A new `Lazy` value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::types::lazy::Lazy;
+	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
+	/// ```
 	pub fn new(a: ApplyClonableFn<'a, ClonableFnBrand, (), A>) -> Self {
 		Self(OnceBrand::new(), a)
 	}
 
+	/// Forces the evaluation of the thunk and returns the value.
+	///
+	/// If the value has already been computed, the cached value is returned.
+	/// Requires `A: Clone` because the value is stored inside the `Lazy` struct and
+	/// must be cloned to be returned to the caller.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Lazy a -> a`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The lazy value to force.
+	///
+	/// # Returns
+	///
+	/// The computed value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::types::lazy::Lazy;
+	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
+	/// assert_eq!(Lazy::force(lazy), 42);
+	/// ```
 	pub fn force(a: Self) -> A
 	where
 		A: Clone,
@@ -31,7 +89,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	}
 }
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: 'a + Clone> Clone
+impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Clone> Clone
 	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
 	ApplyOnce<OnceBrand, A>: Clone,
@@ -41,135 +99,117 @@ where
 	}
 }
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Debug> Debug
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: Debug,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Debug,
+/// Brand for the `Lazy` type constructor.
+pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(
+	PhantomData<(OnceBrand, ClonableFnBrand)>,
+);
+
+impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind1L1T
+	for LazyBrand<OnceBrand, ClonableFnBrand>
 {
-	fn fmt(
-		&self,
-		fmt: &mut Formatter<'_>,
-	) -> fmt::Result {
-		fmt.debug_tuple("Lazy").field(&self.0).field(&self.1).finish()
-	}
+	type Output<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
 }
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Eq> Eq
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: Eq,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Eq,
-{
-}
+// Note: Lazy cannot implement Functor, Pointed, or Semimonad because these traits
+// require operations to work for all types A, but Lazy requires A: Clone to be
+// forced (memoized). Adding A: Clone bounds to the traits would restrict all
+// other implementations (e.g. Option<NonClone>), which is undesirable.
+//
+// Consequently, Lazy cannot implement Semiapplicative either, as it extends Functor.
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Hash> Hash
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: Hash,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Hash,
-{
-	fn hash<H: Hasher>(
-		&self,
-		state: &mut H,
-	) {
-		self.0.hash(state);
-		self.1.hash(state);
-	}
-}
-
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Ord> Ord
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: Ord,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: Ord,
-{
-	fn cmp(
-		&self,
-		other: &Self,
-	) -> std::cmp::Ordering {
-		self.0.cmp(&other.0)
-	}
-}
-
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: PartialEq> PartialEq
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: PartialEq,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialEq,
-{
-	fn eq(
-		&self,
-		other: &Self,
-	) -> bool {
-		self.0 == other.0 && self.1 == other.1
-	}
-}
-
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: PartialOrd> PartialOrd
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
-where
-	ApplyOnce<OnceBrand, A>: PartialOrd,
-	ApplyClonableFn<'a, ClonableFnBrand, (), A>: PartialOrd,
-{
-	fn partial_cmp(
-		&self,
-		other: &Self,
-	) -> Option<std::cmp::Ordering> {
-		self.0.partial_cmp(&other.0)
-	}
-}
-
-impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup<'b> + Clone> Semigroup<'b>
+impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
 	for Lazy<'b, OnceBrand, CFB, A>
 where
 	ApplyOnce<OnceBrand, A>: Clone,
 {
-	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
-		a: Self
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
-	where
-		Self: Sized,
-		'b: 'a,
-	{
-		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
-			Self::new(<CFB as ClonableFn>::new({
-				let a = a.clone();
-				move |_: ()| {
-					A::append::<ClonableFnBrand>(Lazy::force(a.clone()))(Lazy::force(b.clone()))
-				}
-			}))
-		})
+	/// Combines two lazy values using the underlying type's `Semigroup` implementation.
+	///
+	/// The combination is itself lazy: the result is a new thunk that, when forced,
+	/// forces both input values and combines them.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Semigroup a => (Lazy a, Lazy a) -> Lazy a`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The first lazy value.
+	/// * `b`: The second lazy value.
+	///
+	/// # Returns
+	///
+	/// A new lazy value that combines the results.
+	fn append(
+		a: Self,
+		b: Self,
+	) -> Self {
+		Lazy::new(<CFB as ClonableFn>::new(move |_| {
+			Semigroup::append(Lazy::force(a.clone()), Lazy::force(b.clone()))
+		}))
 	}
 }
 
-impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid<'b> + Clone> Monoid<'b>
+impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
 	for Lazy<'b, OnceBrand, CFB, A>
 where
 	ApplyOnce<OnceBrand, A>: Clone,
 {
+	/// Returns the identity element for the lazy value.
+	///
+	/// The result is a lazy value that evaluates to the underlying type's identity element.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Monoid a => () -> Lazy a`
+	///
+	/// # Returns
+	///
+	/// A lazy value containing the identity element.
 	fn empty() -> Self {
-		Self::new(<CFB as ClonableFn>::new(move |_| <A as Monoid<'b>>::empty()))
+		Lazy::new(<CFB as ClonableFn>::new(move |_| Monoid::empty()))
 	}
 }
 
-impl<'a, OnceBrand: Once, CFB: ClonableFn, A: Clone> Defer<'a> for Lazy<'a, OnceBrand, CFB, A> {
-	fn defer<ClonableFnBrand: 'a + ClonableFn>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>
-	) -> Self
+impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
+	for Lazy<'a, OnceBrand, CFB, A>
+{
+	/// Defers the construction of a `Lazy` value.
+	///
+	/// This allows creating a `Lazy` value from a computation that produces a `Lazy` value.
+	/// The outer computation is executed only when the result is forced.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. (() -> Lazy a) -> Lazy a`
+	///
+	/// # Parameters
+	///
+	/// * `f`: A thunk that produces a lazy value.
+	///
+	/// # Returns
+	///
+	/// A new lazy value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::types::lazy::Lazy;
+	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::classes::defer::Defer;
+	/// use std::rc::Rc;
+	///
+	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::defer::<RcFnBrand>(
+	///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
+	/// );
+	/// assert_eq!(Lazy::force(lazy), 42);
+	/// ```
+	fn defer<ClonableFnBrand>(f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>) -> Self
 	where
 		Self: Sized,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
-		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::<'a, OnceBrand, CFB, A>::force(f(()))))
+		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::force(f(()))))
 	}
 }
-
-pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(OnceBrand, ClonableFnBrand);
-
-// impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
-// 	for LazyBrand<OnceBrand, ClonableFnBrand>
-// where
-// 	A: 'static,
-// {
-// 	type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
-// }

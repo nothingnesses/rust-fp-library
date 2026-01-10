@@ -9,14 +9,12 @@ A functional programming library for Rust featuring your favourite higher-kinded
 
 ## Usage
 
-### Zero-Cost Abstractions (v2)
+The library provides zero-cost, uncurried type classes.
 
-The library provides zero-cost, uncurried type classes in the `v2` module.
-
-#### Functor
+### Functor
 
 ```rust
-use fp_library::v2::classes::functor::map;
+use fp_library::classes::functor::map;
 use fp_library::brands::OptionBrand;
 
 let x = Some(5);
@@ -24,10 +22,10 @@ let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 assert_eq!(y, Some(10));
 ```
 
-#### Monad
+### Monad
 
 ```rust
-use fp_library::v2::classes::semimonad::bind;
+use fp_library::classes::semimonad::bind;
 use fp_library::brands::OptionBrand;
 
 let x = Some(5);
@@ -35,10 +33,10 @@ let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 assert_eq!(y, Some(10));
 ```
 
-#### Traversable
+### Traversable
 
 ```rust
-use fp_library::v2::classes::traversable::traverse;
+use fp_library::classes::traversable::traverse;
 use fp_library::brands::{OptionBrand, VecBrand};
 
 let x = vec![1, 2, 3];

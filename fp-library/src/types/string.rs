@@ -1,57 +1,62 @@
-//! Implementations for [`String`].
-
 use crate::{
-	classes::{
-		ClonableFn, Monoid, Semigroup, clonable_fn::ApplyClonableFn, monoid::Monoid1L0T,
-		semigroup::Semigroup1L0T,
-	},
+	classes::{monoid::Monoid, semigroup::Semigroup},
 	hkt::Kind1L0T,
 };
 
-#[cfg(not(feature = "v2"))]
 impl Kind1L0T for String {
-    type Output<'a> = String;
+	type Output<'a> = String;
 }
 
-impl<'b> Semigroup<'b> for String {
+impl Semigroup for String {
+	/// Appends one string to another.
+	///
+	/// # Type Signature
+	///
+	/// `forall. Semigroup String => (String, String) -> String`
+	///
+	/// # Parameters
+	///
+	/// * `a`: The first string.
+	/// * `b`: The second string.
+	///
+	/// # Returns
+	///
+	/// The concatenated string.
+	///
 	/// # Examples
 	///
-	/// ```rust
-	/// use fp_library::{brands::RcFnBrand, functions::append};
-	/// use std::rc::Rc;
-	///
-	/// assert_eq!(
-	///     append::<RcFnBrand, String>("Hello, ".to_string())("World!".to_string()),
-	///     "Hello, World!"
-	/// );
 	/// ```
-	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
-		a: Self
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
-	where
-		Self: Sized,
-		'b: 'a,
-	{
-		<ClonableFnBrand as ClonableFn>::new(move |b: Self| a.to_owned() + &b)
+	/// use fp_library::classes::semigroup::append;
+	///
+	/// assert_eq!(append("Hello, ".to_string(), "World!".to_string()), "Hello, World!".to_string());
+	/// ```
+	fn append(
+		a: Self,
+		b: Self,
+	) -> Self {
+		a + &b
 	}
 }
 
-impl Semigroup1L0T for String {}
-
-impl<'a> Monoid<'a> for String {
+impl Monoid for String {
+	/// Returns an empty string.
+	///
+	/// # Type Signature
+	///
+	/// `forall. Monoid String => () -> String`
+	///
+	/// # Returns
+	///
+	/// An empty string.
+	///
 	/// # Examples
 	///
-	/// ```rust
-	/// use fp_library::functions::empty;
+	/// ```
+	/// use fp_library::classes::monoid::empty;
 	///
-	/// assert_eq!(
-	///     empty::<String>(),
-	///     ""
-	/// );
+	/// assert_eq!(empty::<String>(), "".to_string());
 	/// ```
 	fn empty() -> Self {
-		Self::default()
+		String::new()
 	}
 }
-
-impl Monoid1L0T for String {}
