@@ -29,7 +29,7 @@ dependencies = [
 
 [[package]]
 name = "fp-library"
-version = "0.0.20"
+version = "0.0.21"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
