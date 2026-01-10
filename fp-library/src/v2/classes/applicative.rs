@@ -4,6 +4,27 @@ use super::{apply_first::ApplyFirst, apply_second::ApplySecond, pointed::Pointed
 ///
 /// `Applicative` extends [`Pointed`] and [`Semiapplicative`].
 /// It allows for values to be wrapped in a context and for functions within a context to be applied to values within a context.
+///
+/// # Type Signature
+///
+/// `class (Pointed f, Semiapplicative f) => Applicative f`
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::v2::classes::applicative::Applicative;
+/// use fp_library::v2::classes::pointed::pure;
+/// use fp_library::v2::classes::semiapplicative::apply;
+/// use fp_library::v2::classes::clonable_fn::ClonableFn;
+/// use fp_library::brands::OptionBrand;
+/// use fp_library::v2::types::rc_fn::RcFnBrand;
+///
+/// // Applicative combines Pointed (pure) and Semiapplicative (apply)
+/// let f = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+/// let x = pure::<OptionBrand, _>(5);
+/// let y = apply::<OptionBrand, _, _, RcFnBrand>(f, x);
+/// assert_eq!(y, Some(10));
+/// ```
 pub trait Applicative: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}
 
 impl<Brand> Applicative for Brand where Brand: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}

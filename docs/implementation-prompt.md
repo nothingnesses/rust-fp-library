@@ -6,6 +6,7 @@ You are in the process of implementing the Zero-Cost Abstractions Refactoring Pl
 
 - **Refactoring Plan**: `docs/zero-cost-refactoring-plan.md`
 - **Progress Checklist**: `docs/refactoring-checklist.md`
+- **Parity Check**: `docs/parity-check.md`
 - **Baseline Commit**: `7f50bd37912f175dc706f00d6f96e690d11fb488`
 
 ## Implementation Protocol (FOLLOW EACH OF THESE EXACTLY)
