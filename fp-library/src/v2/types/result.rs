@@ -17,6 +17,14 @@ use crate::{
     },
 };
 
+use crate::hkt::Kind0L2T;
+
+pub struct ResultBrand;
+
+impl Kind0L2T for ResultBrand {
+    type Output<A, B> = Result<B, A>;
+}
+
 // ResultWithErrBrand<E> (Functor over T)
 
 impl<E: 'static> Kind1L1T for ResultWithErrBrand<E> {

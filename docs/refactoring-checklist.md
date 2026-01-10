@@ -99,9 +99,20 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 ## Phase 7: Feature Parity Verification
 
-- [ ] **Step 7.1**: Verify feature parity between v1 and v2.
-  - [ ] Check all public items and trait implementations.
-  - [ ] Report discrepancies and propose fixes.
+- [x] **Step 7.1**: Generate v1 Inventory.
+  - [x] Create `docs/parity-check.md`.
+  - [x] List all v1 traits, types, structs, functions, and trait impls in tables.
+- [x] **Step 7.2**: Generate v2 Inventory.
+  - [x] Add v2 tables to `docs/parity-check.md`.
+- [x] **Step 7.3**: Compare and Verify.
+  - [x] Compare v1 and v2 tables.
+  - [x] Identify missing items.
+  - [x] Fix discrepancies.
+  - *Added `fp-library/src/v2/types/once_lock.rs`*
+  - *Added `Semigroup` and `Monoid` impls for `Vec<A>` in `fp-library/src/v2/types/vec.rs`*
+  - *Added `PairBrand` to `fp-library/src/v2/types/pair.rs`*
+  - *Added `ResultBrand` to `fp-library/src/v2/types/result.rs`*
+  - *Removed conflicting `Kind1L0T` impl from `fp-library/src/types/string.rs` (v1)*
 
 ## Phase 8: Update Documentation and Examples
 

@@ -19,6 +19,14 @@ use crate::{
     },
 };
 
+use crate::hkt::Kind0L2T;
+
+pub struct PairBrand;
+
+impl Kind0L2T for PairBrand {
+    type Output<A, B> = Pair<A, B>;
+}
+
 // PairWithFirstBrand<First> (Functor over Second)
 
 impl<First: 'static> Kind1L1T for PairWithFirstBrand<First> {

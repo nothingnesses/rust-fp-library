@@ -8,10 +8,6 @@ use crate::{
 	hkt::Kind1L0T,
 };
 
-impl Kind1L0T for String {
-	type Output<'a> = String;
-}
-
 impl<'b> Semigroup<'b> for String {
 	/// # Examples
 	///

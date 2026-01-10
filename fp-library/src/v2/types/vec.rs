@@ -12,6 +12,7 @@ use crate::{
         monoid::Monoid,
         pointed::Pointed,
         semiapplicative::Semiapplicative,
+        semigroup::Semigroup,
         semimonad::Semimonad,
         traversable::Traversable,
     },
@@ -256,5 +257,35 @@ impl Traversable for VecBrand {
                 v
             }, acc, x)
         })
+    }
+}
+
+impl<A: Clone> Semigroup for Vec<A> {
+    /// Appends one vector to another.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::classes::semigroup::append;
+    ///
+    /// assert_eq!(append(vec![1, 2], vec![3, 4]), vec![1, 2, 3, 4]);
+    /// ```
+    fn append(a: Self, b: Self) -> Self {
+        [a, b].concat()
+    }
+}
+
+impl<A: Clone> Monoid for Vec<A> {
+    /// Returns an empty vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::classes::monoid::empty;
+    ///
+    /// assert_eq!(empty::<Vec<i32>>(), vec![]);
+    /// ```
+    fn empty() -> Self {
+        Vec::new()
     }
 }
