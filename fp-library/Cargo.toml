@@ -10,6 +10,11 @@ keywords = ["functional", "higher-kinded", "types"]
 categories = ["algorithms", "data-structures", "rust-patterns"]
 workspace = "../"
 
+[features]
+default = ["v1"]
+v1 = []
+v2 = []
+
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"

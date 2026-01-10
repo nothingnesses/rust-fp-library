@@ -123,3 +123,8 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
   - [x] Update usage patterns in `README.md`.
 - [x] **Step 8.3**: Update Doc Tests.
   - [x] Rewrite doc tests to use uncurried API.
+
+## Phase 9: Migration Strategy
+
+- [x] **Step 9.1**: Configure feature flags in `Cargo.toml` and `lib.rs`.
+- [x] **Step 9.2**: Add deprecation annotations to v1 API.

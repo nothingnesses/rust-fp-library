@@ -8,6 +8,11 @@ use crate::{
 	hkt::Kind1L0T,
 };
 
+#[cfg(not(feature = "v2"))]
+impl Kind1L0T for String {
+    type Output<'a> = String;
+}
+
 impl<'b> Semigroup<'b> for String {
 	/// # Examples
 	///
