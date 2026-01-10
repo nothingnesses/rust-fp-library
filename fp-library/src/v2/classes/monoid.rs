@@ -11,12 +11,48 @@ use super::semigroup::Semigroup;
 /// * Right Identity: `append(a, empty()) = a`.
 pub trait Monoid: Semigroup {
     /// The identity element.
+    ///
+    /// # Type Signature
+    ///
+    /// `forall a. Monoid a => () -> a`
+    ///
+    /// # Returns
+    ///
+    /// The identity element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fp_library::v2::classes::monoid::Monoid;
+    /// use fp_library::v2::types::string; // Import Monoid impl for String
+    ///
+    /// let x = String::empty();
+    /// assert_eq!(x, "".to_string());
+    /// ```
     fn empty() -> Self;
 }
 
 /// The identity element.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
+///
+/// # Type Signature
+///
+/// `forall a. Monoid a => () -> a`
+///
+/// # Returns
+///
+/// The identity element.
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::v2::classes::monoid::empty;
+/// use fp_library::v2::types::string; // Import Monoid impl for String
+///
+/// let x: String = empty();
+/// assert_eq!(x, "".to_string());
+/// ```
 pub fn empty<M: Monoid>() -> M {
     M::empty()
 }

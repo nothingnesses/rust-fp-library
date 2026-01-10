@@ -184,6 +184,10 @@ After completing the implementation and verification:
 
 All public items must have doc comments following this pattern:
 
+**Type Signature Syntax**: Use **Haskell Uncurried Syntax** (Tuple Style).
+*   **Reasoning**: The v2 API uses uncurried semantics (arguments passed together). Standard Haskell curried syntax (`a -> b -> c`) is misleading. Tuple syntax (`(a, b) -> c`) accurately reflects the API structure while retaining the conciseness of Haskell notation.
+*   **Example**: `forall a b. Functor f => (a -> b, f a) -> f b`
+
 ````rust
 /// Brief one-line description.
 ///
@@ -191,7 +195,7 @@ All public items must have doc comments following this pattern:
 ///
 /// # Type Signature
 ///
-/// `forall a b. TypeClass f => (a -> b) -> f a -> f b`
+/// `forall a b. TypeClass f => (a -> b, f a) -> f b`
 ///
 /// # Parameters
 ///

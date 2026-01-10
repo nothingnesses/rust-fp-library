@@ -4,6 +4,18 @@ use super::clonable_fn::{ApplyClonableFn, ClonableFn};
 pub trait Defer<'a> {
     /// Creates a value from a computation that produces the value.
     ///
+    /// # Type Signature
+    ///
+    /// `forall a. Defer d => (() -> d a) -> d a`
+    ///
+    /// # Parameters
+    ///
+    /// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+    ///
+    /// # Returns
+    ///
+    /// The deferred value.
+    ///
     /// # Examples
     ///
     /// ```
