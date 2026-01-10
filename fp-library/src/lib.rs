@@ -1,3 +1,11 @@
+//! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
+//!
+//! # Module Structure
+//!
+//! * `v2`: The new, zero-cost, uncurried API. This is the recommended API for new code.
+//! * `classes`, `types`, `functions`: The legacy v1 API (deprecated).
+//! * `brands`, `hkt`, `macros`: Shared infrastructure used by both APIs.
+
 pub mod brands;
 pub mod hkt;
 pub mod macros;
