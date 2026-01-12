@@ -100,17 +100,36 @@ fn main() {
 }
 ```
 
-## Project Structure
+## Contributing
+
+We welcome contributions! Please feel free to submit a Pull Request.
+
+### Development Environment
+
+This project uses [Nix](https://nixos.org/) to manage the development environment.
+
+1.  Install [Nix Package Manager](https://nixos.org/download/).
+2.  Install [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended) for automatic environment loading.
+
+To set up the environment:
+
+```sh
+# If using direnv
+direnv allow
+
+# Or manually enter the shell
+nix develop
+```
+
+This will provide a shell with the correct Rust version and dependencies.
+
+### Project Structure
 
 - `fp-library/src/classes`: Contains the definitions of type classes (traits).
 - `fp-library/src/types`: Contains implementations of type classes for various data types.
 - `fp-library/src/hkt`: Contains the machinery for higher-kinded types.
 - `fp-library/src/brands`: Contains type brands used for HKT encoding.
 - `fp-library/src/functions`: Contains general helper functions.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
