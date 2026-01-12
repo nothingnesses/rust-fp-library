@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 pub struct ArcFnBrand;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndofunctionBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
+pub struct EndofunctionBrand<ClonableFnBrand: ClonableFn, A>(PhantomData<(ClonableFnBrand, A)>);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
