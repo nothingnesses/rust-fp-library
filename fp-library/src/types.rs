@@ -12,5 +12,8 @@ pub mod result;
 pub mod string;
 pub mod vec;
 
+pub use endofunction::Endofunction;
+pub use endomorphism::Endomorphism;
 pub use identity::Identity;
+pub use lazy::Lazy;
 pub use pair::Pair;
