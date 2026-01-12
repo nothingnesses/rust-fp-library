@@ -4,56 +4,129 @@
 [![docs.rs](https://docs.rs/fp-library/badge.svg)](https://docs.rs/fp-library)
 [![GitHub License](https://img.shields.io/github/license/nothingnesses/rust-fp-library?color=blue)](https://github.com/nothingnesses/rust-fp-library/blob/main/LICENSE)
 
-
 A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
+
+## Features
+
+- **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (defunctionalization/brands).
+- **Type Classes:** A comprehensive collection of standard type classes including:
+  - `Functor`, `Applicative`, `Monad`
+  - `Semigroup`, `Monoid`
+  - `Foldable`, `Traversable`
+  - `Category`, `Semigroupoid`
+  - `Pointed`, `Lift`, `Defer`, `Once`
+  - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
+- **Data Types:** Implementations for standard and custom types:
+  - `Option`, `Result`, `Vec`, `String`
+  - `Identity`, `Lazy`, `Pair`
+  - `Endofunction`, `Endomorphism`
+  - `RcFn`, `ArcFn`
+  - `OnceCell`, `OnceLock`
+
+## Motivation
+
+Rust is a multi-paradigm language with strong functional programming features like iterators, closures, and algebraic data types. However, it lacks native support for **Higher-Kinded Types (HKT)**, which limits the ability to write generic code that abstracts over type constructors (e.g., writing a function that works for any `Monad`, whether it's `Option`, `Result`, or `Vec`).
+
+`fp-library` aims to bridge this gap by providing:
+
+1.  A robust encoding of HKTs in stable Rust.
+2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
+3.  Zero-cost abstractions that respect Rust's performance characteristics.
+
+## How it Works
+
+### Higher-Kinded Types (HKT)
+
+Since Rust doesn't support HKTs directly (e.g., `trait Functor<F<_>>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or defunctionalization).
+
+Each type constructor has a corresponding "Brand" type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type.
+
+```rust
+// Simplified example
+pub struct OptionBrand;
+
+impl Kind1L1T for OptionBrand {
+    type Output<'a, A: 'a> = Option<A>;
+}
+```
+
+### Zero-Cost Abstractions & Uncurried Semantics
+
+Unlike many functional programming libraries that strictly adhere to curried functions (e.g., `map(f)(fa)`), `fp-library` adopts **uncurried semantics** (e.g., `map(f, fa)`) for its core abstractions.
+
+**Why?**
+Traditional currying in Rust often requires:
+
+- Creating intermediate closures for each partial application.
+- Heap-allocating these closures (boxing) or wrapping them in reference counters (`Rc`/`Arc`) to satisfy type system constraints.
+- Dynamic dispatch (`dyn Fn`), which inhibits compiler optimizations like inlining.
+
+By using uncurried functions with `impl Fn` or generic bounds, `fp-library` achieves **zero-cost abstractions**:
+
+- **No Heap Allocation:** Operations like `map` and `bind` do not allocate intermediate closures.
+- **Static Dispatch:** The compiler can fully monomorphize generic functions, enabling aggressive inlining and optimization.
+- **Ownership Friendly:** Better integration with Rust's ownership and borrowing system.
+
+This approach ensures that using high-level functional abstractions incurs no runtime penalty compared to hand-written imperative code.
+
+**Exceptions:**
+While the library strives for zero-cost abstractions, some operations inherently require dynamic dispatch or heap allocation due to Rust's type system:
+
+- **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Lazy` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
+- **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
+
+For these specific cases, the library provides "Brand" types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost.
 
 ## Usage
 
-The library provides zero-cost, uncurried type classes.
+Add `fp-library` to your `Cargo.toml`:
 
-### Functor
+```toml
+[dependencies]
+fp-library = "0.1.0"
+```
+
+### Example: Using Functor with Option
 
 ```rust
 use fp_library::classes::functor::map;
 use fp_library::brands::OptionBrand;
 
-let x = Some(5);
-let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
-assert_eq!(y, Some(10));
+fn main() {
+    let x = Some(5);
+    // Map a function over the Option using the Functor type class
+    let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+    assert_eq!(y, Some(10));
+}
 ```
 
-### Monad
+## Project Structure
 
-```rust
-use fp_library::classes::semimonad::bind;
-use fp_library::brands::OptionBrand;
+- `fp-library/src/classes`: Contains the definitions of type classes (traits).
+- `fp-library/src/types`: Contains implementations of type classes for various data types.
+- `fp-library/src/hkt`: Contains the machinery for higher-kinded types.
+- `fp-library/src/brands`: Contains type brands used for HKT encoding.
+- `fp-library/src/functions`: Contains general helper functions.
 
-let x = Some(5);
-let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
-assert_eq!(y, Some(10));
-```
+## Contributing
 
-### Traversable
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-```rust
-use fp_library::classes::traversable::traverse;
-use fp_library::brands::{OptionBrand, VecBrand};
+## License
 
-let x = vec![1, 2, 3];
-let y = traverse::<VecBrand, OptionBrand, _, _, _>(|i| Some(i * 2), x);
-assert_eq!(y, Some(vec![2, 4, 6]));
-```
+This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
 
 ## References
-* [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)
-* [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
-* [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
-* [PureScript Pursuit](https://pursuit.purescript.org/)
-* [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)
-* [PureScript Typeclass Hierarchy](https://jordanmartinez.github.io/purescript-jordans-reference-site/content/91-Type-Classes/index.html)
-* [Where to find theoretical background (i.e., resources) behind PureScript classes?](https://discourse.purescript.org/t/where-to-find-theoretical-background-i-e-resources-behind-purescript-classes/535)
-* [Counterexamples of Type Classes](https://blog.functorial.com/posts/2015-12-06-Counterexamples.html)
-* [Haskell semigroupoids package](https://github.com/ekmett/semigroupoids)
-	* [Class names](https://github.com/ekmett/semigroupoids/issues/26)
-* [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
-* [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
+
+- [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf)
+- [Typeclassopedia](https://wiki.haskell.org/Typeclassopedia)
+- [Lean Mathlib Prelude](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html)
+- [PureScript Pursuit](https://pursuit.purescript.org/)
+- [Haskell base package Prelude](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html)
+- [PureScript Typeclass Hierarchy](https://jordanmartinez.github.io/purescript-jordans-reference-site/content/91-Type-Classes/index.html)
+- [Where to find theoretical background (i.e., resources) behind PureScript classes?](https://discourse.purescript.org/t/where-to-find-theoretical-background-i-e-resources-behind-purescript-classes/535)
+- [Counterexamples of Type Classes](https://blog.functorial.com/posts/2015-12-06-Counterexamples.html)
+- [Haskell semigroupoids package](https://github.com/ekmett/semigroupoids)
+  - [Class names](https://github.com/ekmett/semigroupoids/issues/26)
+- [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
+- [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
