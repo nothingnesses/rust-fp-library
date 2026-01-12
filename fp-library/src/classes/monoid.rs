@@ -1,67 +1,58 @@
-use crate::{
-	classes::{Semigroup, semigroup::Semigroup1L0T},
-	hkt::Apply1L0T,
-};
+use super::semigroup::Semigroup;
 
-/// A type class for monoids.
+/// A type class for types that have an identity element and an associative binary operation.
 ///
-/// `Monoid` extends [`Semigroup`] with an identity element. A monoid is a set
-/// equipped with an associative binary operation and an identity element.
-///
-/// In functional programming, monoids are useful for combining values in
-/// a consistent way, especially when accumulating results or folding
-/// collections.
+/// `Monoid` extends [`Semigroup`] with an identity element.
 ///
 /// # Laws
 ///
-/// `Monoid` instances must satisfy the following laws:
-/// * Left identity: `append(empty(), x) = x`.
-/// * Right identity: `append(x, empty()) = x`.
-/// * Associativity: `append(append(x, y), z) = append(x, append(y, z))`.
-pub trait Monoid<'a>: Semigroup<'a> {
-	/// Returns the identity element for the monoid.
+/// `Monoid` instances must satisfy the identity laws:
+/// * Left Identity: `append(empty(), a) = a`.
+/// * Right Identity: `append(a, empty()) = a`.
+pub trait Monoid: Semigroup {
+	/// The identity element.
 	///
 	/// # Type Signature
 	///
-	/// `Monoid a => () -> a`
+	/// `forall a. Monoid a => () -> a`
 	///
 	/// # Returns
 	///
-	/// The identity element which, when combined with any other element
-	/// using the semigroup operation, leaves the other element unchanged.
+	/// The identity element.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::monoid::Monoid;
+	/// use fp_library::types::string; // Import Monoid impl for String
+	///
+	/// let x = String::empty();
+	/// assert_eq!(x, "".to_string());
+	/// ```
 	fn empty() -> Self;
 }
 
-/// A higher-kinded Monoid, abstracting over the lifetime parameter.
-pub trait Monoid1L0T: Semigroup1L0T
-where
-	for<'a> Apply1L0T<'a, Self>: Monoid<'a>,
-{
-}
-
-/// Returns the identity element for the monoid.
+/// The identity element.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
 ///
 /// # Type Signature
 ///
-/// `Monoid a => () -> a`
+/// `forall a. Monoid a => () -> a`
 ///
 /// # Returns
 ///
-/// The identity element which, when combined with any other element
-/// using the semigroup operation, leaves the other element unchanged.
+/// The identity element.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::functions::empty;
+/// use fp_library::classes::monoid::empty;
+/// use fp_library::types::string; // Import Monoid impl for String
 ///
-/// assert_eq!(empty::<String>(), "".to_string());
-///
-pub fn empty<'a, Brand: Monoid1L0T>() -> Apply1L0T<'a, Brand>
-where
-	for<'b> Apply1L0T<'b, Brand>: Monoid<'b>,
-{
-	<Apply1L0T<'a, Brand> as Monoid<'a>>::empty()
+/// let x: String = empty();
+/// assert_eq!(x, "".to_string());
+/// ```
+pub fn empty<M: Monoid>() -> M {
+	M::empty()
 }

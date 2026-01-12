@@ -1,6 +1,9 @@
-//! Type classes.
+//! Type classes defining shared behavior across different types.
 //!
-//! Higher-kinded type classes (those with arities > 0, e.g., [`Functor`],
+//! This module includes traits for common functional programming abstractions
+//! such as `Functor`, `Monad`, `Applicative`, and others.
+//!
+//! Higher-kinded type classes (those with arities > 0, e.g., [`functor::Functor`],
 //! which has arity 1) are usually implemented by
 //! [`Brand` types][crate::brands], which are higher-kinded (arities > 0)
 //! representation of [types][crate::types], instead of directly by concrete
@@ -15,6 +18,7 @@ pub mod defer;
 pub mod foldable;
 pub mod function;
 pub mod functor;
+pub mod lift;
 pub mod monad;
 pub mod monoid;
 pub mod once;
@@ -24,22 +28,3 @@ pub mod semigroup;
 pub mod semigroupoid;
 pub mod semimonad;
 pub mod traversable;
-
-pub use self::applicative::Applicative;
-pub use self::apply_first::ApplyFirst;
-pub use self::apply_second::ApplySecond;
-pub use self::category::Category;
-pub use self::clonable_fn::ClonableFn;
-pub use self::defer::Defer;
-pub use self::foldable::Foldable;
-pub use self::function::Function;
-pub use self::functor::Functor;
-pub use self::monad::Monad;
-pub use self::monoid::Monoid;
-pub use self::once::Once;
-pub use self::pointed::Pointed;
-pub use self::semiapplicative::Semiapplicative;
-pub use self::semigroup::Semigroup;
-pub use self::semigroupoid::Semigroupoid;
-pub use self::semimonad::Semimonad;
-pub use self::traversable::Traversable;

@@ -1,7 +1,4 @@
-use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
-	hkt::{Apply0L1T, Kind0L1T},
-};
+use crate::hkt::{Apply1L1T, Kind1L1T};
 
 /// A type class for types that can be mapped over.
 ///
@@ -11,26 +8,40 @@ use crate::{
 /// # Laws
 ///
 /// `Functor` instances must satisfy the following laws:
-/// * Identity: `map(identity) = identity`.
-/// * Composition: `map(compose(f)(g)) = compose(map(f))(map(g))`.
-pub trait Functor: Kind0L1T {
+/// * Identity: `map(identity, fa) = fa`.
+/// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
+pub trait Functor: Kind1L1T {
 	/// Maps a function over the values in the functor context.
 	///
 	/// # Type Signature
 	///
-	/// `forall a b. Functor f => (a -> b) -> f a -> f b`
+	/// `forall a b. Functor f => (a -> b, f a) -> f b`
 	///
 	/// # Parameters
 	///
-	/// * `f`: A function to apply to the values within the functor context.
-	/// * `fa`: A functor containing values of type `A`.
+	/// * `f`: The function to apply to the value(s) inside the functor.
+	/// * `fa`: The functor instance containing the value(s).
 	///
 	/// # Returns
 	///
-	/// A functor containing values of type `B`.
-	fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
+	/// A new functor instance containing the result(s) of applying the function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::functor::Functor;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::map(|i| i * 2, x);
+	/// assert_eq!(y, Some(10));
+	/// ```
+	fn map<'a, A: 'a, B: 'a, F>(
+		f: F,
+		fa: Apply1L1T<'a, Self, A>,
+	) -> Apply1L1T<'a, Self, B>
+	where
+		F: Fn(A) -> B + 'a;
 }
 
 /// Maps a function over the values in the functor context.
@@ -39,27 +50,33 @@ pub trait Functor: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall a b. Functor f => (a -> b) -> f a -> f b`
+/// `forall a b. Functor f => (a -> b, f a) -> f b`
 ///
 /// # Parameters
 ///
-/// * `f`: A function to apply to the values within the functor context.
-/// * `fa`: A functor containing values of type `A`.
+/// * `f`: The function to apply to the value(s) inside the functor.
+/// * `fa`: The functor instance containing the value(s).
 ///
 /// # Returns
 ///
-/// A functor containing values of type `B`.
+/// A new functor instance containing the result(s) of applying the function.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::map};
-/// use std::rc::Rc;
+/// use fp_library::classes::functor::map;
+/// use fp_library::brands::OptionBrand;
 ///
-/// assert_eq!(map::<RcFnBrand, OptionBrand, _, _>(Rc::new(|x: i32| x * 2))(Some(5)), Some(10));
+/// let x = Some(5);
+/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+/// assert_eq!(y, Some(10));
 /// ```
-pub fn map<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Functor + ?Sized, A: 'a, B: 'a>(
-	f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
-) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, A>, Apply0L1T<Brand, B>> {
-	Brand::map::<ClonableFnBrand, _, _>(f)
+pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
+	f: F,
+	fa: Apply1L1T<'a, Brand, A>,
+) -> Apply1L1T<'a, Brand, B>
+where
+	F: Fn(A) -> B + 'a,
+{
+	Brand::map(f, fa)
 }

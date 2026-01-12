@@ -1,110 +1,71 @@
-use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
-	hkt::{Apply1L0T, Kind1L0T},
-};
-
-/// A type class for semigroups.
+/// A type class for types that support an associative binary operation.
 ///
-/// A `Semigroup` is a set equipped with an associative binary operation.
-///
-/// In functional programming, semigroups are useful for combining values
-/// in a consistent way. They form the basis for more complex structures
-/// like monoids.
-///
-/// # Laws
-///
-/// Semigroup instances must satisfy the associative law:
-/// * Associativity: `append(append(a)(b))(c) = append(a)(append(b)(c))`.
-pub trait Semigroup<'b> {
-	/// Associative operation that combines two values of the same type.
+/// `Semigroup` instances must satisfy the associative law:
+/// * Associativity: `append(a, append(b, c)) = append(append(a, b), c)`.
+pub trait Semigroup {
+	/// The result of combining the two values using the semigroup operation.
 	///
 	/// # Type Signature
 	///
-	/// `Semigroup a => a -> a -> a`
+	/// `forall a. Semigroup a => (a, a) -> a`
 	///
 	/// # Parameters
 	///
-	/// * `a`: First value to combine.
-	/// * `b`: Second value to combine.
+	/// * `a`: The first value.
+	/// * `b`: The second value.
 	///
 	/// # Returns
 	///
-	/// The result of combining the two values using the semigroup operation.
-	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
-		a: Self
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
-	where
-		Self: Sized,
-		'b: 'a;
+	/// The combined value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::semigroup::Semigroup;
+	/// use fp_library::types::string; // Import Semigroup impl for String
+	///
+	/// let x = "Hello, ".to_string();
+	/// let y = "World!".to_string();
+	/// let z = String::append(x, y);
+	/// assert_eq!(z, "Hello, World!".to_string());
+	/// ```
+	fn append(
+		a: Self,
+		b: Self,
+	) -> Self;
 }
 
-/// A higher-kinded Semigroup, abstracting over the lifetime parameter.
-pub trait Semigroup1L0T: Kind1L0T
-where
-	for<'a> Apply1L0T<'a, Self>: Semigroup<'a>,
-{
-}
-
-/// Associative operation that combines two values of the same type.
+/// The result of combining the two values using the semigroup operation.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
 ///
 /// # Type Signature
 ///
-/// `Semigroup a => a -> a -> a`
+/// `forall a. Semigroup a => (a, a) -> a`
 ///
 /// # Parameters
 ///
-/// * `a`: First value to combine.
-/// * `b`: Second value to combine.
+/// * `a`: The first value.
+/// * `b`: The second value.
 ///
 /// # Returns
 ///
-/// The result of combining the two values using the semigroup operation.
+/// The combined value.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::RcFnBrand, functions::append};
+/// use fp_library::classes::semigroup::append;
+/// use fp_library::types::string; // Import Semigroup impl for String
 ///
-/// assert_eq!(
-///     append::<RcFnBrand, String>("Hello, ".to_string())("World!".to_string()),
-///     "Hello, World!"
-/// );
+/// let x = "Hello, ".to_string();
+/// let y = "World!".to_string();
+/// let z = append(x, y);
+/// assert_eq!(z, "Hello, World!".to_string());
 /// ```
-pub fn append<'a, ClonableFnBrand: 'a + ClonableFn, Brand: Semigroup1L0T>(
-	a: Apply1L0T<'a, Brand>
-) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L0T<'a, Brand>, Apply1L0T<'a, Brand>>
-where
-	for<'b> Apply1L0T<'b, Brand>: Semigroup<'b>,
-{
-	<Apply1L0T<'a, Brand> as Semigroup<'a>>::append::<ClonableFnBrand>(a)
+pub fn append<S: Semigroup>(
+	a: S,
+	b: S,
+) -> S {
+	S::append(a, b)
 }
-
-// #[cfg(test)]
-// mod tests {
-// 	use crate::{brands::RcFnBrand, functions::append};
-
-// 	#[test]
-// 	fn test_string_semigroup() {
-// 		let s1 = "Hello, ".to_string();
-// 		let s2 = "World!".to_string();
-// 		assert_eq!(append::<String, RcFnBrand>(s1)(s2), "Hello, World!");
-// 	}
-
-// 	#[test]
-// 	fn test_string_semigroup_associativity() {
-// 		let s1 = "a".to_string();
-// 		let s2 = "b".to_string();
-// 		let s3 = "c".to_string();
-
-// 		// (a <> b) <> c = a <> (b <> c)
-// 		let left_associated =
-// 			append::<String, RcFnBrand>(append::<String, RcFnBrand>(s1.clone())(s2.clone()))(s3.clone());
-// 		let right_associated =
-// 			append::<String, RcFnBrand>(s1.clone())(append::<String, RcFnBrand>(s2.clone())(s3.clone()));
-
-// 		assert_eq!(left_associated, right_associated);
-// 		assert_eq!(left_associated, "abc");
-// 	}
-// }

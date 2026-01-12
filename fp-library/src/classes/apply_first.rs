@@ -1,32 +1,43 @@
-use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
-	hkt::{Apply0L1T, Kind0L1T},
-};
+use super::lift::Lift;
+use crate::hkt::Apply1L1T;
 
 /// A type class for types that support combining two contexts, keeping the first value.
 ///
 /// `ApplyFirst` provides the ability to sequence two computations but discard
 /// the result of the second computation, keeping only the result of the first.
-/// This is useful for executing side effects in sequence while preserving the
-/// primary result.
-pub trait ApplyFirst: Kind0L1T {
+pub trait ApplyFirst: Lift {
 	/// Combines two contexts, keeping the value from the first context.
 	///
 	/// # Type Signature
 	///
-	/// `forall a b. ApplyFirst f => f a -> f b -> f a`
+	/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
 	///
 	/// # Parameters
 	///
-	/// * `fa`: The first context containing a value.
-	/// * `fb`: The second context containing a value (will be discarded).
+	/// * `fa`: The first context.
+	/// * `fb`: The second context.
 	///
 	/// # Returns
 	///
-	/// The first context with its value preserved.
-	fn apply_first<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: Clone>(
-		fa: Apply0L1T<Self, A>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, A>>;
+	/// The first context.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::apply_first::ApplyFirst;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(5);
+	/// let y = Some(10);
+	/// let z = OptionBrand::apply_first(x, y);
+	/// assert_eq!(z, Some(5));
+	/// ```
+	fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply1L1T<'a, Self, A>,
+		fb: Apply1L1T<'a, Self, B>,
+	) -> Apply1L1T<'a, Self, A> {
+		Self::lift2(|a, _| a, fa, fb)
+	}
 }
 
 /// Combines two contexts, keeping the value from the first context.
@@ -35,32 +46,31 @@ pub trait ApplyFirst: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall a b. ApplyFirst f => f a -> f b -> f a`
+/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
 ///
 /// # Parameters
 ///
-/// * `fa`: The first context containing a value.
-/// * `fb`: The second context containing a value (will be discarded).
+/// * `fa`: The first context.
+/// * `fb`: The second context.
 ///
 /// # Returns
 ///
-/// The first context with its value preserved.
+/// The first context.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::apply_first};
+/// use fp_library::classes::apply_first::apply_first;
+/// use fp_library::brands::OptionBrand;
 ///
-/// assert_eq!(apply_first::<RcFnBrand, OptionBrand, _, _>(Some(5))(Some("hello")), Some(5));
+/// let x = Some(5);
+/// let y = Some(10);
+/// let z = apply_first::<OptionBrand, _, _>(x, y);
+/// assert_eq!(z, Some(5));
 /// ```
-pub fn apply_first<
-	'a,
-	ClonableFnBrand: 'a + ClonableFn,
-	Brand: ApplyFirst,
-	A: 'a + Clone,
-	B: Clone,
->(
-	fa: Apply0L1T<Brand, A>
-) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, A>> {
-	Brand::apply_first::<ClonableFnBrand, A, B>(fa)
+pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(
+	fa: Apply1L1T<'a, Brand, A>,
+	fb: Apply1L1T<'a, Brand, B>,
+) -> Apply1L1T<'a, Brand, A> {
+	Brand::apply_first(fa, fb)
 }

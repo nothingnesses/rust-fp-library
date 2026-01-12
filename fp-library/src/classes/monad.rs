@@ -1,46 +1,27 @@
-use crate::classes::{Applicative, Semimonad};
+use super::{applicative::Applicative, semimonad::Semimonad};
 
 /// A type class for monads.
 ///
-/// `Monad` combines the capabilities of [`Applicative`] and [`Semimonad`], providing
-/// a powerful abstraction for sequencing computations with context.
+/// `Monad` extends [`Applicative`] and [`Semimonad`].
+/// It allows for sequencing computations where the structure of the computation depends on the result of the previous computation.
 ///
-/// Monads are more powerful than applicative functors because they allow
-/// the structure of subsequent computations to depend on the results of
-/// previous computations.
+/// # Type Signature
 ///
-/// # Laws
+/// `class (Applicative m, Semimonad m) => Monad m`
 ///
-/// `Monad` instances must satisfy the following laws:
-/// * Left identity: `bind(pure(a))(f) = f(a)`.
-/// * Right identity: `bind(m)(pure) = m`.
-/// * Associativity: `bind(bind(m)(f))(g) = bind(m)(x => bind(f(x))(g))`.
+/// # Examples
+///
+/// ```
+/// use fp_library::classes::monad::Monad;
+/// use fp_library::classes::pointed::pure;
+/// use fp_library::classes::semimonad::bind;
+/// use fp_library::brands::OptionBrand;
+///
+/// // Monad combines Pointed (pure) and Semimonad (bind)
+/// let x = pure::<OptionBrand, _>(5);
+/// let y = bind::<OptionBrand, _, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
+/// assert_eq!(y, Some(10));
+/// ```
 pub trait Monad: Applicative + Semimonad {}
 
-/// Blanket implementation for the `Monad` type class.
-///
-/// Any type that implements all the required supertraits automatically implements `Monad`.
 impl<Brand> Monad for Brand where Brand: Applicative + Semimonad {}
-
-#[cfg(test)]
-mod tests {
-	use crate::{
-		brands::{IdentityBrand, OptionBrand, ResultWithErrBrand, ResultWithOkBrand, VecBrand},
-		classes::Monad,
-	};
-
-	/// Asserts that a type implements [`Monad`].
-	fn assert_monad<T: Monad>() {}
-
-	#[test]
-	/// Assert that brands implementing the required supertraits
-	/// ([`Applicative`][crate::classes::Applicative], [`Semimonad`][crate::classes::Semimonad])
-	/// also implement [`Monad`].
-	fn test_brands_implement_monad() {
-		assert_monad::<IdentityBrand>();
-		assert_monad::<OptionBrand>();
-		assert_monad::<ResultWithErrBrand<()>>();
-		assert_monad::<ResultWithOkBrand<()>>();
-		assert_monad::<VecBrand>();
-	}
-}

@@ -1,32 +1,43 @@
-use crate::{
-	classes::{ClonableFn, clonable_fn::ApplyClonableFn},
-	hkt::{Apply0L1T, Kind0L1T},
-};
+use super::lift::Lift;
+use crate::hkt::Apply1L1T;
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
 /// `ApplySecond` provides the ability to sequence two computations but discard
 /// the result of the first computation, keeping only the result of the second.
-/// This is useful for executing side effects in sequence while preserving the
-/// final result.
-pub trait ApplySecond: Kind0L1T {
+pub trait ApplySecond: Lift {
 	/// Combines two contexts, keeping the value from the second context.
 	///
 	/// # Type Signature
 	///
-	/// `forall a b. ApplySecond f => f a -> f b -> f b`
+	/// `forall a b. ApplySecond f => (f a, f b) -> f b`
 	///
 	/// # Parameters
 	///
-	/// * `fa`: The first context containing a value (will be discarded).
-	/// * `fb`: The second context containing a value.
+	/// * `fa`: The first context.
+	/// * `fb`: The second context.
 	///
 	/// # Returns
 	///
-	/// The second context with its value preserved.
-	fn apply_second<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply0L1T<Self, A>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, B>, Apply0L1T<Self, B>>;
+	/// The second context.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::apply_second::ApplySecond;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(5);
+	/// let y = Some(10);
+	/// let z = OptionBrand::apply_second(x, y);
+	/// assert_eq!(z, Some(10));
+	/// ```
+	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
+		fa: Apply1L1T<'a, Self, A>,
+		fb: Apply1L1T<'a, Self, B>,
+	) -> Apply1L1T<'a, Self, B> {
+		Self::lift2(|_, b| b, fa, fb)
+	}
 }
 
 /// Combines two contexts, keeping the value from the second context.
@@ -35,32 +46,31 @@ pub trait ApplySecond: Kind0L1T {
 ///
 /// # Type Signature
 ///
-/// `forall a b. ApplySecond f => f a -> f b -> f b`
+/// `forall a b. ApplySecond f => (f a, f b) -> f b`
 ///
 /// # Parameters
 ///
-/// * `fa`: The first context containing a value (will be discarded).
-/// * `fb`: The second context containing a value.
+/// * `fa`: The first context.
+/// * `fb`: The second context.
 ///
 /// # Returns
 ///
-/// The second context with its value preserved.
+/// The second context.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::apply_second};
+/// use fp_library::classes::apply_second::apply_second;
+/// use fp_library::brands::OptionBrand;
 ///
-/// assert_eq!(apply_second::<RcFnBrand, OptionBrand, _, _>(Some(5))(Some("hello")), Some("hello"));
+/// let x = Some(5);
+/// let y = Some(10);
+/// let z = apply_second::<OptionBrand, _, _>(x, y);
+/// assert_eq!(z, Some(10));
 /// ```
-pub fn apply_second<
-	'a,
-	ClonableFnBrand: 'a + ClonableFn,
-	Brand: ApplySecond,
-	A: 'a + Clone,
-	B: 'a + Clone,
->(
-	fa: Apply0L1T<Brand, A>
-) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Brand, B>, Apply0L1T<Brand, B>> {
-	Brand::apply_second::<ClonableFnBrand, A, B>(fa)
+pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
+	fa: Apply1L1T<'a, Brand, A>,
+	fb: Apply1L1T<'a, Brand, B>,
+) -> Apply1L1T<'a, Brand, B> {
+	Brand::apply_second(fa, fb)
 }

@@ -1,52 +1,33 @@
-use crate::classes::{ApplyFirst, ApplySecond, Functor, Pointed, Semiapplicative};
+use super::{
+	apply_first::ApplyFirst, apply_second::ApplySecond, pointed::Pointed,
+	semiapplicative::Semiapplicative,
+};
 
 /// A type class for applicative functors.
 ///
-/// `Applicative` extends `Functor` with the ability to lift values into a context
-/// (`pure`) and to apply functions within a context to values within a context
-/// (`apply`). It also provides additional operations for combining contexts
-/// (`apply_first`, `apply_second`).
+/// `Applicative` extends [`Pointed`] and [`Semiapplicative`].
+/// It allows for values to be wrapped in a context and for functions within a context to be applied to values within a context.
 ///
-/// Applicative functors are more powerful than functors but less powerful than
-/// monads. They allow for sequencing computations but with less flexibility
-/// than monads since the structure of the computation must be known in advance.
+/// # Type Signature
 ///
-/// # Laws
+/// `class (Pointed f, Semiapplicative f) => Applicative f`
 ///
-/// `Applicative` instances must satisfy the following laws:
-/// * Identity: `apply(pure(identity))(v) = v`.
-/// * Composition: `apply(apply(apply(pure(compose))(u))(v))(w) = apply(u)(apply(v)(w))`.
-/// * Homomorphism: `apply(pure(f))(pure(x)) = pure(f(x))`.
-/// * Interchange: `apply(u)(pure(y)) = apply(pure(f => f(y)))(u)`.
-pub trait Applicative: Functor + Pointed + Semiapplicative + ApplyFirst + ApplySecond {}
-
-/// Blanket implementation for the [`Applicative`] type class.
+/// # Examples
 ///
-/// Any type that implements all the required supertraits automatically implements [`Applicative`].
-impl<Brand> Applicative for Brand where
-	Brand: Functor + Pointed + Semiapplicative + ApplyFirst + ApplySecond
-{
-}
+/// ```
+/// use fp_library::classes::applicative::Applicative;
+/// use fp_library::classes::pointed::pure;
+/// use fp_library::classes::semiapplicative::apply;
+/// use fp_library::classes::clonable_fn::ClonableFn;
+/// use fp_library::brands::OptionBrand;
+/// use fp_library::brands::RcFnBrand;
+///
+/// // Applicative combines Pointed (pure) and Semiapplicative (apply)
+/// let f = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+/// let x = pure::<OptionBrand, _>(5);
+/// let y = apply::<OptionBrand, _, _, RcFnBrand>(f, x);
+/// assert_eq!(y, Some(10));
+/// ```
+pub trait Applicative: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}
 
-#[cfg(test)]
-mod tests {
-	use crate::{
-		brands::{IdentityBrand, OptionBrand, ResultWithErrBrand, ResultWithOkBrand, VecBrand},
-		classes::Applicative,
-	};
-
-	/// Asserts that a type implements [`Applicative`].
-	fn assert_applicative<T: Applicative>() {}
-
-	#[test]
-	/// Assert that brands implementing the required supertraits ([`Functor`],
-	/// [`Pointed`], [`Semiapplicative`], [`ApplyFirst`], [`ApplySecond`]) also implement
-	/// [`Applicative`].
-	fn test_brands_implement_applicative() {
-		assert_applicative::<IdentityBrand>();
-		assert_applicative::<OptionBrand>();
-		assert_applicative::<ResultWithErrBrand<()>>();
-		assert_applicative::<ResultWithOkBrand<()>>();
-		assert_applicative::<VecBrand>();
-	}
-}
+impl<Brand> Applicative for Brand where Brand: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}

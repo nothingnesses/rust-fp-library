@@ -1,4 +1,5 @@
-use crate::{classes::Function, make_type_apply};
+use super::function::Function;
+use crate::make_type_apply;
 use std::ops::Deref;
 
 /// Abstraction for clonable wrappers over closures.
@@ -12,9 +13,64 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait ClonableFn: Function {
-	type Output<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Output<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
+	/// Creates a new clonable function wrapper.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. ClonableFn f => (a -> b) -> f a b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The closure to wrap.
+	///
+	/// # Returns
+	///
+	/// The wrapped clonable function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::brands::RcFnBrand;
+	///
+	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// assert_eq!(f(5), 10);
+	/// ```
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
 }
 
 make_type_apply!(ApplyClonableFn, ClonableFn, ('a), (A, B), "' -> * -> *");
+
+/// Creates a new clonable function wrapper.
+///
+/// Free function version that dispatches to [the type class' associated function][`ClonableFn::new`].
+///
+/// # Type Signature
+///
+/// `forall a b. ClonableFn f => (a -> b) -> f a b`
+///
+/// # Parameters
+///
+/// * `f`: The closure to wrap.
+///
+/// # Returns
+///
+/// The wrapped clonable function.
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::classes::clonable_fn::new;
+/// use fp_library::brands::RcFnBrand;
+///
+/// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// assert_eq!(f(5), 10);
+/// ```
+pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, F, A, B>
+where
+	F: ClonableFn,
+{
+	<F as ClonableFn>::new(f)
+}

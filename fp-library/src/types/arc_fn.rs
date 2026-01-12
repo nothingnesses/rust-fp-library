@@ -2,84 +2,188 @@
 //! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 
 use crate::{
+	brands::ArcFnBrand,
 	classes::{
-		Category, ClonableFn, Function, Monoid, Semigroup, Semigroupoid,
-		clonable_fn::ApplyClonableFn, function::ApplyFunction,
+		category::Category,
+		clonable_fn::{ApplyClonableFn, ClonableFn},
+		function::{ApplyFunction, Function},
+		semigroupoid::Semigroupoid,
 	},
-	functions::{compose, identity},
 	hkt::{Apply1L2T, Kind1L2T},
 };
 use std::sync::Arc;
-
-/// A brand type for [atomically reference-counted][std::sync::Arc]
-/// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
-///
-/// This struct implements [`ClonableFn`] to provide a way to construct and
-/// type-check [`Arc`]-wrapped closures in a generic context. The lifetime `'a`
-/// ensures the closure doesn't outlive referenced data, while `A` and `B`
-/// represent input and output types.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFnBrand;
 
 impl Kind1L2T for ArcFnBrand {
 	type Output<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
 }
 
 impl Function for ArcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
+	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
+	/// Creates a new `Arc`-wrapped function.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. Function ArcFnBrand => (a -> b) -> ArcFnBrand a b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The function to wrap.
+	///
+	/// # Returns
+	///
+	/// An `Arc`-wrapped function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::function::Function;
+	///
+	/// let f = <ArcFnBrand as Function>::new(|x: i32| x * 2);
+	/// assert_eq!(f(5), 10);
+	/// ```
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
 		Arc::new(f)
 	}
 }
 
 impl ClonableFn for ArcFnBrand {
-	type Output<'a, A: 'a, B: 'a> = Apply1L2T<'a, Self, A, B>;
+	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
 
-	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
+	/// Creates a new `Arc`-wrapped clonable function.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. ClonableFn ArcFnBrand => (a -> b) -> ArcFnBrand a b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The function to wrap.
+	///
+	/// # Returns
+	///
+	/// An `Arc`-wrapped clonable function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// assert_eq!(f(5), 10);
+	/// ```
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
 		Arc::new(f)
 	}
 }
 
 impl Semigroupoid for ArcFnBrand {
-	fn compose<'a, ClonableFnBrand: 'a + ClonableFn, B, C, D>(
-		f: Apply1L2T<'a, Self, C, D>
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Apply1L2T<'a, Self, B, C>, Apply1L2T<'a, Self, B, D>>
-	{
-		<ClonableFnBrand as ClonableFn>::new::<'a, _, _>(move |g: Apply1L2T<'a, Self, B, C>| {
-			<Self as ClonableFn>::new::<'a, _, _>({
-				let f = f.clone();
-				move |a| compose::<'a, Self, _, _, _>(f.clone())(g.clone())(a)
-			})
-		})
+	/// Composes two `Arc`-wrapped functions.
+	///
+	/// # Type Signature
+	///
+	/// `forall b c d. Semigroupoid ArcFnBrand => (ArcFnBrand c d, ArcFnBrand b c) -> ArcFnBrand b d`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The second function to apply.
+	/// * `g`: The first function to apply.
+	///
+	/// # Returns
+	///
+	/// The composed function `f . g`.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::semigroupoid::Semigroupoid;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// let g = <ArcFnBrand as ClonableFn>::new(|x: i32| x + 1);
+	/// let h = ArcFnBrand::compose(f, g);
+	/// assert_eq!(h(5), 12); // (5 + 1) * 2
+	/// ```
+	fn compose<'a, B: 'a, C: 'a, D: 'a>(
+		f: Apply1L2T<'a, Self, C, D>,
+		g: Apply1L2T<'a, Self, B, C>,
+	) -> Apply1L2T<'a, Self, B, D> {
+		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
 
 impl Category for ArcFnBrand {
-	fn identity<'a, A: 'a>() -> Apply1L2T<'a, Self, A, A> {
-		<Self as ClonableFn>::new::<'a, _, _>(identity)
+	/// Returns the identity function wrapped in an `Arc`.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. Category ArcFnBrand => () -> ArcFnBrand a a`
+	///
+	/// # Returns
+	///
+	/// The identity function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::category::Category;
+	///
+	/// let id = ArcFnBrand::identity::<i32>();
+	/// assert_eq!(id(5), 5);
+	/// ```
+	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A> {
+		Arc::new(|a| a)
 	}
 }
 
-impl<'b, A: 'b + Clone, B: Semigroup<'b> + 'b> Semigroup<'b> for Arc<dyn 'b + Fn(A) -> B> {
-	fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
-		a: Self
-	) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
-	where
-		Self: Sized,
-		'b: 'a,
-	{
-		<ClonableFnBrand as ClonableFn>::new(move |b: Self| {
-			<ArcFnBrand as ClonableFn>::new({
-				let a = a.clone();
-				move |c: A| B::append::<ClonableFnBrand>(a(c.clone()))(b(c))
-			})
-		})
-	}
-}
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid};
+	use quickcheck_macros::quickcheck;
 
-impl<'b, A: 'b + Clone, B: Monoid<'b> + 'b> Monoid<'b> for Arc<dyn 'b + Fn(A) -> B> {
-	fn empty() -> Self {
-		<ArcFnBrand as ClonableFn>::new(move |_| B::empty())
+	// Semigroupoid Laws
+
+	/// Tests the associativity law for Semigroupoid.
+	#[quickcheck]
+	fn semigroupoid_associativity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let g = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_mul(2));
+		let h = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_sub(3));
+
+		let lhs = ArcFnBrand::compose(f.clone(), ArcFnBrand::compose(g.clone(), h.clone()));
+		let rhs = ArcFnBrand::compose(ArcFnBrand::compose(f, g), h);
+
+		lhs(x) == rhs(x)
+	}
+
+	// Category Laws
+
+	/// Tests the left identity law for Category.
+	#[quickcheck]
+	fn category_left_identity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let id = ArcFnBrand::identity::<i32>();
+
+		let lhs = ArcFnBrand::compose(id, f.clone());
+		let rhs = f;
+
+		lhs(x) == rhs(x)
+	}
+
+	/// Tests the right identity law for Category.
+	#[quickcheck]
+	fn category_right_identity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let id = ArcFnBrand::identity::<i32>();
+
+		let lhs = ArcFnBrand::compose(f.clone(), id);
+		let rhs = f;
+
+		lhs(x) == rhs(x)
 	}
 }

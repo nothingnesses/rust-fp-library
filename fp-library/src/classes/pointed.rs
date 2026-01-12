@@ -1,14 +1,10 @@
-use crate::{
-	classes::ClonableFn,
-	hkt::{Apply0L1T, Kind0L1T},
-};
+use crate::hkt::{Apply1L1T, Kind1L1T};
 
-/// A type class for types that can lift values into a context.
+/// A type class for types that can be constructed from a single value.
 ///
-/// `Pointed` provides the ability to lift a value into a context without
-/// adding any additional structure or effects.
-pub trait Pointed: Kind0L1T {
-	/// Lifts a value into the context.
+/// `Pointed` represents a context that can be initialized with a value.
+pub trait Pointed: Kind1L1T {
+	/// The value wrapped in the context.
 	///
 	/// # Type Signature
 	///
@@ -16,15 +12,25 @@ pub trait Pointed: Kind0L1T {
 	///
 	/// # Parameters
 	///
-	/// * `a`: A value to be lifted into the context.
+	/// * `a`: The value to wrap.
 	///
 	/// # Returns
 	///
-	/// The value wrapped in the context.
-	fn pure<ClonableFnBrand: ClonableFn, A: Clone>(a: A) -> Apply0L1T<Self, A>;
+	/// A new context containing the value.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::classes::pointed::Pointed;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = OptionBrand::pure(5);
+	/// assert_eq!(x, Some(5));
+	/// ```
+	fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A>;
 }
 
-/// Lifts a value into the context.
+/// The value wrapped in the context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
 ///
@@ -34,19 +40,21 @@ pub trait Pointed: Kind0L1T {
 ///
 /// # Parameters
 ///
-/// * `a`: A value to be lifted into the context.
+/// * `a`: The value to wrap.
 ///
 /// # Returns
 ///
-/// The value wrapped in the context.
+/// A new context containing the value.
 ///
 /// # Examples
 ///
 /// ```
-/// use fp_library::{brands::{OptionBrand, RcFnBrand}, functions::pure};
+/// use fp_library::classes::pointed::pure;
+/// use fp_library::brands::OptionBrand;
 ///
-/// assert_eq!(pure::<RcFnBrand, OptionBrand, _>(5), Some(5));
+/// let x = pure::<OptionBrand, _>(5);
+/// assert_eq!(x, Some(5));
 /// ```
-pub fn pure<ClonableFnBrand: ClonableFn, Brand: Pointed, A: Clone>(a: A) -> Apply0L1T<Brand, A> {
-	Brand::pure::<ClonableFnBrand, _>(a)
+pub fn pure<'a, Brand: Pointed, A: 'a>(a: A) -> Apply1L1T<'a, Brand, A> {
+	Brand::pure(a)
 }
