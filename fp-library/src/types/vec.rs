@@ -353,7 +353,8 @@ impl Traversable for VecBrand {
 		Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
 		Apply1L1T<'a, Self, B>: Clone,
 	{
-		ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+		let len = ta.len();
+		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
 			F::lift2(
 				|mut v, b| {
 					v.push(b);
@@ -397,7 +398,8 @@ impl Traversable for VecBrand {
 		Apply1L1T<'a, F, A>: Clone,
 		Apply1L1T<'a, Self, A>: Clone,
 	{
-		ta.into_iter().fold(F::pure(Vec::new()), |acc, x| {
+		let len = ta.len();
+		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
 			F::lift2(
 				|mut v, a| {
 					v.push(a);
