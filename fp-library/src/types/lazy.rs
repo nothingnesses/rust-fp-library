@@ -1,4 +1,7 @@
+//! Implementations for [`Lazy`], the type of lazily-computed, memoized values.
+
 use crate::{
+	brands::LazyBrand,
 	classes::{
 		clonable_fn::{ApplyClonableFn, ClonableFn},
 		defer::Defer,
@@ -8,7 +11,6 @@ use crate::{
 	},
 	hkt::Kind1L1T,
 };
-use std::marker::PhantomData;
 
 /// Represents a lazily-computed, memoized value.
 ///
@@ -42,8 +44,8 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	///
 	/// ```
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::types::rc_fn::RcFnBrand;
-	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::brands::OnceCellBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
@@ -74,8 +76,8 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	///
 	/// ```
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::types::rc_fn::RcFnBrand;
-	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::brands::OnceCellBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
@@ -98,11 +100,6 @@ where
 		Self(self.0.clone(), self.1.clone())
 	}
 }
-
-/// Brand for the `Lazy` type constructor.
-pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(
-	PhantomData<(OnceBrand, ClonableFnBrand)>,
-);
 
 impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind1L1T
 	for LazyBrand<OnceBrand, ClonableFnBrand>
@@ -194,8 +191,8 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
 	///
 	/// ```
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::types::rc_fn::RcFnBrand;
-	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::brands::OnceCellBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::classes::defer::Defer;
 	/// use std::rc::Rc;
@@ -211,5 +208,54 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
 		ClonableFnBrand: ClonableFn + 'a,
 	{
 		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::force(f(()))))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::{OnceCellBrand, RcFnBrand},
+		classes::{clonable_fn::ClonableFn, defer::Defer},
+	};
+	use std::{cell::RefCell, rc::Rc};
+
+	/// Tests that `Lazy::force` memoizes the result.
+	#[test]
+	fn force_memoization() {
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+
+		let lazy =
+			Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(move |_| {
+				*counter_clone.borrow_mut() += 1;
+				42
+			}));
+
+		assert_eq!(*counter.borrow(), 0);
+		assert_eq!(Lazy::force(lazy.clone()), 42);
+		assert_eq!(*counter.borrow(), 1);
+		assert_eq!(Lazy::force(lazy), 42);
+		// Since we clone before forcing, and OnceCell is not shared across clones (it's deep cloned),
+		// the counter increments again.
+		assert_eq!(*counter.borrow(), 2);
+	}
+
+	/// Tests that `Lazy::defer` delays execution until forced.
+	#[test]
+	fn defer_execution_order() {
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+
+		let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::defer::<RcFnBrand>(
+			<RcFnBrand as ClonableFn>::new(move |_| {
+				*counter_clone.borrow_mut() += 1;
+				Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42))
+			}),
+		);
+
+		assert_eq!(*counter.borrow(), 0);
+		assert_eq!(Lazy::force(lazy), 42);
+		assert_eq!(*counter.borrow(), 1);
 	}
 }

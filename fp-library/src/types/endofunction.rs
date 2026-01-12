@@ -1,13 +1,17 @@
 //! Implementations for [`Endofunction`], a wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
 
-use crate::classes::{
-	clonable_fn::{ApplyClonableFn, ClonableFn},
-	monoid::Monoid,
-	semigroup::Semigroup,
+use crate::{
+	classes::{
+		clonable_fn::{ApplyClonableFn, ClonableFn},
+		monoid::Monoid,
+		semigroup::Semigroup,
+	},
+	functions::identity,
 };
-use crate::functions::identity;
-use std::fmt::{self, Debug, Formatter};
-use std::hash::Hash;
+use std::{
+	fmt::{self, Debug, Formatter},
+	hash::Hash,
+};
 
 /// A wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
 ///
@@ -129,7 +133,7 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 	///
 	/// ```
 	/// use fp_library::types::endofunction::Endofunction;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::classes::semigroup::Semigroup;
 	///
@@ -164,7 +168,7 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
 	///
 	/// ```
 	/// use fp_library::types::endofunction::Endofunction;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::classes::monoid::Monoid;
 	///
 	/// let id = Endofunction::<RcFnBrand, i32>::empty();
@@ -172,5 +176,62 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
 	/// ```
 	fn empty() -> Self {
 		Self::new(<CFB as ClonableFn>::new(identity))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::RcFnBrand,
+		classes::{clonable_fn::ClonableFn, monoid::empty, semigroup::append},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Semigroup Laws
+
+	/// Tests the associativity law for Semigroup.
+	#[quickcheck]
+	fn semigroup_associativity(val: i32) -> bool {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_mul(2)
+		}));
+		let h = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_sub(3)
+		}));
+
+		let lhs = append(f.clone(), append(g.clone(), h.clone()));
+		let rhs = append(append(f, g), h);
+
+		lhs.0(val) == rhs.0(val)
+	}
+
+	// Monoid Laws
+
+	/// Tests the left identity law for Monoid.
+	#[quickcheck]
+	fn monoid_left_identity(val: i32) -> bool {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let id = empty::<Endofunction<RcFnBrand, i32>>();
+
+		let res = append(id, f.clone());
+		res.0(val) == f.0(val)
+	}
+
+	/// Tests the right identity law for Monoid.
+	#[quickcheck]
+	fn monoid_right_identity(val: i32) -> bool {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let id = empty::<Endofunction<RcFnBrand, i32>>();
+
+		let res = append(f.clone(), id);
+		res.0(val) == f.0(val)
 	}
 }

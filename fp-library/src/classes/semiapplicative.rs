@@ -41,7 +41,7 @@ pub trait Semiapplicative: Lift + Functor {
 	/// use fp_library::classes::semiapplicative::Semiapplicative;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
@@ -78,7 +78,7 @@ pub trait Semiapplicative: Lift + Functor {
 /// use fp_library::classes::semiapplicative::apply;
 /// use fp_library::classes::clonable_fn::ClonableFn;
 /// use fp_library::brands::OptionBrand;
-/// use fp_library::types::rc_fn::RcFnBrand;
+/// use fp_library::brands::RcFnBrand;
 /// use std::rc::Rc;
 ///
 /// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));

@@ -1,3 +1,9 @@
+//! Concrete data types, their corresponding implementations and type aliases.
+//!
+//! This module provides implementations of various functional programming
+//! data structures and wrappers, including `Identity`, `Lazy`, and extensions
+//! for standard library types like `Option` and `Result`.
+
 pub mod arc_fn;
 pub mod endofunction;
 pub mod endomorphism;

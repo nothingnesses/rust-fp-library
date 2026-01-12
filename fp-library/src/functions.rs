@@ -1,7 +1,6 @@
 //! Generic, helper free functions and re-exports of free versions
 //! of type class functions.
 
-// Re-exports from v2 classes
 pub use crate::classes::{
 	apply_first::apply_first,
 	apply_second::apply_second,

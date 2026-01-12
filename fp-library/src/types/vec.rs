@@ -1,3 +1,5 @@
+//! Implementations for [`Vec`].
+
 use crate::{
 	brands::VecBrand,
 	classes::{
@@ -20,6 +22,84 @@ use crate::{
 
 impl Kind1L1T for VecBrand {
 	type Output<'a, A: 'a> = Vec<A>;
+}
+
+impl VecBrand {
+	/// Constructs a new vector by prepending a value to an existing vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. a -> Vec a -> Vec a`
+	///
+	/// # Parameters
+	///
+	/// * `head`: A value to prepend to the vector.
+	/// * `tail`: A vector to prepend the value to.
+	///
+	/// # Returns
+	///
+	/// A new vector consisting of the `head` element prepended to the `tail` vector.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::VecBrand;
+	///
+	/// let head = 1;
+	/// let tail = vec![2, 3];
+	/// let new_vec = VecBrand::construct(head, tail);
+	/// assert_eq!(new_vec, vec![1, 2, 3]);
+	///
+	/// let empty_tail = vec![];
+	/// let single_element = VecBrand::construct(42, empty_tail);
+	/// assert_eq!(single_element, vec![42]);
+	/// ```
+	pub fn construct<A>(
+		head: A,
+		tail: Vec<A>,
+	) -> Vec<A>
+	where
+		A: Clone,
+	{
+		[vec![head], tail].concat()
+	}
+
+	/// Deconstructs a slice into its head element and tail vector.
+	///
+	/// # Type Signature
+	///
+	/// `forall a. &[a] -> Option (a, Vec a)`
+	///
+	/// # Parameters
+	///
+	/// * `slice`: The vector slice to deconstruct.
+	///
+	/// # Returns
+	///
+	/// An [`Option`] containing a tuple of the head element and the remaining tail vector,
+	/// or [`None`] if the slice is empty.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::VecBrand;
+	///
+	/// let vec = vec![1, 2, 3];
+	/// let deconstructed = VecBrand::deconstruct(&vec);
+	/// assert_eq!(deconstructed, Some((1, vec![2, 3])));
+	///
+	/// let empty: Vec<i32> = vec![];
+	/// assert_eq!(VecBrand::deconstruct(&empty), None);
+	/// ```
+	pub fn deconstruct<A>(slice: &[A]) -> Option<(A, Vec<A>)>
+	where
+		A: Clone,
+	{
+		match slice {
+			[] => None,
+			[head, tail @ ..] => Some((head.clone(), tail.to_vec())),
+		}
+	}
 }
 
 impl Functor for VecBrand {
@@ -153,7 +233,7 @@ impl Semiapplicative for VecBrand {
 	/// use fp_library::classes::semiapplicative::apply;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::{VecBrand};
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let funcs = vec![
@@ -463,5 +543,245 @@ impl<A: Clone> Monoid for Vec<A> {
 	/// ```
 	fn empty() -> Self {
 		Vec::new()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::RcFnBrand,
+		classes::{
+			functor::map, monoid::empty, pointed::pure, semiapplicative::apply, semigroup::append,
+			semimonad::bind,
+		},
+		functions::{compose, identity},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Functor Laws
+
+	/// Tests the identity law for Functor.
+	#[quickcheck]
+	fn functor_identity(x: Vec<i32>) -> bool {
+		map::<VecBrand, _, _, _>(identity, x.clone()) == x
+	}
+
+	/// Tests the composition law for Functor.
+	#[quickcheck]
+	fn functor_composition(x: Vec<i32>) -> bool {
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		map::<VecBrand, _, _, _>(compose(f, g), x.clone())
+			== map::<VecBrand, _, _, _>(f, map::<VecBrand, _, _, _>(g, x))
+	}
+
+	// Applicative Laws
+
+	/// Tests the identity law for Applicative.
+	#[quickcheck]
+	fn applicative_identity(v: Vec<i32>) -> bool {
+		apply::<VecBrand, _, _, RcFnBrand>(
+			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			v.clone(),
+		) == v
+	}
+
+	/// Tests the homomorphism law for Applicative.
+	#[quickcheck]
+	fn applicative_homomorphism(x: i32) -> bool {
+		let f = |x: i32| x.wrapping_mul(2);
+		apply::<VecBrand, _, _, RcFnBrand>(
+			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<VecBrand, _>(x),
+		) == pure::<VecBrand, _>(f(x))
+	}
+
+	/// Tests the composition law for Applicative.
+	#[quickcheck]
+	fn applicative_composition(
+		w: Vec<i32>,
+		u_seeds: Vec<i32>,
+		v_seeds: Vec<i32>,
+	) -> bool {
+		let u_fns: Vec<_> = u_seeds
+			.iter()
+			.map(|&i| <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_add(i)))
+			.collect();
+		let v_fns: Vec<_> = v_seeds
+			.iter()
+			.map(|&i| <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_mul(i)))
+			.collect();
+
+		// RHS: u <*> (v <*> w)
+		let vw = apply::<VecBrand, _, _, RcFnBrand>(v_fns.clone(), w.clone());
+		let rhs = apply::<VecBrand, _, _, RcFnBrand>(u_fns.clone(), vw);
+
+		// LHS: pure(compose) <*> u <*> v <*> w
+		// equivalent to (u . v) <*> w
+		// We construct (u . v) manually as the cartesian product of compositions
+		let uv_fns: Vec<_> = u_fns
+			.iter()
+			.flat_map(|uf| {
+				v_fns.iter().map(move |vf| {
+					let uf = uf.clone();
+					let vf = vf.clone();
+					<RcFnBrand as ClonableFn>::new(move |x| uf(vf(x)))
+				})
+			})
+			.collect();
+
+		let lhs = apply::<VecBrand, _, _, RcFnBrand>(uv_fns, w);
+
+		lhs == rhs
+	}
+
+	/// Tests the interchange law for Applicative.
+	#[quickcheck]
+	fn applicative_interchange(y: i32) -> bool {
+		// u <*> pure y = pure ($ y) <*> u
+		let f = |x: i32| x.wrapping_mul(2);
+		let u = vec![<RcFnBrand as ClonableFn>::new(f)];
+
+		let lhs = apply::<VecBrand, _, _, RcFnBrand>(u.clone(), pure::<VecBrand, _>(y));
+
+		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs = apply::<VecBrand, _, _, RcFnBrand>(pure::<VecBrand, _>(rhs_fn), u);
+
+		lhs == rhs
+	}
+
+	// Semigroup Laws
+
+	/// Tests the associativity law for Semigroup.
+	#[quickcheck]
+	fn semigroup_associativity(
+		a: Vec<i32>,
+		b: Vec<i32>,
+		c: Vec<i32>,
+	) -> bool {
+		append(a.clone(), append(b.clone(), c.clone())) == append(append(a, b), c)
+	}
+
+	// Monoid Laws
+
+	/// Tests the left identity law for Monoid.
+	#[quickcheck]
+	fn monoid_left_identity(a: Vec<i32>) -> bool {
+		append(empty::<Vec<i32>>(), a.clone()) == a
+	}
+
+	/// Tests the right identity law for Monoid.
+	#[quickcheck]
+	fn monoid_right_identity(a: Vec<i32>) -> bool {
+		append(a.clone(), empty::<Vec<i32>>()) == a
+	}
+
+	// Monad Laws
+
+	/// Tests the left identity law for Monad.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| vec![x.wrapping_mul(2)];
+		bind::<VecBrand, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
+	}
+
+	/// Tests the right identity law for Monad.
+	#[quickcheck]
+	fn monad_right_identity(m: Vec<i32>) -> bool {
+		bind::<VecBrand, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
+	}
+
+	/// Tests the associativity law for Monad.
+	#[quickcheck]
+	fn monad_associativity(m: Vec<i32>) -> bool {
+		let f = |x: i32| vec![x.wrapping_mul(2)];
+		let g = |x: i32| vec![x.wrapping_add(1)];
+		bind::<VecBrand, _, _, _>(bind::<VecBrand, _, _, _>(m.clone(), f), g)
+			== bind::<VecBrand, _, _, _>(m, |x| bind::<VecBrand, _, _, _>(f(x), g))
+	}
+
+	// Edge Cases
+
+	/// Tests `map` on an empty vector.
+	#[test]
+	fn map_empty() {
+		assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![]), vec![]);
+	}
+
+	/// Tests `bind` on an empty vector.
+	#[test]
+	fn bind_empty() {
+		assert_eq!(bind::<VecBrand, _, _, _>(vec![], |x: i32| vec![x + 1]), vec![]);
+	}
+
+	/// Tests `bind` returning an empty vector.
+	#[test]
+	fn bind_returning_empty() {
+		assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>), vec![]);
+	}
+
+	/// Tests `fold_right` on an empty vector.
+	#[test]
+	fn fold_right_empty() {
+		assert_eq!(
+			crate::classes::foldable::fold_right::<VecBrand, _, _, _>(
+				|x: i32, acc| x + acc,
+				0,
+				vec![]
+			),
+			0
+		);
+	}
+
+	/// Tests `fold_left` on an empty vector.
+	#[test]
+	fn fold_left_empty() {
+		assert_eq!(
+			crate::classes::foldable::fold_left::<VecBrand, _, _, _>(
+				|acc, x: i32| acc + x,
+				0,
+				vec![]
+			),
+			0
+		);
+	}
+
+	/// Tests `traverse` on an empty vector.
+	#[test]
+	fn traverse_empty() {
+		use crate::brands::OptionBrand;
+		assert_eq!(
+			crate::classes::traversable::traverse::<VecBrand, OptionBrand, _, _, _>(
+				|x: i32| Some(x + 1),
+				vec![]
+			),
+			Some(vec![])
+		);
+	}
+
+	/// Tests `traverse` returning an empty vector.
+	#[test]
+	fn traverse_returning_empty() {
+		use crate::brands::OptionBrand;
+		assert_eq!(
+			crate::classes::traversable::traverse::<VecBrand, OptionBrand, _, _, _>(
+				|_: i32| None::<i32>,
+				vec![1, 2, 3]
+			),
+			None
+		);
+	}
+
+	/// Tests `construct` with an empty tail.
+	#[test]
+	fn construct_empty_tail() {
+		assert_eq!(VecBrand::construct(1, vec![]), vec![1]);
+	}
+
+	/// Tests `deconstruct` on an empty slice.
+	#[test]
+	fn deconstruct_empty() {
+		assert_eq!(VecBrand::deconstruct::<i32>(&[]), None);
 	}
 }

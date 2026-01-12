@@ -24,7 +24,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// ```
 	/// use fp_library::classes::category::Category;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
@@ -48,7 +48,7 @@ pub trait Category: Semigroupoid {
 ///
 /// ```
 /// use fp_library::classes::category::identity;
-/// use fp_library::types::rc_fn::RcFnBrand;
+/// use fp_library::brands::RcFnBrand;
 ///
 /// let id = identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);

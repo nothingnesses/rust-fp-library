@@ -1,5 +1,7 @@
+//! Implementations for [`Result`].
+
 use crate::{
-	brands::{ResultWithErrBrand, ResultWithOkBrand},
+	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	classes::{
 		applicative::Applicative,
 		apply_first::ApplyFirst,
@@ -14,12 +16,8 @@ use crate::{
 		semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::{Apply1L1T, Kind1L1T},
+	hkt::{Apply1L1T, Kind0L2T, Kind1L1T},
 };
-
-use crate::hkt::Kind0L2T;
-
-pub struct ResultBrand;
 
 impl Kind0L2T for ResultBrand {
 	type Output<A, B> = Result<B, A>;
@@ -171,7 +169,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// use fp_library::classes::semiapplicative::apply;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::ResultWithErrBrand;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let f = Ok(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
@@ -572,7 +570,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// use fp_library::classes::semiapplicative::apply;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::ResultWithOkBrand;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let f = Err(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
@@ -828,5 +826,221 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 			Err(fe) => F::map(|e| Err(e), fe),
 			Ok(t) => F::pure(Ok(t)),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::{OptionBrand, RcFnBrand},
+		classes::{functor::map, pointed::pure, semiapplicative::apply, semimonad::bind},
+		functions::{compose, identity},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Functor Laws
+
+	/// Tests the identity law for Functor.
+	#[quickcheck]
+	fn functor_identity(x: Result<i32, i32>) -> bool {
+		map::<ResultWithErrBrand<i32>, _, _, _>(identity, x) == x
+	}
+
+	/// Tests the composition law for Functor.
+	#[quickcheck]
+	fn functor_composition(x: Result<i32, i32>) -> bool {
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		map::<ResultWithErrBrand<i32>, _, _, _>(compose(f, g), x)
+			== map::<ResultWithErrBrand<i32>, _, _, _>(
+				f,
+				map::<ResultWithErrBrand<i32>, _, _, _>(g, x),
+			)
+	}
+
+	// Applicative Laws
+
+	/// Tests the identity law for Applicative.
+	#[quickcheck]
+	fn applicative_identity(v: Result<i32, i32>) -> bool {
+		apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			v,
+		) == v
+	}
+
+	/// Tests the homomorphism law for Applicative.
+	#[quickcheck]
+	fn applicative_homomorphism(x: i32) -> bool {
+		let f = |x: i32| x.wrapping_mul(2);
+		apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<ResultWithErrBrand<i32>, _>(x),
+		) == pure::<ResultWithErrBrand<i32>, _>(f(x))
+	}
+
+	/// Tests the composition law for Applicative.
+	#[quickcheck]
+	fn applicative_composition(
+		w: Result<i32, i32>,
+		u_is_ok: bool,
+		v_is_ok: bool,
+	) -> bool {
+		let v_fn = |x: i32| x.wrapping_mul(2);
+		let u_fn = |x: i32| x.wrapping_add(1);
+
+		let v = if v_is_ok {
+			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(v_fn))
+		} else {
+			Err(100)
+		};
+		let u = if u_is_ok {
+			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(u_fn))
+		} else {
+			Err(200)
+		};
+
+		// RHS: u <*> (v <*> w)
+		let vw = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(v.clone(), w.clone());
+		let rhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(u.clone(), vw);
+
+		// LHS: pure(compose) <*> u <*> v <*> w
+		// equivalent to (u . v) <*> w
+		let uv = match (u, v) {
+			(Ok(uf), Ok(vf)) => {
+				let composed = move |x| uf(vf(x));
+				Ok(<RcFnBrand as ClonableFn>::new(composed))
+			}
+			(Err(e), _) => Err(e),
+			(_, Err(e)) => Err(e),
+		};
+
+		let lhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(uv, w);
+
+		lhs == rhs
+	}
+
+	/// Tests the interchange law for Applicative.
+	#[quickcheck]
+	fn applicative_interchange(y: i32) -> bool {
+		// u <*> pure y = pure ($ y) <*> u
+		let f = |x: i32| x.wrapping_mul(2);
+		let u = pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(f));
+
+		let lhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+			u.clone(),
+			pure::<ResultWithErrBrand<i32>, _>(y),
+		);
+
+		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+			pure::<ResultWithErrBrand<i32>, _>(rhs_fn),
+			u,
+		);
+
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Tests the left identity law for Monad.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
+		bind::<ResultWithErrBrand<i32>, _, _, _>(pure::<ResultWithErrBrand<i32>, _>(a), f) == f(a)
+	}
+
+	/// Tests the right identity law for Monad.
+	#[quickcheck]
+	fn monad_right_identity(m: Result<i32, i32>) -> bool {
+		bind::<ResultWithErrBrand<i32>, _, _, _>(m, pure::<ResultWithErrBrand<i32>, _>) == m
+	}
+
+	/// Tests the associativity law for Monad.
+	#[quickcheck]
+	fn monad_associativity(m: Result<i32, i32>) -> bool {
+		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
+		let g = |x: i32| -> Result<i32, i32> { Err(x.wrapping_add(1)) };
+		bind::<ResultWithErrBrand<i32>, _, _, _>(bind::<ResultWithErrBrand<i32>, _, _, _>(m, f), g)
+			== bind::<ResultWithErrBrand<i32>, _, _, _>(m, |x| {
+				bind::<ResultWithErrBrand<i32>, _, _, _>(f(x), g)
+			})
+	}
+
+	// Edge Cases
+
+	/// Tests `map` on `Err`.
+	#[test]
+	fn map_err() {
+		assert_eq!(
+			map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
+			Err(1)
+		);
+	}
+
+	/// Tests `bind` on `Err`.
+	#[test]
+	fn bind_err() {
+		assert_eq!(
+			bind::<ResultWithErrBrand<i32>, _, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
+			Err(1)
+		);
+	}
+
+	/// Tests `bind` returning `Err`.
+	#[test]
+	fn bind_returning_err() {
+		assert_eq!(bind::<ResultWithErrBrand<i32>, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)), Err(2));
+	}
+
+	/// Tests `fold_right` on `Err`.
+	#[test]
+	fn fold_right_err() {
+		assert_eq!(
+			crate::classes::foldable::fold_right::<ResultWithErrBrand<i32>, _, _, _>(
+				|x: i32, acc| x + acc,
+				0,
+				Err(1)
+			),
+			0
+		);
+	}
+
+	/// Tests `fold_left` on `Err`.
+	#[test]
+	fn fold_left_err() {
+		assert_eq!(
+			crate::classes::foldable::fold_left::<ResultWithErrBrand<i32>, _, _, _>(
+				|acc, x: i32| acc + x,
+				0,
+				Err(1)
+			),
+			0
+		);
+	}
+
+	/// Tests `traverse` on `Err`.
+	#[test]
+	fn traverse_err() {
+		assert_eq!(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+				|x: i32| Some(x + 1),
+				Err(1)
+			),
+			Some(Err(1))
+		);
+	}
+
+	/// Tests `traverse` returning `Err`.
+	#[test]
+	fn traverse_returning_err() {
+		assert_eq!(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+				|_: i32| None::<i32>,
+				Ok(1)
+			),
+			None
+		);
 	}
 }

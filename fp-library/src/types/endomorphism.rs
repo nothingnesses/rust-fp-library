@@ -1,9 +1,13 @@
 //! Implementations for [`Endomorphism`], a wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
 
-use crate::classes::{category::Category, monoid::Monoid, semigroup::Semigroup};
-use crate::hkt::Apply1L2T;
-use std::fmt::{self, Debug, Formatter};
-use std::hash::Hash;
+use crate::{
+	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
+	hkt::Apply1L2T,
+};
+use std::{
+	fmt::{self, Debug, Formatter},
+	hash::Hash,
+};
 
 /// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
 ///
@@ -128,7 +132,7 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ```
 	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::classes::semigroup::Semigroup;
 	///
@@ -160,7 +164,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ```
 	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::classes::monoid::Monoid;
 	///
 	/// let id = Endomorphism::<RcFnBrand, i32>::empty();
@@ -168,5 +172,62 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	/// ```
 	fn empty() -> Self {
 		Self::new(C::identity())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::RcFnBrand,
+		classes::{clonable_fn::ClonableFn, monoid::empty, semigroup::append},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Semigroup Laws
+
+	/// Tests the associativity law for Semigroup.
+	#[quickcheck]
+	fn semigroup_associativity(val: i32) -> bool {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_mul(2)
+		}));
+		let h = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_sub(3)
+		}));
+
+		let lhs = append(f.clone(), append(g.clone(), h.clone()));
+		let rhs = append(append(f, g), h);
+
+		lhs.0(val) == rhs.0(val)
+	}
+
+	// Monoid Laws
+
+	/// Tests the left identity law for Monoid.
+	#[quickcheck]
+	fn monoid_left_identity(val: i32) -> bool {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let id = empty::<Endomorphism<RcFnBrand, i32>>();
+
+		let res = append(id, f.clone());
+		res.0(val) == f.0(val)
+	}
+
+	/// Tests the right identity law for Monoid.
+	#[quickcheck]
+	fn monoid_right_identity(val: i32) -> bool {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+			x.wrapping_add(1)
+		}));
+		let id = empty::<Endomorphism<RcFnBrand, i32>>();
+
+		let res = append(f.clone(), id);
+		res.0(val) == f.0(val)
 	}
 }

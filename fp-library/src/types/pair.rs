@@ -1,5 +1,7 @@
+//! Implementations for [`Pair`], a type that wraps two values.
+
 use crate::{
-	brands::{PairWithFirstBrand, PairWithSecondBrand},
+	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
 	classes::{
 		applicative::Applicative,
 		apply_first::ApplyFirst,
@@ -15,16 +17,12 @@ use crate::{
 		semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::{Apply1L1T, Kind1L1T},
+	hkt::{Apply1L1T, Kind0L2T, Kind1L1T},
 };
 
-use crate::hkt::Kind0L2T;
-
 /// Wraps two values.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Pair<First, Second>(pub First, pub Second);
-
-pub struct PairBrand;
 
 impl Kind0L2T for PairBrand {
 	type Output<A, B> = Pair<A, B>;
@@ -182,7 +180,7 @@ where
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::types::string;
 	/// use std::rc::Rc;
 	///
@@ -585,7 +583,7 @@ where
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::types::string;
 	/// use std::rc::Rc;
 	///
@@ -833,5 +831,174 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(a, second.clone()), first)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::{PairWithFirstBrand, RcFnBrand},
+		classes::{
+			clonable_fn::ClonableFn, functor::map, pointed::pure, semiapplicative::apply,
+			semimonad::bind,
+		},
+		functions::{compose, identity},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Functor Laws
+
+	/// Tests the identity law for Functor.
+	#[quickcheck]
+	fn functor_identity(
+		first: String,
+		second: i32,
+	) -> bool {
+		let x = Pair(first, second);
+		map::<PairWithFirstBrand<String>, _, _, _>(identity, x.clone()) == x
+	}
+
+	/// Tests the composition law for Functor.
+	#[quickcheck]
+	fn functor_composition(
+		first: String,
+		second: i32,
+	) -> bool {
+		let x = Pair(first, second);
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		map::<PairWithFirstBrand<String>, _, _, _>(compose(f, g), x.clone())
+			== map::<PairWithFirstBrand<String>, _, _, _>(
+				f,
+				map::<PairWithFirstBrand<String>, _, _, _>(g, x),
+			)
+	}
+
+	// Applicative Laws
+
+	/// Tests the identity law for Applicative.
+	#[quickcheck]
+	fn applicative_identity(
+		first: String,
+		second: i32,
+	) -> bool {
+		let v = Pair(first, second);
+		apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			v.clone(),
+		) == v
+	}
+
+	/// Tests the homomorphism law for Applicative.
+	#[quickcheck]
+	fn applicative_homomorphism(x: i32) -> bool {
+		let f = |x: i32| x.wrapping_mul(2);
+		apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<PairWithFirstBrand<String>, _>(x),
+		) == pure::<PairWithFirstBrand<String>, _>(f(x))
+	}
+
+	/// Tests the composition law for Applicative.
+	#[quickcheck]
+	fn applicative_composition(
+		w_first: String,
+		w_second: i32,
+		u_seed: i32,
+		v_seed: i32,
+	) -> bool {
+		let w = Pair(w_first, w_second);
+
+		let u_fn = <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_add(u_seed));
+		let u = pure::<PairWithFirstBrand<String>, _>(u_fn);
+
+		let v_fn = <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_mul(v_seed));
+		let v = pure::<PairWithFirstBrand<String>, _>(v_fn);
+
+		// RHS: u <*> (v <*> w)
+		let vw = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(v.clone(), w.clone());
+		let rhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(u.clone(), vw);
+
+		// LHS: pure(compose) <*> u <*> v <*> w
+		let compose_fn = <RcFnBrand as ClonableFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
+			let f = f.clone();
+			<RcFnBrand as ClonableFn>::new(move |g: std::rc::Rc<dyn Fn(i32) -> i32>| {
+				let f = f.clone();
+				let g = g.clone();
+				<RcFnBrand as ClonableFn>::new(move |x| f(g(x)))
+			})
+		});
+
+		let pure_compose = pure::<PairWithFirstBrand<String>, _>(compose_fn);
+		let u_applied = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(pure_compose, u);
+		let uv = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(u_applied, v);
+		let lhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(uv, w);
+
+		lhs == rhs
+	}
+
+	/// Tests the interchange law for Applicative.
+	#[quickcheck]
+	fn applicative_interchange(
+		y: i32,
+		u_seed: i32,
+	) -> bool {
+		// u <*> pure y = pure ($ y) <*> u
+		let f = move |x: i32| x.wrapping_mul(u_seed);
+		let u = pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(f));
+
+		let lhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+			u.clone(),
+			pure::<PairWithFirstBrand<String>, _>(y),
+		);
+
+		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+			pure::<PairWithFirstBrand<String>, _>(rhs_fn),
+			u,
+		);
+
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Tests the left identity law for Monad.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
+		bind::<PairWithFirstBrand<String>, _, _, _>(pure::<PairWithFirstBrand<String>, _>(a), f)
+			== f(a)
+	}
+
+	/// Tests the right identity law for Monad.
+	#[quickcheck]
+	fn monad_right_identity(
+		first: String,
+		second: i32,
+	) -> bool {
+		let m = Pair(first, second);
+		bind::<PairWithFirstBrand<String>, _, _, _>(
+			m.clone(),
+			pure::<PairWithFirstBrand<String>, _>,
+		) == m
+	}
+
+	/// Tests the associativity law for Monad.
+	#[quickcheck]
+	fn monad_associativity(
+		first: String,
+		second: i32,
+	) -> bool {
+		let m = Pair(first, second);
+		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
+		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
+		bind::<PairWithFirstBrand<String>, _, _, _>(
+			bind::<PairWithFirstBrand<String>, _, _, _>(m.clone(), f),
+			g,
+		) == bind::<PairWithFirstBrand<String>, _, _, _>(m, |x| {
+			bind::<PairWithFirstBrand<String>, _, _, _>(f(x), g)
+		})
 	}
 }

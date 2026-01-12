@@ -1,3 +1,5 @@
+//! Implementations for [`Option`].
+
 use crate::{
 	brands::OptionBrand,
 	classes::{
@@ -90,8 +92,8 @@ impl Lift for OptionBrand {
 	) -> Apply1L1T<'a, Self, C>
 	where
 		F: Fn(A, B) -> C + 'a,
-		A: Clone + 'a,
-		B: Clone + 'a,
+		A: 'a,
+		B: 'a,
 		C: 'a,
 	{
 		fa.zip(fb).map(|(a, b)| f(a, b))
@@ -151,7 +153,7 @@ impl Semiapplicative for OptionBrand {
 	/// use fp_library::classes::semiapplicative::apply;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::{OptionBrand};
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
@@ -392,5 +394,203 @@ impl Traversable for OptionBrand {
 			Some(fa) => F::map(|a| Some(a), fa),
 			None => F::pure(None),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{
+		brands::RcFnBrand,
+		classes::{functor::map, pointed::pure, semiapplicative::apply, semimonad::bind},
+		functions::{compose, identity},
+	};
+	use quickcheck_macros::quickcheck;
+
+	// Functor Laws
+
+	/// Tests the identity law for Functor.
+	#[quickcheck]
+	fn functor_identity(x: Option<i32>) -> bool {
+		map::<OptionBrand, _, _, _>(identity, x) == x
+	}
+
+	/// Tests the composition law for Functor.
+	#[quickcheck]
+	fn functor_composition(x: Option<i32>) -> bool {
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		map::<OptionBrand, _, _, _>(compose(f, g), x)
+			== map::<OptionBrand, _, _, _>(f, map::<OptionBrand, _, _, _>(g, x))
+	}
+
+	// Applicative Laws
+
+	/// Tests the identity law for Applicative.
+	#[quickcheck]
+	fn applicative_identity(v: Option<i32>) -> bool {
+		apply::<OptionBrand, _, _, RcFnBrand>(
+			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			v,
+		) == v
+	}
+
+	/// Tests the homomorphism law for Applicative.
+	#[quickcheck]
+	fn applicative_homomorphism(x: i32) -> bool {
+		let f = |x: i32| x.wrapping_mul(2);
+		apply::<OptionBrand, _, _, RcFnBrand>(
+			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<OptionBrand, _>(x),
+		) == pure::<OptionBrand, _>(f(x))
+	}
+
+	/// Tests the composition law for Applicative.
+	#[quickcheck]
+	fn applicative_composition(
+		w: Option<i32>,
+		u_is_some: bool,
+		v_is_some: bool,
+	) -> bool {
+		let v_fn = |x: i32| x.wrapping_mul(2);
+		let u_fn = |x: i32| x.wrapping_add(1);
+
+		let v = if v_is_some {
+			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(v_fn))
+		} else {
+			None
+		};
+		let u = if u_is_some {
+			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(u_fn))
+		} else {
+			None
+		};
+
+		// RHS: u <*> (v <*> w)
+		let vw = apply::<OptionBrand, _, _, RcFnBrand>(v.clone(), w.clone());
+		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), vw);
+
+		// LHS: pure(compose) <*> u <*> v <*> w
+		// equivalent to (u . v) <*> w
+		let uv = match (u, v) {
+			(Some(uf), Some(vf)) => {
+				let composed = move |x| uf(vf(x));
+				Some(<RcFnBrand as ClonableFn>::new(composed))
+			}
+			_ => None,
+		};
+
+		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(uv, w);
+
+		lhs == rhs
+	}
+
+	/// Tests the interchange law for Applicative.
+	#[quickcheck]
+	fn applicative_interchange(y: i32) -> bool {
+		// u <*> pure y = pure ($ y) <*> u
+		let f = |x: i32| x.wrapping_mul(2);
+		let u = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f));
+
+		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), pure::<OptionBrand, _>(y));
+
+		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(pure::<OptionBrand, _>(rhs_fn), u);
+
+		lhs == rhs
+	}
+
+	// Monad Laws
+
+	/// Tests the left identity law for Monad.
+	#[quickcheck]
+	fn monad_left_identity(a: i32) -> bool {
+		let f = |x: i32| Some(x.wrapping_mul(2));
+		bind::<OptionBrand, _, _, _>(pure::<OptionBrand, _>(a), f) == f(a)
+	}
+
+	/// Tests the right identity law for Monad.
+	#[quickcheck]
+	fn monad_right_identity(m: Option<i32>) -> bool {
+		bind::<OptionBrand, _, _, _>(m, pure::<OptionBrand, _>) == m
+	}
+
+	/// Tests the associativity law for Monad.
+	#[quickcheck]
+	fn monad_associativity(m: Option<i32>) -> bool {
+		let f = |x: i32| Some(x.wrapping_mul(2));
+		let g = |x: i32| Some(x.wrapping_add(1));
+		bind::<OptionBrand, _, _, _>(bind::<OptionBrand, _, _, _>(m, f), g)
+			== bind::<OptionBrand, _, _, _>(m, |x| bind::<OptionBrand, _, _, _>(f(x), g))
+	}
+
+	// Edge Cases
+
+	/// Tests `map` on `None`.
+	#[test]
+	fn map_none() {
+		assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x + 1, None), None);
+	}
+
+	/// Tests `bind` on `None`.
+	#[test]
+	fn bind_none() {
+		assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x + 1)), None);
+	}
+
+	/// Tests `bind` returning `None`.
+	#[test]
+	fn bind_returning_none() {
+		assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |_| None::<i32>), None);
+	}
+
+	/// Tests `fold_right` on `None`.
+	#[test]
+	fn fold_right_none() {
+		assert_eq!(
+			crate::classes::foldable::fold_right::<OptionBrand, _, _, _>(
+				|x: i32, acc| x + acc,
+				0,
+				None
+			),
+			0
+		);
+	}
+
+	/// Tests `fold_left` on `None`.
+	#[test]
+	fn fold_left_none() {
+		assert_eq!(
+			crate::classes::foldable::fold_left::<OptionBrand, _, _, _>(
+				|acc, x: i32| acc + x,
+				0,
+				None
+			),
+			0
+		);
+	}
+
+	/// Tests `traverse` on `None`.
+	#[test]
+	fn traverse_none() {
+		assert_eq!(
+			crate::classes::traversable::traverse::<OptionBrand, OptionBrand, _, _, _>(
+				|x: i32| Some(x + 1),
+				None
+			),
+			Some(None)
+		);
+	}
+
+	/// Tests `traverse` returning `None`.
+	#[test]
+	fn traverse_returning_none() {
+		assert_eq!(
+			crate::classes::traversable::traverse::<OptionBrand, OptionBrand, _, _, _>(
+				|_: i32| None::<i32>,
+				Some(5)
+			),
+			None
+		);
 	}
 }

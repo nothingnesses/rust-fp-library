@@ -29,7 +29,7 @@ pub trait Semigroupoid: Kind1L2T {
 	///
 	/// ```
 	/// use fp_library::classes::semigroupoid::Semigroupoid;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
@@ -64,7 +64,7 @@ pub trait Semigroupoid: Kind1L2T {
 ///
 /// ```
 /// use fp_library::classes::semigroupoid::compose;
-/// use fp_library::types::rc_fn::RcFnBrand;
+/// use fp_library::brands::RcFnBrand;
 /// use fp_library::classes::clonable_fn::ClonableFn;
 ///
 /// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);

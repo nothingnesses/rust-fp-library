@@ -33,7 +33,7 @@ pub trait Function: Category {
 	///
 	/// ```
 	/// use fp_library::classes::function::Function;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
@@ -42,3 +42,35 @@ pub trait Function: Category {
 }
 
 make_type_apply!(ApplyFunction, Function, ('a), (A, B), "' -> * -> *");
+
+/// Creates a new function wrapper.
+///
+/// Free function version that dispatches to [the type class' associated function][`Function::new`].
+///
+/// # Type Signature
+///
+/// `forall a b. Function f => (a -> b) -> f a b`
+///
+/// # Parameters
+///
+/// * `f`: The closure to wrap.
+///
+/// # Returns
+///
+/// The wrapped function.
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::classes::function::new;
+/// use fp_library::brands::RcFnBrand;
+///
+/// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// assert_eq!(f(5), 10);
+/// ```
+pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, F, A, B>
+where
+	F: Function,
+{
+	F::new(f)
+}

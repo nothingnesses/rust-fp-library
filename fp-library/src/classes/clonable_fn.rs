@@ -33,7 +33,7 @@ pub trait ClonableFn: Function {
 	///
 	/// ```
 	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::types::rc_fn::RcFnBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
@@ -42,3 +42,35 @@ pub trait ClonableFn: Function {
 }
 
 make_type_apply!(ApplyClonableFn, ClonableFn, ('a), (A, B), "' -> * -> *");
+
+/// Creates a new clonable function wrapper.
+///
+/// Free function version that dispatches to [the type class' associated function][`ClonableFn::new`].
+///
+/// # Type Signature
+///
+/// `forall a b. ClonableFn f => (a -> b) -> f a b`
+///
+/// # Parameters
+///
+/// * `f`: The closure to wrap.
+///
+/// # Returns
+///
+/// The wrapped clonable function.
+///
+/// # Examples
+///
+/// ```
+/// use fp_library::classes::clonable_fn::new;
+/// use fp_library::brands::RcFnBrand;
+///
+/// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// assert_eq!(f(5), 10);
+/// ```
+pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, F, A, B>
+where
+	F: ClonableFn,
+{
+	<F as ClonableFn>::new(f)
+}

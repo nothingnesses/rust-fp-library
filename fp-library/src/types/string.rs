@@ -1,3 +1,5 @@
+//! Implementations for [`String`].
+
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
 	hkt::Kind1L0T,
@@ -58,5 +60,37 @@ impl Monoid for String {
 	/// ```
 	fn empty() -> Self {
 		String::new()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::classes::{monoid::Monoid, semigroup::append};
+	use quickcheck_macros::quickcheck;
+
+	// Semigroup Laws
+
+	/// Tests the associativity law for Semigroup.
+	#[quickcheck]
+	fn semigroup_associativity(
+		a: String,
+		b: String,
+		c: String,
+	) -> bool {
+		append(a.clone(), append(b.clone(), c.clone())) == append(append(a, b), c)
+	}
+
+	// Monoid Laws
+
+	/// Tests the left identity law for Monoid.
+	#[quickcheck]
+	fn monoid_left_identity(a: String) -> bool {
+		append(String::empty(), a.clone()) == a
+	}
+
+	/// Tests the right identity law for Monoid.
+	#[quickcheck]
+	fn monoid_right_identity(a: String) -> bool {
+		append(a.clone(), String::empty()) == a
 	}
 }

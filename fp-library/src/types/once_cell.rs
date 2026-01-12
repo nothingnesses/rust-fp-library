@@ -1,11 +1,11 @@
+//! Implementations for [`OnceCell`]
+
 use crate::{
-	classes::{once::ApplyOnce, once::Once},
+	brands::OnceCellBrand,
+	classes::once::{ApplyOnce, Once},
 	hkt::{Apply0L1T, Kind0L1T},
 };
 use std::cell::OnceCell;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OnceCellBrand;
 
 impl Kind0L1T for OnceCellBrand {
 	type Output<A> = OnceCell<A>;
@@ -28,7 +28,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
-	/// use fp_library::types::once_cell::OnceCellBrand;
+	/// use fp_library::brands::OnceCellBrand;
 	///
 	/// let cell = <OnceCellBrand as Once>::new::<i32>();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
@@ -147,5 +147,36 @@ impl Once for OnceCellBrand {
 	/// The value, or `None` if uninitialized.
 	fn take<A>(a: &mut ApplyOnce<Self, A>) -> Option<A> {
 		OnceCell::take(a)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::classes::once::Once;
+
+	/// Tests the `Once` trait implementation for `OnceCell`.
+	#[test]
+	fn test_once_cell() {
+		let mut cell = <OnceCellBrand as Once>::new::<i32>();
+		assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
+
+		assert_eq!(<OnceCellBrand as Once>::set(&cell, 42), Ok(()));
+		assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
+		assert_eq!(<OnceCellBrand as Once>::set(&cell, 100), Err(100));
+		assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
+
+		let val = <OnceCellBrand as Once>::get_or_init(&cell, || 99);
+		assert_eq!(val, &42);
+
+		let cell2 = <OnceCellBrand as Once>::new::<i32>();
+		let val2 = <OnceCellBrand as Once>::get_or_init(&cell2, || 99);
+		assert_eq!(val2, &99);
+		assert_eq!(<OnceCellBrand as Once>::get(&cell2), Some(&99));
+
+		assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
+		assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
+
+		assert_eq!(<OnceCellBrand as Once>::into_inner(cell2), Some(99));
 	}
 }

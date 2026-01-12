@@ -1,4 +1,8 @@
+//! Implementations for [atomically reference-counted][std::sync::Arc]
+//! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
+
 use crate::{
+	brands::ArcFnBrand,
 	classes::{
 		category::Category,
 		clonable_fn::{ApplyClonableFn, ClonableFn},
@@ -8,9 +12,6 @@ use crate::{
 	hkt::{Apply1L2T, Kind1L2T},
 };
 use std::sync::Arc;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFnBrand;
 
 impl Kind1L2T for ArcFnBrand {
 	type Output<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
@@ -36,7 +37,7 @@ impl Function for ArcFnBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::types::arc_fn::ArcFnBrand;
+	/// use fp_library::brands::ArcFnBrand;
 	/// use fp_library::classes::function::Function;
 	///
 	/// let f = <ArcFnBrand as Function>::new(|x: i32| x * 2);
@@ -67,7 +68,7 @@ impl ClonableFn for ArcFnBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::types::arc_fn::ArcFnBrand;
+	/// use fp_library::brands::ArcFnBrand;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
 	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
@@ -97,7 +98,7 @@ impl Semigroupoid for ArcFnBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::types::arc_fn::ArcFnBrand;
+	/// use fp_library::brands::ArcFnBrand;
 	/// use fp_library::classes::semigroupoid::Semigroupoid;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
@@ -128,7 +129,7 @@ impl Category for ArcFnBrand {
 	/// # Examples
 	///
 	/// ```
-	/// use fp_library::types::arc_fn::ArcFnBrand;
+	/// use fp_library::brands::ArcFnBrand;
 	/// use fp_library::classes::category::Category;
 	///
 	/// let id = ArcFnBrand::identity::<i32>();
@@ -136,5 +137,53 @@ impl Category for ArcFnBrand {
 	/// ```
 	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A> {
 		Arc::new(|a| a)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid};
+	use quickcheck_macros::quickcheck;
+
+	// Semigroupoid Laws
+
+	/// Tests the associativity law for Semigroupoid.
+	#[quickcheck]
+	fn semigroupoid_associativity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let g = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_mul(2));
+		let h = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_sub(3));
+
+		let lhs = ArcFnBrand::compose(f.clone(), ArcFnBrand::compose(g.clone(), h.clone()));
+		let rhs = ArcFnBrand::compose(ArcFnBrand::compose(f, g), h);
+
+		lhs(x) == rhs(x)
+	}
+
+	// Category Laws
+
+	/// Tests the left identity law for Category.
+	#[quickcheck]
+	fn category_left_identity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let id = ArcFnBrand::identity::<i32>();
+
+		let lhs = ArcFnBrand::compose(id, f.clone());
+		let rhs = f;
+
+		lhs(x) == rhs(x)
+	}
+
+	/// Tests the right identity law for Category.
+	#[quickcheck]
+	fn category_right_identity(x: i32) -> bool {
+		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let id = ArcFnBrand::identity::<i32>();
+
+		let lhs = ArcFnBrand::compose(f.clone(), id);
+		let rhs = f;
+
+		lhs(x) == rhs(x)
 	}
 }
