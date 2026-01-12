@@ -1,5 +1,6 @@
 ### Todos/ideas to look into
 
+* Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
 * Look into making a Function/ClonableFn trait that doesn't input a lifetime parameter so we can implement Kind0L1T (and, consequently, Functor, etc.) for LazyBrand.
 * Serde (de)serialisation for types.
 * Paralellisation using rayon.
