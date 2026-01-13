@@ -15,5 +15,10 @@ all-features = true
 
 
 [dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1"
 quickcheck_macros = "1"
+
+[[bench]]
+name = "benchmarks"
+harness = false
