@@ -102,6 +102,9 @@ macro_rules! make_trait_kind {
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters with optional bounds (e.g., `(A, B: 'a)`).
 /// * `doc_string`: Documentation string.
+///
+/// # Limitations
+/// * **No `where` Clauses:** No support for `where` clauses.
 #[macro_export]
 macro_rules! make_type_apply {
 	(
