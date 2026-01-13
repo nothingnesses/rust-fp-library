@@ -41,7 +41,13 @@ pub trait ClonableFn: Function {
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
 }
 
-make_type_apply!(ApplyClonableFn, ClonableFn, ('a), (A, B), "' -> * -> *");
+make_type_apply!(
+	ApplyClonableFn,
+	ClonableFn,
+	('a),
+	(A, B),
+	"Convenience type alias for [`ClonableFn`].\n\nAbstraction for clonable wrappers over closures."
+);
 
 /// Creates a new clonable function wrapper.
 ///

@@ -200,7 +200,13 @@ pub trait Once: Kind0L1T {
 	fn take<A>(a: &mut ApplyOnce<Self, A>) -> Option<A>;
 }
 
-make_type_apply!(ApplyOnce, Once, (), (A), "* -> *");
+make_type_apply!(
+	ApplyOnce,
+	Once,
+	(),
+	(A),
+	"Convenience type alias for [`Once`].\n\n`Once` represents a container that holds a value that is initialized at most once."
+);
 
 /// Creates a new, uninitialized `Once` container.
 ///

@@ -11,16 +11,28 @@
 
 use crate::make_trait_kind;
 
-make_trait_kind!(Kind0L1T, (), (A), (), "* -> *");
-
-make_trait_kind!(Kind0L2T, (), (A, B), (), "* -> * -> *");
+make_trait_kind!(
+	Kind0L1T,
+	(),
+	(A),
+	(),
+	"Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> *`."
+);
 
 make_trait_kind!(
-  Kind1L0T,
-  ('a),
-  (),
-  (),
-  "' -> *"
+	Kind0L2T,
+	(),
+	(A, B),
+	(),
+	"Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> *`."
+);
+
+make_trait_kind!(
+	Kind1L0T,
+	('a),
+	(),
+	(),
+	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> *`."
 );
 
 make_trait_kind!(
@@ -28,7 +40,7 @@ make_trait_kind!(
 	('a),
 	(A, B),
 	(),
-	"' -> * -> * -> *"
+	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> * -> * -> *`."
 );
 
 make_trait_kind!(
@@ -36,5 +48,5 @@ make_trait_kind!(
 	('a),
 	(A: 'a),
 	(: 'a),
-	"' -> * -> *"
+	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> * -> *`."
 );

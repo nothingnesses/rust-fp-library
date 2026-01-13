@@ -13,16 +13,22 @@ use crate::{
 	make_type_apply,
 };
 
-make_type_apply!(Apply0L1T, Kind0L1T, (), (A), "* -> *");
-
-make_type_apply!(Apply0L2T, Kind0L2T, (), (A, B), "* -> * -> *");
+make_type_apply!(Apply0L1T, Kind0L1T, (), (A), "Alias for [types][crate::types] of kind `* -> *`.");
 
 make_type_apply!(
-  Apply1L0T,
-  Kind1L0T,
-  ('a),
-  (),
-  "' -> *"
+	Apply0L2T,
+	Kind0L2T,
+	(),
+	(A, B),
+	"Alias for [types][crate::types] of kind `* -> * -> *`."
+);
+
+make_type_apply!(
+	Apply1L0T,
+	Kind1L0T,
+	('a),
+	(),
+	"Alias for [types][crate::types] of kind `' -> *`."
 );
 
 make_type_apply!(
@@ -30,7 +36,7 @@ make_type_apply!(
 	Kind1L2T,
 	('a),
 	(A, B),
-	"' -> * -> * -> *"
+	"Alias for [types][crate::types] of kind `' -> * -> * -> *`."
 );
 
 make_type_apply!(
@@ -38,5 +44,5 @@ make_type_apply!(
 	Kind1L1T,
 	('a),
 	(A: 'a),
-	"' -> * -> *"
+	"Alias for [types][crate::types] of kind `' -> * -> *`."
 );

@@ -41,7 +41,13 @@ pub trait Function: Category {
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B>;
 }
 
-make_type_apply!(ApplyFunction, Function, ('a), (A, B), "' -> * -> *");
+make_type_apply!(
+	ApplyFunction,
+	Function,
+	('a),
+	(A, B),
+	"Convenience type alias for [`Function`].\n\nAbstraction for wrappers over closures."
+);
 
 /// Creates a new function wrapper.
 ///

@@ -26,14 +26,14 @@ macro_rules! make_trait_kind {
 		$lifetimes:tt,
 		$types:tt,
 		$output_bounds:tt,
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
 		make_trait_kind!(
 			@impl $kind_trait_name,
 			$lifetimes,
 			$types,
 			$output_bounds,
-			$kind_signature
+			$doc_string
 		);
 	};
 
@@ -42,13 +42,9 @@ macro_rules! make_trait_kind {
 		(),
 		(),
 		($($output_bounds:tt)*),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub trait $kind_trait_name {
 			type Output $($output_bounds)*;
 		}
@@ -59,13 +55,9 @@ macro_rules! make_trait_kind {
 		($($lifetimes:lifetime),+),
 		(),
 		($($output_bounds:tt)*),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub trait $kind_trait_name {
 			type Output<$($lifetimes),*> $($output_bounds)*;
 		}
@@ -76,13 +68,9 @@ macro_rules! make_trait_kind {
 		(),
 		($($types:ident $(: $($type_bounds:tt)+)?),+),
 		($($output_bounds:tt)*),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub trait $kind_trait_name {
 			type Output<$($types $(: $($type_bounds)+)?),*> $($output_bounds)*;
 		}
@@ -93,13 +81,9 @@ macro_rules! make_trait_kind {
 		($($lifetimes:lifetime),+),
 		($($types:ident $(: $($type_bounds:tt)+)?),+),
 		($($output_bounds:tt)*),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Trait for [brands][crate::brands] of [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub trait $kind_trait_name {
 			type Output<$($lifetimes),*, $($types $(: $($type_bounds)+)?),*> $($output_bounds)*;
 		}
@@ -117,7 +101,7 @@ macro_rules! make_trait_kind {
 /// * `kind_trait_name`: Trait name (e.g., `Kind0L1T`).
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters with optional bounds (e.g., `(A, B: 'a)`).
-/// * `kind_signature`: Kind signature (e.g., `"* -> *"`).
+/// * `doc_string`: Documentation string.
 #[macro_export]
 macro_rules! make_type_apply {
 	(
@@ -125,14 +109,14 @@ macro_rules! make_type_apply {
 		$kind_trait_name:ident,
 		$lifetimes:tt,
 		$types:tt,
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
 		make_type_apply!(
 			@impl $apply_alias_name,
 			$kind_trait_name,
 			$lifetimes,
 			$types,
-			$kind_signature
+			$doc_string
 		);
 	};
 
@@ -141,13 +125,9 @@ macro_rules! make_type_apply {
 		$kind_trait_name:ident,
 		(),
 		(),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub type $apply_alias_name<Brand> = <Brand as $kind_trait_name>::Output;
 	};
 
@@ -156,13 +136,9 @@ macro_rules! make_type_apply {
 		$kind_trait_name:ident,
 		($($lifetimes:lifetime),+),
 		(),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub type $apply_alias_name<$($lifetimes),*, Brand> = <Brand as $kind_trait_name>::Output<$($lifetimes),*>;
 	};
 
@@ -171,13 +147,9 @@ macro_rules! make_type_apply {
 		$kind_trait_name:ident,
 		(),
 		($($types:ident $(: $($type_bounds:tt)+)?),+),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub type $apply_alias_name<Brand $(, $types $(: $($type_bounds)+)?)*> = <Brand as $kind_trait_name>::Output<$($types),*>;
 	};
 
@@ -186,13 +158,9 @@ macro_rules! make_type_apply {
 		$kind_trait_name:ident,
 		($($lifetimes:lifetime),+),
 		($($types:ident $(: $($type_bounds:tt)+)?),+),
-		$kind_signature:literal
+		$doc_string:literal
 	) => {
-		#[doc = concat!(
-			"Alias for [types][crate::types] of kind `",
-			$kind_signature,
-			"`."
-		)]
+		#[doc = $doc_string]
 		pub type $apply_alias_name<$($lifetimes),*, Brand $(, $types $(: $($type_bounds)+)?)*> = <Brand as $kind_trait_name>::Output<$($lifetimes),* $(, $types)*>;
 	};
 }
