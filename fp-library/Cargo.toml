@@ -1,6 +1,6 @@
 [package]
 name = "fp-library"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and type classes."
 readme = "../README.md"
@@ -13,12 +13,11 @@ workspace = "../"
 [package.metadata.docs.rs]
 all-features = true
 
+[[bench]]
+harness = false
+name = "benchmarks"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1"
 quickcheck_macros = "1"
-
-[[bench]]
-name = "benchmarks"
-harness = false

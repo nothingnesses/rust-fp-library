@@ -3,7 +3,7 @@ use super::{
 	functor::Functor,
 	lift::Lift,
 };
-use crate::hkt::Apply1L1T;
+use crate::hkt::Apply_L1_T1_B0l0_Ol0;
 
 /// A type class for types that support function application within a context.
 ///
@@ -50,9 +50,9 @@ pub trait Semiapplicative: Lift + Functor {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-		fa: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, Self, B>;
+		ff: Apply_L1_T1_B0l0_Ol0<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -87,8 +87,8 @@ pub trait Semiapplicative: Lift + Functor {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-	ff: Apply1L1T<'a, Brand, ApplyClonableFn<'a, FnBrand, A, B>>,
-	fa: Apply1L1T<'a, Brand, A>,
-) -> Apply1L1T<'a, Brand, B> {
+	ff: Apply_L1_T1_B0l0_Ol0<'a, Brand, ApplyClonableFn<'a, FnBrand, A, B>>,
+	fa: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
+) -> Apply_L1_T1_B0l0_Ol0<'a, Brand, B> {
 	Brand::apply::<A, B, FnBrand>(ff, fa)
 }

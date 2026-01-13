@@ -9,16 +9,16 @@ use crate::{
 		function::{ApplyFunction, Function},
 		semigroupoid::Semigroupoid,
 	},
-	hkt::{Apply1L2T, Kind1L2T},
+	hkt::{Apply_L1_T2, Kind_L1_T2},
 };
 use std::sync::Arc;
 
-impl Kind1L2T for ArcFnBrand {
+impl Kind_L1_T2 for ArcFnBrand {
 	type Output<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
 }
 
 impl Function for ArcFnBrand {
-	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
+	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
 
 	/// Creates a new `Arc`-wrapped function.
 	///
@@ -49,7 +49,7 @@ impl Function for ArcFnBrand {
 }
 
 impl ClonableFn for ArcFnBrand {
-	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
+	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
 
 	/// Creates a new `Arc`-wrapped clonable function.
 	///
@@ -108,9 +108,9 @@ impl Semigroupoid for ArcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply1L2T<'a, Self, C, D>,
-		g: Apply1L2T<'a, Self, B, C>,
-	) -> Apply1L2T<'a, Self, B, D> {
+		f: Apply_L1_T2<'a, Self, C, D>,
+		g: Apply_L1_T2<'a, Self, B, C>,
+	) -> Apply_L1_T2<'a, Self, B, D> {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -135,7 +135,7 @@ impl Category for ArcFnBrand {
 	/// let id = ArcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A> {
+	fn identity<'a, A>() -> Apply_L1_T2<'a, Self, A, A> {
 		Arc::new(|a| a)
 	}
 }

@@ -3,16 +3,16 @@
 use crate::{
 	brands::OnceLockBrand,
 	classes::once::{ApplyOnce, Once},
-	hkt::{Apply0L1T, Kind0L1T},
+	hkt::{Apply_L0_T1, Kind_L0_T1},
 };
 use std::sync::OnceLock;
 
-impl Kind0L1T for OnceLockBrand {
+impl Kind_L0_T1 for OnceLockBrand {
 	type Output<A> = OnceLock<A>;
 }
 
 impl Once for OnceLockBrand {
-	type Output<A> = Apply0L1T<Self, A>;
+	type Output<A> = Apply_L0_T1<Self, A>;
 
 	/// Creates a new, uninitialized `OnceLock`.
 	///

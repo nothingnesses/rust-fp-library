@@ -1,10 +1,10 @@
-use crate::{hkt::Kind0L1T, make_type_apply};
+use crate::{hkt::Kind_L0_T1, make_type_apply};
 
 /// A type class for types that can be initialized once.
 ///
 /// `Once` represents a container that holds a value that is initialized at most once.
 /// It provides methods for initialization, access, and consumption.
-pub trait Once: Kind0L1T {
+pub trait Once: Kind_L0_T1 {
 	type Output<A>;
 
 	/// Creates a new, uninitialized `Once` container.

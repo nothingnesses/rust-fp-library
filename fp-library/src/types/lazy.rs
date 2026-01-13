@@ -9,7 +9,7 @@ use crate::{
 		once::{ApplyOnce, Once},
 		semigroup::Semigroup,
 	},
-	hkt::Kind1L1T,
+	hkt::Kind_L1_T1_B0l0_Ol0,
 };
 
 /// Represents a lazily-computed, memoized value.
@@ -101,7 +101,7 @@ where
 	}
 }
 
-impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind1L1T
+impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_L1_T1_B0l0_Ol0
 	for LazyBrand<OnceBrand, ClonableFnBrand>
 {
 	type Output<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;

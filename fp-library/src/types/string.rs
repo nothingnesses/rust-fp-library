@@ -2,10 +2,10 @@
 
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
-	hkt::Kind1L0T,
+	hkt::Kind_L1_T0,
 };
 
-impl Kind1L0T for String {
+impl Kind_L1_T0 for String {
 	type Output<'a> = String;
 }
 

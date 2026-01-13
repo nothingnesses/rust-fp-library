@@ -11,7 +11,7 @@
 /// produced when the brand is applied to the appropriate type parameters.
 ///
 /// # Parameters
-/// * `kind_trait_name`: Trait name (e.g., `Kind0L1T`).
+/// * `kind_trait_name`: Trait name (e.g., `Kind_L0_T1`).
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters with optional bounds (e.g., `(A, B: 'a)`).
 /// * `output_bounds`: Tuple containing bounds for the `Output` associated type (e.g., `(: 'a)` or `()`).
@@ -45,6 +45,7 @@ macro_rules! make_trait_kind {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub trait $kind_trait_name {
 			type Output $($output_bounds)*;
 		}
@@ -58,6 +59,7 @@ macro_rules! make_trait_kind {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub trait $kind_trait_name {
 			type Output<$($lifetimes),*> $($output_bounds)*;
 		}
@@ -71,6 +73,7 @@ macro_rules! make_trait_kind {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub trait $kind_trait_name {
 			type Output<$($types $(: $($type_bounds)+)?),*> $($output_bounds)*;
 		}
@@ -84,6 +87,7 @@ macro_rules! make_trait_kind {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub trait $kind_trait_name {
 			type Output<$($lifetimes),*, $($types $(: $($type_bounds)+)?),*> $($output_bounds)*;
 		}
@@ -97,8 +101,8 @@ macro_rules! make_trait_kind {
 /// the library to make type signatures more readable.
 ///
 /// # Parameters
-/// * `apply_alias_name`: Type alias name (e.g., `Apply0L1T`).
-/// * `kind_trait_name`: Trait name (e.g., `Kind0L1T`).
+/// * `apply_alias_name`: Type alias name (e.g., `Apply_L0_T1`).
+/// * `kind_trait_name`: Trait name (e.g., `Kind_L0_T1`).
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters with optional bounds (e.g., `(A, B: 'a)`).
 /// * `doc_string`: Documentation string.
@@ -131,6 +135,7 @@ macro_rules! make_type_apply {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub type $apply_alias_name<Brand> = <Brand as $kind_trait_name>::Output;
 	};
 
@@ -142,6 +147,7 @@ macro_rules! make_type_apply {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub type $apply_alias_name<$($lifetimes),*, Brand> = <Brand as $kind_trait_name>::Output<$($lifetimes),*>;
 	};
 
@@ -153,6 +159,7 @@ macro_rules! make_type_apply {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub type $apply_alias_name<Brand $(, $types $(: $($type_bounds)+)?)*> = <Brand as $kind_trait_name>::Output<$($types),*>;
 	};
 
@@ -164,6 +171,7 @@ macro_rules! make_type_apply {
 		$doc_string:literal
 	) => {
 		#[doc = $doc_string]
+		#[allow(non_camel_case_types)]
 		pub type $apply_alias_name<$($lifetimes),*, Brand $(, $types $(: $($type_bounds)+)?)*> = <Brand as $kind_trait_name>::Output<$($lifetimes),* $(, $types)*>;
 	};
 }

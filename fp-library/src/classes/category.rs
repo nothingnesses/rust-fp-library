@@ -1,5 +1,5 @@
 use super::semigroupoid::Semigroupoid;
-use crate::hkt::Apply1L2T;
+use crate::hkt::Apply_L1_T2;
 
 /// A type class for categories.
 ///
@@ -29,7 +29,7 @@ pub trait Category: Semigroupoid {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A>;
+	fn identity<'a, A>() -> Apply_L1_T2<'a, Self, A, A>;
 }
 
 /// Returns the identity morphism.
@@ -53,6 +53,6 @@ pub trait Category: Semigroupoid {
 /// let id = identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);
 /// ```
-pub fn identity<'a, Brand: Category, A>() -> Apply1L2T<'a, Brand, A, A> {
+pub fn identity<'a, Brand: Category, A>() -> Apply_L1_T2<'a, Brand, A, A> {
 	Brand::identity()
 }

@@ -1,9 +1,9 @@
-use crate::hkt::{Apply1L1T, Kind1L1T};
+use crate::hkt::{Apply_L1_T1_B0l0_Ol0, Kind_L1_T1_B0l0_Ol0};
 
 /// A type class for types that can be lifted.
 ///
 /// `Lift` allows binary functions to be lifted into the context.
-pub trait Lift: Kind1L1T {
+pub trait Lift: Kind_L1_T1_B0l0_Ol0 {
 	/// Lifts a binary function into the context.
 	///
 	/// # Type Signature
@@ -33,9 +33,9 @@ pub trait Lift: Kind1L1T {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply1L1T<'a, Self, A>,
-		fb: Apply1L1T<'a, Self, B>,
-	) -> Apply1L1T<'a, Self, C>
+		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fb: Apply_L1_T1_B0l0_Ol0<'a, Self, B>,
+	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, C>
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -74,9 +74,9 @@ pub trait Lift: Kind1L1T {
 /// ```
 pub fn lift2<'a, Brand: Lift, A, B, C, F>(
 	f: F,
-	fa: Apply1L1T<'a, Brand, A>,
-	fb: Apply1L1T<'a, Brand, B>,
-) -> Apply1L1T<'a, Brand, C>
+	fa: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
+	fb: Apply_L1_T1_B0l0_Ol0<'a, Brand, B>,
+) -> Apply_L1_T1_B0l0_Ol0<'a, Brand, C>
 where
 	F: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,

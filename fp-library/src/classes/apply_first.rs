@@ -1,5 +1,5 @@
 use super::lift::Lift;
-use crate::hkt::Apply1L1T;
+use crate::hkt::Apply_L1_T1_B0l0_Ol0;
 
 /// A type class for types that support combining two contexts, keeping the first value.
 ///
@@ -33,9 +33,9 @@ pub trait ApplyFirst: Lift {
 	/// assert_eq!(z, Some(5));
 	/// ```
 	fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply1L1T<'a, Self, A>,
-		fb: Apply1L1T<'a, Self, B>,
-	) -> Apply1L1T<'a, Self, A> {
+		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fb: Apply_L1_T1_B0l0_Ol0<'a, Self, B>,
+	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, A> {
 		Self::lift2(|a, _| a, fa, fb)
 	}
 }
@@ -69,8 +69,8 @@ pub trait ApplyFirst: Lift {
 /// assert_eq!(z, Some(5));
 /// ```
 pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply1L1T<'a, Brand, A>,
-	fb: Apply1L1T<'a, Brand, B>,
-) -> Apply1L1T<'a, Brand, A> {
+	fa: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
+	fb: Apply_L1_T1_B0l0_Ol0<'a, Brand, B>,
+) -> Apply_L1_T1_B0l0_Ol0<'a, Brand, A> {
 	Brand::apply_first(fa, fb)
 }

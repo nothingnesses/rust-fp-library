@@ -3,16 +3,16 @@
 use crate::{
 	brands::OnceCellBrand,
 	classes::once::{ApplyOnce, Once},
-	hkt::{Apply0L1T, Kind0L1T},
+	hkt::{Apply_L0_T1, Kind_L0_T1},
 };
 use std::cell::OnceCell;
 
-impl Kind0L1T for OnceCellBrand {
+impl Kind_L0_T1 for OnceCellBrand {
 	type Output<A> = OnceCell<A>;
 }
 
 impl Once for OnceCellBrand {
-	type Output<A> = Apply0L1T<Self, A>;
+	type Output<A> = Apply_L0_T1<Self, A>;
 
 	/// Creates a new, uninitialized `OnceCell`.
 	///
