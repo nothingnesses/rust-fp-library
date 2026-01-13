@@ -11,13 +11,14 @@
 
 use crate::make_trait_kind;
 
-make_trait_kind!(Kind0L1T, (), (A), "* -> *");
+make_trait_kind!(Kind0L1T, (), (A), (), "* -> *");
 
-make_trait_kind!(Kind0L2T, (), (A, B), "* -> * -> *");
+make_trait_kind!(Kind0L2T, (), (A, B), (), "* -> * -> *");
 
 make_trait_kind!(
   Kind1L0T,
   ('a),
+  (),
   (),
   "' -> *"
 );
@@ -26,15 +27,14 @@ make_trait_kind!(
 	Kind1L2T,
 	('a),
 	(A, B),
+	(),
 	"' -> * -> * -> *"
 );
 
-/// Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> * -> *`.
-///
-/// This trait represents a type constructor that takes one lifetime and one type argument.
-/// The type argument `A` is bounded by the lifetime `'a`, ensuring that the resulting type
-/// can validly hold values of type `A` for the duration of `'a`.
-/// The output type itself is also bounded by `'a`.
-pub trait Kind1L1T {
-	type Output<'a, A: 'a>: 'a;
-}
+make_trait_kind!(
+	Kind1L1T,
+	('a),
+	(A: 'a),
+	(: 'a),
+	"' -> * -> *"
+);

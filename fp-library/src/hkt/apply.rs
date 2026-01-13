@@ -37,6 +37,6 @@ make_type_apply!(
 	Apply1L1T,
 	Kind1L1T,
 	('a),
-	(A),
+	(A: 'a),
 	"' -> * -> *"
 );
