@@ -1,6 +1,6 @@
 ### Todos/ideas to look into
 
-* For each equivalent abstraction in docs/benchmarks/comparisons.md , there should be a property-based test to test for equivalence.
+* For each equivalent abstraction in docs/benchmarks/comparisons.md / docs/std_coverage_checklist.md , there should be a property-based test to test for equivalence.
 * Figure out a better naming scheme for `Kind` traits to better handle lifetime usage/application and update [the macros](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/src/macros.rs) accordingly.
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
 * Look into making a Function/ClonableFn trait that doesn't input a lifetime parameter so we can implement Kind0L1T (and, consequently, Functor, etc.) for LazyBrand.
@@ -17,3 +17,4 @@
 
 ### Questions
 * Inner or outer iteration?
+* Add benchmark outputs and graphs to repo to make them accessible? Maybe they should be in a separate repo, to prevent bloating this one?
