@@ -15,6 +15,11 @@
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters (e.g., `(A, B)`).
 /// * `kind_signature`: Kind signature (e.g., `"* -> *"`).
+///
+/// # Limitations
+/// * **No Generic Bounds:** Cannot specify trait or lifetime bounds for generic parameters (e.g., `T: 'a + Display`).
+/// * **No Associated Type Bounds:** Cannot constrain the `Output` type itself (e.g., `type Output: 'a + Clone`).
+/// * **No `where` Clauses:** No support for `where` clauses.
 #[macro_export]
 macro_rules! make_trait_kind {
 	(
@@ -108,6 +113,9 @@ macro_rules! make_trait_kind {
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters (e.g., `(A, B)`).
 /// * `kind_signature`: Kind signature (e.g., `"* -> *"`).
+///
+/// # Limitations
+/// * **No Generic Bounds:** Cannot enforce bounds on type alias parameters.
 #[macro_export]
 macro_rules! make_type_apply {
 	(
