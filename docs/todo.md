@@ -1,4 +1,4 @@
-### Todos/ideas to look into
+### Tasks to do & ideas to look into
 
 * For each equivalent abstraction in docs/benchmarks/comparisons.md / docs/std_coverage_checklist.md , there should be a property-based test to test for equivalence.
 * Figure out a better naming scheme for `Kind` traits to better handle lifetime usage/application and update [the macros](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/src/macros.rs) accordingly.
