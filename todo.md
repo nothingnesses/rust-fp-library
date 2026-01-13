@@ -1,6 +1,6 @@
-
 ### Todos/ideas to look into
 
+* Re-add default trait implementations present in [c62fb9e8e4c02f615404d07b9977327faa7126e7](https://github.com/nothingnesses/rust-fp-library/tree/c62fb9e8e4c02f615404d07b9977327faa7126e7) where possible.
 * Figure out a better naming scheme for `Kind` traits to better handle lifetime usage/application and update [the macros](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/src/macros.rs) accordingly.
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
 * Add [criterion.rs](https://github.com/criterion-rs/criterion.rs) benchmarking to compare performance with Rust's native `std` library functions.
