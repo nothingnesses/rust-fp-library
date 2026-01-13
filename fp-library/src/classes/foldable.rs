@@ -1,10 +1,25 @@
 use super::monoid::Monoid;
-use crate::hkt::{Apply1L1T, Kind1L1T};
+use crate::{
+	brands::RcFnBrand,
+	classes::{clonable_fn::ClonableFn, semigroup::Semigroup},
+	hkt::{Apply1L1T, Kind1L1T},
+	types::Endofunction,
+};
+use std::rc::Rc;
 
 /// A type class for structures that can be folded to a single value.
 ///
 /// A `Foldable` represents a structure that can be folded over to combine its elements
 /// into a single result.
+///
+/// # Minimal Implementation
+///
+/// A minimal implementation of `Foldable` requires implementing either [`Foldable::fold_right`] or [`Foldable::fold_map`].
+///
+/// *   If [`Foldable::fold_right`] is implemented, [`Foldable::fold_map`] and [`Foldable::fold_left`] are derived from it.
+/// *   If [`Foldable::fold_map`] is implemented, [`Foldable::fold_right`] is derived from it, and [`Foldable::fold_left`] is derived from the derived [`Foldable::fold_right`].
+///
+/// Note that [`Foldable::fold_left`] is not sufficient on its own because the default implementations of [`Foldable::fold_right`] and [`Foldable::fold_map`] do not depend on it.
 pub trait Foldable: Kind1L1T {
 	/// Folds the structure by applying a function from right to left.
 	///
@@ -32,13 +47,26 @@ pub trait Foldable: Kind1L1T {
 	/// let y = OptionBrand::fold_right(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply1L1T<'a, Self, A>,
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a;
+		F: Fn(A, B) -> B + 'a,
+	{
+		let f = Rc::new(f);
+		let m = Self::fold_map(
+			move |a: A| {
+				let f = f.clone();
+				Endofunction::<RcFnBrand, B>::new(<RcFnBrand as ClonableFn>::new(move |b| {
+					f(a.clone(), b)
+				}))
+			},
+			fa,
+		);
+		m.0(init)
+	}
 
 	/// Folds the structure by applying a function from left to right.
 	///
@@ -66,13 +94,34 @@ pub trait Foldable: Kind1L1T {
 	/// let y = OptionBrand::fold_left(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply1L1T<'a, Self, A>,
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a;
+		F: Fn(B, A) -> B + 'a,
+	{
+		let f = Rc::new(f);
+		let m = Self::fold_right(
+			move |a: A, k: Endofunction<'a, RcFnBrand, B>| {
+				let f = f.clone();
+				// k is the "rest" of the computation.
+				// We want to perform "current" (f(b, a)) then "rest".
+				// Endofunction composition is f . g (f after g).
+				// So we want k . current.
+				// append(k, current).
+				let current =
+					Endofunction::<RcFnBrand, B>::new(<RcFnBrand as ClonableFn>::new(move |b| {
+						f(b, a.clone())
+					}));
+				Semigroup::append(k, current)
+			},
+			Endofunction::<RcFnBrand, B>::empty(),
+			fa,
+		);
+		m.0(init)
+	}
 
 	/// Maps values to a monoid and combines them.
 	///
@@ -100,13 +149,16 @@ pub trait Foldable: Kind1L1T {
 	/// let y = OptionBrand::fold_map(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, A: 'a + Clone, M, F>(
 		f: F,
 		fa: Apply1L1T<'a, Self, A>,
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a;
+		F: Fn(A) -> M + 'a,
+	{
+		Self::fold_right(move |a, m| M::append(f(a), m), M::empty(), fa)
+	}
 }
 
 /// Folds the structure by applying a function from right to left.
@@ -137,7 +189,7 @@ pub trait Foldable: Kind1L1T {
 /// let y = fold_right::<OptionBrand, _, _, _>(|a, b| a + b, 10, x);
 /// assert_eq!(y, 15);
 /// ```
-pub fn fold_right<'a, Brand: Foldable, A: 'a, B: 'a, F>(
+pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
 	fa: Apply1L1T<'a, Brand, A>,
@@ -176,7 +228,7 @@ where
 /// let y = fold_left::<OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 /// assert_eq!(y, 15);
 /// ```
-pub fn fold_left<'a, Brand: Foldable, A: 'a, B: 'a, F>(
+pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
 	fa: Apply1L1T<'a, Brand, A>,
@@ -215,7 +267,7 @@ where
 /// let y = fold_map::<OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
 /// assert_eq!(y, "5".to_string());
 /// ```
-pub fn fold_map<'a, Brand: Foldable, A: 'a, M, F>(
+pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
 	f: F,
 	fa: Apply1L1T<'a, Brand, A>,
 ) -> M

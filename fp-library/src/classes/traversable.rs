@@ -1,11 +1,18 @@
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
-use crate::hkt::Apply1L1T;
+use crate::{functions::identity, hkt::Apply1L1T};
 
 /// A type class for traversable functors.
 ///
 /// `Traversable` functors can be traversed, which accumulates results and effects in some [`Applicative`] context.
 pub trait Traversable: Functor + Foldable {
 	/// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
+	///
+	/// The default implementation is defined in terms of [`sequence`] and [`Functor::map`].
+	///
+	/// **Note**: This default implementation may be less efficient than a direct implementation because it performs two passes:
+	/// first mapping the function to create an intermediate structure of computations, and then sequencing that structure.
+	/// A direct implementation can often perform the traversal in a single pass without allocating an intermediate container.
+	/// Types should provide their own implementation if possible.
 	///
 	/// # Type Signature
 	///
@@ -36,9 +43,15 @@ pub trait Traversable: Functor + Foldable {
 	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
 	where
 		Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
-		Apply1L1T<'a, Self, B>: Clone;
+		Apply1L1T<'a, Self, B>: Clone,
+		Apply1L1T<'a, F, B>: Clone,
+	{
+		Self::sequence::<F, B>(Self::map(f, ta))
+	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
+	///
+	/// The default implementation is defined in terms of [`traverse`] and [`identity`].
 	///
 	/// # Type Signature
 	///
@@ -67,7 +80,10 @@ pub trait Traversable: Functor + Foldable {
 	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
 	where
 		Apply1L1T<'a, F, A>: Clone,
-		Apply1L1T<'a, Self, A>: Clone;
+		Apply1L1T<'a, Self, A>: Clone,
+	{
+		Self::traverse::<F, Apply1L1T<'a, F, A>, A, _>(identity, ta)
+	}
 }
 
 /// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
@@ -104,6 +120,7 @@ pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + C
 where
 	Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
 	Apply1L1T<'a, Brand, B>: Clone,
+	Apply1L1T<'a, F, B>: Clone,
 {
 	Brand::traverse::<F, A, B, Func>(f, ta)
 }
