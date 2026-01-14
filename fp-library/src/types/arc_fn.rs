@@ -2,23 +2,21 @@
 //! [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 
 use crate::{
+	Apply,
 	brands::ArcFnBrand,
 	classes::{
-		category::Category,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		function::{ApplyFunction, Function},
-		semigroupoid::Semigroupoid,
+		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
 	},
-	hkt::{Apply_L1_T2, Kind_L1_T2},
+	hkt::Kind_L1_T2,
 };
 use std::sync::Arc;
 
 impl Kind_L1_T2 for ArcFnBrand {
-	type Output<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
+	type Of<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
 }
 
 impl Function for ArcFnBrand {
-	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(Self, Kind_L1_T2, ('a), (A, B));
 
 	/// Creates a new `Arc`-wrapped function.
 	///
@@ -43,13 +41,13 @@ impl Function for ArcFnBrand {
 	/// let f = <ArcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, Function, ('a), (A, B)) {
 		Arc::new(f)
 	}
 }
 
 impl ClonableFn for ArcFnBrand {
-	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(Self, Kind_L1_T2, ('a), (A, B));
 
 	/// Creates a new `Arc`-wrapped clonable function.
 	///
@@ -74,7 +72,7 @@ impl ClonableFn for ArcFnBrand {
 	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, ClonableFn, ('a), (A, B)) {
 		Arc::new(f)
 	}
 }
@@ -108,9 +106,9 @@ impl Semigroupoid for ArcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply_L1_T2<'a, Self, C, D>,
-		g: Apply_L1_T2<'a, Self, B, C>,
-	) -> Apply_L1_T2<'a, Self, B, D> {
+		f: Apply!(Self, Kind_L1_T2, ('a), (C, D)),
+		g: Apply!(Self, Kind_L1_T2, ('a), (B, C)),
+	) -> Apply!(Self, Kind_L1_T2, ('a), (B, D)) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -135,7 +133,7 @@ impl Category for ArcFnBrand {
 	/// let id = ArcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply_L1_T2<'a, Self, A, A> {
+	fn identity<'a, A>() -> Apply!(Self, Kind_L1_T2, ('a), (A, A)) {
 		Arc::new(|a| a)
 	}
 }

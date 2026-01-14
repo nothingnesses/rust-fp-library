@@ -1,4 +1,4 @@
-use crate::hkt::{Apply_L1_T1_B0l0_Ol0, Kind_L1_T1_B0l0_Ol0};
+use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
 
 /// A type class for types that can be mapped over.
 ///
@@ -38,8 +38,8 @@ pub trait Functor: Kind_L1_T1_B0l0_Ol0 {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -73,8 +73,8 @@ pub trait Functor: Kind_L1_T1_B0l0_Ol0 {
 /// ```
 pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
 	f: F,
-	fa: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
-) -> Apply_L1_T1_B0l0_Ol0<'a, Brand, B>
+	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 where
 	F: Fn(A) -> B + 'a,
 {

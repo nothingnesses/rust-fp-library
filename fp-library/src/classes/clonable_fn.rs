@@ -1,5 +1,5 @@
 use super::function::Function;
-use crate::make_type_apply;
+use crate::Apply;
 use std::ops::Deref;
 
 /// Abstraction for clonable wrappers over closures.
@@ -13,7 +13,7 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait ClonableFn: Function {
-	type Output<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Of<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new clonable function wrapper.
 	///
@@ -38,16 +38,8 @@ pub trait ClonableFn: Function {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B>;
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, ClonableFn, ('a), (A, B));
 }
-
-make_type_apply!(
-	ApplyClonableFn,
-	ClonableFn,
-	('a),
-	(A, B),
-	"Convenience type alias for [`ClonableFn`].\n\nAbstraction for clonable wrappers over closures."
-);
 
 /// Creates a new clonable function wrapper.
 ///
@@ -74,7 +66,7 @@ make_type_apply!(
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, F, A, B>
+pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(F, ClonableFn, ('a), (A, B))
 where
 	F: ClonableFn,
 {

@@ -1,4 +1,4 @@
-use crate::hkt::{Apply_L1_T1_B0l0_Ol0, Kind_L1_T1_B0l0_Ol0};
+use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
 
 /// A type class for types that can be lifted.
 ///
@@ -33,9 +33,9 @@ pub trait Lift: Kind_L1_T1_B0l0_Ol0 {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-		fb: Apply_L1_T1_B0l0_Ol0<'a, Self, B>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, C>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -74,9 +74,9 @@ pub trait Lift: Kind_L1_T1_B0l0_Ol0 {
 /// ```
 pub fn lift2<'a, Brand: Lift, A, B, C, F>(
 	f: F,
-	fa: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
-	fb: Apply_L1_T1_B0l0_Ol0<'a, Brand, B>,
-) -> Apply_L1_T1_B0l0_Ol0<'a, Brand, C>
+	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	fb: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
+) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (C))
 where
 	F: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,

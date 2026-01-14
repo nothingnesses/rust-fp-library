@@ -1,5 +1,5 @@
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
-use crate::{functions::identity, hkt::Apply_L1_T1_B0l0_Ol0};
+use crate::{Apply, functions::identity, hkt::Kind_L1_T1_B0l0_Ol0};
 
 /// A type class for traversable functors.
 ///
@@ -39,12 +39,12 @@ pub trait Traversable: Functor + Foldable {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, B>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, F, B> + 'a,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, B>: Clone,
-		Apply_L1_T1_B0l0_Ol0<'a, F, B>: Clone,
+		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
+		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
 	{
 		Self::sequence::<F, B>(Self::map(f, ta))
 	}
@@ -76,13 +76,13 @@ pub trait Traversable: Functor + Foldable {
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, Apply_L1_T1_B0l0_Ol0<'a, F, A>>
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, A>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
 	where
-		Apply_L1_T1_B0l0_Ol0<'a, F, A>: Clone,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, A>: Clone,
+		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
 	{
-		Self::traverse::<F, Apply_L1_T1_B0l0_Ol0<'a, F, A>, A, _>(identity, ta)
+		Self::traverse::<F, Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)), A, _>(identity, ta)
 	}
 }
 
@@ -115,12 +115,12 @@ pub trait Traversable: Functor + Foldable {
 /// ```
 pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 	f: Func,
-	ta: Apply_L1_T1_B0l0_Ol0<'a, Brand, A>,
-) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Brand, B>>
+	ta: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
 where
-	Func: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, F, B> + 'a,
-	Apply_L1_T1_B0l0_Ol0<'a, Brand, B>: Clone,
-	Apply_L1_T1_B0l0_Ol0<'a, F, B>: Clone,
+	Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+	Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
+	Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
 {
 	Brand::traverse::<F, A, B, Func>(f, ta)
 }
@@ -152,11 +152,11 @@ where
 /// assert_eq!(y, Some(Some(5)));
 /// ```
 pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
-	ta: Apply_L1_T1_B0l0_Ol0<'a, Brand, Apply_L1_T1_B0l0_Ol0<'a, F, A>>
-) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Brand, A>>
+	ta: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
 where
-	Apply_L1_T1_B0l0_Ol0<'a, F, A>: Clone,
-	Apply_L1_T1_B0l0_Ol0<'a, Brand, A>: Clone,
+	Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+	Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
 {
 	Brand::sequence::<F, A>(ta)
 }

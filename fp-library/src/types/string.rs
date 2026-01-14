@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Kind_L1_T0 for String {
-	type Output<'a> = String;
+	type Of<'a> = String;
 }
 
 impl Semigroup for String {

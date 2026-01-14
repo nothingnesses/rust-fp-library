@@ -6,8 +6,6 @@
 //! which represent higher-kinded (unapplied/partially-applied) forms
 //! (type constructors) of [types][crate::types].
 
-pub mod apply;
 pub mod kinds;
 
-pub use self::apply::*;
 pub use self::kinds::*;

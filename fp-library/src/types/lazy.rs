@@ -1,13 +1,10 @@
 //! Implementations for [`Lazy`], the type of lazily-computed, memoized values.
 
 use crate::{
+	Apply,
 	brands::LazyBrand,
 	classes::{
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		defer::Defer,
-		monoid::Monoid,
-		once::{ApplyOnce, Once},
-		semigroup::Semigroup,
+		clonable_fn::ClonableFn, defer::Defer, monoid::Monoid, once::Once, semigroup::Semigroup,
 	},
 	hkt::Kind_L1_T1_B0l0_Ol0,
 };
@@ -18,8 +15,8 @@ use crate::{
 /// The result is then cached (memoized) so that subsequent accesses return the same value
 /// without re-executing the computation.
 pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A>(
-	pub ApplyOnce<OnceBrand, A>,
-	pub ApplyClonableFn<'a, ClonableFnBrand, (), A>,
+	pub Apply!(OnceBrand, Once, (), (A)),
+	pub Apply!(ClonableFnBrand, ClonableFn, ('a), ((), A)),
 );
 
 impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, ClonableFnBrand, A> {
@@ -50,7 +47,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	///
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
 	/// ```
-	pub fn new(a: ApplyClonableFn<'a, ClonableFnBrand, (), A>) -> Self {
+	pub fn new(a: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), A))) -> Self {
 		Self(OnceBrand::new(), a)
 	}
 
@@ -94,7 +91,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Clone> Clone
 	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
-	ApplyOnce<OnceBrand, A>: Clone,
+	Apply!(OnceBrand, Once, (), (A)): Clone,
 {
 	fn clone(&self) -> Self {
 		Self(self.0.clone(), self.1.clone())
@@ -104,7 +101,7 @@ where
 impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_L1_T1_B0l0_Ol0
 	for LazyBrand<OnceBrand, ClonableFnBrand>
 {
-	type Output<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
+	type Of<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
 }
 
 // Note: Lazy cannot implement Functor, Pointed, or Semimonad because these traits
@@ -117,7 +114,7 @@ impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_L1_T
 impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
 	for Lazy<'b, OnceBrand, CFB, A>
 where
-	ApplyOnce<OnceBrand, A>: Clone,
+	Apply!(OnceBrand, Once, (), (A)): Clone,
 {
 	/// Combines two lazy values using the underlying type's `Semigroup` implementation.
 	///
@@ -149,7 +146,7 @@ where
 impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
 	for Lazy<'b, OnceBrand, CFB, A>
 where
-	ApplyOnce<OnceBrand, A>: Clone,
+	Apply!(OnceBrand, Once, (), (A)): Clone,
 {
 	/// Returns the identity element for the lazy value.
 	///
@@ -202,7 +199,7 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<ClonableFnBrand>(f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>) -> Self
+	fn defer<ClonableFnBrand>(f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), Self))) -> Self
 	where
 		Self: Sized,
 		ClonableFnBrand: ClonableFn + 'a,

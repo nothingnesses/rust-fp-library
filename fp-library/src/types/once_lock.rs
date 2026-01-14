@@ -1,18 +1,14 @@
 //! Implementations for [`OnceLock`]
 
-use crate::{
-	brands::OnceLockBrand,
-	classes::once::{ApplyOnce, Once},
-	hkt::{Apply_L0_T1, Kind_L0_T1},
-};
+use crate::{Apply, brands::OnceLockBrand, classes::once::Once, hkt::Kind_L0_T1};
 use std::sync::OnceLock;
 
 impl Kind_L0_T1 for OnceLockBrand {
-	type Output<A> = OnceLock<A>;
+	type Of<A> = OnceLock<A>;
 }
 
 impl Once for OnceLockBrand {
-	type Output<A> = Apply_L0_T1<Self, A>;
+	type Of<A> = Apply!(Self, Kind_L0_T1, (), (A));
 
 	/// Creates a new, uninitialized `OnceLock`.
 	///
@@ -33,7 +29,7 @@ impl Once for OnceLockBrand {
 	/// let cell = <OnceLockBrand as Once>::new::<i32>();
 	/// assert_eq!(<OnceLockBrand as Once>::get(&cell), None);
 	/// ```
-	fn new<A>() -> ApplyOnce<Self, A> {
+	fn new<A>() -> Apply!(Self, Once, (), (A)) {
 		OnceLock::new()
 	}
 
@@ -50,7 +46,7 @@ impl Once for OnceLockBrand {
 	/// # Returns
 	///
 	/// A reference to the value, or `None` if uninitialized.
-	fn get<A>(a: &ApplyOnce<Self, A>) -> Option<&A> {
+	fn get<A>(a: &Apply!(Self, Once, (), (A))) -> Option<&A> {
 		OnceLock::get(a)
 	}
 
@@ -67,7 +63,7 @@ impl Once for OnceLockBrand {
 	/// # Returns
 	///
 	/// A mutable reference to the value, or `None` if uninitialized.
-	fn get_mut<A>(a: &mut ApplyOnce<Self, A>) -> Option<&mut A> {
+	fn get_mut<A>(a: &mut Apply!(Self, Once, (), (A))) -> Option<&mut A> {
 		OnceLock::get_mut(a)
 	}
 
@@ -88,7 +84,7 @@ impl Once for OnceLockBrand {
 	///
 	/// `Ok(())` on success, or `Err(value)` if already initialized.
 	fn set<A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(Self, Once, (), (A)),
 		value: A,
 	) -> Result<(), A> {
 		OnceLock::set(a, value)
@@ -109,7 +105,7 @@ impl Once for OnceLockBrand {
 	///
 	/// A reference to the value.
 	fn get_or_init<A, B: FnOnce() -> A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(Self, Once, (), (A)),
 		f: B,
 	) -> &A {
 		OnceLock::get_or_init(a, f)
@@ -128,7 +124,7 @@ impl Once for OnceLockBrand {
 	/// # Returns
 	///
 	/// The value, or `None` if uninitialized.
-	fn into_inner<A>(a: ApplyOnce<Self, A>) -> Option<A> {
+	fn into_inner<A>(a: Apply!(Self, Once, (), (A))) -> Option<A> {
 		OnceLock::into_inner(a)
 	}
 
@@ -145,7 +141,7 @@ impl Once for OnceLockBrand {
 	/// # Returns
 	///
 	/// The value, or `None` if uninitialized.
-	fn take<A>(a: &mut ApplyOnce<Self, A>) -> Option<A> {
+	fn take<A>(a: &mut Apply!(Self, Once, (), (A))) -> Option<A> {
 		OnceLock::take(a)
 	}
 }

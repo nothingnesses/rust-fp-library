@@ -1,26 +1,19 @@
 //! Implementations for [`Option`].
 
 use crate::{
+	Apply,
 	brands::OptionBrand,
 	classes::{
-		applicative::Applicative,
-		apply_first::ApplyFirst,
-		apply_second::ApplySecond,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		foldable::Foldable,
-		functor::Functor,
-		lift::Lift,
-		monoid::Monoid,
-		pointed::Pointed,
-		semiapplicative::Semiapplicative,
-		semimonad::Semimonad,
+		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
+		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
+		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::{Apply_L1_T1_B0l0_Ol0, Kind_L1_T1_B0l0_Ol0},
+	hkt::Kind_L1_T1_B0l0_Ol0,
 };
 
 impl Kind_L1_T1_B0l0_Ol0 for OptionBrand {
-	type Output<'a, A: 'a> = Option<A>;
+	type Of<'a, A: 'a> = Option<A>;
 }
 
 impl Functor for OptionBrand {
@@ -50,8 +43,8 @@ impl Functor for OptionBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -87,9 +80,9 @@ impl Lift for OptionBrand {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-		fb: Apply_L1_T1_B0l0_Ol0<'a, Self, B>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, C>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: 'a,
@@ -123,7 +116,7 @@ impl Pointed for OptionBrand {
 	///
 	/// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply_L1_T1_B0l0_Ol0<'a, Self, A> {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
 		Some(a)
 	}
 }
@@ -160,9 +153,9 @@ impl Semiapplicative for OptionBrand {
 	/// assert_eq!(apply::<OptionBrand, _, _, RcFnBrand>(f, Some(5)), Some(10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply_L1_T1_B0l0_Ol0<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B> {
+		ff: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) {
 		match (ff, fa) {
 			(Some(f), Some(a)) => Some(f(a)),
 			_ => None,
@@ -196,11 +189,11 @@ impl Semimonad for OptionBrand {
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 		f: F,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 	where
-		F: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B> + 'a,
+		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
 	{
 		ma.and_then(f)
 	}
@@ -235,7 +228,7 @@ impl Foldable for OptionBrand {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -273,7 +266,7 @@ impl Foldable for OptionBrand {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -310,7 +303,7 @@ impl Foldable for OptionBrand {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -349,11 +342,11 @@ impl Traversable for OptionBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, B>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, F, B> + 'a,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, B>: Clone,
+		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
 	{
 		match ta {
 			Some(a) => F::map(|b| Some(b), f(a)),
@@ -384,11 +377,11 @@ impl Traversable for OptionBrand {
 	/// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, Apply_L1_T1_B0l0_Ol0<'a, F, A>>
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, A>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
 	where
-		Apply_L1_T1_B0l0_Ol0<'a, F, A>: Clone,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, A>: Clone,
+		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
 	{
 		match ta {
 			Some(fa) => F::map(|a| Some(a), fa),

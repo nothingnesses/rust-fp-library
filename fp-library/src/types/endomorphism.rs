@@ -1,8 +1,9 @@
 //! Implementations for [`Endomorphism`], a wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
 
 use crate::{
+	Apply,
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
-	hkt::Apply_L1_T2,
+	hkt::Kind_L1_T2,
 };
 use std::{
 	fmt::{self, Debug, Formatter},
@@ -20,7 +21,7 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
 ///
 /// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
-pub struct Endomorphism<'a, C: Category, A>(pub Apply_L1_T2<'a, C, A, A>);
+pub struct Endomorphism<'a, C: Category, A>(pub Apply!(C, Kind_L1_T2, ('a), (A, A)));
 
 impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// Creates a new `Endomorphism`.
@@ -36,14 +37,14 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// # Returns
 	///
 	/// A new `Endomorphism`.
-	pub fn new(f: Apply_L1_T2<'a, C, A, A>) -> Self {
+	pub fn new(f: Apply!(C, Kind_L1_T2, ('a), (A, A))) -> Self {
 		Self(f)
 	}
 }
 
 impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: Clone,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): Clone,
 {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
@@ -52,7 +53,7 @@ where
 
 impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: Debug,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): Debug,
 {
 	fn fmt(
 		&self,
@@ -62,11 +63,11 @@ where
 	}
 }
 
-impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where Apply_L1_T2<'a, C, A, A>: Eq {}
+impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where Apply!(C, Kind_L1_T2, ('a), (A, A)): Eq {}
 
 impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: Hash,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -78,7 +79,7 @@ where
 
 impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: Ord,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): Ord,
 {
 	fn cmp(
 		&self,
@@ -90,7 +91,7 @@ where
 
 impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: PartialEq,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): PartialEq,
 {
 	fn eq(
 		&self,
@@ -102,7 +103,7 @@ where
 
 impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
 where
-	Apply_L1_T2<'a, C, A, A>: PartialOrd,
+	Apply!(C, Kind_L1_T2, ('a), (A, A)): PartialOrd,
 {
 	fn partial_cmp(
 		&self,

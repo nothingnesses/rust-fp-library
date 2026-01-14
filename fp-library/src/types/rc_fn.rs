@@ -2,23 +2,21 @@
 //! (`Rc<dyn Fn(A) -> B>`).
 
 use crate::{
+	Apply,
 	brands::RcFnBrand,
 	classes::{
-		category::Category,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		function::{ApplyFunction, Function},
-		semigroupoid::Semigroupoid,
+		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
 	},
-	hkt::{Apply_L1_T2, Kind_L1_T2},
+	hkt::Kind_L1_T2,
 };
 use std::rc::Rc;
 
 impl Kind_L1_T2 for RcFnBrand {
-	type Output<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+	type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
 }
 
 impl Function for RcFnBrand {
-	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(Self, Kind_L1_T2, ('a), (A, B));
 
 	/// Creates a new `Rc`-wrapped function.
 	///
@@ -43,13 +41,13 @@ impl Function for RcFnBrand {
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, Function, ('a), (A, B)) {
 		Rc::new(f)
 	}
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A, B> = Apply_L1_T2<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(Self, Kind_L1_T2, ('a), (A, B));
 
 	/// Creates a new `Rc`-wrapped clonable function.
 	///
@@ -74,7 +72,7 @@ impl ClonableFn for RcFnBrand {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, ClonableFn, ('a), (A, B)) {
 		Rc::new(f)
 	}
 }
@@ -108,9 +106,9 @@ impl Semigroupoid for RcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply_L1_T2<'a, Self, C, D>,
-		g: Apply_L1_T2<'a, Self, B, C>,
-	) -> Apply_L1_T2<'a, Self, B, D> {
+		f: Apply!(Self, Kind_L1_T2, ('a), (C, D)),
+		g: Apply!(Self, Kind_L1_T2, ('a), (B, C)),
+	) -> Apply!(Self, Kind_L1_T2, ('a), (B, D)) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -135,7 +133,7 @@ impl Category for RcFnBrand {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply_L1_T2<'a, Self, A, A> {
+	fn identity<'a, A>() -> Apply!(Self, Kind_L1_T2, ('a), (A, A)) {
 		Rc::new(|a| a)
 	}
 }

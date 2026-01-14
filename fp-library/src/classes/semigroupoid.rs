@@ -1,4 +1,4 @@
-use crate::hkt::{Apply_L1_T2, Kind_L1_T2};
+use crate::{Apply, hkt::Kind_L1_T2};
 
 /// A type class for semigroupoids.
 ///
@@ -38,9 +38,9 @@ pub trait Semigroupoid: Kind_L1_T2 {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply_L1_T2<'a, Self, C, D>,
-		g: Apply_L1_T2<'a, Self, B, C>,
-	) -> Apply_L1_T2<'a, Self, B, D>;
+		f: Apply!(Self, Kind_L1_T2, ('a), (C, D)),
+		g: Apply!(Self, Kind_L1_T2, ('a), (B, C)),
+	) -> Apply!(Self, Kind_L1_T2, ('a), (B, D));
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -73,8 +73,8 @@ pub trait Semigroupoid: Kind_L1_T2 {
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
 pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
-	f: Apply_L1_T2<'a, Brand, C, D>,
-	g: Apply_L1_T2<'a, Brand, B, C>,
-) -> Apply_L1_T2<'a, Brand, B, D> {
+	f: Apply!(Brand, Kind_L1_T2, ('a), (C, D)),
+	g: Apply!(Brand, Kind_L1_T2, ('a), (B, C)),
+) -> Apply!(Brand, Kind_L1_T2, ('a), (B, D)) {
 	Brand::compose(f, g)
 }

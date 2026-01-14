@@ -1,22 +1,15 @@
 //! Implementations for [`Identity`], a type that wraps a value.
 
 use crate::{
+	Apply,
 	brands::IdentityBrand,
 	classes::{
-		applicative::Applicative,
-		apply_first::ApplyFirst,
-		apply_second::ApplySecond,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		foldable::Foldable,
-		functor::Functor,
-		lift::Lift,
-		monoid::Monoid,
-		pointed::Pointed,
-		semiapplicative::Semiapplicative,
-		semimonad::Semimonad,
+		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
+		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
+		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::{Apply_L1_T1_B0l0_Ol0, Kind_L1_T1_B0l0_Ol0},
+	hkt::Kind_L1_T1_B0l0_Ol0,
 };
 
 /// Wraps a value.
@@ -24,7 +17,7 @@ use crate::{
 pub struct Identity<A>(pub A);
 
 impl Kind_L1_T1_B0l0_Ol0 for IdentityBrand {
-	type Output<'a, A: 'a> = Identity<A>;
+	type Of<'a, A: 'a> = Identity<A>;
 }
 
 impl Functor for IdentityBrand {
@@ -54,8 +47,8 @@ impl Functor for IdentityBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -94,9 +87,9 @@ impl Lift for IdentityBrand {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-		fb: Apply_L1_T1_B0l0_Ol0<'a, Self, B>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, C>
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: 'a,
@@ -131,7 +124,7 @@ impl Pointed for IdentityBrand {
 	///
 	/// assert_eq!(pure::<IdentityBrand, _>(5), Identity(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply_L1_T1_B0l0_Ol0<'a, Self, A> {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
 		Identity(a)
 	}
 }
@@ -169,9 +162,9 @@ impl Semiapplicative for IdentityBrand {
 	/// assert_eq!(apply::<IdentityBrand, _, _, RcFnBrand>(f, Identity(5)), Identity(10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply_L1_T1_B0l0_Ol0<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B> {
+		ff: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) {
 		Identity(ff.0(fa.0))
 	}
 }
@@ -205,11 +198,11 @@ impl Semimonad for IdentityBrand {
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 		f: F,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B>
+	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
 	where
-		F: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, Self, B> + 'a,
+		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
 	{
 		f(ma.0)
 	}
@@ -244,7 +237,7 @@ impl Foldable for IdentityBrand {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -280,7 +273,7 @@ impl Foldable for IdentityBrand {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -315,7 +308,7 @@ impl Foldable for IdentityBrand {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
+		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -355,11 +348,11 @@ impl Traversable for IdentityBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, A>,
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, B>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply_L1_T1_B0l0_Ol0<'a, F, B> + 'a,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, B>: Clone,
+		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
 	{
 		F::map(|b| Identity(b), f(ta.0))
 	}
@@ -391,11 +384,11 @@ impl Traversable for IdentityBrand {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply_L1_T1_B0l0_Ol0<'a, Self, Apply_L1_T1_B0l0_Ol0<'a, F, A>>
-	) -> Apply_L1_T1_B0l0_Ol0<'a, F, Apply_L1_T1_B0l0_Ol0<'a, Self, A>>
+		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
 	where
-		Apply_L1_T1_B0l0_Ol0<'a, F, A>: Clone,
-		Apply_L1_T1_B0l0_Ol0<'a, Self, A>: Clone,
+		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
 	{
 		F::map(|a| Identity(a), ta.0)
 	}

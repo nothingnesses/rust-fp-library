@@ -1,4 +1,5 @@
-use super::clonable_fn::{ApplyClonableFn, ClonableFn};
+use super::clonable_fn::ClonableFn;
+use crate::Apply;
 
 /// A type class for types that can be constructed lazily.
 pub trait Defer<'a> {
@@ -31,7 +32,7 @@ pub trait Defer<'a> {
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
 	fn defer<ClonableFnBrand: 'a + ClonableFn>(
-		f: ApplyClonableFn<'a, ClonableFnBrand, (), Self>
+		f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), Self))
 	) -> Self
 	where
 		Self: Sized;
@@ -67,7 +68,7 @@ pub trait Defer<'a> {
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, D, ClonableFnBrand>(f: ApplyClonableFn<'a, ClonableFnBrand, (), D>) -> D
+pub fn defer<'a, D, ClonableFnBrand>(f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), D))) -> D
 where
 	D: Defer<'a>,
 	ClonableFnBrand: 'a + ClonableFn,

@@ -1,18 +1,14 @@
 //! Implementations for [`OnceCell`]
 
-use crate::{
-	brands::OnceCellBrand,
-	classes::once::{ApplyOnce, Once},
-	hkt::{Apply_L0_T1, Kind_L0_T1},
-};
+use crate::{Apply, brands::OnceCellBrand, classes::once::Once, hkt::Kind_L0_T1};
 use std::cell::OnceCell;
 
 impl Kind_L0_T1 for OnceCellBrand {
-	type Output<A> = OnceCell<A>;
+	type Of<A> = OnceCell<A>;
 }
 
 impl Once for OnceCellBrand {
-	type Output<A> = Apply_L0_T1<Self, A>;
+	type Of<A> = Apply!(Self, Kind_L0_T1, (), (A));
 
 	/// Creates a new, uninitialized `OnceCell`.
 	///
@@ -33,7 +29,7 @@ impl Once for OnceCellBrand {
 	/// let cell = <OnceCellBrand as Once>::new::<i32>();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
 	/// ```
-	fn new<A>() -> ApplyOnce<Self, A> {
+	fn new<A>() -> Apply!(Self, Once, (), (A)) {
 		OnceCell::new()
 	}
 
@@ -50,7 +46,7 @@ impl Once for OnceCellBrand {
 	/// # Returns
 	///
 	/// A reference to the value, or `None` if uninitialized.
-	fn get<A>(a: &ApplyOnce<Self, A>) -> Option<&A> {
+	fn get<A>(a: &Apply!(Self, Once, (), (A))) -> Option<&A> {
 		OnceCell::get(a)
 	}
 
@@ -67,7 +63,7 @@ impl Once for OnceCellBrand {
 	/// # Returns
 	///
 	/// A mutable reference to the value, or `None` if uninitialized.
-	fn get_mut<A>(a: &mut ApplyOnce<Self, A>) -> Option<&mut A> {
+	fn get_mut<A>(a: &mut Apply!(Self, Once, (), (A))) -> Option<&mut A> {
 		OnceCell::get_mut(a)
 	}
 
@@ -88,7 +84,7 @@ impl Once for OnceCellBrand {
 	///
 	/// `Ok(())` on success, or `Err(value)` if already initialized.
 	fn set<A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(Self, Once, (), (A)),
 		value: A,
 	) -> Result<(), A> {
 		OnceCell::set(a, value)
@@ -109,7 +105,7 @@ impl Once for OnceCellBrand {
 	///
 	/// A reference to the value.
 	fn get_or_init<A, B: FnOnce() -> A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(Self, Once, (), (A)),
 		f: B,
 	) -> &A {
 		OnceCell::get_or_init(a, f)
@@ -128,7 +124,7 @@ impl Once for OnceCellBrand {
 	/// # Returns
 	///
 	/// The value, or `None` if uninitialized.
-	fn into_inner<A>(a: ApplyOnce<Self, A>) -> Option<A> {
+	fn into_inner<A>(a: Apply!(Self, Once, (), (A))) -> Option<A> {
 		OnceCell::into_inner(a)
 	}
 
@@ -145,7 +141,7 @@ impl Once for OnceCellBrand {
 	/// # Returns
 	///
 	/// The value, or `None` if uninitialized.
-	fn take<A>(a: &mut ApplyOnce<Self, A>) -> Option<A> {
+	fn take<A>(a: &mut Apply!(Self, Once, (), (A))) -> Option<A> {
 		OnceCell::take(a)
 	}
 }
