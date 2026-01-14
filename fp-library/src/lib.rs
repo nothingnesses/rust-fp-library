@@ -7,6 +7,8 @@
 //! * `functions`: Helper functions.
 //! * `brands`, `hkt`, `macros`: Infrastructure.
 
+extern crate fp_macros;
+
 pub mod brands;
 pub mod classes;
 pub mod functions;

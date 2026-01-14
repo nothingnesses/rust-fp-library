@@ -211,8 +211,17 @@ name = "fp-library"
 version = "0.2.0"
 dependencies = [
  "criterion",
+ "fp-macros",
  "quickcheck",
  "quickcheck_macros",
+]
+
+[[package]]
+name = "fp-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

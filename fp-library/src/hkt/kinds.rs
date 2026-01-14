@@ -29,49 +29,35 @@
 //! with 0 lifetimes and 1 generic type. A type `Foo<A>` would have a
 //! higher-kinded representation `FooBrand` which implements [`Kind_L0_T1`].
 
-use crate::make_trait_kind;
+use fp_macros::def_kind;
 
-make_trait_kind!(
-	Kind_L0_T1,
+def_kind!(
 	(),
 	(A),
-	(),
-	"Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> *`."
+	()
 );
 
-make_trait_kind!(
-	Kind_L0_T2,
+def_kind!(
 	(),
 	(A, B),
-	(),
-	"Trait for [brands][crate::brands] of [types][crate::types] of kind `* -> * -> *`."
+	()
 );
 
-make_trait_kind!(
-	Kind_L1_T0,
+def_kind!(
 	('a),
 	(),
-	(),
-	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> *`."
+	()
 );
 
-make_trait_kind!(
-	Kind_L1_T2,
+def_kind!(
 	('a),
 	(A, B),
-	(),
-	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> * -> * -> *`."
+	()
 );
 
-make_trait_kind!(
-	Kind_L1_T1_B0l0_Ol0,
+def_kind!(
 	('a),
 	(A: 'a),
-	(: 'a),
-	"Trait for [brands][crate::brands] of [types][crate::types] of kind `' -> * -> *`, with lifetime constraints.
-
-This is the bounded variant of the 1-lifetime / 1-type Kind trait:
-* The type parameter is constrained by the lifetime: `A: 'a` (`B0l0` in the name).
-* The resulting associated output type is constrained by the lifetime: `Of: 'a` (`Ol0` in the name).
-"
+	('a)
 );
+
