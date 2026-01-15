@@ -3,15 +3,17 @@
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 //!
-//! The macro uses named parameters syntax:
-//! - `Apply!(brand: MyBrand, signature: ('a, T), lifetimes: ('a), types: (T))`
-//! - `Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))`
+//! The macro supports two modes:
 //!
-//! Parameters:
-//! - `brand`: The brand type to apply (required)
-//! - `signature` OR `kind`: Either a signature to generate the Kind trait name, or an explicit Kind trait (required, mutually exclusive)
-//! - `lifetimes`: Lifetime arguments to apply (optional)
-//! - `types`: Type arguments to apply (optional)
+//! 1. **Unified Signature Mode** (Recommended):
+//!    `Apply!(brand: MyBrand, signature: ('a, T: Clone))`
+//!    - `signature`: Contains both schema (for Kind name) and values (for projection).
+//!
+//! 2. **Explicit Kind Mode** (Advanced):
+//!    `Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))`
+//!    - `kind`: Explicit Kind trait name.
+//!    - `lifetimes`: Explicit lifetime arguments.
+//!    - `types`: Explicit type arguments.
 
 use crate::{
 	generate::generate_name,
@@ -31,7 +33,7 @@ pub enum SignatureParam {
 	/// A lifetime value (e.g., 'static, 'a)
 	Lifetime(Lifetime),
 	/// A type value with optional bounds (e.g., String: Clone)
-	Type { ty: Type, bounds: Punctuated<TypeParamBound, Token![+]> },
+	Type { ty: Box<Type>, bounds: Punctuated<TypeParamBound, Token![+]> },
 }
 
 /// Parsed unified signature containing both schema and values.
@@ -84,7 +86,7 @@ impl UnifiedSignature {
 		self.params
 			.iter()
 			.filter_map(|p| match p {
-				SignatureParam::Type { ty, .. } => Some(ty),
+				SignatureParam::Type { ty, .. } => Some(ty.as_ref()),
 				_ => None,
 			})
 			.collect()
@@ -98,7 +100,7 @@ pub enum KindSource {
 	Generated(UnifiedSignature),
 	/// The Kind trait name is explicitly provided.
 	Explicit {
-		kind: Type,
+		kind: Box<Type>,
 		lifetimes: Punctuated<Lifetime, Token![,]>,
 		types: Punctuated<Type, Token![,]>,
 	},
@@ -145,7 +147,7 @@ impl Parse for ApplyInput {
 					));
 				}
 				kind_source_type = Some("kind");
-				kind = Some(input.parse()?);
+				kind = Some(Box::new(input.parse()?));
 			} else if label == "lifetimes" {
 				let content;
 				parenthesized!(content in input);
@@ -231,7 +233,7 @@ fn parse_signature(input: ParseStream) -> syn::Result<UnifiedSignature> {
 				Punctuated::new()
 			};
 
-			params.push(SignatureParam::Type { ty, bounds });
+			params.push(SignatureParam::Type { ty: Box::new(ty), bounds });
 		}
 
 		// Handle comma separator

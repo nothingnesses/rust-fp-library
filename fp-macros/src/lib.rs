@@ -129,38 +129,69 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// This macro projects a brand type to its concrete type using the appropriate
 /// Kind trait. It uses named parameters syntax.
 ///
+/// # Modes
+///
+/// The macro supports two modes of operation:
+///
+/// 1. **Unified Signature Mode** (Recommended): Uses a single `signature` parameter to specify both
+///    the schema (for Kind trait name generation) and the concrete values (for projection).
+/// 2. **Explicit Kind Mode** (Advanced): Uses an explicit `kind` parameter along with separate
+///    `lifetimes` and `types` parameters.
+///
 /// # Parameters
 ///
 /// * `brand`: (Required) The brand type (e.g., `OptionBrand`).
-/// * `signature`: The signature used to generate the Kind trait name. Mutually exclusive with `kind`.
-/// * `kind`: An explicit Kind trait to use. Mutually exclusive with `signature`.
-/// * `lifetimes`: (Optional) Lifetime arguments to apply.
-/// * `types`: (Optional) Type arguments to apply.
+/// * `signature`: (Mode 1) The unified signature containing both schema and values.
+/// * `kind`: (Mode 2) An explicit Kind trait to use.
+/// * `lifetimes`: (Mode 2) Lifetime arguments to apply. Required with `kind`.
+/// * `types`: (Mode 2) Type arguments to apply. Required with `kind`.
 ///
-/// Either `signature` or `kind` must be provided, but not both.
+/// # Unified Signature Syntax
+///
+/// The `signature` parameter uses a syntax similar to a function signature:
+/// `(param1, param2, ...) -> OutputBounds`
+///
+/// * **Lifetimes**: Specified as `'a`, `'static`, etc.
+/// * **Types**: Specified as `Type` or `Type: Bounds`.
+///   * The `Type` part is used as the concrete value for projection.
+///   * The `Bounds` part (optional) is used for Kind trait name generation.
 ///
 /// # Examples
 ///
-/// Using `signature` to generate the Kind trait name:
+/// ## Unified Signature Mode (Recommended)
 ///
 /// ```ignore
 /// // Applies MyBrand to lifetime 'static and type String.
-/// // The signature specifies 1 lifetime and 1 type parameter.
+/// // The schema is inferred as: 1 lifetime, 1 type parameter (unbounded).
 /// type Concrete = Apply!(
 ///     brand: MyBrand,
-///     signature: ('a, T),
-///     lifetimes: ('static),
-///     types: (String)
+///     signature: ('static, String)
+/// );
+///
+/// // Applies MyBrand to a generic type T with bounds.
+/// // The schema is inferred as: 1 type parameter with Clone bound.
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: (T: Clone)
+/// );
+///
+/// // Complex example with lifetimes, types, and output bounds.
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: ('a, T: Clone + Debug) -> Display
 /// );
 /// ```
 ///
-/// Using an explicit `kind`:
+/// ## Explicit Kind Mode (Advanced)
+///
+/// Use this mode when you need to specify a custom Kind trait directly.
 ///
 /// ```ignore
 /// // Applies OptionBrand using an explicit Kind trait.
 /// type Concrete = Apply!(
 ///     brand: OptionBrand,
 ///     kind: SomeKind,
+///     lifetimes: ('a),
 ///     types: (String)
 /// );
 /// ```

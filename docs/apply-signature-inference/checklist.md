@@ -182,23 +182,23 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 4.1 Macro Documentation
 
-- [ ] **Update `Apply!` macro docs** ([`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs))
+- [x] **Update `Apply!` macro docs** ([`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs))
 
-  - [ ] Document unified signature syntax as primary
-  - [ ] Document explicit `kind:` syntax for advanced cases
-  - [ ] Add examples for common patterns
-  - [ ] Remove old syntax documentation
+  - [x] Document unified signature syntax as primary
+  - [x] Document explicit `kind:` syntax for advanced cases
+  - [x] Add examples for common patterns
+  - [x] Remove old syntax documentation
 
-- [ ] **Update module documentation**
-  - [ ] [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs) module docs
-  - [ ] [`fp-library/src/lib.rs`](../../fp-library/src/lib.rs) if needed
+- [x] **Update module documentation**
+  - [x] [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs) module docs
+  - [x] [`fp-library/src/lib.rs`](../../fp-library/src/lib.rs) if needed
 
 ### 4.2 Changelog
 
-- [ ] **Update CHANGELOG.md**
-  - [ ] Document breaking change to `Apply!` syntax
-  - [ ] Document removal of `lifetimes:` and `types:` in signature mode
-  - [ ] Document new unified syntax
+- [x] **Update CHANGELOG.md**
+  - [x] Document breaking change to `Apply!` syntax
+  - [x] Document removal of `lifetimes:` and `types:` in signature mode
+  - [x] Document new unified syntax
 
 ---
 

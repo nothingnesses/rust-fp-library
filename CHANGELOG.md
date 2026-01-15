@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`Apply!` Syntax**: Simplified `Apply!` macro syntax. The `signature` parameter now accepts a unified syntax that includes both schema and concrete values (e.g., `signature: ('a, T: Clone)`). The `lifetimes` and `types` parameters are no longer accepted when using `signature`.
 - **HKT Documentation**: Updated README with `impl_kind!` macro usage example for defining Kind implementations.
 - **Project Structure**: Fixed documentation to reflect correct module paths (`fp-library/src/kinds` instead of `fp-library/src/hkt`).
 
@@ -20,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`def_kind!` Macro**: Procedural macro to define Kind traits with a specific signature (lifetimes, type parameters with bounds, and output bounds). Generates hash-based trait names for determinism.
 - **`impl_kind!` Macro**: Procedural macro to implement a Kind trait for a brand type. Infers the correct Kind trait from the GAT signature.
-- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type using named parameters (`brand`, `signature`/`kind`, `lifetimes`, `types`).
+- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type. Supports unified signature syntax (`signature: ('a, T: Clone)`) and explicit kind mode (`kind: K, lifetimes: (...), types: (...)`).
 - **Canonicalization Module**: Robust canonicalization of type bounds including:
   - Full path preservation (`std::fmt::Debug` → `tstd::fmt::Debug`)
   - Generic argument handling (`Iterator<Item = T>`)
