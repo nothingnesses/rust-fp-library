@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_fcf9d56b89a0b8b9};
+use crate::{Apply, kinds::*};
 
 /// A type class for semigroupoids.
 ///
@@ -38,9 +38,24 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (C, D)),
-		g: Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (B, C)),
-	) -> Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (B, D));
+		f: Apply!(
+			brand: Self,
+			signature: ('a, A, B),
+			lifetimes: ('a),
+			types: (C, D)
+		),
+		g: Apply!(
+			brand: Self,
+			signature: ('a, A, B),
+			lifetimes: ('a),
+			types: (B, C)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A, B),
+		lifetimes: ('a),
+		types: (B, D)
+	);
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -73,8 +88,23 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
 pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
-	f: Apply!(Brand, Kind_fcf9d56b89a0b8b9, ('a), (C, D)),
-	g: Apply!(Brand, Kind_fcf9d56b89a0b8b9, ('a), (B, C)),
-) -> Apply!(Brand, Kind_fcf9d56b89a0b8b9, ('a), (B, D)) {
+	f: Apply!(
+		brand: Brand,
+		signature: ('a, A, B),
+		lifetimes: ('a),
+		types: (C, D)
+	),
+	g: Apply!(
+		brand: Brand,
+		signature: ('a, A, B),
+		lifetimes: ('a),
+		types: (B, C)
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A, B),
+	lifetimes: ('a),
+	types: (B, D)
+) {
 	Brand::compose(f, g)
 }

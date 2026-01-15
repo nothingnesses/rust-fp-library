@@ -1,5 +1,5 @@
 use super::lift::Lift;
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
@@ -33,9 +33,24 @@ pub trait ApplySecond: Lift {
 	/// assert_eq!(z, Some(10));
 	/// ```
 	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+		fb: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	) {
 		Self::lift2(|_, b| b, fa, fb)
 	}
 }
@@ -69,8 +84,23 @@ pub trait ApplySecond: Lift {
 /// assert_eq!(z, Some(10));
 /// ```
 pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
-	fb: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)),
-) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)) {
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
+	fb: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (B)
+) {
 	Brand::apply_second(fa, fb)
 }

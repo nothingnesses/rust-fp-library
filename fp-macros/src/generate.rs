@@ -4,8 +4,7 @@
 //! for Kind traits based on their signature. It uses `rapidhash` to create
 //! a collision-resistant hash of the canonical signature.
 
-use crate::canonicalize::Canonicalizer;
-use crate::parse::KindInput;
+use crate::{canonicalize::Canonicalizer, parse::KindInput};
 use quote::format_ident;
 use syn::Ident;
 

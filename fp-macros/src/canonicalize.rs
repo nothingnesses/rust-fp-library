@@ -123,43 +123,40 @@ impl Canonicalizer {
 		ty: &Type,
 	) -> String {
 		match ty {
-			Type::Path(type_path) => {
-				let path = type_path
-					.path
-					.segments
-					.iter()
-					.map(|seg| {
-						let ident = seg.ident.to_string();
-						match &seg.arguments {
-							PathArguments::None => ident,
-							PathArguments::AngleBracketed(args) => {
-								let args_str = args
-									.args
-									.iter()
-									.map(|a| self.canonicalize_generic_arg(a))
-									.collect::<Vec<_>>()
-									.join(",");
-								format!("{}<{}>", ident, args_str)
-							}
-							PathArguments::Parenthesized(args) => {
-								let inputs = args
-									.inputs
-									.iter()
-									.map(|t| self.canonicalize_type(t))
-									.collect::<Vec<_>>()
-									.join(",");
-								let output = match &args.output {
-									ReturnType::Default => "()".to_string(),
-									ReturnType::Type(_, ty) => self.canonicalize_type(ty),
-								};
-								format!("{}({})->{}", ident, inputs, output)
-							}
+			Type::Path(type_path) => type_path
+				.path
+				.segments
+				.iter()
+				.map(|seg| {
+					let ident = seg.ident.to_string();
+					match &seg.arguments {
+						PathArguments::None => ident,
+						PathArguments::AngleBracketed(args) => {
+							let args_str = args
+								.args
+								.iter()
+								.map(|a| self.canonicalize_generic_arg(a))
+								.collect::<Vec<_>>()
+								.join(",");
+							format!("{}<{}>", ident, args_str)
 						}
-					})
-					.collect::<Vec<_>>()
-					.join("::");
-				path
-			}
+						PathArguments::Parenthesized(args) => {
+							let inputs = args
+								.inputs
+								.iter()
+								.map(|t| self.canonicalize_type(t))
+								.collect::<Vec<_>>()
+								.join(",");
+							let output = match &args.output {
+								ReturnType::Default => "()".to_string(),
+								ReturnType::Type(_, ty) => self.canonicalize_type(ty),
+							};
+							format!("{}({})->{}", ident, inputs, output)
+						}
+					}
+				})
+				.collect::<Vec<_>>()
+				.join("::"),
 			Type::Reference(type_ref) => {
 				let lt = if let Some(lt) = &type_ref.lifetime {
 					if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {

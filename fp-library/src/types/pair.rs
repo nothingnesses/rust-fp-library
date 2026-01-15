@@ -9,21 +9,26 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
 		semimonad::Semimonad, traversable::Traversable,
 	},
-	hkt::{Kind_93c16564ac2f81c1, Kind_c3c3610c70409ee6},
+	impl_kind,
+	kinds::*,
 };
 
 /// Wraps two values.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Pair<First, Second>(pub First, pub Second);
 
-impl Kind_93c16564ac2f81c1 for PairBrand {
-	type Of<A, B> = Pair<A, B>;
+impl_kind! {
+	for PairBrand {
+		type Of<A, B> = Pair<A, B>;
+	}
 }
 
 // PairWithFirstBrand<First> (Functor over Second)
 
-impl<First: 'static> Kind_c3c3610c70409ee6 for PairWithFirstBrand<First> {
-	type Of<'a, A: 'a> = Pair<First, A>;
+impl_kind! {
+	impl<First: 'static> for PairWithFirstBrand<First> {
+		type Of<'a, A: 'a>: 'a = Pair<First, A>;
+	}
 }
 
 impl<First: 'static> Functor for PairWithFirstBrand<First> {
@@ -425,8 +430,10 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 
 // PairWithSecondBrand<Second> (Functor over First)
 
-impl<Second: 'static> Kind_c3c3610c70409ee6 for PairWithSecondBrand<Second> {
-	type Of<'a, A: 'a> = Pair<A, Second>;
+impl_kind! {
+	impl<Second: 'static> for PairWithSecondBrand<Second> {
+		type Of<'a, A: 'a>: 'a = Pair<A, Second>;
+	}
 }
 
 impl<Second: 'static> Functor for PairWithSecondBrand<Second> {

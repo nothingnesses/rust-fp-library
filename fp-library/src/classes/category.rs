@@ -1,5 +1,5 @@
 use super::semigroupoid::Semigroupoid;
-use crate::{Apply, hkt::Kind_fcf9d56b89a0b8b9};
+use crate::{Apply, kinds::*};
 
 /// A type class for categories.
 ///
@@ -29,7 +29,12 @@ pub trait Category: Semigroupoid {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (A, A));
+	fn identity<'a, A>() -> Apply!(
+		brand: Self,
+		signature: ('a, A, B),
+		lifetimes: ('a),
+		types: (A, A)
+	);
 }
 
 /// Returns the identity morphism.
@@ -53,6 +58,11 @@ pub trait Category: Semigroupoid {
 /// let id = identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);
 /// ```
-pub fn identity<'a, Brand: Category, A>() -> Apply!(Brand, Kind_fcf9d56b89a0b8b9, ('a), (A, A)) {
+pub fn identity<'a, Brand: Category, A>() -> Apply!(
+	brand: Brand,
+	signature: ('a, A, B),
+	lifetimes: ('a),
+	types: (A, A)
+) {
 	Brand::identity()
 }

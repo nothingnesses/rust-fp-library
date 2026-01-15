@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be mapped over.
 ///
@@ -38,8 +38,18 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	)
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -73,8 +83,18 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 /// ```
 pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
 	f: F,
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
-) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B))
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (B)
+)
 where
 	F: Fn(A) -> B + 'a,
 {

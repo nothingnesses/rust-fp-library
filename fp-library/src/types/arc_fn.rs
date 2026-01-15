@@ -7,12 +7,15 @@ use crate::{
 	classes::{
 		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
 	},
-	hkt::Kind_fcf9d56b89a0b8b9,
+	impl_kind,
+	kinds::*,
 };
 use std::sync::Arc;
 
-impl Kind_fcf9d56b89a0b8b9 for ArcFnBrand {
-	type Of<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
+impl_kind! {
+	for ArcFnBrand {
+		type Of<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
+	}
 }
 
 impl Function for ArcFnBrand {

@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_bd4ddc17b95f4bc6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be initialized once.
 ///

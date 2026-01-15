@@ -1,3 +1,13 @@
+//! Simulates higher-kinded types using type-level defunctionalisation based on Yallop
+//! and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
+//!
+//! `Kind` traits represent the arity of a kind.
+//! These traits are implemented by [`Brand` types][crate::brands],
+//! which represent higher-kinded (unapplied/partially-applied) forms
+//! (type constructors) of [types][crate::types].
+//!
+//! # Kind Traits
+//!
 //! Traits representing type-level application to simulate higher-kinded types.
 //!
 //! The naming convention used by these traits is `Kind_{hash}` where `{hash}` is a
@@ -11,7 +21,7 @@
 //! This naming scheme ensures that semantically equivalent signatures always map to the
 //! same Kind trait, regardless of parameter names or formatting.
 //!
-//! # Examples
+//! ## Examples
 //!
 //! * `Kind_bd4ddc17b95f4bc6`: 0 lifetimes, 1 type.
 //! * `Kind_fcf9d56b89a0b8b9`: 1 lifetime, 2 types.

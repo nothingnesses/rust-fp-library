@@ -6,7 +6,8 @@ use crate::{
 	classes::{
 		clonable_fn::ClonableFn, defer::Defer, monoid::Monoid, once::Once, semigroup::Semigroup,
 	},
-	hkt::Kind_c3c3610c70409ee6,
+	impl_kind,
+	kinds::*,
 };
 
 /// Represents a lazily-computed, memoized value.
@@ -98,10 +99,12 @@ where
 	}
 }
 
-impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_c3c3610c70409ee6
-	for LazyBrand<OnceBrand, ClonableFnBrand>
-{
-	type Of<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
+impl_kind! {
+	impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static>
+		for LazyBrand<OnceBrand, ClonableFnBrand>
+	{
+		type Of<'a, A: 'a>: 'a = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
+	}
 }
 
 // Note: Lazy cannot implement Functor, Pointed, or Semimonad because these traits

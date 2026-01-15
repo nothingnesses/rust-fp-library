@@ -9,11 +9,14 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
 		semimonad::Semimonad, traversable::Traversable,
 	},
-	hkt::Kind_c3c3610c70409ee6,
+	impl_kind,
+	kinds::*,
 };
 
-impl Kind_c3c3610c70409ee6 for VecBrand {
-	type Of<'a, A: 'a> = Vec<A>;
+impl_kind! {
+	for VecBrand {
+		type Of<'a, A: 'a>: 'a = Vec<A>;
+	}
 }
 
 impl VecBrand {

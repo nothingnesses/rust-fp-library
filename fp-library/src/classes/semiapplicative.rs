@@ -1,5 +1,5 @@
 use super::{clonable_fn::ClonableFn, functor::Functor, lift::Lift};
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that support function application within a context.
 ///
@@ -46,9 +46,24 @@ pub trait Semiapplicative: Lift + Functor {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B));
+		ff: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (Apply!(FnBrand, ClonableFn, ('a), (A, B)))
+		),
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	);
 }
 
 /// Applies a function within a context to a value within a context.
@@ -83,8 +98,23 @@ pub trait Semiapplicative: Lift + Functor {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-	ff: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
-) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)) {
+	ff: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (Apply!(FnBrand, ClonableFn, ('a), (A, B)))
+	),
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (B)
+) {
 	Brand::apply::<A, B, FnBrand>(ff, fa)
 }

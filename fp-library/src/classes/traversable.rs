@@ -1,5 +1,5 @@
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
-use crate::{Apply, functions::identity, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, functions::identity, kinds::*};
 
 /// A type class for traversable functors.
 ///
@@ -39,12 +39,44 @@ pub trait Traversable: Functor + Foldable {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
+		ta: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+	) -> Apply!(
+		brand: F,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		))
+	)
 	where
-		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
-		Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
+		Func: Fn(
+				A,
+			) -> Apply!(
+				brand: F,
+				signature: ('a, A: 'a) -> 'a,
+				lifetimes: ('a),
+				types: (B)
+			) + 'a,
+		Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		): Clone,
+		Apply!(
+			brand: F,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		): Clone,
 	{
 		Self::sequence::<F, B>(Self::map(f, ta))
 	}
@@ -76,13 +108,53 @@ pub trait Traversable: Functor + Foldable {
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
+		ta: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (Apply!(
+				brand: F,
+				signature: ('a, A: 'a) -> 'a,
+				lifetimes: ('a),
+				types: (A)
+			))
+		)
+	) -> Apply!(
+		brand: F,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		))
+	)
 	where
-		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(
+			brand: F,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		): Clone,
+		Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		): Clone,
 	{
-		Self::traverse::<F, Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)), A, _>(identity, ta)
+		Self::traverse::<
+			F,
+			Apply!(
+				brand: F,
+				signature: ('a, A: 'a) -> 'a,
+				lifetimes: ('a),
+				types: (A)
+			),
+			A,
+			_,
+		>(identity, ta)
 	}
 }
 
@@ -115,12 +187,44 @@ pub trait Traversable: Functor + Foldable {
 /// ```
 pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 	f: Func,
-	ta: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
-) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B))))
+	ta: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
+) -> Apply!(
+	brand: F,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	))
+)
 where
-	Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
-	Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
-	Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
+	Func: Fn(
+			A,
+		) -> Apply!(
+			brand: F,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		) + 'a,
+	Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	): Clone,
+	Apply!(
+		brand: F,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	): Clone,
 {
 	Brand::traverse::<F, A, B, Func>(f, ta)
 }
@@ -152,11 +256,41 @@ where
 /// assert_eq!(y, Some(Some(5)));
 /// ```
 pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
-	ta: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
-) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A))))
+	ta: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (Apply!(
+			brand: F,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		))
+	)
+) -> Apply!(
+	brand: F,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	))
+)
 where
-	Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
-	Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+	Apply!(
+		brand: F,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	): Clone,
+	Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	): Clone,
 {
 	Brand::sequence::<F, A>(ta)
 }

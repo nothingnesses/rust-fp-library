@@ -221,6 +221,8 @@ name = "fp-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
+ "quickcheck",
+ "quickcheck_macros",
  "quote",
  "rapidhash",
  "syn",

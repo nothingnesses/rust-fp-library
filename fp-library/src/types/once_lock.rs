@@ -1,10 +1,12 @@
 //! Implementations for [`OnceLock`]
 
-use crate::{Apply, brands::OnceLockBrand, classes::once::Once, hkt::Kind_bd4ddc17b95f4bc6};
+use crate::{Apply, brands::OnceLockBrand, classes::once::Once, impl_kind, kinds::*};
 use std::sync::OnceLock;
 
-impl Kind_bd4ddc17b95f4bc6 for OnceLockBrand {
-	type Of<A> = OnceLock<A>;
+impl_kind! {
+	for OnceLockBrand {
+		type Of<A> = OnceLock<A>;
+	}
 }
 
 impl Once for OnceLockBrand {

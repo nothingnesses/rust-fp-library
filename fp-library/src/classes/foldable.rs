@@ -3,7 +3,7 @@ use crate::{
 	Apply,
 	brands::RcFnBrand,
 	classes::{clonable_fn::ClonableFn, semigroup::Semigroup},
-	hkt::Kind_c3c3610c70409ee6,
+	kinds::*,
 	types::Endofunction,
 };
 use std::rc::Rc;
@@ -51,7 +51,12 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	fn fold_right<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -98,7 +103,12 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	fn fold_left<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -152,7 +162,12 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn fold_map<'a, A: 'a + Clone, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -193,7 +208,12 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
 ) -> B
 where
 	F: Fn(A, B) -> B + 'a,
@@ -232,7 +252,12 @@ where
 pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
 ) -> B
 where
 	F: Fn(B, A) -> B + 'a,
@@ -270,7 +295,12 @@ where
 /// ```
 pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
 	f: F,
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
 ) -> M
 where
 	M: Monoid + 'a,

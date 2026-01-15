@@ -1,10 +1,12 @@
 //! Implementations for [`OnceCell`]
 
-use crate::{Apply, brands::OnceCellBrand, classes::once::Once, hkt::Kind_bd4ddc17b95f4bc6};
+use crate::{Apply, brands::OnceCellBrand, classes::once::Once, impl_kind, kinds::*};
 use std::cell::OnceCell;
 
-impl Kind_bd4ddc17b95f4bc6 for OnceCellBrand {
-	type Of<A> = OnceCell<A>;
+impl_kind! {
+	for OnceCellBrand {
+		type Of<A> = OnceCell<A>;
+	}
 }
 
 impl Once for OnceCellBrand {

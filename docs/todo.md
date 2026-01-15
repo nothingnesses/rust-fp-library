@@ -1,7 +1,6 @@
 ### Tasks to do & ideas to look into
 
-* Replace `Output` with `Of` so it makes more ergonomic sense. Add comment about how `Of` is actually just represents the output of the type-level application.
-* Replace use of `Apply` aliases with `Apply!` in repro_macro.rs. Delete repro_macro.rs after.
+* Add README.md for each of the workspace's crates.
 * [`Compactable`, `Filterable`, `Witherable`](https://github.com/reazen/relude/issues/268).
 	* [Composable filters using Witherable optics](https://chrispenner.ca/posts/witherable-optics).
 	* [purescript-filterable](https://pursuit.purescript.org/packages/purescript-filterable/5.0.0).

@@ -3,7 +3,7 @@
 use crate::{
 	Apply,
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
-	hkt::Kind_fcf9d56b89a0b8b9,
+	kinds::*,
 };
 use std::{
 	fmt::{self, Debug, Formatter},

@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be constructed from a single value.
 ///
@@ -27,7 +27,14 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 	/// let x = OptionBrand::pure(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A));
+	fn pure<'a, A: 'a>(
+		a: A
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	);
 }
 
 /// The value wrapped in the context.
@@ -55,6 +62,13 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 /// let x = pure::<OptionBrand, _>(5);
 /// assert_eq!(x, Some(5));
 /// ```
-pub fn pure<'a, Brand: Pointed, A: 'a>(a: A) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)) {
+pub fn pure<'a, Brand: Pointed, A: 'a>(
+	a: A
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (A)
+) {
 	Brand::pure(a)
 }

@@ -7,12 +7,15 @@ use crate::{
 	classes::{
 		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
 	},
-	hkt::Kind_fcf9d56b89a0b8b9,
+	impl_kind,
+	kinds::*,
 };
 use std::rc::Rc;
 
-impl Kind_fcf9d56b89a0b8b9 for RcFnBrand {
-	type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+impl_kind! {
+	for RcFnBrand {
+		type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+	}
 }
 
 impl Function for RcFnBrand {

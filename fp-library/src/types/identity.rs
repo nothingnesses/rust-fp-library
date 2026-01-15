@@ -9,15 +9,18 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::Kind_c3c3610c70409ee6,
+	impl_kind,
+	kinds::*,
 };
 
 /// Wraps a value.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Identity<A>(pub A);
 
-impl Kind_c3c3610c70409ee6 for IdentityBrand {
-	type Of<'a, A: 'a> = Identity<A>;
+impl_kind! {
+	for IdentityBrand {
+		type Of<'a, A: 'a>: 'a = Identity<A>;
+	}
 }
 
 impl Functor for IdentityBrand {

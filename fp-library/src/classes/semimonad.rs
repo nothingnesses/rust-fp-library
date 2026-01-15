@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
@@ -32,11 +32,28 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		ma: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
 		f: F,
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	)
 	where
-		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a;
+		F: Fn(
+				A,
+			) -> Apply!(
+				brand: Self,
+				signature: ('a, A: 'a) -> 'a,
+				lifetimes: ('a),
+				types: (B)
+			) + 'a;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -67,11 +84,28 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, F>(
-	ma: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+	ma: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
 	f: F,
-) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B))
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (B)
+)
 where
-	F: Fn(A) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+	F: Fn(
+			A,
+		) -> Apply!(
+			brand: Brand,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		) + 'a,
 {
 	Brand::bind(ma, f)
 }

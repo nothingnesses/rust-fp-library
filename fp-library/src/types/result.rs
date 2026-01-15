@@ -9,17 +9,22 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::{Kind_93c16564ac2f81c1, Kind_c3c3610c70409ee6},
+	impl_kind,
+	kinds::*,
 };
 
-impl Kind_93c16564ac2f81c1 for ResultBrand {
-	type Of<A, B> = Result<B, A>;
+impl_kind! {
+	for ResultBrand {
+		type Of<A, B> = Result<B, A>;
+	}
 }
 
 // ResultWithErrBrand<E> (Functor over T)
 
-impl<E: 'static> Kind_c3c3610c70409ee6 for ResultWithErrBrand<E> {
-	type Of<'a, A: 'a> = Result<A, E>;
+impl_kind! {
+	impl<E: 'static> for ResultWithErrBrand<E> {
+		type Of<'a, A: 'a>: 'a = Result<A, E>;
+	}
 }
 
 impl<E: 'static> Functor for ResultWithErrBrand<E> {
@@ -420,8 +425,10 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 
 // ResultWithOkBrand<T> (Functor over E)
 
-impl<T: 'static> Kind_c3c3610c70409ee6 for ResultWithOkBrand<T> {
-	type Of<'a, A: 'a> = Result<T, A>;
+impl_kind! {
+	impl<T: 'static> for ResultWithOkBrand<T> {
+		type Of<'a, A: 'a>: 'a = Result<T, A>;
+	}
 }
 
 impl<T: 'static> Functor for ResultWithOkBrand<T> {

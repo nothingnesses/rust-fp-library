@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be lifted.
 ///
@@ -33,9 +33,24 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+		fb: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (B)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (C)
+	)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -74,9 +89,24 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 /// ```
 pub fn lift2<'a, Brand: Lift, A, B, C, F>(
 	f: F,
-	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
-	fb: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)),
-) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (C))
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (A)
+	),
+	fb: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+	lifetimes: ('a),
+	types: (C)
+)
 where
 	F: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,

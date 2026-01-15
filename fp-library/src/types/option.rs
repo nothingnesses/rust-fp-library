@@ -9,11 +9,14 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
 		traversable::Traversable,
 	},
-	hkt::Kind_c3c3610c70409ee6,
+	impl_kind,
+	kinds::*,
 };
 
-impl Kind_c3c3610c70409ee6 for OptionBrand {
-	type Of<'a, A: 'a> = Option<A>;
+impl_kind! {
+	for OptionBrand {
+		type Of<'a, A: 'a>: 'a = Option<A>;
+	}
 }
 
 impl Functor for OptionBrand {
@@ -43,8 +46,18 @@ impl Functor for OptionBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+			lifetimes: ('a),
+			types: (A)
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+		lifetimes: ('a),
+		types: (B)
+	)
 	where
 		F: Fn(A) -> B + 'a,
 	{

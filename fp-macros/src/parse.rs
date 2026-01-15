@@ -9,14 +9,24 @@ use syn::{
 	punctuated::Punctuated,
 };
 
+/// Represents the parsed input for a Kind signature.
+///
+/// This structure captures the lifetimes, type parameters (with bounds), and output bounds
+/// that define a Higher-Kinded Type signature.
 pub struct KindInput {
+	/// Lifetimes involved in the signature.
 	pub lifetimes: Punctuated<Lifetime, Token![,]>,
+	/// Type parameters involved in the signature.
 	pub types: Punctuated<TypeInput, Token![,]>,
+	/// Bounds on the output type.
 	pub output_bounds: Punctuated<TypeParamBound, Token![+]>,
 }
 
+/// Represents a single type parameter in a Kind signature.
 pub struct TypeInput {
+	/// The identifier of the type parameter.
 	pub ident: Ident,
+	/// Bounds on the type parameter.
 	pub bounds: Punctuated<TypeParamBound, Token![+]>,
 }
 
