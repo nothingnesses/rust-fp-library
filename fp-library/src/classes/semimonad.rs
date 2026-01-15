@@ -35,24 +35,18 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 		ma: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 		f: F,
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	)
 	where
 		F: Fn(
 				A,
 			) -> Apply!(
 				brand: Self,
-				signature: ('a, A: 'a) -> 'a,
-				lifetimes: ('a),
-				types: (B)
+				signature: ('a, B: 'a) -> 'a,
 			) + 'a;
 }
 
@@ -87,24 +81,18 @@ pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, F>(
 	ma: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 	f: F,
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (B)
+	signature: ('a, B: 'a) -> 'a,
 )
 where
 	F: Fn(
 			A,
 		) -> Apply!(
 			brand: Brand,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		) + 'a,
 {
 	Brand::bind(ma, f)

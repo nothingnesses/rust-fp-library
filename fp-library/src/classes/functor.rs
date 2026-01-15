@@ -41,14 +41,10 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	)
 	where
 		F: Fn(A) -> B + 'a;
@@ -86,14 +82,10 @@ pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (B)
+	signature: ('a, B: 'a) -> 'a,
 )
 where
 	F: Fn(A) -> B + 'a,

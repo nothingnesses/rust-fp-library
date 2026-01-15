@@ -36,20 +36,14 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 		fb: Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		),
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (C)
+		signature: ('a, C: 'a) -> 'a,
 	)
 	where
 		F: Fn(A, B) -> C + 'a,
@@ -92,20 +86,14 @@ pub fn lift2<'a, Brand: Lift, A, B, C, F>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 	fb: Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	),
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (C)
+	signature: ('a, C: 'a) -> 'a,
 )
 where
 	F: Fn(A, B) -> C + 'a,

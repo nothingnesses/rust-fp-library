@@ -36,20 +36,14 @@ pub trait ApplySecond: Lift {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 		fb: Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		),
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	) {
 		Self::lift2(|_, b| b, fa, fb)
 	}
@@ -87,20 +81,14 @@ pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 	fb: Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	),
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (B)
+	signature: ('a, B: 'a) -> 'a,
 ) {
 	Brand::apply_second(fa, fb)
 }

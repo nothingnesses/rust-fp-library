@@ -42,40 +42,25 @@ pub trait Traversable: Functor + Foldable {
 		ta: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> Apply!(
 		brand: F,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
-		))
+		signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
 	)
 	where
 		Func: Fn(
 				A,
 			) -> Apply!(
 				brand: F,
-				signature: ('a, A: 'a) -> 'a,
-				lifetimes: ('a),
-				types: (B)
+				signature: ('a, B: 'a) -> 'a,
 			) + 'a,
 		Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		): Clone,
 		Apply!(
 			brand: F,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		): Clone,
 	{
 		Self::sequence::<F, B>(Self::map(f, ta))
@@ -110,38 +95,20 @@ pub trait Traversable: Functor + Foldable {
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
 		ta: Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (Apply!(
-				brand: F,
-				signature: ('a, A: 'a) -> 'a,
-				lifetimes: ('a),
-				types: (A)
-			))
+			signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
 		)
 	) -> Apply!(
 		brand: F,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
-		))
+		signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
 	)
 	where
 		Apply!(
 			brand: F,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		): Clone,
 		Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		): Clone,
 	{
 		Self::traverse::<
@@ -149,8 +116,6 @@ pub trait Traversable: Functor + Foldable {
 			Apply!(
 				brand: F,
 				signature: ('a, A: 'a) -> 'a,
-				lifetimes: ('a),
-				types: (A)
 			),
 			A,
 			_,
@@ -190,40 +155,25 @@ pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + C
 	ta: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> Apply!(
 	brand: F,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
-	))
+	signature: ('a, Apply!(brand: Brand, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
 )
 where
 	Func: Fn(
 			A,
 		) -> Apply!(
 			brand: F,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		) + 'a,
 	Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	): Clone,
 	Apply!(
 		brand: F,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	): Clone,
 {
 	Brand::traverse::<F, A, B, Func>(f, ta)
@@ -258,38 +208,20 @@ where
 pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
 	ta: Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (Apply!(
-			brand: F,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
-		))
+		signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
 	)
 ) -> Apply!(
 	brand: F,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
-	))
+	signature: ('a, Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
 )
 where
 	Apply!(
 		brand: F,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	): Clone,
 	Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	): Clone,
 {
 	Brand::sequence::<F, A>(ta)

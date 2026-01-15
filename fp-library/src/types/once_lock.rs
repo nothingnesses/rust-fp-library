@@ -10,7 +10,7 @@ impl_kind! {
 }
 
 impl Once for OnceLockBrand {
-	type Of<A> = Apply!(brand: Self, signature: (A), lifetimes: (), types: (A));
+	type Of<A> = Apply!(brand: Self, signature: (A));
 
 	/// Creates a new, uninitialized `OnceLock`.
 	///

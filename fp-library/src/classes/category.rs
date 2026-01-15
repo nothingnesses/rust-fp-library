@@ -31,9 +31,7 @@ pub trait Category: Semigroupoid {
 	/// ```
 	fn identity<'a, A>() -> Apply!(
 		brand: Self,
-		signature: ('a, A, B),
-		lifetimes: ('a),
-		types: (A, A)
+		signature: ('a, A, A),
 	);
 }
 
@@ -60,9 +58,7 @@ pub trait Category: Semigroupoid {
 /// ```
 pub fn identity<'a, Brand: Category, A>() -> Apply!(
 	brand: Brand,
-	signature: ('a, A, B),
-	lifetimes: ('a),
-	types: (A, A)
+	signature: ('a, A, A),
 ) {
 	Brand::identity()
 }

@@ -40,21 +40,15 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
 		f: Apply!(
 			brand: Self,
-			signature: ('a, A, B),
-			lifetimes: ('a),
-			types: (C, D)
+			signature: ('a, C, D),
 		),
 		g: Apply!(
 			brand: Self,
-			signature: ('a, A, B),
-			lifetimes: ('a),
-			types: (B, C)
+			signature: ('a, B, C),
 		),
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A, B),
-		lifetimes: ('a),
-		types: (B, D)
+		signature: ('a, B, D),
 	);
 }
 
@@ -90,21 +84,15 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
 	f: Apply!(
 		brand: Brand,
-		signature: ('a, A, B),
-		lifetimes: ('a),
-		types: (C, D)
+		signature: ('a, C, D),
 	),
 	g: Apply!(
 		brand: Brand,
-		signature: ('a, A, B),
-		lifetimes: ('a),
-		types: (B, C)
+		signature: ('a, B, C),
 	),
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A, B),
-	lifetimes: ('a),
-	types: (B, D)
+	signature: ('a, B, D),
 ) {
 	Brand::compose(f, g)
 }

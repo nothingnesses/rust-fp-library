@@ -54,8 +54,6 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> B
 	where
@@ -106,8 +104,6 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> B
 	where
@@ -165,8 +161,6 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> M
 	where
@@ -211,8 +205,6 @@ pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> B
 where
@@ -255,8 +247,6 @@ pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> B
 where
@@ -298,8 +288,6 @@ pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> M
 where

@@ -36,20 +36,14 @@ pub trait ApplyFirst: Lift {
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 		fb: Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (B)
+			signature: ('a, B: 'a) -> 'a,
 		),
 	) -> Apply!(
 		brand: Self,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	) {
 		Self::lift2(|a, _| a, fa, fb)
 	}
@@ -87,20 +81,14 @@ pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 	fb: Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	),
 ) -> Apply!(
 	brand: Brand,
 	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (A)
 ) {
 	Brand::apply_first(fa, fb)
 }

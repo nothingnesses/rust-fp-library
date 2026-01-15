@@ -48,21 +48,15 @@ pub trait Semiapplicative: Lift + Functor {
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
 		ff: Apply!(
 			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))
+			signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
 		),
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
-			lifetimes: ('a),
-			types: (A)
 		),
 	) -> Apply!(
 		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (B)
+		signature: ('a, B: 'a) -> 'a,
 	);
 }
 
@@ -100,21 +94,15 @@ pub trait Semiapplicative: Lift + Functor {
 pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
 	ff: Apply!(
 		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))
+		signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
 	),
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	),
 ) -> Apply!(
 	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (B)
+	signature: ('a, B: 'a) -> 'a,
 ) {
 	Brand::apply::<A, B, FnBrand>(ff, fa)
 }

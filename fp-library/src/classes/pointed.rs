@@ -32,8 +32,6 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 	) -> Apply!(
 		brand: Self,
 		signature: ('a, A: 'a) -> 'a,
-		lifetimes: ('a),
-		types: (A)
 	);
 }
 
@@ -67,8 +65,6 @@ pub fn pure<'a, Brand: Pointed, A: 'a>(
 ) -> Apply!(
 	brand: Brand,
 	signature: ('a, A: 'a) -> 'a,
-	lifetimes: ('a),
-	types: (A)
 ) {
 	Brand::pure(a)
 }

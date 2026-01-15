@@ -50,8 +50,8 @@ impl Functor for IdentityBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
-	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -90,9 +90,9 @@ impl Lift for IdentityBrand {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
-		fb: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)),
-	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (C))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, C: 'a) -> 'a)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: 'a,
@@ -127,9 +127,7 @@ impl Pointed for IdentityBrand {
 	///
 	/// assert_eq!(pure::<IdentityBrand, _>(5), Identity(5));
 	/// ```
-	fn pure<'a, A: 'a>(
-		a: A
-	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
 		Identity(a)
 	}
 }
@@ -167,9 +165,9 @@ impl Semiapplicative for IdentityBrand {
 	/// assert_eq!(apply::<IdentityBrand, _, _, RcFnBrand>(f, Identity(5)), Identity(10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
-	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)) {
+		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
 		Identity(ff.0(fa.0))
 	}
 }
@@ -203,12 +201,11 @@ impl Semimonad for IdentityBrand {
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
-	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
 	where
-		F: Fn(A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
-			+ 'a,
+		F: Fn(A) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) + 'a,
 	{
 		f(ma.0)
 	}
@@ -243,7 +240,7 @@ impl Foldable for IdentityBrand {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -279,7 +276,7 @@ impl Foldable for IdentityBrand {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -314,7 +311,7 @@ impl Foldable for IdentityBrand {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -354,12 +351,11 @@ impl Traversable for IdentityBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
-	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))))
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
-		Func: Fn(A) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
-			+ 'a,
-		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)): Clone,
+		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
+		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		F::map(|b| Identity(b), f(ta.0))
 	}
@@ -391,11 +387,11 @@ impl Traversable for IdentityBrand {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
-	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
+		ta: Apply!(brand: Self, signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
+	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
 	where
-		Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
-		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
+		Apply!(brand: F, signature: ('a, A: 'a) -> 'a): Clone,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): Clone,
 	{
 		F::map(|a| Identity(a), ta.0)
 	}

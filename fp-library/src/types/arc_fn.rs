@@ -19,7 +19,7 @@ impl_kind! {
 }
 
 impl Function for ArcFnBrand {
-	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, B));
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
 
 	/// Creates a new `Arc`-wrapped function.
 	///
@@ -52,7 +52,7 @@ impl Function for ArcFnBrand {
 }
 
 impl ClonableFn for ArcFnBrand {
-	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, B));
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
 
 	/// Creates a new clonable function wrapper.
 	///
@@ -113,9 +113,9 @@ impl Semigroupoid for ArcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (C, D)),
-		g: Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (B, C)),
-	) -> Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (B, D)) {
+		f: Apply!(brand: Self, signature: ('a, C, D)),
+		g: Apply!(brand: Self, signature: ('a, B, C)),
+	) -> Apply!(brand: Self, signature: ('a, B, D)) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -140,8 +140,7 @@ impl Category for ArcFnBrand {
 	/// let id = ArcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>()
-	-> Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, A)) {
+	fn identity<'a, A>() -> Apply!(brand: Self, signature: ('a, A, A)) {
 		Arc::new(|a| a)
 	}
 }

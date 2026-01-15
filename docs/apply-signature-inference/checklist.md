@@ -139,42 +139,42 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 3.1 Update Type Implementations
 
-- [ ] **Migrate Apply! usages**
+- [x] **Migrate Apply! usages**
 
-  - [ ] [`fp-library/src/types/option.rs`](../../fp-library/src/types/option.rs)
-  - [ ] [`fp-library/src/types/result.rs`](../../fp-library/src/types/result.rs)
-  - [ ] [`fp-library/src/types/vec.rs`](../../fp-library/src/types/vec.rs)
-  - [ ] [`fp-library/src/types/identity.rs`](../../fp-library/src/types/identity.rs)
-  - [ ] [`fp-library/src/types/lazy.rs`](../../fp-library/src/types/lazy.rs)
-  - [ ] [`fp-library/src/types/pair.rs`](../../fp-library/src/types/pair.rs)
-  - [ ] [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs)
-  - [ ] [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs)
-  - [ ] [`fp-library/src/types/endofunction.rs`](../../fp-library/src/types/endofunction.rs)
-  - [ ] [`fp-library/src/types/endomorphism.rs`](../../fp-library/src/types/endomorphism.rs)
-  - [ ] [`fp-library/src/types/once_cell.rs`](../../fp-library/src/types/once_cell.rs)
-  - [ ] [`fp-library/src/types/once_lock.rs`](../../fp-library/src/types/once_lock.rs)
-  - [ ] [`fp-library/src/types/string.rs`](../../fp-library/src/types/string.rs)
+  - [x] [`fp-library/src/types/option.rs`](../../fp-library/src/types/option.rs)
+  - [x] [`fp-library/src/types/result.rs`](../../fp-library/src/types/result.rs)
+  - [x] [`fp-library/src/types/vec.rs`](../../fp-library/src/types/vec.rs)
+  - [x] [`fp-library/src/types/identity.rs`](../../fp-library/src/types/identity.rs)
+  - [x] [`fp-library/src/types/lazy.rs`](../../fp-library/src/types/lazy.rs)
+  - [x] [`fp-library/src/types/pair.rs`](../../fp-library/src/types/pair.rs)
+  - [x] [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs)
+  - [x] [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs)
+  - [x] [`fp-library/src/types/endofunction.rs`](../../fp-library/src/types/endofunction.rs)
+  - [x] [`fp-library/src/types/endomorphism.rs`](../../fp-library/src/types/endomorphism.rs)
+  - [x] [`fp-library/src/types/once_cell.rs`](../../fp-library/src/types/once_cell.rs)
+  - [x] [`fp-library/src/types/once_lock.rs`](../../fp-library/src/types/once_lock.rs)
+  - [x] [`fp-library/src/types/string.rs`](../../fp-library/src/types/string.rs)
 
-- [ ] **Verify all tests pass**
-  - [ ] Run `cargo test` in `fp-library`
-  - [ ] Run `cargo test` in `fp-macros`
-  - [ ] Run `cargo test` in workspace root
+- [x] **Verify all tests pass**
+  - [x] Run `cargo test` in `fp-library`
+  - [x] Run `cargo test` in `fp-macros`
+  - [x] Run `cargo test` in workspace root
 
 ### 3.2 Update Type Class Traits
 
-- [ ] **Review and update trait definitions**
+- [x] **Review and update trait definitions**
 
-  - [ ] [`fp-library/src/classes/functor.rs`](../../fp-library/src/classes/functor.rs)
-  - [ ] [`fp-library/src/classes/applicative.rs`](../../fp-library/src/classes/applicative.rs)
-  - [ ] [`fp-library/src/classes/monad.rs`](../../fp-library/src/classes/monad.rs)
-  - [ ] [`fp-library/src/classes/foldable.rs`](../../fp-library/src/classes/foldable.rs)
-  - [ ] [`fp-library/src/classes/traversable.rs`](../../fp-library/src/classes/traversable.rs)
-  - [ ] Other traits as applicable
+  - [x] [`fp-library/src/classes/functor.rs`](../../fp-library/src/classes/functor.rs)
+  - [x] [`fp-library/src/classes/applicative.rs`](../../fp-library/src/classes/applicative.rs)
+  - [x] [`fp-library/src/classes/monad.rs`](../../fp-library/src/classes/monad.rs)
+  - [x] [`fp-library/src/classes/foldable.rs`](../../fp-library/src/classes/foldable.rs)
+  - [x] [`fp-library/src/classes/traversable.rs`](../../fp-library/src/classes/traversable.rs)
+  - [x] Other traits as applicable
 
-- [ ] **Verify trait bounds work correctly**
-  - [ ] Generic functions compile
-  - [ ] Trait impls compile
-  - [ ] Documentation examples compile
+- [x] **Verify trait bounds work correctly**
+  - [x] Generic functions compile
+  - [x] Trait impls compile
+  - [x] Documentation examples compile
 
 ---
 
@@ -231,11 +231,17 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 - **Phase 1.3 Completed**: Code generation updated and verified with integration tests.
 - **Phase 2.1 Completed**: Comprehensive unit tests added for parsing, extraction, and generation.
 - **Phase 2.2 Completed**: Integration tests added and verified (`fp-macros/tests/apply_integration.rs`).
-- **Current Issues**:
-  - `fp-library` code is broken due to syntax changes (expected).
 - **Phase 2.3 Completed**: Compile-fail tests added and verified (`fp-macros/tests/ui/`).
-- **Next Steps (Phase 3)**:
-  - Migrate library code to use new syntax.
+- **Phase 3.1 Completed**: Library code migrated to use new syntax.
+- **Phase 3.2 Completed**: Type class traits updated.
+- **Current Issues**:
+  - None. All tests pass.
+
+### Notes
+
+- **Nesting Support**: `Apply!` macro nesting is supported and verified by `test_nested_apply` in `fp-macros/tests/apply_integration.rs`. The macro expansion works correctly because the inner `Apply!` is parsed as a `Type` by the outer `Apply!`.
+- **Kind Trait Mismatch**: When migrating, ensure that the signature provided to `Apply!` reflects the arity of the Kind trait implemented by the brand. For example, if a brand implements a Kind with 2 type parameters (e.g., `ArcFnBrand`), the signature must include 2 type parameters (e.g., `signature: ('a, A, B)`), even if they are the same type (e.g., `signature: ('a, A, A)`). This ensures the generated Kind trait name matches the implementation.
+- **Type Inference**: In some cases (e.g., `fp-library/src/types/vec.rs`), explicit type annotations were needed for closures when using `Apply!` types, likely due to the complexity of the macro expansion confusing type inference.
 
 ### Decisions Made
 
