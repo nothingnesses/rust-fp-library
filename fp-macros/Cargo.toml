@@ -17,5 +17,6 @@ rapidhash = "4.2"
 syn = { version = "2.0", features = ["extra-traits", "full"] }
 
 [dev-dependencies]
-quickcheck = "1"
-quickcheck_macros = "1"
+quickcheck = "1.0"
+quickcheck_macros = "1.1"
+trybuild = "1.0"

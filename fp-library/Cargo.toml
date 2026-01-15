@@ -22,5 +22,5 @@ fp-macros = { path = "../fp-macros" }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
-quickcheck = "1"
-quickcheck_macros = "1"
+quickcheck = "1.0"
+quickcheck_macros = "1.1"

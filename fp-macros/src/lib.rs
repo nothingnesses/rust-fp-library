@@ -22,9 +22,6 @@ pub(crate) mod impl_kind;
 pub(crate) mod parse;
 
 #[cfg(test)]
-mod tests;
-
-#[cfg(test)]
 mod property_tests;
 
 /// Generates the name of a Kind trait based on its signature.

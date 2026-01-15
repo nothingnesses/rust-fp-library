@@ -1,0 +1,5 @@
+error: expected `type`
+  --> tests/ui/missing_type_keyword.rs:12:9
+   |
+12 |         Of<A> = Option<A>;
+   |         ^^

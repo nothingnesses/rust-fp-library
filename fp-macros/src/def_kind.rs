@@ -184,3 +184,119 @@ ensuring that semantically equivalent signatures always map to the same trait.
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Helper function to parse a KindInput from a string.
+	fn parse_kind_input(input: &str) -> KindInput {
+		syn::parse_str(input).expect("Failed to parse KindInput")
+	}
+
+	// ===========================================================================
+	// def_kind! Tests
+	// ===========================================================================
+
+	/// Tests def_kind! with a single type parameter.
+	///
+	/// Verifies that the generated trait has the correct structure with
+	/// a single unbounded type parameter.
+	#[test]
+	fn test_def_kind_simple_type() {
+		let input = parse_kind_input("(), (A), ()");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		// Should generate a trait with Kind_ prefix
+		assert!(output_str.contains("pub trait Kind_"));
+		// Should have associated type Of with single type parameter
+		assert!(output_str.contains("type Of < A >"));
+	}
+
+	/// Tests def_kind! with a lifetime and a type bounded by that lifetime.
+	///
+	/// Verifies that lifetime bounds on type parameters are correctly emitted.
+	#[test]
+	fn test_def_kind_with_lifetime() {
+		let input = parse_kind_input("('a), (A: 'a), ()");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		// Should have both lifetime and bounded type parameter
+		assert!(output_str.contains("'a"));
+		assert!(output_str.contains("A : 'a"));
+	}
+
+	/// Tests def_kind! with bounds on the output type.
+	///
+	/// Verifies that output bounds (bounds on the associated type itself)
+	/// are correctly emitted after a colon.
+	#[test]
+	fn test_def_kind_with_output_bounds() {
+		let input = parse_kind_input("(), (A), (Clone)");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		// Should have output bounds
+		assert!(output_str.contains(": Clone"));
+	}
+
+	/// Tests def_kind! with multiple output bounds.
+	///
+	/// Verifies that multiple bounds on the associated type are correctly
+	/// joined with `+`.
+	#[test]
+	fn test_def_kind_with_multiple_output_bounds() {
+		let input = parse_kind_input("(), (A), (Clone + Send)");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		assert!(output_str.contains("Clone"));
+		assert!(output_str.contains("Send"));
+	}
+
+	/// Tests def_kind! with bounds on a type parameter.
+	///
+	/// Verifies that bounds on type parameters (not output bounds) are
+	/// correctly emitted after the type name.
+	#[test]
+	fn test_def_kind_with_type_bounds() {
+		let input = parse_kind_input("(), (A: Clone + Send), ()");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		assert!(output_str.contains("A : Clone + Send"));
+	}
+
+	/// Tests def_kind! with only lifetimes (no type parameters).
+	///
+	/// Verifies that the macro handles lifetime-only signatures correctly.
+	#[test]
+	fn test_def_kind_only_lifetimes() {
+		let input = parse_kind_input("('a, 'b), (), ()");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		assert!(output_str.contains("'a"));
+		assert!(output_str.contains("'b"));
+	}
+
+	/// Tests def_kind! with multiple type parameters.
+	///
+	/// Verifies that multiple type parameters are correctly comma-separated.
+	#[test]
+	fn test_def_kind_multiple_types() {
+		let input = parse_kind_input("(), (A, B, C), ()");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("pub trait Kind_"));
+		assert!(output_str.contains("type Of < A , B , C >"));
+	}
+}

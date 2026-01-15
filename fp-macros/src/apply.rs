@@ -201,3 +201,124 @@ pub fn apply_impl(input: ApplyInput) -> TokenStream {
 		<#brand as #kind_name>::Of<#params>
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	// ===========================================================================
+	// Apply! Named Parameter Tests (Original)
+	// ===========================================================================
+
+	/// Tests parsing of Apply! with named parameters.
+	///
+	/// Verifies that the parser correctly extracts brand, signature, lifetimes,
+	/// and types from the named parameter syntax.
+	#[test]
+	fn test_parse_apply() {
+		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)";
+		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse ApplyInput");
+
+		assert_eq!(parsed.lifetimes.len(), 1);
+		assert_eq!(parsed.types.len(), 1);
+	}
+
+	/// Tests code generation for Apply! with named parameters.
+	///
+	/// Verifies that the generated code projects the brand to its concrete type
+	/// using the correct Kind trait.
+	#[test]
+	fn test_apply_generation() {
+		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)";
+		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse ApplyInput");
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< OptionBrand as Kind_"));
+		assert!(output_str.contains(":: Of < 'a , A >"));
+	}
+
+	// ===========================================================================
+	// Apply! Positional Arguments Tests
+	// ===========================================================================
+
+	/// Tests parsing of Apply! with legacy positional syntax.
+	///
+	/// Verifies that the parser correctly handles the positional syntax:
+	/// `Brand, Kind, (lifetimes), (types)` and uses KindSource::Explicit.
+	#[test]
+	fn test_apply_positional_parsing() {
+		// Legacy positional syntax: Brand, Kind, (lifetimes), (types)
+		let input = "OptionBrand, SomeKind, ('a), (String)";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+
+		assert_eq!(parsed.lifetimes.len(), 1);
+		assert_eq!(parsed.types.len(), 1);
+
+		// Should use explicit kind source
+		match parsed.kind_source {
+			KindSource::Explicit(ty) => {
+				assert_eq!(quote!(#ty).to_string(), "SomeKind");
+			}
+			KindSource::Generated(_) => panic!("Expected explicit kind source"),
+		}
+	}
+
+	/// Tests code generation for Apply! with positional syntax.
+	///
+	/// Verifies that the generated projection uses the explicitly provided
+	/// Kind trait name rather than generating one.
+	#[test]
+	fn test_apply_positional_generation() {
+		let input = "OptionBrand, SomeKind, ('a), (String)";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< OptionBrand as SomeKind >"));
+		assert!(output_str.contains(":: Of < 'a , String >"));
+	}
+
+	/// Tests Apply! positional syntax with no lifetimes.
+	///
+	/// Verifies that empty lifetime parentheses are handled correctly.
+	#[test]
+	fn test_apply_positional_no_lifetimes() {
+		let input = "MyBrand, MyKind, (), (T, U)";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+
+		assert_eq!(parsed.lifetimes.len(), 0);
+		assert_eq!(parsed.types.len(), 2);
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< MyBrand as MyKind >"));
+		assert!(output_str.contains(":: Of < T , U >"));
+	}
+
+	/// Tests Apply! positional syntax with no type arguments.
+	///
+	/// Verifies that empty type parentheses are handled correctly
+	/// when only lifetimes are provided.
+	#[test]
+	fn test_apply_positional_no_types() {
+		let input = "MyBrand, MyKind, ('a, 'b), ()";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+
+		assert_eq!(parsed.lifetimes.len(), 2);
+		assert_eq!(parsed.types.len(), 0);
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< MyBrand as MyKind >"));
+		assert!(output_str.contains(":: Of < 'a , 'b >"));
+	}
+}

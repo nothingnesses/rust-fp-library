@@ -49,3 +49,98 @@ pub fn generate_name(input: &KindInput) -> Ident {
 	let hash = rapidhash(canonical_repr.as_bytes());
 	format_ident!("Kind_{:016x}", hash)
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Helper function to parse a KindInput from a string.
+	fn parse_kind_input(input: &str) -> KindInput {
+		syn::parse_str(input).expect("Failed to parse KindInput")
+	}
+
+	// ===========================================================================
+	// Name Generation Tests
+	// ===========================================================================
+
+	/// Tests that identical inputs produce identical Kind trait names.
+	///
+	/// This is critical for the HKT system - the same signature must always
+	/// map to the same trait name across different compilation units.
+	#[test]
+	fn test_generate_name_determinism() {
+		let input1 = parse_kind_input("('a), (A: 'a), ('a)");
+		let name1 = generate_name(&input1);
+
+		let input2 = parse_kind_input("('a), (A: 'a), ('a)");
+		let name2 = generate_name(&input2);
+
+		assert_eq!(name1, name2);
+		assert!(name1.to_string().starts_with("Kind_"));
+	}
+
+	/// Tests that different inputs produce different Kind trait names.
+	///
+	/// Verifies that the hash function produces distinct names for
+	/// semantically different signatures.
+	#[test]
+	fn test_generate_name_different_inputs() {
+		let input1 = parse_kind_input("('a), (A: 'a), ('a)");
+		let name1 = generate_name(&input1);
+
+		let input2 = parse_kind_input("(), (A), ()");
+		let name2 = generate_name(&input2);
+
+		assert_ne!(name1, name2);
+	}
+
+	// ===========================================================================
+	// Name Generation Edge Cases
+	// ===========================================================================
+
+	/// Tests name generation with completely empty inputs.
+	///
+	/// Verifies that `(), (), ()` (no lifetimes, no types, no bounds)
+	/// still produces a valid Kind trait name.
+	#[test]
+	fn test_generate_name_empty_inputs() {
+		let input = parse_kind_input("(), (), ()");
+		let name = generate_name(&input);
+
+		assert!(name.to_string().starts_with("Kind_"));
+	}
+
+	/// Tests name generation with complex bounded types.
+	///
+	/// Verifies determinism - parsing the same complex input twice
+	/// must produce the same name.
+	#[test]
+	fn test_generate_name_complex_bounds() {
+		// Complex case with multiple bounded types (using simpler bounds to avoid parser issues)
+		let input = parse_kind_input("('a), (A: Clone + Send), (Clone + Send)");
+		let name = generate_name(&input);
+
+		assert!(name.to_string().starts_with("Kind_"));
+		// Ensure determinism
+		let input2 = parse_kind_input("('a), (A: Clone + Send), (Clone + Send)");
+		let name2 = generate_name(&input2);
+		assert_eq!(name, name2);
+	}
+
+	/// Tests that bound order doesn't affect the generated name.
+	///
+	/// Verifies that `Clone + Send` produces the same name as `Send + Clone`,
+	/// ensuring that syntactically different but semantically equivalent
+	/// signatures map to the same Kind trait.
+	#[test]
+	fn test_generate_name_bound_order_independence() {
+		// Bounds in different order should produce the same name
+		let input1 = parse_kind_input("(), (A: Clone + Send), ()");
+		let input2 = parse_kind_input("(), (A: Send + Clone), ()");
+
+		let name1 = generate_name(&input1);
+		let name2 = generate_name(&input2);
+
+		assert_eq!(name1, name2);
+	}
+}

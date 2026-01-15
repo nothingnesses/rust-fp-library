@@ -171,10 +171,10 @@ _Note: This phase is deferred and not part of the initial implementation._
 
 ### Compile-Fail Tests (trybuild)
 
-- [ ] Invalid lifetime reference
-- [ ] Malformed GAT definition
-- [ ] Type mismatch in impl_kind!
-- [ ] Invalid syntax variations
+- [x] Invalid lifetime reference (covered by invalid_assoc_type_name.rs)
+- [x] Malformed GAT definition (covered by missing_equals.rs, missing_semicolon.rs)
+- [x] Type mismatch in impl_kind! (covered by invalid_assoc_type_name.rs)
+- [x] Invalid syntax variations (covered by missing_for_keyword.rs, missing_type_keyword.rs)
 
 ### Property Tests (using quickcheck)
 
@@ -194,7 +194,7 @@ _Note: This phase is deferred and not part of the initial implementation._
 ## Documentation
 
 - [x] Update `fp-library/src/hkt.rs` module docs
-- [ ] Update `fp-macros/src/lib.rs` module docs
+- [x] Update `fp-macros/src/lib.rs` module docs
 - [x] Update `fp-library/src/hkt/kinds.rs` with examples
 - [ ] Create migration guide section
 - [ ] Add CHANGELOG.md entry for changes
