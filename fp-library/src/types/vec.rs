@@ -617,8 +617,8 @@ mod tests {
 		// We construct (u . v) manually as the cartesian product of compositions
 		let uv_fns: Vec<_> = u_fns
 			.iter()
-			.flat_map(|uf: &std::rc::Rc<dyn Fn(i32) -> i32>| {
-				v_fns.iter().map(move |vf: &std::rc::Rc<dyn Fn(i32) -> i32>| {
+			.flat_map(|uf| {
+				v_fns.iter().map(move |vf| {
 					let uf = uf.clone();
 					let vf = vf.clone();
 					<RcFnBrand as ClonableFn>::new(move |x| uf(vf(x)))
