@@ -459,4 +459,78 @@ mod tests {
 		let err = syn::parse_str::<ApplyInput>(input).unwrap_err();
 		assert_eq!(err.to_string(), "'types' parameter is required with 'kind'");
 	}
+
+	// ===========================================================================
+	// Integration Tests
+	// ===========================================================================
+
+	/// Tests that `to_kind_input()` correctly converts a UnifiedSignature.
+	#[test]
+	fn test_to_kind_input_conversion() {
+		let input = "brand: B, signature: ('a, T: Clone + 'a) -> Debug";
+		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse");
+
+		match parsed.kind_source {
+			KindSource::Generated(sig) => {
+				let kind_input = sig.to_kind_input();
+
+				// Check lifetimes
+				assert_eq!(kind_input.lifetimes.len(), 1);
+				assert_eq!(kind_input.lifetimes[0].to_string(), "'a");
+
+				// Check types
+				assert_eq!(kind_input.types.len(), 1);
+				// Type name should be canonicalized to T0
+				assert_eq!(kind_input.types[0].ident.to_string(), "T0");
+				// Bounds should be preserved
+				assert_eq!(kind_input.types[0].bounds.len(), 2);
+
+				// Check output bounds
+				assert_eq!(kind_input.output_bounds.len(), 1);
+				let output_bounds = &kind_input.output_bounds;
+				assert_eq!(quote!(#output_bounds).to_string(), "Debug");
+			}
+			_ => panic!("Expected generated kind source"),
+		}
+	}
+
+	/// Tests that `generate_name()` works correctly with the output of `to_kind_input()`.
+	#[test]
+	fn test_generate_name_integration() {
+		let input = "brand: B, signature: ('a, T: 'a)";
+		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse");
+
+		match parsed.kind_source {
+			KindSource::Generated(sig) => {
+				let kind_input = sig.to_kind_input();
+				let name = generate_name(&kind_input);
+				assert!(name.to_string().starts_with("Kind_"));
+			}
+			_ => panic!("Expected generated kind source"),
+		}
+	}
+
+	/// Tests that `generate_name()` produces consistent names for alpha-equivalent signatures.
+	#[test]
+	fn test_generate_name_consistency() {
+		// Case 1: ('a, T: 'a)
+		let input1 = "brand: B, signature: ('a, T: 'a)";
+		let parsed1: ApplyInput = syn::parse_str(input1).expect("Failed to parse 1");
+		let sig1 = match parsed1.kind_source {
+			KindSource::Generated(s) => s,
+			_ => panic!("Expected generated kind source"),
+		};
+		let name1 = generate_name(&sig1.to_kind_input());
+
+		// Case 2: ('b, U: 'b) - alpha equivalent
+		let input2 = "brand: B, signature: ('b, U: 'b)";
+		let parsed2: ApplyInput = syn::parse_str(input2).expect("Failed to parse 2");
+		let sig2 = match parsed2.kind_source {
+			KindSource::Generated(s) => s,
+			_ => panic!("Expected generated kind source"),
+		};
+		let name2 = generate_name(&sig2.to_kind_input());
+
+		assert_eq!(name1, name2, "Alpha-equivalent signatures should produce same Kind name");
+	}
 }

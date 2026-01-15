@@ -65,17 +65,17 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 1.3 Code Generation
 
-- [ ] **Update `apply_impl()` function**
+- [x] **Update `apply_impl()` function**
 
-  - [ ] Handle `KindSource::Generated` with `UnifiedSignature`
-  - [ ] Handle `KindSource::Explicit` with embedded lifetimes/types
-  - [ ] Remove old fallback/override logic
-  - [ ] Add unit tests for code generation
+  - [x] Handle `KindSource::Generated` with `UnifiedSignature`
+  - [x] Handle `KindSource::Explicit` with embedded lifetimes/types
+  - [x] Remove old fallback/override logic
+  - [x] Add unit tests for code generation
 
-- [ ] **Kind name generation integration**
-  - [ ] Verify `to_kind_input()` produces correct `KindInput`
-  - [ ] Verify `generate_name()` works with converted input
-  - [ ] Add integration tests
+- [x] **Kind name generation integration**
+  - [x] Verify `to_kind_input()` produces correct `KindInput`
+  - [x] Verify `generate_name()` works with converted input
+  - [x] Add integration tests
 
 ---
 
@@ -227,12 +227,12 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 ### Implementation Status (2026-01-15)
 - **Phase 1.1 Completed**: Data structures defined and `apply_impl` updated.
 - **Phase 1.2 Completed**: Parsing implementation updated and verified with unit tests.
+- **Phase 1.3 Completed**: Code generation updated and verified with integration tests.
 - **Current Issues**:
   - `fp-library` code is broken due to syntax changes (expected).
-  - Integration tests are broken (expected).
-- **Next Steps (1.3)**:
-  - Verify `apply_impl` covers all cases.
-  - Verify Kind name generation integration.
+- **Next Steps (Phase 2)**:
+  - Add more comprehensive unit tests.
+  - Add compile-fail tests.
 
 ### Decisions Made
 
