@@ -124,14 +124,14 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 2.3 Compile-Fail Tests
 
-- [ ] **Error cases** ([`fp-macros/tests/ui/`](../../fp-macros/tests/ui/))
-  - [ ] Missing `brand:` parameter
-  - [ ] Invalid type syntax in signature
-  - [ ] `signature:` with `lifetimes:` (should error)
-  - [ ] `signature:` with `types:` (should error)
-  - [ ] `kind:` without `lifetimes:` (should error)
-  - [ ] `kind:` without `types:` (should error)
-  - [ ] Both `signature:` and `kind:` provided (should error)
+- [x] **Error cases** ([`fp-macros/tests/ui/`](../../fp-macros/tests/ui/))
+  - [x] Missing `brand:` parameter
+  - [x] Invalid type syntax in signature
+  - [x] `signature:` with `lifetimes:` (should error)
+  - [x] `signature:` with `types:` (should error)
+  - [x] `kind:` without `lifetimes:` (should error)
+  - [x] `kind:` without `types:` (should error)
+  - [x] Both `signature:` and `kind:` provided (should error)
 
 ---
 
@@ -233,8 +233,9 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 - **Phase 2.2 Completed**: Integration tests added and verified (`fp-macros/tests/apply_integration.rs`).
 - **Current Issues**:
   - `fp-library` code is broken due to syntax changes (expected).
-- **Next Steps (Phase 2)**:
-  - Add compile-fail tests.
+- **Phase 2.3 Completed**: Compile-fail tests added and verified (`fp-macros/tests/ui/`).
+- **Next Steps (Phase 3)**:
+  - Migrate library code to use new syntax.
 
 ### Decisions Made
 

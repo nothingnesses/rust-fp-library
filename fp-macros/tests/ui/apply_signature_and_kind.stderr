@@ -1,0 +1,5 @@
+error: Cannot specify both 'signature' and 'kind'
+  --> tests/ui/apply_signature_and_kind.rs:10:9
+   |
+10 |         kind: MyKind
+   |         ^^^^

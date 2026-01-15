@@ -1,0 +1,12 @@
+error: 'lifetimes' parameter is required with 'kind'
+  --> tests/ui/apply_kind_missing_lifetimes.rs:7:14
+   |
+ 7 |       type T = Apply!(
+   |  ______________^
+ 8 | |         brand: MyBrand,
+ 9 | |         kind: MyKind,
+10 | |         types: (i32)
+11 | |     );
+   | |_____^
+   |
+   = note: this error originates in the macro `Apply` (in Nightly builds, run with -Z macro-backtrace for more info)
