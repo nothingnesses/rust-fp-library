@@ -17,29 +17,29 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 1.1 Data Structures
 
-- [ ] **Define `SignatureParam` enum**
+- [x] **Define `SignatureParam` enum**
 
-  - [ ] Create enum in [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs) with `Lifetime` and `Type` variants
-  - [ ] Include `bounds` field on `Type` variant
-  - [ ] Add documentation
+  - [x] Create enum in [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs) with `Lifetime` and `Type` variants
+  - [x] Include `bounds` field on `Type` variant
+  - [x] Add documentation
 
-- [ ] **Define `UnifiedSignature` struct**
+- [x] **Define `UnifiedSignature` struct**
 
-  - [ ] Create struct with `params` and `output_bounds` fields
-  - [ ] Implement `to_kind_input()` method for Kind name generation
-  - [ ] Implement `concrete_lifetimes()` method
-  - [ ] Implement `concrete_types()` method
-  - [ ] Add documentation and tests
+  - [x] Create struct with `params` and `output_bounds` fields
+  - [x] Implement `to_kind_input()` method for Kind name generation
+  - [x] Implement `concrete_lifetimes()` method
+  - [x] Implement `concrete_types()` method
+  - [x] Add documentation and tests
 
-- [ ] **Modify `KindSource` enum**
+- [x] **Modify `KindSource` enum**
 
-  - [ ] Change `Generated` variant to hold `UnifiedSignature`
-  - [ ] Change `Explicit` variant to hold `kind`, `lifetimes`, and `types` together
-  - [ ] Update all match expressions
+  - [x] Change `Generated` variant to hold `UnifiedSignature`
+  - [x] Change `Explicit` variant to hold `kind`, `lifetimes`, and `types` together
+  - [x] Update all match expressions
 
-- [ ] **Simplify `ApplyInput` struct**
-  - [ ] Remove top-level `lifetimes` and `types` fields
-  - [ ] Keep only `brand` and `kind_source`
+- [x] **Simplify `ApplyInput` struct**
+  - [x] Remove top-level `lifetimes` and `types` fields
+  - [x] Keep only `brand` and `kind_source`
 
 ### 1.2 Parsing Implementation
 
@@ -223,6 +223,16 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 ## Notes
 
 _Add implementation notes, decisions, and blockers here as work progresses._
+
+### Implementation Status (2026-01-15)
+- **Phase 1.1 Completed**: Data structures defined and `apply_impl` updated.
+- **Current Issues**:
+  - `ApplyInput::parse` is broken due to struct changes.
+  - `parse_signature` return type mismatch.
+  - Unit tests in `apply.rs` are broken.
+- **Next Steps (1.2)**:
+  - Update `parse_signature` to parse into `UnifiedSignature`.
+  - Update `ApplyInput::parse` to handle new `KindSource` variants and removed fields.
 
 ### Decisions Made
 

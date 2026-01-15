@@ -17,20 +17,101 @@ use crate::{
 	generate::generate_name,
 	parse::{KindInput, TypeInput},
 };
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-	Ident, Lifetime, Token, Type, parenthesized,
+	Ident, Lifetime, Token, Type, TypeParamBound, parenthesized,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
 
+/// A parameter in the unified signature syntax.
+pub enum SignatureParam {
+	/// A lifetime value (e.g., 'static, 'a)
+	Lifetime(Lifetime),
+	/// A type value with optional bounds (e.g., String: Clone)
+	Type {
+		ty: Type,
+		bounds: Punctuated<TypeParamBound, Token![+]>,
+	},
+}
+
+/// Parsed unified signature containing both schema and values.
+pub struct UnifiedSignature {
+	/// Parameters (lifetimes and types with bounds)
+	pub params: Vec<SignatureParam>,
+	/// Output bounds (e.g., -> Debug)
+	pub output_bounds: Punctuated<TypeParamBound, Token![+]>,
+}
+
+impl UnifiedSignature {
+	/// Convert to KindInput for name generation.
+	pub fn to_kind_input(&self) -> KindInput {
+		let mut lifetimes = Punctuated::new();
+		let mut types = Punctuated::new();
+
+		// Create a mapping for lifetime canonicalization
+		let mut lifetime_counter = 0;
+
+		for param in &self.params {
+			match param {
+				SignatureParam::Lifetime(lt) => {
+					// Use canonical lifetime names for Kind generation
+					let canonical_lt = Lifetime::new(&format!("'_{}", lifetime_counter), lt.span());
+					lifetimes.push(canonical_lt);
+					lifetime_counter += 1;
+				}
+				SignatureParam::Type { bounds, .. } => {
+					// Use canonical type names for Kind generation
+					let canonical_ident = Ident::new(&format!("T{}", types.len()), Span::call_site());
+					types.push(TypeInput {
+						ident: canonical_ident,
+						bounds: bounds.clone(),
+					});
+				}
+			}
+		}
+
+		KindInput {
+			lifetimes,
+			types,
+			output_bounds: self.output_bounds.clone(),
+		}
+	}
+
+	/// Extract concrete lifetime values for projection.
+	pub fn concrete_lifetimes(&self) -> Vec<&Lifetime> {
+		self.params
+			.iter()
+			.filter_map(|p| match p {
+				SignatureParam::Lifetime(lt) => Some(lt),
+				_ => None,
+			})
+			.collect()
+	}
+
+	/// Extract concrete type values for projection.
+	pub fn concrete_types(&self) -> Vec<&Type> {
+		self.params
+			.iter()
+			.filter_map(|p| match p {
+				SignatureParam::Type { ty, .. } => Some(ty),
+				_ => None,
+			})
+			.collect()
+	}
+}
+
 /// Specifies the source of the Kind trait to be used.
 pub enum KindSource {
 	/// The Kind trait name is generated from a signature.
-	Generated(KindInput),
+	Generated(UnifiedSignature),
 	/// The Kind trait name is explicitly provided.
-	Explicit(Type),
+	Explicit {
+		kind: Type,
+		lifetimes: Punctuated<Lifetime, Token![,]>,
+		types: Punctuated<Type, Token![,]>,
+	},
 }
 
 /// Input structure for the `Apply!` macro.
@@ -39,10 +120,6 @@ pub struct ApplyInput {
 	pub brand: Type,
 	/// The source of the Kind trait (generated or explicit).
 	pub kind_source: KindSource,
-	/// Lifetime arguments to apply.
-	pub lifetimes: Punctuated<Lifetime, Token![,]>,
-	/// Type arguments to apply.
-	pub types: Punctuated<Type, Token![,]>,
 }
 
 impl Parse for ApplyInput {
@@ -165,24 +242,36 @@ fn parse_signature(input: ParseStream) -> syn::Result<KindInput> {
 /// <OptionBrand as Kind_...>::Of<T>
 /// ```
 pub fn apply_impl(input: ApplyInput) -> TokenStream {
-	let kind_name = match input.kind_source {
-		KindSource::Generated(input) => {
-			let name = generate_name(&input);
-			quote! { #name }
+	let brand = &input.brand;
+
+	let (kind_name, params) = match &input.kind_source {
+		KindSource::Generated(sig) => {
+			let kind_input = sig.to_kind_input();
+			let name = generate_name(&kind_input);
+
+			let lifetimes = sig.concrete_lifetimes();
+			let types = sig.concrete_types();
+
+			let params = if lifetimes.is_empty() {
+				quote! { #(#types),* }
+			} else if types.is_empty() {
+				quote! { #(#lifetimes),* }
+			} else {
+				quote! { #(#lifetimes),*, #(#types),* }
+			};
+
+			(quote! { #name }, params)
 		}
-		KindSource::Explicit(ty) => quote! { #ty },
-	};
-
-	let brand = input.brand;
-	let lifetimes = input.lifetimes;
-	let types = input.types;
-
-	let params = if lifetimes.is_empty() {
-		quote! { #types }
-	} else if types.is_empty() {
-		quote! { #lifetimes }
-	} else {
-		quote! { #lifetimes, #types }
+		KindSource::Explicit { kind, lifetimes, types } => {
+			let params = if lifetimes.is_empty() {
+				quote! { #types }
+			} else if types.is_empty() {
+				quote! { #lifetimes }
+			} else {
+				quote! { #lifetimes, #types }
+			};
+			(quote! { #kind }, params)
+		}
 	};
 
 	quote! {
