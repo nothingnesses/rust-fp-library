@@ -87,7 +87,7 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.1.0"
+fp-library = "0.2"
 ```
 
 ### Example: Using Functor with Option
