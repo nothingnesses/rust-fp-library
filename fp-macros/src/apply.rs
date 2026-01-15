@@ -41,74 +41,56 @@ pub struct ApplyInput {
 
 impl Parse for ApplyInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		// Check if named parameters: starts with "brand:"
-		// We check if the first token is an Ident and the second is a Colon.
-		// Note: Type can also start with Ident, but usually not followed by Colon immediately unless it's a path?
-		// But "brand:" is very specific.
-		// However, `OptionBrand` is also an Ident. But it's followed by comma in positional args.
+		let mut brand = None;
+		let mut kind_source = None;
+		let mut lifetimes = None;
+		let mut types = None;
 
-		let is_named = input.peek(Ident) && input.peek2(Token![:]);
+		while !input.is_empty() {
+			let label: Ident = input.parse()?;
+			input.parse::<Token![:]>()?;
 
-		if is_named {
-			let mut brand = None;
-			let mut kind_input = None;
-			let mut lifetimes = None;
-			let mut types = None;
-
-			while !input.is_empty() {
-				let label: Ident = input.parse()?;
-				input.parse::<Token![:]>()?;
-
-				if label == "brand" {
-					brand = Some(input.parse()?);
-				} else if label == "signature" {
-					kind_input = Some(parse_signature(input)?);
-				} else if label == "lifetimes" {
-					let content;
-					parenthesized!(content in input);
-					lifetimes = Some(content.parse_terminated(Lifetime::parse, Token![,])?);
-				} else if label == "types" {
-					let content;
-					parenthesized!(content in input);
-					types = Some(content.parse_terminated(Type::parse, Token![,])?);
-				} else {
-					return Err(syn::Error::new(label.span(), "Unknown parameter"));
+			if label == "brand" {
+				brand = Some(input.parse()?);
+			} else if label == "signature" {
+				if kind_source.is_some() {
+					return Err(syn::Error::new(
+						label.span(),
+						"Cannot specify both 'signature' and 'kind'",
+					));
 				}
-
-				if input.peek(Token![,]) {
-					input.parse::<Token![,]>()?;
+				kind_source = Some(KindSource::Generated(parse_signature(input)?));
+			} else if label == "kind" {
+				if kind_source.is_some() {
+					return Err(syn::Error::new(
+						label.span(),
+						"Cannot specify both 'signature' and 'kind'",
+					));
 				}
+				kind_source = Some(KindSource::Explicit(input.parse()?));
+			} else if label == "lifetimes" {
+				let content;
+				parenthesized!(content in input);
+				lifetimes = Some(content.parse_terminated(Lifetime::parse, Token![,])?);
+			} else if label == "types" {
+				let content;
+				parenthesized!(content in input);
+				types = Some(content.parse_terminated(Type::parse, Token![,])?);
+			} else {
+				return Err(syn::Error::new(label.span(), "Unknown parameter"));
 			}
 
-			Ok(ApplyInput {
-				brand: brand.ok_or_else(|| input.error("Missing 'brand'"))?,
-				kind_source: KindSource::Generated(
-					kind_input.ok_or_else(|| input.error("Missing 'signature'"))?,
-				),
-				lifetimes: lifetimes.unwrap_or_default(),
-				types: types.unwrap_or_default(),
-			})
-		} else {
-			// Legacy positional arguments: Brand, Kind, (lifetimes), (types)
-
-			let brand: Type = input.parse()?;
-			input.parse::<Token![,]>()?;
-
-			let kind_name: Type = input.parse()?;
-			input.parse::<Token![,]>()?;
-
-			let content;
-			parenthesized!(content in input);
-			let lifetimes = content.parse_terminated(Lifetime::parse, Token![,])?;
-
-			input.parse::<Token![,]>()?;
-
-			let content2;
-			parenthesized!(content2 in input);
-			let types = content2.parse_terminated(Type::parse, Token![,])?;
-
-			Ok(ApplyInput { brand, kind_source: KindSource::Explicit(kind_name), lifetimes, types })
+			if input.peek(Token![,]) {
+				input.parse::<Token![,]>()?;
+			}
 		}
+
+		Ok(ApplyInput {
+			brand: brand.ok_or_else(|| input.error("Missing 'brand'"))?,
+			kind_source: kind_source.ok_or_else(|| input.error("Missing 'signature' or 'kind'"))?,
+			lifetimes: lifetimes.unwrap_or_default(),
+			types: types.unwrap_or_default(),
+		})
 	}
 }
 
@@ -240,19 +222,19 @@ mod tests {
 	}
 
 	// ===========================================================================
-	// Apply! Positional Arguments Tests
+	// Apply! Explicit Kind Tests (Named Parameters)
 	// ===========================================================================
 
-	/// Tests parsing of Apply! with legacy positional syntax.
+	/// Tests parsing of Apply! with explicit kind using named parameters.
 	///
-	/// Verifies that the parser correctly handles the positional syntax:
-	/// `Brand, Kind, (lifetimes), (types)` and uses KindSource::Explicit.
+	/// Verifies that the parser correctly handles the named syntax:
+	/// `brand: Brand, kind: Kind, lifetimes: (lifetimes), types: (types)`
+	/// and uses KindSource::Explicit.
 	#[test]
-	fn test_apply_positional_parsing() {
-		// Legacy positional syntax: Brand, Kind, (lifetimes), (types)
-		let input = "OptionBrand, SomeKind, ('a), (String)";
+	fn test_apply_explicit_kind_parsing() {
+		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String)";
 		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
 
 		assert_eq!(parsed.lifetimes.len(), 1);
 		assert_eq!(parsed.types.len(), 1);
@@ -266,15 +248,15 @@ mod tests {
 		}
 	}
 
-	/// Tests code generation for Apply! with positional syntax.
+	/// Tests code generation for Apply! with explicit kind.
 	///
 	/// Verifies that the generated projection uses the explicitly provided
 	/// Kind trait name rather than generating one.
 	#[test]
-	fn test_apply_positional_generation() {
-		let input = "OptionBrand, SomeKind, ('a), (String)";
+	fn test_apply_explicit_kind_generation() {
+		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String)";
 		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
 
 		let output = apply_impl(parsed);
 		let output_str = output.to_string();
@@ -283,14 +265,14 @@ mod tests {
 		assert!(output_str.contains(":: Of < 'a , String >"));
 	}
 
-	/// Tests Apply! positional syntax with no lifetimes.
+	/// Tests Apply! explicit kind syntax with no lifetimes.
 	///
 	/// Verifies that empty lifetime parentheses are handled correctly.
 	#[test]
-	fn test_apply_positional_no_lifetimes() {
-		let input = "MyBrand, MyKind, (), (T, U)";
+	fn test_apply_explicit_kind_no_lifetimes() {
+		let input = "brand: MyBrand, kind: MyKind, lifetimes: (), types: (T, U)";
 		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
 
 		assert_eq!(parsed.lifetimes.len(), 0);
 		assert_eq!(parsed.types.len(), 2);
@@ -302,15 +284,15 @@ mod tests {
 		assert!(output_str.contains(":: Of < T , U >"));
 	}
 
-	/// Tests Apply! positional syntax with no type arguments.
+	/// Tests Apply! explicit kind syntax with no type arguments.
 	///
 	/// Verifies that empty type parentheses are handled correctly
 	/// when only lifetimes are provided.
 	#[test]
-	fn test_apply_positional_no_types() {
-		let input = "MyBrand, MyKind, ('a, 'b), ()";
+	fn test_apply_explicit_kind_no_types() {
+		let input = "brand: MyBrand, kind: MyKind, lifetimes: ('a, 'b), types: ()";
 		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput positional");
+			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
 
 		assert_eq!(parsed.lifetimes.len(), 2);
 		assert_eq!(parsed.types.len(), 0);

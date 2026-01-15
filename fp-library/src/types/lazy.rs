@@ -16,8 +16,8 @@ use crate::{
 /// The result is then cached (memoized) so that subsequent accesses return the same value
 /// without re-executing the computation.
 pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A>(
-	pub Apply!(OnceBrand, Once, (), (A)),
-	pub Apply!(ClonableFnBrand, ClonableFn, ('a), ((), A)),
+	pub Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)),
+	pub Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A)),
 );
 
 impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, ClonableFnBrand, A> {
@@ -48,7 +48,9 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	///
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
 	/// ```
-	pub fn new(a: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), A))) -> Self {
+	pub fn new(
+		a: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A))
+	) -> Self {
 		Self(OnceBrand::new(), a)
 	}
 
@@ -92,7 +94,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Clone> Clone
 	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
 where
-	Apply!(OnceBrand, Once, (), (A)): Clone,
+	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
 	fn clone(&self) -> Self {
 		Self(self.0.clone(), self.1.clone())
@@ -117,7 +119,7 @@ impl_kind! {
 impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
 	for Lazy<'b, OnceBrand, CFB, A>
 where
-	Apply!(OnceBrand, Once, (), (A)): Clone,
+	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
 	/// Combines two lazy values using the underlying type's `Semigroup` implementation.
 	///
@@ -149,7 +151,7 @@ where
 impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
 	for Lazy<'b, OnceBrand, CFB, A>
 where
-	Apply!(OnceBrand, Once, (), (A)): Clone,
+	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
 	/// Returns the identity element for the lazy value.
 	///
@@ -202,7 +204,9 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<ClonableFnBrand>(f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), Self))) -> Self
+	fn defer<ClonableFnBrand>(
+		f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
+	) -> Self
 	where
 		Self: Sized,
 		ClonableFnBrand: ClonableFn + 'a,

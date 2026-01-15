@@ -20,7 +20,9 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-pub struct Endofunction<'a, CFB: ClonableFn, A>(pub Apply!(CFB, ClonableFn, ('a), (A, A)));
+pub struct Endofunction<'a, CFB: ClonableFn, A>(
+	pub Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
+);
 
 impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
 	/// Creates a new `Endofunction`.
@@ -36,7 +38,7 @@ impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
 	/// # Returns
 	///
 	/// A new `Endofunction`.
-	pub fn new(f: Apply!(CFB, ClonableFn, ('a), (A, A))) -> Self {
+	pub fn new(f: Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A))) -> Self {
 		Self(f)
 	}
 }
@@ -49,7 +51,7 @@ impl<'a, CFB: ClonableFn, A> Clone for Endofunction<'a, CFB, A> {
 
 impl<'a, CFB: ClonableFn, A> Debug for Endofunction<'a, CFB, A>
 where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): Debug,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
 {
 	fn fmt(
 		&self,
@@ -60,13 +62,13 @@ where
 }
 
 impl<'a, CFB: ClonableFn, A> Eq for Endofunction<'a, CFB, A> where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): Eq
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
 {
 }
 
 impl<'a, CFB: ClonableFn, A> Hash for Endofunction<'a, CFB, A>
 where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): Hash,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -78,7 +80,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> Ord for Endofunction<'a, CFB, A>
 where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): Ord,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
 {
 	fn cmp(
 		&self,
@@ -90,7 +92,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> PartialEq for Endofunction<'a, CFB, A>
 where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): PartialEq,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
 {
 	fn eq(
 		&self,
@@ -102,7 +104,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> PartialOrd for Endofunction<'a, CFB, A>
 where
-	Apply!(CFB, ClonableFn, ('a), (A, A)): PartialOrd,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
 {
 	fn partial_cmp(
 		&self,

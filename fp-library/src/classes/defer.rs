@@ -32,7 +32,7 @@ pub trait Defer<'a> {
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
 	fn defer<ClonableFnBrand: 'a + ClonableFn>(
-		f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), Self))
+		f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
 	) -> Self
 	where
 		Self: Sized;
@@ -68,7 +68,9 @@ pub trait Defer<'a> {
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, D, ClonableFnBrand>(f: Apply!(ClonableFnBrand, ClonableFn, ('a), ((), D))) -> D
+pub fn defer<'a, D, ClonableFnBrand>(
+	f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
+) -> D
 where
 	D: Defer<'a>,
 	ClonableFnBrand: 'a + ClonableFn,

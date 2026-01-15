@@ -38,7 +38,9 @@ pub trait ClonableFn: Function {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, ClonableFn, ('a), (A, B));
+	fn new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B
+	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B));
 }
 
 /// Creates a new clonable function wrapper.
@@ -66,7 +68,9 @@ pub trait ClonableFn: Function {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, F, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(F, ClonableFn, ('a), (A, B))
+pub fn new<'a, F, A, B>(
+	f: impl 'a + Fn(A) -> B
+) -> Apply!(brand: F, kind: ClonableFn, lifetimes: ('a), types: (A, B))
 where
 	F: ClonableFn,
 {

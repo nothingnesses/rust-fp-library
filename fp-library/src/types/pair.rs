@@ -58,8 +58,8 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -102,9 +102,9 @@ where
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		fb: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -143,7 +143,9 @@ where
 	///
 	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
+	fn pure<'a, A: 'a>(
+		a: A
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)) {
 		Pair(Monoid::empty(), a)
 	}
 }
@@ -185,9 +187,9 @@ where
 	/// assert_eq!(apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
+		ff: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)) {
 		Pair(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
 	}
 }
@@ -225,11 +227,12 @@ where
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 		f: F,
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+		F: Fn(A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+			+ 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(second);
@@ -266,7 +269,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -302,7 +305,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -340,7 +343,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -380,11 +383,12 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))))
 	where
-		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
+		Func: Fn(A) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+			+ 'a,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(first.clone(), b), f(second))
@@ -417,11 +421,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
+	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
 	where
-		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(first.clone(), a), second)
@@ -463,8 +467,8 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -507,9 +511,9 @@ where
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+		fb: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -548,7 +552,9 @@ where
 	///
 	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
+	fn pure<'a, A: 'a>(
+		a: A
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)) {
 		Pair(a, Monoid::empty())
 	}
 }
@@ -590,9 +596,9 @@ where
 	/// assert_eq!(apply::<PairWithSecondBrand<String>, _, _, RcFnBrand>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
+		ff: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)) {
 		Pair(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
 	}
 }
@@ -630,11 +636,12 @@ where
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 		f: F,
-	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
+	) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+		F: Fn(A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+			+ 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(first);
@@ -671,7 +678,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -707,7 +714,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -745,7 +752,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -785,11 +792,12 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)),
+	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))))
 	where
-		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
+		Func: Fn(A) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B))
+			+ 'a,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (B)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(b, second.clone()), f(first))
@@ -822,11 +830,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
-	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
+	) -> Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A))))
 	where
-		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
-		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(brand: F, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a, lifetimes: ('a), types: (A)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(a, second.clone()), first)

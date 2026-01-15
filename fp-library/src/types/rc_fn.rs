@@ -19,7 +19,7 @@ impl_kind! {
 }
 
 impl Function for RcFnBrand {
-	type Of<'a, A, B> = Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (A, B));
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, B));
 
 	/// Creates a new `Rc`-wrapped function.
 	///
@@ -44,15 +44,17 @@ impl Function for RcFnBrand {
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, Function, ('a), (A, B)) {
+	fn new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B
+	) -> Apply!(brand: Self, kind: Function, lifetimes: ('a), types: (A, B)) {
 		Rc::new(f)
 	}
 }
 
 impl ClonableFn for RcFnBrand {
-	type Of<'a, A, B> = Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (A, B));
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, B));
 
-	/// Creates a new `Rc`-wrapped clonable function.
+	/// Creates a new clonable function wrapper.
 	///
 	/// # Type Signature
 	///
@@ -75,7 +77,9 @@ impl ClonableFn for RcFnBrand {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Apply!(Self, ClonableFn, ('a), (A, B)) {
+	fn new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B
+	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B)) {
 		Rc::new(f)
 	}
 }
@@ -109,9 +113,9 @@ impl Semigroupoid for RcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (C, D)),
-		g: Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (B, C)),
-	) -> Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (B, D)) {
+		f: Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (C, D)),
+		g: Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (B, C)),
+	) -> Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (B, D)) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -136,7 +140,8 @@ impl Category for RcFnBrand {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(Self, Kind_fcf9d56b89a0b8b9, ('a), (A, A)) {
+	fn identity<'a, A>()
+	-> Apply!(brand: Self, signature: ('a, A, B), lifetimes: ('a), types: (A, A)) {
 		Rc::new(|a| a)
 	}
 }

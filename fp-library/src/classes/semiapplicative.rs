@@ -50,7 +50,7 @@ pub trait Semiapplicative: Lift + Functor {
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
 			lifetimes: ('a),
-			types: (Apply!(FnBrand, ClonableFn, ('a), (A, B)))
+			types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))
 		),
 		fa: Apply!(
 			brand: Self,
@@ -102,7 +102,7 @@ pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + Clo
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
 		lifetimes: ('a),
-		types: (Apply!(FnBrand, ClonableFn, ('a), (A, B)))
+		types: (Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)))
 	),
 	fa: Apply!(
 		brand: Brand,
