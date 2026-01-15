@@ -3,9 +3,15 @@
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 //!
-//! The macro supports two syntaxes:
-//! 1. **Named parameters**: `Apply!(brand: MyBrand, signature: (l1), types: (T1))`
-//! 2. **Positional arguments**: `Apply!(MyBrand, Kind_..., (l1), (T1))`
+//! The macro uses named parameters syntax:
+//! - `Apply!(brand: MyBrand, signature: ('a, T), lifetimes: ('a), types: (T))`
+//! - `Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))`
+//!
+//! Parameters:
+//! - `brand`: The brand type to apply (required)
+//! - `signature` OR `kind`: Either a signature to generate the Kind trait name, or an explicit Kind trait (required, mutually exclusive)
+//! - `lifetimes`: Lifetime arguments to apply (optional)
+//! - `types`: Type arguments to apply (optional)
 
 use crate::{
 	generate::generate_name,

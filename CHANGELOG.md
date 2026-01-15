@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`def_kind!` Macro**: Procedural macro to define Kind traits with a specific signature (lifetimes, type parameters with bounds, and output bounds). Generates hash-based trait names for determinism.
 - **`impl_kind!` Macro**: Procedural macro to implement a Kind trait for a brand type. Infers the correct Kind trait from the GAT signature.
-- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type using named parameters (`brand`, `signature`, `lifetimes`, `types`).
+- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type using named parameters (`brand`, `signature`/`kind`, `lifetimes`, `types`).
 - **Canonicalization Module**: Robust canonicalization of type bounds including:
   - Full path preservation (`std::fmt::Debug` → `tstd::fmt::Debug`)
   - Generic argument handling (`Iterator<Item = T>`)

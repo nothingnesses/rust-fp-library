@@ -127,16 +127,21 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Applies a brand to type arguments.
 ///
 /// This macro projects a brand type to its concrete type using the appropriate
-/// Kind trait. It supports named parameters for clarity.
+/// Kind trait. It uses named parameters syntax.
 ///
 /// # Parameters
 ///
-/// * `brand`: The brand type (e.g., `OptionBrand`).
-/// * `signature`: The signature of the Kind trait to use (lifetimes, types).
+/// * `brand`: (Required) The brand type (e.g., `OptionBrand`).
+/// * `signature`: The signature used to generate the Kind trait name. Mutually exclusive with `kind`.
+/// * `kind`: An explicit Kind trait to use. Mutually exclusive with `signature`.
 /// * `lifetimes`: (Optional) Lifetime arguments to apply.
 /// * `types`: (Optional) Type arguments to apply.
 ///
-/// # Example
+/// Either `signature` or `kind` must be provided, but not both.
+///
+/// # Examples
+///
+/// Using `signature` to generate the Kind trait name:
 ///
 /// ```ignore
 /// // Applies MyBrand to lifetime 'static and type String.
@@ -145,6 +150,17 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 ///     brand: MyBrand,
 ///     signature: ('a, T),
 ///     lifetimes: ('static),
+///     types: (String)
+/// );
+/// ```
+///
+/// Using an explicit `kind`:
+///
+/// ```ignore
+/// // Applies OptionBrand using an explicit Kind trait.
+/// type Concrete = Apply!(
+///     brand: OptionBrand,
+///     kind: SomeKind,
 ///     types: (String)
 /// );
 /// ```
