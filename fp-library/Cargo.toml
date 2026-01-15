@@ -6,7 +6,7 @@ description = "A functional programming library for Rust featuring your favourit
 readme = "../README.md"
 repository = "https://github.com/nothingnesses/rust-fp-library"
 license = "BlueOak-1.0.0"
-keywords = ["functional", "higher-kinded", "types", "hkt"]
+keywords = ["functional", "higher-kinded", "hkt", "types"]
 categories = ["algorithms", "data-structures", "rust-patterns"]
 workspace = "../"
 
@@ -18,7 +18,7 @@ harness = false
 name = "benchmarks"
 
 [dependencies]
-fp-macros = { path = "../fp-macros" }
+fp-macros = { path = "../fp-macros", version = "0.1.0" }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
