@@ -393,6 +393,211 @@ mod tests {
 		}
 	}
 
+	/// Comprehensive parsing tests covering various signature patterns.
+	#[test]
+	fn test_parse_variations() {
+		// Helper to parse and get signature
+		fn parse_sig(sig_str: &str) -> UnifiedSignature {
+			let input = format!("brand: B, signature: {}", sig_str);
+			let parsed: ApplyInput = syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
+			match parsed.kind_source {
+				KindSource::Generated(sig) => sig,
+				_ => panic!("Expected generated kind source"),
+			}
+		}
+
+		// Simple lifetime: ('a)
+		let sig = parse_sig("('a)");
+		assert_eq!(sig.params.len(), 1);
+		match &sig.params[0] {
+			SignatureParam::Lifetime(lt) => assert_eq!(lt.to_string(), "'a"),
+			_ => panic!("Expected lifetime"),
+		}
+
+		// Simple type: (T)
+		let sig = parse_sig("(T)");
+		assert_eq!(sig.params.len(), 1);
+		match &sig.params[0] {
+			SignatureParam::Type { ty, bounds } => {
+				assert_eq!(quote!(#ty).to_string(), "T");
+				assert!(bounds.is_empty());
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Type with bounds: (T: Clone)
+		let sig = parse_sig("(T: Clone)");
+		match &sig.params[0] {
+			SignatureParam::Type { bounds, .. } => {
+				assert_eq!(bounds.len(), 1);
+				assert_eq!(quote!(#bounds).to_string(), "Clone");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Multiple bounds: (T: Clone + Send)
+		let sig = parse_sig("(T: Clone + Send)");
+		match &sig.params[0] {
+			SignatureParam::Type { bounds, .. } => {
+				assert_eq!(bounds.len(), 2);
+				assert_eq!(quote!(#bounds).to_string(), "Clone + Send");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Lifetime bound: (T: 'a)
+		let sig = parse_sig("(T: 'a)");
+		match &sig.params[0] {
+			SignatureParam::Type { bounds, .. } => {
+				assert_eq!(bounds.len(), 1);
+				assert_eq!(quote!(#bounds).to_string(), "'a");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Mixed parameters: ('a, T: Clone)
+		let sig = parse_sig("('a, T: Clone)");
+		assert_eq!(sig.params.len(), 2);
+		match &sig.params[0] {
+			SignatureParam::Lifetime(lt) => assert_eq!(lt.to_string(), "'a"),
+			_ => panic!("Expected lifetime"),
+		}
+		match &sig.params[1] {
+			SignatureParam::Type { ty, bounds } => {
+				assert_eq!(quote!(#ty).to_string(), "T");
+				assert_eq!(quote!(#bounds).to_string(), "Clone");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Complex type: (Vec<String>: Clone)
+		let sig = parse_sig("(Vec<String>: Clone)");
+		match &sig.params[0] {
+			SignatureParam::Type { ty, .. } => {
+				assert_eq!(quote!(#ty).to_string(), "Vec < String >");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Reference type: (&'a str: Display)
+		let sig = parse_sig("(&'a str: Display)");
+		match &sig.params[0] {
+			SignatureParam::Type { ty, .. } => {
+				assert_eq!(quote!(#ty).to_string(), "& 'a str");
+			}
+			_ => panic!("Expected type"),
+		}
+
+		// Output bounds: ('a, T) -> Debug
+		let sig = parse_sig("('a, T) -> Debug");
+		assert_eq!(sig.output_bounds.len(), 1);
+		let output_bounds = &sig.output_bounds;
+		assert_eq!(quote!(#output_bounds).to_string(), "Debug");
+
+		// Multiple output bounds: ('a, T) -> Debug + Clone
+		let sig = parse_sig("('a, T) -> Debug + Clone");
+		assert_eq!(sig.output_bounds.len(), 2);
+		let output_bounds = &sig.output_bounds;
+		assert_eq!(quote!(#output_bounds).to_string(), "Debug + Clone");
+	}
+
+	/// Tests extraction of KindInput and concrete values from UnifiedSignature.
+	#[test]
+	fn test_extraction_variations() {
+		// Helper to parse and get signature
+		fn parse_sig(sig_str: &str) -> UnifiedSignature {
+			let input = format!("brand: B, signature: {}", sig_str);
+			let parsed: ApplyInput = syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
+			match parsed.kind_source {
+				KindSource::Generated(sig) => sig,
+				_ => panic!("Expected generated kind source"),
+			}
+		}
+
+		// Case: ('a, T: Clone)
+		let sig = parse_sig("('a, T: Clone)");
+		
+		// Test to_kind_input()
+		let kind_input = sig.to_kind_input();
+		assert_eq!(kind_input.lifetimes.len(), 1);
+		assert_eq!(kind_input.lifetimes[0].to_string(), "'a");
+		
+		assert_eq!(kind_input.types.len(), 1);
+		assert_eq!(kind_input.types[0].ident.to_string(), "T0"); // Canonicalized
+		let bounds = &kind_input.types[0].bounds;
+		assert_eq!(quote!(#bounds).to_string(), "Clone");
+
+		// Test concrete_lifetimes()
+		let concrete_lts = sig.concrete_lifetimes();
+		assert_eq!(concrete_lts.len(), 1);
+		assert_eq!(concrete_lts[0].to_string(), "'a");
+
+		// Test concrete_types()
+		let concrete_tys = sig.concrete_types();
+		assert_eq!(concrete_tys.len(), 1);
+		let ty0 = concrete_tys[0];
+		assert_eq!(quote!(#ty0).to_string(), "T");
+
+		// Case: (Vec<T>: Debug, &'a str)
+		let sig = parse_sig("(Vec<T>: Debug, &'a str)");
+		
+		let kind_input = sig.to_kind_input();
+		assert_eq!(kind_input.types.len(), 2);
+		assert_eq!(kind_input.types[0].ident.to_string(), "T0");
+		let bounds0 = &kind_input.types[0].bounds;
+		assert_eq!(quote!(#bounds0).to_string(), "Debug");
+		assert_eq!(kind_input.types[1].ident.to_string(), "T1");
+		assert!(kind_input.types[1].bounds.is_empty());
+
+		let concrete_tys = sig.concrete_types();
+		assert_eq!(concrete_tys.len(), 2);
+		let ty0 = concrete_tys[0];
+		assert_eq!(quote!(#ty0).to_string(), "Vec < T >");
+		let ty1 = concrete_tys[1];
+		assert_eq!(quote!(#ty1).to_string(), "& 'a str");
+	}
+
+	/// Tests code generation for various scenarios.
+	#[test]
+	fn test_generation_variations() {
+		// Helper to generate output string
+		fn generate(input_str: &str) -> String {
+			let parsed: ApplyInput = syn::parse_str(input_str).expect("Failed to parse");
+			apply_impl(parsed).to_string()
+		}
+
+		// Unified syntax: ('a, T)
+		let output = generate("brand: B, signature: ('a, T)");
+		assert!(output.contains("< B as Kind_"));
+		assert!(output.contains(":: Of < 'a , T >"));
+
+		// Unified syntax with bounds: (T: Clone)
+		// Bounds affect the Kind name but not the projection arguments
+		let output = generate("brand: B, signature: (T: Clone)");
+		assert!(output.contains("< B as Kind_"));
+		assert!(output.contains(":: Of < T >"));
+
+		// Unified syntax with complex types: (Vec<T>)
+		let output = generate("brand: B, signature: (Vec<T>)");
+		assert!(output.contains("< B as Kind_"));
+		assert!(output.contains(":: Of < Vec < T > >"));
+
+		// Explicit kind syntax
+		let output = generate("brand: B, kind: MyKind, lifetimes: ('a), types: (T)");
+		assert!(output.contains("< B as MyKind >"));
+		assert!(output.contains(":: Of < 'a , T >"));
+
+		// Explicit kind syntax (only types)
+		let output = generate("brand: B, kind: MyKind, lifetimes: (), types: (T)");
+		assert!(output.contains("< B as MyKind >"));
+		assert!(output.contains(":: Of < T >"));
+
+		// Explicit kind syntax (only lifetimes)
+		let output = generate("brand: B, kind: MyKind, lifetimes: ('a), types: ()");
+		assert!(output.contains("< B as MyKind >"));
+		assert!(output.contains(":: Of < 'a >"));
+	}
+
 	// ===========================================================================
 	// Apply! Explicit Kind Tests
 	// ===========================================================================

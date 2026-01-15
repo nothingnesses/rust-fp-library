@@ -83,30 +83,30 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 2.1 Unit Tests
 
-- [ ] **Parsing tests** ([`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs))
+- [x] **Parsing tests** ([`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs))
 
-  - [ ] Simple lifetime: `('a)`
-  - [ ] Simple type: `(T)`
-  - [ ] Type with bounds: `(T: Clone)`
-  - [ ] Multiple bounds: `(T: Clone + Send)`
-  - [ ] Lifetime bound: `(T: 'a)`
-  - [ ] Mixed parameters: `('a, T: Clone)`
-  - [ ] Complex type: `(Vec<String>: Clone)`
-  - [ ] Reference type: `(&'a str: Display)`
-  - [ ] Output bounds: `('a, T) -> Debug`
-  - [ ] Multiple output bounds: `('a, T) -> Debug + Clone`
+  - [x] Simple lifetime: `('a)`
+  - [x] Simple type: `(T)`
+  - [x] Type with bounds: `(T: Clone)`
+  - [x] Multiple bounds: `(T: Clone + Send)`
+  - [x] Lifetime bound: `(T: 'a)`
+  - [x] Mixed parameters: `('a, T: Clone)`
+  - [x] Complex type: `(Vec<String>: Clone)`
+  - [x] Reference type: `(&'a str: Display)`
+  - [x] Output bounds: `('a, T) -> Debug`
+  - [x] Multiple output bounds: `('a, T) -> Debug + Clone`
 
-- [ ] **Extraction tests**
+- [x] **Extraction tests**
 
-  - [ ] `to_kind_input()` produces correct lifetime count
-  - [ ] `to_kind_input()` produces correct type count
-  - [ ] `to_kind_input()` preserves bounds
-  - [ ] `concrete_lifetimes()` extracts correct values
-  - [ ] `concrete_types()` extracts correct values
+  - [x] `to_kind_input()` produces correct lifetime count
+  - [x] `to_kind_input()` produces correct type count
+  - [x] `to_kind_input()` preserves bounds
+  - [x] `concrete_lifetimes()` extracts correct values
+  - [x] `concrete_types()` extracts correct values
 
-- [ ] **Generation tests**
-  - [ ] Unified syntax produces correct expansion
-  - [ ] Explicit kind syntax produces correct expansion
+- [x] **Generation tests**
+  - [x] Unified syntax produces correct expansion
+  - [x] Explicit kind syntax produces correct expansion
 
 ### 2.2 Integration Tests
 
@@ -228,10 +228,11 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 - **Phase 1.1 Completed**: Data structures defined and `apply_impl` updated.
 - **Phase 1.2 Completed**: Parsing implementation updated and verified with unit tests.
 - **Phase 1.3 Completed**: Code generation updated and verified with integration tests.
+- **Phase 2.1 Completed**: Comprehensive unit tests added for parsing, extraction, and generation.
 - **Current Issues**:
   - `fp-library` code is broken due to syntax changes (expected).
 - **Next Steps (Phase 2)**:
-  - Add more comprehensive unit tests.
+  - Add integration tests.
   - Add compile-fail tests.
 
 ### Decisions Made
