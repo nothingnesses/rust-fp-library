@@ -43,25 +43,25 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 1.2 Parsing Implementation
 
-- [ ] **Replace `parse_signature()` function**
+- [x] **Replace `parse_signature()` function**
 
-  - [ ] Parse `Type` instead of `Ident` for type parameters
-  - [ ] Handle complex types: `Vec<T>`, `&'a T`, `Box<dyn Fn(A) -> B>`, tuples, arrays
-  - [ ] Parse optional bounds after `:`
-  - [ ] Preserve original type expression for projection
-  - [ ] Add unit tests for various type expressions
+  - [x] Parse `Type` instead of `Ident` for type parameters
+  - [x] Handle complex types: `Vec<T>`, `&'a T`, `Box<dyn Fn(A) -> B>`, tuples, arrays
+  - [x] Parse optional bounds after `:`
+  - [x] Preserve original type expression for projection
+  - [x] Add unit tests for various type expressions
 
-- [ ] **Update `ApplyInput::parse()`**
+- [x] **Update `ApplyInput::parse()`**
 
-  - [ ] Reject `lifetimes:` and `types:` when `signature:` is provided
-  - [ ] Require `lifetimes:` and `types:` when `kind:` is provided
-  - [ ] Add clear error messages for invalid combinations
-  - [ ] Add tests for error cases
+  - [x] Reject `lifetimes:` and `types:` when `signature:` is provided
+  - [x] Require `lifetimes:` and `types:` when `kind:` is provided
+  - [x] Add clear error messages for invalid combinations
+  - [x] Add tests for error cases
 
-- [ ] **Add `parse_bounds()` helper function**
-  - [ ] Extract bound parsing logic
-  - [ ] Handle multi-bound syntax (`Clone + Send + 'a`)
-  - [ ] Add unit tests
+- [x] **Add `parse_bounds()` helper function**
+  - [x] Extract bound parsing logic
+  - [x] Handle multi-bound syntax (`Clone + Send + 'a`)
+  - [x] Add unit tests
 
 ### 1.3 Code Generation
 
@@ -226,13 +226,13 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 
 ### Implementation Status (2026-01-15)
 - **Phase 1.1 Completed**: Data structures defined and `apply_impl` updated.
+- **Phase 1.2 Completed**: Parsing implementation updated and verified with unit tests.
 - **Current Issues**:
-  - `ApplyInput::parse` is broken due to struct changes.
-  - `parse_signature` return type mismatch.
-  - Unit tests in `apply.rs` are broken.
-- **Next Steps (1.2)**:
-  - Update `parse_signature` to parse into `UnifiedSignature`.
-  - Update `ApplyInput::parse` to handle new `KindSource` variants and removed fields.
+  - `fp-library` code is broken due to syntax changes (expected).
+  - Integration tests are broken (expected).
+- **Next Steps (1.3)**:
+  - Verify `apply_impl` covers all cases.
+  - Verify Kind name generation integration.
 
 ### Decisions Made
 
