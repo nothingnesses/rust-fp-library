@@ -103,6 +103,7 @@ Apply!(
 ```
 
 The syntax encodes:
+
 - **Concrete values**: The actual types/lifetimes to project (`'static`, `String`)
 - **Bounds for Kind name**: The constraints after `:` (used to generate the trait name)
 
@@ -127,28 +128,32 @@ signature: (<params>) [-> <output_bounds>]
 
 ### 3.3 Examples
 
-| Input | Lifetimes | Types | Bounds | Kind Trait | Projection |
-|-------|-----------|-------|--------|------------|------------|
-| `('static, String)` | 1: `'static` | 1: `String` | none | `Kind_...` | `::Of<'static, String>` |
-| `('a, T: Clone)` | 1: `'a` | 1: `T` | `Clone` | `Kind_...` | `::Of<'a, T>` |
-| `(Vec<u8>: Send)` | 0 | 1: `Vec<u8>` | `Send` | `Kind_...` | `::Of<Vec<u8>>` |
-| `('a, &'a str: Display) -> 'a` | 1: `'a` | 1: `&'a str` | `Display`, output `'a` | `Kind_...` | `::Of<'a, &'a str>` |
+| Input                          | Lifetimes    | Types        | Bounds                 | Kind Trait | Projection              |
+| ------------------------------ | ------------ | ------------ | ---------------------- | ---------- | ----------------------- |
+| `('static, String)`            | 1: `'static` | 1: `String`  | none                   | `Kind_...` | `::Of<'static, String>` |
+| `('a, T: Clone)`               | 1: `'a`      | 1: `T`       | `Clone`                | `Kind_...` | `::Of<'a, T>`           |
+| `(Vec<u8>: Send)`              | 0            | 1: `Vec<u8>` | `Send`                 | `Kind_...` | `::Of<Vec<u8>>`         |
+| `('a, &'a str: Display) -> 'a` | 1: `'a`      | 1: `&'a str` | `Display`, output `'a` | `Kind_...` | `::Of<'a, &'a str>`     |
 
 ### 3.4 Two Modes of Operation
 
 The `Apply!` macro will have exactly two modes:
 
 **Mode 1: Using `signature`** (unified syntax)
+
 ```rust
 Apply!(brand: MyBrand, signature: ('static, String: Clone) -> Debug)
 ```
+
 - Schema and values combined in a single parameter
 - `lifetimes` and `types` parameters are **not accepted**
 
 **Mode 2: Using explicit `kind`**
+
 ```rust
 Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))
 ```
+
 - Explicit Kind trait name provided
 - `lifetimes` and `types` parameters are **required** (there's no schema to infer from)
 
@@ -268,6 +273,7 @@ fn parse_bounds(input: ParseStream) -> syn::Result<Punctuated<TypeParamBound, To
 ```
 
 The [`ApplyInput::parse()`](../../fp-macros/src/apply.rs:48-101) function needs to be modified to:
+
 1. Reject `lifetimes` and `types` parameters when `signature` is used
 2. Require `lifetimes` and `types` parameters when `kind` is used
 
@@ -446,13 +452,13 @@ fn map<'a, A: 'a, B: 'a, F>(
 
 The new syntax must handle complex type expressions:
 
-| Type | Parsing Requirement |
-|------|---------------------|
-| `Vec<T>` | Generic types with angle brackets |
-| `&'a T` | Reference types with lifetimes |
-| `Box<dyn Fn(A) -> B>` | Trait objects and Fn traits |
-| `(A, B)` | Tuple types |
-| `[T; N]` | Array types |
+| Type                  | Parsing Requirement               |
+| --------------------- | --------------------------------- |
+| `Vec<T>`              | Generic types with angle brackets |
+| `&'a T`               | Reference types with lifetimes    |
+| `Box<dyn Fn(A) -> B>` | Trait objects and Fn traits       |
+| `(A, B)`              | Tuple types                       |
+| `[T; N]`              | Array types                       |
 
 All of these are valid `syn::Type` expressions and should parse correctly.
 
@@ -504,7 +510,7 @@ Apply!(brand: MyBrand, signature: (String: Clone))
 
 Update [`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs) documentation for `Apply!`:
 
-```rust
+````rust
 /// Applies a brand to type arguments.
 ///
 /// # Using `signature` (Recommended)
@@ -525,11 +531,12 @@ Update [`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs) documentation for `A
 /// Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))
 /// // Expands to: <MyBrand as SomeKind>::Of<'a, T>
 /// ```
-```
+````
 
 ### 8.2 Usage Guide
 
 Document the two modes clearly:
+
 1. `signature` mode: All-in-one syntax for typical usage
 2. `kind` mode: Explicit Kind trait for advanced/custom cases
 
@@ -537,12 +544,12 @@ Document the two modes clearly:
 
 ## 9. Risk Assessment
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Parsing ambiguity | Low | Medium | Extensive test coverage; syn handles Rust type syntax |
-| Breaking existing code | Certain | Medium | Intentional breaking change; update all library code simultaneously |
-| Performance regression | Very Low | Low | Parsing is compile-time only |
-| User confusion | Low | Low | Clear documentation; simpler API with fewer options |
+| Risk                   | Likelihood | Impact | Mitigation                                                          |
+| ---------------------- | ---------- | ------ | ------------------------------------------------------------------- |
+| Parsing ambiguity      | Low        | Medium | Extensive test coverage; syn handles Rust type syntax               |
+| Breaking existing code | Certain    | Medium | Intentional breaking change; update all library code simultaneously |
+| Performance regression | Very Low   | Low    | Parsing is compile-time only                                        |
+| User confusion         | Low        | Low    | Clear documentation; simpler API with fewer options                 |
 
 ---
 

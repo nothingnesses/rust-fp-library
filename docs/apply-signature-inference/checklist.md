@@ -110,17 +110,17 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 
 ### 2.2 Integration Tests
 
-- [ ] **End-to-end tests** ([`fp-macros/tests/`](../../fp-macros/tests/))
+- [x] **End-to-end tests** ([`fp-macros/tests/`](../../fp-macros/tests/))
 
-  - [ ] Complete Apply! with unified syntax compiles
-  - [ ] Resulting type is correct
-  - [ ] Works in function signatures
-  - [ ] Works in struct definitions
-  - [ ] Works in impl blocks
+  - [x] Complete Apply! with unified syntax compiles
+  - [x] Resulting type is correct
+  - [x] Works in function signatures
+  - [x] Works in struct definitions
+  - [x] Works in impl blocks
 
-- [ ] **Explicit kind mode tests**
-  - [ ] `kind:` with `lifetimes:`/`types:` works
-  - [ ] Verify expansion is correct
+- [x] **Explicit kind mode tests**
+  - [x] `kind:` with `lifetimes:`/`types:` works
+  - [x] Verify expansion is correct
 
 ### 2.3 Compile-Fail Tests
 
@@ -225,23 +225,24 @@ This checklist tracks implementation progress for the [Unified Signature Syntax 
 _Add implementation notes, decisions, and blockers here as work progresses._
 
 ### Implementation Status (2026-01-15)
+
 - **Phase 1.1 Completed**: Data structures defined and `apply_impl` updated.
 - **Phase 1.2 Completed**: Parsing implementation updated and verified with unit tests.
 - **Phase 1.3 Completed**: Code generation updated and verified with integration tests.
 - **Phase 2.1 Completed**: Comprehensive unit tests added for parsing, extraction, and generation.
+- **Phase 2.2 Completed**: Integration tests added and verified (`fp-macros/tests/apply_integration.rs`).
 - **Current Issues**:
   - `fp-library` code is broken due to syntax changes (expected).
 - **Next Steps (Phase 2)**:
-  - Add integration tests.
   - Add compile-fail tests.
 
 ### Decisions Made
 
-| Date | Decision | Rationale |
-| ---- | -------- | --------- |
+| Date       | Decision                                           | Rationale                                            |
+| ---------- | -------------------------------------------------- | ---------------------------------------------------- |
 | 2026-01-15 | Remove `lifetimes:` and `types:` in signature mode | Simplifies API; values are now embedded in signature |
-| 2026-01-15 | No deprecation period | Pre-1.0 library; breaking change is acceptable |
-| 2026-01-15 | Keep explicit `kind:` mode | Needed for advanced cases with custom Kind traits |
+| 2026-01-15 | No deprecation period                              | Pre-1.0 library; breaking change is acceptable       |
+| 2026-01-15 | Keep explicit `kind:` mode                         | Needed for advanced cases with custom Kind traits    |
 
 ### Blockers
 

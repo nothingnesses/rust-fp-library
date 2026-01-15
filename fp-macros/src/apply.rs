@@ -31,10 +31,7 @@ pub enum SignatureParam {
 	/// A lifetime value (e.g., 'static, 'a)
 	Lifetime(Lifetime),
 	/// A type value with optional bounds (e.g., String: Clone)
-	Type {
-		ty: Type,
-		bounds: Punctuated<TypeParamBound, Token![+]>,
-	},
+	Type { ty: Type, bounds: Punctuated<TypeParamBound, Token![+]> },
 }
 
 /// Parsed unified signature containing both schema and values.
@@ -61,20 +58,14 @@ impl UnifiedSignature {
 				}
 				SignatureParam::Type { bounds, .. } => {
 					// Use canonical type names for Kind generation
-					let canonical_ident = Ident::new(&format!("T{}", types.len()), Span::call_site());
-					types.push(TypeInput {
-						ident: canonical_ident,
-						bounds: bounds.clone(),
-					});
+					let canonical_ident =
+						Ident::new(&format!("T{}", types.len()), Span::call_site());
+					types.push(TypeInput { ident: canonical_ident, bounds: bounds.clone() });
 				}
 			}
 		}
 
-		KindInput {
-			lifetimes,
-			types,
-			output_bounds: self.output_bounds.clone(),
-		}
+		KindInput { lifetimes, types, output_bounds: self.output_bounds.clone() }
 	}
 
 	/// Extract concrete lifetime values for projection.
@@ -399,7 +390,8 @@ mod tests {
 		// Helper to parse and get signature
 		fn parse_sig(sig_str: &str) -> UnifiedSignature {
 			let input = format!("brand: B, signature: {}", sig_str);
-			let parsed: ApplyInput = syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
+			let parsed: ApplyInput =
+				syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
 			match parsed.kind_source {
 				KindSource::Generated(sig) => sig,
 				_ => panic!("Expected generated kind source"),
@@ -507,7 +499,8 @@ mod tests {
 		// Helper to parse and get signature
 		fn parse_sig(sig_str: &str) -> UnifiedSignature {
 			let input = format!("brand: B, signature: {}", sig_str);
-			let parsed: ApplyInput = syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
+			let parsed: ApplyInput =
+				syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
 			match parsed.kind_source {
 				KindSource::Generated(sig) => sig,
 				_ => panic!("Expected generated kind source"),
@@ -516,12 +509,12 @@ mod tests {
 
 		// Case: ('a, T: Clone)
 		let sig = parse_sig("('a, T: Clone)");
-		
+
 		// Test to_kind_input()
 		let kind_input = sig.to_kind_input();
 		assert_eq!(kind_input.lifetimes.len(), 1);
 		assert_eq!(kind_input.lifetimes[0].to_string(), "'a");
-		
+
 		assert_eq!(kind_input.types.len(), 1);
 		assert_eq!(kind_input.types[0].ident.to_string(), "T0"); // Canonicalized
 		let bounds = &kind_input.types[0].bounds;
@@ -540,7 +533,7 @@ mod tests {
 
 		// Case: (Vec<T>: Debug, &'a str)
 		let sig = parse_sig("(Vec<T>: Debug, &'a str)");
-		
+
 		let kind_input = sig.to_kind_input();
 		assert_eq!(kind_input.types.len(), 2);
 		assert_eq!(kind_input.types[0].ident.to_string(), "T0");
