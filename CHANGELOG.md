@@ -5,25 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-01-15
-
-### Added
-
-- **`fp-macros` Crate**: New procedural macro crate for HKT boilerplate reduction.
-  - **`def_kind!`**: Macro for defining Kind traits with specified lifetimes, type parameters, and bounds.
-  - **`impl_kind!`**: Macro for implementing Kind traits for brand types. Automatically infers the correct Kind trait from the GAT signature.
-  - **`Apply!`**: Macro for projecting brand types to concrete types using named parameters (`brand`, `signature`, `lifetimes`, `types`).
-- **Hash-Based Kind Naming**: Kind traits now use deterministic hash-based names (`Kind_{hash:016x}`) generated from canonicalized signatures, ensuring consistent naming across compilations.
-- **Canonicalization System**: Full path preservation and generic argument handling in trait bounds, including support for `Fn`, `FnMut`, `FnOnce` bounds.
-- **Property-Based Tests**: Comprehensive quickcheck tests for hash determinism, canonicalization equivalence, bound order independence, and lifetime name independence.
-- **Compile-Fail Tests**: `trybuild` tests verifying helpful error messages for invalid macro inputs.
+## [fp-library 0.2.0] - 2026-01-15
 
 ### Changed
 
-- **Library Migration**: All type implementations (`Option`, `Result`, `Vec`, `Identity`, etc.) now use `impl_kind!` macro instead of manual trait implementations.
-- **Documentation**: README updated with macro usage examples and corrected directory references (`fp-library/src/kinds` instead of `fp-library/src/hkt`).
+- **HKT Documentation**: Updated README with `impl_kind!` macro usage example for defining Kind implementations.
+- **Project Structure**: Fixed documentation to reflect correct module paths (`fp-library/src/kinds` instead of `fp-library/src/hkt`).
 
-## [0.1.0] - 2026-01-12
+---
+
+## [fp-macros 0.1.0] - 2026-01-15
+
+### Added
+
+- **`def_kind!` Macro**: Procedural macro to define Kind traits with a specific signature (lifetimes, type parameters with bounds, and output bounds). Generates hash-based trait names for determinism.
+- **`impl_kind!` Macro**: Procedural macro to implement a Kind trait for a brand type. Infers the correct Kind trait from the GAT signature.
+- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type using named parameters (`brand`, `signature`, `lifetimes`, `types`).
+- **Canonicalization Module**: Robust canonicalization of type bounds including:
+  - Full path preservation (`std::fmt::Debug` → `tstd::fmt::Debug`)
+  - Generic argument handling (`Iterator<Item = T>`)
+  - Fn trait bounds (`Fn(A) -> B`)
+  - Lifetime normalization (positional naming)
+- **Hash-Based Naming**: Uses `rapidhash` for deterministic 64-bit Kind trait names (`Kind_{hash:016x}`).
+- **Property Tests**: Comprehensive quickcheck-based tests for:
+  - Hash determinism
+  - Canonicalization equivalence
+  - Bound order independence
+  - Lifetime name independence
+- **Compile-Fail Tests**: UI tests via `trybuild` for helpful error messages on invalid input.
+- **Integration Tests**: End-to-end tests for all macro features.
+
+---
+
+## [fp-library 0.1.0] - 2026-01-12
 
 ### Added
 
