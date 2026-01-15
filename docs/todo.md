@@ -1,6 +1,6 @@
 ### Tasks to do & ideas to look into
 
-* Figure out a better naming scheme for `Kind` traits to better handle lifetime usage/application and update [the macros](https://github.com/nothingnesses/rust-fp-library/blob/main/fp-library/src/macros.rs) accordingly.
+* Add README.md for each of the workspace's crates.
 * [`Compactable`, `Filterable`, `Witherable`](https://github.com/reazen/relude/issues/268).
 	* [Composable filters using Witherable optics](https://chrispenner.ca/posts/witherable-optics).
 	* [purescript-filterable](https://pursuit.purescript.org/packages/purescript-filterable/5.0.0).

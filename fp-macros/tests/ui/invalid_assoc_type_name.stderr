@@ -1,0 +1,5 @@
+error: Expected associated type name 'Of'
+  --> tests/ui/invalid_assoc_type_name.rs:11:14
+   |
+11 |         type Foo<A> = Option<A>;
+   |              ^^^

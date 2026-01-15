@@ -1,11 +1,11 @@
-use crate::hkt::{Apply1L1T, Kind1L1T};
+use crate::{Apply, kinds::*};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
 /// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x, f)` has type `m b`,
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
-pub trait Semimonad: Kind1L1T {
+pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// # Type Signature
@@ -32,11 +32,22 @@ pub trait Semimonad: Kind1L1T {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply1L1T<'a, Self, A>,
+		ma: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+		),
 		f: F,
-	) -> Apply1L1T<'a, Self, B>
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, B: 'a) -> 'a,
+	)
 	where
-		F: Fn(A) -> Apply1L1T<'a, Self, B> + 'a;
+		F: Fn(
+				A,
+			) -> Apply!(
+				brand: Self,
+				signature: ('a, B: 'a) -> 'a,
+			) + 'a;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -67,11 +78,22 @@ pub trait Semimonad: Kind1L1T {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, F>(
-	ma: Apply1L1T<'a, Brand, A>,
+	ma: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+	),
 	f: F,
-) -> Apply1L1T<'a, Brand, B>
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, B: 'a) -> 'a,
+)
 where
-	F: Fn(A) -> Apply1L1T<'a, Brand, B> + 'a,
+	F: Fn(
+			A,
+		) -> Apply!(
+			brand: Brand,
+			signature: ('a, B: 'a) -> 'a,
+		) + 'a,
 {
 	Brand::bind(ma, f)
 }

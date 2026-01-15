@@ -1,11 +1,11 @@
-use crate::{hkt::Kind0L1T, make_type_apply};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be initialized once.
 ///
 /// `Once` represents a container that holds a value that is initialized at most once.
 /// It provides methods for initialization, access, and consumption.
-pub trait Once: Kind0L1T {
-	type Output<A>;
+pub trait Once: Kind_bd4ddc17b95f4bc6 {
+	type Of<A>;
 
 	/// Creates a new, uninitialized `Once` container.
 	///
@@ -26,7 +26,7 @@ pub trait Once: Kind0L1T {
 	/// let cell = <OnceCellBrand as Once>::new::<i32>();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
 	/// ```
-	fn new<A>() -> ApplyOnce<Self, A>;
+	fn new<A>() -> Apply!(brand: Self, kind: Once, lifetimes: (), types: (A));
 
 	/// Gets a reference to the value if it has been initialized.
 	///
@@ -53,7 +53,7 @@ pub trait Once: Kind0L1T {
 	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
 	/// ```
-	fn get<A>(a: &ApplyOnce<Self, A>) -> Option<&A>;
+	fn get<A>(a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<&A>;
 
 	/// Gets a mutable reference to the value if it has been initialized.
 	///
@@ -82,7 +82,9 @@ pub trait Once: Kind0L1T {
 	/// }
 	/// assert_eq!(<OnceCellBrand as Once>::get_mut(&mut cell), Some(&mut 43));
 	/// ```
-	fn get_mut<A>(a: &mut ApplyOnce<Self, A>) -> Option<&mut A>;
+	fn get_mut<A>(
+		a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))
+	) -> Option<&mut A>;
 
 	/// Sets the value of the container.
 	///
@@ -112,7 +114,7 @@ pub trait Once: Kind0L1T {
 	/// assert!(<OnceCellBrand as Once>::set(&cell, 10).is_err());
 	/// ```
 	fn set<A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
 		value: A,
 	) -> Result<(), A>;
 
@@ -142,7 +144,7 @@ pub trait Once: Kind0L1T {
 	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 10), 42);
 	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
-		a: &ApplyOnce<Self, A>,
+		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
 		f: B,
 	) -> &A;
 
@@ -170,7 +172,7 @@ pub trait Once: Kind0L1T {
 	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
 	/// assert_eq!(<OnceCellBrand as Once>::into_inner(cell), Some(42));
 	/// ```
-	fn into_inner<A>(a: ApplyOnce<Self, A>) -> Option<A>;
+	fn into_inner<A>(a: Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A>;
 
 	/// Takes the value out of the container, leaving it uninitialized.
 	///
@@ -197,10 +199,8 @@ pub trait Once: Kind0L1T {
 	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
 	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), None);
 	/// ```
-	fn take<A>(a: &mut ApplyOnce<Self, A>) -> Option<A>;
+	fn take<A>(a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A>;
 }
-
-make_type_apply!(ApplyOnce, Once, (), (A), "* -> *");
 
 /// Creates a new, uninitialized `Once` container.
 ///
@@ -224,7 +224,7 @@ make_type_apply!(ApplyOnce, Once, (), (A), "* -> *");
 /// let cell = new::<OnceCellBrand, i32>();
 /// assert_eq!(get::<OnceCellBrand, _>(&cell), None);
 /// ```
-pub fn new<F, A>() -> ApplyOnce<F, A>
+pub fn new<F, A>() -> Apply!(brand: F, kind: Once, lifetimes: (), types: (A))
 where
 	F: Once,
 {
@@ -258,7 +258,7 @@ where
 /// set::<OnceCellBrand, _>(&cell, 42).unwrap();
 /// assert_eq!(get::<OnceCellBrand, _>(&cell), Some(&42));
 /// ```
-pub fn get<F, A>(a: &ApplyOnce<F, A>) -> Option<&A>
+pub fn get<F, A>(a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<&A>
 where
 	F: Once,
 {
@@ -294,7 +294,9 @@ where
 /// }
 /// assert_eq!(get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
 /// ```
-pub fn get_mut<F, A>(a: &mut ApplyOnce<F, A>) -> Option<&mut A>
+pub fn get_mut<F, A>(
+	a: &mut Apply!(brand: F, kind: Once, lifetimes: (), types: (A))
+) -> Option<&mut A>
 where
 	F: Once,
 {
@@ -331,7 +333,7 @@ where
 /// assert!(set::<OnceCellBrand, _>(&cell, 10).is_err());
 /// ```
 pub fn set<F, A>(
-	a: &ApplyOnce<F, A>,
+	a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A)),
 	value: A,
 ) -> Result<(), A>
 where
@@ -368,7 +370,7 @@ where
 /// assert_eq!(*get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
 /// ```
 pub fn get_or_init<F, A, B>(
-	a: &ApplyOnce<F, A>,
+	a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A)),
 	f: B,
 ) -> &A
 where
@@ -404,7 +406,7 @@ where
 /// set::<OnceCellBrand, _>(&cell, 42).unwrap();
 /// assert_eq!(into_inner::<OnceCellBrand, _>(cell), Some(42));
 /// ```
-pub fn into_inner<F, A>(a: ApplyOnce<F, A>) -> Option<A>
+pub fn into_inner<F, A>(a: Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<A>
 where
 	F: Once,
 {
@@ -438,7 +440,7 @@ where
 /// assert_eq!(take::<OnceCellBrand, _>(&mut cell), Some(42));
 /// assert_eq!(take::<OnceCellBrand, _>(&mut cell), None);
 /// ```
-pub fn take<F, A>(a: &mut ApplyOnce<F, A>) -> Option<A>
+pub fn take<F, A>(a: &mut Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<A>
 where
 	F: Once,
 {

@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-01-12
+## [fp-library 0.2.0] - 2026-01-15
+
+### Changed
+
+- **`Apply!` Syntax**: Simplified `Apply!` macro syntax. The `signature` parameter now accepts a unified syntax that includes both schema and concrete values (e.g., `signature: ('a, T: Clone)`). The `lifetimes` and `types` parameters are no longer accepted when using `signature`.
+- **HKT Documentation**: Updated README with `impl_kind!` macro usage example for defining Kind implementations.
+- **Project Structure**: Fixed documentation to reflect correct module paths (`fp-library/src/kinds` instead of `fp-library/src/hkt`).
+
+---
+
+## [fp-macros 0.1.0] - 2026-01-15
+
+### Added
+
+- **`def_kind!` Macro**: Procedural macro to define Kind traits with a specific signature (lifetimes, type parameters with bounds, and output bounds). Generates hash-based trait names for determinism.
+- **`impl_kind!` Macro**: Procedural macro to implement a Kind trait for a brand type. Infers the correct Kind trait from the GAT signature.
+- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type. Supports unified signature syntax (`signature: ('a, T: Clone)`) and explicit kind mode (`kind: K, lifetimes: (...), types: (...)`).
+- **Canonicalization Module**: Robust canonicalization of type bounds including:
+  - Full path preservation (`std::fmt::Debug` → `tstd::fmt::Debug`)
+  - Generic argument handling (`Iterator<Item = T>`)
+  - Fn trait bounds (`Fn(A) -> B`)
+  - Lifetime normalization (positional naming)
+- **Hash-Based Naming**: Uses `rapidhash` for deterministic 64-bit Kind trait names (`Kind_{hash:016x}`).
+- **Property Tests**: Comprehensive quickcheck-based tests for:
+  - Hash determinism
+  - Canonicalization equivalence
+  - Bound order independence
+  - Lifetime name independence
+- **Compile-Fail Tests**: UI tests via `trybuild` for helpful error messages on invalid input.
+- **Integration Tests**: End-to-end tests for all macro features.
+
+---
+
+## [fp-library 0.1.0] - 2026-01-12
 
 ### Added
 
@@ -18,10 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Uncurried API**: All type class methods (`map`, `bind`, `apply`, `fold_right`, etc.) are now uncurried.
-    - `map(f)(fa)` -> `map(f, fa)`
-    - `bind(ma)(f)` -> `bind(ma, f)`
+  - `map(f)(fa)` -> `map(f, fa)`
+  - `bind(ma)(f)` -> `bind(ma, f)`
 - **Generic Bounds**: Trait methods now use generic `F: Fn(A) -> B` bounds instead of `ClonableFn` where possible, enabling inlining and monomorphization.
-- **`Lazy`**: Now implements `Semigroup`, `Monoid`, and `Defer`. It does *not* implement `Functor` or `Monad` due to `Clone` requirements for memoization.
+- **`Lazy`**: Now implements `Semigroup`, `Monoid`, and `Defer`. It does _not_ implement `Functor` or `Monad` due to `Clone` requirements for memoization.
 - **`Endofunction` / `Endomorphism`**: Updated to work with the new uncurried `Semigroup` trait while preserving type erasure for composition.
 
 ### Removed

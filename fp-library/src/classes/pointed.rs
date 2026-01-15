@@ -1,9 +1,9 @@
-use crate::hkt::{Apply1L1T, Kind1L1T};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be constructed from a single value.
 ///
 /// `Pointed` represents a context that can be initialized with a value.
-pub trait Pointed: Kind1L1T {
+pub trait Pointed: Kind_c3c3610c70409ee6 {
 	/// The value wrapped in the context.
 	///
 	/// # Type Signature
@@ -27,7 +27,12 @@ pub trait Pointed: Kind1L1T {
 	/// let x = OptionBrand::pure(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A>;
+	fn pure<'a, A: 'a>(
+		a: A
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, A: 'a) -> 'a,
+	);
 }
 
 /// The value wrapped in the context.
@@ -55,6 +60,11 @@ pub trait Pointed: Kind1L1T {
 /// let x = pure::<OptionBrand, _>(5);
 /// assert_eq!(x, Some(5));
 /// ```
-pub fn pure<'a, Brand: Pointed, A: 'a>(a: A) -> Apply1L1T<'a, Brand, A> {
+pub fn pure<'a, Brand: Pointed, A: 'a>(
+	a: A
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, A: 'a) -> 'a,
+) {
 	Brand::pure(a)
 }

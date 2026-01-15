@@ -1,0 +1,5 @@
+error: expected `;`
+  --> tests/ui/missing_semicolon.rs:13:5
+   |
+13 |     }
+   |     ^

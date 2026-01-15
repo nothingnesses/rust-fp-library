@@ -1,11 +1,8 @@
 //! Implementations for [`Endofunction`], a wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
 
 use crate::{
-	classes::{
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		monoid::Monoid,
-		semigroup::Semigroup,
-	},
+	Apply,
+	classes::{clonable_fn::ClonableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
 };
 use std::{
@@ -23,7 +20,9 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-pub struct Endofunction<'a, CFB: ClonableFn, A>(pub ApplyClonableFn<'a, CFB, A, A>);
+pub struct Endofunction<'a, CFB: ClonableFn, A>(
+	pub Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
+);
 
 impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
 	/// Creates a new `Endofunction`.
@@ -39,7 +38,7 @@ impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
 	/// # Returns
 	///
 	/// A new `Endofunction`.
-	pub fn new(f: ApplyClonableFn<'a, CFB, A, A>) -> Self {
+	pub fn new(f: Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A))) -> Self {
 		Self(f)
 	}
 }
@@ -52,7 +51,7 @@ impl<'a, CFB: ClonableFn, A> Clone for Endofunction<'a, CFB, A> {
 
 impl<'a, CFB: ClonableFn, A> Debug for Endofunction<'a, CFB, A>
 where
-	ApplyClonableFn<'a, CFB, A, A>: Debug,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
 {
 	fn fmt(
 		&self,
@@ -62,12 +61,14 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Eq for Endofunction<'a, CFB, A> where ApplyClonableFn<'a, CFB, A, A>: Eq
-{}
+impl<'a, CFB: ClonableFn, A> Eq for Endofunction<'a, CFB, A> where
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
+{
+}
 
 impl<'a, CFB: ClonableFn, A> Hash for Endofunction<'a, CFB, A>
 where
-	ApplyClonableFn<'a, CFB, A, A>: Hash,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -79,7 +80,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> Ord for Endofunction<'a, CFB, A>
 where
-	ApplyClonableFn<'a, CFB, A, A>: Ord,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
 {
 	fn cmp(
 		&self,
@@ -91,7 +92,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> PartialEq for Endofunction<'a, CFB, A>
 where
-	ApplyClonableFn<'a, CFB, A, A>: PartialEq,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
 {
 	fn eq(
 		&self,
@@ -103,7 +104,7 @@ where
 
 impl<'a, CFB: ClonableFn, A> PartialOrd for Endofunction<'a, CFB, A>
 where
-	ApplyClonableFn<'a, CFB, A, A>: PartialOrd,
+	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
 {
 	fn partial_cmp(
 		&self,

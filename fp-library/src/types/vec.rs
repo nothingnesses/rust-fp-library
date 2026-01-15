@@ -1,27 +1,22 @@
 //! Implementations for [`Vec`].
 
 use crate::{
+	Apply,
 	brands::VecBrand,
 	classes::{
-		applicative::Applicative,
-		apply_first::ApplyFirst,
-		apply_second::ApplySecond,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		foldable::Foldable,
-		functor::Functor,
-		lift::Lift,
-		monoid::Monoid,
-		pointed::Pointed,
-		semiapplicative::Semiapplicative,
-		semigroup::Semigroup,
-		semimonad::Semimonad,
-		traversable::Traversable,
+		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
+		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
+		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
+		semimonad::Semimonad, traversable::Traversable,
 	},
-	hkt::{Apply1L1T, Kind1L1T},
+	impl_kind,
+	kinds::*,
 };
 
-impl Kind1L1T for VecBrand {
-	type Output<'a, A: 'a> = Vec<A>;
+impl_kind! {
+	for VecBrand {
+		type Of<'a, A: 'a>: 'a = Vec<A>;
+	}
 }
 
 impl VecBrand {
@@ -128,8 +123,8 @@ impl Functor for VecBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, Self, B>
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -167,9 +162,9 @@ impl Lift for VecBrand {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply1L1T<'a, Self, A>,
-		fb: Apply1L1T<'a, Self, B>,
-	) -> Apply1L1T<'a, Self, C>
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, C: 'a) -> 'a)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -203,7 +198,7 @@ impl Pointed for VecBrand {
 	///
 	/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply1L1T<'a, Self, A> {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
 		vec![a]
 	}
 }
@@ -243,9 +238,9 @@ impl Semiapplicative for VecBrand {
 	/// assert_eq!(apply::<VecBrand, _, _, RcFnBrand>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
-		fa: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, Self, B> {
+		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
 		ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
 	}
 }
@@ -278,11 +273,11 @@ impl Semimonad for VecBrand {
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply1L1T<'a, Self, A>,
+		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
-	) -> Apply1L1T<'a, Self, B>
+	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
 	where
-		F: Fn(A) -> Apply1L1T<'a, Self, B> + 'a,
+		F: Fn(A) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) + 'a,
 	{
 		ma.into_iter().flat_map(f).collect()
 	}
@@ -316,7 +311,7 @@ impl Foldable for VecBrand {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply1L1T<'a, Self, A>,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -351,7 +346,7 @@ impl Foldable for VecBrand {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply1L1T<'a, Self, A>,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -388,7 +383,7 @@ impl Foldable for VecBrand {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply1L1T<'a, Self, A>,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -427,11 +422,11 @@ impl Traversable for VecBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
+		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
-		Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
-		Apply1L1T<'a, Self, B>: Clone,
+		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
+		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -472,11 +467,11 @@ impl Traversable for VecBrand {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>
-	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
+		ta: Apply!(brand: Self, signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
+	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
 	where
-		Apply1L1T<'a, F, A>: Clone,
-		Apply1L1T<'a, Self, A>: Clone,
+		Apply!(brand: F, signature: ('a, A: 'a) -> 'a): Clone,
+		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -622,8 +617,8 @@ mod tests {
 		// We construct (u . v) manually as the cartesian product of compositions
 		let uv_fns: Vec<_> = u_fns
 			.iter()
-			.flat_map(|uf| {
-				v_fns.iter().map(move |vf| {
+			.flat_map(|uf: &std::rc::Rc<dyn Fn(i32) -> i32>| {
+				v_fns.iter().map(move |vf: &std::rc::Rc<dyn Fn(i32) -> i32>| {
 					let uf = uf.clone();
 					let vf = vf.clone();
 					<RcFnBrand as ClonableFn>::new(move |x| uf(vf(x)))
@@ -706,19 +701,28 @@ mod tests {
 	/// Tests `map` on an empty vector.
 	#[test]
 	fn map_empty() {
-		assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![]), vec![]);
+		assert_eq!(
+			map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `bind` on an empty vector.
 	#[test]
 	fn bind_empty() {
-		assert_eq!(bind::<VecBrand, _, _, _>(vec![], |x: i32| vec![x + 1]), vec![]);
+		assert_eq!(
+			bind::<VecBrand, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `bind` returning an empty vector.
 	#[test]
 	fn bind_returning_empty() {
-		assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>), vec![]);
+		assert_eq!(
+			bind::<VecBrand, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `fold_right` on an empty vector.

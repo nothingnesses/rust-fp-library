@@ -1,0 +1,203 @@
+//! Procedural macros for the `fp-library` crate.
+//!
+//! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
+//! It includes:
+//! - `Kind!`: Generates the name of a Kind trait based on its signature.
+//! - `def_kind!`: Defines a new Kind trait.
+
+use apply::{ApplyInput, apply_impl};
+use def_kind::def_kind_impl;
+use generate::generate_name;
+use impl_kind::{ImplKindInput, impl_kind_impl};
+use parse::KindInput;
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::parse_macro_input;
+
+pub(crate) mod apply;
+pub(crate) mod canonicalize;
+pub(crate) mod def_kind;
+pub(crate) mod generate;
+pub(crate) mod impl_kind;
+pub(crate) mod parse;
+
+#[cfg(test)]
+mod property_tests;
+
+/// Generates the name of a Kind trait based on its signature.
+///
+/// This macro takes three parenthesized groups representing the signature:
+/// 1. **Lifetimes**: A comma-separated list of lifetimes (e.g., `('a, 'b)`).
+/// 2. **Types**: A comma-separated list of types with optional bounds (e.g., `(T, U: Display)`).
+/// 3. **Output Bounds**: A `+`-separated list of bounds on the output type (e.g., `(Display + Clone)`).
+///
+/// # Example
+///
+/// ```ignore
+/// // Generates the name for a Kind with:
+/// // - 1 lifetime ('a)
+/// // - 1 type parameter (T) bounded by Display and Clone
+/// // - Output type bounded by Debug
+/// let name = Kind!(('a), (T: Display + Clone), (Debug));
+/// ```
+///
+/// # Limitations
+///
+/// Due to Rust syntax restrictions, this macro cannot be used directly in positions where a
+/// concrete path is expected by the parser, such as:
+/// * Supertrait bounds: `trait MyTrait: Kind!(...) {}` (Invalid)
+/// * Type aliases: `type MyKind = Kind!(...);` (Invalid)
+/// * Trait aliases: `trait MyKind = Kind!(...);` (Invalid)
+///
+/// In these cases, you must use the generated name directly (e.g., `Kind_...`).
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn Kind(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as KindInput);
+	let name = generate_name(&input);
+	quote!(#name).into()
+}
+
+/// Defines a new Kind trait.
+///
+/// This macro generates a trait definition for a Higher-Kinded Type signature.
+/// It takes the same three arguments as `Kind!`:
+/// 1. **Lifetimes**
+/// 2. **Types**
+/// 3. **Output Bounds**
+///
+/// The generated trait includes a single associated type `Of`.
+///
+/// # Example
+///
+/// ```ignore
+/// // Defines a Kind trait for a signature with:
+/// // - 1 lifetime ('a)
+/// // - 1 type parameter (T) bounded by Display
+/// // - Output type bounded by Debug
+/// def_kind!(('a), (T: Display), (Debug));
+/// ```
+#[proc_macro]
+pub fn def_kind(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as KindInput);
+	def_kind_impl(input).into()
+}
+
+/// Implements a Kind trait for a brand.
+///
+/// This macro simplifies the implementation of a generated Kind trait for a specific
+/// brand type. It infers the correct Kind trait to implement based on the signature
+/// of the associated type `Of`.
+///
+/// # Syntax
+///
+/// ```ignore
+/// impl_kind! {
+///     impl<GENERICS> for BrandType {
+///         type Of<PARAMS> = ConcreteType;
+///     }
+/// }
+/// ```
+///
+/// Or with where clause:
+///
+/// ```ignore
+/// impl_kind! {
+///     impl<E> for ResultBrand<E> where E: Debug {
+///         type Of<A> = Result<A, E>;
+///     }
+/// }
+/// ```
+///
+/// # Example
+///
+/// ```ignore
+/// impl_kind! {
+///     for OptionBrand {
+///         type Of<A> = Option<A>;
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn impl_kind(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as ImplKindInput);
+	impl_kind_impl(input).into()
+}
+
+/// Applies a brand to type arguments.
+///
+/// This macro projects a brand type to its concrete type using the appropriate
+/// Kind trait. It uses named parameters syntax.
+///
+/// # Modes
+///
+/// The macro supports two modes of operation:
+///
+/// 1. **Unified Signature Mode** (Recommended): Uses a single `signature` parameter to specify both
+///    the schema (for Kind trait name generation) and the concrete values (for projection).
+/// 2. **Explicit Kind Mode** (Advanced): Uses an explicit `kind` parameter along with separate
+///    `lifetimes` and `types` parameters.
+///
+/// # Parameters
+///
+/// * `brand`: (Required) The brand type (e.g., `OptionBrand`).
+/// * `signature`: (Mode 1) The unified signature containing both schema and values.
+/// * `kind`: (Mode 2) An explicit Kind trait to use.
+/// * `lifetimes`: (Mode 2) Lifetime arguments to apply. Required with `kind`.
+/// * `types`: (Mode 2) Type arguments to apply. Required with `kind`.
+///
+/// # Unified Signature Syntax
+///
+/// The `signature` parameter uses a syntax similar to a function signature:
+/// `(param1, param2, ...) -> OutputBounds`
+///
+/// * **Lifetimes**: Specified as `'a`, `'static`, etc.
+/// * **Types**: Specified as `Type` or `Type: Bounds`.
+///   * The `Type` part is used as the concrete value for projection.
+///   * The `Bounds` part (optional) is used for Kind trait name generation.
+///
+/// # Examples
+///
+/// ## Unified Signature Mode (Recommended)
+///
+/// ```ignore
+/// // Applies MyBrand to lifetime 'static and type String.
+/// // The schema is inferred as: 1 lifetime, 1 type parameter (unbounded).
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: ('static, String)
+/// );
+///
+/// // Applies MyBrand to a generic type T with bounds.
+/// // The schema is inferred as: 1 type parameter with Clone bound.
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: (T: Clone)
+/// );
+///
+/// // Complex example with lifetimes, types, and output bounds.
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: ('a, T: Clone + Debug) -> Display
+/// );
+/// ```
+///
+/// ## Explicit Kind Mode (Advanced)
+///
+/// Use this mode when you need to specify a custom Kind trait directly.
+///
+/// ```ignore
+/// // Applies OptionBrand using an explicit Kind trait.
+/// type Concrete = Apply!(
+///     brand: OptionBrand,
+///     kind: SomeKind,
+///     lifetimes: ('a),
+///     types: (String)
+/// );
+/// ```
+#[proc_macro]
+#[allow(non_snake_case)]
+pub fn Apply(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as ApplyInput);
+	apply_impl(input).into()
+}

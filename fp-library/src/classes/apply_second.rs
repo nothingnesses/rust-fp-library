@@ -1,5 +1,5 @@
 use super::lift::Lift;
-use crate::hkt::Apply1L1T;
+use crate::{Apply, kinds::*};
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
@@ -33,9 +33,18 @@ pub trait ApplySecond: Lift {
 	/// assert_eq!(z, Some(10));
 	/// ```
 	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply1L1T<'a, Self, A>,
-		fb: Apply1L1T<'a, Self, B>,
-	) -> Apply1L1T<'a, Self, B> {
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+		),
+		fb: Apply!(
+			brand: Self,
+			signature: ('a, B: 'a) -> 'a,
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, B: 'a) -> 'a,
+	) {
 		Self::lift2(|_, b| b, fa, fb)
 	}
 }
@@ -69,8 +78,17 @@ pub trait ApplySecond: Lift {
 /// assert_eq!(z, Some(10));
 /// ```
 pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply1L1T<'a, Brand, A>,
-	fb: Apply1L1T<'a, Brand, B>,
-) -> Apply1L1T<'a, Brand, B> {
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+	),
+	fb: Apply!(
+		brand: Brand,
+		signature: ('a, B: 'a) -> 'a,
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, B: 'a) -> 'a,
+) {
 	Brand::apply_second(fa, fb)
 }

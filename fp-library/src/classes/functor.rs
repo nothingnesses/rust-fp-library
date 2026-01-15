@@ -1,4 +1,4 @@
-use crate::hkt::{Apply1L1T, Kind1L1T};
+use crate::{Apply, kinds::*};
 
 /// A type class for types that can be mapped over.
 ///
@@ -10,7 +10,7 @@ use crate::hkt::{Apply1L1T, Kind1L1T};
 /// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity, fa) = fa`.
 /// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
-pub trait Functor: Kind1L1T {
+pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// Maps a function over the values in the functor context.
 	///
 	/// # Type Signature
@@ -38,8 +38,14 @@ pub trait Functor: Kind1L1T {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, Self, B>
+		fa: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+		),
+	) -> Apply!(
+		brand: Self,
+		signature: ('a, B: 'a) -> 'a,
+	)
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -73,8 +79,14 @@ pub trait Functor: Kind1L1T {
 /// ```
 pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
 	f: F,
-	fa: Apply1L1T<'a, Brand, A>,
-) -> Apply1L1T<'a, Brand, B>
+	fa: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+	),
+) -> Apply!(
+	brand: Brand,
+	signature: ('a, B: 'a) -> 'a,
+)
 where
 	F: Fn(A) -> B + 'a,
 {

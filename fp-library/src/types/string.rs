@@ -2,11 +2,14 @@
 
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
-	hkt::Kind1L0T,
+	impl_kind,
+	kinds::*,
 };
 
-impl Kind1L0T for String {
-	type Output<'a> = String;
+impl_kind! {
+	for String {
+		type Of<'a> = String;
+	}
 }
 
 impl Semigroup for String {

@@ -2,23 +2,24 @@
 //! (`Rc<dyn Fn(A) -> B>`).
 
 use crate::{
+	Apply,
 	brands::RcFnBrand,
 	classes::{
-		category::Category,
-		clonable_fn::{ApplyClonableFn, ClonableFn},
-		function::{ApplyFunction, Function},
-		semigroupoid::Semigroupoid,
+		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
 	},
-	hkt::{Apply1L2T, Kind1L2T},
+	impl_kind,
+	kinds::*,
 };
 use std::rc::Rc;
 
-impl Kind1L2T for RcFnBrand {
-	type Output<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+impl_kind! {
+	for RcFnBrand {
+		type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+	}
 }
 
 impl Function for RcFnBrand {
-	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
 
 	/// Creates a new `Rc`-wrapped function.
 	///
@@ -43,15 +44,17 @@ impl Function for RcFnBrand {
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyFunction<'a, Self, A, B> {
+	fn new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B
+	) -> Apply!(brand: Self, kind: Function, lifetimes: ('a), types: (A, B)) {
 		Rc::new(f)
 	}
 }
 
 impl ClonableFn for RcFnBrand {
-	type Output<'a, A, B> = Apply1L2T<'a, Self, A, B>;
+	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
 
-	/// Creates a new `Rc`-wrapped clonable function.
+	/// Creates a new clonable function wrapper.
 	///
 	/// # Type Signature
 	///
@@ -74,7 +77,9 @@ impl ClonableFn for RcFnBrand {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ApplyClonableFn<'a, Self, A, B> {
+	fn new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B
+	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B)) {
 		Rc::new(f)
 	}
 }
@@ -108,9 +113,9 @@ impl Semigroupoid for RcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply1L2T<'a, Self, C, D>,
-		g: Apply1L2T<'a, Self, B, C>,
-	) -> Apply1L2T<'a, Self, B, D> {
+		f: Apply!(brand: Self, signature: ('a, C, D)),
+		g: Apply!(brand: Self, signature: ('a, B, C)),
+	) -> Apply!(brand: Self, signature: ('a, B, D)) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -135,7 +140,7 @@ impl Category for RcFnBrand {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply1L2T<'a, Self, A, A> {
+	fn identity<'a, A>() -> Apply!(brand: Self, signature: ('a, A, A)) {
 		Rc::new(|a| a)
 	}
 }

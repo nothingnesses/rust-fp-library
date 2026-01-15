@@ -1,5 +1,5 @@
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
-use crate::{functions::identity, hkt::Apply1L1T};
+use crate::{Apply, functions::identity, kinds::*};
 
 /// A type class for traversable functors.
 ///
@@ -39,12 +39,29 @@ pub trait Traversable: Functor + Foldable {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply1L1T<'a, Self, A>,
-	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, B>>
+		ta: Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+		),
+	) -> Apply!(
+		brand: F,
+		signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
+	)
 	where
-		Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
-		Apply1L1T<'a, Self, B>: Clone,
-		Apply1L1T<'a, F, B>: Clone,
+		Func: Fn(
+				A,
+			) -> Apply!(
+				brand: F,
+				signature: ('a, B: 'a) -> 'a,
+			) + 'a,
+		Apply!(
+			brand: Self,
+			signature: ('a, B: 'a) -> 'a,
+		): Clone,
+		Apply!(
+			brand: F,
+			signature: ('a, B: 'a) -> 'a,
+		): Clone,
 	{
 		Self::sequence::<F, B>(Self::map(f, ta))
 	}
@@ -76,13 +93,33 @@ pub trait Traversable: Functor + Foldable {
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply1L1T<'a, Self, Apply1L1T<'a, F, A>>
-	) -> Apply1L1T<'a, F, Apply1L1T<'a, Self, A>>
+		ta: Apply!(
+			brand: Self,
+			signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
+		)
+	) -> Apply!(
+		brand: F,
+		signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
+	)
 	where
-		Apply1L1T<'a, F, A>: Clone,
-		Apply1L1T<'a, Self, A>: Clone,
+		Apply!(
+			brand: F,
+			signature: ('a, A: 'a) -> 'a,
+		): Clone,
+		Apply!(
+			brand: Self,
+			signature: ('a, A: 'a) -> 'a,
+		): Clone,
 	{
-		Self::traverse::<F, Apply1L1T<'a, F, A>, A, _>(identity, ta)
+		Self::traverse::<
+			F,
+			Apply!(
+				brand: F,
+				signature: ('a, A: 'a) -> 'a,
+			),
+			A,
+			_,
+		>(identity, ta)
 	}
 }
 
@@ -115,12 +152,29 @@ pub trait Traversable: Functor + Foldable {
 /// ```
 pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 	f: Func,
-	ta: Apply1L1T<'a, Brand, A>,
-) -> Apply1L1T<'a, F, Apply1L1T<'a, Brand, B>>
+	ta: Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+	),
+) -> Apply!(
+	brand: F,
+	signature: ('a, Apply!(brand: Brand, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
+)
 where
-	Func: Fn(A) -> Apply1L1T<'a, F, B> + 'a,
-	Apply1L1T<'a, Brand, B>: Clone,
-	Apply1L1T<'a, F, B>: Clone,
+	Func: Fn(
+			A,
+		) -> Apply!(
+			brand: F,
+			signature: ('a, B: 'a) -> 'a,
+		) + 'a,
+	Apply!(
+		brand: Brand,
+		signature: ('a, B: 'a) -> 'a,
+	): Clone,
+	Apply!(
+		brand: F,
+		signature: ('a, B: 'a) -> 'a,
+	): Clone,
 {
 	Brand::traverse::<F, A, B, Func>(f, ta)
 }
@@ -152,11 +206,23 @@ where
 /// assert_eq!(y, Some(Some(5)));
 /// ```
 pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
-	ta: Apply1L1T<'a, Brand, Apply1L1T<'a, F, A>>
-) -> Apply1L1T<'a, F, Apply1L1T<'a, Brand, A>>
+	ta: Apply!(
+		brand: Brand,
+		signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
+	)
+) -> Apply!(
+	brand: F,
+	signature: ('a, Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
+)
 where
-	Apply1L1T<'a, F, A>: Clone,
-	Apply1L1T<'a, Brand, A>: Clone,
+	Apply!(
+		brand: F,
+		signature: ('a, A: 'a) -> 'a,
+	): Clone,
+	Apply!(
+		brand: Brand,
+		signature: ('a, A: 'a) -> 'a,
+	): Clone,
 {
 	Brand::sequence::<F, A>(ta)
 }

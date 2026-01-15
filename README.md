@@ -9,6 +9,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
 ## Features
 
 - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (defunctionalization/brands).
+- **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - `Functor`, `Applicative`, `Monad`
   - `Semigroup`, `Monoid`
@@ -39,14 +40,17 @@ Rust is a multi-paradigm language with strong functional programming features li
 
 Since Rust doesn't support HKTs directly (e.g., `trait Functor<F<_>>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or defunctionalization).
 
-Each type constructor has a corresponding "Brand" type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type.
+Each type constructor has a corresponding "Brand" type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
 
 ```rust
-// Simplified example
+use fp_library::{impl_kind, kinds::*};
+
 pub struct OptionBrand;
 
-impl Kind1L1T for OptionBrand {
-    type Output<'a, A: 'a> = Option<A>;
+impl_kind! {
+	for OptionBrand {
+		type Of<'a, A: 'a>: 'a = Option<A>;
+	}
 }
 ```
 
@@ -93,10 +97,10 @@ use fp_library::classes::functor::map;
 use fp_library::brands::OptionBrand;
 
 fn main() {
-    let x = Some(5);
-    // Map a function over the Option using the Functor type class
-    let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
-    assert_eq!(y, Some(10));
+	let x = Some(5);
+	// Map a function over the Option using the Functor type class
+	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+	assert_eq!(y, Some(10));
 }
 ```
 
@@ -127,9 +131,10 @@ This will provide a shell with the correct Rust version and dependencies.
 
 - `fp-library/src/classes`: Contains the definitions of type classes (traits).
 - `fp-library/src/types`: Contains implementations of type classes for various data types.
-- `fp-library/src/hkt`: Contains the machinery for higher-kinded types.
+- `fp-library/src/kinds`: Contains the machinery for higher-kinded types.
 - `fp-library/src/brands`: Contains type brands used for HKT encoding.
 - `fp-library/src/functions`: Contains general helper functions.
+- `fp-macros`: Procedural macros for generating HKT traits and implementations.
 
 ## License
 

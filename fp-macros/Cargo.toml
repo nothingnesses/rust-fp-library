@@ -1,0 +1,22 @@
+[package]
+name = "fp-macros"
+version = "0.1.0"
+edition = "2024"
+license = "BlueOak-1.0.0"
+keywords = ["macro", "proc-macro", "procedural", "types"]
+categories = ["encoding"]
+workspace = "../"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+rapidhash = "4.2"
+syn = { version = "2.0", features = ["extra-traits", "full"] }
+
+[dev-dependencies]
+quickcheck = "1.0"
+quickcheck_macros = "1.1"
+trybuild = "1.0"
