@@ -1,14 +1,14 @@
 //! Implementations for [`OnceCell`]
 
-use crate::{Apply, brands::OnceCellBrand, classes::once::Once, hkt::Kind_L0_T1};
+use crate::{Apply, brands::OnceCellBrand, classes::once::Once, hkt::Kind_bd4ddc17b95f4bc6};
 use std::cell::OnceCell;
 
-impl Kind_L0_T1 for OnceCellBrand {
+impl Kind_bd4ddc17b95f4bc6 for OnceCellBrand {
 	type Of<A> = OnceCell<A>;
 }
 
 impl Once for OnceCellBrand {
-	type Of<A> = Apply!(Self, Kind_L0_T1, (), (A));
+	type Of<A> = Apply!(Self, Kind_bd4ddc17b95f4bc6, (), (A));
 
 	/// Creates a new, uninitialized `OnceCell`.
 	///

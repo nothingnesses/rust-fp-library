@@ -1,4 +1,4 @@
-use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
+use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
 
 /// A type class for types that can be mapped over.
 ///
@@ -10,7 +10,7 @@ use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
 /// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity, fa) = fa`.
 /// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
-pub trait Functor: Kind_L1_T1_B0l0_Ol0 {
+pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// Maps a function over the values in the functor context.
 	///
 	/// # Type Signature
@@ -38,8 +38,8 @@ pub trait Functor: Kind_L1_T1_B0l0_Ol0 {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -73,8 +73,8 @@ pub trait Functor: Kind_L1_T1_B0l0_Ol0 {
 /// ```
 pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
 	f: F,
-	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B))
 where
 	F: Fn(A) -> B + 'a,
 {

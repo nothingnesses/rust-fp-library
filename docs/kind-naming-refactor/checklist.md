@@ -17,57 +17,57 @@ This checklist tracks implementation progress for the [Kind Naming Refactor Plan
 
 ### 1.1 Enhanced Canonicalization
 
-- [ ] **Full Path Preservation**
+- [x] **Full Path Preservation**
 
-  - [ ] Modify [`canonicalize_bound`](../../fp-macros/src/lib.rs) to preserve full trait paths
-  - [ ] Handle `std::fmt::Debug` → `tstd::fmt::Debug` (not just `tDebug`)
-  - [ ] Add tests for path preservation
+  - [x] Modify [`canonicalize_bound`](../../fp-macros/src/lib.rs) to preserve full trait paths
+  - [x] Handle `std::fmt::Debug` → `tstd::fmt::Debug` (not just `tDebug`)
+  - [x] Add tests for path preservation
 
-- [ ] **Generic Argument Handling**
+- [x] **Generic Argument Handling**
 
-  - [ ] Support `Iterator<Item = T>` style bounds
-  - [ ] Handle angle-bracketed arguments (`<A, B>`)
-  - [ ] Handle parenthesized arguments (`Fn(A) -> B`)
-  - [ ] Add `canonicalize_generic_arg` helper function
-  - [ ] Add `canonicalize_type` helper function
-  - [ ] Add tests for generic argument canonicalization
+  - [x] Support `Iterator<Item = T>` style bounds
+  - [x] Handle angle-bracketed arguments (`<A, B>`)
+  - [x] Handle parenthesized arguments (`Fn(A) -> B`)
+  - [x] Add `canonicalize_generic_arg` helper function
+  - [x] Add `canonicalize_type` helper function
+  - [x] Add tests for generic argument canonicalization
 
-- [ ] **Fn Trait Bounds**
-  - [ ] Support `Fn`, `FnMut`, `FnOnce` bounds
-  - [ ] Encode input types and return type
-  - [ ] Add tests for Fn trait bounds
+- [x] **Fn Trait Bounds**
+  - [x] Support `Fn`, `FnMut`, `FnOnce` bounds
+  - [x] Encode input types and return type
+  - [x] Add tests for Fn trait bounds
 
 ### 1.2 Hash-Based Name Generation
 
-- [ ] **Add Hashing Dependency**
+- [x] **Add Hashing Dependency**
 
-  - [ ] Add `rapidhash = "4.2"` to `fp-macros/Cargo.toml`
-  - [ ] Verify deterministic behavior across compilations
+  - [x] Add `rapidhash = "4.2"` to `fp-macros/Cargo.toml`
+  - [x] Verify deterministic behavior across compilations
 
-- [ ] **Implement Hash-Based Naming**
+- [x] **Implement Hash-Based Naming**
 
-  - [ ] Modify `generate_name` to always use hash for all signatures
-  - [ ] Format: `Kind_{hash:016x}` (64-bit hex)
-  - [ ] Add tests for hash determinism
+  - [x] Modify `generate_name` to always use hash for all signatures
+  - [x] Format: `Kind_{hash:016x}` (64-bit hex)
+  - [x] Add tests for hash determinism
 
-- [ ] **Remove Backward Compatibility**
-  - [ ] Remove old naming scheme entirely
-  - [ ] Update documentation to reflect breaking changes
-  - [ ] Verify old names are no longer generated
+- [x] **Remove Backward Compatibility**
+  - [x] Remove old naming scheme entirely
+  - [x] Update documentation to reflect breaking changes
+  - [x] Verify old names are no longer generated
 
 ### 1.3 Module Restructuring
 
-- [ ] **Split `fp-macros/src/lib.rs`**
+- [x] **Split `fp-macros/src/lib.rs`**
 
-  - [ ] Create `fp-macros/src/parse.rs` for input parsing
-  - [ ] Create `fp-macros/src/canonicalize.rs` for canonicalization
-  - [ ] Create `fp-macros/src/generate.rs` for name generation
-  - [ ] Update `lib.rs` to re-export macro entry points
+  - [x] Create `fp-macros/src/parse.rs` for input parsing
+  - [x] Create `fp-macros/src/canonicalize.rs` for canonicalization
+  - [x] Create `fp-macros/src/generate.rs` for name generation
+  - [x] Update `lib.rs` to re-export macro entry points
 
-- [ ] **Documentation**
-  - [ ] Add rustdoc to all new functions
-  - [ ] Add module-level documentation
-  - [ ] Update README if exists
+- [x] **Documentation**
+  - [x] Add rustdoc to all new functions
+  - [x] Add module-level documentation
+  - [x] Update README if exists
 
 ---
 
@@ -135,7 +135,7 @@ This checklist tracks implementation progress for the [Kind Naming Refactor Plan
 
 ## Phase 3: Future Considerations (Semantic Aliases)
 
-*Note: This phase is deferred and not part of the initial implementation.*
+_Note: This phase is deferred and not part of the initial implementation._
 
 ### 3.1 Audit and Design
 
@@ -157,10 +157,10 @@ This checklist tracks implementation progress for the [Kind Naming Refactor Plan
 
 ### Unit Tests
 
-- [ ] `canonicalize_bound` with various trait bounds
-- [ ] `canonicalize_bounds` sorting behavior
-- [ ] `generate_name` determinism
-- [ ] `generate_name` always hashes
+- [x] `canonicalize_bound` with various trait bounds
+- [x] `canonicalize_bounds` sorting behavior
+- [x] `generate_name` determinism
+- [x] `generate_name` always hashes
 - [ ] Parsing for `impl_kind!`
 
 ### Integration Tests
@@ -186,9 +186,9 @@ This checklist tracks implementation progress for the [Kind Naming Refactor Plan
 
 ## Documentation
 
-- [ ] Update `fp-library/src/hkt.rs` module docs
+- [x] Update `fp-library/src/hkt.rs` module docs
 - [ ] Update `fp-macros/src/lib.rs` module docs
-- [ ] Update `fp-library/src/hkt/kinds.rs` with examples
+- [x] Update `fp-library/src/hkt/kinds.rs` with examples
 - [ ] Create migration guide section
 - [ ] Add CHANGELOG.md entry for changes
 

@@ -1,11 +1,11 @@
-use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
+use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
 /// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x, f)` has type `m b`,
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
-pub trait Semimonad: Kind_L1_T1_B0l0_Ol0 {
+pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// # Type Signature
@@ -32,11 +32,11 @@ pub trait Semimonad: Kind_L1_T1_B0l0_Ol0 {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 		f: F,
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a;
+		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -67,11 +67,11 @@ pub trait Semimonad: Kind_L1_T1_B0l0_Ol0 {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, F>(
-	ma: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	ma: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
 	f: F,
-) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B))
 where
-	F: Fn(A) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+	F: Fn(A) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
 {
 	Brand::bind(ma, f)
 }

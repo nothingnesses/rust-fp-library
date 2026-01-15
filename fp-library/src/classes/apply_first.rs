@@ -1,5 +1,5 @@
 use super::lift::Lift;
-use crate::{Apply, hkt::Kind_L1_T1_B0l0_Ol0};
+use crate::{Apply, hkt::Kind_c3c3610c70409ee6};
 
 /// A type class for types that support combining two contexts, keeping the first value.
 ///
@@ -33,9 +33,9 @@ pub trait ApplyFirst: Lift {
 	/// assert_eq!(z, Some(5));
 	/// ```
 	fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
 		Self::lift2(|a, _| a, fa, fb)
 	}
 }
@@ -69,8 +69,8 @@ pub trait ApplyFirst: Lift {
 /// assert_eq!(z, Some(5));
 /// ```
 pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	fb: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
-) -> Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
+	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
+	fb: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (B)),
+) -> Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)) {
 	Brand::apply_first(fa, fb)
 }

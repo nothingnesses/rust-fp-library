@@ -1,128 +1,22 @@
+//! Procedural macros for the `fp-library` crate.
+//!
+//! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
+//! It includes:
+//! - `Kind!`: Generates the name of a Kind trait based on its signature.
+//! - `def_kind!`: Defines a new Kind trait.
+
+use generate::generate_name;
+use parse::KindInput;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use std::collections::BTreeMap;
-use syn::{
-	Ident, Lifetime, Result, Token, TypeParamBound,
-	parse::{Parse, ParseStream},
-	parse_macro_input,
-	punctuated::Punctuated,
-};
+use quote::quote;
+use syn::parse_macro_input;
 
-struct KindInput {
-	lifetimes: Punctuated<Lifetime, Token![,]>,
-	types: Punctuated<TypeInput, Token![,]>,
-	output_bounds: Punctuated<TypeParamBound, Token![+]>,
-}
+pub(crate) mod canonicalize;
+pub(crate) mod generate;
+pub(crate) mod parse;
 
-struct TypeInput {
-	ident: Ident,
-	bounds: Punctuated<TypeParamBound, Token![+]>,
-}
-
-impl Parse for KindInput {
-	fn parse(input: ParseStream) -> Result<Self> {
-		let content;
-		let _ = syn::parenthesized!(content in input);
-		let lifetimes = content.parse_terminated(Lifetime::parse, Token![,])?;
-
-		input.parse::<Token![,]>()?;
-
-		let content;
-		let _ = syn::parenthesized!(content in input);
-		let types = content.parse_terminated(TypeInput::parse, Token![,])?;
-
-		input.parse::<Token![,]>()?;
-
-		let content;
-		let _ = syn::parenthesized!(content in input);
-		let output_bounds = content.parse_terminated(TypeParamBound::parse, Token![+])?;
-
-		Ok(KindInput { lifetimes, types, output_bounds })
-	}
-}
-
-impl Parse for TypeInput {
-	fn parse(input: ParseStream) -> Result<Self> {
-		let ident: Ident = input.parse()?;
-		let bounds = if input.peek(Token![:]) {
-			input.parse::<Token![:]>()?;
-			Punctuated::parse_terminated_with(input, TypeParamBound::parse)?
-		} else {
-			Punctuated::new()
-		};
-		Ok(TypeInput { ident, bounds })
-	}
-}
-
-struct Canonicalizer {
-	lifetime_map: BTreeMap<String, usize>,
-}
-
-impl Canonicalizer {
-	fn new(
-		lifetimes: &Punctuated<Lifetime, Token![,]>,
-		_types: &Punctuated<TypeInput, Token![,]>,
-	) -> Self {
-		let mut lifetime_map = BTreeMap::new();
-		for (i, lt) in lifetimes.iter().enumerate() {
-			lifetime_map.insert(lt.ident.to_string(), i);
-		}
-
-		Self { lifetime_map }
-	}
-
-	fn canonicalize_bound(
-		&self,
-		bound: &TypeParamBound,
-	) -> String {
-		match bound {
-			TypeParamBound::Lifetime(lt) => {
-				let idx = self.lifetime_map.get(&lt.ident.to_string()).expect("Unknown lifetime");
-				format!("l{}", idx)
-			}
-			TypeParamBound::Trait(tr) => {
-				// Simplified trait bound handling: just take the last segment
-				let last_segment = tr.path.segments.last().unwrap();
-				format!("t{}", last_segment.ident)
-			}
-			_ => panic!("Unsupported bound type"),
-		}
-	}
-
-	fn canonicalize_bounds(
-		&self,
-		bounds: &Punctuated<TypeParamBound, Token![+]>,
-	) -> String {
-		let mut parts: Vec<String> = bounds.iter().map(|b| self.canonicalize_bound(b)).collect();
-		parts.sort(); // Ensure deterministic order
-		parts.join("")
-	}
-}
-
-fn generate_name(input: &KindInput) -> Ident {
-	let canon = Canonicalizer::new(&input.lifetimes, &input.types);
-
-	let l_count = input.lifetimes.len();
-	let t_count = input.types.len();
-
-	let mut name = format!("Kind_L{}_T{}", l_count, t_count);
-
-	// Type bounds
-	for (i, ty) in input.types.iter().enumerate() {
-		if !ty.bounds.is_empty() {
-			let bounds_str = canon.canonicalize_bounds(&ty.bounds);
-			name.push_str(&format!("_B{}{}", i, bounds_str));
-		}
-	}
-
-	// Output bounds
-	if !input.output_bounds.is_empty() {
-		let bounds_str = canon.canonicalize_bounds(&input.output_bounds);
-		name.push_str(&format!("_O{}", bounds_str));
-	}
-
-	format_ident!("{}", name)
-}
+#[cfg(test)]
+mod tests;
 
 #[proc_macro]
 #[allow(non_snake_case)]

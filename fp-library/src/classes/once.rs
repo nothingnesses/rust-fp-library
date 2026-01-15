@@ -1,10 +1,10 @@
-use crate::{Apply, hkt::Kind_L0_T1};
+use crate::{Apply, hkt::Kind_bd4ddc17b95f4bc6};
 
 /// A type class for types that can be initialized once.
 ///
 /// `Once` represents a container that holds a value that is initialized at most once.
 /// It provides methods for initialization, access, and consumption.
-pub trait Once: Kind_L0_T1 {
+pub trait Once: Kind_bd4ddc17b95f4bc6 {
 	type Of<A>;
 
 	/// Creates a new, uninitialized `Once` container.

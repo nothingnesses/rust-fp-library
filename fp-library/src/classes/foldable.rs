@@ -3,7 +3,7 @@ use crate::{
 	Apply,
 	brands::RcFnBrand,
 	classes::{clonable_fn::ClonableFn, semigroup::Semigroup},
-	hkt::Kind_L1_T1_B0l0_Ol0,
+	hkt::Kind_c3c3610c70409ee6,
 	types::Endofunction,
 };
 use std::rc::Rc;
@@ -21,7 +21,7 @@ use std::rc::Rc;
 /// *   If [`Foldable::fold_map`] is implemented, [`Foldable::fold_right`] is derived from it, and [`Foldable::fold_left`] is derived from the derived [`Foldable::fold_right`].
 ///
 /// Note that [`Foldable::fold_left`] is not sufficient on its own because the default implementations of [`Foldable::fold_right`] and [`Foldable::fold_map`] do not depend on it.
-pub trait Foldable: Kind_L1_T1_B0l0_Ol0 {
+pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// Folds the structure by applying a function from right to left.
 	///
 	/// # Type Signature
@@ -51,7 +51,7 @@ pub trait Foldable: Kind_L1_T1_B0l0_Ol0 {
 	fn fold_right<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -98,7 +98,7 @@ pub trait Foldable: Kind_L1_T1_B0l0_Ol0 {
 	fn fold_left<'a, A: 'a + Clone, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -152,7 +152,7 @@ pub trait Foldable: Kind_L1_T1_B0l0_Ol0 {
 	/// ```
 	fn fold_map<'a, A: 'a + Clone, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -193,7 +193,7 @@ pub trait Foldable: Kind_L1_T1_B0l0_Ol0 {
 pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
-	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
 ) -> B
 where
 	F: Fn(A, B) -> B + 'a,
@@ -232,7 +232,7 @@ where
 pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
 	f: F,
 	init: B,
-	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
 ) -> B
 where
 	F: Fn(B, A) -> B + 'a,
@@ -270,7 +270,7 @@ where
 /// ```
 pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
 	f: F,
-	fa: Apply!(Brand, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+	fa: Apply!(Brand, Kind_c3c3610c70409ee6, ('a), (A)),
 ) -> M
 where
 	M: Monoid + 'a,

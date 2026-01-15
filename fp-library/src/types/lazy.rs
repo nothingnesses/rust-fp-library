@@ -6,7 +6,7 @@ use crate::{
 	classes::{
 		clonable_fn::ClonableFn, defer::Defer, monoid::Monoid, once::Once, semigroup::Semigroup,
 	},
-	hkt::Kind_L1_T1_B0l0_Ol0,
+	hkt::Kind_c3c3610c70409ee6,
 };
 
 /// Represents a lazily-computed, memoized value.
@@ -98,7 +98,7 @@ where
 	}
 }
 
-impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_L1_T1_B0l0_Ol0
+impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static> Kind_c3c3610c70409ee6
 	for LazyBrand<OnceBrand, ClonableFnBrand>
 {
 	type Of<'a, A: 'a> = Lazy<'a, OnceBrand, ClonableFnBrand, A>;

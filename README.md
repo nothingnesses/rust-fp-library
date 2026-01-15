@@ -45,7 +45,7 @@ Each type constructor has a corresponding "Brand" type (e.g., `OptionBrand` for 
 // Simplified example
 pub struct OptionBrand;
 
-impl Kind_L1_T1_B0l0_Ol0 for OptionBrand {
+impl Kind_c3c3610c70409ee6 for OptionBrand {
     type Output<'a, A: 'a> = Option<A>;
 }
 ```

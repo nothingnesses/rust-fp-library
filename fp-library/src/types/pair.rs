@@ -9,20 +9,20 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
 		semimonad::Semimonad, traversable::Traversable,
 	},
-	hkt::{Kind_L0_T2, Kind_L1_T1_B0l0_Ol0},
+	hkt::{Kind_93c16564ac2f81c1, Kind_c3c3610c70409ee6},
 };
 
 /// Wraps two values.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Pair<First, Second>(pub First, pub Second);
 
-impl Kind_L0_T2 for PairBrand {
+impl Kind_93c16564ac2f81c1 for PairBrand {
 	type Of<A, B> = Pair<A, B>;
 }
 
 // PairWithFirstBrand<First> (Functor over Second)
 
-impl<First: 'static> Kind_L1_T1_B0l0_Ol0 for PairWithFirstBrand<First> {
+impl<First: 'static> Kind_c3c3610c70409ee6 for PairWithFirstBrand<First> {
 	type Of<'a, A: 'a> = Pair<First, A>;
 }
 
@@ -53,8 +53,8 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -97,9 +97,9 @@ where
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -138,7 +138,7 @@ where
 	///
 	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
 		Pair(Monoid::empty(), a)
 	}
 }
@@ -180,9 +180,9 @@ where
 	/// assert_eq!(apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) {
+		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
 		Pair(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
 	}
 }
@@ -220,11 +220,11 @@ where
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 		f: F,
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(second);
@@ -261,7 +261,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -297,7 +297,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -335,7 +335,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -375,11 +375,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
+		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(first.clone(), b), f(second))
@@ -412,11 +412,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
 	where
-		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(first.clone(), a), second)
@@ -425,7 +425,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 
 // PairWithSecondBrand<Second> (Functor over First)
 
-impl<Second: 'static> Kind_L1_T1_B0l0_Ol0 for PairWithSecondBrand<Second> {
+impl<Second: 'static> Kind_c3c3610c70409ee6 for PairWithSecondBrand<Second> {
 	type Of<'a, A: 'a> = Pair<A, Second>;
 }
 
@@ -456,8 +456,8 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -500,9 +500,9 @@ where
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -541,7 +541,7 @@ where
 	///
 	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
 		Pair(a, Monoid::empty())
 	}
 }
@@ -583,9 +583,9 @@ where
 	/// assert_eq!(apply::<PairWithSecondBrand<String>, _, _, RcFnBrand>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) {
+		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
 		Pair(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
 	}
 }
@@ -623,11 +623,11 @@ where
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 		f: F,
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(first);
@@ -664,7 +664,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -700,7 +700,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -738,7 +738,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -778,11 +778,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
+		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(b, second.clone()), f(first))
@@ -815,11 +815,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
 	where
-		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(a, second.clone()), first)

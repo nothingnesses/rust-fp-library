@@ -9,10 +9,10 @@ use crate::{
 		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
 		semimonad::Semimonad, traversable::Traversable,
 	},
-	hkt::Kind_L1_T1_B0l0_Ol0,
+	hkt::Kind_c3c3610c70409ee6,
 };
 
-impl Kind_L1_T1_B0l0_Ol0 for VecBrand {
+impl Kind_c3c3610c70409ee6 for VecBrand {
 	type Of<'a, A: 'a> = Vec<A>;
 }
 
@@ -120,8 +120,8 @@ impl Functor for VecBrand {
 	/// ```
 	fn map<'a, A: 'a, B: 'a, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -159,9 +159,9 @@ impl Lift for VecBrand {
 	/// ```
 	fn lift2<'a, A, B, C, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-		fb: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (C))
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+		fb: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (C))
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -195,7 +195,7 @@ impl Pointed for VecBrand {
 	///
 	/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)) {
 		vec![a]
 	}
 }
@@ -235,9 +235,9 @@ impl Semiapplicative for VecBrand {
 	/// assert_eq!(apply::<VecBrand, _, _, RcFnBrand>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
 	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-		ff: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) {
+		ff: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(FnBrand, ClonableFn, ('a), (A, B)))),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) {
 		ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
 	}
 }
@@ -270,11 +270,11 @@ impl Semimonad for VecBrand {
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, F>(
-		ma: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		ma: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 		f: F,
-	) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))
+	) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))
 	where
-		F: Fn(A) -> Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
+		F: Fn(A) -> Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
 	{
 		ma.into_iter().flat_map(f).collect()
 	}
@@ -308,7 +308,7 @@ impl Foldable for VecBrand {
 	fn fold_right<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -343,7 +343,7 @@ impl Foldable for VecBrand {
 	fn fold_left<'a, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -380,7 +380,7 @@ impl Foldable for VecBrand {
 	/// ```
 	fn fold_map<'a, A: 'a, M, F>(
 		f: F,
-		fa: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
+		fa: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -419,11 +419,11 @@ impl Traversable for VecBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		f: Func,
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)),
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)),
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B))))
 	where
-		Func: Fn(A) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (B)) + 'a,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (B)): Clone,
+		Func: Fn(A) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (B)) + 'a,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (B)): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -464,11 +464,11 @@ impl Traversable for VecBrand {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
-	) -> Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A))))
+		ta: Apply!(Self, Kind_c3c3610c70409ee6, ('a), (Apply!(F, Kind_c3c3610c70409ee6, ('a), (A))))
+	) -> Apply!(F, Kind_c3c3610c70409ee6, ('a), (Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A))))
 	where
-		Apply!(F, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
-		Apply!(Self, Kind_L1_T1_B0l0_Ol0, ('a), (A)): Clone,
+		Apply!(F, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
+		Apply!(Self, Kind_c3c3610c70409ee6, ('a), (A)): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {

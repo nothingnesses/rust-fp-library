@@ -11,7 +11,7 @@
 /// produced when the brand is applied to the appropriate type parameters.
 ///
 /// # Parameters
-/// * `kind_trait_name`: Trait name (e.g., `Kind_L0_T1`).
+/// * `kind_trait_name`: Trait name (e.g., `Kind_bd4ddc17b95f4bc6`).
 /// * `lifetimes`: Tuple of lifetime parameters (e.g., `('a, 'b)`).
 /// * `types`: Tuple of type parameters with optional bounds (e.g., `(A, B: 'a)`).
 /// * `output_bounds`: Tuple containing bounds for the `Of` associated type (e.g., `(: 'a)` or `()`).
@@ -102,7 +102,7 @@ macro_rules! make_trait_kind {
 /// # Parameters
 ///
 /// * `$brand`: The brand type (e.g., `OptionBrand`, `VecBrand`).
-/// * `$kind`: The kind trait corresponding to the brand's arity (e.g., `Kind_L0_T1`, `Kind_L1_T1_B0l0_Ol0`).
+/// * `$kind`: The kind trait corresponding to the brand's arity (e.g., `Kind_bd4ddc17b95f4bc6`, `Kind_c3c3610c70409ee6`).
 /// * `($($lifetimes:lifetime),*)`: A tuple of lifetime parameters. Use `()` if there are no lifetimes.
 /// * `($($types:ty),*)`: A tuple of type parameters.
 ///
@@ -113,10 +113,10 @@ macro_rules! make_trait_kind {
 /// ```ignore
 /// use fp_library::Apply;
 /// use fp_library::brands::OptionBrand;
-/// use fp_library::hkt::Kind_L0_T1;
+/// use fp_library::hkt::Kind_bd4ddc17b95f4bc6;
 ///
 /// // Equivalent to: Option<i32>
-/// type OptInt = Apply!(OptionBrand, Kind_L0_T1, (), (i32));
+/// type OptInt = Apply!(OptionBrand, Kind_bd4ddc17b95f4bc6, (), (i32));
 /// ```
 ///
 /// ## 1 Lifetime, 1 Type (Kind `' -> * -> *`)
@@ -124,10 +124,10 @@ macro_rules! make_trait_kind {
 /// ```ignore
 /// use fp_library::Apply;
 /// use fp_library::brands::IdentityBrand;
-/// use fp_library::hkt::Kind_L1_T1_B0l0_Ol0;
+/// use fp_library::hkt::Kind_c3c3610c70409ee6;
 ///
 /// // Equivalent to: Identity<'a, i32>
-/// type IdInt<'a> = Apply!(IdentityBrand, Kind_L1_T1_B0l0_Ol0, ('a), (i32));
+/// type IdInt<'a> = Apply!(IdentityBrand, Kind_c3c3610c70409ee6, ('a), (i32));
 /// ```
 #[macro_export]
 macro_rules! Apply {
