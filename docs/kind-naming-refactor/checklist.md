@@ -197,7 +197,7 @@ _Note: This phase is deferred and not part of the initial implementation._
 - [x] Update `fp-macros/src/lib.rs` module docs
 - [x] Update `fp-library/src/hkt/kinds.rs` with examples
 - [ ] Create migration guide section
-- [ ] Add CHANGELOG.md entry for changes
+- [x] Add CHANGELOG.md entry for changes
 
 ---
 

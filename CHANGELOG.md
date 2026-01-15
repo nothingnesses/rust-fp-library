@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-15
+
+### Added
+
+- **`fp-macros` Crate**: New procedural macro crate for HKT boilerplate reduction.
+  - **`def_kind!`**: Macro for defining Kind traits with specified lifetimes, type parameters, and bounds.
+  - **`impl_kind!`**: Macro for implementing Kind traits for brand types. Automatically infers the correct Kind trait from the GAT signature.
+  - **`Apply!`**: Macro for projecting brand types to concrete types using named parameters (`brand`, `signature`, `lifetimes`, `types`).
+- **Hash-Based Kind Naming**: Kind traits now use deterministic hash-based names (`Kind_{hash:016x}`) generated from canonicalized signatures, ensuring consistent naming across compilations.
+- **Canonicalization System**: Full path preservation and generic argument handling in trait bounds, including support for `Fn`, `FnMut`, `FnOnce` bounds.
+- **Property-Based Tests**: Comprehensive quickcheck tests for hash determinism, canonicalization equivalence, bound order independence, and lifetime name independence.
+- **Compile-Fail Tests**: `trybuild` tests verifying helpful error messages for invalid macro inputs.
+
+### Changed
+
+- **Library Migration**: All type implementations (`Option`, `Result`, `Vec`, `Identity`, etc.) now use `impl_kind!` macro instead of manual trait implementations.
+- **Documentation**: README updated with macro usage examples and corrected directory references (`fp-library/src/kinds` instead of `fp-library/src/hkt`).
+
 ## [0.1.0] - 2026-01-12
 
 ### Added
@@ -18,10 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Uncurried API**: All type class methods (`map`, `bind`, `apply`, `fold_right`, etc.) are now uncurried.
-    - `map(f)(fa)` -> `map(f, fa)`
-    - `bind(ma)(f)` -> `bind(ma, f)`
+  - `map(f)(fa)` -> `map(f, fa)`
+  - `bind(ma)(f)` -> `bind(ma, f)`
 - **Generic Bounds**: Trait methods now use generic `F: Fn(A) -> B` bounds instead of `ClonableFn` where possible, enabling inlining and monomorphization.
-- **`Lazy`**: Now implements `Semigroup`, `Monoid`, and `Defer`. It does *not* implement `Functor` or `Monad` due to `Clone` requirements for memoization.
+- **`Lazy`**: Now implements `Semigroup`, `Monoid`, and `Defer`. It does _not_ implement `Functor` or `Monad` due to `Clone` requirements for memoization.
 - **`Endofunction` / `Endomorphism`**: Updated to work with the new uncurried `Semigroup` trait while preserving type erasure for composition.
 
 ### Removed
