@@ -37,12 +37,12 @@ This limitation stems from the design of the `Function` and `ClonableFn` traits,
 
 The following solutions are ordered by their effectiveness in addressing the thread safety limitation while minimizing code duplication and maintaining ergonomics.
 
-##### Solution 1: Pure Extension Trait (Refined Solution 2)
+##### Solution 1: Pure Extension Trait
 
-This solution is a refinement of **Solution 2** that avoids breaking changes to the `Function` trait. It relies solely on the extension trait pattern to provide thread-safe capabilities.
+This solution avoids breaking changes to the `Function` trait by relying solely on the extension trait pattern to provide thread-safe capabilities.
 
-**Analysis of Solution 2's Flaw:**
-Solution 2 proposes modifying the `Function` trait to relax the `Deref` target. However, this is unnecessary because the `Function::new` method accepts `impl Fn`, which is not `Send`. Therefore, the base `Function::Of` type *must* remain compatible with non-`Send` closures (e.g., `Arc<dyn Fn>`). Since `Function::Of` cannot be `Send` anyway, relaxing the `Function` trait provides no benefit. The `SendClonableFn` extension trait introduces a completely separate associated type (`SendOf`), which renders changes to the base `Function` trait redundant.
+**Rationale:**
+Modifying the `Function` trait to relax the `Deref` target is unnecessary because the `Function::new` method accepts `impl Fn`, which is not `Send`. Therefore, the base `Function::Of` type *must* remain compatible with non-`Send` closures (e.g., `Arc<dyn Fn>`). Since `Function::Of` cannot be `Send` anyway, relaxing the `Function` trait provides no benefit. The `SendClonableFn` extension trait introduces a completely separate associated type (`SendOf`), which makes changes to the base `Function` trait redundant.
 
 **The Solution:**
 
@@ -51,12 +51,16 @@ Solution 2 proposes modifying the `Function` trait to relax the `Deref` target. 
 2.  **Add the `SendClonableFn` extension trait:**
 
 ```rust
+/// Extension trait for brands that support thread-safe function wrappers.
+/// Only implemented by brands that can provide `Send + Sync` guarantees.
 trait SendClonableFn: ClonableFn {
     /// The Send-capable wrapped function type.
-    /// This is distinct from Function::Of.
-    type SendOf<'a, A, B>: Clone + Send + Sync + Deref
-    where
-        <Self::SendOf<'a, A, B> as Deref>::Target: 'a + Fn(A) -> B + ?Sized;
+    /// This is distinct from Function::Of and explicitly requires
+    /// the deref target to be `Send + Sync`.
+    type SendOf<'a, A, B>: Clone
+        + Send
+        + Sync
+        + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
 
     /// Creates a new Send-capable clonable function wrapper.
     fn new_send<'a, A, B>(
@@ -77,11 +81,12 @@ impl SendClonableFn for ArcFnBrand {
         Arc::new(f)
     }
 }
+// Note: RcFnBrand does NOT implement SendClonableFn
 ```
 
 **Usage for parallel operations:**
 
-Unlike Solution 2, this usage example correctly utilizes the branded function type `SendOf` instead of a raw closure, maintaining the library's HKT abstraction.
+This usage example correctly utilizes the branded function type `SendOf` instead of a raw closure, maintaining the library's HKT abstraction.
 
 ```rust
 trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
@@ -99,96 +104,11 @@ trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 *   **Zero Breaking Changes:** No changes to `Function`, `ClonableFn`, or existing brands.
 *   **Clean Separation:** `Send` capabilities are purely additive.
 *   **Correct Abstraction:** Uses the branded `SendOf` type, consistent with the library's design.
+*   **Explicit Thread-Safety:** The `Deref<Target = dyn ... + Send + Sync>` constraint makes the thread-safety guarantees self-documenting in the trait definition.
 
 ---
 
-##### Solution 2: Relaxed Deref Target + Extension Trait
-
-This approach addresses both root causes with minimal code duplication by:
-1. Relaxing the strict `Deref` target type constraint
-2. Adding an extension trait for Send-capable construction
-
-**Step 1: Relax the `Deref` bound**
-
-Introduce a separate associated type for the deref target, allowing different target types:
-
-```rust
-trait Function: Category {
-    /// The target type that `Of` derefs to. This allows flexibility
-    /// for `dyn Fn(A) -> B` vs `dyn Fn(A) -> B + Send + Sync`.
-    type Target<'a, A, B>: ?Sized + 'a + Fn(A) -> B;
-    
-    /// The wrapped function type.
-    type Of<'a, A, B>: Deref<Target = Self::Target<'a, A, B>>;
-    
-    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B>;
-}
-```
-
-With this change:
-- `RcFnBrand::Target<'a, A, B> = dyn 'a + Fn(A) -> B`
-- `ArcFnBrand::Target<'a, A, B> = dyn 'a + Fn(A) -> B`
-
-Both still work as before, but now a new brand could use `dyn Fn + Send + Sync`.
-
-**Step 2: Add an extension trait for Send-capable construction**
-
-```rust
-/// Extension trait for brands that support thread-safe function wrappers.
-/// Only implemented by brands that can provide `Send + Sync` guarantees.
-trait SendClonableFn: ClonableFn {
-    /// The Send-capable wrapped function type.
-    type SendOf<'a, A, B>: Clone + Send + Sync + Deref
-    where
-        <Self::SendOf<'a, A, B> as Deref>::Target: 'a + Fn(A) -> B + ?Sized;
-    
-    /// Creates a new Send-capable clonable function wrapper.
-    fn new_send<'a, A, B>(
-        f: impl 'a + Fn(A) -> B + Send + Sync
-    ) -> Self::SendOf<'a, A, B>;
-}
-
-impl SendClonableFn for ArcFnBrand {
-    type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
-    
-    fn new_send<'a, A, B>(
-        f: impl 'a + Fn(A) -> B + Send + Sync
-    ) -> Self::SendOf<'a, A, B> {
-        Arc::new(f)
-    }
-}
-// Note: RcFnBrand does NOT implement SendClonableFn
-```
-
-**Usage for parallel operations:**
-
-```rust
-trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
-    fn par_fold_map<'a, A, M, F>(
-        fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-        f: F,
-    ) -> M
-    where
-        A: 'a + Clone + Send + Sync,
-        M: Monoid + Send + Sync + 'a,
-        F: Fn(A) -> M + Send + Sync + 'a;
-}
-```
-
-**Advantages:**
-- Minimal code duplication (only function-related traits need Send variants)
-- `ArcFnBrand` implements both `ClonableFn` (backward compatible) AND `SendClonableFn`
-- `RcFnBrand` only implements `ClonableFn` (no need to provide unusable Send methods)
-- Existing traits like `Foldable`, `Functor`, `Traversable` remain unchanged
-- Clear capability model: `SendClonableFn` is an explicit opt-in extension
-
-**Disadvantages:**
-- Minor breaking change to the `Function` trait signature (adding `Target` associated type)
-- Slightly more complex trait hierarchy
-
----
-
-##### Solution 3: Direct Parallel Methods with Raw Closures
+##### Solution 2: Direct Parallel Methods with Raw Closures
 
 This approach sidesteps the `ClonableFn` abstraction entirely for parallel operations by accepting raw closures that are constrained to `Send + Sync`.
 
@@ -231,7 +151,7 @@ trait ParFoldable: Foldable {
 
 ---
 
-##### Solution 4: Separate Parallel Hierarchy
+##### Solution 3: Separate Parallel Hierarchy
 
 This approach creates a complete parallel hierarchy of traits that explicitly require `Send + Sync` bounds throughout.
 
