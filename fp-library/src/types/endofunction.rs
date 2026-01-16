@@ -20,11 +20,11 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-pub struct Endofunction<'a, CFB: ClonableFn, A>(
-	pub Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
+pub struct Endofunction<'a, FnBrand: ClonableFn, A>(
+	pub Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
 );
 
-impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// Creates a new `Endofunction`.
 	///
 	/// # Type Signature
@@ -38,20 +38,22 @@ impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
 	/// # Returns
 	///
 	/// A new `Endofunction`.
-	pub fn new(f: Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A))) -> Self {
+	pub fn new(
+		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A))
+	) -> Self {
 		Self(f)
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Clone for Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: ClonableFn, A> Clone for Endofunction<'a, FnBrand, A> {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Debug for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Debug for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
 {
 	fn fmt(
 		&self,
@@ -61,14 +63,14 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Eq for Endofunction<'a, CFB, A> where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
+impl<'a, FnBrand: ClonableFn, A> Eq for Endofunction<'a, FnBrand, A> where
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
 {
 }
 
-impl<'a, CFB: ClonableFn, A> Hash for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Hash for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -78,9 +80,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Ord for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Ord for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
 {
 	fn cmp(
 		&self,
@@ -90,9 +92,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> PartialEq for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
 {
 	fn eq(
 		&self,
@@ -102,9 +104,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> PartialOrd for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
 {
 	fn partial_cmp(
 		&self,
@@ -114,7 +116,7 @@ where
 	}
 }
 
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
 	/// Composes two endofunctions.
 	///
 	/// # Type Signature
@@ -150,11 +152,11 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 		let f = a.0;
 		let g = b.0;
 		// Compose: f . g
-		Self::new(<CFB as ClonableFn>::new(move |x| f(g(x))))
+		Self::new(<FnBrand as ClonableFn>::new(move |x| f(g(x))))
 	}
 }
 
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
 	/// Returns the identity endofunction.
 	///
 	/// # Type Signature
@@ -176,7 +178,7 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {
-		Self::new(<CFB as ClonableFn>::new(identity))
+		Self::new(<FnBrand as ClonableFn>::new(identity))
 	}
 }
 

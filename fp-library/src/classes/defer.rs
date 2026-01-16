@@ -17,7 +17,7 @@ pub trait Defer<'a> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `ClonableFnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand`: The brand of the clonable function wrapper.
 	///
 	/// ### Parameters
 	///
@@ -41,8 +41,8 @@ pub trait Defer<'a> {
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<ClonableFnBrand: 'a + ClonableFn>(
-		f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
+	fn defer<FnBrand: 'a + ClonableFn>(
+		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
 	) -> Self
 	where
 		Self: Sized;
@@ -58,8 +58,8 @@ pub trait Defer<'a> {
 ///
 /// ### Type Parameters
 ///
+/// * `FnBrand`: The brand of the clonable function wrapper.
 /// * `D`: The type of the deferred value.
-/// * `ClonableFnBrand`: The brand of the clonable function wrapper.
 ///
 /// ### Parameters
 ///
@@ -78,17 +78,17 @@ pub trait Defer<'a> {
 /// use fp_library::brands::OnceCellBrand;
 /// use fp_library::classes::clonable_fn::ClonableFn;
 ///
-/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+/// let lazy = defer::<RcFnBrand, Lazy<OnceCellBrand, RcFnBrand, _>>(
 ///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, D, ClonableFnBrand>(
-	f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
+pub fn defer<'a, FnBrand, D>(
+	f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
 ) -> D
 where
 	D: Defer<'a>,
-	ClonableFnBrand: 'a + ClonableFn,
+	FnBrand: 'a + ClonableFn,
 {
-	D::defer::<ClonableFnBrand>(f)
+	D::defer::<FnBrand>(f)
 }

@@ -30,7 +30,7 @@ use super::{
 /// // Applicative combines Pointed (pure) and Semiapplicative (apply)
 /// let f = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 /// let x = pure::<OptionBrand, _>(5);
-/// let y = apply::<OptionBrand, RcFnBrand, _, _>(f, x);
+/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
 pub trait Applicative: Pointed + Semiapplicative + ApplyFirst + ApplySecond {}

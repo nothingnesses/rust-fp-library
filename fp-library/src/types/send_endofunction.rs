@@ -20,11 +20,11 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
-pub struct SendEndofunction<'a, CFB: SendClonableFn, A>(
-	pub Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
+pub struct SendEndofunction<'a, FnBrand: SendClonableFn, A>(
+	pub Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
 );
 
-impl<'a, CFB: SendClonableFn, A> SendEndofunction<'a, CFB, A> {
+impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// Creates a new `SendEndofunction`.
 	///
 	/// # Type Signature
@@ -39,21 +39,22 @@ impl<'a, CFB: SendClonableFn, A> SendEndofunction<'a, CFB, A> {
 	///
 	/// A new `SendEndofunction`.
 	pub fn new(
-		f: Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A))
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A))
 	) -> Self {
 		Self(f)
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> Clone for SendEndofunction<'a, CFB, A> {
+impl<'a, FnBrand: SendClonableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> Debug for SendEndofunction<'a, CFB, A>
+impl<'a, FnBrand: SendClonableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)): Debug,
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+		Debug,
 {
 	fn fmt(
 		&self,
@@ -63,14 +64,16 @@ where
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> Eq for SendEndofunction<'a, CFB, A> where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)): Eq
+impl<'a, FnBrand: SendClonableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+		Eq
 {
 }
 
-impl<'a, CFB: SendClonableFn, A> Hash for SendEndofunction<'a, CFB, A>
+impl<'a, FnBrand: SendClonableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)): Hash,
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+		Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -80,9 +83,10 @@ where
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> Ord for SendEndofunction<'a, CFB, A>
+impl<'a, FnBrand: SendClonableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)): Ord,
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+		Ord,
 {
 	fn cmp(
 		&self,
@@ -92,9 +96,9 @@ where
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> PartialEq for SendEndofunction<'a, CFB, A>
+impl<'a, FnBrand: SendClonableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
 		PartialEq,
 {
 	fn eq(
@@ -105,9 +109,9 @@ where
 	}
 }
 
-impl<'a, CFB: SendClonableFn, A> PartialOrd for SendEndofunction<'a, CFB, A>
+impl<'a, FnBrand: SendClonableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
+	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
 		PartialOrd,
 {
 	fn partial_cmp(
@@ -118,7 +122,9 @@ where
 	}
 }
 
-impl<'a, CFB: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup for SendEndofunction<'a, CFB, A> {
+impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
+	for SendEndofunction<'a, FnBrand, A>
+{
 	/// Composes two endofunctions.
 	///
 	/// # Type Signature
@@ -140,11 +146,13 @@ impl<'a, CFB: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup for SendEndofu
 		let f = a.0;
 		let g = b.0;
 		// Compose: f . g
-		Self::new(<CFB as SendClonableFn>::new_send(move |x| f(g(x))))
+		Self::new(<FnBrand as SendClonableFn>::new_send(move |x| f(g(x))))
 	}
 }
 
-impl<'a, CFB: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid for SendEndofunction<'a, CFB, A> {
+impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid
+	for SendEndofunction<'a, FnBrand, A>
+{
 	/// Returns the identity endofunction.
 	///
 	/// # Type Signature
@@ -155,6 +163,6 @@ impl<'a, CFB: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid for SendEndofunct
 	///
 	/// The identity function.
 	fn empty() -> Self {
-		Self::new(<CFB as SendClonableFn>::new_send(identity))
+		Self::new(<FnBrand as SendClonableFn>::new_send(identity))
 	}
 }

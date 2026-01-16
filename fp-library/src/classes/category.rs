@@ -10,7 +10,7 @@ use crate::{Apply, kinds::*};
 ///
 /// `Category` extends [`Semigroupoid`] with an identity element.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Category` instances must satisfy the identity law:
 /// * Identity: `compose(identity, p) = compose(p, identity)`.

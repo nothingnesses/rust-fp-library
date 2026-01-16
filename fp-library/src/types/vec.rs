@@ -239,7 +239,7 @@ impl Semiapplicative for VecBrand {
 	///     <RcFnBrand as ClonableFn>::new(|x: i32| x + 1),
 	///     <RcFnBrand as ClonableFn>::new(|x: i32| x * 2),
 	/// ];
-	/// assert_eq!(apply::<VecBrand, RcFnBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
+	/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
@@ -313,14 +313,14 @@ impl Foldable for VecBrand {
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
+	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().rev().fold(init, |acc, x| f(x, acc))
 	}
@@ -350,14 +350,14 @@ impl Foldable for VecBrand {
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
+	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().fold(init, f)
 	}
@@ -390,14 +390,14 @@ impl Foldable for VecBrand {
 	///     "123".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
+	fn fold_map<'a, FnBrand, F, A: 'a, M>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
 	}
@@ -560,15 +560,15 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 	///
 	/// # Parameters
 	///
+	/// * `func`: The mapping function.
 	/// * `fa`: The vector to fold.
-	/// * `f`: The mapping function.
 	///
 	/// # Returns
 	///
 	/// The combined monoid value.
 	fn par_fold_map<'a, A, M>(
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -576,12 +576,12 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 	{
 		#[cfg(feature = "rayon")]
 		{
-			fa.into_par_iter().map(|a| f(a)).reduce(M::empty, |acc, m| M::append(acc, m))
+			fa.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
 		}
 		#[cfg(not(feature = "rayon"))]
 		{
 			#[allow(clippy::redundant_closure)]
-			fa.into_iter().map(|a| f(a)).fold(M::empty(), |acc, m| M::append(acc, m))
+			fa.into_iter().map(|a| func(a)).fold(M::empty(), |acc, m| M::append(acc, m))
 		}
 	}
 }
@@ -627,7 +627,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
-		apply::<VecBrand, RcFnBrand, _, _>(
+		apply::<RcFnBrand, VecBrand, _, _>(
 			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -637,7 +637,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<VecBrand, RcFnBrand, _, _>(
+		apply::<RcFnBrand, VecBrand, _, _>(
 			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<VecBrand, _>(x),
 		) == pure::<VecBrand, _>(f(x))
@@ -660,8 +660,8 @@ mod tests {
 			.collect();
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<VecBrand, RcFnBrand, _, _>(v_fns.clone(), w.clone());
-		let rhs = apply::<VecBrand, RcFnBrand, _, _>(u_fns.clone(), vw);
+		let vw = apply::<RcFnBrand, VecBrand, _, _>(v_fns.clone(), w.clone());
+		let rhs = apply::<RcFnBrand, VecBrand, _, _>(u_fns.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -677,7 +677,7 @@ mod tests {
 			})
 			.collect();
 
-		let lhs = apply::<VecBrand, RcFnBrand, _, _>(uv_fns, w);
+		let lhs = apply::<RcFnBrand, VecBrand, _, _>(uv_fns, w);
 
 		lhs == rhs
 	}
@@ -689,10 +689,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = vec![<RcFnBrand as ClonableFn>::new(f)];
 
-		let lhs = apply::<VecBrand, RcFnBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
+		let lhs = apply::<RcFnBrand, VecBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<VecBrand, RcFnBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
+		let rhs = apply::<RcFnBrand, VecBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}
@@ -847,7 +847,7 @@ mod tests {
 	fn par_fold_map_empty() {
 		let v: Vec<i32> = vec![];
 		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "".to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "".to_string());
 	}
 
 	/// Tests `par_fold_map` on a single element.
@@ -855,7 +855,7 @@ mod tests {
 	fn par_fold_map_single() {
 		let v = vec![1];
 		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "1".to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "1".to_string());
 	}
 
 	/// Tests `par_fold_map` on multiple elements.
@@ -863,7 +863,7 @@ mod tests {
 	fn par_fold_map_multiple() {
 		let v = vec![1, 2, 3];
 		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "123".to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 	}
 
 	/// Tests `par_fold_right` on multiple elements.

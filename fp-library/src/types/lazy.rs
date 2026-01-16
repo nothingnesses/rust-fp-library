@@ -15,12 +15,12 @@ use crate::{
 /// `Lazy` stores a computation (a thunk) that is executed only when the value is needed.
 /// The result is then cached (memoized) so that subsequent accesses return the same value
 /// without re-executing the computation.
-pub struct Lazy<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A>(
+pub struct Lazy<'a, OnceBrand: Once, FnBrand: ClonableFn, A>(
 	pub Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)),
-	pub Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A)),
+	pub Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A)),
 );
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, ClonableFnBrand, A> {
+impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A> {
 	/// Creates a new `Lazy` value from a thunk.
 	///
 	/// The thunk is wrapped in an `ApplyClonableFn` (e.g., `Rc<dyn Fn() -> A>`) to allow
@@ -49,7 +49,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
 	/// ```
 	pub fn new(
-		a: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A))
+		a: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A))
 	) -> Self {
 		Self(OnceBrand::new(), a)
 	}
@@ -91,8 +91,7 @@ impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A> Lazy<'a, OnceBrand, Cl
 	}
 }
 
-impl<'a, OnceBrand: Once, ClonableFnBrand: ClonableFn, A: Clone> Clone
-	for Lazy<'a, OnceBrand, ClonableFnBrand, A>
+impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A: Clone> Clone for Lazy<'a, OnceBrand, FnBrand, A>
 where
 	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
@@ -102,10 +101,10 @@ where
 }
 
 impl_kind! {
-	impl<OnceBrand: Once + 'static, ClonableFnBrand: ClonableFn + 'static>
-		for LazyBrand<OnceBrand, ClonableFnBrand>
+	impl<OnceBrand: Once + 'static, FnBrand: ClonableFn + 'static>
+		for LazyBrand<OnceBrand, FnBrand>
 	{
-		type Of<'a, A: 'a>: 'a = Lazy<'a, OnceBrand, ClonableFnBrand, A>;
+		type Of<'a, A: 'a>: 'a = Lazy<'a, OnceBrand, FnBrand, A>;
 	}
 }
 
@@ -116,8 +115,8 @@ impl_kind! {
 //
 // Consequently, Lazy cannot implement Semiapplicative either, as it extends Functor.
 
-impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
-	for Lazy<'b, OnceBrand, CFB, A>
+impl<'b, OnceBrand: 'b + Once, FnBrand: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
+	for Lazy<'b, OnceBrand, FnBrand, A>
 where
 	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
@@ -142,14 +141,14 @@ where
 		a: Self,
 		b: Self,
 	) -> Self {
-		Lazy::new(<CFB as ClonableFn>::new(move |_| {
+		Lazy::new(<FnBrand as ClonableFn>::new(move |_| {
 			Semigroup::append(Lazy::force(a.clone()), Lazy::force(b.clone()))
 		}))
 	}
 }
 
-impl<'b, OnceBrand: 'b + Once, CFB: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
-	for Lazy<'b, OnceBrand, CFB, A>
+impl<'b, OnceBrand: 'b + Once, FnBrand: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
+	for Lazy<'b, OnceBrand, FnBrand, A>
 where
 	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
 {
@@ -165,12 +164,12 @@ where
 	///
 	/// A lazy value containing the identity element.
 	fn empty() -> Self {
-		Lazy::new(<CFB as ClonableFn>::new(move |_| Monoid::empty()))
+		Lazy::new(<FnBrand as ClonableFn>::new(move |_| Monoid::empty()))
 	}
 }
 
-impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
-	for Lazy<'a, OnceBrand, CFB, A>
+impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
+	for Lazy<'a, OnceBrand, FnBrand, A>
 {
 	/// Defers the construction of a `Lazy` value.
 	///
@@ -211,7 +210,7 @@ impl<'a, OnceBrand: Once + 'a, CFB: ClonableFn + 'a, A: Clone + 'a> Defer<'a>
 		Self: Sized,
 		ClonableFnBrand: ClonableFn + 'a,
 	{
-		Self::new(<CFB as ClonableFn>::new(move |_| Lazy::force(f(()))))
+		Self::new(<FnBrand as ClonableFn>::new(move |_| Lazy::force(f(()))))
 	}
 }
 

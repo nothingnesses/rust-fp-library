@@ -31,7 +31,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to each element, returning a value in an applicative context.
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The traversable structure.
 	///
 	/// ### Returns
@@ -49,7 +49,7 @@ pub trait Traversable: Functor + Foldable {
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
@@ -74,7 +74,7 @@ pub trait Traversable: Functor + Foldable {
 			signature: ('a, B: 'a) -> 'a,
 		): Clone,
 	{
-		Self::sequence::<F, B>(Self::map::<Func, A, _>(f, ta))
+		Self::sequence::<F, B>(Self::map::<Func, A, _>(func, ta))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -157,7 +157,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Parameters
 ///
-/// * `f`: The function to apply to each element, returning a value in an applicative context.
+/// * `func`: The function to apply to each element, returning a value in an applicative context.
 /// * `ta`: The traversable structure.
 ///
 /// ### Returns
@@ -175,7 +175,7 @@ pub trait Traversable: Functor + Foldable {
 /// assert_eq!(y, Some(Some(10)));
 /// ```
 pub fn traverse<'a, Brand: Traversable, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-	f: Func,
+	func: Func,
 	ta: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
@@ -200,7 +200,7 @@ where
 		signature: ('a, B: 'a) -> 'a,
 	): Clone,
 {
-	Brand::traverse::<F, Func, A, B>(f, ta)
+	Brand::traverse::<F, Func, A, B>(func, ta)
 }
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.

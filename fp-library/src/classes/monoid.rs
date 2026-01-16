@@ -8,7 +8,7 @@ use super::semigroup::Semigroup;
 ///
 /// `Monoid` extends [`Semigroup`] with an identity element.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Monoid` instances must satisfy the identity laws:
 /// * Left Identity: `append(empty(), a) = a`.

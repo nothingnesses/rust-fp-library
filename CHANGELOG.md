@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update function and method documentation in `fp-library/src/classes/` to follow a consistent format with detailed sections for type signatures, parameters, and examples.
 - Rewrite module-level documentation in `fp-library/src/classes.rs` for clarity and accuracy regarding Brand types and HKT simulation.
 - Add missing module-level documentation to all type class modules in `fp-library/src/classes/`.
+- refactor: standardize API parameter order and naming
+  - Reorder `par_fold_map` arguments to `(func, fa)` for consistency with `fold_map`.
+  - Reorder type parameters for `apply` and `defer` to put `FnBrand` first.
+  - Rename `ClonableFnBrand` type parameter to `FnBrand` across the library.
+  - Rename internal parameters `f` to `func` and `init` to `initial` in folding traits.
+  - Update all documentation, examples, and tests to match the new API.
+  - Standardize law section headers in documentation.
 
 ## [Unreleased fp-macros 0.1.1]
 

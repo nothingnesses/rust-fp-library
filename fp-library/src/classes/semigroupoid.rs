@@ -9,7 +9,7 @@ use crate::{Apply, kinds::*};
 /// A `Semigroupoid` is a set of objects and composable relationships
 /// (morphisms) between them.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// Semigroupoid instances must satisfy the associative law:
 /// * Associativity: `compose(p, compose(q, r)) = compose(compose(p, q), r)`.

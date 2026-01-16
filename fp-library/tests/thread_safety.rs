@@ -33,7 +33,7 @@ fn test_par_foldable_in_thread() {
 	let v = vec![1, 2, 3, 4, 5];
 	let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 
-	let handle = thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f));
+	let handle = thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v));
 
 	assert_eq!(handle.join().unwrap(), "12345".to_string());
 }
@@ -65,10 +65,10 @@ fn test_par_foldable_concurrent_access() {
 
 	// Thread 1 uses f to fold v
 	let handle1 =
-		thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(v_clone, f_clone));
+		thread::spawn(move || par_fold_map::<ArcFnBrand, VecBrand, _, _>(f_clone, v_clone));
 
 	// Main thread uses f to fold v
-	let result2 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f);
+	let result2 = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 
 	// Wait for thread 1
 	let result1 = handle1.join().unwrap();

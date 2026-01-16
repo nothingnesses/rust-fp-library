@@ -65,7 +65,7 @@ pub trait Function: Category {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the function wrapper.
+/// * `Brand`: The brand of the function wrapper.
 /// * `A`: The input type of the function.
 /// * `B`: The output type of the function.
 ///
@@ -86,11 +86,11 @@ pub trait Function: Category {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, F, A, B>(
+pub fn new<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B
-) -> Apply!(brand: F, kind: Function, lifetimes: ('a), types: (A, B))
+) -> Apply!(brand: Brand, kind: Function, lifetimes: ('a), types: (A, B))
 where
-	F: Function,
+	Brand: Function,
 {
-	F::new(f)
+	Brand::new(f)
 }

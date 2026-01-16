@@ -257,7 +257,7 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value to be stored in the container.
 ///
 /// ### Returns
@@ -274,11 +274,11 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 /// let cell = new::<OnceCellBrand, i32>();
 /// assert_eq!(get::<OnceCellBrand, _>(&cell), None);
 /// ```
-pub fn new<F, A>() -> Apply!(brand: F, kind: Once, lifetimes: (), types: (A))
+pub fn new<Brand, A>() -> Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A))
 where
-	F: Once,
+	Brand: Once,
 {
-	F::new()
+	Brand::new()
 }
 
 /// Gets a reference to the value if it has been initialized.
@@ -291,7 +291,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value stored in the container.
 ///
 /// ### Parameters
@@ -313,11 +313,11 @@ where
 /// set::<OnceCellBrand, _>(&cell, 42).unwrap();
 /// assert_eq!(get::<OnceCellBrand, _>(&cell), Some(&42));
 /// ```
-pub fn get<F, A>(a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<&A>
+pub fn get<Brand, A>(a: &Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A))) -> Option<&A>
 where
-	F: Once,
+	Brand: Once,
 {
-	F::get(a)
+	Brand::get(a)
 }
 
 /// Gets a mutable reference to the value if it has been initialized.
@@ -330,7 +330,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value stored in the container.
 ///
 /// ### Parameters
@@ -354,13 +354,13 @@ where
 /// }
 /// assert_eq!(get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
 /// ```
-pub fn get_mut<F, A>(
-	a: &mut Apply!(brand: F, kind: Once, lifetimes: (), types: (A))
+pub fn get_mut<Brand, A>(
+	a: &mut Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A))
 ) -> Option<&mut A>
 where
-	F: Once,
+	Brand: Once,
 {
-	F::get_mut(a)
+	Brand::get_mut(a)
 }
 
 /// Sets the value of the container.
@@ -375,7 +375,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value to set.
 ///
 /// ### Parameters
@@ -397,14 +397,14 @@ where
 /// assert!(set::<OnceCellBrand, _>(&cell, 42).is_ok());
 /// assert!(set::<OnceCellBrand, _>(&cell, 10).is_err());
 /// ```
-pub fn set<F, A>(
-	a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A)),
+pub fn set<Brand, A>(
+	a: &Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A)),
 	value: A,
 ) -> Result<(), A>
 where
-	F: Once,
+	Brand: Once,
 {
-	F::set(a, value)
+	Brand::set(a, value)
 }
 
 /// Gets the value, initializing it with the closure `f` if it is not already initialized.
@@ -417,7 +417,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value stored in the container.
 /// * `B`: The type of the initialization function.
 ///
@@ -440,15 +440,15 @@ where
 /// assert_eq!(*get_or_init::<OnceCellBrand, _, _>(&cell, || 42), 42);
 /// assert_eq!(*get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
 /// ```
-pub fn get_or_init<F, A, B>(
-	a: &Apply!(brand: F, kind: Once, lifetimes: (), types: (A)),
+pub fn get_or_init<Brand, A, B>(
+	a: &Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A)),
 	f: B,
 ) -> &A
 where
-	F: Once,
+	Brand: Once,
 	B: FnOnce() -> A,
 {
-	F::get_or_init(a, f)
+	Brand::get_or_init(a, f)
 }
 
 /// Consumes the container and returns the value if it has been initialized.
@@ -461,7 +461,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value stored in the container.
 ///
 /// ### Parameters
@@ -482,11 +482,13 @@ where
 /// set::<OnceCellBrand, _>(&cell, 42).unwrap();
 /// assert_eq!(into_inner::<OnceCellBrand, _>(cell), Some(42));
 /// ```
-pub fn into_inner<F, A>(a: Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<A>
+pub fn into_inner<Brand, A>(
+	a: Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A))
+) -> Option<A>
 where
-	F: Once,
+	Brand: Once,
 {
-	F::into_inner(a)
+	Brand::into_inner(a)
 }
 
 /// Takes the value out of the container, leaving it uninitialized.
@@ -499,7 +501,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the container.
+/// * `Brand`: The brand of the container.
 /// * `A`: The type of the value stored in the container.
 ///
 /// ### Parameters
@@ -521,9 +523,11 @@ where
 /// assert_eq!(take::<OnceCellBrand, _>(&mut cell), Some(42));
 /// assert_eq!(take::<OnceCellBrand, _>(&mut cell), None);
 /// ```
-pub fn take<F, A>(a: &mut Apply!(brand: F, kind: Once, lifetimes: (), types: (A))) -> Option<A>
+pub fn take<Brand, A>(
+	a: &mut Apply!(brand: Brand, kind: Once, lifetimes: (), types: (A))
+) -> Option<A>
 where
-	F: Once,
+	Brand: Once,
 {
-	F::take(a)
+	Brand::take(a)
 }

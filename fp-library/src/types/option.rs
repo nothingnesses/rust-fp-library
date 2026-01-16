@@ -159,7 +159,7 @@ impl Semiapplicative for OptionBrand {
 	/// use std::rc::Rc;
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<OptionBrand, RcFnBrand, _, _>(f, Some(5)), Some(10));
+	/// assert_eq!(apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5)), Some(10));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
@@ -235,14 +235,14 @@ impl Foldable for OptionBrand {
 	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
 	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
 	/// ```
-	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
+	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(a, init),
@@ -275,14 +275,14 @@ impl Foldable for OptionBrand {
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
 	/// ```
-	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
+	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(init, a),
@@ -315,14 +315,14 @@ impl Foldable for OptionBrand {
 	///
 	/// assert_eq!(fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
+	fn fold_map<'a, FnBrand, F, A: 'a, M>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(a),
@@ -414,22 +414,22 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 	///
 	/// # Parameters
 	///
+	/// * `func`: The mapping function.
 	/// * `fa`: The option to fold.
-	/// * `f`: The mapping function.
 	///
 	/// # Returns
 	///
 	/// The combined monoid value.
 	fn par_fold_map<'a, A, M>(
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
 		match fa {
-			Some(a) => f(a),
+			Some(a) => func(a),
 			None => M::empty(),
 		}
 	}
@@ -474,7 +474,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
-		apply::<OptionBrand, RcFnBrand, _, _>(
+		apply::<RcFnBrand, OptionBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v,
 		) == v
@@ -484,7 +484,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<OptionBrand, RcFnBrand, _, _>(
+		apply::<RcFnBrand, OptionBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<OptionBrand, _>(x),
 		) == pure::<OptionBrand, _>(f(x))
@@ -512,8 +512,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<OptionBrand, RcFnBrand, _, _>(v.clone(), w.clone());
-		let rhs = apply::<OptionBrand, RcFnBrand, _, _>(u.clone(), vw);
+		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -525,7 +525,7 @@ mod tests {
 			_ => None,
 		};
 
-		let lhs = apply::<OptionBrand, RcFnBrand, _, _>(uv, w);
+		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -537,10 +537,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<OptionBrand, RcFnBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
+		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<OptionBrand, RcFnBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
+		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}
@@ -646,7 +646,7 @@ mod tests {
 	fn par_fold_map_none() {
 		let x: Option<i32> = None;
 		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(x, f), "".to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "".to_string());
 	}
 
 	/// Tests `par_fold_map` on `Some`.
@@ -654,7 +654,7 @@ mod tests {
 	fn par_fold_map_some() {
 		let x = Some(5);
 		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(x, f), "5".to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "5".to_string());
 	}
 
 	/// Tests `par_fold_right` on `Some`.

@@ -33,7 +33,7 @@ mod tests {
 	fn test_large_vector_par_fold_map() {
 		let xs: Vec<i32> = (0..100000).collect();
 		let f_par = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| Sum(x as i64));
-		let res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(xs, f_par);
+		let res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 		assert_eq!(res, Sum(4999950000));
 	}
 
@@ -44,7 +44,7 @@ mod tests {
 
 		// Foldable::fold_map takes (f, fa)
 		let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _, _>(f_seq, xs.clone());
-		let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(xs, f_par);
+		let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 
 		seq_res == par_res
 	}
@@ -77,7 +77,7 @@ mod tests {
 		}
 
 		let f_par = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| Sum(x as i64));
-		let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(xs, f_par);
+		let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 
 		par_res == Sum::empty()
 	}
@@ -87,8 +87,8 @@ mod tests {
 		let f_par: <ArcFnBrand as SendClonableFn>::SendOf<'_, i32, Sum> =
 			<ArcFnBrand as SendClonableFn>::new_send(|x: i32| Sum(x as i64));
 
-		let res1 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(xs.clone(), f_par.clone());
-		let res2 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(xs, f_par);
+		let res1 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par.clone(), xs.clone());
+		let res2 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 
 		if res1 != res2 {
 			println!("Deterministic fail: {:?} != {:?}", res1, res2);

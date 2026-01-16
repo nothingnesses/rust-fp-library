@@ -9,7 +9,7 @@ use crate::{Apply, kinds::*};
 /// A `Functor` represents a context or container that allows functions to be applied
 /// to values within that context without altering the structure of the context itself.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity, fa) = fa`.

@@ -65,7 +65,7 @@ pub trait ClonableFn: Function {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the clonable function wrapper.
+/// * `Brand`: The brand of the clonable function wrapper.
 /// * `A`: The input type of the function.
 /// * `B`: The output type of the function.
 ///
@@ -86,11 +86,11 @@ pub trait ClonableFn: Function {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, F, A, B>(
+pub fn new<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B
-) -> Apply!(brand: F, kind: ClonableFn, lifetimes: ('a), types: (A, B))
+) -> Apply!(brand: Brand, kind: ClonableFn, lifetimes: ('a), types: (A, B))
 where
-	F: ClonableFn,
+	Brand: ClonableFn,
 {
-	<F as ClonableFn>::new(f)
+	<Brand as ClonableFn>::new(f)
 }

@@ -10,7 +10,7 @@ use crate::{Apply, kinds::*};
 /// `Semiapplicative` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Semiapplicative` instances must satisfy the following law:
 /// * Composition: `apply(apply(f, g), x) = apply(f, apply(g, x))`.
@@ -107,10 +107,10 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 /// let x = Some(5);
-/// let y = apply::<OptionBrand, RcFnBrand, _, _>(f, x);
+/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn apply<'a, Brand: Semiapplicative, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+pub fn apply<'a, FnBrand: 'a + ClonableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
 	ff: Apply!(
 		brand: Brand,
 		signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
