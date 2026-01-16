@@ -214,11 +214,12 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
-	/// let f = Ok(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<()>, _, _>(f.clone(), Ok(5)), Ok(10));
+	/// let f: Result<_, ()> = Ok(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<()>, _, _>(f, Ok(5)), Ok(10));
+	/// let f: Result<_, i32> = Ok(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(f, Err(1)), Err(1));
 	///
-	/// let f_err = Err(1);
+	/// let f_err: Result<Rc<dyn Fn(i32) -> i32>, i32> = Err(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(f_err, Ok(5)), Err(1));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
@@ -268,7 +269,7 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///     Ok(10)
 	/// );
 	/// assert_eq!(
-	///     bind::<ResultWithErrBrand<i32>, _, _, _>(Ok(5), |_| Err(1)),
+	///     bind::<ResultWithErrBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)),
 	///     Err(1)
 	/// );
 	/// assert_eq!(
@@ -535,8 +536,8 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///     Some(Ok(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<i32>, OptionBrand, _>(Err(1)),
-	///     Some(Err(1))
+	///     sequence::<ResultWithErrBrand<i32>, OptionBrand, i32>(Err::<Option<i32>, _>(1)),
+	///     Some(Err::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
 	///     sequence::<ResultWithErrBrand<()>, OptionBrand, _>(Ok(None::<i32>)),
@@ -750,11 +751,12 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
-	/// let f = Err(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<()>, _, _>(f.clone(), Err(5)), Err(10));
+	/// let f: Result<(), _> = Err(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<()>, _, _>(f, Err(5)), Err(10));
+	/// let f: Result<i32, _> = Err(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<i32>, _, _>(f, Ok(1)), Ok(1));
 	///
-	/// let f_ok = Ok(1);
+	/// let f_ok: Result<i32, Rc<dyn Fn(i32) -> i32>> = Ok(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<i32>, _, _>(f_ok, Err(5)), Ok(1));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
@@ -804,7 +806,7 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///     Err(10)
 	/// );
 	/// assert_eq!(
-	///     bind::<ResultWithOkBrand<i32>, _, _, _>(Err(5), |_| Ok(1)),
+	///     bind::<ResultWithOkBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)),
 	///     Ok(1)
 	/// );
 	/// assert_eq!(
@@ -1074,8 +1076,8 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///     Some(Err(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<i32>, OptionBrand, _>(Ok(1)),
-	///     Some(Ok(1))
+	///     sequence::<ResultWithOkBrand<i32>, OptionBrand, i32>(Ok::<_, Option<i32>>(1)),
+	///     Some(Ok::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
 	///     sequence::<ResultWithOkBrand<()>, OptionBrand, _>(Err(None::<i32>)),
