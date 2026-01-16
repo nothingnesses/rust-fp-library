@@ -1,4 +1,7 @@
-//! Implementations for [`Endomorphism`], a wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
+//! Endomorphism wrapper.
+//!
+//! This module defines the [`Endomorphism`] struct, which wraps a morphism from an object to itself (an endomorphism)
+//! and provides [`Semigroup`] and [`Monoid`] instances based on composition and identity.
 
 use crate::{
 	Apply,
@@ -26,17 +29,35 @@ pub struct Endomorphism<'a, C: Category, A>(pub Apply!(brand: C, signature: ('a,
 impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// Creates a new `Endomorphism`.
 	///
-	/// # Type Signature
+	/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a c. Category c => c a a -> Endomorphism c a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `C`: The category of the morphism.
+	/// * `A`: The object of the morphism.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The morphism to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new `Endomorphism`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::endomorphism::Endomorphism;
+	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// assert_eq!(f.0(5), 10);
+	/// ```
 	pub fn new(f: Apply!(brand: C, signature: ('a, A, A))) -> Self {
 		Self(f)
 	}
@@ -117,22 +138,26 @@ where
 }
 
 impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
-	/// Composes two endomorphisms.
+	/// The result of combining the two values using the semigroup operation.
 	///
-	/// # Type Signature
+	/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
+	/// Note that `Endomorphism` composition is reversed relative to standard function composition:
+	/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a c. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `a`: The second morphism to apply.
-	/// * `b`: The first morphism to apply.
+	/// * `a`: The second morphism to apply (the outer function).
+	/// * `b`: The first morphism to apply (the inner function).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The composed morphism `a . b`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::endomorphism::Endomorphism;
@@ -142,8 +167,10 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+	///
+	/// // f(g(x)) = (x + 1) * 2
 	/// let h = Semigroup::append(f, g);
-	/// assert_eq!(h.0(5), 12); // (5 + 1) * 2
+	/// assert_eq!(h.0(5), 12);
 	/// ```
 	fn append(
 		a: Self,
@@ -154,17 +181,19 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 }
 
 impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
-	/// Returns the identity endomorphism.
+	/// The identity element.
 	///
-	/// # Type Signature
+	/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a c. Monoid (Endomorphism c a) => () -> Endomorphism c a`
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// The identity morphism.
+	/// The identity endomorphism.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::endomorphism::Endomorphism;

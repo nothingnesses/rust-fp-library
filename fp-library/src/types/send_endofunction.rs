@@ -1,4 +1,7 @@
-//! Implementations for [`SendEndofunction`], a thread-safe wrapper for endofunctions.
+//! SendEndofunction wrapper.
+//!
+//! This module defines the [`SendEndofunction`] struct, which wraps a thread-safe function from a type to itself (an endofunction)
+//! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
 	Apply,
@@ -27,17 +30,35 @@ pub struct SendEndofunction<'a, FnBrand: SendClonableFn, A>(
 impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// Creates a new `SendEndofunction`.
 	///
-	/// # Type Signature
+	/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. (a -> a) -> SendEndofunction a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the function (e.g., `ArcFnBrand`).
+	/// * `A`: The input and output type of the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The function to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new `SendEndofunction`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::send_endofunction::SendEndofunction;
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+	///
+	/// let f = SendEndofunction::<ArcFnBrand, _>::new(<ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2));
+	/// assert_eq!(f.0(5), 10);
+	/// ```
 	pub fn new(
 		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A))
 	) -> Self {
@@ -125,20 +146,40 @@ where
 impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
 	for SendEndofunction<'a, FnBrand, A>
 {
-	/// Composes two endofunctions.
+	/// The result of combining the two values using the semigroup operation.
 	///
-	/// # Type Signature
+	/// This method composes two endofunctions into a single endofunction.
+	/// Note that `SendEndofunction` composition is reversed relative to standard function composition:
+	/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Semigroup (SendEndofunction a) => (SendEndofunction a, SendEndofunction a) -> SendEndofunction a`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `a`: The second function to apply.
-	/// * `b`: The first function to apply.
+	/// * `a`: The second function to apply (the outer function).
+	/// * `b`: The first function to apply (the inner function).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The composed function `a . b`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::send_endofunction::SendEndofunction;
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+	/// use fp_library::classes::semigroup::Semigroup;
+	///
+	/// let f = SendEndofunction::<ArcFnBrand, _>::new(<ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2));
+	/// let g = SendEndofunction::<ArcFnBrand, _>::new(<ArcFnBrand as SendClonableFn>::new_send(|x: i32| x + 1));
+	///
+	/// // f(g(x)) = (x + 1) * 2
+	/// let h = Semigroup::append(f, g);
+	/// assert_eq!(h.0(5), 12);
+	/// ```
 	fn append(
 		a: Self,
 		b: Self,
@@ -153,15 +194,28 @@ impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
 impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid
 	for SendEndofunction<'a, FnBrand, A>
 {
-	/// Returns the identity endofunction.
+	/// The identity element.
 	///
-	/// # Type Signature
+	/// This method returns the identity endofunction, which wraps the identity function.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Monoid (SendEndofunction a) => () -> SendEndofunction a`
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// The identity function.
+	/// The identity endofunction.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::send_endofunction::SendEndofunction;
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::monoid::Monoid;
+	///
+	/// let id = SendEndofunction::<ArcFnBrand, i32>::empty();
+	/// assert_eq!(id.0(5), 5);
+	/// ```
 	fn empty() -> Self {
 		Self::new(<FnBrand as SendClonableFn>::new_send(identity))
 	}

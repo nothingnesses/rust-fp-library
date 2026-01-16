@@ -1,5 +1,7 @@
-//! Implementations for [reference-counted][std::rc::Rc] [closures][Fn]
-//! (`Rc<dyn Fn(A) -> B>`).
+//! Reference-counted function wrapper.
+//!
+//! This module defines the [`RcFnBrand`] struct, which provides implementations for reference-counted closures (`Rc<dyn Fn(A) -> B>`).
+//! It implements [`Function`], [`ClonableFn`], [`Semigroupoid`], and [`Category`].
 
 use crate::{
 	Apply,
@@ -21,21 +23,28 @@ impl_kind! {
 impl Function for RcFnBrand {
 	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
 
-	/// Creates a new `Rc`-wrapped function.
+	/// Creates a new function wrapper.
 	///
-	/// # Type Signature
+	/// This function wraps the provided closure `f` into an `Rc`-wrapped function.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Function RcFnBrand => (a -> b) -> RcFnBrand a b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
 	///
-	/// * `f`: The function to wrap.
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
 	///
-	/// # Returns
+	/// ### Parameters
 	///
-	/// An `Rc`-wrapped function.
+	/// * `f`: The closure to wrap.
 	///
-	/// # Examples
+	/// ### Returns
+	///
+	/// The wrapped function.
+	///
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
@@ -56,19 +65,26 @@ impl ClonableFn for RcFnBrand {
 
 	/// Creates a new clonable function wrapper.
 	///
-	/// # Type Signature
+	/// This function wraps the provided closure `f` into an `Rc`-wrapped clonable function.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. ClonableFn RcFnBrand => (a -> b) -> RcFnBrand a b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
 	///
-	/// * `f`: The function to wrap.
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
 	///
-	/// # Returns
+	/// ### Parameters
 	///
-	/// An `Rc`-wrapped clonable function.
+	/// * `f`: The closure to wrap.
 	///
-	/// # Examples
+	/// ### Returns
+	///
+	/// The wrapped clonable function.
+	///
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
@@ -85,22 +101,30 @@ impl ClonableFn for RcFnBrand {
 }
 
 impl Semigroupoid for RcFnBrand {
-	/// Composes two `Rc`-wrapped functions.
+	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
-	/// # Type Signature
+	/// This method composes two `Rc`-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall b c d. Semigroupoid RcFnBrand => (RcFnBrand c d, RcFnBrand b c) -> RcFnBrand b d`
 	///
-	/// # Parameters
+	/// ### Type Parameters
 	///
-	/// * `f`: The second function to apply.
-	/// * `g`: The first function to apply.
+	/// * `B`: The source type of the first morphism.
+	/// * `C`: The target type of the first morphism and the source type of the second morphism.
+	/// * `D`: The target type of the second morphism.
 	///
-	/// # Returns
+	/// ### Parameters
 	///
-	/// The composed function `f . g`.
+	/// * `f`: The second morphism to apply (from C to D).
+	/// * `g`: The first morphism to apply (from B to C).
 	///
-	/// # Examples
+	/// ### Returns
+	///
+	/// The composed morphism (from B to D).
+	///
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
@@ -121,17 +145,23 @@ impl Semigroupoid for RcFnBrand {
 }
 
 impl Category for RcFnBrand {
-	/// Returns the identity function wrapped in an `Rc`.
+	/// Returns the identity morphism.
 	///
-	/// # Type Signature
+	/// The identity morphism is a function that maps every object to itself, wrapped in an `Rc`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Category RcFnBrand => () -> RcFnBrand a a`
 	///
-	/// # Returns
+	/// ### Type Parameters
 	///
-	/// The identity function.
+	/// * `A`: The type of the object.
 	///
-	/// # Examples
+	/// ### Returns
+	///
+	/// The identity morphism.
+	///
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;

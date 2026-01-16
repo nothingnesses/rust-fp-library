@@ -1,4 +1,7 @@
-//! Implementations for [`OnceCell`]
+//! OnceCell wrapper.
+//!
+//! This module defines the [`OnceCellBrand`] struct, which provides implementations for [`OnceCell`].
+//! It implements [`Once`].
 
 use crate::{Apply, brands::OnceCellBrand, classes::once::Once, impl_kind, kinds::*};
 use std::cell::OnceCell;
@@ -12,17 +15,23 @@ impl_kind! {
 impl Once for OnceCellBrand {
 	type Of<A> = Apply!(brand: Self, signature: (A));
 
-	/// Creates a new, uninitialized `OnceCell`.
+	/// Creates a new, uninitialized `Once` container.
 	///
-	/// # Type Signature
+	/// This method creates a new instance of the `OnceCell` that is initially empty.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => () -> OnceCell a`
 	///
-	/// # Returns
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to be stored in the container.
+	///
+	/// ### Returns
 	///
 	/// A new, empty `OnceCell`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -37,56 +46,109 @@ impl Once for OnceCellBrand {
 
 	/// Gets a reference to the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method returns a reference to the value stored in the `OnceCell` if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A reference to the value, or `None` if uninitialized.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let cell = <OnceCellBrand as Once>::new::<i32>();
+	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
+	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
+	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
+	/// ```
 	fn get<A>(a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<&A> {
 		OnceCell::get(a)
 	}
 
 	/// Gets a mutable reference to the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method returns a mutable reference to the value stored in the `OnceCell` if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A mutable reference to the value, or `None` if uninitialized.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
+	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
+	/// if let Some(val) = <OnceCellBrand as Once>::get_mut(&mut cell) {
+	///     *val += 1;
+	/// }
+	/// assert_eq!(<OnceCellBrand as Once>::get_mut(&mut cell), Some(&mut 43));
+	/// ```
 	fn get_mut<A>(
 		a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))
 	) -> Option<&mut A> {
 		OnceCell::get_mut(a)
 	}
 
-	/// Sets the value of the `OnceCell`.
+	/// Sets the value of the container.
 	///
-	/// Returns `Ok(())` if the value was set, or `Err(value)` if the cell was already initialized.
+	/// This method attempts to set the value of the `OnceCell`. If the `OnceCell` is already initialized, it returns the value in the `Err` variant.
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => (OnceCell a, a) -> Result<(), a>`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to set.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	/// * `value`: The value to set.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// `Ok(())` on success, or `Err(value)` if already initialized.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let cell = <OnceCellBrand as Once>::new::<i32>();
+	/// assert!(<OnceCellBrand as Once>::set(&cell, 42).is_ok());
+	/// assert!(<OnceCellBrand as Once>::set(&cell, 10).is_err());
+	/// ```
 	fn set<A>(
 		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
 		value: A,
@@ -96,18 +158,36 @@ impl Once for OnceCellBrand {
 
 	/// Gets the value, initializing it with the closure `f` if it is not already initialized.
 	///
-	/// # Type Signature
+	/// This method returns a reference to the value stored in the `OnceCell`. If the `OnceCell` is not initialized, it initializes it using the provided closure `f` and then returns a reference to the value.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => (OnceCell a, () -> a) -> a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	/// * `B`: The type of the initialization function.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	/// * `f`: The initialization function.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A reference to the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let cell = <OnceCellBrand as Once>::new::<i32>();
+	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 42), 42);
+	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 10), 42);
+	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
 		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
 		f: B,
@@ -115,36 +195,71 @@ impl Once for OnceCellBrand {
 		OnceCell::get_or_init(a, f)
 	}
 
-	/// Consumes the `OnceCell` and returns the value if it has been initialized.
+	/// Consumes the container and returns the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method consumes the `OnceCell` and returns the value stored in it if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The value, or `None` if uninitialized.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let cell = <OnceCellBrand as Once>::new::<i32>();
+	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
+	/// assert_eq!(<OnceCellBrand as Once>::into_inner(cell), Some(42));
+	/// ```
 	fn into_inner<A>(a: Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A> {
 		OnceCell::into_inner(a)
 	}
 
-	/// Takes the value out of the `OnceCell`, leaving it uninitialized.
+	/// Takes the value out of the container, leaving it uninitialized.
 	///
-	/// # Type Signature
+	/// This method takes the value out of the `OnceCell`, leaving the `OnceCell` in an uninitialized state. It returns the value if it was initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The `OnceCell`.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The value, or `None` if uninitialized.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::once::Once;
+	/// use fp_library::brands::OnceCellBrand;
+	///
+	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
+	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
+	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
+	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), None);
+	/// ```
 	fn take<A>(a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A> {
 		OnceCell::take(a)
 	}
