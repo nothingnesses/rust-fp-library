@@ -265,11 +265,10 @@ impl Foldable for IdentityBrand {
 	/// ### Type Signature
 	///
 	/// `forall a b. Foldable Identity => ((a, b) -> b, b, Identity a) -> b`
-	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The function to apply to each element and the accumulator.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The identity to fold.
 	///
 	/// ### Returns
@@ -292,16 +291,16 @@ impl Foldable for IdentityBrand {
 	/// use fp_library::classes::foldable::fold_right;
 	/// assert_eq!(fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|x: i32, acc| x + acc, 0, Identity(5)), 5);
 	/// ```
-	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a,
+		Func: Fn(A, B) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		f(fa.0, init)
+		func(fa.0, initial)
 	}
 
 	/// Folds the identity from the left.
@@ -314,8 +313,8 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The identity to fold.
 	///
 	/// ### Returns
@@ -338,16 +337,16 @@ impl Foldable for IdentityBrand {
 	/// use fp_library::classes::foldable::fold_left;
 	/// assert_eq!(fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|acc, x: i32| acc + x, 0, Identity(5)), 5);
 	/// ```
-	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a,
+		Func: Fn(B, A) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		f(init, fa.0)
+		func(initial, fa.0)
 	}
 
 	/// Maps the value to a monoid and returns it.
@@ -360,7 +359,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The identity to fold.
 	///
 	/// ### Returns
@@ -384,16 +383,16 @@ impl Foldable for IdentityBrand {
 	/// use fp_library::classes::foldable::fold_map;
 	/// assert_eq!(fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|x: i32| x.to_string(), Identity(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, FnBrand, F, A: 'a, M>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+		func: Func,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		f(fa.0)
+		func(fa.0)
 	}
 }
 
@@ -408,7 +407,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The identity to traverse.
 	///
 	/// ### Returns
@@ -434,14 +433,14 @@ impl Traversable for IdentityBrand {
 	/// );
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
 		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
 		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
-		F::map(|b| Identity(b), f(ta.0))
+		F::map(|b| Identity(b), func(ta.0))
 	}
 
 	/// Sequences an identity of applicative.
@@ -545,11 +544,10 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// ### Type Signature
 	///
 	/// `forall a b. ParFoldable Identity => (f (a, b) b, b, Identity a) -> b`
-	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The thread-safe function to apply to each element and the accumulator.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The identity to fold.
 	///
 	/// ### Returns
@@ -577,15 +575,15 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// assert_eq!(par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x), 11);
 	/// ```
 	fn par_fold_right<'a, A, B>(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-		init: B,
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
-		f((fa.0, init))
+		func((fa.0, initial))
 	}
 }
 

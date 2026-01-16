@@ -305,13 +305,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a, init)` if `fa` is `Ok(a)`, otherwise `init`.
+	/// `func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -324,8 +324,8 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
 	/// ```
 	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+		func: F,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -333,8 +333,8 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Ok(a) => f(a, init),
-			Err(_) => init,
+			Ok(a) => func(a, initial),
+			Err(_) => initial,
 		}
 	}
 
@@ -349,19 +349,19 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
+	/// * `Func`: The type of the folding function.
 	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(init, a)` if `fa` is `Ok(a)`, otherwise `init`.
+	/// `func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -374,8 +374,8 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Err(1)), 0);
 	/// ```
 	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+		func: F,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -383,8 +383,8 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Ok(a) => f(init, a),
-			Err(_) => init,
+			Ok(a) => func(initial, a),
+			Err(_) => initial,
 		}
 	}
 
@@ -399,18 +399,18 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the mapping function.
+	/// * `Func`: The type of the mapping function.
 	/// * `A`: The type of the elements in the structure.
 	/// * `M`: The type of the monoid.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.
+	/// `func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.
 	///
 	/// ### Examples
 	///
@@ -430,7 +430,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// );
 	/// ```
 	fn fold_map<'a, FnBrand, F, A: 'a, M>(
-		f: F,
+		func: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
@@ -439,7 +439,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Ok(a) => f(a),
+			Ok(a) => func(a),
 			Err(_) => M::empty(),
 		}
 	}
@@ -463,7 +463,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply.
 	/// * `ta`: The result to traverse.
 	///
 	/// ### Returns
@@ -490,7 +490,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// );
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
@@ -498,7 +498,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		match ta {
-			Ok(a) => F::map(|b| Ok(b), f(a)),
+			Ok(a) => F::map(|b| Ok(b), func(a)),
 			Err(e) => F::pure(Err(e)),
 		}
 	}
@@ -838,19 +838,19 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
+	/// * `Func`: The type of the folding function.
 	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a, init)` if `fa` is `Err(a)`, otherwise `init`.
+	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -863,8 +863,8 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
 	/// ```
 	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+		func: F,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -872,8 +872,8 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Err(e) => f(e, init),
-			Ok(_) => init,
+			Err(e) => func(e, initial),
+			Ok(_) => initial,
 		}
 	}
 
@@ -888,19 +888,19 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
+	/// * `Func`: The type of the folding function.
 	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(init, a)` if `fa` is `Err(a)`, otherwise `init`.
+	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -913,8 +913,8 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)), 0);
 	/// ```
 	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+		func: F,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -922,8 +922,8 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Err(e) => f(init, e),
-			Ok(_) => init,
+			Err(e) => func(initial, e),
+			Ok(_) => initial,
 		}
 	}
 
@@ -938,18 +938,18 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the mapping function.
+	/// * `Func`: The type of the mapping function.
 	/// * `A`: The type of the elements in the structure.
 	/// * `M`: The type of the monoid.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
+	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
 	///
 	/// ### Examples
 	///
@@ -968,17 +968,17 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, F, A: 'a, M>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+		func: Func,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Err(e) => f(e),
+			Err(e) => func(e),
 			Ok(_) => M::empty(),
 		}
 	}
@@ -1002,7 +1002,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply.
 	/// * `ta`: The result to traverse.
 	///
 	/// ### Returns
@@ -1029,7 +1029,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// );
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
@@ -1037,7 +1037,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		match ta {
-			Err(e) => F::map(|b| Err(b), f(e)),
+			Err(e) => F::map(|b| Err(b), func(e)),
 			Ok(t) => F::pure(Ok(t)),
 		}
 	}
@@ -1178,10 +1178,9 @@ impl<E: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithErr
 	///
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, 10, x_err), 10);
-	/// ```
 	fn par_fold_right<'a, A, B>(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-		init: B,
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -1189,8 +1188,8 @@ impl<E: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithErr
 		B: Send + Sync + 'a,
 	{
 		match fa {
-			Ok(a) => f((a, init)),
-			Err(_) => init,
+			Ok(a) => func((a, initial)),
+			Err(_) => initial,
 		}
 	}
 }
@@ -1277,10 +1276,9 @@ impl<T: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithOkB
 	///
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, 10, x_ok), 10);
-	/// ```
 	fn par_fold_right<'a, A, B>(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-		init: B,
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
@@ -1288,8 +1286,8 @@ impl<T: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithOkB
 		B: Send + Sync + 'a,
 	{
 		match fa {
-			Err(e) => f((e, init)),
-			Ok(_) => init,
+			Err(e) => func((e, initial)),
+			Ok(_) => initial,
 		}
 	}
 }

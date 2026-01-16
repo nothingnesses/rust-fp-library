@@ -103,7 +103,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `init`: The initial value of the accumulator.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The structure to fold.
 	///
 	/// ### Returns
@@ -123,7 +123,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn fold_left<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
 		func: Func,
-		init: B,
+		initial: B,
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
@@ -151,7 +151,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 			Endofunction::<FnBrand, B>::empty(),
 			fa,
 		);
-		m.0(init)
+		m.0(initial)
 	}
 
 	/// Maps values to a monoid and combines them.
@@ -225,7 +225,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element and the accumulator.
-/// * `init`: The initial value of the accumulator.
+/// * `initial`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
 /// ### Returns
@@ -245,7 +245,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 /// ```
 pub fn fold_right<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
-	init: B,
+	initial: B,
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
@@ -255,7 +255,7 @@ where
 	Func: Fn(A, B) -> B + 'a,
 	FnBrand: ClonableFn + 'a,
 {
-	Brand::fold_right::<FnBrand, Func, A, B>(func, init, fa)
+	Brand::fold_right::<FnBrand, Func, A, B>(func, initial, fa)
 }
 
 /// Folds the structure by applying a function from left to right.
@@ -277,7 +277,7 @@ where
 /// ### Parameters
 ///
 /// * `func`: The function to apply to the accumulator and each element.
-/// * `init`: The initial value of the accumulator.
+/// * `initial`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
 /// ### Returns
@@ -297,7 +297,7 @@ where
 /// ```
 pub fn fold_left<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
-	init: B,
+	initial: B,
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
@@ -307,7 +307,7 @@ where
 	Func: Fn(B, A) -> B + 'a,
 	FnBrand: ClonableFn + 'a,
 {
-	Brand::fold_left::<FnBrand, Func, A, B>(func, init, fa)
+	Brand::fold_left::<FnBrand, Func, A, B>(func, initial, fa)
 }
 
 /// Maps values to a monoid and combines them.

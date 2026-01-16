@@ -352,14 +352,14 @@ impl Foldable for VecBrand {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
+	/// * `Func`: The type of the folding function.
 	/// * `A`: The type of the elements in the vector.
 	/// * `B`: The type of the accumulator.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The vector to fold.
 	///
 	/// ### Returns
@@ -375,16 +375,16 @@ impl Foldable for VecBrand {
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a,
+		Func: Fn(A, B) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		fa.into_iter().rev().fold(init, |acc, x| f(x, acc))
+		fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 	}
 
 	/// Folds the vector from the left.
@@ -398,14 +398,14 @@ impl Foldable for VecBrand {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
+	/// * `Func`: The type of the folding function.
 	/// * `A`: The type of the elements in the vector.
 	/// * `B`: The type of the accumulator.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The vector to fold.
 	///
 	/// ### Returns
@@ -421,16 +421,16 @@ impl Foldable for VecBrand {
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a,
+		Func: Fn(B, A) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		fa.into_iter().fold(init, f)
+		fa.into_iter().fold(initial, func)
 	}
 
 	/// Maps the values to a monoid and combines them.
@@ -444,13 +444,13 @@ impl Foldable for VecBrand {
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the mapping function.
+	/// * `Func`: The type of the mapping function.
 	/// * `A`: The type of the elements in the vector.
 	/// * `M`: The type of the monoid.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The vector to fold.
 	///
 	/// ### Returns
@@ -470,16 +470,16 @@ impl Foldable for VecBrand {
 	///     "123".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, F, A: 'a, M>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+		func: Func,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
-		fa.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
+		fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 	}
 }
 
@@ -501,7 +501,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The vector to traverse.
 	///
 	/// ### Returns
@@ -520,7 +520,7 @@ impl Traversable for VecBrand {
 	/// );
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
@@ -535,11 +535,10 @@ impl Traversable for VecBrand {
 					v
 				},
 				acc,
-				f(x),
+				func(x),
 			)
 		})
 	}
-
 	/// Sequences a vector of applicative.
 	///
 	/// This method evaluates the computations inside the vector and accumulates the results into an applicative context.

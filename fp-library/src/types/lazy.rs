@@ -225,14 +225,13 @@ impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a
 	/// ### Type Signature
 	///
 	/// `forall a. (() -> Lazy a) -> Lazy a`
-	///
 	/// ### Type Parameters
 	///
-	/// * `ClonableFnBrand`: The brand of the clonable function wrapper used for the thunk.
+	/// * `FnBrand`: The brand of the clonable function wrapper.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a clonable function) that produces a lazy value.
+	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
 	///
 	/// ### Returns
 	///
@@ -253,12 +252,12 @@ impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<ClonableFnBrand>(
-		f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
+	fn defer<FnBrand_>(
+		f: Apply!(brand: FnBrand_, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
 	) -> Self
 	where
 		Self: Sized,
-		ClonableFnBrand: ClonableFn + 'a,
+		FnBrand_: ClonableFn + 'a,
 	{
 		Self::new(<FnBrand as ClonableFn>::new(move |_| Lazy::force(f(()))))
 	}

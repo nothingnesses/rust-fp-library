@@ -262,13 +262,13 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The option to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a, init)` if `fa` is `Some(a)`, otherwise `init`.
+	/// `func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -286,18 +286,18 @@ impl Foldable for OptionBrand {
 	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
 	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a,
+		Func: Fn(A, B) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(a, init),
-			None => init,
+			Some(a) => func(a, initial),
+			None => initial,
 		}
 	}
 
@@ -311,13 +311,13 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The option to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(init, a)` if `fa` is `Some(a)`, otherwise `init`.
+	/// `f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
@@ -334,18 +334,18 @@ impl Foldable for OptionBrand {
 	/// use fp_library::classes::foldable::fold_left;
 	/// assert_eq!(fold_left::<RcFnBrand, OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
 	/// ```
-	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
-		f: F,
-		init: B,
+	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a,
+		Func: Fn(B, A) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(init, a),
-			None => init,
+			Some(a) => func(initial, a),
+			None => initial,
 		}
 	}
 
@@ -359,12 +359,12 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The option to fold.
 	///
 	/// ### Returns
 	///
-	/// `f(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
+	/// `func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
 	///
 	/// ### Examples
 	///
@@ -382,17 +382,17 @@ impl Foldable for OptionBrand {
 	/// use fp_library::classes::foldable::fold_map;
 	/// assert_eq!(fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, FnBrand, F, A: 'a, M>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+		func: Func,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(a),
+			Some(a) => func(a),
 			None => M::empty(),
 		}
 	}
@@ -409,7 +409,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The option to traverse.
 	///
 	/// ### Returns
@@ -431,7 +431,7 @@ impl Traversable for OptionBrand {
 	/// assert_eq!(traverse::<OptionBrand, OptionBrand, _, _, _>(|x| Some(x * 2), Some(5)), Some(Some(10)));
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
-		f: Func,
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
@@ -439,11 +439,10 @@ impl Traversable for OptionBrand {
 		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		match ta {
-			Some(a) => F::map(|b| Some(b), f(a)),
+			Some(a) => F::map(|b| Some(b), func(a)),
 			None => F::pure(None),
 		}
 	}
-
 	/// Sequences an option of applicative.
 	///
 	/// This method evaluates the computation inside the option and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
