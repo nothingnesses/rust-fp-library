@@ -6,8 +6,8 @@ use crate::{
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
 		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
-		traversable::Traversable,
+		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
+		semimonad::Semimonad, send_clonable_fn::SendClonableFn, traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -405,12 +405,80 @@ impl Traversable for OptionBrand {
 	}
 }
 
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
+	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a m. (ParFoldable Option, Monoid m, Send m, Sync m) => (f a m, Option a) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `fa`: The option to fold.
+	/// * `f`: The mapping function.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	fn par_fold_map<'a, A, M>(
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		match fa {
+			Some(a) => f(a),
+			None => M::empty(),
+		}
+	}
+
+	/// Folds the option from the right in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. ParFoldable Option => (f (a, b) b, b, Option a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The option to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	fn par_fold_right<'a, A, B>(
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		init: B,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> B
+	where
+		A: 'a + Clone + Send + Sync,
+		B: Send + Sync + 'a,
+	{
+		match fa {
+			Some(a) => f((a, init)),
+			None => init,
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
-		brands::RcFnBrand,
-		classes::{functor::map, pointed::pure, semiapplicative::apply, semimonad::bind},
+		brands::{ArcFnBrand, RcFnBrand},
+		classes::{
+			functor::map,
+			monoid::empty,
+			par_foldable::{par_fold_map, par_fold_right},
+			pointed::pure,
+			semiapplicative::apply,
+			semimonad::bind,
+			send_clonable_fn::new_send,
+		},
 		functions::{compose, identity},
 	};
 	use quickcheck_macros::quickcheck;
@@ -600,5 +668,31 @@ mod tests {
 			),
 			None
 		);
+	}
+
+	// ParFoldable Tests
+
+	/// Tests `par_fold_map` on `None`.
+	#[test]
+	fn par_fold_map_none() {
+		let x: Option<i32> = None;
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(x, f), "".to_string());
+	}
+
+	/// Tests `par_fold_map` on `Some`.
+	#[test]
+	fn par_fold_map_some() {
+		let x = Some(5);
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(x, f), "5".to_string());
+	}
+
+	/// Tests `par_fold_right` on `Some`.
+	#[test]
+	fn par_fold_right_some() {
+		let x = Some(5);
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, OptionBrand, _, _>(f, 10, x), 15);
 	}
 }

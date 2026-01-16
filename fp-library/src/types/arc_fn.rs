@@ -5,8 +5,8 @@ use crate::{
 	Apply,
 	brands::ArcFnBrand,
 	classes::{
-		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
-		send_clonable_fn::SendClonableFn,
+		category::Category, clonable_fn::ClonableFn, function::Function,
+		semigroupoid::Semigroupoid, send_clonable_fn::SendClonableFn,
 	},
 	impl_kind,
 	kinds::*,
@@ -117,8 +117,9 @@ impl SendClonableFn for ArcFnBrand {
 	/// handle.join().unwrap();
 	/// ```
 	fn new_send<'a, A, B>(
-		f: impl 'a + Fn(A) -> B + Send + Sync,
-	) -> Apply!(brand: Self, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B)) {
+		f: impl 'a + Fn(A) -> B + Send + Sync
+	) -> Apply!(brand: Self, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B))
+	{
 		Arc::new(f)
 	}
 }
@@ -187,8 +188,47 @@ impl Category for ArcFnBrand {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid};
+	use crate::classes::{
+		category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid,
+		send_clonable_fn::SendClonableFn,
+	};
 	use quickcheck_macros::quickcheck;
+	use std::thread;
+
+	// SendClonableFn Tests
+
+	/// Tests that `new_send` creates a callable function.
+	#[test]
+	fn new_send_callable() {
+		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		assert_eq!(f(5), 10);
+	}
+
+	/// Tests that the function can be cloned.
+	#[test]
+	fn send_clonable_clone() {
+		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let g = f.clone();
+		assert_eq!(g(5), 10);
+	}
+
+	/// Tests that `SendOf` is `Send` (can be sent to another thread).
+	#[test]
+	fn send_of_is_send() {
+		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let handle = thread::spawn(move || f(5));
+		assert_eq!(handle.join().unwrap(), 10);
+	}
+
+	/// Tests that `SendOf` is `Sync` (can be shared across threads).
+	#[test]
+	fn send_of_is_sync() {
+		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let f_clone = f.clone();
+		let handle = thread::spawn(move || f_clone(5));
+		assert_eq!(f(5), 10);
+		assert_eq!(handle.join().unwrap(), 10);
+	}
 
 	// Semigroupoid Laws
 

@@ -43,7 +43,7 @@ pub trait SendClonableFn: ClonableFn {
 	/// handle.join().unwrap();
 	/// ```
 	fn new_send<'a, A, B>(
-		f: impl 'a + Fn(A) -> B + Send + Sync,
+		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Apply!(brand: Self, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B));
 }
 
@@ -79,7 +79,7 @@ pub trait SendClonableFn: ClonableFn {
 /// handle.join().unwrap();
 /// ```
 pub fn new_send<'a, F, A, B>(
-	f: impl 'a + Fn(A) -> B + Send + Sync,
+	f: impl 'a + Fn(A) -> B + Send + Sync
 ) -> Apply!(brand: F, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B))
 where
 	F: SendClonableFn,

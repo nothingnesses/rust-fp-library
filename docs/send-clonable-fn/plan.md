@@ -654,121 +654,138 @@ impl SendClonableFn for ArcFnBrand {
     ) -> Self::SendOf<'a, A, B> {
         Arc::new(f)
     }
-    ```
-
-    ### 4.6 Vec and Option ParFoldable Implementations
-
-    Provide `ParFoldable` implementations for common types. Note: The function parameter `f` uses the `Apply!` macro with `output: SendOf` as shown in section 4.4.
-
-    **For VecBrand:**
-
-    ```rust
-    impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
-        fn par_fold_map<'a, A, M>(
-            fa: Vec<A>,
-            f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-        ) -> M
-        where
-            A: 'a + Clone + Send + Sync,
-            M: Monoid + Send + Sync + 'a,
-        {
-            // Sequential implementation - can be replaced with rayon
-            fa.into_iter()
-                .map(|a| f(a))
-                .fold(M::empty(), |acc, m| M::append(acc, m))
-        }
-
-        fn par_fold_right<'a, A, B>(
-            f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-            init: B,
-            fa: Vec<A>,
-        ) -> B
-        where
-            A: 'a + Clone + Send + Sync,
-            B: Send + Sync + 'a,
-        {
-            fa.into_iter()
-                .rev()
-                .fold(init, |b, a| f((a, b)))
-        }
-    }
-    ```
-
-    **For OptionBrand:**
-
-    ```rust
-    impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
-        fn par_fold_map<'a, A, M>(
-            fa: Option<A>,
-            f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-        ) -> M
-        where
-            A: 'a + Clone + Send + Sync,
-            M: Monoid + Send + Sync + 'a,
-        {
-            match fa {
-                Some(a) => f(a),
-                None => M::empty(),
-            }
-        }
-
-        fn par_fold_right<'a, A, B>(
-            f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-            init: B,
-            fa: Option<A>,
-        ) -> B
-        where
-            A: 'a + Clone + Send + Sync,
-            B: Send + Sync + 'a,
-        {
-            match fa {
-                Some(a) => f((a, init)),
-                None => init,
-            }
-        }
-    }
-    ```
-
-    ### 4.7 Optional: Rayon Feature Flag
-
-    Add an optional `rayon` feature for truly parallel implementations:
-
-    **Cargo.toml:**
-
-    ```toml
-    [features]
-    default = []
-    rayon = ["dep:rayon"]
-
-    [dependencies]
-    rayon = { version = "1.11", optional = true }
-    ```
-
-    **Rayon-powered implementation (in `vec.rs` under feature flag):**
-
-    ```rust
-    #[cfg(feature = "rayon")]
-    use rayon::prelude::*;
-
-    #[cfg(feature = "rayon")]
-    impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
-        fn par_fold_map<'a, A, M>(
-            fa: Vec<A>,
-            f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-        ) -> M
-        where
-            A: 'a + Clone + Send + Sync,
-            M: Monoid + Send + Sync + 'a,
-        {
-            fa.into_par_iter()
-                .map(|a| f(a))
-                .reduce(M::empty, |a, b| M::append(a, b))
-        }
-
-        // ... par_fold_right implementation
-    }
-    ```
+}
 ````
+
+### 4.6 Vec and Option ParFoldable Implementations
+
+Provide `ParFoldable` implementations for common types. Note: The function parameter `f` uses the `Apply!` macro with `output: SendOf` as shown in section 4.4.
+
+**For VecBrand:**
+
+```rust
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+    fn par_fold_map<'a, A, M>(
+        fa: Vec<A>,
+        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+    ) -> M
+    where
+        A: 'a + Clone + Send + Sync,
+        M: Monoid + Send + Sync + 'a,
+    {
+        // Sequential implementation - can be replaced with rayon
+        fa.into_iter()
+            .map(|a| f(a))
+            .fold(M::empty(), |acc, m| M::append(acc, m))
+    }
+
+    fn par_fold_right<'a, A, B>(
+        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+        init: B,
+        fa: Vec<A>,
+    ) -> B
+    where
+        A: 'a + Clone + Send + Sync,
+        B: Send + Sync + 'a,
+    {
+        fa.into_iter()
+            .rev()
+            .fold(init, |b, a| f((a, b)))
+    }
+}
+```
+
+**For OptionBrand:**
+
+```rust
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
+    fn par_fold_map<'a, A, M>(
+        fa: Option<A>,
+        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+    ) -> M
+    where
+        A: 'a + Clone + Send + Sync,
+        M: Monoid + Send + Sync + 'a,
+    {
+        match fa {
+            Some(a) => f(a),
+            None => M::empty(),
+        }
+    }
+
+    fn par_fold_right<'a, A, B>(
+        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+        init: B,
+        fa: Option<A>,
+    ) -> B
+    where
+        A: 'a + Clone + Send + Sync,
+        B: Send + Sync + 'a,
+    {
+        match fa {
+            Some(a) => f((a, init)),
+            None => init,
+        }
+    }
+}
+```
+
+### 4.7 Optional: Rayon Feature Flag
+
+Add an optional `rayon` feature for truly parallel implementations:
+
+**Cargo.toml:**
+
+```toml
+[features]
+default = []
+rayon = ["dep:rayon"]
+
+[dependencies]
+rayon = { version = "1.11", optional = true }
+```
+
+**Rayon-powered implementation (in `vec.rs` under feature flag):**
+
+```rust
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+
+#[cfg(feature = "rayon")]
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+    fn par_fold_map<'a, A, M>(
+        fa: Vec<A>,
+        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+    ) -> M
+    where
+        A: 'a + Clone + Send + Sync,
+        M: Monoid + Send + Sync + 'a,
+    {
+        fa.into_par_iter()
+            .map(|a| f(a))
+            .reduce(M::empty, |a, b| M::append(a, b))
+    }
+
+    // ... par_fold_right implementation
+}
+```
+
+### 4.8 SendEndofunction Implementation
+
+To support parallel `fold_right` (which is inherently sequential unless viewed as function composition), we need a `Send`-capable wrapper for endofunctions.
+
+**File:** [`fp-library/src/types/send_endofunction.rs`](../../fp-library/src/types/send_endofunction.rs) (new)
+
+```rust
+pub struct SendEndofunction<'a, CFB: SendClonableFn, A>(
+    pub Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
+);
+
+// Implement Semigroup (composition) and Monoid (identity)
+```
+
+**Update ParFoldable:**
+Provide a default implementation for `par_fold_right` using `par_fold_map` and `SendEndofunction`.
 
 ---
 
@@ -895,3 +912,7 @@ This implementation provides a foundation for further thread-safe type classes:
 - [ArcFnBrand Implementation](../../fp-library/src/types/arc_fn.rs)
 - [Rayon Crate Documentation](https://docs.rs/rayon/latest/rayon/)
 - [Rust Send and Sync Traits](https://doc.rust-lang.org/nomicon/send-and-sync.html)
+
+```
+
+```

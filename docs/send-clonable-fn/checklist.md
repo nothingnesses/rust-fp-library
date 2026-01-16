@@ -239,9 +239,35 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ---
 
-## Phase 6: Testing
+## Phase 6: SendEndofunction Implementation
 
-### 6.1 Unit Tests
+### 6.1 SendEndofunction Type
+
+- [ ] **Create `send_endofunction.rs` module**
+  - [ ] Create file [`fp-library/src/types/send_endofunction.rs`](../../fp-library/src/types/send_endofunction.rs)
+  - [ ] Define `SendEndofunction` struct wrapping `SendClonableFn::SendOf`
+  - [ ] Implement `Monoid` for `SendEndofunction` (using function composition)
+  - [ ] Implement `Semigroup` for `SendEndofunction`
+
+### 6.2 ParFoldable Default Implementation
+
+- [ ] **Update `ParFoldable` trait**
+  - [ ] Provide default implementation for `par_fold_right`
+  - [ ] Use `par_fold_map` to map elements to `SendEndofunction`
+  - [ ] Reduce using `Monoid::append` (composition)
+  - [ ] Apply resulting function to initial value
+
+### 6.3 VecBrand Update
+
+- [ ] **Update `VecBrand` implementation**
+  - [ ] Remove specialized `par_fold_right` implementation (use default)
+  - [ ] Verify `par_fold_map` (Rayon-powered) is used by default `par_fold_right`
+
+---
+
+## Phase 7: Testing
+
+### 7.1 Unit Tests
 
 - [ ] **SendClonableFn unit tests** ([`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs))
 
@@ -257,7 +283,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [ ] Test `par_fold_right` correctness
   - [ ] Test monoid laws are preserved
 
-### 6.2 Integration Tests
+### 7.2 Integration Tests
 
 - [ ] **Thread safety integration tests**
 
@@ -271,7 +297,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [ ] Verify existing `ClonableFn` tests still pass
   - [ ] No regression in functionality
 
-### 6.3 Property-Based Tests
+### 7.3 Property-Based Tests
 
 - [ ] **Add QuickCheck tests**
 
@@ -283,7 +309,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [ ] Concurrent access doesn't cause data races
   - [ ] Results are deterministic (for commutative operations)
 
-### 6.4 Compile-Fail Tests
+### 7.4 Compile-Fail Tests
 
 - [ ] **Create compile-fail tests** ([`fp-library/tests/ui/`](../../fp-library/tests/ui/) or similar)
 
@@ -298,9 +324,9 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ---
 
-## Phase 7: Documentation
+## Phase 8: Documentation
 
-### 7.1 Code Documentation
+### 8.1 Code Documentation
 
 - [ ] **Document `SendClonableFn` trait**
 
@@ -320,7 +346,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [ ] `VecBrand::ParFoldable` implementation
   - [ ] `OptionBrand::ParFoldable` implementation
 
-### 7.2 Project Documentation
+### 8.2 Project Documentation
 
 - [ ] **Update limitations.md**
 
@@ -340,7 +366,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [ ] Add `ArcFnBrand` implementation
   - [ ] Add optional `rayon` feature
 
-### 7.3 README Updates
+### 8.3 README Updates
 
 - [ ] **Update fp-library README** (if exists)
 
@@ -388,11 +414,12 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 
 - **Phase 1 Status**: Completed (Apply! macro enhancement - prerequisite)
 - **Phase 2 Status**: Completed (SendClonableFn trait)
-- **Phase 3 Status**: Not started (ParFoldable trait)
-- **Phase 4 Status**: Not started (Type implementations)
-- **Phase 5 Status**: Not started (Optional rayon integration)
-- **Phase 6 Status**: Not started (Testing)
-- **Phase 7 Status**: Not started (Documentation)
+- **Phase 3 Status**: Completed (ParFoldable trait)
+- **Phase 4 Status**: Completed (Type implementations)
+- **Phase 5 Status**: Completed (Optional rayon integration)
+- **Phase 6 Status**: Not started (SendEndofunction Implementation)
+- **Phase 7 Status**: In progress (Testing)
+- **Phase 8 Status**: Not started (Documentation)
 - **Current Issues**: None
 
 ### Decisions Made

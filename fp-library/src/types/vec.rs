@@ -1,13 +1,17 @@
 //! Implementations for [`Vec`].
 
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+
 use crate::{
 	Apply,
 	brands::VecBrand,
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
 		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
-		semimonad::Semimonad, traversable::Traversable,
+		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
+		semigroup::Semigroup, semimonad::Semimonad, send_clonable_fn::SendClonableFn,
+		traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -547,14 +551,81 @@ impl<A: Clone> Monoid for Vec<A> {
 	}
 }
 
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+	/// Maps values to a monoid and combines them in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a m. (ParFoldable Vec, Monoid m, Send m, Sync m) => (f a m, Vec a) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `fa`: The vector to fold.
+	/// * `f`: The mapping function.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	fn par_fold_map<'a, A, M>(
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		#[cfg(feature = "rayon")]
+		{
+			fa.into_par_iter().map(|a| f(a)).reduce(M::empty, |acc, m| M::append(acc, m))
+		}
+		#[cfg(not(feature = "rayon"))]
+		{
+			fa.into_iter().map(|a| f(a)).fold(M::empty(), |acc, m| M::append(acc, m))
+		}
+	}
+
+	/// Folds the vector from the right in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. ParFoldable Vec => (f (a, b) b, b, Vec a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The vector to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	fn par_fold_right<'a, A, B>(
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		init: B,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> B
+	where
+		A: 'a + Clone + Send + Sync,
+		B: Send + Sync + 'a,
+	{
+		fa.into_iter().rev().fold(init, |b, a| f((a, b)))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
-		brands::RcFnBrand,
+		brands::{ArcFnBrand, RcFnBrand},
 		classes::{
-			functor::map, monoid::empty, pointed::pure, semiapplicative::apply, semigroup::append,
+			functor::map,
+			monoid::empty,
+			par_foldable::{par_fold_map, par_fold_right},
+			pointed::pure,
+			semiapplicative::apply,
+			semigroup::append,
 			semimonad::bind,
+			send_clonable_fn::new_send,
 		},
 		functions::{compose, identity},
 	};
@@ -793,5 +864,39 @@ mod tests {
 	#[test]
 	fn deconstruct_empty() {
 		assert_eq!(VecBrand::deconstruct::<i32>(&[]), None);
+	}
+
+	// ParFoldable Tests
+
+	/// Tests `par_fold_map` on an empty vector.
+	#[test]
+	fn par_fold_map_empty() {
+		let v: Vec<i32> = vec![];
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "".to_string());
+	}
+
+	/// Tests `par_fold_map` on a single element.
+	#[test]
+	fn par_fold_map_single() {
+		let v = vec![1];
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "1".to_string());
+	}
+
+	/// Tests `par_fold_map` on multiple elements.
+	#[test]
+	fn par_fold_map_multiple() {
+		let v = vec![1, 2, 3];
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f), "123".to_string());
+	}
+
+	/// Tests `par_fold_right` on multiple elements.
+	#[test]
+	fn par_fold_right_multiple() {
+		let v = vec![1, 2, 3];
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 0, v), 6);
 	}
 }

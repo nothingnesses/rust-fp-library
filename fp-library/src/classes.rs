@@ -22,6 +22,7 @@ pub mod lift;
 pub mod monad;
 pub mod monoid;
 pub mod once;
+pub mod par_foldable;
 pub mod pointed;
 pub mod semiapplicative;
 pub mod semigroup;

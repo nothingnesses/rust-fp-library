@@ -17,8 +17,14 @@ all-features = true
 harness = false
 name = "benchmarks"
 
+[features]
+default = []
+# Enable parallel folding operations using Rayon
+rayon = ["dep:rayon"]
+
 [dependencies]
 fp-macros = { path = "../fp-macros", version = "0.1.0" }
+rayon = { version = "1.11", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
