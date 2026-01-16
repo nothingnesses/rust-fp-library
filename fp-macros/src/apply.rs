@@ -113,6 +113,8 @@ pub struct ApplyInput {
 	pub brand: Type,
 	/// The source of the Kind trait (generated or explicit).
 	pub kind_source: KindSource,
+	/// Optional associated type name for the output (defaults to `Of`).
+	pub output: Option<Ident>,
 }
 
 impl Parse for ApplyInput {
@@ -123,6 +125,7 @@ impl Parse for ApplyInput {
 		let mut kind = None;
 		let mut lifetimes = None;
 		let mut types = None;
+		let mut output = None;
 
 		while !input.is_empty() {
 			let label: Ident = input.parse()?;
@@ -156,6 +159,8 @@ impl Parse for ApplyInput {
 				let content;
 				parenthesized!(content in input);
 				types = Some(content.parse_terminated(Type::parse, Token![,])?);
+			} else if label == "output" {
+				output = Some(input.parse()?);
 			} else {
 				return Err(syn::Error::new(label.span(), "Unknown parameter"));
 			}
@@ -207,7 +212,7 @@ impl Parse for ApplyInput {
 			_ => unreachable!(),
 		};
 
-		Ok(ApplyInput { brand, kind_source })
+		Ok(ApplyInput { brand, kind_source, output })
 	}
 }
 
@@ -281,6 +286,7 @@ fn parse_bounds(input: ParseStream) -> syn::Result<Punctuated<TypeParamBound, To
 /// ```
 pub fn apply_impl(input: ApplyInput) -> TokenStream {
 	let brand = &input.brand;
+	let assoc_type = input.output.unwrap_or_else(|| Ident::new("Of", Span::call_site()));
 
 	let (kind_name, params) = match &input.kind_source {
 		KindSource::Generated(sig) => {
@@ -313,7 +319,7 @@ pub fn apply_impl(input: ApplyInput) -> TokenStream {
 	};
 
 	quote! {
-		<#brand as #kind_name>::Of<#params>
+		<#brand as #kind_name>::#assoc_type<#params>
 	}
 }
 
@@ -732,5 +738,43 @@ mod tests {
 		let name2 = generate_name(&sig2.to_kind_input());
 
 		assert_eq!(name1, name2, "Alpha-equivalent signatures should produce same Kind name");
+	}
+
+	/// Tests parsing of Apply! with output parameter.
+	#[test]
+	fn test_parse_apply_with_output() {
+		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, output: SendOf";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput with output");
+
+		assert_eq!(parsed.output.unwrap().to_string(), "SendOf");
+	}
+
+	/// Tests code generation for Apply! with output parameter.
+	#[test]
+	fn test_apply_generation_with_output() {
+		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, output: SendOf";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput with output");
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< OptionBrand as Kind_"));
+		assert!(output_str.contains(":: SendOf < 'a , A >"));
+	}
+
+	/// Tests code generation for Apply! with explicit kind and output parameter.
+	#[test]
+	fn test_apply_explicit_kind_with_output() {
+		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String), output: MyOutput";
+		let parsed: ApplyInput =
+			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind with output");
+
+		let output = apply_impl(parsed);
+		let output_str = output.to_string();
+
+		assert!(output_str.contains("< OptionBrand as SomeKind >"));
+		assert!(output_str.contains(":: MyOutput < 'a , String >"));
 	}
 }

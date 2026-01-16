@@ -1,3 +1,7 @@
+//! Semiapplicative type class.
+//!
+//! This module defines the [`Semiapplicative`] trait, which provides the ability to apply functions within a context to values within a context.
+
 use super::{clonable_fn::ClonableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
 
@@ -6,32 +10,40 @@ use crate::{Apply, kinds::*};
 /// `Semiapplicative` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Semiapplicative` instances must satisfy the following law:
 /// * Composition: `apply(apply(f, g), x) = apply(f, apply(g, x))`.
 pub trait Semiapplicative: Lift + Functor {
 	/// Applies a function within a context to a value within a context.
 	///
+	/// This method applies a function wrapped in a context to a value wrapped in a context.
+	///
 	/// **Important**: This operation requires type erasure for heterogeneous functions.
 	/// When a container (like `Vec`) holds multiple different closures, they must be
 	/// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
 	/// distinct anonymous type.
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a b. Semiapplicative f => (f (a -> b), f a) -> f b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `A`: The type of the input value.
+	/// * `B`: The type of the output value.
+	///
+	/// ### Parameters
 	///
 	/// * `ff`: The context containing the function(s).
 	/// * `fa`: The context containing the value(s).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new context containing the result(s) of applying the function(s) to the value(s).
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::semiapplicative::Semiapplicative;
@@ -42,10 +54,10 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// let x = Some(5);
-	/// let y = OptionBrand::apply::<i32, i32, RcFnBrand>(f, x);
+	/// let y = OptionBrand::apply::<RcFnBrand, i32, i32>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(
 			brand: Self,
 			signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
@@ -64,20 +76,27 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Semiapplicative f => (f (a -> b), f a) -> f b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `A`: The type of the input value.
+/// * `B`: The type of the output value.
+///
+/// ### Parameters
 ///
 /// * `ff`: The context containing the function(s).
 /// * `fa`: The context containing the value(s).
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A new context containing the result(s) of applying the function(s) to the value(s).
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::semiapplicative::apply;
@@ -88,10 +107,10 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 /// let x = Some(5);
-/// let y = apply::<OptionBrand, _, _, RcFnBrand>(f, x);
+/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+pub fn apply<'a, FnBrand: 'a + ClonableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
 	ff: Apply!(
 		brand: Brand,
 		signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
@@ -104,5 +123,5 @@ pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + Clo
 	brand: Brand,
 	signature: ('a, B: 'a) -> 'a,
 ) {
-	Brand::apply::<A, B, FnBrand>(ff, fa)
+	Brand::apply::<FnBrand, A, B>(ff, fa)
 }

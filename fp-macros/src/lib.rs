@@ -145,6 +145,7 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// * `kind`: (Mode 2) An explicit Kind trait to use.
 /// * `lifetimes`: (Mode 2) Lifetime arguments to apply. Required with `kind`.
 /// * `types`: (Mode 2) Type arguments to apply. Required with `kind`.
+/// * `output`: (Optional) The associated type to project to. Defaults to `Of`.
 ///
 /// # Unified Signature Syntax
 ///
@@ -179,6 +180,13 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// type Concrete = Apply!(
 ///     brand: MyBrand,
 ///     signature: ('a, T: Clone + Debug) -> Display
+/// );
+///
+/// // Use a custom associated type for projection.
+/// type Concrete = Apply!(
+///     brand: MyBrand,
+///     signature: (T),
+///     output: SendOf
 /// );
 /// ```
 ///

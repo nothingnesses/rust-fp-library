@@ -1,4 +1,6 @@
 //! Implementations for [`Option`].
+//!
+//! This module provides implementations of functional programming traits for the standard library [`Option`] type.
 
 use crate::{
 	Apply,
@@ -6,8 +8,8 @@ use crate::{
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
 		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
-		traversable::Traversable,
+		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
+		semimonad::Semimonad, send_clonable_fn::SendClonableFn, traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -22,29 +24,37 @@ impl_kind! {
 impl Functor for OptionBrand {
 	/// Maps a function over the value in the option.
 	///
-	/// # Type Signature
+	/// This method applies a function to the value inside the option, producing a new option with the transformed value. If the option is `None`, it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Functor Option => (a -> b, Option a) -> Option b`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the value.
 	/// * `fa`: The option to map over.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new option containing the result of applying the function, or `None`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::functor::map;
+	/// use fp_library::classes::functor::Functor;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::map(|i| i * 2, x);
+	/// assert_eq!(y, Some(10));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::functor::map;
 	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5)), Some(10));
 	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, None), None);
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(
 			brand: Self,
@@ -64,30 +74,39 @@ impl Functor for OptionBrand {
 impl Lift for OptionBrand {
 	/// Lifts a binary function into the option context.
 	///
-	/// # Type Signature
+	/// This method lifts a binary function to operate on values within the option context.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b c. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `f`: The binary function to apply.
 	/// * `fa`: The first option.
 	/// * `fb`: The second option.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// `Some(f(a, b))` if both options are `Some`, otherwise `None`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::lift::lift2;
+	/// use fp_library::classes::lift::Lift;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = Some(1);
+	/// let y = Some(2);
+	/// let z = OptionBrand::lift2(|a, b| a + b, x, y);
+	/// assert_eq!(z, Some(3));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::lift::lift2;
 	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), Some(2)), Some(3));
 	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), None), None);
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -105,24 +124,31 @@ impl Lift for OptionBrand {
 impl Pointed for OptionBrand {
 	/// Wraps a value in an option.
 	///
-	/// # Type Signature
+	/// This method wraps a value in an option context.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Pointed Option => a -> Option a`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// `Some(a)`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::pointed::pure;
+	/// use fp_library::classes::pointed::Pointed;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = OptionBrand::pure(5);
+	/// assert_eq!(x, Some(5));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::pointed::pure;
 	/// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
@@ -136,32 +162,41 @@ impl ApplySecond for OptionBrand {}
 impl Semiapplicative for OptionBrand {
 	/// Applies a wrapped function to a wrapped value.
 	///
-	/// # Type Signature
+	/// This method applies a function wrapped in an option to a value wrapped in an option.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Semiapplicative Option => (Option (a -> b), Option a) -> Option b`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `ff`: The option containing the function.
 	/// * `fa`: The option containing the value.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// `Some(f(a))` if both are `Some`, otherwise `None`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semiapplicative::apply;
+	/// use fp_library::classes::semiapplicative::Semiapplicative;
 	/// use fp_library::classes::clonable_fn::ClonableFn;
 	/// use fp_library::brands::{OptionBrand};
 	/// use fp_library::brands::RcFnBrand;
 	/// use std::rc::Rc;
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<OptionBrand, _, _, RcFnBrand>(f, Some(5)), Some(10));
+	/// let x = Some(5);
+	/// let y = OptionBrand::apply::<RcFnBrand, i32, i32>(f, x);
+	/// assert_eq!(y, Some(10));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::semiapplicative::apply;
+	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// assert_eq!(apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5)), Some(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -175,29 +210,37 @@ impl Semiapplicative for OptionBrand {
 impl Semimonad for OptionBrand {
 	/// Chains option computations.
 	///
-	/// # Type Signature
+	/// This method chains two option computations, where the second computation depends on the result of the first.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Semimonad Option => (Option a, a -> Option b) -> Option b`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `ma`: The first option.
 	/// * `f`: The function to apply to the value inside the option.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semimonad::bind;
+	/// use fp_library::classes::semimonad::Semimonad;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::bind(x, |i| Some(i * 2));
+	/// assert_eq!(y, Some(10));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::semimonad::bind;
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |x| Some(x * 2)), Some(10));
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -211,115 +254,145 @@ impl Semimonad for OptionBrand {
 impl Foldable for OptionBrand {
 	/// Folds the option from the right.
 	///
-	/// # Type Signature
+	/// This method performs a right-associative fold of the option. If the option is `Some(a)`, it applies the function to `a` and the initial value. If `None`, it returns the initial value.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Foldable Option => ((a, b) -> b, b, Option a) -> b`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
 	/// * `fa`: The option to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// `f(a, init)` if `fa` is `Some(a)`, otherwise `init`.
+	/// `func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_right;
+	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
-	/// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
+	/// let x = Some(5);
+	/// let y = OptionBrand::fold_right::<RcFnBrand, _, _, _>(|a, b| a + b, 10, x);
+	/// assert_eq!(y, 15);
+	///
+	/// // Using the free function
+	/// use fp_library::classes::foldable::fold_right;
+	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
-		f: F,
-		init: B,
+	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a,
+		Func: Fn(A, B) -> B + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(a, init),
-			None => init,
+			Some(a) => func(a, initial),
+			None => initial,
 		}
 	}
 
 	/// Folds the option from the left.
 	///
-	/// # Type Signature
+	/// This method performs a left-associative fold of the option. If the option is `Some(a)`, it applies the function to the initial value and `a`. If `None`, it returns the initial value.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Foldable Option => ((b, a) -> b, b, Option a) -> b`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The option to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// `f(init, a)` if `fa` is `Some(a)`, otherwise `init`.
+	/// `f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_left;
+	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
+	/// let x = Some(5);
+	/// let y = OptionBrand::fold_left::<RcFnBrand, _, _, _>(|b, a| b + a, 10, x);
+	/// assert_eq!(y, 15);
+	///
+	/// // Using the free function
+	/// use fp_library::classes::foldable::fold_left;
+	/// assert_eq!(fold_left::<RcFnBrand, OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
-		f: F,
-		init: B,
+	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a,
+		Func: Fn(B, A) -> B + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(init, a),
-			None => init,
+			Some(a) => func(initial, a),
+			None => initial,
 		}
 	}
 
 	/// Maps the value to a monoid and returns it, or returns empty.
 	///
-	/// # Type Signature
+	/// This method maps the element of the option to a monoid. If the option is `None`, it returns the monoid's identity element.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a m. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `f`: The mapping function.
+	/// * `func`: The mapping function.
 	/// * `fa`: The option to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// `f(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
+	/// `func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_map;
+	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_map::<OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
+	/// let x = Some(5);
+	/// let y = OptionBrand::fold_map::<RcFnBrand, _, _, _>(|a: i32| a.to_string(), x);
+	/// assert_eq!(y, "5".to_string());
+	///
+	/// // Using the free function
+	/// use fp_library::classes::foldable::fold_map;
+	/// assert_eq!(fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+		func: Func,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
 		match fa {
-			Some(a) => f(a),
+			Some(a) => func(a),
 			None => M::empty(),
 		}
 	}
@@ -328,29 +401,37 @@ impl Foldable for OptionBrand {
 impl Traversable for OptionBrand {
 	/// Traverses the option with an applicative function.
 	///
-	/// # Type Signature
+	/// This method maps the element of the option to a computation, evaluates it, and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b f. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The option to traverse.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The option wrapped in the applicative context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::traverse;
+	/// use fp_library::classes::traversable::Traversable;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::traverse::<OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// assert_eq!(y, Some(Some(10)));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::traversable::traverse;
 	/// assert_eq!(traverse::<OptionBrand, OptionBrand, _, _, _>(|x| Some(x * 2), Some(5)), Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-		f: Func,
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+		func: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
 	where
@@ -358,18 +439,19 @@ impl Traversable for OptionBrand {
 		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
 	{
 		match ta {
-			Some(a) => F::map(|b| Some(b), f(a)),
+			Some(a) => F::map(|b| Some(b), func(a)),
 			None => F::pure(None),
 		}
 	}
-
 	/// Sequences an option of applicative.
 	///
-	/// # Type Signature
+	/// This method evaluates the computation inside the option and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a f. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `ta`: The option containing the applicative value.
 	///
@@ -377,12 +459,18 @@ impl Traversable for OptionBrand {
 	///
 	/// The option wrapped in the applicative context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::sequence;
+	/// use fp_library::classes::traversable::Traversable;
 	/// use fp_library::brands::OptionBrand;
 	///
+	/// let x = Some(Some(5));
+	/// let y = OptionBrand::sequence::<OptionBrand, _>(x);
+	/// assert_eq!(y, Some(Some(5)));
+	///
+	/// // Using the free function
+	/// use fp_library::classes::traversable::sequence;
 	/// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
@@ -399,12 +487,71 @@ impl Traversable for OptionBrand {
 	}
 }
 
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
+	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
+	///
+	/// This method maps the element of the option to a monoid. Since `Option` contains at most one element, no actual parallelism occurs, but the interface is satisfied.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a m. (ParFoldable Option, Monoid m, Send m, Sync m) => (f a m, Option a) -> m`
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The mapping function.
+	/// * `fa`: The option to fold.
+	///
+	/// ### Returns
+	///
+	/// The combined monoid value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::par_foldable::ParFoldable;
+	/// use fp_library::brands::{OptionBrand, ArcFnBrand};
+	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+	/// use fp_library::classes::send_clonable_fn::new_send;
+	///
+	/// let x = Some(1);
+	/// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// let y = <OptionBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f, x);
+	/// assert_eq!(y, "1".to_string());
+	///
+	/// // Using the free function
+	/// use fp_library::classes::par_foldable::par_fold_map;
+	/// let x = Some(1);
+	/// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "1".to_string());
+	/// ```
+	fn par_fold_map<'a, A, M>(
+		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		match fa {
+			Some(a) => func(a),
+			None => M::empty(),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
-		brands::RcFnBrand,
-		classes::{functor::map, pointed::pure, semiapplicative::apply, semimonad::bind},
+		brands::{ArcFnBrand, RcFnBrand},
+		classes::{
+			functor::map,
+			par_foldable::{par_fold_map, par_fold_right},
+			pointed::pure,
+			semiapplicative::apply,
+			semimonad::bind,
+			send_clonable_fn::new_send,
+		},
 		functions::{compose, identity},
 	};
 	use quickcheck_macros::quickcheck;
@@ -431,7 +578,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
-		apply::<OptionBrand, _, _, RcFnBrand>(
+		apply::<RcFnBrand, OptionBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v,
 		) == v
@@ -441,7 +588,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<OptionBrand, _, _, RcFnBrand>(
+		apply::<RcFnBrand, OptionBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<OptionBrand, _>(x),
 		) == pure::<OptionBrand, _>(f(x))
@@ -469,8 +616,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<OptionBrand, _, _, RcFnBrand>(v.clone(), w.clone());
-		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), vw);
+		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -482,7 +629,7 @@ mod tests {
 			_ => None,
 		};
 
-		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(uv, w);
+		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -494,10 +641,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), pure::<OptionBrand, _>(y));
+		let lhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(pure::<OptionBrand, _>(rhs_fn), u);
+		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}
@@ -550,7 +697,7 @@ mod tests {
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -563,7 +710,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None
@@ -594,5 +741,31 @@ mod tests {
 			),
 			None
 		);
+	}
+
+	// ParFoldable Tests
+
+	/// Tests `par_fold_map` on `None`.
+	#[test]
+	fn par_fold_map_none() {
+		let x: Option<i32> = None;
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "".to_string());
+	}
+
+	/// Tests `par_fold_map` on `Some`.
+	#[test]
+	fn par_fold_map_some() {
+		let x = Some(5);
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "5".to_string());
+	}
+
+	/// Tests `par_fold_right` on `Some`.
+	#[test]
+	fn par_fold_right_some() {
+		let x = Some(5);
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, OptionBrand, _, _>(f, 10, x), 15);
 	}
 }

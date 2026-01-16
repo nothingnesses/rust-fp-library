@@ -1,19 +1,21 @@
+//! Foldable type class.
+//!
+//! This module defines the [`Foldable`] trait, which represents data structures that can be folded to a single value.
+
 use super::monoid::Monoid;
 use crate::{
 	Apply,
-	brands::RcFnBrand,
 	classes::{clonable_fn::ClonableFn, semigroup::Semigroup},
 	kinds::*,
 	types::Endofunction,
 };
-use std::rc::Rc;
 
 /// A type class for structures that can be folded to a single value.
 ///
 /// A `Foldable` represents a structure that can be folded over to combine its elements
 /// into a single result.
 ///
-/// # Minimal Implementation
+/// ### Minimal Implementation
 ///
 /// A minimal implementation of `Foldable` requires implementing either [`Foldable::fold_right`] or [`Foldable::fold_map`].
 ///
@@ -24,94 +26,116 @@ use std::rc::Rc;
 pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// Folds the structure by applying a function from right to left.
 	///
-	/// # Type Signature
+	/// This method performs a right-associative fold of the structure.
 	///
-	/// `forall a b. Foldable t => ((a, b) -> b, b, t a) -> b`
+	/// ### Type Signature
 	///
-	/// # Parameters
+	/// `forall a b. Foldable f => ((a, b) -> b, b, f a) -> b`
 	///
-	/// * `f`: The function to apply to each element and the accumulator.
-	/// * `init`: The initial value of the accumulator.
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `Func`: The type of the folding function.
+	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to each element and the accumulator.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The final accumulator value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_right(|a, b| a + b, 10, x);
+	/// let y = OptionBrand::fold_right::<RcFnBrand, _, _, _>(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_right<'a, A: 'a + Clone, B: 'a, F>(
-		f: F,
-		init: B,
+	fn fold_right<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
 		),
 	) -> B
 	where
-		F: Fn(A, B) -> B + 'a,
+		Func: Fn(A, B) -> B + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
-		let f = Rc::new(f);
-		let m = Self::fold_map(
+		let f = <FnBrand as ClonableFn>::new(move |(a, b)| func(a, b));
+		let m = Self::fold_map::<FnBrand, _, A, Endofunction<FnBrand, B>>(
 			move |a: A| {
 				let f = f.clone();
-				Endofunction::<RcFnBrand, B>::new(<RcFnBrand as ClonableFn>::new(move |b| {
-					f(a.clone(), b)
+				Endofunction::<FnBrand, B>::new(<FnBrand as ClonableFn>::new(move |b| {
+					f((a.clone(), b))
 				}))
 			},
 			fa,
 		);
-		m.0(init)
+		m.0(initial)
 	}
 
 	/// Folds the structure by applying a function from left to right.
 	///
-	/// # Type Signature
+	/// This method performs a left-associative fold of the structure.
 	///
-	/// `forall a b. Foldable t => ((b, a) -> b, b, t a) -> b`
+	/// ### Type Signature
 	///
-	/// # Parameters
+	/// `forall a b. Foldable f => ((b, a) -> b, b, f a) -> b`
 	///
-	/// * `f`: The function to apply to the accumulator and each element.
-	/// * `init`: The initial value of the accumulator.
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `Func`: The type of the folding function.
+	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The final accumulator value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_left(|b, a| b + a, 10, x);
+	/// let y = OptionBrand::fold_left::<RcFnBrand, _, _, _>(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_left<'a, A: 'a + Clone, B: 'a, F>(
-		f: F,
-		init: B,
+	fn fold_left<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
+		func: Func,
+		initial: B,
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
 		),
 	) -> B
 	where
-		F: Fn(B, A) -> B + 'a,
+		Func: Fn(B, A) -> B + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
-		let f = Rc::new(f);
-		let m = Self::fold_right(
-			move |a: A, k: Endofunction<'a, RcFnBrand, B>| {
+		let f = <FnBrand as ClonableFn>::new(move |(b, a)| func(b, a));
+		let m = Self::fold_right::<FnBrand, _, A, Endofunction<FnBrand, B>>(
+			move |a: A, k: Endofunction<'a, FnBrand, B>| {
 				let f = f.clone();
 				// k is the "rest" of the computation.
 				// We want to perform "current" (f(b, a)) then "rest".
@@ -119,45 +143,55 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 				// So we want k . current.
 				// append(k, current).
 				let current =
-					Endofunction::<RcFnBrand, B>::new(<RcFnBrand as ClonableFn>::new(move |b| {
-						f(b, a.clone())
+					Endofunction::<FnBrand, B>::new(<FnBrand as ClonableFn>::new(move |b| {
+						f((b, a.clone()))
 					}));
 				Semigroup::append(k, current)
 			},
-			Endofunction::<RcFnBrand, B>::empty(),
+			Endofunction::<FnBrand, B>::empty(),
 			fa,
 		);
-		m.0(init)
+		m.0(initial)
 	}
 
 	/// Maps values to a monoid and combines them.
 	///
-	/// # Type Signature
+	/// This method maps each element of the structure to a monoid and then combines the results using the monoid's `append` operation.
 	///
-	/// `forall a m. (Foldable t, Monoid m) => ((a) -> m, t a) -> m`
+	/// ### Type Signature
 	///
-	/// # Parameters
+	/// `forall a m. (Foldable f, Monoid m) => ((a) -> m, f a) -> m`
 	///
-	/// * `f`: The function to map each element to a monoid.
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `Func`: The type of the mapping function.
+	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to map each element to a monoid.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The combined monoid value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::string; // Import Monoid impl for String
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_map(|a: i32| a.to_string(), x);
+	/// let y = OptionBrand::fold_map::<RcFnBrand, _, _, _>(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	fn fold_map<'a, A: 'a + Clone, M, F>(
-		f: F,
+	fn fold_map<'a, FnBrand, Func, A: 'a + Clone, M>(
+		func: Func,
 		fa: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
@@ -165,9 +199,10 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	) -> M
 	where
 		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
+		Func: Fn(A) -> M + 'a,
+		FnBrand: ClonableFn + 'a,
 	{
-		Self::fold_right(move |a, m| M::append(f(a), m), M::empty(), fa)
+		Self::fold_right::<FnBrand, _, A, M>(move |a, m| M::append(func(a), m), M::empty(), fa)
 	}
 }
 
@@ -175,116 +210,145 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_right`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
-/// `forall a b. Foldable t => ((a, b) -> b, b, t a) -> b`
+/// `forall a b. Foldable f => ((a, b) -> b, b, f a) -> b`
 ///
-/// # Parameters
+/// ### Type Parameters
 ///
-/// * `f`: The function to apply to each element and the accumulator.
-/// * `init`: The initial value of the accumulator.
+/// * `FnBrand`: The brand of the clonable function to use.
+/// * `Brand`: The brand of the foldable structure.
+/// * `Func`: The type of the folding function.
+/// * `A`: The type of the elements in the structure.
+/// * `B`: The type of the accumulator.
+///
+/// ### Parameters
+///
+/// * `func`: The function to apply to each element and the accumulator.
+/// * `initial`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The final accumulator value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_right;
 /// use fp_library::brands::OptionBrand;
+/// use fp_library::brands::RcFnBrand;
 ///
 /// let x = Some(5);
-/// let y = fold_right::<OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
 /// assert_eq!(y, 15);
 /// ```
-pub fn fold_right<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
-	f: F,
-	init: B,
+pub fn fold_right<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
+	func: Func,
+	initial: B,
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
 	),
 ) -> B
 where
-	F: Fn(A, B) -> B + 'a,
+	Func: Fn(A, B) -> B + 'a,
+	FnBrand: ClonableFn + 'a,
 {
-	Brand::fold_right(f, init, fa)
+	Brand::fold_right::<FnBrand, Func, A, B>(func, initial, fa)
 }
 
 /// Folds the structure by applying a function from left to right.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_left`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
-/// `forall a b. Foldable t => ((b, a) -> b, b, t a) -> b`
+/// `forall a b. Foldable f => ((b, a) -> b, b, f a) -> b`
 ///
-/// # Parameters
+/// ### Type Parameters
 ///
-/// * `f`: The function to apply to the accumulator and each element.
-/// * `init`: The initial value of the accumulator.
+/// * `FnBrand`: The brand of the clonable function to use.
+/// * `Brand`: The brand of the foldable structure.
+/// * `Func`: The type of the folding function.
+/// * `A`: The type of the elements in the structure.
+/// * `B`: The type of the accumulator.
+///
+/// ### Parameters
+///
+/// * `func`: The function to apply to the accumulator and each element.
+/// * `initial`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The final accumulator value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_left;
 /// use fp_library::brands::OptionBrand;
+/// use fp_library::brands::RcFnBrand;
 ///
 /// let x = Some(5);
-/// let y = fold_left::<OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 /// assert_eq!(y, 15);
 /// ```
-pub fn fold_left<'a, Brand: Foldable, A: 'a + Clone, B: 'a, F>(
-	f: F,
-	init: B,
+pub fn fold_left<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
+	func: Func,
+	initial: B,
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
 	),
 ) -> B
 where
-	F: Fn(B, A) -> B + 'a,
+	Func: Fn(B, A) -> B + 'a,
+	FnBrand: ClonableFn + 'a,
 {
-	Brand::fold_left(f, init, fa)
+	Brand::fold_left::<FnBrand, Func, A, B>(func, initial, fa)
 }
 
 /// Maps values to a monoid and combines them.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_map`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
-/// `forall a m. (Foldable t, Monoid m) => ((a) -> m, t a) -> m`
+/// `forall a m. (Foldable f, Monoid m) => ((a) -> m, f a) -> m`
 ///
-/// # Parameters
+/// ### Type Parameters
 ///
-/// * `f`: The function to map each element to a monoid.
+/// * `FnBrand`: The brand of the clonable function to use.
+/// * `Brand`: The brand of the foldable structure.
+/// * `Func`: The type of the mapping function.
+/// * `A`: The type of the elements in the structure.
+/// * `M`: The type of the monoid.
+///
+/// ### Parameters
+///
+/// * `func`: The function to map each element to a monoid.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The combined monoid value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_map;
 /// use fp_library::brands::OptionBrand;
 /// use fp_library::types::string; // Import Monoid impl for String
+/// use fp_library::brands::RcFnBrand;
 ///
 /// let x = Some(5);
-/// let y = fold_map::<OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
 /// assert_eq!(y, "5".to_string());
 /// ```
-pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
-	f: F,
+pub fn fold_map<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, M>(
+	func: Func,
 	fa: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
@@ -292,7 +356,8 @@ pub fn fold_map<'a, Brand: Foldable, A: 'a + Clone, M, F>(
 ) -> M
 where
 	M: Monoid + 'a,
-	F: Fn(A) -> M + 'a,
+	Func: Fn(A) -> M + 'a,
+	FnBrand: ClonableFn + 'a,
 {
-	Brand::fold_map(f, fa)
+	Brand::fold_map::<FnBrand, Func, A, M>(func, fa)
 }

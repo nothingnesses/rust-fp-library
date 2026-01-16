@@ -10,7 +10,6 @@
 * For each equivalent abstraction in docs/benchmarks/comparisons.md / docs/std_coverage_checklist.md , there should be a property-based test to test for equivalence.
 * Look into making a Function/ClonableFn trait that doesn't input a lifetime parameter so we can implement Kind0L1T (and, consequently, Functor, etc.) for LazyBrand.
 * Serde (de)serialisation for types.
-* Paralellisation using rayon.
 * [Mutation testing](https://github.com/sourcefrog/cargo-mutants).
 * [Lazy, memoized data type](https://pursuit.purescript.org/packages/purescript-lazy/3.0.0/docs/Data.Lazy) for [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming#Computer_science).
 * [Monadic stream functions](https://github.com/ivanperez-keera/dunai).

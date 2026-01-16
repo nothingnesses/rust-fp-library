@@ -98,3 +98,29 @@ fn test_nested_apply() {
 
 	assert_eq!(*outer.0.0, 10);
 }
+
+// Test 6: Works with output parameter
+#[test]
+fn test_with_output_parameter() {
+	trait MyKind {
+		type Of<T>;
+		type Other<T>;
+	}
+
+	struct Wrapper<T>(T);
+	struct OtherWrapper<T>(T);
+	struct MyBrand;
+
+	impl MyKind for MyBrand {
+		type Of<T> = Wrapper<T>;
+		type Other<T> = OtherWrapper<T>;
+	}
+
+	// Default behavior (Of)
+	type Default = Apply!(brand: MyBrand, kind: MyKind, lifetimes: (), types: (i32));
+	let _: Default = Wrapper(1);
+
+	// With output parameter
+	type Custom = Apply!(brand: MyBrand, kind: MyKind, lifetimes: (), types: (i32), output: Other);
+	let _: Custom = OtherWrapper(1);
+}

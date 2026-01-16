@@ -23,7 +23,7 @@ pub struct ArcFnBrand;
 
 /// [Brand][crate::brands] for [`crate::types::Endofunction`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndofunctionBrand<ClonableFnBrand: ClonableFn, A>(PhantomData<(ClonableFnBrand, A)>);
+pub struct EndofunctionBrand<FnBrand: ClonableFn, A>(PhantomData<(FnBrand, A)>);
 
 /// [Brand][crate::brands] for [`crate::types::Endomorphism`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -35,9 +35,7 @@ pub struct IdentityBrand;
 
 /// [Brand][crate::brands] for [`crate::types::Lazy`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LazyBrand<OnceBrand: Once, ClonableFnBrand: ClonableFn>(
-	PhantomData<(OnceBrand, ClonableFnBrand)>,
-);
+pub struct LazyBrand<OnceBrand: Once, FnBrand: ClonableFn>(PhantomData<(OnceBrand, FnBrand)>);
 
 /// [Brand][crate::brands] for [`std::cell::OnceCell`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

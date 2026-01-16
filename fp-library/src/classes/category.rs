@@ -1,3 +1,8 @@
+//! Category theory abstractions.
+//!
+//! This module defines the [`Category`] trait, which extends [`Semigroupoid`] with an identity element.
+//! A category consists of objects and morphisms between them, with composition and identity.
+
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
 
@@ -5,22 +10,28 @@ use crate::{Apply, kinds::*};
 ///
 /// `Category` extends [`Semigroupoid`] with an identity element.
 ///
-/// # Laws
+/// ### Laws
 ///
 /// `Category` instances must satisfy the identity law:
 /// * Identity: `compose(identity, p) = compose(p, identity)`.
 pub trait Category: Semigroupoid {
 	/// Returns the identity morphism.
 	///
-	/// # Type Signature
+	/// The identity morphism is a morphism that maps every object to itself.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Category cat => () -> cat a a`
 	///
-	/// # Returns
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the object.
+	///
+	/// ### Returns
 	///
 	/// The identity morphism.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::category::Category;
@@ -39,15 +50,20 @@ pub trait Category: Semigroupoid {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Category::identity`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Category cat => () -> cat a a`
 ///
-/// # Returns
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the category.
+/// * `A`: The type of the object.
+///
+/// ### Returns
 ///
 /// The identity morphism.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::category::identity;

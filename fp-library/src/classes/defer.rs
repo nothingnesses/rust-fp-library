@@ -1,3 +1,7 @@
+//! Defer type class.
+//!
+//! This module defines the [`Defer`] trait, which provides an abstraction for types that can be constructed lazily.
+
 use super::clonable_fn::ClonableFn;
 use crate::Apply;
 
@@ -5,19 +9,25 @@ use crate::Apply;
 pub trait Defer<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
-	/// # Type Signature
+	/// This function takes a thunk (wrapped in a clonable function) and creates a deferred value that will be computed using the thunk.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Defer d => (() -> d a) -> d a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function wrapper.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The deferred value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::defer::Defer;
@@ -31,8 +41,8 @@ pub trait Defer<'a> {
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<ClonableFnBrand: 'a + ClonableFn>(
-		f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
+	fn defer<FnBrand: 'a + ClonableFn>(
+		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
 	) -> Self
 	where
 		Self: Sized;
@@ -42,19 +52,24 @@ pub trait Defer<'a> {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Defer::defer`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Defer d => (() -> d a) -> d a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `D`: The type of the deferred value.
+///
+/// ### Parameters
 ///
 /// * `f`: A thunk (wrapped in a clonable function) that produces the value.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The deferred value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::defer::defer;
@@ -63,17 +78,17 @@ pub trait Defer<'a> {
 /// use fp_library::brands::OnceCellBrand;
 /// use fp_library::classes::clonable_fn::ClonableFn;
 ///
-/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+/// let lazy = defer::<RcFnBrand, Lazy<OnceCellBrand, RcFnBrand, _>>(
 ///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, D, ClonableFnBrand>(
-	f: Apply!(brand: ClonableFnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
+pub fn defer<'a, FnBrand, D>(
+	f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
 ) -> D
 where
 	D: Defer<'a>,
-	ClonableFnBrand: 'a + ClonableFn,
+	FnBrand: 'a + ClonableFn,
 {
-	D::defer::<ClonableFnBrand>(f)
+	D::defer::<FnBrand>(f)
 }

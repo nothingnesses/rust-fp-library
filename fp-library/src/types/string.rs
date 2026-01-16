@@ -1,4 +1,6 @@
 //! Implementations for [`String`].
+//!
+//! This module provides implementations of functional programming traits for the standard library [`String`] type.
 
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
@@ -13,27 +15,36 @@ impl_kind! {
 }
 
 impl Semigroup for String {
-	/// Appends one string to another.
+	/// The result of combining two strings.
 	///
-	/// # Type Signature
+	/// This method combines two strings into a single string.
+	///
+	/// ### Type Signature
 	///
 	/// `forall. Semigroup String => (String, String) -> String`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `a`: The first string.
 	/// * `b`: The second string.
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// The concatenated string.
+	/// The combined string.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semigroup::append;
+	/// use fp_library::classes::semigroup::Semigroup;
 	///
-	/// assert_eq!(append("Hello, ".to_string(), "World!".to_string()), "Hello, World!".to_string());
+	/// let s1 = "Hello, ".to_string();
+	/// let s2 = "World!".to_string();
+	/// let result = String::append(s1, s2);
+	/// assert_eq!(result, "Hello, World!");
+	///
+	/// // Using the free function
+	/// use fp_library::classes::semigroup::append;
+	/// assert_eq!(append("foo".to_string(), "bar".to_string()), "foobar");
 	/// ```
 	fn append(
 		a: Self,
@@ -44,22 +55,29 @@ impl Semigroup for String {
 }
 
 impl Monoid for String {
-	/// Returns an empty string.
+	/// The identity element.
 	///
-	/// # Type Signature
+	/// This method returns the identity element of the monoid.
+	///
+	/// ### Type Signature
 	///
 	/// `forall. Monoid String => () -> String`
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// An empty string.
+	/// The identity element.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::monoid::empty;
+	/// use fp_library::classes::monoid::Monoid;
 	///
-	/// assert_eq!(empty::<String>(), "".to_string());
+	/// let empty_string = String::empty();
+	/// assert_eq!(empty_string, "");
+	///
+	/// // Using the free function
+	/// use fp_library::classes::monoid::empty;
+	/// assert_eq!(empty::<String>(), "");
 	/// ```
 	fn empty() -> Self {
 		String::new()

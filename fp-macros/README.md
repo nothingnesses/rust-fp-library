@@ -66,6 +66,10 @@ Applies a brand to type arguments, projecting the brand to its concrete type. Th
 1.  **Unified Signature Mode** (Recommended): Uses a single `signature` parameter.
 2.  **Explicit Kind Mode** (Advanced): Uses explicit `kind`, `lifetimes`, and `types` parameters.
 
+**Optional Parameters:**
+
+- `output`: Specifies the name of the associated type to project to. Defaults to `Of`.
+
 **Example (Unified Signature):**
 
 ```rust
@@ -94,6 +98,19 @@ type Concrete = Apply!(
     lifetimes: (),
     types: (String)
 );
+```
+
+**Example (Custom Output Type):**
+
+```rust
+type ThreadSafeFn = Apply!(
+    brand: ArcFnBrand,
+    kind: SendClonableFn,
+    output: SendOf,
+    lifetimes: ('a),
+    types: (i32, i32)
+);
+// Projects to <ArcFnBrand as SendClonableFn>::SendOf<'a, i32, i32>
 ```
 
 ### `Kind!`

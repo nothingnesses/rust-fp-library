@@ -1,4 +1,7 @@
-//! Implementations for [`Endofunction`], a wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
+//! Endofunction wrapper.
+//!
+//! This module defines the [`Endofunction`] struct, which wraps a function from a type to itself (an endofunction)
+//! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
 	Apply,
@@ -20,38 +23,58 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-pub struct Endofunction<'a, CFB: ClonableFn, A>(
-	pub Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
+pub struct Endofunction<'a, FnBrand: ClonableFn, A>(
+	pub Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
 );
 
-impl<'a, CFB: ClonableFn, A> Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// Creates a new `Endofunction`.
 	///
-	/// # Type Signature
+	/// This function wraps a function `a -> a` in an `Endofunction` struct.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. (a -> a) -> Endofunction a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the function (e.g., `RcFnBrand`).
+	/// * `A`: The input and output type of the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The function to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new `Endofunction`.
-	pub fn new(f: Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A))) -> Self {
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::endofunction::Endofunction;
+	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::classes::clonable_fn::ClonableFn;
+	///
+	/// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// assert_eq!(f.0(5), 10);
+	/// ```
+	pub fn new(
+		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A))
+	) -> Self {
 		Self(f)
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Clone for Endofunction<'a, CFB, A> {
+impl<'a, FnBrand: ClonableFn, A> Clone for Endofunction<'a, FnBrand, A> {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Debug for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Debug for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
 {
 	fn fmt(
 		&self,
@@ -61,14 +84,14 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Eq for Endofunction<'a, CFB, A> where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
+impl<'a, FnBrand: ClonableFn, A> Eq for Endofunction<'a, FnBrand, A> where
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
 {
 }
 
-impl<'a, CFB: ClonableFn, A> Hash for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Hash for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -78,9 +101,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> Ord for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> Ord for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
 {
 	fn cmp(
 		&self,
@@ -90,9 +113,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> PartialEq for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
 {
 	fn eq(
 		&self,
@@ -102,9 +125,9 @@ where
 	}
 }
 
-impl<'a, CFB: ClonableFn, A> PartialOrd for Endofunction<'a, CFB, A>
+impl<'a, FnBrand: ClonableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: CFB, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
+	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
 {
 	fn partial_cmp(
 		&self,
@@ -114,23 +137,27 @@ where
 	}
 }
 
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
-	/// Composes two endofunctions.
+impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
+	/// The result of combining the two values using the semigroup operation.
 	///
-	/// # Type Signature
+	/// This method composes two endofunctions into a single endofunction.
+	/// Note that `Endofunction` composition is reversed relative to standard function composition:
+	/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Semigroup (Endofunction a) => (Endofunction a, Endofunction a) -> Endofunction a`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
-	/// * `a`: The second function to apply.
-	/// * `b`: The first function to apply.
+	/// * `a`: The second function to apply (the outer function).
+	/// * `b`: The first function to apply (the inner function).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The composed function `a . b`.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::endofunction::Endofunction;
@@ -140,8 +167,10 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 	///
 	/// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+	///
+	/// // f(g(x)) = (x + 1) * 2
 	/// let h = Semigroup::append(f, g);
-	/// assert_eq!(h.0(5), 12); // (5 + 1) * 2
+	/// assert_eq!(h.0(5), 12);
 	/// ```
 	fn append(
 		a: Self,
@@ -150,22 +179,24 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 		let f = a.0;
 		let g = b.0;
 		// Compose: f . g
-		Self::new(<CFB as ClonableFn>::new(move |x| f(g(x))))
+		Self::new(<FnBrand as ClonableFn>::new(move |x| f(g(x))))
 	}
 }
 
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
-	/// Returns the identity endofunction.
+impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
+	/// The identity element.
 	///
-	/// # Type Signature
+	/// This method returns the identity endofunction, which wraps the identity function.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Monoid (Endofunction a) => () -> Endofunction a`
 	///
-	/// # Returns
+	/// ### Returns
 	///
-	/// The identity function.
+	/// The identity endofunction.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::endofunction::Endofunction;
@@ -176,7 +207,7 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {
-		Self::new(<CFB as ClonableFn>::new(identity))
+		Self::new(<FnBrand as ClonableFn>::new(identity))
 	}
 }
 

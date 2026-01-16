@@ -1,3 +1,8 @@
+//! ApplyFirst type class.
+//!
+//! This module defines the [`ApplyFirst`] trait, which provides the ability to sequence two computations
+//! but discard the result of the second computation, keeping only the result of the first.
+
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
 
@@ -8,20 +13,27 @@ use crate::{Apply, kinds::*};
 pub trait ApplyFirst: Lift {
 	/// Combines two contexts, keeping the value from the first context.
 	///
-	/// # Type Signature
+	/// This function sequences two computations and discards the result of the second computation, keeping only the result of the first.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value in the first context.
+	/// * `B`: The type of the value in the second context.
+	///
+	/// ### Parameters
 	///
 	/// * `fa`: The first context.
 	/// * `fb`: The second context.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The first context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::apply_first::ApplyFirst;
@@ -53,20 +65,26 @@ pub trait ApplyFirst: Lift {
 ///
 /// Free function version that dispatches to [the type class' associated function][`ApplyFirst::apply_first`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. ApplyFirst f => (f a, f b) -> f a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `A`: The type of the value in the first context.
+/// * `B`: The type of the value in the second context.
+///
+/// ### Parameters
 ///
 /// * `fa`: The first context.
 /// * `fb`: The second context.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The first context.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::apply_first::apply_first;

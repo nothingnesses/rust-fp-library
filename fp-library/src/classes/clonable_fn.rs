@@ -1,3 +1,8 @@
+//! Clonable function wrappers.
+//!
+//! This module defines the [`ClonableFn`] trait, which provides an abstraction for clonable wrappers over closures.
+//! This allows for generic handling of clonable functions (like `Rc<dyn Fn>`) in higher-kinded contexts.
+
 use super::function::Function;
 use crate::Apply;
 use std::ops::Deref;
@@ -17,19 +22,26 @@ pub trait ClonableFn: Function {
 
 	/// Creates a new clonable function wrapper.
 	///
-	/// # Type Signature
+	/// This function wraps the provided closure `f` into a clonable function.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. ClonableFn f => (a -> b) -> f a b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The wrapped clonable function.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::clonable_fn::ClonableFn;
@@ -47,19 +59,25 @@ pub trait ClonableFn: Function {
 ///
 /// Free function version that dispatches to [the type class' associated function][`ClonableFn::new`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. ClonableFn f => (a -> b) -> f a b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the clonable function wrapper.
+/// * `A`: The input type of the function.
+/// * `B`: The output type of the function.
+///
+/// ### Parameters
 ///
 /// * `f`: The closure to wrap.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The wrapped clonable function.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::clonable_fn::new;
@@ -68,11 +86,11 @@ pub trait ClonableFn: Function {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, F, A, B>(
+pub fn new<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B
-) -> Apply!(brand: F, kind: ClonableFn, lifetimes: ('a), types: (A, B))
+) -> Apply!(brand: Brand, kind: ClonableFn, lifetimes: ('a), types: (A, B))
 where
-	F: ClonableFn,
+	Brand: ClonableFn,
 {
-	<F as ClonableFn>::new(f)
+	<Brand as ClonableFn>::new(f)
 }

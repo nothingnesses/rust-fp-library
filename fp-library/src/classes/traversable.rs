@@ -1,3 +1,7 @@
+//! Traversable type class.
+//!
+//! This module defines the [`Traversable`] trait, which represents data structures that can be traversed, accumulating results in an applicative context.
+
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
 use crate::{Apply, functions::identity, kinds::*};
 
@@ -14,20 +18,27 @@ pub trait Traversable: Functor + Foldable {
 	/// A direct implementation can often perform the traversal in a single pass without allocating an intermediate container.
 	/// Types should provide their own implementation if possible.
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a b f. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
 	///
-	/// # Parameters
+	/// ### Type Parameters
 	///
-	/// * `f`: The function to apply to each element, returning a value in an applicative context.
+	/// * `F`: The applicative context.
+	/// * `Func`: The type of the function to apply.
+	/// * `A`: The type of the elements in the traversable structure.
+	/// * `B`: The type of the elements in the resulting traversable structure.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to each element, returning a value in an applicative context.
 	/// * `ta`: The traversable structure.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The traversable structure wrapped in the applicative context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::traversable::Traversable;
@@ -37,8 +48,8 @@ pub trait Traversable: Functor + Foldable {
 	/// let y = OptionBrand::traverse::<OptionBrand, _, _, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-		f: Func,
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+		func: Func,
 		ta: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
@@ -63,26 +74,31 @@ pub trait Traversable: Functor + Foldable {
 			signature: ('a, B: 'a) -> 'a,
 		): Clone,
 	{
-		Self::sequence::<F, B>(Self::map(f, ta))
+		Self::sequence::<F, B>(Self::map::<Func, A, _>(func, ta))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
 	///
 	/// The default implementation is defined in terms of [`traverse`] and [`identity`].
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a f. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `F`: The applicative context.
+	/// * `A`: The type of the elements in the traversable structure.
+	///
+	/// ### Parameters
 	///
 	/// * `ta`: The traversable structure containing values in an applicative context.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The traversable structure wrapped in the applicative context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::traversable::Traversable;
@@ -113,12 +129,12 @@ pub trait Traversable: Functor + Foldable {
 	{
 		Self::traverse::<
 			F,
+			_,
 			Apply!(
 				brand: F,
 				signature: ('a, A: 'a) -> 'a,
 			),
 			A,
-			_,
 		>(identity, ta)
 	}
 }
@@ -127,20 +143,28 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::traverse`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b f. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
 ///
-/// # Parameters
+/// ### Type Parameters
 ///
-/// * `f`: The function to apply to each element, returning a value in an applicative context.
+/// * `Brand`: The brand of the traversable structure.
+/// * `F`: The applicative context.
+/// * `Func`: The type of the function to apply.
+/// * `A`: The type of the elements in the traversable structure.
+/// * `B`: The type of the elements in the resulting traversable structure.
+///
+/// ### Parameters
+///
+/// * `func`: The function to apply to each element, returning a value in an applicative context.
 /// * `ta`: The traversable structure.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The traversable structure wrapped in the applicative context.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::traversable::traverse;
@@ -150,8 +174,8 @@ pub trait Traversable: Functor + Foldable {
 /// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-	f: Func,
+pub fn traverse<'a, Brand: Traversable, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+	func: Func,
 	ta: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
@@ -176,26 +200,32 @@ where
 		signature: ('a, B: 'a) -> 'a,
 	): Clone,
 {
-	Brand::traverse::<F, A, B, Func>(f, ta)
+	Brand::traverse::<F, Func, A, B>(func, ta)
 }
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::sequence`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a f. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the traversable structure.
+/// * `F`: The applicative context.
+/// * `A`: The type of the elements in the traversable structure.
+///
+/// ### Parameters
 ///
 /// * `ta`: The traversable structure containing values in an applicative context.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The traversable structure wrapped in the applicative context.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::traversable::sequence;

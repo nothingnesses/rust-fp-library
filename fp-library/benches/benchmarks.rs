@@ -1,6 +1,6 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use fp_library::{
-	brands::{OnceCellBrand, OnceLockBrand, OptionBrand, ResultWithErrBrand, VecBrand},
+	brands::{OnceCellBrand, OnceLockBrand, OptionBrand, RcFnBrand, ResultWithErrBrand, VecBrand},
 	classes::{
 		foldable::{fold_left, fold_map, fold_right},
 		functor::map,
@@ -55,7 +55,7 @@ fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_right::<VecBrand, _, _, _>(|x, acc| x + acc, 0, v),
+				|v| fold_right::<RcFnBrand, VecBrand, _, _, _>(|x, acc| x + acc, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -76,7 +76,7 @@ fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_left::<VecBrand, _, _, _>(|acc, x| acc + x, 0, v),
+				|v| fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x| acc + x, 0, v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -97,7 +97,7 @@ fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| fold_map::<VecBrand, _, _, _>(|x: i32| x.to_string(), v),
+				|v| fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -262,7 +262,11 @@ fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<OptionBrand, _, _, _>(|x, acc| x + acc, 0, std::hint::black_box(val))
+				fold_right::<RcFnBrand, OptionBrand, _, _, _>(
+					|x, acc| x + acc,
+					0,
+					std::hint::black_box(val),
+				)
 			})
 		});
 		group.finish();
@@ -276,7 +280,11 @@ fn bench_option(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<OptionBrand, _, _, _>(|acc, x| acc + x, 0, std::hint::black_box(val))
+				fold_left::<RcFnBrand, OptionBrand, _, _, _>(
+					|acc, x| acc + x,
+					0,
+					std::hint::black_box(val),
+				)
 			})
 		});
 		group.finish();
@@ -356,7 +364,7 @@ fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<ResultWithErrBrand<i32>, _, _, _>(
+				fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val_ok),
@@ -374,7 +382,7 @@ fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<ResultWithErrBrand<i32>, _, _, _>(
+				fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val_ok),
