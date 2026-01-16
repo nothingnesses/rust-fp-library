@@ -72,55 +72,55 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 2.1 SendClonableFn Trait Definition
 
-- [ ] **Create `send_clonable_fn.rs` module**
+- [x] **Create `send_clonable_fn.rs` module**
 
-  - [ ] Create file [`fp-library/src/classes/send_clonable_fn.rs`](../../fp-library/src/classes/send_clonable_fn.rs)
-  - [ ] Add module-level documentation explaining thread safety
-  - [ ] Add imports (`ClonableFn`, `std::ops::Deref`)
+  - [x] Create file [`fp-library/src/classes/send_clonable_fn.rs`](../../fp-library/src/classes/send_clonable_fn.rs)
+  - [x] Add module-level documentation explaining thread safety
+  - [x] Add imports (`ClonableFn`, `std::ops::Deref`)
 
-- [ ] **Define `SendClonableFn` trait**
+- [x] **Define `SendClonableFn` trait**
 
-  - [ ] Define trait extending `ClonableFn`
-  - [ ] Add `SendOf<'a, A, B>` associated type with bounds:
-    - [ ] `Clone`
-    - [ ] `Send`
-    - [ ] `Sync`
-    - [ ] `Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>`
-  - [ ] Add `new_send` method signature
-  - [ ] Add comprehensive doc comments with examples
+  - [x] Define trait extending `ClonableFn`
+  - [x] Add `SendOf<'a, A, B>` associated type with bounds:
+    - [x] `Clone`
+    - [x] `Send`
+    - [x] `Sync`
+    - [x] `Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>`
+  - [x] Add `new_send` method signature
+  - [x] Add comprehensive doc comments with examples
 
-- [ ] **Add free function `new_send`**
+- [x] **Add free function `new_send`**
 
-  - [ ] Implement `new_send` free function
-  - [ ] Add documentation with examples
+  - [x] Implement `new_send` free function
+  - [x] Add documentation with examples
 
-- [ ] **Export from `classes/mod.rs`**
-  - [ ] Add `pub mod send_clonable_fn;`
-  - [ ] Re-export trait and function
+- [x] **Export from `classes/mod.rs`**
+  - [x] Add `pub mod send_clonable_fn;`
+  - [x] Re-export trait and function
 
 ### 2.2 ArcFnBrand Implementation
 
-- [ ] **Implement `SendClonableFn` for `ArcFnBrand`**
+- [x] **Implement `SendClonableFn` for `ArcFnBrand`**
 
-  - [ ] Update [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs)
-  - [ ] Add import for `SendClonableFn`
-  - [ ] Define `SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>`
-  - [ ] Implement `new_send` method with `Arc::new(f)`
-  - [ ] Add documentation with threading example
+  - [x] Update [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs)
+  - [x] Add import for `SendClonableFn`
+  - [x] Define `SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>`
+  - [x] Implement `new_send` method with `Arc::new(f)`
+  - [x] Add documentation with threading example
 
-- [ ] **Verify RcFnBrand does NOT implement SendClonableFn**
-  - [ ] Confirm [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs) has no `SendClonableFn` impl
-  - [ ] Add compile-fail test to verify this
+- [x] **Verify RcFnBrand does NOT implement SendClonableFn**
+  - [x] Confirm [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs) has no `SendClonableFn` impl
+  - [x] Add compile-fail test to verify this
 
 ### 2.3 Library Exports
 
-- [ ] **Update `fp-library/src/lib.rs`**
+- [x] **Update `fp-library/src/lib.rs`**
 
-  - [ ] Re-export `SendClonableFn` trait
-  - [ ] Re-export `new_send` function
+  - [x] Re-export `SendClonableFn` trait
+  - [x] Re-export `new_send` function
 
-- [ ] **Update `fp-library/src/classes.rs`** (if exists)
-  - [ ] Include new module in public API
+- [x] **Update `fp-library/src/classes.rs`** (if exists)
+  - [x] Include new module in public API
 
 ---
 
@@ -289,12 +289,12 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
   - [ ] Test: cannot `new_send` with non-`Send` closure
   - [ ] Test: cannot `new_send` with non-`Sync` closure
-  - [ ] Test: `RcFnBrand` does not implement `SendClonableFn`
+  - [x] Test: `RcFnBrand` does not implement `SendClonableFn`
   - [ ] Test: cannot use `Send + Sync` function in non-`Send` context (expected failure)
 
-- [ ] **Setup trybuild for UI tests** (if not already present)
-  - [ ] Add `trybuild` dependency
-  - [ ] Create test harness
+- [x] **Setup trybuild for UI tests** (if not already present)
+  - [x] Add `trybuild` dependency
+  - [x] Create test harness
 
 ---
 
@@ -387,7 +387,7 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 ### Implementation Status
 
 - **Phase 1 Status**: Completed (Apply! macro enhancement - prerequisite)
-- **Phase 2 Status**: Not started (SendClonableFn trait)
+- **Phase 2 Status**: Completed (SendClonableFn trait)
 - **Phase 3 Status**: Not started (ParFoldable trait)
 - **Phase 4 Status**: Not started (Type implementations)
 - **Phase 5 Status**: Not started (Optional rayon integration)

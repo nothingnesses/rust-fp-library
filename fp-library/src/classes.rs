@@ -27,4 +27,5 @@ pub mod semiapplicative;
 pub mod semigroup;
 pub mod semigroupoid;
 pub mod semimonad;
+pub mod send_clonable_fn;
 pub mod traversable;

@@ -24,3 +24,4 @@ fp-macros = { path = "../fp-macros", version = "0.1.0" }
 criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.1"
+trybuild = "1.0"

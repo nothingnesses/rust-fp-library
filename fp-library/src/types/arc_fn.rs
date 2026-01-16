@@ -6,6 +6,7 @@ use crate::{
 	brands::ArcFnBrand,
 	classes::{
 		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
+		send_clonable_fn::SendClonableFn,
 	},
 	impl_kind,
 	kinds::*,
@@ -80,6 +81,44 @@ impl ClonableFn for ArcFnBrand {
 	fn new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B
 	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B)) {
+		Arc::new(f)
+	}
+}
+
+impl SendClonableFn for ArcFnBrand {
+	type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
+
+	/// Creates a new thread-safe clonable function wrapper.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. SendClonableFn ArcFnBrand => (a -> b) -> ArcFnBrand a b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The function to wrap. Must be `Send + Sync`.
+	///
+	/// # Returns
+	///
+	/// An `Arc`-wrapped thread-safe clonable function.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+	/// use std::thread;
+	///
+	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+	///
+	/// let handle = thread::spawn(move || {
+	///     assert_eq!(f(5), 10);
+	/// });
+	/// handle.join().unwrap();
+	/// ```
+	fn new_send<'a, A, B>(
+		f: impl 'a + Fn(A) -> B + Send + Sync,
+	) -> Apply!(brand: Self, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B)) {
 		Arc::new(f)
 	}
 }
