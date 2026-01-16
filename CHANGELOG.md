@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased fp-library 0.3.0]
 
 ### Added
 
@@ -16,14 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented `SendClonableFn` for `ArcFnBrand`.
   - Implemented `ParFoldable` for `VecBrand` and `OptionBrand`.
   - Added optional `rayon` feature for parallel execution in `VecBrand`.
-- **Macro Enhancements**:
-  - Updated `Apply!` macro to support optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
 
 ### Changed
 
 - Update function and method documentation in `fp-library/src/classes/` to follow a consistent format with detailed sections for type signatures, parameters, and examples.
 - Rewrite module-level documentation in `fp-library/src/classes.rs` for clarity and accuracy regarding Brand types and HKT simulation.
 - Add missing module-level documentation to all type class modules in `fp-library/src/classes/`.
+
+## [Unreleased fp-macros 0.1.1]
+
+### Added
+
+- Updated `Apply!` to support optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
 
 ## [fp-library 0.2.0] - 2026-01-15
 

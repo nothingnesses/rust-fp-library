@@ -23,7 +23,7 @@ default = []
 rayon = ["dep:rayon"]
 
 [dependencies]
-fp-macros = { path = "../fp-macros", version = "0.1.0" }
+fp-macros = { path = "../fp-macros", version = "0.1" }
 rayon = { version = "1.11", optional = true }
 
 [dev-dependencies]
