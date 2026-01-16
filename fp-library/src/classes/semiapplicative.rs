@@ -42,10 +42,10 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// let x = Some(5);
-	/// let y = OptionBrand::apply::<i32, i32, RcFnBrand>(f, x);
+	/// let y = OptionBrand::apply::<RcFnBrand, i32, i32>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(
 			brand: Self,
 			signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
@@ -88,10 +88,10 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 /// let x = Some(5);
-/// let y = apply::<OptionBrand, _, _, RcFnBrand>(f, x);
+/// let y = apply::<OptionBrand, RcFnBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+pub fn apply<'a, Brand: Semiapplicative, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 	ff: Apply!(
 		brand: Brand,
 		signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
@@ -104,5 +104,5 @@ pub fn apply<'a, Brand: Semiapplicative, A: 'a + Clone, B: 'a, FnBrand: 'a + Clo
 	brand: Brand,
 	signature: ('a, B: 'a) -> 'a,
 ) {
-	Brand::apply::<A, B, FnBrand>(ff, fa)
+	Brand::apply::<FnBrand, A, B>(ff, fa)
 }

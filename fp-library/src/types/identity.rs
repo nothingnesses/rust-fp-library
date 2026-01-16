@@ -48,7 +48,7 @@ impl Functor for IdentityBrand {
 	///
 	/// assert_eq!(map::<IdentityBrand, _, _, _>(|x: i32| x * 2, Identity(5)), Identity(10));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -88,7 +88,7 @@ impl Lift for IdentityBrand {
 	///     Identity(3)
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -162,9 +162,9 @@ impl Semiapplicative for IdentityBrand {
 	/// use std::rc::Rc;
 	///
 	/// let f = Identity(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<IdentityBrand, _, _, RcFnBrand>(f, Identity(5)), Identity(10));
+	/// assert_eq!(apply::<IdentityBrand, RcFnBrand, _, _>(f, Identity(5)), Identity(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -200,7 +200,7 @@ impl Semimonad for IdentityBrand {
 	///     Identity(10)
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -354,7 +354,7 @@ impl Traversable for IdentityBrand {
 	///     Some(Identity(10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -437,7 +437,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: i32) -> bool {
 		let v = Identity(v);
-		apply::<IdentityBrand, _, _, RcFnBrand>(
+		apply::<IdentityBrand, RcFnBrand, _, _>(
 			pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v,
 		) == v
@@ -447,7 +447,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<IdentityBrand, _, _, RcFnBrand>(
+		apply::<IdentityBrand, RcFnBrand, _, _>(
 			pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<IdentityBrand, _>(x),
 		) == pure::<IdentityBrand, _>(f(x))
@@ -468,15 +468,15 @@ mod tests {
 		let u = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<IdentityBrand, _, _, RcFnBrand>(v.clone(), w.clone());
-		let rhs = apply::<IdentityBrand, _, _, RcFnBrand>(u.clone(), vw);
+		let vw = apply::<IdentityBrand, RcFnBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<IdentityBrand, RcFnBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
 		let composed = move |x| u_fn(v_fn(x));
 		let uv = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(composed));
 
-		let lhs = apply::<IdentityBrand, _, _, RcFnBrand>(uv, w);
+		let lhs = apply::<IdentityBrand, RcFnBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -488,10 +488,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<IdentityBrand, _, _, RcFnBrand>(u.clone(), pure::<IdentityBrand, _>(y));
+		let lhs = apply::<IdentityBrand, RcFnBrand, _, _>(u.clone(), pure::<IdentityBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<IdentityBrand, _, _, RcFnBrand>(pure::<IdentityBrand, _>(rhs_fn), u);
+		let rhs = apply::<IdentityBrand, RcFnBrand, _, _>(pure::<IdentityBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

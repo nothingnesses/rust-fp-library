@@ -56,7 +56,7 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	///
 	/// assert_eq!(map::<PairWithFirstBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -100,7 +100,7 @@ where
 	///     Pair("ab".to_string(), 3)
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -182,9 +182,9 @@ where
 	/// use std::rc::Rc;
 	///
 	/// let f = Pair("a".to_string(), <RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
+	/// assert_eq!(apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -224,7 +224,7 @@ where
 	///     Pair("ab".to_string(), 10)
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -384,7 +384,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///     Some(Pair((), 10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -467,7 +467,7 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	///
 	/// assert_eq!(map::<PairWithSecondBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -511,7 +511,7 @@ where
 	///     Pair(3, "ab".to_string())
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -593,9 +593,9 @@ where
 	/// use std::rc::Rc;
 	///
 	/// let f = Pair(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2), "a".to_string());
-	/// assert_eq!(apply::<PairWithSecondBrand<String>, _, _, RcFnBrand>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
+	/// assert_eq!(apply::<PairWithSecondBrand<String>, RcFnBrand, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -635,7 +635,7 @@ where
 	///     Pair(10, "ab".to_string())
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -795,7 +795,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///     Some(Pair(10, ()))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -895,7 +895,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let v = Pair(first, second);
-		apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+		apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(
 			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -905,7 +905,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+		apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(
 			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<PairWithFirstBrand<String>, _>(x),
 		) == pure::<PairWithFirstBrand<String>, _>(f(x))
@@ -928,8 +928,8 @@ mod tests {
 		let v = pure::<PairWithFirstBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(v.clone(), w.clone());
-		let rhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(u.clone(), vw);
+		let vw = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as ClonableFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -942,9 +942,9 @@ mod tests {
 		});
 
 		let pure_compose = pure::<PairWithFirstBrand<String>, _>(compose_fn);
-		let u_applied = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(pure_compose, u);
-		let uv = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(u_applied, v);
-		let lhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(uv, w);
+		let u_applied = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(pure_compose, u);
+		let uv = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(u_applied, v);
+		let lhs = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -959,13 +959,13 @@ mod tests {
 		let f = move |x: i32| x.wrapping_mul(u_seed);
 		let u = pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+		let lhs = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(
 			u.clone(),
 			pure::<PairWithFirstBrand<String>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<PairWithFirstBrand<String>, _, _, RcFnBrand>(
+		let rhs = apply::<PairWithFirstBrand<String>, RcFnBrand, _, _>(
 			pure::<PairWithFirstBrand<String>, _>(rhs_fn),
 			u,
 		);

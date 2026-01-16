@@ -121,7 +121,7 @@ impl Functor for VecBrand {
 	///
 	/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -160,7 +160,7 @@ impl Lift for VecBrand {
 	///     vec![11, 21, 12, 22]
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -235,9 +235,9 @@ impl Semiapplicative for VecBrand {
 	///     <RcFnBrand as ClonableFn>::new(|x: i32| x + 1),
 	///     <RcFnBrand as ClonableFn>::new(|x: i32| x * 2),
 	/// ];
-	/// assert_eq!(apply::<VecBrand, _, _, RcFnBrand>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
+	/// assert_eq!(apply::<VecBrand, RcFnBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -272,7 +272,7 @@ impl Semimonad for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -426,7 +426,7 @@ impl Traversable for VecBrand {
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -582,7 +582,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
-		apply::<VecBrand, _, _, RcFnBrand>(
+		apply::<VecBrand, RcFnBrand, _, _>(
 			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v.clone(),
 		) == v
@@ -592,7 +592,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<VecBrand, _, _, RcFnBrand>(
+		apply::<VecBrand, RcFnBrand, _, _>(
 			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<VecBrand, _>(x),
 		) == pure::<VecBrand, _>(f(x))
@@ -615,8 +615,8 @@ mod tests {
 			.collect();
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<VecBrand, _, _, RcFnBrand>(v_fns.clone(), w.clone());
-		let rhs = apply::<VecBrand, _, _, RcFnBrand>(u_fns.clone(), vw);
+		let vw = apply::<VecBrand, RcFnBrand, _, _>(v_fns.clone(), w.clone());
+		let rhs = apply::<VecBrand, RcFnBrand, _, _>(u_fns.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -632,7 +632,7 @@ mod tests {
 			})
 			.collect();
 
-		let lhs = apply::<VecBrand, _, _, RcFnBrand>(uv_fns, w);
+		let lhs = apply::<VecBrand, RcFnBrand, _, _>(uv_fns, w);
 
 		lhs == rhs
 	}
@@ -644,10 +644,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = vec![<RcFnBrand as ClonableFn>::new(f)];
 
-		let lhs = apply::<VecBrand, _, _, RcFnBrand>(u.clone(), pure::<VecBrand, _>(y));
+		let lhs = apply::<VecBrand, RcFnBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<VecBrand, _, _, RcFnBrand>(pure::<VecBrand, _>(rhs_fn), u);
+		let rhs = apply::<VecBrand, RcFnBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

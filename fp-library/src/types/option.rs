@@ -44,7 +44,7 @@ impl Functor for OptionBrand {
 	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5)), Some(10));
 	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, None), None);
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(
 			brand: Self,
@@ -87,7 +87,7 @@ impl Lift for OptionBrand {
 	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), Some(2)), Some(3));
 	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), None), None);
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -159,9 +159,9 @@ impl Semiapplicative for OptionBrand {
 	/// use std::rc::Rc;
 	///
 	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<OptionBrand, _, _, RcFnBrand>(f, Some(5)), Some(10));
+	/// assert_eq!(apply::<OptionBrand, RcFnBrand, _, _>(f, Some(5)), Some(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -197,7 +197,7 @@ impl Semimonad for OptionBrand {
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |x| Some(x * 2)), Some(10));
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -355,7 +355,7 @@ impl Traversable for OptionBrand {
 	///
 	/// assert_eq!(traverse::<OptionBrand, OptionBrand, _, _, _>(|x| Some(x * 2), Some(5)), Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -437,7 +437,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Option<i32>) -> bool {
-		apply::<OptionBrand, _, _, RcFnBrand>(
+		apply::<OptionBrand, RcFnBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v,
 		) == v
@@ -447,7 +447,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<OptionBrand, _, _, RcFnBrand>(
+		apply::<OptionBrand, RcFnBrand, _, _>(
 			pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<OptionBrand, _>(x),
 		) == pure::<OptionBrand, _>(f(x))
@@ -475,8 +475,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<OptionBrand, _, _, RcFnBrand>(v.clone(), w.clone());
-		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), vw);
+		let vw = apply::<OptionBrand, RcFnBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<OptionBrand, RcFnBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -488,7 +488,7 @@ mod tests {
 			_ => None,
 		};
 
-		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(uv, w);
+		let lhs = apply::<OptionBrand, RcFnBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -500,10 +500,10 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<OptionBrand, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<OptionBrand, _, _, RcFnBrand>(u.clone(), pure::<OptionBrand, _>(y));
+		let lhs = apply::<OptionBrand, RcFnBrand, _, _>(u.clone(), pure::<OptionBrand, _>(y));
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<OptionBrand, _, _, RcFnBrand>(pure::<OptionBrand, _>(rhs_fn), u);
+		let rhs = apply::<OptionBrand, RcFnBrand, _, _>(pure::<OptionBrand, _>(rhs_fn), u);
 
 		lhs == rhs
 	}

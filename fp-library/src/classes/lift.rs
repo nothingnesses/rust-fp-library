@@ -31,7 +31,7 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 	/// let z = OptionBrand::lift2(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(
 			brand: Self,
@@ -81,7 +81,7 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 /// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 /// assert_eq!(z, Some(3));
 /// ```
-pub fn lift2<'a, Brand: Lift, A, B, C, F>(
+pub fn lift2<'a, Brand: Lift, F, A, B, C>(
 	f: F,
 	fa: Apply!(
 		brand: Brand,

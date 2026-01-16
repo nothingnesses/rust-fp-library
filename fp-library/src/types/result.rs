@@ -52,7 +52,7 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	/// assert_eq!(map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
 	/// assert_eq!(map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -95,7 +95,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///     Err(2)
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -171,9 +171,9 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// use std::rc::Rc;
 	///
 	/// let f = Ok(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<ResultWithErrBrand<()>, _, _, RcFnBrand>(f, Ok(5)), Ok(10));
+	/// assert_eq!(apply::<ResultWithErrBrand<()>, RcFnBrand, _, _>(f, Ok(5)), Ok(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -212,7 +212,7 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///     Ok(10)
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -376,7 +376,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///     Some(Ok(10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -462,7 +462,7 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -504,7 +504,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///     Err(3)
 	/// );
 	/// ```
-	fn lift2<'a, A, B, C, F>(
+	fn lift2<'a, F, A, B, C>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
@@ -580,9 +580,9 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// use std::rc::Rc;
 	///
 	/// let f = Err(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<ResultWithOkBrand<()>, _, _, RcFnBrand>(f, Err(5)), Err(10));
+	/// assert_eq!(apply::<ResultWithOkBrand<()>, RcFnBrand, _, _>(f, Err(5)), Err(10));
 	/// ```
-	fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
@@ -621,7 +621,7 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///     Err(10)
 	/// );
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 		f: F,
 	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
@@ -788,7 +788,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///     Some(Err(10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
@@ -876,7 +876,7 @@ mod tests {
 	/// Tests the identity law for Applicative.
 	#[quickcheck]
 	fn applicative_identity(v: Result<i32, i32>) -> bool {
-		apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+		apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(
 			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(identity)),
 			v,
 		) == v
@@ -886,7 +886,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+		apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(
 			pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(f)),
 			pure::<ResultWithErrBrand<i32>, _>(x),
 		) == pure::<ResultWithErrBrand<i32>, _>(f(x))
@@ -914,8 +914,8 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(v.clone(), w.clone());
-		let rhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(u.clone(), vw);
+		let vw = apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(v.clone(), w.clone());
+		let rhs = apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
@@ -928,7 +928,7 @@ mod tests {
 			(_, Err(e)) => Err(e),
 		};
 
-		let lhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(uv, w);
+		let lhs = apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -940,13 +940,13 @@ mod tests {
 		let f = |x: i32| x.wrapping_mul(2);
 		let u = pure::<ResultWithErrBrand<i32>, _>(<RcFnBrand as ClonableFn>::new(f));
 
-		let lhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+		let lhs = apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(
 			u.clone(),
 			pure::<ResultWithErrBrand<i32>, _>(y),
 		);
 
 		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<ResultWithErrBrand<i32>, _, _, RcFnBrand>(
+		let rhs = apply::<ResultWithErrBrand<i32>, RcFnBrand, _, _>(
 			pure::<ResultWithErrBrand<i32>, _>(rhs_fn),
 			u,
 		);

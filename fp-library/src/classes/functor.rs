@@ -36,7 +36,7 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// let y = OptionBrand::map(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn map<'a, A: 'a, B: 'a, F>(
+	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
 		fa: Apply!(
 			brand: Self,
@@ -77,7 +77,7 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 /// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn map<'a, Brand: Functor, A: 'a, B: 'a, F>(
+pub fn map<'a, Brand: Functor, F, A: 'a, B: 'a>(
 	f: F,
 	fa: Apply!(
 		brand: Brand,

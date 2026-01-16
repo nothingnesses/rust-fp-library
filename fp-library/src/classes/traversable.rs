@@ -37,7 +37,7 @@ pub trait Traversable: Functor + Foldable {
 	/// let y = OptionBrand::traverse::<OptionBrand, _, _, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		f: Func,
 		ta: Apply!(
 			brand: Self,
@@ -63,7 +63,7 @@ pub trait Traversable: Functor + Foldable {
 			signature: ('a, B: 'a) -> 'a,
 		): Clone,
 	{
-		Self::sequence::<F, B>(Self::map(f, ta))
+		Self::sequence::<F, B>(Self::map::<Func, A, _>(f, ta))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -113,12 +113,12 @@ pub trait Traversable: Functor + Foldable {
 	{
 		Self::traverse::<
 			F,
+			_,
 			Apply!(
 				brand: F,
 				signature: ('a, A: 'a) -> 'a,
 			),
 			A,
-			_,
 		>(identity, ta)
 	}
 }
@@ -150,7 +150,7 @@ pub trait Traversable: Functor + Foldable {
 /// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn traverse<'a, Brand: Traversable, F: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+pub fn traverse<'a, Brand: Traversable, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 	f: Func,
 	ta: Apply!(
 		brand: Brand,
@@ -176,7 +176,7 @@ where
 		signature: ('a, B: 'a) -> 'a,
 	): Clone,
 {
-	Brand::traverse::<F, A, B, Func>(f, ta)
+	Brand::traverse::<F, Func, A, B>(f, ta)
 }
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.

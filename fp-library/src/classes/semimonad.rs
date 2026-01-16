@@ -31,7 +31,7 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// let y = OptionBrand::bind(x, |i| Some(i * 2));
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn bind<'a, A: 'a, B: 'a, F>(
+	fn bind<'a, F, A: 'a, B: 'a>(
 		ma: Apply!(
 			brand: Self,
 			signature: ('a, A: 'a) -> 'a,
@@ -77,7 +77,7 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 /// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, F>(
+pub fn bind<'a, Brand: Semimonad, F, A: 'a, B: 'a>(
 	ma: Apply!(
 		brand: Brand,
 		signature: ('a, A: 'a) -> 'a,
