@@ -1,5 +1,9 @@
 //! Generic, helper free functions and re-exports of free versions
 //! of type class functions.
+//!
+//! This module provides a collection of utility functions commonly found in functional programming,
+//! such as function composition, constant functions, and identity functions. It also re-exports
+//! free function versions of methods defined in various type classes (traits) for convenience.
 
 pub use crate::classes::{
 	apply_first::apply_first,
@@ -16,22 +20,33 @@ pub use crate::classes::{
 	traversable::{sequence, traverse},
 };
 
-/// Takes functions `f` and `g` and returns the function `f . g` (`f` composed with `g`).
+/// Composes two functions.
 ///
-/// # Type Signature
+/// Takes two functions, `f` and `g`, and returns a new function that applies `g` to its argument,
+/// and then applies `f` to the result. This is equivalent to the mathematical composition `f ∘ g`.
 ///
-/// `forall a b c. (b -> c) -> (a -> b) -> a -> c`
+/// ### Type Signature
 ///
-/// # Parameters
+/// `forall a b c. (b -> c, a -> b) -> (a -> c)`
 ///
-/// * `f`: A function from values of type `B` to values of type `C`.
-/// * `g`: A function from values of type `A` to values of type `B`.
+/// ### Type Parameters
 ///
-/// # Returns
+/// * `A`: The input type of the inner function `g`.
+/// * `B`: The output type of `g` and the input type of `f`.
+/// * `C`: The output type of the outer function `f`.
+/// * `F`: The type of the outer function.
+/// * `G`: The type of the inner function.
 ///
-/// A function from values of type `A` to values of type `C`.
+/// ### Parameters
 ///
-/// # Examples
+/// * `f`: The outer function to apply second.
+/// * `g`: The inner function to apply first.
+///
+/// ### Returns
+///
+/// A new function that takes an `A` and returns a `C`.
+///
+/// ### Examples
 ///
 /// ```rust
 /// use fp_library::functions::compose;
@@ -57,22 +72,29 @@ where
 	move |a| f(g(a))
 }
 
-/// Returns its first argument.
+/// Creates a constant function.
 ///
-/// # Type Signature
+/// Returns a function that ignores its argument and always returns the provided value `a`.
+/// This is useful when a function is expected but a constant value is needed.
 ///
-/// `forall a b. a -> b -> a`
+/// ### Type Signature
 ///
-/// # Parameters
+/// `forall a b. a -> (b -> a)`
 ///
-/// * `a`: A value.
-/// * `b`: Some other value.
+/// ### Type Parameters
 ///
-/// # Returns
+/// * `A`: The type of the value to return.
+/// * `B`: The type of the argument to ignore.
 ///
-/// The first value.
+/// ### Parameters
 ///
-/// # Examples
+/// * `a`: The value to be returned by the constant function.
+///
+/// ### Returns
+///
+/// A function that takes any value of type `B` and returns `a`.
+///
+/// ### Examples
 ///
 /// ```rust
 /// use fp_library::functions::constant;
@@ -86,21 +108,31 @@ pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
 	move |_| a.clone()
 }
 
-/// Returns a version of the input binary function with its arguments flipped.
+/// Flips the arguments of a binary function.
 ///
-/// # Type Signature
+/// Returns a new function that takes its arguments in the reverse order of the input function `f`.
+/// If `f` takes `(a, b)`, the returned function takes `(b, a)`.
 ///
-/// `forall a b c. (a -> b -> c) -> b -> a -> c`
+/// ### Type Signature
 ///
-/// # Parameters
+/// `forall a b c. ((a, b) -> c) -> ((b, a) -> c)`
+///
+/// ### Type Parameters
+///
+/// * `A`: The type of the first argument of the input function.
+/// * `B`: The type of the second argument of the input function.
+/// * `C`: The return type of the function.
+/// * `F`: The type of the input binary function.
+///
+/// ### Parameters
 ///
 /// * `f`: A binary function.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A version of `f` that takes its arguments in reverse.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```rust
 /// use fp_library::functions::flip;
@@ -120,21 +152,27 @@ where
 	move |b, a| f(a, b)
 }
 
-/// Returns its input.
+/// The identity function.
 ///
-/// # Type Signature
+/// Returns its input argument as is. This is often used as a default or placeholder function.
+///
+/// ### Type Signature
 ///
 /// `forall a. a -> a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `A`: The type of the value.
+///
+/// ### Parameters
 ///
 /// * `a`: A value.
 ///
-/// # Returns
+/// ### Returns
 ///
-/// The same value.
+/// The same value `a`.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```rust
 /// use fp_library::functions::identity;
