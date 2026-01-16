@@ -158,6 +158,10 @@ This will provide a shell with the correct Rust version and dependencies.
 - `fp-library/src/functions`: Contains general helper functions.
 - `fp-macros`: Procedural macros for generating HKT traits and implementations.
 
+### Release Process
+
+For maintainers, the release process is documented in [docs/release-process.md](docs/release-process.md).
+
 ## License
 
 This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
