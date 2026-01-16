@@ -5,7 +5,6 @@ use crate::{
 	kinds::*,
 	types::Endofunction,
 };
-use std::rc::Rc;
 
 /// A type class for structures that can be folded to a single value.
 ///
@@ -68,12 +67,12 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 		F: Fn(A, B) -> B + 'a,
 		ClonableFnBrand: ClonableFn + 'a,
 	{
-		let f = Rc::new(f);
+		let f = <ClonableFnBrand as ClonableFn>::new(move |(a, b)| f(a, b));
 		let m = Self::fold_map::<ClonableFnBrand, A, Endofunction<ClonableFnBrand, B>, _>(
 			move |a: A| {
 				let f = f.clone();
 				Endofunction::<ClonableFnBrand, B>::new(<ClonableFnBrand as ClonableFn>::new(
-					move |b| f(a.clone(), b),
+					move |b| f((a.clone(), b)),
 				))
 			},
 			fa,
@@ -128,7 +127,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 		F: Fn(B, A) -> B + 'a,
 		ClonableFnBrand: ClonableFn + 'a,
 	{
-		let f = Rc::new(f);
+		let f = <ClonableFnBrand as ClonableFn>::new(move |(b, a)| f(b, a));
 		let m = Self::fold_right::<ClonableFnBrand, A, Endofunction<ClonableFnBrand, B>, _>(
 			move |a: A, k: Endofunction<'a, ClonableFnBrand, B>| {
 				let f = f.clone();
@@ -138,7 +137,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 				// So we want k . current.
 				// append(k, current).
 				let current = Endofunction::<ClonableFnBrand, B>::new(
-					<ClonableFnBrand as ClonableFn>::new(move |b| f(b, a.clone())),
+					<ClonableFnBrand as ClonableFn>::new(move |b| f((b, a.clone()))),
 				);
 				Semigroup::append(k, current)
 			},
