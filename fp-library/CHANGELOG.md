@@ -5,38 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased fp-library 0.3.0]
+## [0.3.0] - 2026-01-16
 
 ### Added
 
 - **Thread Safety and Parallelism**:
-  - Added `SendClonableFn` extension trait for thread-safe function wrappers.
-  - Added `ParFoldable` trait for parallel folding operations.
-  - Added `SendEndofunction` type for thread-safe endofunctions.
-  - Implemented `SendClonableFn` for `ArcFnBrand`.
-  - Implemented `ParFoldable` for `VecBrand` and `OptionBrand`.
-  - Added optional `rayon` feature for parallel execution in `VecBrand`.
+  - Added `SendClonableFn` extension trait for thread-safe function wrappers with `Send + Sync` bounds.
+  - Added `ParFoldable` trait providing `par_fold_map` and `par_fold_right` for parallel folding operations.
+  - Added `SendEndofunction` type for thread-safe endofunctions using `ArcFnBrand`.
+  - Implemented `SendClonableFn` for `ArcFnBrand` with `new_send` constructor.
+  - Implemented `ParFoldable` for `VecBrand` (with optional Rayon parallelism) and `OptionBrand`.
+- **Feature Flags**:
+  - Added optional `rayon` feature (`rayon = ["dep:rayon"]`) enabling parallel execution in `VecBrand::par_fold_map`.
+- **Testing Infrastructure**:
+  - Added compile-fail tests using `trybuild` to verify thread safety error messages.
+  - Added UI tests for `SendClonableFn`: `new_send_not_send.rs`, `new_send_not_sync.rs`, `rc_fn_not_send.rs`.
+  - Added property-based tests for `ParFoldable` in `tests/property_tests.rs`.
+  - Added thread safety integration tests in `tests/thread_safety.rs`.
 
 ### Changed
 
-- Update function and method documentation in `fp-library/src/classes/` to follow a consistent format with detailed sections for type signatures, parameters, and examples.
-- Rewrite module-level documentation in `fp-library/src/classes.rs` for clarity and accuracy regarding Brand types and HKT simulation.
-- Add missing module-level documentation to all type class modules in `fp-library/src/classes/`.
-- refactor: standardize API parameter order and naming
-  - Reorder `par_fold_map` arguments to `(func, fa)` for consistency with `fold_map`.
-  - Reorder type parameters for `apply` and `defer` to put `FnBrand` first.
-  - Rename `ClonableFnBrand` type parameter to `FnBrand` across the library.
-  - Rename internal parameters `f` to `func` and `init` to `initial` in folding traits.
-  - Update all documentation, examples, and tests to match the new API.
-  - Standardize law section headers in documentation.
+- **API Breaking Changes**:
+  - `Foldable` trait methods (`fold_right`, `fold_left`, `fold_map`) now require a `FnBrand` type parameter.
+  - `Traversable::traverse` reorders function parameter `Func` to come before `A` and `B`.
+  - `Semiapplicative::apply` and `Defer::defer` reorder type parameters to put `FnBrand` first.
+  - `Semimonad::bind` and `Lift::lift2` reorder type parameters to put function type `F` first.
+- **Parameter Naming**:
+  - Renamed internal parameters `f` to `func` and `init` to `initial` in folding traits for clarity.
+  - Renamed `ClonableFnBrand` type parameter to `FnBrand` across the library.
+- **Documentation**:
+  - Updated function and method documentation in `fp-library/src/classes/` to follow a consistent format with detailed sections for type signatures, type parameters, parameters, returns, and examples.
+  - Rewrote module-level documentation in `fp-library/src/classes.rs` for clarity and accuracy regarding Brand types and HKT simulation.
+  - Added missing module-level documentation to all type class modules.
+  - Standardized law section headers from `# Laws` to `### Laws`.
+  - Updated README with new "Thread Safety and Parallelism" section and usage examples.
+  - Updated README dependency version from `0.2` to `0.3`.
+- **Dependencies**:
+  - Added `rayon = "1.11"` as optional dependency.
+  - Added `trybuild = "1.0"` as dev-dependency for compile-fail tests.
+  - Changed `fp-macros` dependency version from `"0.1.0"` to `"0.1"` for semver compatibility.
 
-## [Unreleased fp-macros 0.1.1]
+---
 
-### Added
-
-- Updated `Apply!` to support optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
-
-## [fp-library 0.2.0] - 2026-01-15
+## [0.2.0] - 2026-01-15
 
 ### Changed
 
@@ -46,30 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [fp-macros 0.1.0] - 2026-01-15
-
-### Added
-
-- **`def_kind!` Macro**: Procedural macro to define Kind traits with a specific signature (lifetimes, type parameters with bounds, and output bounds). Generates hash-based trait names for determinism.
-- **`impl_kind!` Macro**: Procedural macro to implement a Kind trait for a brand type. Infers the correct Kind trait from the GAT signature.
-- **`Apply!` Macro**: Procedural macro for type application - projects a brand to its concrete type. Supports unified signature syntax (`signature: ('a, T: Clone)`) and explicit kind mode (`kind: K, lifetimes: (...), types: (...)`).
-- **Canonicalization Module**: Robust canonicalization of type bounds including:
-  - Full path preservation (`std::fmt::Debug` → `tstd::fmt::Debug`)
-  - Generic argument handling (`Iterator<Item = T>`)
-  - Fn trait bounds (`Fn(A) -> B`)
-  - Lifetime normalization (positional naming)
-- **Hash-Based Naming**: Uses `rapidhash` for deterministic 64-bit Kind trait names (`Kind_{hash:016x}`).
-- **Property Tests**: Comprehensive quickcheck-based tests for:
-  - Hash determinism
-  - Canonicalization equivalence
-  - Bound order independence
-  - Lifetime name independence
-- **Compile-Fail Tests**: UI tests via `trybuild` for helpful error messages on invalid input.
-- **Integration Tests**: End-to-end tests for all macro features.
-
----
-
-## [fp-library 0.1.0] - 2026-01-12
+## [0.1.0] - 2026-01-12
 
 ### Added
 
