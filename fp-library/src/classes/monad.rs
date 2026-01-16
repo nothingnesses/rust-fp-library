@@ -1,3 +1,8 @@
+//! Monad type class.
+//!
+//! This module defines the [`Monad`] trait, which extends [`Applicative`] and [`Semimonad`].
+//! Monads allow for sequencing computations where the structure of the computation depends on the result of the previous computation.
+
 use super::{applicative::Applicative, semimonad::Semimonad};
 
 /// A type class for monads.
@@ -5,11 +10,11 @@ use super::{applicative::Applicative, semimonad::Semimonad};
 /// `Monad` extends [`Applicative`] and [`Semimonad`].
 /// It allows for sequencing computations where the structure of the computation depends on the result of the previous computation.
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `class (Applicative m, Semimonad m) => Monad m`
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::monad::Monad;

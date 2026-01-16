@@ -1,3 +1,7 @@
+//! Semigroupoid type class.
+//!
+//! This module defines the [`Semigroupoid`] trait, which represents a set of objects and composable relationships between them.
+
 use crate::{Apply, kinds::*};
 
 /// A type class for semigroupoids.
@@ -12,20 +16,28 @@ use crate::{Apply, kinds::*};
 pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
-	/// # Type Signature
+	/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall b c d. Semigroupoid a => (a c d, a b c) -> a b d`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `B`: The source type of the first morphism.
+	/// * `C`: The target type of the first morphism and the source type of the second morphism.
+	/// * `D`: The target type of the second morphism.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The second morphism to apply (from C to D).
 	/// * `g`: The first morphism to apply (from B to C).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The composed morphism (from B to D).
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::semigroupoid::Semigroupoid;
@@ -56,20 +68,27 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroupoid::compose`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall b c d. Semigroupoid a => (a c d, a b c) -> a b d`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the semigroupoid.
+/// * `B`: The source type of the first morphism.
+/// * `C`: The target type of the first morphism and the source type of the second morphism.
+/// * `D`: The target type of the second morphism.
+///
+/// ### Parameters
 ///
 /// * `f`: The second morphism to apply (from C to D).
 /// * `g`: The first morphism to apply (from B to C).
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The composed morphism (from B to D).
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::semigroupoid::compose;

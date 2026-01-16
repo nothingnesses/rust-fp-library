@@ -1,3 +1,7 @@
+//! Foldable type class.
+//!
+//! This module defines the [`Foldable`] trait, which represents data structures that can be folded to a single value.
+
 use super::monoid::Monoid;
 use crate::{
 	Apply,
@@ -22,29 +26,30 @@ use crate::{
 pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// Folds the structure by applying a function from right to left.
 	///
-	/// # Type Signature
+	/// This method performs a right-associative fold of the structure.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Foldable t => ((a, b) -> b, b, t a) -> b`
 	///
-	/// # Type Parameters
+	/// ### Type Parameters
 	///
 	/// * `ClonableFnBrand`: The brand of the clonable function to use.
-	/// * `Brand`: The brand of the foldable structure.
 	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `f`: The function to apply to each element and the accumulator.
 	/// * `init`: The initial value of the accumulator.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The final accumulator value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
@@ -82,29 +87,30 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 
 	/// Folds the structure by applying a function from left to right.
 	///
-	/// # Type Signature
+	/// This method performs a left-associative fold of the structure.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Foldable t => ((b, a) -> b, b, t a) -> b`
 	///
-	/// # Type Parameters
+	/// ### Type Parameters
 	///
 	/// * `ClonableFnBrand`: The brand of the clonable function to use.
-	/// * `Brand`: The brand of the foldable structure.
 	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the accumulator and each element.
 	/// * `init`: The initial value of the accumulator.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The final accumulator value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
@@ -149,27 +155,29 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 
 	/// Maps values to a monoid and combines them.
 	///
-	/// # Type Signature
+	/// This method maps each element of the structure to a monoid and then combines the results using the monoid's `append` operation.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a m. (Foldable t, Monoid m) => ((a) -> m, t a) -> m`
 	///
-	/// # Type Parameters
+	/// ### Type Parameters
 	///
 	/// * `ClonableFnBrand`: The brand of the clonable function to use.
 	/// * `A`: The type of the elements in the structure.
 	/// * `M`: The type of the monoid.
 	/// * `F`: The type of the mapping function.
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `f`: The function to map each element to a monoid.
 	/// * `fa`: The structure to fold.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The combined monoid value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::foldable::Foldable;
@@ -201,28 +209,29 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_right`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Foldable t => ((a, b) -> b, b, t a) -> b`
 ///
-/// # Type Parameters
+/// ### Type Parameters
 ///
 /// * `ClonableFnBrand`: The brand of the clonable function to use.
+/// * `Brand`: The brand of the foldable structure.
 /// * `A`: The type of the elements in the structure.
 /// * `B`: The type of the accumulator.
 /// * `F`: The type of the folding function.
 ///
-/// # Parameters
+/// ### Parameters
 ///
 /// * `f`: The function to apply to each element and the accumulator.
 /// * `init`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The final accumulator value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_right;
@@ -252,28 +261,29 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_left`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Foldable t => ((b, a) -> b, b, t a) -> b`
 ///
-/// # Type Parameters
+/// ### Type Parameters
 ///
 /// * `ClonableFnBrand`: The brand of the clonable function to use.
+/// * `Brand`: The brand of the foldable structure.
 /// * `A`: The type of the elements in the structure.
 /// * `B`: The type of the accumulator.
 /// * `F`: The type of the folding function.
 ///
-/// # Parameters
+/// ### Parameters
 ///
 /// * `f`: The function to apply to the accumulator and each element.
 /// * `init`: The initial value of the accumulator.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The final accumulator value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_left;
@@ -303,11 +313,11 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_map`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a m. (Foldable t, Monoid m) => ((a) -> m, t a) -> m`
 ///
-/// # Type Parameters
+/// ### Type Parameters
 ///
 /// * `ClonableFnBrand`: The brand of the clonable function to use.
 /// * `Brand`: The brand of the foldable structure.
@@ -315,16 +325,16 @@ where
 /// * `M`: The type of the monoid.
 /// * `F`: The type of the mapping function.
 ///
-/// # Parameters
+/// ### Parameters
 ///
 /// * `f`: The function to map each element to a monoid.
 /// * `fa`: The structure to fold.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The combined monoid value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::foldable::fold_map;

@@ -1,3 +1,8 @@
+//! ApplySecond type class.
+//!
+//! This module defines the [`ApplySecond`] trait, which provides the ability to sequence two computations
+//! but discard the result of the first computation, keeping only the result of the second.
+
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
 
@@ -8,20 +13,27 @@ use crate::{Apply, kinds::*};
 pub trait ApplySecond: Lift {
 	/// Combines two contexts, keeping the value from the second context.
 	///
-	/// # Type Signature
+	/// This function sequences two computations and discards the result of the first computation, keeping only the result of the second.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. ApplySecond f => (f a, f b) -> f b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value in the first context.
+	/// * `B`: The type of the value in the second context.
+	///
+	/// ### Parameters
 	///
 	/// * `fa`: The first context.
 	/// * `fb`: The second context.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The second context.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::apply_second::ApplySecond;
@@ -53,20 +65,26 @@ pub trait ApplySecond: Lift {
 ///
 /// Free function version that dispatches to [the type class' associated function][`ApplySecond::apply_second`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. ApplySecond f => (f a, f b) -> f b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `A`: The type of the value in the first context.
+/// * `B`: The type of the value in the second context.
+///
+/// ### Parameters
 ///
 /// * `fa`: The first context.
 /// * `fb`: The second context.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The second context.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::apply_second::apply_second;

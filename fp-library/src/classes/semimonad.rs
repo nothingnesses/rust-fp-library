@@ -1,3 +1,7 @@
+//! Semimonad type class.
+//!
+//! This module defines the [`Semimonad`] trait, which allows for sequencing computations where the second computation depends on the result of the first.
+
 use crate::{Apply, kinds::*};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -8,20 +12,28 @@ use crate::{Apply, kinds::*};
 pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
-	/// # Type Signature
+	/// This method chains two computations, where the second computation depends on the result of the first.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Semimonad m => (m a, a -> m b) -> m b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `F`: The type of the function to apply.
+	/// * `A`: The type of the result of the first computation.
+	/// * `B`: The type of the result of the second computation.
+	///
+	/// ### Parameters
 	///
 	/// * `ma`: The first computation.
 	/// * `f`: The function to apply to the result of the first computation.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The result of the second computation.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::semimonad::Semimonad;
@@ -54,20 +66,27 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semimonad::bind`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Semimonad m => (m a, a -> m b) -> m b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the semimonad.
+/// * `F`: The type of the function to apply.
+/// * `A`: The type of the result of the first computation.
+/// * `B`: The type of the result of the second computation.
+///
+/// ### Parameters
 ///
 /// * `ma`: The first computation.
 /// * `f`: The function to apply to the result of the first computation.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The result of the second computation.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::semimonad::bind;

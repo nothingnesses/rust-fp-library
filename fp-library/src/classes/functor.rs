@@ -1,3 +1,7 @@
+//! Functor type class.
+//!
+//! This module defines the [`Functor`] trait, which represents types that can be mapped over.
+
 use crate::{Apply, kinds::*};
 
 /// A type class for types that can be mapped over.
@@ -13,20 +17,28 @@ use crate::{Apply, kinds::*};
 pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// Maps a function over the values in the functor context.
 	///
-	/// # Type Signature
+	/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Functor f => (a -> b, f a) -> f b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `F`: The type of the function to apply.
+	/// * `A`: The type of the value(s) inside the functor.
+	/// * `B`: The type of the result(s) of applying the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the value(s) inside the functor.
 	/// * `fa`: The functor instance containing the value(s).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new functor instance containing the result(s) of applying the function.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::functor::Functor;
@@ -54,20 +66,27 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Functor::map`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Functor f => (a -> b, f a) -> f b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the functor.
+/// * `F`: The type of the function to apply.
+/// * `A`: The type of the value(s) inside the functor.
+/// * `B`: The type of the result(s) of applying the function.
+///
+/// ### Parameters
 ///
 /// * `f`: The function to apply to the value(s) inside the functor.
 /// * `fa`: The functor instance containing the value(s).
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A new functor instance containing the result(s) of applying the function.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::functor::map;

@@ -1,3 +1,7 @@
+//! Once type class.
+//!
+//! This module defines the [`Once`] trait, which represents a container that holds a value that is initialized at most once.
+
 use crate::{Apply, kinds::*};
 
 /// A type class for types that can be initialized once.
@@ -9,15 +13,21 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Creates a new, uninitialized `Once` container.
 	///
-	/// # Type Signature
+	/// This method creates a new instance of the container that is initially empty.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => () -> f a`
 	///
-	/// # Returns
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to be stored in the container.
+	///
+	/// ### Returns
 	///
 	/// A new, empty container.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -30,19 +40,25 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Gets a reference to the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method returns a reference to the value stored in the container if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => f a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A reference to the value, or `None` if uninitialized.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -57,19 +73,25 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Gets a mutable reference to the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method returns a mutable reference to the value stored in the container if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => f a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A mutable reference to the value, or `None` if uninitialized.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -88,22 +110,26 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Sets the value of the container.
 	///
-	/// Returns `Ok(())` if the value was set, or `Err(value)` if the container was already initialized.
+	/// This method attempts to set the value of the container. If the container is already initialized, it returns the value in the `Err` variant.
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => (f a, a) -> Result<(), a>`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to set.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	/// * `value`: The value to set.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// `Ok(())` on success, or `Err(value)` if already initialized.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -120,20 +146,27 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Gets the value, initializing it with the closure `f` if it is not already initialized.
 	///
-	/// # Type Signature
+	/// This method returns a reference to the value stored in the container. If the container is not initialized, it initializes it using the provided closure `f` and then returns a reference to the value.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => (f a, () -> a) -> a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	/// * `B`: The type of the initialization function.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	/// * `f`: The initialization function.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A reference to the value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -150,19 +183,25 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Consumes the container and returns the value if it has been initialized.
 	///
-	/// # Type Signature
+	/// This method consumes the container and returns the value stored in it if it has been initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => f a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The value, or `None` if uninitialized.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -176,19 +215,25 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 
 	/// Takes the value out of the container, leaving it uninitialized.
 	///
-	/// # Type Signature
+	/// This method takes the value out of the container, leaving the container in an uninitialized state. It returns the value if it was initialized, otherwise it returns `None`.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Once f => f a -> Option a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value stored in the container.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The container.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The value, or `None` if uninitialized.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::once::Once;
@@ -206,15 +251,20 @@ pub trait Once: Kind_bd4ddc17b95f4bc6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::new`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => () -> f a`
 ///
-/// # Returns
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value to be stored in the container.
+///
+/// ### Returns
 ///
 /// A new, empty container.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::new;
@@ -235,19 +285,24 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::get`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => f a -> Option a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value stored in the container.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A reference to the value, or `None` if uninitialized.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, get, set};
@@ -269,19 +324,24 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::get_mut`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => f a -> Option a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value stored in the container.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A mutable reference to the value, or `None` if uninitialized.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, get_mut, set};
@@ -305,24 +365,29 @@ where
 
 /// Sets the value of the container.
 ///
-/// Returns `Ok(())` if the value was set, or `Err(value)` if the container was already initialized.
+/// This function attempts to set the value of the container. If the container is already initialized, it returns the value in the `Err` variant.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::set`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => (f a, a) -> Result<(), a>`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value to set.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 /// * `value`: The value to set.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// `Ok(())` on success, or `Err(value)` if already initialized.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, set};
@@ -346,20 +411,26 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::get_or_init`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => (f a, () -> a) -> a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value stored in the container.
+/// * `B`: The type of the initialization function.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 /// * `f`: The initialization function.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A reference to the value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, get_or_init};
@@ -384,19 +455,24 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::into_inner`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => f a -> Option a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value stored in the container.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The value, or `None` if uninitialized.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, set, into_inner};
@@ -417,19 +493,24 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Once::take`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Once f => f a -> Option a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the container.
+/// * `A`: The type of the value stored in the container.
+///
+/// ### Parameters
 ///
 /// * `a`: The container.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The value, or `None` if uninitialized.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::once::{new, set, take};

@@ -1,3 +1,7 @@
+//! Semiapplicative type class.
+//!
+//! This module defines the [`Semiapplicative`] trait, which provides the ability to apply functions within a context to values within a context.
+
 use super::{clonable_fn::ClonableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
 
@@ -13,25 +17,33 @@ use crate::{Apply, kinds::*};
 pub trait Semiapplicative: Lift + Functor {
 	/// Applies a function within a context to a value within a context.
 	///
+	/// This method applies a function wrapped in a context to a value wrapped in a context.
+	///
 	/// **Important**: This operation requires type erasure for heterogeneous functions.
 	/// When a container (like `Vec`) holds multiple different closures, they must be
 	/// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
 	/// distinct anonymous type.
 	///
-	/// # Type Signature
+	/// ### Type Signature
 	///
 	/// `forall a b. Semiapplicative f => (f (a -> b), f a) -> f b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `A`: The type of the input value.
+	/// * `B`: The type of the output value.
+	///
+	/// ### Parameters
 	///
 	/// * `ff`: The context containing the function(s).
 	/// * `fa`: The context containing the value(s).
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new context containing the result(s) of applying the function(s) to the value(s).
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::semiapplicative::Semiapplicative;
@@ -64,20 +76,27 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Semiapplicative f => (f (a -> b), f a) -> f b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `A`: The type of the input value.
+/// * `B`: The type of the output value.
+///
+/// ### Parameters
 ///
 /// * `ff`: The context containing the function(s).
 /// * `fa`: The context containing the value(s).
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A new context containing the result(s) of applying the function(s) to the value(s).
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::semiapplicative::apply;

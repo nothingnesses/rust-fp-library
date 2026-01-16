@@ -1,3 +1,7 @@
+//! Defer type class.
+//!
+//! This module defines the [`Defer`] trait, which provides an abstraction for types that can be constructed lazily.
+
 use super::clonable_fn::ClonableFn;
 use crate::Apply;
 
@@ -5,19 +9,25 @@ use crate::Apply;
 pub trait Defer<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
-	/// # Type Signature
+	/// This function takes a thunk (wrapped in a clonable function) and creates a deferred value that will be computed using the thunk.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Defer d => (() -> d a) -> d a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `ClonableFnBrand`: The brand of the clonable function wrapper.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The deferred value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::defer::Defer;
@@ -42,19 +52,24 @@ pub trait Defer<'a> {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Defer::defer`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Defer d => (() -> d a) -> d a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `D`: The type of the deferred value.
+/// * `ClonableFnBrand`: The brand of the clonable function wrapper.
+///
+/// ### Parameters
 ///
 /// * `f`: A thunk (wrapped in a clonable function) that produces the value.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The deferred value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::defer::defer;

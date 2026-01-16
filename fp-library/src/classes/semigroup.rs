@@ -1,3 +1,7 @@
+//! Semigroup type class.
+//!
+//! This module defines the [`Semigroup`] trait, which represents types that support an associative binary operation.
+
 /// A type class for types that support an associative binary operation.
 ///
 /// `Semigroup` instances must satisfy the associative law:
@@ -5,20 +9,22 @@
 pub trait Semigroup {
 	/// The result of combining the two values using the semigroup operation.
 	///
-	/// # Type Signature
+	/// This method combines two values of the same type into a single value of that type.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Semigroup a => (a, a) -> a`
 	///
-	/// # Parameters
+	/// ### Parameters
 	///
 	/// * `a`: The first value.
 	/// * `b`: The second value.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The combined value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::semigroup::Semigroup;
@@ -39,20 +45,24 @@ pub trait Semigroup {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Semigroup a => (a, a) -> a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `S`: The type of the semigroup.
+///
+/// ### Parameters
 ///
 /// * `a`: The first value.
 /// * `b`: The second value.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The combined value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::semigroup::append;

@@ -1,3 +1,8 @@
+//! Function wrappers.
+//!
+//! This module defines the [`Function`] trait, which provides an abstraction for wrappers over closures.
+//! This allows for generic handling of functions in higher-kinded contexts.
+
 use super::category::Category;
 use crate::Apply;
 use std::ops::Deref;
@@ -17,19 +22,26 @@ pub trait Function: Category {
 
 	/// Creates a new function wrapper.
 	///
-	/// # Type Signature
+	/// This function wraps the provided closure `f` into a function wrapper.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. Function f => (a -> b) -> f a b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The wrapped function.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::function::Function;
@@ -47,19 +59,25 @@ pub trait Function: Category {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Function::new`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. Function f => (a -> b) -> f a b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the function wrapper.
+/// * `A`: The input type of the function.
+/// * `B`: The output type of the function.
+///
+/// ### Parameters
 ///
 /// * `f`: The closure to wrap.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The wrapped function.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::function::new;

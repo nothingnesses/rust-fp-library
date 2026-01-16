@@ -1,3 +1,7 @@
+//! Thread-safe clonable function wrappers.
+//!
+//! This module defines the [`SendClonableFn`] trait, which provides an abstraction for thread-safe clonable wrappers over closures.
+
 use super::clonable_fn::ClonableFn;
 use crate::Apply;
 use std::ops::Deref;
@@ -15,19 +19,26 @@ pub trait SendClonableFn: ClonableFn {
 
 	/// Creates a new thread-safe clonable function wrapper.
 	///
-	/// # Type Signature
+	/// This method wraps a closure into a thread-safe clonable function wrapper.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b. SendClonableFn f => (a -> b) -> f a b`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap. Must be `Send + Sync`.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// The wrapped thread-safe clonable function.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
@@ -51,19 +62,25 @@ pub trait SendClonableFn: ClonableFn {
 ///
 /// Free function version that dispatches to [the type class' associated function][`SendClonableFn::new_send`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b. SendClonableFn f => (a -> b) -> f a b`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `F`: The brand of the thread-safe clonable function wrapper.
+/// * `A`: The input type of the function.
+/// * `B`: The output type of the function.
+///
+/// ### Parameters
 ///
 /// * `f`: The closure to wrap. Must be `Send + Sync`.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// The wrapped thread-safe clonable function.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::send_clonable_fn::new_send;

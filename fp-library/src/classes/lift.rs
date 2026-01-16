@@ -1,3 +1,7 @@
+//! Lift type class.
+//!
+//! This module defines the [`Lift`] trait, which allows binary functions to be lifted into a context.
+
 use crate::{Apply, kinds::*};
 
 /// A type class for types that can be lifted.
@@ -6,21 +10,30 @@ use crate::{Apply, kinds::*};
 pub trait Lift: Kind_c3c3610c70409ee6 {
 	/// Lifts a binary function into the context.
 	///
-	/// # Type Signature
+	/// This method lifts a binary function to operate on values within the context.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `F`: The type of the binary function.
+	/// * `A`: The type of the first value.
+	/// * `B`: The type of the second value.
+	/// * `C`: The type of the result.
+	///
+	/// ### Parameters
 	///
 	/// * `f`: The binary function to apply.
 	/// * `fa`: The first context.
 	/// * `fb`: The second context.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new context containing the result of applying the function.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::lift::Lift;
@@ -56,21 +69,29 @@ pub trait Lift: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Lift::lift2`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `F`: The type of the binary function.
+/// * `A`: The type of the first value.
+/// * `B`: The type of the second value.
+/// * `C`: The type of the result.
+///
+/// ### Parameters
 ///
 /// * `f`: The binary function to apply.
 /// * `fa`: The first context.
 /// * `fb`: The second context.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A new context containing the result of applying the function.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::lift::lift2;

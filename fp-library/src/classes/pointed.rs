@@ -1,3 +1,7 @@
+//! Pointed type class.
+//!
+//! This module defines the [`Pointed`] trait, which represents a context that can be initialized with a value.
+
 use crate::{Apply, kinds::*};
 
 /// A type class for types that can be constructed from a single value.
@@ -6,19 +10,25 @@ use crate::{Apply, kinds::*};
 pub trait Pointed: Kind_c3c3610c70409ee6 {
 	/// The value wrapped in the context.
 	///
-	/// # Type Signature
+	/// This method wraps a value in a context.
+	///
+	/// ### Type Signature
 	///
 	/// `forall a. Pointed f => a -> f a`
 	///
-	/// # Parameters
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to wrap.
+	///
+	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
 	///
-	/// # Returns
+	/// ### Returns
 	///
 	/// A new context containing the value.
 	///
-	/// # Examples
+	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::classes::pointed::Pointed;
@@ -39,19 +49,24 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
 ///
-/// # Type Signature
+/// ### Type Signature
 ///
 /// `forall a. Pointed f => a -> f a`
 ///
-/// # Parameters
+/// ### Type Parameters
+///
+/// * `Brand`: The brand of the context.
+/// * `A`: The type of the value to wrap.
+///
+/// ### Parameters
 ///
 /// * `a`: The value to wrap.
 ///
-/// # Returns
+/// ### Returns
 ///
 /// A new context containing the value.
 ///
-/// # Examples
+/// ### Examples
 ///
 /// ```
 /// use fp_library::classes::pointed::pure;

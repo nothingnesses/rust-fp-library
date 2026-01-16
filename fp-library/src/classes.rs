@@ -1,13 +1,11 @@
-//! Type classes defining shared behavior across different types.
+//! Functional programming type classes.
 //!
-//! This module includes traits for common functional programming abstractions
-//! such as `Functor`, `Monad`, `Applicative`, and others.
+//! This module defines traits for common algebraic structures and functional abstractions,
+//! such as [`Functor`][functor::Functor], [`Applicative`][applicative::Applicative] and [`Monad`][monad::Monad].
 //!
-//! Higher-kinded type classes (those with arities > 0, e.g., [`functor::Functor`],
-//! which has arity 1) are usually implemented by
-//! [`Brand` types][crate::brands], which are higher-kinded (arities > 0)
-//! representation of [types][crate::types], instead of directly by concrete
-//! types (which have arity 0).
+//! Traits representing higher-kinded types (e.g., `Functor`) are implemented by
+//! [`Brand` types][crate::brands] to simulate higher-kinded polymorphism, as Rust does not
+//! natively support it.
 
 pub mod applicative;
 pub mod apply_first;
