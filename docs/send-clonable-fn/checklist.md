@@ -19,52 +19,52 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 1.1 Modify ApplyInput Struct
 
-- [ ] **Update [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs)**
-  - [ ] Add `output: Option<Ident>` field to `ApplyInput` struct
-  - [ ] Update struct documentation
+- [x] **Update [`fp-macros/src/apply.rs`](../../fp-macros/src/apply.rs)**
+  - [x] Add `output: Option<Ident>` field to `ApplyInput` struct
+  - [x] Update struct documentation
 
 ### 1.2 Update Parsing Logic
 
-- [ ] **Modify `ApplyInput::parse()`**
-  - [ ] Add `output` variable initialized to `None`
-  - [ ] Add new `else if label == "output"` branch in the label matching loop
-  - [ ] Parse the identifier value: `output = Some(input.parse()?);`
-  - [ ] Include `output` field in the returned `ApplyInput`
-  - [ ] Handle with both `signature` and `kind` modes (no additional validation needed)
+- [x] **Modify `ApplyInput::parse()`**
+  - [x] Add `output` variable initialized to `None`
+  - [x] Add new `else if label == "output"` branch in the label matching loop
+  - [x] Parse the identifier value: `output = Some(input.parse()?);`
+  - [x] Include `output` field in the returned `ApplyInput`
+  - [x] Handle with both `signature` and `kind` modes (no additional validation needed)
 
 ### 1.3 Update Code Generation
 
-- [ ] **Modify `apply_impl()` function**
-  - [ ] Default `output` to `Of` when not specified using `unwrap_or_else`
-  - [ ] Replace hardcoded `Of` with the `assoc_type` variable in the `quote!` output
-  - [ ] Update `KindSource::Generated` branch to use `#assoc_type`
-  - [ ] Update `KindSource::Explicit` branch to use `#assoc_type`
+- [x] **Modify `apply_impl()` function**
+  - [x] Default `output` to `Of` when not specified using `unwrap_or_else`
+  - [x] Replace hardcoded `Of` with the `assoc_type` variable in the `quote!` output
+  - [x] Update `KindSource::Generated` branch to use `#assoc_type`
+  - [x] Update `KindSource::Explicit` branch to use `#assoc_type`
 
 ### 1.4 Testing
 
-- [ ] **Unit tests**
+- [x] **Unit tests**
 
-  - [ ] Test parsing without `output` (default behavior)
-  - [ ] Test parsing with `output: SendOf`
-  - [ ] Test with `signature` mode
-  - [ ] Test with `kind` mode
+  - [x] Test parsing without `output` (default behavior)
+  - [x] Test parsing with `output: SendOf`
+  - [x] Test with `signature` mode
+  - [x] Test with `kind` mode
 
-- [ ] **Integration tests**
+- [x] **Integration tests**
 
-  - [ ] Add test in [`fp-macros/tests/apply_integration.rs`](../../fp-macros/tests/apply_integration.rs)
-  - [ ] Verify expansion produces correct type projection
+  - [x] Add test in [`fp-macros/tests/apply_integration.rs`](../../fp-macros/tests/apply_integration.rs)
+  - [x] Verify expansion produces correct type projection
 
-- [ ] **Compile-fail tests**
-  - [ ] Add [`fp-macros/tests/ui/apply_invalid_output.rs`](../../fp-macros/tests/ui/apply_invalid_output.rs)
-  - [ ] Test: `output` must be an identifier (not string)
-  - [ ] Add corresponding `.stderr` file
+- [x] **Compile-fail tests**
+  - [x] Add [`fp-macros/tests/ui/apply_invalid_output.rs`](../../fp-macros/tests/ui/apply_invalid_output.rs)
+  - [x] Test: `output` must be an identifier (not string)
+  - [x] Add corresponding `.stderr` file
 
 ### 1.5 Documentation
 
-- [ ] **Update macro documentation**
-  - [ ] Update docstrings in [`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs)
-  - [ ] Add examples with `output` parameter
-  - [ ] Document default behavior (`Of`)
+- [x] **Update macro documentation**
+  - [x] Update docstrings in [`fp-macros/src/lib.rs`](../../fp-macros/src/lib.rs)
+  - [x] Add examples with `output` parameter
+  - [x] Document default behavior (`Of`)
 
 ---
 
@@ -386,7 +386,7 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 
 ### Implementation Status
 
-- **Phase 1 Status**: Not started (Apply! macro enhancement - prerequisite)
+- **Phase 1 Status**: Completed (Apply! macro enhancement - prerequisite)
 - **Phase 2 Status**: Not started (SendClonableFn trait)
 - **Phase 3 Status**: Not started (ParFoldable trait)
 - **Phase 4 Status**: Not started (Type implementations)
