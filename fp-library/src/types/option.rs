@@ -230,17 +230,19 @@ impl Foldable for OptionBrand {
 	/// ```
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
-	/// assert_eq!(fold_right::<OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
+	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(a, init),
@@ -269,16 +271,18 @@ impl Foldable for OptionBrand {
 	/// ```
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(init, a),
@@ -307,16 +311,18 @@ impl Foldable for OptionBrand {
 	/// use fp_library::classes::foldable::fold_map;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_map::<OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
+	/// assert_eq!(fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Some(a) => f(a),
@@ -550,7 +556,7 @@ mod tests {
 	#[test]
 	fn fold_right_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, OptionBrand, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				None
@@ -563,7 +569,7 @@ mod tests {
 	#[test]
 	fn fold_left_none() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<OptionBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, OptionBrand, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				None

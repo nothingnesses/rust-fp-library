@@ -305,16 +305,18 @@ impl Foldable for VecBrand {
 	/// ```
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::VecBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
+	/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().rev().fold(init, |acc, x| f(x, acc))
 	}
@@ -340,16 +342,18 @@ impl Foldable for VecBrand {
 	/// ```
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::VecBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
+	/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().fold(init, f)
 	}
@@ -375,19 +379,21 @@ impl Foldable for VecBrand {
 	/// use fp_library::classes::foldable::fold_map;
 	/// use fp_library::brands::VecBrand;
 	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
-	///     fold_map::<VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+	///     fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
 	///     "123".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		fa.into_iter().map(f).fold(M::empty(), |acc, x| M::append(acc, x))
 	}
@@ -729,7 +735,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<VecBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, VecBrand, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				vec![]
@@ -742,7 +748,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<VecBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, VecBrand, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				vec![]

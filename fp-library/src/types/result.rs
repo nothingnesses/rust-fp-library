@@ -245,17 +245,19 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ```
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
-	/// assert_eq!(fold_right::<ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
+	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Ok(a) => f(a, init),
@@ -284,16 +286,18 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ```
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Ok(a) => f(init, a),
@@ -322,19 +326,21 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// use fp_library::classes::foldable::fold_map;
 	/// use fp_library::brands::ResultWithErrBrand;
 	/// use fp_library::types::string;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
-	///     fold_map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+	///     fold_map::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Ok(a) => f(a),
@@ -651,17 +657,19 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ```
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
-	/// assert_eq!(fold_right::<ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
+	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
+	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Err(e) => f(e, init),
@@ -690,16 +698,18 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ```
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<ResultWithOkBrand<()>, _, _, _>(|acc, x| acc + x, 0, Err(5)), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Err(e) => f(init, e),
@@ -728,19 +738,21 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// use fp_library::classes::foldable::fold_map;
 	/// use fp_library::brands::ResultWithOkBrand;
 	/// use fp_library::types::string;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
-	///     fold_map::<ResultWithOkBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
+	///     fold_map::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		match fa {
 			Err(e) => f(e),
@@ -998,7 +1010,7 @@ mod tests {
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<ResultWithErrBrand<i32>, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Err(1)
@@ -1011,7 +1023,7 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<ResultWithErrBrand<i32>, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Err(1)

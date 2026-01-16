@@ -260,16 +260,18 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(fa.1, init)
 	}
@@ -296,16 +298,18 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(init, fa.1)
 	}
@@ -332,19 +336,21 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
 	/// use fp_library::types::string;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
-	///     fold_map::<PairWithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair((), 5)),
+	///     fold_map::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair((), 5)),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(fa.1)
 	}
@@ -665,16 +671,18 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// use fp_library::classes::foldable::fold_right;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_right::<PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
 	/// ```
-	fn fold_right<'a, A: 'a, B: 'a, F>(
+	fn fold_right<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(fa.0, init)
 	}
@@ -701,16 +709,18 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// use fp_library::classes::foldable::fold_left;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
+	/// use fp_library::brands::RcFnBrand;
 	///
-	/// assert_eq!(fold_left::<PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
 	/// ```
-	fn fold_left<'a, A: 'a, B: 'a, F>(
+	fn fold_left<'a, ClonableFnBrand, A: 'a, B: 'a, F>(
 		f: F,
 		init: B,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(init, fa.0)
 	}
@@ -737,19 +747,21 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
 	/// use fp_library::types::string;
+	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
-	///     fold_map::<PairWithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair(5, ())),
+	///     fold_map::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair(5, ())),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, A: 'a, M, F>(
+	fn fold_map<'a, ClonableFnBrand, A: 'a, M, F>(
 		f: F,
 		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
 	) -> M
 	where
 		M: Monoid + 'a,
 		F: Fn(A) -> M + 'a,
+		ClonableFnBrand: ClonableFn + 'a,
 	{
 		f(fa.0)
 	}
