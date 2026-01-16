@@ -201,14 +201,14 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 4.3 Additional Types (Optional)
 
-- [ ] **ResultBrand ParFoldable** (if applicable)
+- [x] **ResultBrand ParFoldable** (if applicable)
 
-  - [ ] Implement `ParFoldable` for `ResultBrand`
-  - [ ] Add tests
+  - [x] Implement `ParFoldable` for `ResultBrand`
+  - [x] Add tests
 
-- [ ] **Other Foldable types**
-  - [ ] Identify other types that could benefit from `ParFoldable`
-  - [ ] Implement as needed
+- [x] **Other Foldable types**
+  - [x] Identify other types that could benefit from `ParFoldable`
+  - [x] Implement as needed
 
 ---
 

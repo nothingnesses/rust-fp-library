@@ -6,8 +6,8 @@ use crate::{
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
 		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
-		traversable::Traversable,
+		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
+		semimonad::Semimonad, send_clonable_fn::SendClonableFn, traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -403,6 +403,60 @@ impl Traversable for IdentityBrand {
 	}
 }
 
+impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
+	/// Maps the value to a monoid and returns it in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a m. (ParFoldable Identity, Monoid m, Send m, Sync m) => (f a m, Identity a) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `fa`: The identity to fold.
+	/// * `f`: The mapping function.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	fn par_fold_map<'a, A, M>(
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		f(fa.0)
+	}
+
+	/// Folds the identity from the right in parallel.
+	///
+	/// # Type Signature
+	///
+	/// `forall a b. ParFoldable Identity => (f (a, b) b, b, Identity a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The identity to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	fn par_fold_right<'a, A, B>(
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		init: B,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> B
+	where
+		A: 'a + Clone + Send + Sync,
+		B: Send + Sync + 'a,
+	{
+		f((fa.0, init))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -573,5 +627,31 @@ mod tests {
 			),
 			Some(Identity(2))
 		);
+	}
+
+	// ParFoldable Tests
+
+	/// Tests `par_fold_map`.
+	#[test]
+	fn par_fold_map_test() {
+		use crate::brands::ArcFnBrand;
+		use crate::classes::par_foldable::par_fold_map;
+		use crate::classes::send_clonable_fn::new_send;
+
+		let x = Identity(1);
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(x, f), "1".to_string());
+	}
+
+	/// Tests `par_fold_right`.
+	#[test]
+	fn par_fold_right_test() {
+		use crate::brands::ArcFnBrand;
+		use crate::classes::par_foldable::par_fold_right;
+		use crate::classes::send_clonable_fn::new_send;
+
+		let x = Identity(1);
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x), 11);
 	}
 }

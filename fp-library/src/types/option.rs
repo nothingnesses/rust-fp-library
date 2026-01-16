@@ -442,7 +442,6 @@ mod tests {
 		brands::{ArcFnBrand, RcFnBrand},
 		classes::{
 			functor::map,
-			monoid::empty,
 			par_foldable::{par_fold_map, par_fold_right},
 			pointed::pure,
 			semiapplicative::apply,

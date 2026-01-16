@@ -6,8 +6,9 @@ use crate::{
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
 		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semigroup::Semigroup,
-		semimonad::Semimonad, traversable::Traversable,
+		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
+		semigroup::Semigroup, semimonad::Semimonad, send_clonable_fn::SendClonableFn,
+		traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -434,6 +435,60 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	}
 }
 
+impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithFirstBrand<First> {
+	/// Maps the value to a monoid and returns it in parallel (over second).
+	///
+	/// # Type Signature
+	///
+	/// `forall a m t. (ParFoldable (Pair t), Monoid m, Send m, Sync m) => (f a m, Pair t a) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `fa`: The pair to fold.
+	/// * `f`: The mapping function.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	fn par_fold_map<'a, A, M>(
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		f(fa.1)
+	}
+
+	/// Folds the pair from the right in parallel (over second).
+	///
+	/// # Type Signature
+	///
+	/// `forall a b t. ParFoldable (Pair t) => (f (a, b) b, b, Pair t a) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The pair to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	fn par_fold_right<'a, A, B>(
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		init: B,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> B
+	where
+		A: 'a + Clone + Send + Sync,
+		B: Send + Sync + 'a,
+	{
+		f((fa.1, init))
+	}
+}
+
 // PairWithSecondBrand<Second> (Functor over First)
 
 impl_kind! {
@@ -845,14 +900,75 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	}
 }
 
+impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
+	for PairWithSecondBrand<Second>
+{
+	/// Maps the value to a monoid and returns it in parallel (over first).
+	///
+	/// # Type Signature
+	///
+	/// `forall a m t. (ParFoldable (Pair' t), Monoid m, Send m, Sync m) => (f a m, Pair a t) -> m`
+	///
+	/// # Parameters
+	///
+	/// * `fa`: The pair to fold.
+	/// * `f`: The mapping function.
+	///
+	/// # Returns
+	///
+	/// The combined monoid value.
+	fn par_fold_map<'a, A, M>(
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+	) -> M
+	where
+		A: 'a + Clone + Send + Sync,
+		M: Monoid + Send + Sync + 'a,
+	{
+		f(fa.0)
+	}
+
+	/// Folds the pair from the right in parallel (over first).
+	///
+	/// # Type Signature
+	///
+	/// `forall a b t. ParFoldable (Pair' t) => (f (a, b) b, b, Pair a t) -> b`
+	///
+	/// # Parameters
+	///
+	/// * `f`: The folding function.
+	/// * `init`: The initial value.
+	/// * `fa`: The pair to fold.
+	///
+	/// # Returns
+	///
+	/// The final accumulator value.
+	fn par_fold_right<'a, A, B>(
+		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		init: B,
+		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+	) -> B
+	where
+		A: 'a + Clone + Send + Sync,
+		B: Send + Sync + 'a,
+	{
+		f((fa.0, init))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
-		brands::{PairWithFirstBrand, RcFnBrand},
+		brands::{ArcFnBrand, PairWithFirstBrand, PairWithSecondBrand, RcFnBrand},
 		classes::{
-			clonable_fn::ClonableFn, functor::map, pointed::pure, semiapplicative::apply,
+			clonable_fn::ClonableFn,
+			functor::map,
+			par_foldable::{par_fold_map, par_fold_right},
+			pointed::pure,
+			semiapplicative::apply,
 			semimonad::bind,
+			send_clonable_fn::new_send,
 		},
 		functions::{compose, identity},
 	};
@@ -1011,5 +1127,47 @@ mod tests {
 		) == bind::<PairWithFirstBrand<String>, _, _, _>(m, |x| {
 			bind::<PairWithFirstBrand<String>, _, _, _>(f(x), g)
 		})
+	}
+
+	// ParFoldable Tests for PairWithFirstBrand (Functor over Second)
+
+	/// Tests `par_fold_map` on `PairWithFirstBrand`.
+	#[test]
+	fn par_fold_map_pair_with_first() {
+		let x = Pair("a".to_string(), 1);
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(
+			par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(x, f),
+			"1".to_string()
+		);
+	}
+
+	/// Tests `par_fold_right` on `PairWithFirstBrand`.
+	#[test]
+	fn par_fold_right_pair_with_first() {
+		let x = Pair("a".to_string(), 1);
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
+	}
+
+	// ParFoldable Tests for PairWithSecondBrand (Functor over First)
+
+	/// Tests `par_fold_map` on `PairWithSecondBrand`.
+	#[test]
+	fn par_fold_map_pair_with_second() {
+		let x = Pair(1, "a".to_string());
+		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		assert_eq!(
+			par_fold_map::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(x, f),
+			"1".to_string()
+		);
+	}
+
+	/// Tests `par_fold_right` on `PairWithSecondBrand`.
+	#[test]
+	fn par_fold_right_pair_with_second() {
+		let x = Pair(1, "a".to_string());
+		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
 	}
 }
