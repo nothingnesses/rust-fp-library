@@ -37,9 +37,13 @@ This limitation stems from the design of the `Function` and `ClonableFn` traits,
 
 The following solutions are ordered by their effectiveness in addressing the thread safety limitation while minimizing code duplication and maintaining ergonomics.
 
-##### Solution 1: Pure Extension Trait
+##### Solution 1: Pure Extension Trait (Implemented)
 
-This solution avoids breaking changes to the `Function` trait by relying solely on the extension trait pattern to provide thread-safe capabilities.
+This solution has been implemented. It avoids breaking changes to the `Function` trait by relying solely on the extension trait pattern to provide thread-safe capabilities.
+
+See:
+- [`SendClonableFn`](../fp-library/src/classes/send_clonable_fn.rs)
+- [`ParFoldable`](../fp-library/src/classes/par_foldable.rs)
 
 **Rationale:**
 Modifying the `Function` trait to relax the `Deref` target is unnecessary because the `Function::new` method accepts `impl Fn`, which is not `Send`. Therefore, the base `Function::Of` type *must* remain compatible with non-`Send` closures (e.g., `Arc<dyn Fn>`). Since `Function::Of` cannot be `Send` anyway, relaxing the `Function` trait provides no benefit. The `SendClonableFn` extension trait introduces a completely separate associated type (`SendOf`), which makes changes to the base `Function` trait redundant.

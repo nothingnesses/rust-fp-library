@@ -15,6 +15,7 @@ pub mod option;
 pub mod pair;
 pub mod rc_fn;
 pub mod result;
+pub mod send_endofunction;
 pub mod string;
 pub mod vec;
 
@@ -23,3 +24,4 @@ pub use endomorphism::Endomorphism;
 pub use identity::Identity;
 pub use lazy::Lazy;
 pub use pair::Pair;
+pub use send_endofunction::SendEndofunction;

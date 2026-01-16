@@ -1,6 +1,9 @@
 use fp_library::{
 	brands::{ArcFnBrand, VecBrand},
-	classes::{par_foldable::par_fold_map, send_clonable_fn::new_send},
+	classes::{
+		par_foldable::{par_fold_map, par_fold_right},
+		send_clonable_fn::new_send,
+	},
 };
 use std::thread;
 
@@ -72,4 +75,14 @@ fn test_par_foldable_concurrent_access() {
 
 	assert_eq!(result1, Sum(12));
 	assert_eq!(result2, Sum(12));
+}
+
+#[test]
+fn test_par_fold_right_in_threaded_context() {
+	let v = vec![1, 2, 3, 4, 5];
+	let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+
+	let handle = thread::spawn(move || par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 0, v));
+
+	assert_eq!(handle.join().unwrap(), 15);
 }

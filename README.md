@@ -17,10 +17,11 @@ A functional programming library for Rust featuring your favourite higher-kinded
   - `Category`, `Semigroupoid`
   - `Pointed`, `Lift`, `Defer`, `Once`
   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
+  - `SendClonableFn`, `ParFoldable` (Thread-safe and parallel operations)
 - **Data Types:** Implementations for standard and custom types:
   - `Option`, `Result`, `Vec`, `String`
   - `Identity`, `Lazy`, `Pair`
-  - `Endofunction`, `Endomorphism`
+  - `Endofunction`, `Endomorphism`, `SendEndofunction`
   - `RcFn`, `ArcFn`
   - `OnceCell`, `OnceLock`
 
@@ -80,6 +81,27 @@ While the library strives for zero-cost abstractions, some operations inherently
 - **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
 
 For these specific cases, the library provides "Brand" types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost.
+
+### Thread Safety and Parallelism
+
+The library supports thread-safe operations through the `SendClonableFn` extension trait and parallel folding via `ParFoldable`.
+
+- **`SendClonableFn`**: Extends `ClonableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
+- **`ParFoldable`**: Provides `par_fold_map` and `par_fold_right` for parallel execution.
+- **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
+
+```rust
+use fp_library::classes::par_foldable::par_fold_map;
+use fp_library::brands::{VecBrand, ArcFnBrand};
+use fp_library::classes::send_clonable_fn::new_send;
+
+let v = vec![1, 2, 3, 4, 5];
+// Create a thread-safe function wrapper
+let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+// Fold in parallel (if rayon feature is enabled)
+let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f);
+assert_eq!(result, "12345".to_string());
+```
 
 ## Usage
 

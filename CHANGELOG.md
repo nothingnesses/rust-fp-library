@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Thread Safety and Parallelism**:
+  - Added `SendClonableFn` extension trait for thread-safe function wrappers.
+  - Added `ParFoldable` trait for parallel folding operations.
+  - Added `SendEndofunction` type for thread-safe endofunctions.
+  - Implemented `SendClonableFn` for `ArcFnBrand`.
+  - Implemented `ParFoldable` for `VecBrand` and `OptionBrand`.
+  - Added optional `rayon` feature for parallel execution in `VecBrand`.
+- **Macro Enhancements**:
+  - Updated `Apply!` macro to support optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
+
 ## [fp-library 0.2.0] - 2026-01-15
 
 ### Changed

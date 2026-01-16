@@ -583,33 +583,6 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 			fa.into_iter().map(|a| f(a)).fold(M::empty(), |acc, m| M::append(acc, m))
 		}
 	}
-
-	/// Folds the vector from the right in parallel.
-	///
-	/// # Type Signature
-	///
-	/// `forall a b. ParFoldable Vec => (f (a, b) b, b, Vec a) -> b`
-	///
-	/// # Parameters
-	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
-	/// * `fa`: The vector to fold.
-	///
-	/// # Returns
-	///
-	/// The final accumulator value.
-	fn par_fold_right<'a, A, B>(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-		init: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> B
-	where
-		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a,
-	{
-		fa.into_iter().rev().fold(init, |b, a| f((a, b)))
-	}
 }
 
 #[cfg(test)]

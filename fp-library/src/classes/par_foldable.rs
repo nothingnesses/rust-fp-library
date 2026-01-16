@@ -1,7 +1,7 @@
 //! Parallel folding operations.
 
 use super::{foldable::Foldable, monoid::Monoid, send_clonable_fn::SendClonableFn};
-use crate::{Apply, kinds::*};
+use crate::{Apply, kinds::*, types::SendEndofunction};
 
 /// A type class for structures that can be folded in parallel.
 ///
@@ -95,7 +95,21 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a;
+		B: Send + Sync + 'a,
+		FnBrand: 'a,
+	{
+		let f_clone = f.clone();
+		let endo = Self::par_fold_map(
+			fa,
+			<FnBrand as SendClonableFn>::new_send(move |a: A| {
+				let f_inner = f_clone.clone();
+				SendEndofunction::<FnBrand, B>::new(<FnBrand as SendClonableFn>::new_send(
+					move |b: B| f_inner((a.clone(), b)),
+				))
+			}),
+		);
+		endo.0(init)
+	}
 }
 
 /// Parallel fold_map operation.
@@ -127,6 +141,7 @@ where
 	Brand: ParFoldable<FnBrand>,
 	A: 'a + Clone + Send + Sync,
 	B: Send + Sync + 'a,
+	FnBrand: 'a,
 {
 	Brand::par_fold_right(f, init, fa)
 }

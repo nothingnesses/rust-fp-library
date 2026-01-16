@@ -433,36 +433,6 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 			None => M::empty(),
 		}
 	}
-
-	/// Folds the option from the right in parallel.
-	///
-	/// # Type Signature
-	///
-	/// `forall a b. ParFoldable Option => (f (a, b) b, b, Option a) -> b`
-	///
-	/// # Parameters
-	///
-	/// * `f`: The folding function.
-	/// * `init`: The initial value.
-	/// * `fa`: The option to fold.
-	///
-	/// # Returns
-	///
-	/// The final accumulator value.
-	fn par_fold_right<'a, A, B>(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
-		init: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> B
-	where
-		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a,
-	{
-		match fa {
-			Some(a) => f((a, init)),
-			None => init,
-		}
-	}
 }
 
 #[cfg(test)]
