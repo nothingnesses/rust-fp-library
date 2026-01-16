@@ -580,6 +580,7 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 		}
 		#[cfg(not(feature = "rayon"))]
 		{
+			#[allow(clippy::redundant_closure)]
 			fa.into_iter().map(|a| f(a)).fold(M::empty(), |acc, m| M::append(acc, m))
 		}
 	}

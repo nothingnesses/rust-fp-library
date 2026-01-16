@@ -299,24 +299,24 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 7.3 Property-Based Tests
 
-- [ ] **Add QuickCheck tests**
+- [x] **Add QuickCheck tests**
 
-  - [ ] Test `par_fold_map` equals `fold_map` (for commutative monoids)
-  - [ ] Test `par_fold_right` equals `fold_right`
-  - [ ] Test empty/identity properties
+  - [x] Test `par_fold_map` equals `fold_map` (for commutative monoids)
+  - [x] Test `par_fold_right` equals `fold_right`
+  - [x] Test empty/identity properties
 
-- [ ] **Thread safety properties**
-  - [ ] Concurrent access doesn't cause data races
-  - [ ] Results are deterministic (for commutative operations)
+- [x] **Thread safety properties**
+  - [x] Concurrent access doesn't cause data races
+  - [x] Results are deterministic (for commutative operations)
 
 ### 7.4 Compile-Fail Tests
 
 - [x] **Create compile-fail tests** ([`fp-library/tests/ui/`](../../fp-library/tests/ui/) or similar)
 
-  - [ ] Test: cannot `new_send` with non-`Send` closure
-  - [ ] Test: cannot `new_send` with non-`Sync` closure
+  - [x] Test: cannot `new_send` with non-`Send` closure
+  - [x] Test: cannot `new_send` with non-`Sync` closure
   - [x] Test: `RcFnBrand` does not implement `SendClonableFn`
-  - [ ] Test: cannot use `Send + Sync` function in non-`Send` context (expected failure)
+  - [x] Test: cannot use `Send + Sync` function in non-`Send` context (expected failure)
 
 - [x] **Setup trybuild for UI tests** (if not already present)
   - [x] Add `trybuild` dependency
@@ -385,9 +385,9 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 - [x] `cargo build` succeeds for entire workspace
 - [x] `cargo test` passes for entire workspace
-- [ ] `cargo test --features rayon` passes (if implemented)
-- [ ] `cargo clippy` has no new warnings
-- [ ] `cargo doc` generates correct documentation
+- [x] `cargo test --features rayon` passes (if implemented)
+- [x] `cargo clippy` has no new warnings
+- [x] `cargo doc` generates correct documentation
 
 ### Quality Checks
 
@@ -401,7 +401,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 - [x] `SendOf` type is actually `Send` (verified by spawning thread in test)
 - [x] `SendOf` type is actually `Sync` (verified by sharing across threads in test)
-- [ ] Non-`Send` closures cannot be wrapped with `new_send` (compile-fail test)
+- [x] Non-`Send` closures cannot be wrapped with `new_send` (compile-fail test)
 - [x] `RcFnBrand` does not implement `SendClonableFn` (compile-fail test)
 
 ---

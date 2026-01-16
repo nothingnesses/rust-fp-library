@@ -305,6 +305,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// # Examples
 	///
+	/// ```
 	/// use fp_library::classes::foldable::fold_map;
 	/// use fp_library::brands::IdentityBrand;
 	/// use fp_library::types::Identity;
