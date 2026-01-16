@@ -1,6 +1,5 @@
 ### Tasks to do & ideas to look into
 
-* Add README.md for each of the workspace's crates.
 * [`Compactable`, `Filterable`, `Witherable`](https://github.com/reazen/relude/issues/268).
 	* [Composable filters using Witherable optics](https://chrispenner.ca/posts/witherable-optics).
 	* [purescript-filterable](https://pursuit.purescript.org/packages/purescript-filterable/5.0.0).
