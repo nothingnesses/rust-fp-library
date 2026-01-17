@@ -156,10 +156,10 @@ impl Canonicalizer {
 		match ty {
 			Type::Path(type_path) => {
 				// Check if it's a type parameter
-				if let Some(ident) = type_path.path.get_ident() {
-					if let Some(idx) = self.type_map.get(&ident.to_string()) {
-						return format!("T{}", idx);
-					}
+				if let Some(ident) = type_path.path.get_ident()
+					&& let Some(idx) = self.type_map.get(&ident.to_string())
+				{
+					return format!("T{}", idx);
 				}
 
 				type_path

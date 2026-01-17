@@ -34,22 +34,22 @@
 
 use fp_macros::def_kind;
 
-def_kind!{
+def_kind! {
 	type Of<A>;
 }
 
-def_kind!{
+def_kind! {
 	type Of<A, B>;
 }
 
-def_kind!{
+def_kind! {
 	type Of<'a>;
 }
 
-def_kind!{
+def_kind! {
 	type Of<'a, A, B>;
 }
 
-def_kind!{
+def_kind! {
 	type Of<'a, A: 'a>: 'a;
 }

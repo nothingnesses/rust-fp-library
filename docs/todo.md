@@ -1,5 +1,20 @@
 ### Tasks to do & ideas to look into
 
+* Remove the `Apply!` macro since it is redundant, instead replace uses of it with the following:
+
+```
+<Brand as Kind!{
+	type Of<'b, 'c, T: 'b + Debug, U: 'c + Clone>: 'b + 'c + Display;
+	type SendOf<'c, T: 'c + Clone>;
+	type OtherOf<B>;
+}>::Of<T, U>
+```
+
+Or:
+
+```
+<Brand as SomeKindWithAKnownName>::Of<T, U>
+```
 * [`Compactable`, `Filterable`, `Witherable`](https://github.com/reazen/relude/issues/268).
 	* [Composable filters using Witherable optics](https://chrispenner.ca/posts/witherable-optics).
 	* [purescript-filterable](https://pursuit.purescript.org/packages/purescript-filterable/5.0.0).

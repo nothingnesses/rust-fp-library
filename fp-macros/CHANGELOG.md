@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Canonicalization**:
   - Enhanced canonicalization to include associated type names and sort them for determinism.
   - Improved type parameter mapping (e.g., `T` -> `T0`) for robust hash generation.
+- **Testing**:
+  - Updated property-based tests to reflect the new `KindInput` syntax and `Canonicalizer` API.
 
 ---
 
