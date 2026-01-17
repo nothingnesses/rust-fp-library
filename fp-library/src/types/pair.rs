@@ -74,8 +74,8 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -127,9 +127,9 @@ where
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -174,7 +174,7 @@ where
 	///
 	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Pair(Monoid::empty(), a)
 	}
 }
@@ -224,9 +224,9 @@ where
 	/// assert_eq!(apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Pair(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
 	}
 }
@@ -272,11 +272,11 @@ where
 	/// );
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(second);
@@ -323,7 +323,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -370,7 +370,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -419,7 +419,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -469,11 +469,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(first.clone(), b), func(second))
@@ -512,11 +512,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
-		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(first.clone(), a), second)
@@ -564,7 +564,7 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	/// ```
 	fn par_fold_map<'a, A, M>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -612,7 +612,7 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	fn par_fold_right<'a, A, B>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
@@ -664,8 +664,8 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -717,9 +717,9 @@ where
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -764,7 +764,7 @@ where
 	///
 	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Pair(a, Monoid::empty())
 	}
 }
@@ -814,9 +814,9 @@ where
 	/// assert_eq!(apply::<RcFnBrand, PairWithSecondBrand<String>, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Pair(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
 	}
 }
@@ -862,11 +862,11 @@ where
 	/// );
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		let Pair(first, second) = ma;
 		let Pair(next_first, next_second) = f(first);
@@ -913,7 +913,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -960,7 +960,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -1009,7 +1009,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -1059,11 +1059,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(b, second.clone()), func(first))
@@ -1102,11 +1102,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
-		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
 		let Pair(first, second) = ta;
 		F::map(move |a| Pair(a, second.clone()), first)
@@ -1156,7 +1156,7 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	/// ```
 	fn par_fold_map<'a, A, M>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -1203,7 +1203,7 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	fn par_fold_right<'a, A, B>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,

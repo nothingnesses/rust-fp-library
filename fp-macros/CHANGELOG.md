@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`Apply!` Macro Refactor**:
   - Removed "Explicit Kind Mode" and "Unified Signature Mode" in favor of a single, more explicit syntax.
-  - New syntax: `Apply!(<Brand as trait { KindSignature }>::AssocType<Args>)`.
+  - New syntax: `Apply!(<Brand as Kind!(KindSignature)>::AssocType<Args>)`.
   - This syntax mimics fully qualified paths while allowing inline anonymous Kind trait definitions.
 - **Multiple Associated Types**:
   - Updated `Kind!` and `def_kind!` to support defining multiple associated types (e.g., `type Of<T>; type SendOf<T>;`).

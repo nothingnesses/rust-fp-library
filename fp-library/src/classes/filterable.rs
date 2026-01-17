@@ -8,45 +8,45 @@ use crate::{
 pub trait Filterable: Compactable + Functor {
 	fn partition_map<'a, Func, A: 'a, E: 'a, O: 'a>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, E>),
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, O>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 	>
 	where
 		Func: Fn(A) -> Result<O, E> + 'a;
 
 	fn partition<'a, Func, A: 'a>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	>
 	where
 		Func: Fn(A) -> bool;
 
 	fn filter_map<'a, Func, A: 'a, B: 'a>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Func: Fn(A) -> Option<B> + 'a;
 
 	fn filter<'a, Func, A: 'a>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
 		Func: Fn(A) -> bool;
 }
 
 pub fn partition_map<'a, Brand: Filterable, Func, A: 'a, E: 'a, O: 'a>(
 	func: Func,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
-	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, E>),
-	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, O>),
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 >
 where
 	Func: Fn(A) -> Result<O, E> + 'a,
@@ -56,10 +56,10 @@ where
 
 pub fn partition<'a, Brand: Filterable, Func, A: 'a>(
 	func: Func,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
-	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 >
 where
 	Func: Fn(A) -> bool,
@@ -69,8 +69,8 @@ where
 
 pub fn filter_map<'a, Brand: Filterable, Func, A: 'a, B: 'a>(
 	func: Func,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	Func: Fn(A) -> Option<B> + 'a,
 {
@@ -79,8 +79,8 @@ where
 
 pub fn filter<'a, Brand: Filterable, Func, A: 'a>(
 	func: Func,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
 	Func: Fn(A) -> bool,
 {

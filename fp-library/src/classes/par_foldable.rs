@@ -82,7 +82,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	/// The combined monoid value
 	fn par_fold_map<'a, A, M>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -114,7 +114,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	fn par_fold_right<'a, A, B>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		init: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
@@ -160,7 +160,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 /// The combined monoid value
 pub fn par_fold_map<'a, FnBrand, Brand, A, M>(
 	func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> M
 where
 	FnBrand: SendClonableFn,
@@ -198,7 +198,7 @@ where
 pub fn par_fold_right<'a, FnBrand, Brand, A, B>(
 	func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 	init: B,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
 	FnBrand: SendClonableFn,

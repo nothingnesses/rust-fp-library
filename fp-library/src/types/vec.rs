@@ -149,8 +149,8 @@ impl Functor for VecBrand {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -197,9 +197,9 @@ impl Lift for VecBrand {
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -239,7 +239,7 @@ impl Pointed for VecBrand {
 	///
 	/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		vec![a]
 	}
 }
@@ -287,9 +287,9 @@ impl Semiapplicative for VecBrand {
 	/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
 	}
 }
@@ -330,11 +330,11 @@ impl Semimonad for VecBrand {
 	/// );
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		ma.into_iter().flat_map(f).collect()
 	}
@@ -378,7 +378,7 @@ impl Foldable for VecBrand {
 	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -424,7 +424,7 @@ impl Foldable for VecBrand {
 	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -472,7 +472,7 @@ impl Foldable for VecBrand {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -521,11 +521,11 @@ impl Traversable for VecBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -572,11 +572,11 @@ impl Traversable for VecBrand {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
-	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
-		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
-		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
 		let len = ta.len();
 		ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -696,7 +696,7 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 	/// ```
 	fn par_fold_map<'a, A, M>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,

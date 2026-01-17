@@ -7,13 +7,13 @@ use crate::{generate::generate_name, parse::KindInput};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	AngleBracketedGenericArguments, Ident, Token, Type, braced,
+	AngleBracketedGenericArguments, Ident, Token, Type,
 	parse::{Parse, ParseStream},
 };
 
 /// Input structure for the `Apply!` macro.
 ///
-/// Syntax: `Apply!(<Brand as trait { type Of...; }>::Of<T, U>)`
+/// Syntax: `Apply!(<Brand as Kind!( type Of...; )>::Of<T, U>)`
 #[derive(Debug)]
 pub struct ApplyInput {
 	/// The brand type (e.g., `OptionBrand`).
@@ -37,12 +37,18 @@ impl Parse for ApplyInput {
 		// Parse `as`
 		input.parse::<Token![as]>()?;
 
-		// Parse `trait` keyword
-		input.parse::<Token![trait]>()?;
+		// Parse `Kind` identifier
+		let kind_ident: Ident = input.parse()?;
+		if kind_ident != "Kind" {
+			return Err(syn::Error::new(kind_ident.span(), "expected `Kind`"));
+		}
 
-		// Parse `{ ... }` containing KindInput
+		// Parse `!`
+		input.parse::<Token![!]>()?;
+
+		// Parse `(...)` containing KindInput
 		let content;
-		braced!(content in input);
+		syn::parenthesized!(content in input);
 		let kind_input: KindInput = content.parse()?;
 
 		// Parse `>`
@@ -80,7 +86,7 @@ mod tests {
 
 	#[test]
 	fn test_parse_apply_new_syntax() {
-		let input = "<OptionBrand as trait { type Of<'a, T>: 'a; }>::Of<'static, i32>";
+		let input = "<OptionBrand as Kind!(type Of<'a, T>: 'a;)>::Of<'static, i32>";
 		let parsed: ApplyInput = parse_str(input).expect("Failed to parse ApplyInput");
 
 		assert_eq!(parsed.assoc_name.to_string(), "Of");
@@ -90,7 +96,7 @@ mod tests {
 
 	#[test]
 	fn test_apply_generation_new_syntax() {
-		let input = "<OptionBrand as trait { type Of<'a, T>: 'a; }>::Of<'static, i32>";
+		let input = "<OptionBrand as Kind!(type Of<'a, T>: 'a;)>::Of<'static, i32>";
 		let parsed: ApplyInput = parse_str(input).expect("Failed to parse ApplyInput");
 
 		let output = apply_impl(parsed);

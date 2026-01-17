@@ -129,7 +129,7 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 ///
 /// # Syntax
 ///
-/// `Apply!(<Brand as trait { KindSignature }>::AssocType<Args>)`
+/// `Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)`
 ///
 /// * `Brand`: The brand type (e.g., `OptionBrand`).
 /// * `KindSignature`: A list of associated type definitions defining the Kind trait schema.
@@ -140,16 +140,16 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Applies MyBrand to lifetime 'static and type String.
-/// type Concrete = Apply!(<MyBrand as trait { type Of<'a, T>; }>::Of<'static, String>);
+/// type Concrete = Apply!(<MyBrand as Kind!( type Of<'a, T>; )>::Of<'static, String>);
 ///
 /// // Applies MyBrand to a generic type T with bounds.
-/// type Concrete = Apply!(<MyBrand as trait { type Of<T: Clone>; }>::Of<T>);
+/// type Concrete = Apply!(<MyBrand as Kind!( type Of<T: Clone>; )>::Of<T>);
 ///
 /// // Complex example with lifetimes, types, and output bounds.
-/// type Concrete = Apply!(<MyBrand as trait { type Of<'a, T: Clone + Debug>: Display; }>::Of<'a, T>);
+/// type Concrete = Apply!(<MyBrand as Kind!( type Of<'a, T: Clone + Debug>: Display; )>::Of<'a, T>);
 ///
 /// // Use a custom associated type for projection.
-/// type Concrete = Apply!(<MyBrand as trait { type Of<T>; type SendOf<T>; }>::SendOf<T>);
+/// type Concrete = Apply!(<MyBrand as Kind!( type Of<T>; type SendOf<T>; )>::SendOf<T>);
 /// ```
 #[proc_macro]
 #[allow(non_snake_case)]

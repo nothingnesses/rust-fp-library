@@ -45,9 +45,9 @@ pub trait ApplySecond: Lift {
 	/// assert_eq!(z, Some(10));
 	/// ```
 	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Self::lift2(|_, b| b, fa, fb)
 	}
 }
@@ -87,8 +87,8 @@ pub trait ApplySecond: Lift {
 /// assert_eq!(z, Some(10));
 /// ```
 pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	fb: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
-) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 	Brand::apply_second(fa, fb)
 }

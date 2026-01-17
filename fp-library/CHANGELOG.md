@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`Apply!` Macro Migration**:
-  - Migrated all usages of `Apply!` to the new syntax: `Apply!(<Brand as trait { KindSignature }>::AssocType<Args>)`.
+  - Migrated all usages of `Apply!` to the new syntax: `Apply!(<Brand as Kind!(KindSignature)>::AssocType<Args>)`.
   - Converted usages of the deprecated "Explicit Kind Mode" to standard Rust syntax (e.g., `<Brand as Kind>::Of<Args>`).
 - **Kind Trait Refactor**:
   - Updated `Kind` traits to support multiple associated types (e.g., `Of`, `SendOf`).

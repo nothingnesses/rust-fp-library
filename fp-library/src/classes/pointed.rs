@@ -37,7 +37,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// let x = OptionBrand::pure(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>);
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 }
 
 /// The value wrapped in the context.
@@ -72,6 +72,6 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 /// ```
 pub fn pure<'a, Brand: Pointed, A: 'a>(
 	a: A
-) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 	Brand::pure(a)
 }

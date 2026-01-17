@@ -50,8 +50,8 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -92,8 +92,8 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// ```
 pub fn map<'a, Brand: Functor, F, A: 'a, B: 'a>(
 	f: F,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
-) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	F: Fn(A) -> B + 'a,
 {

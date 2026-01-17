@@ -21,7 +21,7 @@ impl_kind! {
 }
 
 impl Function for RcFnBrand {
-	type Of<'a, A, B> = Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, B>);
+	type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
 	/// Creates a new function wrapper.
 	///
@@ -59,7 +59,7 @@ impl Function for RcFnBrand {
 }
 
 impl ClonableFn for RcFnBrand {
-	type Of<'a, A, B> = Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, B>);
+	type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
 	/// Creates a new clonable function wrapper.
 	///
@@ -133,9 +133,9 @@ impl Semigroupoid for RcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, C, D>),
-		g: Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, B, C>),
-	) -> Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, B, D>) {
+		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
+		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -166,7 +166,7 @@ impl Category for RcFnBrand {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, A>) {
+	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
 		Rc::new(|a| a)
 	}
 }

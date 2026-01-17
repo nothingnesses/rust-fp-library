@@ -13,7 +13,7 @@ impl_kind! {
 }
 
 impl Once for OnceCellBrand {
-	type Of<A> = Apply!(<Self as trait { type Of<T>; }>::Of<A>);
+	type Of<A> = Apply!(<Self as Kind!( type Of<T>; )>::Of<A>);
 
 	/// Creates a new, uninitialized `Once` container.
 	///

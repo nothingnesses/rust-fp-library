@@ -1,5 +1,0 @@
-error: expected identifier
- --> tests/ui/apply_invalid_output.rs:6:63
-  |
-6 |     type T = Apply!(brand: MyBrand, signature: (i32), output: "Invalid");
-  |                                                               ^^^^^^^^^

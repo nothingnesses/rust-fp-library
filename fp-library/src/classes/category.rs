@@ -40,7 +40,7 @@ pub trait Category: Semigroupoid {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, A>);
+	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>);
 }
 
 /// Returns the identity morphism.
@@ -70,6 +70,6 @@ pub trait Category: Semigroupoid {
 /// assert_eq!(id(5), 5);
 /// ```
 pub fn identity<'a, Brand: Category, A>()
--> Apply!(<Brand as trait { type Of<'a, T, U>; }>::Of<'a, A, A>) {
+-> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
 	Brand::identity()
 }

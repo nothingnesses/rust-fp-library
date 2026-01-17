@@ -25,7 +25,7 @@ use std::{
 ///
 /// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 pub struct Endomorphism<'a, C: Category, A>(
-	pub Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>),
+	pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
 );
 
 impl<'a, C: Category, A> Endomorphism<'a, C, A> {
@@ -60,14 +60,14 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(f: Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>)) -> Self {
+	pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
 		Self(f)
 	}
 }
 
 impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): Clone,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
 {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
@@ -76,7 +76,7 @@ where
 
 impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): Debug,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
 {
 	fn fmt(
 		&self,
@@ -87,13 +87,13 @@ where
 }
 
 impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): Eq
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
 {
 }
 
 impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): Hash,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -105,7 +105,7 @@ where
 
 impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): Ord,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
 {
 	fn cmp(
 		&self,
@@ -117,7 +117,7 @@ where
 
 impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): PartialEq,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
 {
 	fn eq(
 		&self,
@@ -129,7 +129,7 @@ where
 
 impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
 where
-	Apply!(<C as trait { type Of<'a, T, U>; }>::Of<'a, A, A>): PartialOrd,
+	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
 {
 	fn partial_cmp(
 		&self,

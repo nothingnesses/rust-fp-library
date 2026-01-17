@@ -27,7 +27,7 @@ fn test_wrapper_kind() {
 
 #[test]
 fn test_apply_macro_simple() {
-	type Applied = Apply!(<WrapperBrand as trait { type Of<T>; }>::Of<i32>);
+	type Applied = Apply!(<WrapperBrand as Kind!( type Of<T>; )>::Of<i32>);
 
 	let w: Applied = Wrapper(100);
 	assert_eq!(w.0, 100);
@@ -61,7 +61,7 @@ fn test_ref_wrapper_kind() {
 
 #[test]
 fn test_apply_macro_with_lifetime() {
-	type Applied<'a> = Apply!(<RefWrapperBrand as trait { type Of<'a, T: 'a>; }>::Of<'a, i32>);
+	type Applied<'a> = Apply!(<RefWrapperBrand as Kind!( type Of<'a, T: 'a>; )>::Of<'a, i32>);
 
 	let val = 100;
 	let w: Applied = RefWrapper(&val);
@@ -88,7 +88,7 @@ impl_kind! {
 
 #[test]
 fn test_bounded_kind() {
-	type Applied = Apply!(<DisplayWrapperBrand as trait { type Of<T: Display>; }>::Of<String>);
+	type Applied = Apply!(<DisplayWrapperBrand as Kind!( type Of<T: Display>; )>::Of<String>);
 
 	let w: Applied = DisplayWrapper("hello".to_string());
 	assert_eq!(w.0, "hello");
@@ -123,7 +123,7 @@ fn test_output_bounded_kind() {
 
 #[test]
 fn test_apply_output_bounded() {
-	type Applied = Apply!(<CloneWrapperBrand as trait { type Of<T: Clone>: Clone; }>::Of<i32>);
+	type Applied = Apply!(<CloneWrapperBrand as Kind!( type Of<T: Clone>: Clone; )>::Of<i32>);
 
 	let w: Applied = CloneWrapper(10);
 	let _ = w.clone();

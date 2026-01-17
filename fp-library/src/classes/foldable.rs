@@ -63,7 +63,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	fn fold_right<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -121,7 +121,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	fn fold_left<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -186,7 +186,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a + Clone, M>(
 		func: Func,
-		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -237,7 +237,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 pub fn fold_right<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
 	initial: B,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
 	Func: Fn(A, B) -> B + 'a,
@@ -286,7 +286,7 @@ where
 pub fn fold_left<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
 	initial: B,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
 	Func: Fn(B, A) -> B + 'a,
@@ -334,7 +334,7 @@ where
 /// ```
 pub fn fold_map<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, M>(
 	func: Func,
-	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> M
 where
 	M: Monoid + 'a,
