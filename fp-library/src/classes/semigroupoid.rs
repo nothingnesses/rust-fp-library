@@ -13,7 +13,7 @@ use crate::{Apply, kinds::*};
 ///
 /// Semigroupoid instances must satisfy the associative law:
 /// * Associativity: `compose(p, compose(q, r)) = compose(compose(p, q), r)`.
-pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
+pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
 	/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.

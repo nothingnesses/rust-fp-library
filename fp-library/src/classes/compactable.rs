@@ -1,6 +1,6 @@
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
 
-pub trait Compactable: Kind_c3c3610c70409ee6 {
+pub trait Compactable: Kind_cdc7cd43dac7585f {
 	fn compact<'a, A: 'a>(
 		fa: Apply!(
 			brand: Self,

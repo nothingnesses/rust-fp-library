@@ -23,35 +23,33 @@
 //!
 //! ## Examples
 //!
-//! * `Kind_bd4ddc17b95f4bc6`: 0 lifetimes, 1 type.
-//! * `Kind_fcf9d56b89a0b8b9`: 1 lifetime, 2 types.
-//! * `Kind_c3c3610c70409ee6`: 1 lifetime, 1 type. Type 0 is bounded by Lifetime 0 (`A: 'a`). Of is bounded by Lifetime 0 (`Of: 'a`).
+//! * `Kind_ad6c20556a82a1f0`: 0 lifetimes, 1 type.
+//! * `Kind_140eb1e35dc7afb3`: 1 lifetime, 2 types.
+//! * `Kind_cdc7cd43dac7585f`: 1 lifetime, 1 type. Type 0 is bounded by Lifetime 0 (`A: 'a`). Of is bounded by Lifetime 0 (`Of: 'a`).
 //!
-//! As an example of how to use these traits, the trait [`Kind_bd4ddc17b95f4bc6`] would be
+//! As an example of how to use these traits, the trait [`Kind_ad6c20556a82a1f0`] would be
 //! implemented by a [`Brand`][crate::brands] representing type constructors
 //! with 0 lifetimes and 1 generic type. A type `Foo<A>` would have a
-//! higher-kinded representation `FooBrand` which implements [`Kind_bd4ddc17b95f4bc6`].
+//! higher-kinded representation `FooBrand` which implements [`Kind_ad6c20556a82a1f0`].
 
 use fp_macros::def_kind;
 
-def_kind!((), (A), ());
+def_kind!{
+	type Of<A>;
+}
 
-def_kind!((), (A, B), ());
+def_kind!{
+	type Of<A, B>;
+}
 
-def_kind!(
-	('a),
-	(),
-	()
-);
+def_kind!{
+	type Of<'a>;
+}
 
-def_kind!(
-	('a),
-	(A, B),
-	()
-);
+def_kind!{
+	type Of<'a, A, B>;
+}
 
-def_kind!(
-	('a),
-	(A: 'a),
-	('a)
-);
+def_kind!{
+	type Of<'a, A: 'a>: 'a;
+}
