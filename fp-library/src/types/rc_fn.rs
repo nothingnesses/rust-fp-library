@@ -21,7 +21,7 @@ impl_kind! {
 }
 
 impl Function for RcFnBrand {
-	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
+	type Of<'a, A, B> = Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, B>);
 
 	/// Creates a new function wrapper.
 	///
@@ -53,15 +53,13 @@ impl Function for RcFnBrand {
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(brand: Self, kind: Function, lifetimes: ('a), types: (A, B)) {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
 		Rc::new(f)
 	}
 }
 
 impl ClonableFn for RcFnBrand {
-	type Of<'a, A, B> = Apply!(brand: Self, signature: ('a, A, B));
+	type Of<'a, A, B> = Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, B>);
 
 	/// Creates a new clonable function wrapper.
 	///
@@ -93,9 +91,7 @@ impl ClonableFn for RcFnBrand {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B)) {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B> {
 		Rc::new(f)
 	}
 }
@@ -137,9 +133,9 @@ impl Semigroupoid for RcFnBrand {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(brand: Self, signature: ('a, C, D)),
-		g: Apply!(brand: Self, signature: ('a, B, C)),
-	) -> Apply!(brand: Self, signature: ('a, B, D)) {
+		f: Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, C, D>),
+		g: Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, B, C>),
+	) -> Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, B, D>) {
 		<Self as ClonableFn>::new(move |b| f(g(b)))
 	}
 }
@@ -170,7 +166,7 @@ impl Category for RcFnBrand {
 	/// let id = RcFnBrand::identity::<i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(brand: Self, signature: ('a, A, A)) {
+	fn identity<'a, A>() -> Apply!(<Self as trait { type Of<'a, T, U>; }>::Of<'a, A, A>) {
 		Rc::new(|a| a)
 	}
 }

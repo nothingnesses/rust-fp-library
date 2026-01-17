@@ -3,7 +3,6 @@
 //! This module defines the [`Defer`] trait, which provides an abstraction for types that can be constructed lazily.
 
 use super::clonable_fn::ClonableFn;
-use crate::Apply;
 
 /// A type class for types that can be constructed lazily.
 pub trait Defer<'a> {
@@ -41,9 +40,7 @@ pub trait Defer<'a> {
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<FnBrand: 'a + ClonableFn>(
-		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
-	) -> Self
+	fn defer<FnBrand: 'a + ClonableFn>(f: <FnBrand as ClonableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized;
 }
@@ -83,9 +80,7 @@ pub trait Defer<'a> {
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, FnBrand, D>(
-	f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), D))
-) -> D
+pub fn defer<'a, FnBrand, D>(f: <FnBrand as ClonableFn>::Of<'a, (), D>) -> D
 where
 	D: Defer<'a>,
 	FnBrand: 'a + ClonableFn,

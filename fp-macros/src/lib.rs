@@ -26,10 +26,7 @@ mod property_tests;
 
 /// Generates the name of a Kind trait based on its signature.
 ///
-/// This macro takes three parenthesized groups representing the signature:
-/// 1. **Lifetimes**: A comma-separated list of lifetimes (e.g., `('a, 'b)`).
-/// 2. **Types**: A comma-separated list of types with optional bounds (e.g., `(T, U: Display)`).
-/// 3. **Output Bounds**: A `+`-separated list of bounds on the output type (e.g., `(Display + Clone)`).
+/// This macro takes a list of associated type definitions, similar to a trait definition.
 ///
 /// # Example
 ///
@@ -38,7 +35,7 @@ mod property_tests;
 /// // - 1 lifetime ('a)
 /// // - 1 type parameter (T) bounded by Display and Clone
 /// // - Output type bounded by Debug
-/// let name = Kind!(('a), (T: Display + Clone), (Debug));
+/// let name = Kind!(type Of<'a, T: Display + Clone>: Debug;);
 /// ```
 ///
 /// # Limitations
@@ -127,81 +124,32 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Applies a brand to type arguments.
 ///
 /// This macro projects a brand type to its concrete type using the appropriate
-/// Kind trait. It uses named parameters syntax.
+/// Kind trait. It uses a syntax that mimics a fully qualified path with an
+/// inline anonymous Kind trait definition.
 ///
-/// # Modes
+/// # Syntax
 ///
-/// The macro supports two modes of operation:
+/// `Apply!(<Brand as trait { KindSignature }>::AssocType<Args>)`
 ///
-/// 1. **Unified Signature Mode** (Recommended): Uses a single `signature` parameter to specify both
-///    the schema (for Kind trait name generation) and the concrete values (for projection).
-/// 2. **Explicit Kind Mode** (Advanced): Uses an explicit `kind` parameter along with separate
-///    `lifetimes` and `types` parameters.
-///
-/// # Parameters
-///
-/// * `brand`: (Required) The brand type (e.g., `OptionBrand`).
-/// * `signature`: (Mode 1) The unified signature containing both schema and values.
-/// * `kind`: (Mode 2) An explicit Kind trait to use.
-/// * `lifetimes`: (Mode 2) Lifetime arguments to apply. Required with `kind`.
-/// * `types`: (Mode 2) Type arguments to apply. Required with `kind`.
-/// * `output`: (Optional) The associated type to project to. Defaults to `Of`.
-///
-/// # Unified Signature Syntax
-///
-/// The `signature` parameter uses a syntax similar to a function signature:
-/// `(param1, param2, ...) -> OutputBounds`
-///
-/// * **Lifetimes**: Specified as `'a`, `'static`, etc.
-/// * **Types**: Specified as `Type` or `Type: Bounds`.
-///   * The `Type` part is used as the concrete value for projection.
-///   * The `Bounds` part (optional) is used for Kind trait name generation.
+/// * `Brand`: The brand type (e.g., `OptionBrand`).
+/// * `KindSignature`: A list of associated type definitions defining the Kind trait schema.
+/// * `AssocType`: The associated type to project (e.g., `Of`).
+/// * `Args`: The concrete arguments to apply.
 ///
 /// # Examples
 ///
-/// ## Unified Signature Mode (Recommended)
-///
 /// ```ignore
 /// // Applies MyBrand to lifetime 'static and type String.
-/// // The schema is inferred as: 1 lifetime, 1 type parameter (unbounded).
-/// type Concrete = Apply!(
-///     brand: MyBrand,
-///     signature: ('static, String)
-/// );
+/// type Concrete = Apply!(<MyBrand as trait { type Of<'a, T>; }>::Of<'static, String>);
 ///
 /// // Applies MyBrand to a generic type T with bounds.
-/// // The schema is inferred as: 1 type parameter with Clone bound.
-/// type Concrete = Apply!(
-///     brand: MyBrand,
-///     signature: (T: Clone)
-/// );
+/// type Concrete = Apply!(<MyBrand as trait { type Of<T: Clone>; }>::Of<T>);
 ///
 /// // Complex example with lifetimes, types, and output bounds.
-/// type Concrete = Apply!(
-///     brand: MyBrand,
-///     signature: ('a, T: Clone + Debug) -> Display
-/// );
+/// type Concrete = Apply!(<MyBrand as trait { type Of<'a, T: Clone + Debug>: Display; }>::Of<'a, T>);
 ///
 /// // Use a custom associated type for projection.
-/// type Concrete = Apply!(
-///     brand: MyBrand,
-///     signature: (T),
-///     output: SendOf
-/// );
-/// ```
-///
-/// ## Explicit Kind Mode (Advanced)
-///
-/// Use this mode when you need to specify a custom Kind trait directly.
-///
-/// ```ignore
-/// // Applies OptionBrand using an explicit Kind trait.
-/// type Concrete = Apply!(
-///     brand: OptionBrand,
-///     kind: SomeKind,
-///     lifetimes: ('a),
-///     types: (String)
-/// );
+/// type Concrete = Apply!(<MyBrand as trait { type Of<T>; type SendOf<T>; }>::SendOf<T>);
 /// ```
 #[proc_macro]
 #[allow(non_snake_case)]

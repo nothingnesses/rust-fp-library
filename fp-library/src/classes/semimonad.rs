@@ -44,22 +44,11 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
+		ma: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 		f: F,
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B: 'a) -> 'a,
-	)
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
 	where
-		F: Fn(
-				A,
-			) -> Apply!(
-				brand: Self,
-				signature: ('a, B: 'a) -> 'a,
-			) + 'a;
+		F: Fn(A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -97,22 +86,11 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn bind<'a, Brand: Semimonad, F, A: 'a, B: 'a>(
-	ma: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
+	ma: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	f: F,
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, B: 'a) -> 'a,
-)
+) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
 where
-	F: Fn(
-			A,
-		) -> Apply!(
-			brand: Brand,
-			signature: ('a, B: 'a) -> 'a,
-		) + 'a,
+	F: Fn(A) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
 {
 	Brand::bind(ma, f)
 }

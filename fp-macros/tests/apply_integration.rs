@@ -21,11 +21,11 @@ trait GetValue {
 struct Container;
 
 impl Container {
-	fn wrap(val: i32) -> Apply!(brand: BoxBrand, signature: (i32)) {
+	fn wrap(val: i32) -> Apply!(<BoxBrand as trait { type Of<T>; }>::Of<i32>) {
 		BoxWrapper(Box::new(val))
 	}
 
-	fn unwrap(w: Apply!(brand: BoxBrand, signature: (i32))) -> i32 {
+	fn unwrap(w: Apply!(<BoxBrand as trait { type Of<T>; }>::Of<i32>)) -> i32 {
 		*w.0
 	}
 }
@@ -39,23 +39,23 @@ fn test_apply_in_fn_signature() {
 #[test]
 fn test_apply_in_struct_field() {
 	struct Item {
-		item: Apply!(brand: BoxBrand, signature: (String)),
+		item: Apply!(<BoxBrand as trait { type Of<T>; }>::Of<String>),
 	}
 
 	let i = Item { item: BoxWrapper(Box::new("hello".to_string())) };
 	assert_eq!(*i.item.0, "hello");
 }
 
+// Test using Apply! in impl block type
+impl GetValue for Apply!(<BoxBrand as trait { type Of<T>; }>::Of<i32>) {
+	fn get_value(&self) -> i32 {
+		*self.0
+	}
+}
+
 #[test]
 fn test_apply_in_impl_block() {
-	// Test using Apply! in impl block type
-	impl GetValue for Apply!(brand: BoxBrand, signature: (i32)) {
-		fn get_value(&self) -> i32 {
-			*self.0
-		}
-	}
-
-	let w: Apply!(brand: BoxBrand, signature: (i32)) = BoxWrapper(Box::new(999));
+	let w: Apply!(<BoxBrand as trait { type Of<T>; }>::Of<i32>) = BoxWrapper(Box::new(999));
 	assert_eq!(w.get_value(), 999);
 }
 
@@ -77,10 +77,9 @@ fn test_nested_apply() {
 		}
 	}
 
-	type Nested = Apply!(
-		brand: NestedBrand,
-		signature: (Apply!(brand: BoxBrand, signature: (i32)))
-	);
+	type Nested = Apply!(<NestedBrand as trait { type Of<T>; }>::Of<
+		Apply!(<BoxBrand as trait { type Of<T>; }>::Of<i32>)
+	>);
 
 	let n: Nested = NestedWrapper(BoxWrapper(Box::new(123)));
 	assert_eq!(*(n.0).0, 123);

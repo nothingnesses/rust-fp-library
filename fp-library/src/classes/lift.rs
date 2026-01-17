@@ -46,18 +46,9 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-		fb: Apply!(
-			brand: Self,
-			signature: ('a, B: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, C: 'a) -> 'a,
-	)
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -104,18 +95,9 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// ```
 pub fn lift2<'a, Brand: Lift, F, A, B, C>(
 	f: F,
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
-	fb: Apply!(
-		brand: Brand,
-		signature: ('a, B: 'a) -> 'a,
-	),
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, C: 'a) -> 'a,
-)
+	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fb: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
+) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
 where
 	F: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,

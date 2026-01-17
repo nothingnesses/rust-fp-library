@@ -27,10 +27,7 @@ fn test_wrapper_kind() {
 
 #[test]
 fn test_apply_macro_simple() {
-	type Applied = Apply!(
-		brand: WrapperBrand,
-		signature: (i32) // No output bounds
-	);
+	type Applied = Apply!(<WrapperBrand as trait { type Of<T>; }>::Of<i32>);
 
 	let w: Applied = Wrapper(100);
 	assert_eq!(w.0, 100);
@@ -64,10 +61,7 @@ fn test_ref_wrapper_kind() {
 
 #[test]
 fn test_apply_macro_with_lifetime() {
-	type Applied<'a> = Apply!(
-		brand: RefWrapperBrand,
-		signature: ('a, i32: 'a) // Match def_kind signature
-	);
+	type Applied<'a> = Apply!(<RefWrapperBrand as trait { type Of<'a, T: 'a>; }>::Of<'a, i32>);
 
 	let val = 100;
 	let w: Applied = RefWrapper(&val);
@@ -94,10 +88,7 @@ impl_kind! {
 
 #[test]
 fn test_bounded_kind() {
-	type Applied = Apply!(
-		brand: DisplayWrapperBrand,
-		signature: (String: Display)
-	);
+	type Applied = Apply!(<DisplayWrapperBrand as trait { type Of<T: Display>; }>::Of<String>);
 
 	let w: Applied = DisplayWrapper("hello".to_string());
 	assert_eq!(w.0, "hello");
@@ -132,10 +123,7 @@ fn test_output_bounded_kind() {
 
 #[test]
 fn test_apply_output_bounded() {
-	type Applied = Apply!(
-		brand: CloneWrapperBrand,
-		signature: (i32: Clone) -> Clone
-	);
+	type Applied = Apply!(<CloneWrapperBrand as trait { type Of<T: Clone>: Clone; }>::Of<i32>);
 
 	let w: Applied = CloneWrapper(10);
 	let _ = w.clone();
@@ -163,12 +151,8 @@ fn test_apply_explicit_kind() {
 		type Of<T> = ExplicitWrapper<T>;
 	}
 
-	type Applied = Apply!(
-		brand: ExplicitBrand,
-		kind: MyExplicitKind,
-		lifetimes: (),
-		types: (i32)
-	);
+	// Converted to standard Rust syntax as Apply! no longer supports explicit kind mode
+	type Applied = <ExplicitBrand as MyExplicitKind>::Of<i32>;
 
 	let w: Applied = ExplicitWrapper(99);
 	assert_eq!(w.0, 99);

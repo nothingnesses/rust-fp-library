@@ -4,7 +4,6 @@
 //! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
-	Apply,
 	classes::{clonable_fn::ClonableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
 };
@@ -23,9 +22,7 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-pub struct Endofunction<'a, FnBrand: ClonableFn, A>(
-	pub Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)),
-);
+pub struct Endofunction<'a, FnBrand: ClonableFn, A>(pub <FnBrand as ClonableFn>::Of<'a, A, A>);
 
 impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// Creates a new `Endofunction`.
@@ -59,9 +56,7 @@ impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(
-		f: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A))
-	) -> Self {
+	pub fn new(f: <FnBrand as ClonableFn>::Of<'a, A, A>) -> Self {
 		Self(f)
 	}
 }
@@ -74,7 +69,7 @@ impl<'a, FnBrand: ClonableFn, A> Clone for Endofunction<'a, FnBrand, A> {
 
 impl<'a, FnBrand: ClonableFn, A> Debug for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Debug,
+	<FnBrand as ClonableFn>::Of<'a, A, A>: Debug,
 {
 	fn fmt(
 		&self,
@@ -85,13 +80,13 @@ where
 }
 
 impl<'a, FnBrand: ClonableFn, A> Eq for Endofunction<'a, FnBrand, A> where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Eq
+	<FnBrand as ClonableFn>::Of<'a, A, A>: Eq
 {
 }
 
 impl<'a, FnBrand: ClonableFn, A> Hash for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Hash,
+	<FnBrand as ClonableFn>::Of<'a, A, A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -103,7 +98,7 @@ where
 
 impl<'a, FnBrand: ClonableFn, A> Ord for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): Ord,
+	<FnBrand as ClonableFn>::Of<'a, A, A>: Ord,
 {
 	fn cmp(
 		&self,
@@ -115,7 +110,7 @@ where
 
 impl<'a, FnBrand: ClonableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialEq,
+	<FnBrand as ClonableFn>::Of<'a, A, A>: PartialEq,
 {
 	fn eq(
 		&self,
@@ -127,7 +122,7 @@ where
 
 impl<'a, FnBrand: ClonableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, A)): PartialOrd,
+	<FnBrand as ClonableFn>::Of<'a, A, A>: PartialOrd,
 {
 	fn partial_cmp(
 		&self,

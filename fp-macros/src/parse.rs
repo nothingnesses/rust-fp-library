@@ -12,6 +12,7 @@ use syn::{
 /// Represents the parsed input for a Kind signature.
 ///
 /// This structure captures a list of associated type definitions.
+#[derive(Debug)]
 pub struct KindInput {
 	/// The list of associated type definitions.
 	pub assoc_types: Vec<KindAssocTypeInput>,
@@ -20,6 +21,7 @@ pub struct KindInput {
 /// Represents a single associated type definition in a Kind signature.
 ///
 /// Example: `type Of<'a, T: 'a>: Display;`
+#[derive(Debug)]
 pub struct KindAssocTypeInput {
 	/// The `type` keyword.
 	pub _type_token: Token![type],

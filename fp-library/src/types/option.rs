@@ -56,14 +56,8 @@ impl Functor for OptionBrand {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B: 'a) -> 'a,
-	)
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -108,9 +102,9 @@ impl Lift for OptionBrand {
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, C: 'a) -> 'a)
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: 'a,
@@ -151,7 +145,7 @@ impl Pointed for OptionBrand {
 	/// use fp_library::classes::pointed::pure;
 	/// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
 		Some(a)
 	}
 }
@@ -197,9 +191,9 @@ impl Semiapplicative for OptionBrand {
 	/// assert_eq!(apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5)), Some(10));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
+		ff: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
 		match (ff, fa) {
 			(Some(f), Some(a)) => Some(f(a)),
 			_ => None,
@@ -241,11 +235,11 @@ impl Semimonad for OptionBrand {
 	/// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		ma: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 		f: F,
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) + 'a,
+		F: Fn(A) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
 	{
 		ma.and_then(f)
 	}
@@ -289,7 +283,7 @@ impl Foldable for OptionBrand {
 	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -337,7 +331,7 @@ impl Foldable for OptionBrand {
 	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -384,7 +378,7 @@ impl Foldable for OptionBrand {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
 		func: Func,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -432,11 +426,11 @@ impl Traversable for OptionBrand {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
-		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
+		Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
 	{
 		match ta {
 			Some(a) => F::map(|b| Some(b), func(a)),
@@ -474,11 +468,11 @@ impl Traversable for OptionBrand {
 	/// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(brand: Self, signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
 	where
-		Apply!(brand: F, signature: ('a, A: 'a) -> 'a): Clone,
-		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): Clone,
+		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
 	{
 		match ta {
 			Some(fa) => F::map(|a| Some(a), fa),
@@ -525,8 +519,8 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 	/// assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "1".to_string());
 	/// ```
 	fn par_fold_map<'a, A, M>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,

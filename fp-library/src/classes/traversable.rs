@@ -50,29 +50,12 @@ pub trait Traversable: Functor + Foldable {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: F,
-		signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
-	)
+		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
 	where
-		Func: Fn(
-				A,
-			) -> Apply!(
-				brand: F,
-				signature: ('a, B: 'a) -> 'a,
-			) + 'a,
-		Apply!(
-			brand: Self,
-			signature: ('a, B: 'a) -> 'a,
-		): Clone,
-		Apply!(
-			brand: F,
-			signature: ('a, B: 'a) -> 'a,
-		): Clone,
+		Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
+		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
 	{
 		Self::sequence::<F, B>(Self::map::<Func, A, _>(func, ta))
 	}
@@ -109,33 +92,15 @@ pub trait Traversable: Functor + Foldable {
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(
-			brand: Self,
-			signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
-		)
-	) -> Apply!(
-		brand: F,
-		signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
-	)
+		ta: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+	) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
 	where
-		Apply!(
-			brand: F,
-			signature: ('a, A: 'a) -> 'a,
-		): Clone,
-		Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		): Clone,
+		Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+		Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
 	{
-		Self::traverse::<
-			F,
-			_,
-			Apply!(
-				brand: F,
-				signature: ('a, A: 'a) -> 'a,
-			),
-			A,
-		>(identity, ta)
+		Self::traverse::<F, _, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>), A>(
+			identity, ta,
+		)
 	}
 }
 
@@ -176,29 +141,12 @@ pub trait Traversable: Functor + Foldable {
 /// ```
 pub fn traverse<'a, Brand: Traversable, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 	func: Func,
-	ta: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
-) -> Apply!(
-	brand: F,
-	signature: ('a, Apply!(brand: Brand, signature: ('a, B: 'a) -> 'a): 'a) -> 'a,
-)
+	ta: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>)>)
 where
-	Func: Fn(
-			A,
-		) -> Apply!(
-			brand: F,
-			signature: ('a, B: 'a) -> 'a,
-		) + 'a,
-	Apply!(
-		brand: Brand,
-		signature: ('a, B: 'a) -> 'a,
-	): Clone,
-	Apply!(
-		brand: F,
-		signature: ('a, B: 'a) -> 'a,
-	): Clone,
+	Func: Fn(A) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) + 'a,
+	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
+	Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>): Clone,
 {
 	Brand::traverse::<F, Func, A, B>(func, ta)
 }
@@ -236,23 +184,11 @@ where
 /// assert_eq!(y, Some(Some(5)));
 /// ```
 pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
-	ta: Apply!(
-		brand: Brand,
-		signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
-	)
-) -> Apply!(
-	brand: F,
-	signature: ('a, Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a): 'a) -> 'a,
-)
+	ta: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
+) -> Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>)>)
 where
-	Apply!(
-		brand: F,
-		signature: ('a, A: 'a) -> 'a,
-	): Clone,
-	Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	): Clone,
+	Apply!(<F as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
+	Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>): Clone,
 {
 	Brand::sequence::<F, A>(ta)
 }

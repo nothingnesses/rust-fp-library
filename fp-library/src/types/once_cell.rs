@@ -13,7 +13,7 @@ impl_kind! {
 }
 
 impl Once for OnceCellBrand {
-	type Of<A> = Apply!(brand: Self, signature: (A));
+	type Of<A> = Apply!(<Self as trait { type Of<T>; }>::Of<A>);
 
 	/// Creates a new, uninitialized `Once` container.
 	///
@@ -40,7 +40,7 @@ impl Once for OnceCellBrand {
 	/// let cell = <OnceCellBrand as Once>::new::<i32>();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
 	/// ```
-	fn new<A>() -> Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)) {
+	fn new<A>() -> <Self as Once>::Of<A> {
 		OnceCell::new()
 	}
 
@@ -75,7 +75,7 @@ impl Once for OnceCellBrand {
 	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
 	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
 	/// ```
-	fn get<A>(a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<&A> {
+	fn get<A>(a: &<Self as Once>::Of<A>) -> Option<&A> {
 		OnceCell::get(a)
 	}
 
@@ -112,9 +112,7 @@ impl Once for OnceCellBrand {
 	/// }
 	/// assert_eq!(<OnceCellBrand as Once>::get_mut(&mut cell), Some(&mut 43));
 	/// ```
-	fn get_mut<A>(
-		a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))
-	) -> Option<&mut A> {
+	fn get_mut<A>(a: &mut <Self as Once>::Of<A>) -> Option<&mut A> {
 		OnceCell::get_mut(a)
 	}
 
@@ -150,7 +148,7 @@ impl Once for OnceCellBrand {
 	/// assert!(<OnceCellBrand as Once>::set(&cell, 10).is_err());
 	/// ```
 	fn set<A>(
-		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
+		a: &<Self as Once>::Of<A>,
 		value: A,
 	) -> Result<(), A> {
 		OnceCell::set(a, value)
@@ -189,7 +187,7 @@ impl Once for OnceCellBrand {
 	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 10), 42);
 	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
-		a: &Apply!(brand: Self, kind: Once, lifetimes: (), types: (A)),
+		a: &<Self as Once>::Of<A>,
 		f: B,
 	) -> &A {
 		OnceCell::get_or_init(a, f)
@@ -225,7 +223,7 @@ impl Once for OnceCellBrand {
 	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
 	/// assert_eq!(<OnceCellBrand as Once>::into_inner(cell), Some(42));
 	/// ```
-	fn into_inner<A>(a: Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A> {
+	fn into_inner<A>(a: <Self as Once>::Of<A>) -> Option<A> {
 		OnceCell::into_inner(a)
 	}
 
@@ -260,7 +258,7 @@ impl Once for OnceCellBrand {
 	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
 	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), None);
 	/// ```
-	fn take<A>(a: &mut Apply!(brand: Self, kind: Once, lifetimes: (), types: (A))) -> Option<A> {
+	fn take<A>(a: &mut <Self as Once>::Of<A>) -> Option<A> {
 		OnceCell::take(a)
 	}
 }

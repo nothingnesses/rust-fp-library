@@ -4,7 +4,6 @@
 //! This allows for generic handling of clonable functions (like `Rc<dyn Fn>`) in higher-kinded contexts.
 
 use super::function::Function;
-use crate::Apply;
 use std::ops::Deref;
 
 /// Abstraction for clonable wrappers over closures.
@@ -50,9 +49,7 @@ pub trait ClonableFn: Function {
 	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(brand: Self, kind: ClonableFn, lifetimes: ('a), types: (A, B));
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B>;
 }
 
 /// Creates a new clonable function wrapper.
@@ -86,9 +83,7 @@ pub trait ClonableFn: Function {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, Brand, A, B>(
-	f: impl 'a + Fn(A) -> B
-) -> Apply!(brand: Brand, kind: ClonableFn, lifetimes: ('a), types: (A, B))
+pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as ClonableFn>::Of<'a, A, B>
 where
 	Brand: ClonableFn,
 {

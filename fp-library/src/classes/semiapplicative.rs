@@ -58,18 +58,9 @@ pub trait Semiapplicative: Lift + Functor {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(
-			brand: Self,
-			signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
-		),
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B: 'a) -> 'a,
-	);
+		ff: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>);
 }
 
 /// Applies a function within a context to a value within a context.
@@ -111,17 +102,8 @@ pub trait Semiapplicative: Lift + Functor {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn apply<'a, FnBrand: 'a + ClonableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
-	ff: Apply!(
-		brand: Brand,
-		signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a,
-	),
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, B: 'a) -> 'a,
-) {
+	ff: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>) {
 	Brand::apply::<FnBrand, A, B>(ff, fa)
 }

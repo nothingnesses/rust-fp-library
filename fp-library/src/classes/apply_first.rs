@@ -45,18 +45,9 @@ pub trait ApplyFirst: Lift {
 	/// assert_eq!(z, Some(5));
 	/// ```
 	fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-		fb: Apply!(
-			brand: Self,
-			signature: ('a, B: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-	) {
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+		fb: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
+	) -> Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
 		Self::lift2(|a, _| a, fa, fb)
 	}
 }
@@ -96,17 +87,8 @@ pub trait ApplyFirst: Lift {
 /// assert_eq!(z, Some(5));
 /// ```
 pub fn apply_first<'a, Brand: ApplyFirst, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
-	fb: Apply!(
-		brand: Brand,
-		signature: ('a, B: 'a) -> 'a,
-	),
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-) {
+	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
+	fb: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, B>),
+) -> Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>) {
 	Brand::apply_first(fa, fb)
 }

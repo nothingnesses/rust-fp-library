@@ -81,8 +81,8 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	///
 	/// The combined monoid value
 	fn par_fold_map<'a, A, M>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -112,9 +112,9 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	///
 	/// The final accumulator value
 	fn par_fold_right<'a, A, B>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		init: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
@@ -159,8 +159,8 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 ///
 /// The combined monoid value
 pub fn par_fold_map<'a, FnBrand, Brand, A, M>(
-	func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-	fa: Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a),
+	func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 ) -> M
 where
 	FnBrand: SendClonableFn,
@@ -196,9 +196,9 @@ where
 ///
 /// The final accumulator value
 pub fn par_fold_right<'a, FnBrand, Brand, A, B>(
-	func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+	func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 	init: B,
-	fa: Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a),
+	fa: Apply!(<Brand as trait { type Of<'a, T: 'a>: 'a; }>::Of<'a, A>),
 ) -> B
 where
 	FnBrand: SendClonableFn,

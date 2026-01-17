@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `Compactable`, `Filterable` and `Witherable` typeclasses for discarding values in contexts.
 
 ### Changed
+- **`Apply!` Macro Migration**:
+  - Migrated all usages of `Apply!` to the new syntax: `Apply!(<Brand as trait { KindSignature }>::AssocType<Args>)`.
+  - Converted usages of the deprecated "Explicit Kind Mode" to standard Rust syntax (e.g., `<Brand as Kind>::Of<Args>`).
 - **Kind Trait Refactor**:
   - Updated `Kind` traits to support multiple associated types (e.g., `Of`, `SendOf`).
   - Updated `def_kind!` and `impl_kind!` macros to use standard Rust syntax for associated type definitions.
