@@ -1,4 +1,4 @@
-error[E0405]: cannot find trait `Kind_bd4ddc17b95f4bc6` in this scope
+error[E0405]: cannot find trait `Kind_ad6c20556a82a1f0` in this scope
  --> tests/ui/apply_invalid_syntax.rs:6:14
   |
 6 |       type T = Apply!(

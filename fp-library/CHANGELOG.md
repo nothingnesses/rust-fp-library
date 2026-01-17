@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data Shrinking Typeclasses**:
   - Added `Compactable`, `Filterable` and `Witherable` typeclasses for discarding values in contexts.
 
+### Changed
+- **Kind Trait Refactor**:
+  - Updated `Kind` traits to support multiple associated types (e.g., `Of`, `SendOf`).
+  - Updated `def_kind!` and `impl_kind!` macros to use standard Rust syntax for associated type definitions.
+  - Updated internal Kind trait hashes to reflect the new canonicalization logic.
+
 ---
 
 ## [0.3.0] - 2026-01-16

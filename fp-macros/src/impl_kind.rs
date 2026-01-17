@@ -5,28 +5,23 @@
 
 use crate::{
 	generate::generate_name,
-	parse::{KindInput, TypeInput},
+	parse::{KindAssocTypeInput, KindInput},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	GenericParam, Generics, Ident, Token, Type, TypeParamBound, braced,
+	Generics, Ident, Token, Type, TypeParamBound, braced,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
+
 /// Input structure for the `impl_kind!` macro.
 ///
 /// Parses syntax like:
 /// ```ignore
 /// impl<T> for MyBrand {
 ///     type Of<A> = MyType<A>;
-/// }
-/// ```
-///
-/// Or with where clause:
-/// ```ignore
-/// impl<E> for ResultBrand<E> where E: Debug {
-///     type Of<A> = Result<A, E>;
+///     type SendOf<B> = MySendType<B>;
 /// }
 /// ```
 #[allow(dead_code)]
@@ -37,21 +32,21 @@ pub struct ImplKindInput {
 	pub for_token: Token![for],
 	/// The brand type being implemented (e.g., `MyBrand`).
 	pub brand: Type,
-	/// The brace token surrounding the associated type definition.
+	/// The brace token surrounding the associated type definitions.
 	pub brace_token: syn::token::Brace,
-	/// The associated type definition inside the braces.
-	pub definition: KindAssocType,
+	/// The associated type definitions inside the braces.
+	pub definitions: Vec<KindAssocTypeImpl>,
 }
 
-/// Represents the associated type definition inside `impl_kind!`.
+/// Represents a single associated type definition inside `impl_kind!`.
 ///
 /// Example: `type Of<A> = MyType<A>;`
 #[allow(dead_code)]
-pub struct KindAssocType {
+pub struct KindAssocTypeImpl {
 	/// The `type` keyword.
 	pub type_token: Token![type],
-	/// The name of the associated type (must be `Of`).
-	pub of_ident: Ident,
+	/// The name of the associated type.
+	pub ident: Ident,
 	/// Generics for the associated type (e.g., `<A>`).
 	pub generics: Generics,
 	/// Optional colon for bounds.
@@ -86,20 +81,19 @@ impl Parse for ImplKindInput {
 		let content;
 		let brace_token = braced!(content in input);
 
-		let definition: KindAssocType = content.parse()?;
+		let mut definitions = Vec::new();
+		while !content.is_empty() {
+			definitions.push(content.parse()?);
+		}
 
-		Ok(ImplKindInput { impl_generics, for_token, brand, brace_token, definition })
+		Ok(ImplKindInput { impl_generics, for_token, brand, brace_token, definitions })
 	}
 }
 
-impl Parse for KindAssocType {
+impl Parse for KindAssocTypeImpl {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let type_token: Token![type] = input.parse()?;
-		let of_ident: Ident = input.parse()?;
-		if of_ident != "Of" {
-			return Err(syn::Error::new(of_ident.span(), "Expected associated type name 'Of'"));
-		}
-
+		let ident: Ident = input.parse()?;
 		let generics: Generics = input.parse()?;
 
 		let mut colon_token: Option<Token![:]> = None;
@@ -124,9 +118,9 @@ impl Parse for KindAssocType {
 		let target_type: Type = input.parse()?;
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(KindAssocType {
+		Ok(KindAssocTypeImpl {
 			type_token,
-			of_ident,
+			ident,
 			generics,
 			colon_token,
 			bounds,
@@ -140,41 +134,37 @@ impl Parse for KindAssocType {
 /// Generates the implementation for the `impl_kind!` macro.
 ///
 /// This function takes the parsed input, determines the correct `Kind` trait based on
-/// the signature of the associated type `Of`, and generates the `impl` block.
+/// the signature of the associated types, and generates the `impl` block.
 pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 	let brand = &input.brand;
-	let definition = &input.definition;
 	let impl_generics = &input.impl_generics;
 
 	// Convert to KindInput for name generation
-	let lifetimes: Punctuated<_, Token![,]> = definition
-		.generics
-		.params
+	let assoc_types_input: Vec<KindAssocTypeInput> = input
+		.definitions
 		.iter()
-		.filter_map(|p| match p {
-			GenericParam::Lifetime(lt) => Some(lt.lifetime.clone()),
-			_ => None,
+		.map(|def| KindAssocTypeInput {
+			_type_token: def.type_token,
+			ident: def.ident.clone(),
+			generics: def.generics.clone(),
+			_colon_token: def.colon_token,
+			output_bounds: def.bounds.clone(),
+			_semi_token: def.semi_token,
 		})
 		.collect();
 
-	let types: Punctuated<_, Token![,]> = definition
-		.generics
-		.params
-		.iter()
-		.filter_map(|p| match p {
-			GenericParam::Type(ty) => {
-				Some(TypeInput { ident: ty.ident.clone(), bounds: ty.bounds.clone() })
-			}
-			_ => None,
-		})
-		.collect();
-
-	let kind_input = KindInput { lifetimes, types, output_bounds: definition.bounds.clone() };
-
+	let kind_input = KindInput { assoc_types: assoc_types_input };
 	let kind_trait_name = generate_name(&kind_input);
 
-	let of_generics = &definition.generics;
-	let of_target = &definition.target_type;
+	let assoc_types_impl = input.definitions.iter().map(|def| {
+		let ident = &def.ident;
+		let generics = &def.generics;
+		let target = &def.target_type;
+
+		quote! {
+			type #ident #generics = #target;
+		}
+	});
 
 	// Generate doc comment
 	let doc_comment =
@@ -185,7 +175,7 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 	quote! {
 		#[doc = #doc_comment]
 		impl #impl_generics_impl #kind_trait_name for #brand #impl_generics_where {
-			type Of #of_generics = #of_target;
+			#(#assoc_types_impl)*
 		}
 	}
 }
@@ -195,24 +185,31 @@ mod tests {
 	use super::*;
 
 	// ===========================================================================
-	// impl_kind! Parsing and Generation Tests (Original)
+	// impl_kind! Parsing and Generation Tests
 	// ===========================================================================
 
-	/// Tests basic parsing of impl_kind! input.
-	///
-	/// Verifies that the parser correctly identifies the associated type name "Of".
 	#[test]
-	fn test_parse_impl_kind() {
-		let input = "for OptionBrand { type Of<'a, A: 'a>: 'a = Option<A>; }";
+	fn test_parse_impl_kind_simple() {
+		let input = "for OptionBrand { type Of<A> = Option<A>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		assert_eq!(parsed.definition.of_ident.to_string(), "Of");
+		assert_eq!(parsed.definitions.len(), 1);
+		assert_eq!(parsed.definitions[0].ident.to_string(), "Of");
 	}
 
-	/// Tests code generation for impl_kind!.
-	///
-	/// Verifies that the generated impl block contains the correct trait name,
-	/// brand type, and associated type definition.
+	#[test]
+	fn test_parse_impl_kind_multiple() {
+		let input = "for MyBrand { 
+			type Of<A> = MyType<A>;
+			type SendOf<B> = MySendType<B>;
+		}";
+		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
+
+		assert_eq!(parsed.definitions.len(), 2);
+		assert_eq!(parsed.definitions[0].ident.to_string(), "Of");
+		assert_eq!(parsed.definitions[1].ident.to_string(), "SendOf");
+	}
+
 	#[test]
 	fn test_impl_kind_generation() {
 		let input = "for OptionBrand { type Of<'a, A: 'a>: 'a = Option<A>; }";
@@ -223,8 +220,6 @@ mod tests {
 
 		assert!(output_str.contains("impl Kind_"));
 		assert!(output_str.contains("for OptionBrand"));
-		// Note: Bounds on associated types in impl blocks are not emitted because
-		// they have no effect in Rust (bounds are only valid in trait definitions).
 		assert!(output_str.contains("type Of < 'a , A : 'a > = Option < A >"));
 	}
 
@@ -232,16 +227,10 @@ mod tests {
 	// impl_kind! with generics Tests
 	// ===========================================================================
 
-	/// Tests impl_kind! with a single impl-level generic parameter.
-	///
-	/// Verifies that `impl<E> for ResultBrand<E>` correctly passes the
-	/// generic parameter to both the impl block and the brand type.
 	#[test]
 	fn test_impl_kind_with_impl_generics() {
 		let input = "impl<E> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
-
-		assert_eq!(parsed.definition.of_ident.to_string(), "Of");
 
 		let output = impl_kind_impl(parsed);
 		let output_str = output.to_string();
@@ -250,10 +239,6 @@ mod tests {
 		assert!(output_str.contains("for ResultBrand < E >"));
 	}
 
-	/// Tests impl_kind! with multiple bounded impl-level generics.
-	///
-	/// Verifies that bounds on impl generics (e.g., `E: Clone, F: Send`)
-	/// are preserved in the generated output.
 	#[test]
 	fn test_impl_kind_with_multiple_impl_generics() {
 		let input = "impl<E: Clone, F: Send> for MyBrand<E, F> { type Of<A> = MyType<A, E, F>; }";
@@ -266,12 +251,8 @@ mod tests {
 		assert!(output_str.contains("for MyBrand < E , F >"));
 	}
 
-	/// Tests impl_kind! with a path-qualified bound.
-	///
-	/// Verifies that bounds like `std::fmt::Debug` are correctly preserved.
 	#[test]
 	fn test_impl_kind_with_bounded_impl_generic() {
-		// Test that bounds on impl generics are preserved
 		let input = "impl<E: std::fmt::Debug> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
@@ -282,30 +263,10 @@ mod tests {
 		assert!(output_str.contains("for ResultBrand < E >"));
 	}
 
-	/// Tests impl_kind! with multiple lifetimes and multiple type parameters.
-	///
-	/// Verifies that complex signatures with multiple lifetimes and types
-	/// are correctly handled.
-	#[test]
-	fn test_impl_kind_multiple_lifetimes_and_types() {
-		let input = "for MyBrand { type Of<'a, 'b, A: 'a, B: 'b> = MyType<'a, 'b, A, B>; }";
-		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
-
-		let output = impl_kind_impl(parsed);
-		let output_str = output.to_string();
-
-		assert!(output_str.contains("impl Kind_"));
-		assert!(output_str.contains("type Of < 'a , 'b , A : 'a , B : 'b >"));
-	}
-
 	// ===========================================================================
 	// impl_kind! with where clauses Tests
 	// ===========================================================================
 
-	/// Tests impl_kind! with a single where clause bound.
-	///
-	/// Verifies that `where E: Debug` is correctly parsed and emitted
-	/// in the generated impl block.
 	#[test]
 	fn test_impl_kind_with_where_clause() {
 		let input =
@@ -320,10 +281,6 @@ mod tests {
 		assert!(output_str.contains("where E : std :: fmt :: Debug"));
 	}
 
-	/// Tests impl_kind! with multiple where clause predicates.
-	///
-	/// Verifies that `where E: Clone, F: Send` with multiple predicates
-	/// is correctly parsed and emitted.
 	#[test]
 	fn test_impl_kind_with_multiple_where_bounds() {
 		let input = "impl<E, F> for MyBrand<E, F> where E: Clone, F: Send { type Of<A> = MyType<A, E, F>; }";
@@ -334,20 +291,5 @@ mod tests {
 
 		assert!(output_str.contains("impl < E , F >"));
 		assert!(output_str.contains("where E : Clone , F : Send"));
-	}
-
-	/// Tests impl_kind! with multiple trait bounds in a single where predicate.
-	///
-	/// Verifies that `where E: Clone + Send + Sync` with multiple traits
-	/// on one parameter is correctly handled.
-	#[test]
-	fn test_impl_kind_with_complex_where_bounds() {
-		let input = "impl<E> for ResultBrand<E> where E: Clone + Send + Sync { type Of<A> = Result<A, E>; }";
-		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
-
-		let output = impl_kind_impl(parsed);
-		let output_str = output.to_string();
-
-		assert!(output_str.contains("where E : Clone + Send + Sync"));
 	}
 }

@@ -7,7 +7,7 @@ use crate::{Apply, kinds::*};
 /// A type class for types that can be constructed from a single value.
 ///
 /// `Pointed` represents a context that can be initialized with a value.
-pub trait Pointed: Kind_c3c3610c70409ee6 {
+pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// The value wrapped in the context.
 	///
 	/// This method wraps a value in a context.

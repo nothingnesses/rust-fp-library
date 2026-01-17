@@ -14,7 +14,7 @@ use crate::{Apply, kinds::*};
 /// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity, fa) = fa`.
 /// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
-pub trait Functor: Kind_c3c3610c70409ee6 {
+pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context.
 	///
 	/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).

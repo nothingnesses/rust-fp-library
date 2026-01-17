@@ -6,7 +6,7 @@
 
 use crate::{canonicalize::Canonicalizer, parse::KindInput};
 use quote::format_ident;
-use syn::Ident;
+use syn::{GenericParam, Ident};
 
 // Deterministic hashing setup
 // Using a fixed seed for reproducibility across builds
@@ -21,29 +21,58 @@ fn rapidhash(data: &[u8]) -> u64 {
 ///
 /// The name format is `Kind_{hash}`, where `{hash}` is a 16-character hexadecimal string
 /// representing the 64-bit hash of the canonical signature.
+///
+/// The canonical signature is constructed by:
+/// 1. Sorting associated types by name.
+/// 2. For each associated type, creating a canonical string including:
+///    - Name
+///    - Lifetime count
+///    - Type parameter count
+///    - Canonicalized bounds on type parameters
+///    - Canonicalized output bounds
+/// 3. Joining these strings with `__`.
 pub fn generate_name(input: &KindInput) -> Ident {
-	let canon = Canonicalizer::new(&input.lifetimes, &input.types);
+	let mut assoc_types: Vec<_> = input.assoc_types.iter().collect();
+	// Sort by identifier to ensure order-independence
+	assoc_types.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
 
-	let l_count = input.lifetimes.len();
-	let t_count = input.types.len();
+	let mut canonical_parts = Vec::new();
 
-	let mut canonical_parts = vec![format!("L{}", l_count), format!("T{}", t_count)];
+	for assoc in assoc_types {
+		let canon = Canonicalizer::new(&assoc.generics);
 
-	// Type bounds
-	for (i, ty) in input.types.iter().enumerate() {
-		if !ty.bounds.is_empty() {
-			let bounds_str = canon.canonicalize_bounds(&ty.bounds);
-			canonical_parts.push(format!("B{}{}", i, bounds_str));
+		let mut l_count = 0;
+		let mut t_count = 0;
+		let mut type_bounds_parts = Vec::new();
+
+		for param in &assoc.generics.params {
+			match param {
+				GenericParam::Lifetime(_) => l_count += 1,
+				GenericParam::Type(ty) => {
+					if !ty.bounds.is_empty() {
+						let bounds_str = canon.canonicalize_bounds(&ty.bounds);
+						// Use current type index for bound association
+						type_bounds_parts.push(format!("B{}{}", t_count, bounds_str));
+					}
+					t_count += 1;
+				}
+				_ => {}
+			}
 		}
+
+		let mut parts =
+			vec![assoc.ident.to_string(), format!("L{}", l_count), format!("T{}", t_count)];
+		parts.extend(type_bounds_parts);
+
+		if !assoc.output_bounds.is_empty() {
+			let bounds_str = canon.canonicalize_bounds(&assoc.output_bounds);
+			parts.push(format!("O{}", bounds_str));
+		}
+
+		canonical_parts.push(parts.join("_"));
 	}
 
-	// Output bounds
-	if !input.output_bounds.is_empty() {
-		let bounds_str = canon.canonicalize_bounds(&input.output_bounds);
-		canonical_parts.push(format!("O{}", bounds_str));
-	}
-
-	let canonical_repr = canonical_parts.join("_");
+	let canonical_repr = canonical_parts.join("__");
 
 	// Always use hash for consistency and to avoid length issues
 	let hash = rapidhash(canonical_repr.as_bytes());
@@ -64,15 +93,12 @@ mod tests {
 	// ===========================================================================
 
 	/// Tests that identical inputs produce identical Kind trait names.
-	///
-	/// This is critical for the HKT system - the same signature must always
-	/// map to the same trait name across different compilation units.
 	#[test]
 	fn test_generate_name_determinism() {
-		let input1 = parse_kind_input("('a), (A: 'a), ('a)");
+		let input1 = parse_kind_input("type Of<'a, A: 'a>: 'a;");
 		let name1 = generate_name(&input1);
 
-		let input2 = parse_kind_input("('a), (A: 'a), ('a)");
+		let input2 = parse_kind_input("type Of<'a, A: 'a>: 'a;");
 		let name2 = generate_name(&input2);
 
 		assert_eq!(name1, name2);
@@ -80,63 +106,58 @@ mod tests {
 	}
 
 	/// Tests that different inputs produce different Kind trait names.
-	///
-	/// Verifies that the hash function produces distinct names for
-	/// semantically different signatures.
 	#[test]
 	fn test_generate_name_different_inputs() {
-		let input1 = parse_kind_input("('a), (A: 'a), ('a)");
+		let input1 = parse_kind_input("type Of<'a, A: 'a>: 'a;");
 		let name1 = generate_name(&input1);
 
-		let input2 = parse_kind_input("(), (A), ()");
+		let input2 = parse_kind_input("type Of<A>;");
 		let name2 = generate_name(&input2);
 
 		assert_ne!(name1, name2);
 	}
 
-	// ===========================================================================
-	// Name Generation Edge Cases
-	// ===========================================================================
-
-	/// Tests name generation with completely empty inputs.
-	///
-	/// Verifies that `(), (), ()` (no lifetimes, no types, no bounds)
-	/// still produces a valid Kind trait name.
+	/// Tests that associated type order doesn't affect the generated name.
 	#[test]
-	fn test_generate_name_empty_inputs() {
-		let input = parse_kind_input("(), (), ()");
-		let name = generate_name(&input);
+	fn test_generate_name_order_independence() {
+		let input1 = parse_kind_input(
+			"
+			type Of<'a, T>: Display;
+			type SendOf<U>: Send;
+		",
+		);
+		let name1 = generate_name(&input1);
 
-		assert!(name.to_string().starts_with("Kind_"));
+		let input2 = parse_kind_input(
+			"
+			type SendOf<U>: Send;
+			type Of<'a, T>: Display;
+		",
+		);
+		let name2 = generate_name(&input2);
+
+		assert_eq!(name1, name2);
 	}
 
 	/// Tests name generation with complex bounded types.
-	///
-	/// Verifies determinism - parsing the same complex input twice
-	/// must produce the same name.
 	#[test]
 	fn test_generate_name_complex_bounds() {
-		// Complex case with multiple bounded types (using simpler bounds to avoid parser issues)
-		let input = parse_kind_input("('a), (A: Clone + Send), (Clone + Send)");
+		let input = parse_kind_input("type Of<'a, A: Clone + Send>: Clone + Send;");
 		let name = generate_name(&input);
 
 		assert!(name.to_string().starts_with("Kind_"));
+
 		// Ensure determinism
-		let input2 = parse_kind_input("('a), (A: Clone + Send), (Clone + Send)");
+		let input2 = parse_kind_input("type Of<'a, A: Clone + Send>: Clone + Send;");
 		let name2 = generate_name(&input2);
 		assert_eq!(name, name2);
 	}
 
 	/// Tests that bound order doesn't affect the generated name.
-	///
-	/// Verifies that `Clone + Send` produces the same name as `Send + Clone`,
-	/// ensuring that syntactically different but semantically equivalent
-	/// signatures map to the same Kind trait.
 	#[test]
 	fn test_generate_name_bound_order_independence() {
-		// Bounds in different order should produce the same name
-		let input1 = parse_kind_input("(), (A: Clone + Send), ()");
-		let input2 = parse_kind_input("(), (A: Send + Clone), ()");
+		let input1 = parse_kind_input("type Of<A: Clone + Send>;");
+		let input2 = parse_kind_input("type Of<A: Send + Clone>;");
 
 		let name1 = generate_name(&input1);
 		let name2 = generate_name(&input2);

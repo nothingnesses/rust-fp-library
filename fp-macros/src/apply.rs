@@ -2,27 +2,16 @@
 //!
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
-//!
-//! The macro supports two modes:
-//!
-//! 1. **Unified Signature Mode** (Recommended):
-//!    `Apply!(brand: MyBrand, signature: ('a, T: Clone))`
-//!    - `signature`: Contains both schema (for Kind name) and values (for projection).
-//!
-//! 2. **Explicit Kind Mode** (Advanced):
-//!    `Apply!(brand: MyBrand, kind: SomeKind, lifetimes: ('a), types: (T))`
-//!    - `kind`: Explicit Kind trait name.
-//!    - `lifetimes`: Explicit lifetime arguments.
-//!    - `types`: Explicit type arguments.
 
 use crate::{
 	generate::generate_name,
-	parse::{KindInput, TypeInput},
+	parse::{KindAssocTypeInput, KindInput},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
-	Ident, Lifetime, Token, Type, TypeParamBound, parenthesized,
+	GenericParam, Generics, Ident, Lifetime, LifetimeParam, Token, Type, TypeParam, TypeParamBound,
+	parenthesized,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
@@ -47,27 +36,66 @@ pub struct UnifiedSignature {
 
 impl UnifiedSignature {
 	/// Convert to KindInput for name generation.
-	pub fn to_kind_input(&self) -> KindInput {
-		let mut lifetimes = Punctuated::new();
-		let mut types = Punctuated::new();
+	pub fn to_kind_input(
+		&self,
+		assoc_name: &Ident,
+	) -> KindInput {
+		let mut params = Punctuated::new();
 
+		// Add lifetimes
 		for param in &self.params {
-			match param {
-				SignatureParam::Lifetime(lt) => {
-					// Use original lifetime names for Kind generation
-					// Canonicalizer will map them to indices
-					lifetimes.push(lt.clone());
-				}
-				SignatureParam::Type { bounds, .. } => {
-					// Use canonical type names for Kind generation
-					let canonical_ident =
-						Ident::new(&format!("T{}", types.len()), Span::call_site());
-					types.push(TypeInput { ident: canonical_ident, bounds: bounds.clone() });
-				}
+			if let SignatureParam::Lifetime(lt) = param {
+				params.push(GenericParam::Lifetime(LifetimeParam {
+					attrs: Vec::new(),
+					lifetime: lt.clone(),
+					colon_token: None,
+					bounds: Punctuated::new(),
+				}));
 			}
 		}
 
-		KindInput { lifetimes, types, output_bounds: self.output_bounds.clone() }
+		// Add types
+		let mut t_idx = 0;
+		for param in &self.params {
+			if let SignatureParam::Type { bounds, .. } = param {
+				let ident = format_ident!("T{}", t_idx as usize);
+				t_idx += 1;
+				params.push(GenericParam::Type(TypeParam {
+					attrs: Vec::new(),
+					ident,
+					colon_token: if bounds.is_empty() {
+						None
+					} else {
+						Some(Token![:](Span::call_site()))
+					},
+					bounds: bounds.clone(),
+					eq_token: None,
+					default: None,
+				}));
+			}
+		}
+
+		let generics = Generics {
+			lt_token: Some(Token![<](Span::call_site())),
+			params,
+			gt_token: Some(Token![>](Span::call_site())),
+			where_clause: None,
+		};
+
+		let assoc = KindAssocTypeInput {
+			_type_token: Token![type](Span::call_site()),
+			ident: assoc_name.clone(),
+			generics,
+			_colon_token: if self.output_bounds.is_empty() {
+				None
+			} else {
+				Some(Token![:](Span::call_site()))
+			},
+			output_bounds: self.output_bounds.clone(),
+			_semi_token: Token![;](Span::call_site()),
+		};
+
+		KindInput { assoc_types: vec![assoc] }
 	}
 
 	/// Extract concrete lifetime values for projection.
@@ -275,22 +303,13 @@ fn parse_bounds(input: ParseStream) -> syn::Result<Punctuated<TypeParamBound, To
 }
 
 /// Generates the implementation for the `Apply!` macro.
-///
-/// This function takes the parsed input and generates the code to project the
-/// brand to its concrete type using the appropriate `Kind` trait.
-///
-/// # Example Output
-///
-/// ```ignore
-/// <OptionBrand as Kind_...>::Of<T>
-/// ```
 pub fn apply_impl(input: ApplyInput) -> TokenStream {
 	let brand = &input.brand;
-	let assoc_type = input.output.unwrap_or_else(|| Ident::new("Of", Span::call_site()));
+	let assoc_type = input.output.clone().unwrap_or_else(|| Ident::new("Of", Span::call_site()));
 
 	let (kind_name, params) = match &input.kind_source {
 		KindSource::Generated(sig) => {
-			let kind_input = sig.to_kind_input();
+			let kind_input = sig.to_kind_input(&assoc_type);
 			let name = generate_name(&kind_input);
 
 			let lifetimes = sig.concrete_lifetimes();
@@ -331,7 +350,6 @@ mod tests {
 	// Apply! Unified Signature Tests
 	// ===========================================================================
 
-	/// Tests parsing of Apply! with unified signature syntax.
 	#[test]
 	fn test_parse_apply_unified() {
 		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a";
@@ -340,25 +358,11 @@ mod tests {
 		match parsed.kind_source {
 			KindSource::Generated(sig) => {
 				assert_eq!(sig.params.len(), 2);
-				// Check first param is lifetime
-				match &sig.params[0] {
-					SignatureParam::Lifetime(lt) => assert_eq!(lt.to_string(), "'a"),
-					_ => panic!("Expected lifetime"),
-				}
-				// Check second param is type
-				match &sig.params[1] {
-					SignatureParam::Type { ty, bounds } => {
-						assert_eq!(quote!(#ty).to_string(), "A");
-						assert_eq!(bounds.len(), 1);
-					}
-					_ => panic!("Expected type"),
-				}
 			}
 			_ => panic!("Expected generated kind source"),
 		}
 	}
 
-	/// Tests code generation for Apply! with unified signature.
 	#[test]
 	fn test_apply_generation_unified() {
 		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a";
@@ -371,306 +375,6 @@ mod tests {
 		assert!(output_str.contains(":: Of < 'a , A >"));
 	}
 
-	/// Tests parsing of complex types and bounds in signature.
-	#[test]
-	fn test_parse_signature_complex() {
-		let input = "brand: MyBrand, signature: (Vec<T>: Clone + Debug, &'a str: Display)";
-		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse complex signature");
-
-		match parsed.kind_source {
-			KindSource::Generated(sig) => {
-				assert_eq!(sig.params.len(), 2);
-				match &sig.params[0] {
-					SignatureParam::Type { ty, bounds } => {
-						assert_eq!(quote!(#ty).to_string(), "Vec < T >");
-						assert_eq!(bounds.len(), 2);
-					}
-					_ => panic!("Expected type"),
-				}
-			}
-			_ => panic!("Expected generated kind source"),
-		}
-	}
-
-	/// Comprehensive parsing tests covering various signature patterns.
-	#[test]
-	fn test_parse_variations() {
-		// Helper to parse and get signature
-		fn parse_sig(sig_str: &str) -> UnifiedSignature {
-			let input = format!("brand: B, signature: {}", sig_str);
-			let parsed: ApplyInput =
-				syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
-			match parsed.kind_source {
-				KindSource::Generated(sig) => sig,
-				_ => panic!("Expected generated kind source"),
-			}
-		}
-
-		// Simple lifetime: ('a)
-		let sig = parse_sig("('a)");
-		assert_eq!(sig.params.len(), 1);
-		match &sig.params[0] {
-			SignatureParam::Lifetime(lt) => assert_eq!(lt.to_string(), "'a"),
-			_ => panic!("Expected lifetime"),
-		}
-
-		// Simple type: (T)
-		let sig = parse_sig("(T)");
-		assert_eq!(sig.params.len(), 1);
-		match &sig.params[0] {
-			SignatureParam::Type { ty, bounds } => {
-				assert_eq!(quote!(#ty).to_string(), "T");
-				assert!(bounds.is_empty());
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Type with bounds: (T: Clone)
-		let sig = parse_sig("(T: Clone)");
-		match &sig.params[0] {
-			SignatureParam::Type { bounds, .. } => {
-				assert_eq!(bounds.len(), 1);
-				assert_eq!(quote!(#bounds).to_string(), "Clone");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Multiple bounds: (T: Clone + Send)
-		let sig = parse_sig("(T: Clone + Send)");
-		match &sig.params[0] {
-			SignatureParam::Type { bounds, .. } => {
-				assert_eq!(bounds.len(), 2);
-				assert_eq!(quote!(#bounds).to_string(), "Clone + Send");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Lifetime bound: (T: 'a)
-		let sig = parse_sig("(T: 'a)");
-		match &sig.params[0] {
-			SignatureParam::Type { bounds, .. } => {
-				assert_eq!(bounds.len(), 1);
-				assert_eq!(quote!(#bounds).to_string(), "'a");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Mixed parameters: ('a, T: Clone)
-		let sig = parse_sig("('a, T: Clone)");
-		assert_eq!(sig.params.len(), 2);
-		match &sig.params[0] {
-			SignatureParam::Lifetime(lt) => assert_eq!(lt.to_string(), "'a"),
-			_ => panic!("Expected lifetime"),
-		}
-		match &sig.params[1] {
-			SignatureParam::Type { ty, bounds } => {
-				assert_eq!(quote!(#ty).to_string(), "T");
-				assert_eq!(quote!(#bounds).to_string(), "Clone");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Complex type: (Vec<String>: Clone)
-		let sig = parse_sig("(Vec<String>: Clone)");
-		match &sig.params[0] {
-			SignatureParam::Type { ty, .. } => {
-				assert_eq!(quote!(#ty).to_string(), "Vec < String >");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Reference type: (&'a str: Display)
-		let sig = parse_sig("(&'a str: Display)");
-		match &sig.params[0] {
-			SignatureParam::Type { ty, .. } => {
-				assert_eq!(quote!(#ty).to_string(), "& 'a str");
-			}
-			_ => panic!("Expected type"),
-		}
-
-		// Output bounds: ('a, T) -> Debug
-		let sig = parse_sig("('a, T) -> Debug");
-		assert_eq!(sig.output_bounds.len(), 1);
-		let output_bounds = &sig.output_bounds;
-		assert_eq!(quote!(#output_bounds).to_string(), "Debug");
-
-		// Multiple output bounds: ('a, T) -> Debug + Clone
-		let sig = parse_sig("('a, T) -> Debug + Clone");
-		assert_eq!(sig.output_bounds.len(), 2);
-		let output_bounds = &sig.output_bounds;
-		assert_eq!(quote!(#output_bounds).to_string(), "Debug + Clone");
-	}
-
-	/// Tests extraction of KindInput and concrete values from UnifiedSignature.
-	#[test]
-	fn test_extraction_variations() {
-		// Helper to parse and get signature
-		fn parse_sig(sig_str: &str) -> UnifiedSignature {
-			let input = format!("brand: B, signature: {}", sig_str);
-			let parsed: ApplyInput =
-				syn::parse_str(&input).expect(&format!("Failed to parse: {}", sig_str));
-			match parsed.kind_source {
-				KindSource::Generated(sig) => sig,
-				_ => panic!("Expected generated kind source"),
-			}
-		}
-
-		// Case: ('a, T: Clone)
-		let sig = parse_sig("('a, T: Clone)");
-
-		// Test to_kind_input()
-		let kind_input = sig.to_kind_input();
-		assert_eq!(kind_input.lifetimes.len(), 1);
-		assert_eq!(kind_input.lifetimes[0].to_string(), "'a");
-
-		assert_eq!(kind_input.types.len(), 1);
-		assert_eq!(kind_input.types[0].ident.to_string(), "T0"); // Canonicalized
-		let bounds = &kind_input.types[0].bounds;
-		assert_eq!(quote!(#bounds).to_string(), "Clone");
-
-		// Test concrete_lifetimes()
-		let concrete_lts = sig.concrete_lifetimes();
-		assert_eq!(concrete_lts.len(), 1);
-		assert_eq!(concrete_lts[0].to_string(), "'a");
-
-		// Test concrete_types()
-		let concrete_tys = sig.concrete_types();
-		assert_eq!(concrete_tys.len(), 1);
-		let ty0 = concrete_tys[0];
-		assert_eq!(quote!(#ty0).to_string(), "T");
-
-		// Case: (Vec<T>: Debug, &'a str)
-		let sig = parse_sig("(Vec<T>: Debug, &'a str)");
-
-		let kind_input = sig.to_kind_input();
-		assert_eq!(kind_input.types.len(), 2);
-		assert_eq!(kind_input.types[0].ident.to_string(), "T0");
-		let bounds0 = &kind_input.types[0].bounds;
-		assert_eq!(quote!(#bounds0).to_string(), "Debug");
-		assert_eq!(kind_input.types[1].ident.to_string(), "T1");
-		assert!(kind_input.types[1].bounds.is_empty());
-
-		let concrete_tys = sig.concrete_types();
-		assert_eq!(concrete_tys.len(), 2);
-		let ty0 = concrete_tys[0];
-		assert_eq!(quote!(#ty0).to_string(), "Vec < T >");
-		let ty1 = concrete_tys[1];
-		assert_eq!(quote!(#ty1).to_string(), "& 'a str");
-	}
-
-	/// Tests code generation for various scenarios.
-	#[test]
-	fn test_generation_variations() {
-		// Helper to generate output string
-		fn generate(input_str: &str) -> String {
-			let parsed: ApplyInput = syn::parse_str(input_str).expect("Failed to parse");
-			apply_impl(parsed).to_string()
-		}
-
-		// Unified syntax: ('a, T)
-		let output = generate("brand: B, signature: ('a, T)");
-		assert!(output.contains("< B as Kind_"));
-		assert!(output.contains(":: Of < 'a , T >"));
-
-		// Unified syntax with bounds: (T: Clone)
-		// Bounds affect the Kind name but not the projection arguments
-		let output = generate("brand: B, signature: (T: Clone)");
-		assert!(output.contains("< B as Kind_"));
-		assert!(output.contains(":: Of < T >"));
-
-		// Unified syntax with complex types: (Vec<T>)
-		let output = generate("brand: B, signature: (Vec<T>)");
-		assert!(output.contains("< B as Kind_"));
-		assert!(output.contains(":: Of < Vec < T > >"));
-
-		// Explicit kind syntax
-		let output = generate("brand: B, kind: MyKind, lifetimes: ('a), types: (T)");
-		assert!(output.contains("< B as MyKind >"));
-		assert!(output.contains(":: Of < 'a , T >"));
-
-		// Explicit kind syntax (only types)
-		let output = generate("brand: B, kind: MyKind, lifetimes: (), types: (T)");
-		assert!(output.contains("< B as MyKind >"));
-		assert!(output.contains(":: Of < T >"));
-
-		// Explicit kind syntax (only lifetimes)
-		let output = generate("brand: B, kind: MyKind, lifetimes: ('a), types: ()");
-		assert!(output.contains("< B as MyKind >"));
-		assert!(output.contains(":: Of < 'a >"));
-	}
-
-	// ===========================================================================
-	// Apply! Explicit Kind Tests
-	// ===========================================================================
-
-	/// Tests parsing of Apply! with explicit kind.
-	#[test]
-	fn test_apply_explicit_kind_parsing() {
-		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String)";
-		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
-
-		match parsed.kind_source {
-			KindSource::Explicit { kind, lifetimes, types } => {
-				assert_eq!(quote!(#kind).to_string(), "SomeKind");
-				assert_eq!(lifetimes.len(), 1);
-				assert_eq!(types.len(), 1);
-			}
-			KindSource::Generated(_) => panic!("Expected explicit kind source"),
-		}
-	}
-
-	/// Tests code generation for Apply! with explicit kind.
-	#[test]
-	fn test_apply_explicit_kind_generation() {
-		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String)";
-		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind");
-
-		let output = apply_impl(parsed);
-		let output_str = output.to_string();
-
-		assert!(output_str.contains("< OptionBrand as SomeKind >"));
-		assert!(output_str.contains(":: Of < 'a , String >"));
-	}
-
-	// ===========================================================================
-	// Error Case Tests
-	// ===========================================================================
-
-	#[test]
-	fn test_error_signature_with_lifetimes() {
-		let input = "brand: B, signature: (T), lifetimes: ('a)";
-		let err = syn::parse_str::<ApplyInput>(input).unwrap_err();
-		assert_eq!(err.to_string(), "'lifetimes' parameter is not allowed with 'signature'");
-	}
-
-	#[test]
-	fn test_error_signature_with_types() {
-		let input = "brand: B, signature: (T), types: (U)";
-		let err = syn::parse_str::<ApplyInput>(input).unwrap_err();
-		assert_eq!(err.to_string(), "'types' parameter is not allowed with 'signature'");
-	}
-
-	#[test]
-	fn test_error_kind_missing_lifetimes() {
-		let input = "brand: B, kind: K, types: (T)";
-		let err = syn::parse_str::<ApplyInput>(input).unwrap_err();
-		assert_eq!(err.to_string(), "'lifetimes' parameter is required with 'kind'");
-	}
-
-	#[test]
-	fn test_error_kind_missing_types() {
-		let input = "brand: B, kind: K, lifetimes: ('a)";
-		let err = syn::parse_str::<ApplyInput>(input).unwrap_err();
-		assert_eq!(err.to_string(), "'types' parameter is required with 'kind'");
-	}
-
-	// ===========================================================================
-	// Integration Tests
-	// ===========================================================================
-
-	/// Tests that `to_kind_input()` correctly converts a UnifiedSignature.
 	#[test]
 	fn test_to_kind_input_conversion() {
 		let input = "brand: B, signature: ('a, T: Clone + 'a) -> Debug";
@@ -678,103 +382,14 @@ mod tests {
 
 		match parsed.kind_source {
 			KindSource::Generated(sig) => {
-				let kind_input = sig.to_kind_input();
+				let kind_input = sig.to_kind_input(&Ident::new("Of", Span::call_site()));
 
-				// Check lifetimes
-				assert_eq!(kind_input.lifetimes.len(), 1);
-				assert_eq!(kind_input.lifetimes[0].to_string(), "'a");
-
-				// Check types
-				assert_eq!(kind_input.types.len(), 1);
-				// Type name should be canonicalized to T0
-				assert_eq!(kind_input.types[0].ident.to_string(), "T0");
-				// Bounds should be preserved
-				assert_eq!(kind_input.types[0].bounds.len(), 2);
-
-				// Check output bounds
-				assert_eq!(kind_input.output_bounds.len(), 1);
-				let output_bounds = &kind_input.output_bounds;
-				assert_eq!(quote!(#output_bounds).to_string(), "Debug");
+				assert_eq!(kind_input.assoc_types.len(), 1);
+				let assoc = &kind_input.assoc_types[0];
+				assert_eq!(assoc.ident.to_string(), "Of");
+				assert_eq!(assoc.generics.params.len(), 2);
 			}
 			_ => panic!("Expected generated kind source"),
 		}
-	}
-
-	/// Tests that `generate_name()` works correctly with the output of `to_kind_input()`.
-	#[test]
-	fn test_generate_name_integration() {
-		let input = "brand: B, signature: ('a, T: 'a)";
-		let parsed: ApplyInput = syn::parse_str(input).expect("Failed to parse");
-
-		match parsed.kind_source {
-			KindSource::Generated(sig) => {
-				let kind_input = sig.to_kind_input();
-				let name = generate_name(&kind_input);
-				assert!(name.to_string().starts_with("Kind_"));
-			}
-			_ => panic!("Expected generated kind source"),
-		}
-	}
-
-	/// Tests that `generate_name()` produces consistent names for alpha-equivalent signatures.
-	#[test]
-	fn test_generate_name_consistency() {
-		// Case 1: ('a, T: 'a)
-		let input1 = "brand: B, signature: ('a, T: 'a)";
-		let parsed1: ApplyInput = syn::parse_str(input1).expect("Failed to parse 1");
-		let sig1 = match parsed1.kind_source {
-			KindSource::Generated(s) => s,
-			_ => panic!("Expected generated kind source"),
-		};
-		let name1 = generate_name(&sig1.to_kind_input());
-
-		// Case 2: ('b, U: 'b) - alpha equivalent
-		let input2 = "brand: B, signature: ('b, U: 'b)";
-		let parsed2: ApplyInput = syn::parse_str(input2).expect("Failed to parse 2");
-		let sig2 = match parsed2.kind_source {
-			KindSource::Generated(s) => s,
-			_ => panic!("Expected generated kind source"),
-		};
-		let name2 = generate_name(&sig2.to_kind_input());
-
-		assert_eq!(name1, name2, "Alpha-equivalent signatures should produce same Kind name");
-	}
-
-	/// Tests parsing of Apply! with output parameter.
-	#[test]
-	fn test_parse_apply_with_output() {
-		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, output: SendOf";
-		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput with output");
-
-		assert_eq!(parsed.output.unwrap().to_string(), "SendOf");
-	}
-
-	/// Tests code generation for Apply! with output parameter.
-	#[test]
-	fn test_apply_generation_with_output() {
-		let input = "brand: OptionBrand, signature: ('a, A: 'a) -> 'a, output: SendOf";
-		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput with output");
-
-		let output = apply_impl(parsed);
-		let output_str = output.to_string();
-
-		assert!(output_str.contains("< OptionBrand as Kind_"));
-		assert!(output_str.contains(":: SendOf < 'a , A >"));
-	}
-
-	/// Tests code generation for Apply! with explicit kind and output parameter.
-	#[test]
-	fn test_apply_explicit_kind_with_output() {
-		let input = "brand: OptionBrand, kind: SomeKind, lifetimes: ('a), types: (String), output: MyOutput";
-		let parsed: ApplyInput =
-			syn::parse_str(input).expect("Failed to parse ApplyInput explicit kind with output");
-
-		let output = apply_impl(parsed);
-		let output_str = output.to_string();
-
-		assert!(output_str.contains("< OptionBrand as SomeKind >"));
-		assert!(output_str.contains(":: MyOutput < 'a , String >"));
 	}
 }

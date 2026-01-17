@@ -6,7 +6,9 @@ use std::fmt::Display;
 // ===========================================================================
 
 // Define a Kind with 1 type parameter and no bounds
-def_kind!((), (T), ());
+def_kind!(
+	type Of<T>;
+);
 
 struct Wrapper<T>(T);
 struct WrapperBrand;
@@ -39,7 +41,9 @@ fn test_apply_macro_simple() {
 // ===========================================================================
 
 // Define a Kind with 1 lifetime and 1 type bounded by that lifetime
-def_kind!(('a), (T: 'a), ());
+def_kind!(
+	type Of<'a, T: 'a>;
+);
 
 struct RefWrapper<'a, T: 'a>(&'a T);
 struct RefWrapperBrand;
@@ -75,7 +79,9 @@ fn test_apply_macro_with_lifetime() {
 // ===========================================================================
 
 // Define a Kind where the type parameter must implement Display
-def_kind!((), (T: Display), ());
+def_kind!(
+	type Of<T: Display>;
+);
 
 struct DisplayWrapper<T: Display>(T);
 struct DisplayWrapperBrand;
@@ -103,7 +109,9 @@ fn test_bounded_kind() {
 
 // Define a Kind where the output type must implement Clone
 // We must also require T: Clone because CloneWrapper<T> only implements Clone if T: Clone
-def_kind!((), (T: Clone), (Clone));
+def_kind!(
+	type Of<T: Clone>: Clone;
+);
 
 #[derive(Clone)]
 struct CloneWrapper<T>(T);

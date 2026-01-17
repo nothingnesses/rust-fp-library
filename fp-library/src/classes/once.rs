@@ -8,7 +8,7 @@ use crate::{Apply, kinds::*};
 ///
 /// `Once` represents a container that holds a value that is initialized at most once.
 /// It provides methods for initialization, access, and consumption.
-pub trait Once: Kind_bd4ddc17b95f4bc6 {
+pub trait Once: Kind_ad6c20556a82a1f0 {
 	type Of<A>;
 
 	/// Creates a new, uninitialized `Once` container.

@@ -7,7 +7,7 @@ use crate::{Apply, kinds::*};
 /// A type class for types that can be lifted.
 ///
 /// `Lift` allows binary functions to be lifted into the context.
-pub trait Lift: Kind_c3c3610c70409ee6 {
+pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// Lifts a binary function into the context.
 	///
 	/// This method lifts a binary function to operate on values within the context.

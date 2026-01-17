@@ -23,7 +23,7 @@ use crate::{
 /// *   If [`Foldable::fold_map`] is implemented, [`Foldable::fold_right`] is derived from it, and [`Foldable::fold_left`] is derived from the derived [`Foldable::fold_right`].
 ///
 /// Note that [`Foldable::fold_left`] is not sufficient on its own because the default implementations of [`Foldable::fold_right`] and [`Foldable::fold_map`] do not depend on it.
-pub trait Foldable: Kind_c3c3610c70409ee6 {
+pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// Folds the structure by applying a function from right to left.
 	///
 	/// This method performs a right-associative fold of the structure.
