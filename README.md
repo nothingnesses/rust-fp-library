@@ -35,6 +35,42 @@ Rust is a multi-paradigm language with strong functional programming features li
 2.  A comprehensive set of standard type classes (`Functor`, `Monad`, `Traversable`, etc.).
 3.  Zero-cost abstractions that respect Rust's performance characteristics.
 
+## Usage
+
+Add `fp-library` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+fp-library = "0.4"
+```
+
+### Cargo Features
+
+The library offers optional features that can be enabled in your `Cargo.toml`:
+
+- **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+
+To enable this feature:
+
+```toml
+[dependencies]
+fp-library = { version = "0.4", features = ["rayon"] }
+```
+
+### Example: Using Functor with Option
+
+```rust
+use fp_library::classes::functor::map;
+use fp_library::brands::OptionBrand;
+
+fn main() {
+	let x = Some(5);
+	// Map a function over the Option using the Functor type class
+	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+	assert_eq!(y, Some(10));
+}
+```
+
 ## How it Works
 
 ### Higher-Kinded Types (HKT)
@@ -101,42 +137,6 @@ let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 // Fold in parallel (if rayon feature is enabled)
 let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f);
 assert_eq!(result, "12345".to_string());
-```
-
-## Usage
-
-Add `fp-library` to your `Cargo.toml`:
-
-```toml
-[dependencies]
-fp-library = "0.4"
-```
-
-### Cargo Features
-
-The library offers optional features that can be enabled in your `Cargo.toml`:
-
-- **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
-
-To enable this feature:
-
-```toml
-[dependencies]
-fp-library = { version = "0.4", features = ["rayon"] }
-```
-
-### Example: Using Functor with Option
-
-```rust
-use fp_library::classes::functor::map;
-use fp_library::brands::OptionBrand;
-
-fn main() {
-	let x = Some(5);
-	// Map a function over the Option using the Functor type class
-	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
-	assert_eq!(y, Some(10));
-}
 ```
 
 ## Contributing
