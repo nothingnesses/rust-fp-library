@@ -109,7 +109,20 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.3"
+fp-library = "0.4"
+```
+
+### Cargo Features
+
+The library offers optional features that can be enabled in your `Cargo.toml`:
+
+- **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+
+To enable this feature:
+
+```toml
+[dependencies]
+fp-library = { version = "0.4", features = ["rayon"] }
 ```
 
 ### Example: Using Functor with Option

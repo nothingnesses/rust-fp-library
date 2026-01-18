@@ -1,4 +1,8 @@
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
+//!
+//! ## Features
+//!
+//! - **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
 
 extern crate fp_macros;
 

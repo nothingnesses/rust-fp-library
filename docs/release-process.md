@@ -38,11 +38,11 @@ Update `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable):
 
 #### fp-macros (if changed)
 
-1.  Update `version` in `fp-macros/Cargo.toml`.
+1.  Update `version` in `fp-macros/Cargo.toml` and in `fp-macros/README.md`.
 
 #### fp-library
 
-1.  Update `version` in `fp-library/Cargo.toml`.
+1.  Update `version` in `fp-library/Cargo.toml` and in `README.md`.
 2.  If `fp-macros` was updated, ensure the `fp-macros` dependency in `fp-library/Cargo.toml` matches the new version.
 
 ### 4. Verification

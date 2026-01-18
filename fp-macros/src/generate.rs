@@ -1,7 +1,7 @@
-//! Name generation for Kind traits.
+//! Name generation for `Kind` traits.
 //!
 //! This module handles the generation of unique, deterministic identifiers
-//! for Kind traits based on their signature. It uses `rapidhash` to create
+//! for `Kind` traits based on their signature. It uses `rapidhash` to create
 //! a collision-resistant hash of the canonical signature.
 
 use crate::{canonicalize::Canonicalizer, parse::KindInput};
@@ -17,7 +17,7 @@ fn rapidhash(data: &[u8]) -> u64 {
 	rapidhash::v3::rapidhash_v3_seeded(data, &RAPID_SECRETS)
 }
 
-/// Generates a unique, deterministic identifier for a Kind trait based on its input signature.
+/// Generates a unique, deterministic identifier for a `Kind` trait based on its input signature.
 ///
 /// The name format is `Kind_{hash}`, where `{hash}` is a 16-character hexadecimal string
 /// representing the 64-bit hash of the canonical signature.
@@ -92,7 +92,7 @@ mod tests {
 	// Name Generation Tests
 	// ===========================================================================
 
-	/// Tests that identical inputs produce identical Kind trait names.
+	/// Tests that identical inputs produce identical `Kind` trait names.
 	#[test]
 	fn test_generate_name_determinism() {
 		let input1 = parse_kind_input("type Of<'a, A: 'a>: 'a;");
@@ -105,7 +105,7 @@ mod tests {
 		assert!(name1.to_string().starts_with("Kind_"));
 	}
 
-	/// Tests that different inputs produce different Kind trait names.
+	/// Tests that different inputs produce different `Kind` trait names.
 	#[test]
 	fn test_generate_name_different_inputs() {
 		let input1 = parse_kind_input("type Of<'a, A: 'a>: 'a;");

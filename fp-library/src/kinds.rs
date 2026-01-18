@@ -6,7 +6,7 @@
 //! which represent higher-kinded (unapplied/partially-applied) forms
 //! (type constructors) of [types][crate::types].
 //!
-//! # Kind Traits
+//! # `Kind` Traits
 //!
 //! Traits representing type-level application to simulate higher-kinded types.
 //!
@@ -16,20 +16,20 @@
 //! The canonical signature includes:
 //! * Number of lifetimes and types.
 //! * Type bounds (with full path preservation and generic arguments).
-//! * Output bounds on the associated `Of` type.
+//! * Output bounds on the associated types.
 //!
 //! This naming scheme ensures that semantically equivalent signatures always map to the
-//! same Kind trait, regardless of parameter names or formatting.
+//! same `Kind` trait, regardless of parameter names or formatting.
 //!
 //! ## Examples
 //!
-//! * `Kind_ad6c20556a82a1f0`: 0 lifetimes, 1 type.
-//! * `Kind_140eb1e35dc7afb3`: 1 lifetime, 2 types.
-//! * `Kind_cdc7cd43dac7585f`: 1 lifetime, 1 type. Type 0 is bounded by Lifetime 0 (`A: 'a`). Of is bounded by Lifetime 0 (`Of: 'a`).
+//! * `Kind_ad6c20556a82a1f0`: Signature `type Of<A>;`.
+//! * `Kind_140eb1e35dc7afb3`: Signature `type Of<'a, A, B>;`.
+//! * `Kind_cdc7cd43dac7585f`: Signature `type Of<'a, A: 'a>: 'a;`.
 //!
 //! As an example of how to use these traits, the trait [`Kind_ad6c20556a82a1f0`] would be
 //! implemented by a [`Brand`][crate::brands] representing type constructors
-//! with 0 lifetimes and 1 generic type. A type `Foo<A>` would have a
+//! with a single type parameter (e.g., `Foo<A>`). A type `Foo<A>` would have a
 //! higher-kinded representation `FooBrand` which implements [`Kind_ad6c20556a82a1f0`].
 
 use fp_macros::def_kind;

@@ -1,4 +1,4 @@
-//! Canonicalization logic for Kind trait names.
+//! Canonicalization logic for `Kind` trait names.
 //!
 //! This module provides functionality to convert type bounds and signatures
 //! into a canonical string representation that is deterministic and unique

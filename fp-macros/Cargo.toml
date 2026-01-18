@@ -1,8 +1,8 @@
 [package]
 name = "fp-macros"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
-description = "Procedural macros for generating and working with Higher-Kinded Type (HKT) traits in fp-library."
+description = "Procedural macros for generating and working with Higher-Kinded Type (HKT) traits in the fp-library crate."
 repository = "https://github.com/nothingnesses/rust-fp-library"
 license = "BlueOak-1.0.0"
 keywords = ["macro", "proc-macro", "procedural", "types"]

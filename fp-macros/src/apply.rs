@@ -18,7 +18,7 @@ use syn::{
 pub struct ApplyInput {
 	/// The brand type (e.g., `OptionBrand`).
 	pub brand: Type,
-	/// The Kind signature definition.
+	/// The `Kind` signature definition.
 	pub kind_input: KindInput,
 	/// The associated type name to project (e.g., `Of`).
 	pub assoc_name: Ident,

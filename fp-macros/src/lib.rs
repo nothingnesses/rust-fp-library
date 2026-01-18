@@ -1,10 +1,10 @@
-//! Procedural macros for the `fp-library` crate.
+//! Procedural macros for the [`fp-library`](https://docs.rs/fp-library/latest/fp_library/) crate.
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 //! It includes:
-//! - `Kind!`: Generates the name of a Kind trait based on its signature.
-//! - `def_kind!`: Defines a new Kind trait.
-//! - `impl_kind!`: Implements a Kind trait for a brand.
+//! - `Kind!`: Generates the name of a `Kind` trait based on its signature.
+//! - `def_kind!`: Defines a new `Kind` trait.
+//! - `impl_kind!`: Implements a `Kind` trait for a brand.
 //! - `Apply!`: Applies a brand to type arguments.
 
 use apply::{ApplyInput, apply_impl};
@@ -26,7 +26,7 @@ pub(crate) mod parse;
 #[cfg(test)]
 mod property_tests;
 
-/// Generates the name of a Kind trait based on its signature.
+/// Generates the name of a `Kind` trait based on its signature.
 ///
 /// This macro takes a list of associated type definitions, similar to a trait definition.
 ///
@@ -63,7 +63,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 	quote!(#name).into()
 }
 
-/// Defines a new Kind trait.
+/// Defines a new `Kind` trait.
 ///
 /// This macro generates a trait definition for a Higher-Kinded Type signature.
 /// It takes a list of associated type definitions, similar to a trait definition.
@@ -89,28 +89,26 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 	def_kind_impl(input).into()
 }
 
-/// Implements a Kind trait for a brand.
+/// Implements a `Kind` trait for a brand.
 ///
-/// This macro simplifies the implementation of a generated Kind trait for a specific
-/// brand type. It infers the correct Kind trait to implement based on the signature
-/// of the associated type `Of`.
+/// This macro simplifies the implementation of a generated `Kind` trait for a specific
+/// brand type. It infers the correct `Kind` trait to implement based on the signature
+/// of the associated types provided in the block.
+///
+/// The signature (names, parameters, and bounds) of the associated types must match
+/// the definition used in [`def_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
 ///
 /// # Syntax
 ///
 /// ```ignore
 /// impl_kind! {
-///     impl<GENERICS> for BrandType {
-///         type Of<PARAMS> = ConcreteType;
-///     }
-/// }
-/// ```
-///
-/// Or with where clause:
-///
-/// ```ignore
-/// impl_kind! {
-///     impl<E> for ResultBrand<E> where E: Debug {
-///         type Of<A> = Result<A, E>;
+///     // Optional impl generics
+///     impl<Generics> for BrandType
+///     // Optional where clause
+///     where Bounds
+///     {
+///         type AssocName<Params> = ConcreteType;
+///         // ... more associated types
 ///     }
 /// }
 /// ```
@@ -139,6 +137,15 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 ///         type SendOf<A> = MySendType<A, E>;
 ///     }
 /// }
+///
+/// // Implementation matching a `Kind` with bounds
+/// // Corresponds to: def_kind!(type Of<T: Display>;);
+/// impl_kind! {
+///     for DisplayBrand {
+///         // Bounds here are used to infer the correct `Kind` trait name
+///         type Of<T: Display> = DisplayType<T>;
+///     }
+/// }
 /// ```
 #[proc_macro]
 pub fn impl_kind(input: TokenStream) -> TokenStream {
@@ -149,15 +156,17 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Applies a brand to type arguments.
 ///
 /// This macro projects a brand type to its concrete type using the appropriate
-/// Kind trait. It uses a syntax that mimics a fully qualified path, where the
-/// Kind trait is specified by its signature.
+/// `Kind` trait. It uses a syntax that mimics a fully qualified path, where the
+/// `Kind` trait is specified by its signature.
 ///
 /// # Syntax
 ///
-/// `Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)`
+/// ```ignore
+/// Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)
+/// ```
 ///
 /// * `Brand`: The brand type (e.g., `OptionBrand`).
-/// * `KindSignature`: A list of associated type definitions defining the Kind trait schema.
+/// * `KindSignature`: A list of associated type definitions defining the `Kind` trait schema.
 /// * `AssocType`: The associated type to project (e.g., `Of`).
 /// * `Args`: The concrete arguments to apply.
 ///

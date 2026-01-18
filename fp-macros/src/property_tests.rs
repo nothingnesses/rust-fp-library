@@ -138,7 +138,7 @@ impl Arbitrary for UniqueBounds {
 /// Property: Parsing the same string twice produces identical generated names.
 ///
 /// This verifies that the hash function is deterministic - the same input
-/// will always produce the same Kind trait name.
+/// will always produce the same `Kind` trait name.
 #[test]
 fn prop_hash_determinism_simple() {
 	fn property(

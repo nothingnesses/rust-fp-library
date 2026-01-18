@@ -1,4 +1,4 @@
-//! Input parsing for Kind macros.
+//! Input parsing for `Kind` macros.
 //!
 //! This module defines the input structures and parsing logic for the `Kind!` and `def_kind!` macros.
 //! It handles parsing of associated type definitions with generics and bounds.
@@ -9,7 +9,7 @@ use syn::{
 	punctuated::Punctuated,
 };
 
-/// Represents the parsed input for a Kind signature.
+/// Represents the parsed input for a `Kind` signature.
 ///
 /// This structure captures a list of associated type definitions.
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub struct KindInput {
 	pub assoc_types: Vec<KindAssocTypeInput>,
 }
 
-/// Represents a single associated type definition in a Kind signature.
+/// Represents a single associated type definition in a `Kind` signature.
 ///
 /// Example: `type Of<'a, T: 'a>: Display;`
 #[derive(Debug)]
@@ -90,7 +90,7 @@ mod tests {
 	use super::*;
 	use syn::parse_str;
 
-	/// Tests parsing of a simple Kind signature with one associated type.
+	/// Tests parsing of a simple `Kind` signature with one associated type.
 	///
 	/// Verifies that:
 	/// - The associated type name is parsed correctly.
@@ -114,7 +114,7 @@ mod tests {
 		assert_eq!(assoc.output_bounds.len(), 1);
 	}
 
-	/// Tests parsing of a Kind signature with multiple associated types.
+	/// Tests parsing of a `Kind` signature with multiple associated types.
 	///
 	/// Verifies that:
 	/// - Multiple `type ...;` definitions are parsed into a list.

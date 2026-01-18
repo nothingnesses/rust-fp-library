@@ -1,6 +1,6 @@
 use fp_macros::{Apply, def_kind, impl_kind};
 
-// Define a Kind with 1 type parameter and no bounds
+// Define a `Kind` with 1 type parameter and no bounds
 def_kind!(
 	type Of<T>;
 );
@@ -65,7 +65,7 @@ fn test_nested_apply() {
 	// This is a bit contrived but tests macro expansion order/nesting
 	// Apply! inside Apply! signature
 
-	// We need a Kind that takes another Kind's output
+	// We need a `Kind` that takes another `Kind`'s output
 	// But Apply! returns a concrete type, so it's just a type parameter
 
 	struct NestedWrapper<T>(T);
