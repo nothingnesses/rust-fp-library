@@ -17,7 +17,7 @@ use crate::{
 pub trait Witherable: Filterable + Traversable {
 	/// Partitions a data structure based on a function that returns a `Result` in an applicative context.
 	///
-	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::separate`].
+	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::separate`](crate::classes::compactable::Compactable::separate).
 	///
 	/// ### Type Signature
 	///
@@ -71,7 +71,7 @@ pub trait Witherable: Filterable + Traversable {
 
 	/// Maps a function over a data structure and filters out `None` results in an applicative context.
 	///
-	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::compact`].
+	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::compact`](crate::classes::compactable::Compactable::compact).
 	///
 	/// ### Type Signature
 	///

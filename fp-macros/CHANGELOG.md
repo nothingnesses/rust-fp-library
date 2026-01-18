@@ -5,19 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-01-18
 
 ### Changed
 
-- **`Apply!` Macro Refactor**:
+- **`Apply!` Macro Refactor (API Breaking)**:
   - Removed "Explicit Kind Mode" and "Unified Signature Mode" in favor of a single, more explicit syntax.
   - New syntax: `Apply!(<Brand as Kind!(KindSignature)>::AssocType<Args>)`.
   - This syntax mimics fully qualified paths while allowing inline anonymous Kind trait definitions.
-- **Multiple Associated Types**:
+- **Multiple Associated Types (API Breaking)**:
   - Updated `Kind!` and `def_kind!` to support defining multiple associated types (e.g., `type Of<T>; type SendOf<T>;`).
   - Updated `impl_kind!` to support implementing multiple associated types.
   - Changed input syntax for `def_kind!` to use standard Rust associated type syntax (e.g., `def_kind!(type Of<T>;)` instead of `def_kind!((), (T), ())`).
-- **Canonicalization**:
+- **Canonicalization (API Breaking)**:
   - Enhanced canonicalization to include associated type names and sort them for determinism.
   - Improved type parameter mapping (e.g., `T` -> `T0`) for robust hash generation.
 - **Testing**:

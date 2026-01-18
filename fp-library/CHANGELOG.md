@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-01-18
 
 ### Added
 - **Data Shrinking Typeclasses**:
@@ -14,14 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added property-based tests and edge case tests for `Compactable`, `Filterable`, and `Witherable` implementations for `Option` and `Vec`.
 
 ### Changed
-- **Data Shrinking API**:
+- **Data Shrinking API (API Breaking)**:
   - Updated `Compactable::separate`, `Filterable::partition_map`, and `Witherable::wilt` to return `Pair<Success, Failure>` (e.g., `Pair<Ok, Err>`), aligning with Rust's `Result` and `Iterator::partition` conventions.
   - Added default implementations for `Filterable` and `Witherable` methods.
   - Added comprehensive documentation for `Compactable`, `Filterable`, and `Witherable`.
 - **`Apply!` Macro Migration**:
   - Migrated all usages of `Apply!` to the new syntax: `Apply!(<Brand as Kind!(KindSignature)>::AssocType<Args>)`.
   - Converted usages of the deprecated "Explicit Kind Mode" to standard Rust syntax (e.g., `<Brand as Kind>::Of<Args>`).
-- **Kind Trait Refactor**:
+- **Kind Trait Refactor (API Breaking)**:
   - Updated `Kind` traits to support multiple associated types (e.g., `Of`, `SendOf`).
   - Updated `def_kind!` and `impl_kind!` macros to use standard Rust syntax for associated type definitions.
   - Updated internal Kind trait hashes to reflect the new canonicalization logic.
