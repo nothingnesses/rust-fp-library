@@ -1,9 +1,6 @@
 ### Tasks to do & ideas to look into
 
-* Add README.md for each of the workspace's crates.
-* [`Compactable`, `Filterable`, `Witherable`](https://github.com/reazen/relude/issues/268).
-	* [Composable filters using Witherable optics](https://chrispenner.ca/posts/witherable-optics).
-	* [purescript-filterable](https://pursuit.purescript.org/packages/purescript-filterable/5.0.0).
+* Add trait methods for type classes and methods for brand/type structs.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.

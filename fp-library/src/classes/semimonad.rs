@@ -9,7 +9,7 @@ use crate::{Apply, kinds::*};
 /// If `x` has type `m a` and `f` has type `a -> m b`, then `bind(x, f)` has type `m b`,
 /// representing the result of executing `x` to get a value of type `a` and then
 /// passing it to `f` to get a computation of type `m b`.
-pub trait Semimonad: Kind_c3c3610c70409ee6 {
+pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// This method chains two computations, where the second computation depends on the result of the first.
@@ -44,22 +44,11 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 	/// assert_eq!(y, Some(10));
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B: 'a) -> 'a,
-	)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(
-				A,
-			) -> Apply!(
-				brand: Self,
-				signature: ('a, B: 'a) -> 'a,
-			) + 'a;
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -97,22 +86,11 @@ pub trait Semimonad: Kind_c3c3610c70409ee6 {
 /// assert_eq!(y, Some(10));
 /// ```
 pub fn bind<'a, Brand: Semimonad, F, A: 'a, B: 'a>(
-	ma: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
+	ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	f: F,
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, B: 'a) -> 'a,
-)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	F: Fn(
-			A,
-		) -> Apply!(
-			brand: Brand,
-			signature: ('a, B: 'a) -> 'a,
-		) + 'a,
+	F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 {
 	Brand::bind(ma, f)
 }

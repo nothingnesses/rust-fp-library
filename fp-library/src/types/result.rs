@@ -67,8 +67,8 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -127,9 +127,9 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, C: 'a) -> 'a)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -173,7 +173,7 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// assert_eq!(pure::<ResultWithErrBrand<()>, _>(5), Ok(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Ok(a)
 	}
 }
@@ -223,9 +223,9 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(f_err, Ok(5)), Err(1));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		match (ff, fa) {
 			(Ok(f), Ok(a)) => Ok(f(a)),
 			(Err(e), _) => Err(e),
@@ -278,11 +278,11 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	/// );
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) + 'a,
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		ma.and_then(f)
 	}
@@ -327,7 +327,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
 		func: F,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -377,7 +377,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
 		func: F,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -432,7 +432,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ```
 	fn fold_map<'a, FnBrand, F, A: 'a, M>(
 		func: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -492,11 +492,11 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
-		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		match ta {
 			Ok(a) => F::map(|b| Ok(b), func(a)),
@@ -545,11 +545,11 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(brand: Self, signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
-		Apply!(brand: F, signature: ('a, A: 'a) -> 'a): Clone,
-		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): Clone,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
 		match ta {
 			Ok(fa) => F::map(|a| Ok(a), fa),
@@ -601,8 +601,8 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a,
 	{
@@ -664,9 +664,9 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	/// ```
 	fn lift2<'a, F, A, B, C>(
 		f: F,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-		fb: Apply!(brand: Self, signature: ('a, B: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, C: 'a) -> 'a)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
 		F: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
@@ -710,7 +710,7 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// assert_eq!(pure::<ResultWithOkBrand<()>, _>(5), Err(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(brand: Self, signature: ('a, A: 'a) -> 'a) {
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Err(a)
 	}
 }
@@ -760,9 +760,9 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<i32>, _, _>(f_ok, Err(5)), Ok(1));
 	/// ```
 	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(brand: Self, signature: ('a, Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: (A, B)): 'a) -> 'a),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) {
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		match (ff, fa) {
 			(Err(f), Err(a)) => Err(f(a)),
 			(Ok(t), _) => Ok(t),
@@ -815,11 +815,11 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	/// );
 	/// ```
 	fn bind<'a, F, A: 'a, B: 'a>(
-		ma: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
-	) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(brand: Self, signature: ('a, B: 'a) -> 'a) + 'a,
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		match ma {
 			Ok(t) => Ok(t),
@@ -867,7 +867,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	fn fold_right<'a, FnBrand, F, A: 'a, B: 'a>(
 		func: F,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		F: Fn(A, B) -> B + 'a,
@@ -917,7 +917,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	fn fold_left<'a, FnBrand, F, A: 'a, B: 'a>(
 		func: F,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		F: Fn(B, A) -> B + 'a,
@@ -972,7 +972,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
 		func: Func,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -1032,11 +1032,11 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// ```
 	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
 		func: Func,
-		ta: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(brand: F, signature: ('a, B: 'a) -> 'a) + 'a,
-		Apply!(brand: Self, signature: ('a, B: 'a) -> 'a): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		match ta {
 			Err(e) => F::map(|b| Err(b), func(e)),
@@ -1085,11 +1085,11 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// );
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
-		ta: Apply!(brand: Self, signature: ('a, Apply!(brand: F, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
-	) -> Apply!(brand: F, signature: ('a, Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): 'a) -> 'a)
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
-		Apply!(brand: F, signature: ('a, A: 'a) -> 'a): Clone,
-		Apply!(brand: Self, signature: ('a, A: 'a) -> 'a): Clone,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
 		match ta {
 			Err(fe) => F::map(|e| Err(e), fe),
@@ -1134,8 +1134,8 @@ impl<E: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithErr
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, x_err), "".to_string());
 	/// ```
 	fn par_fold_map<'a, A, M>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -1181,9 +1181,9 @@ impl<E: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithErr
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, 10, x_err), 10);
 	fn par_fold_right<'a, A, B>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,
@@ -1232,8 +1232,8 @@ impl<T: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithOkB
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, x_ok), "".to_string());
 	/// ```
 	fn par_fold_map<'a, A, M>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		A: 'a + Clone + Send + Sync,
@@ -1279,9 +1279,9 @@ impl<T: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for ResultWithOkB
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, 10, x_ok), 10);
 	fn par_fold_right<'a, A, B>(
-		func: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
-		fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		A: 'a + Clone + Send + Sync,

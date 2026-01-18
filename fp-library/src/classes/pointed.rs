@@ -7,7 +7,7 @@ use crate::{Apply, kinds::*};
 /// A type class for types that can be constructed from a single value.
 ///
 /// `Pointed` represents a context that can be initialized with a value.
-pub trait Pointed: Kind_c3c3610c70409ee6 {
+pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// The value wrapped in the context.
 	///
 	/// This method wraps a value in a context.
@@ -37,12 +37,7 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 	/// let x = OptionBrand::pure(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(
-		a: A
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, A: 'a) -> 'a,
-	);
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 }
 
 /// The value wrapped in the context.
@@ -77,9 +72,6 @@ pub trait Pointed: Kind_c3c3610c70409ee6 {
 /// ```
 pub fn pure<'a, Brand: Pointed, A: 'a>(
 	a: A
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, A: 'a) -> 'a,
-) {
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 	Brand::pure(a)
 }

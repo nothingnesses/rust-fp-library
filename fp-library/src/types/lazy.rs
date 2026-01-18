@@ -4,7 +4,6 @@
 //! It implements [`Semigroup`], [`Monoid`], and [`Defer`].
 
 use crate::{
-	Apply,
 	brands::LazyBrand,
 	classes::{
 		clonable_fn::ClonableFn, defer::Defer, monoid::Monoid, once::Once, semigroup::Semigroup,
@@ -19,8 +18,8 @@ use crate::{
 /// The result is then cached (memoized) so that subsequent accesses return the same value
 /// without re-executing the computation.
 pub struct Lazy<'a, OnceBrand: Once, FnBrand: ClonableFn, A>(
-	pub Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)),
-	pub Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A)),
+	pub <OnceBrand as Once>::Of<A>,
+	pub <FnBrand as ClonableFn>::Of<'a, (), A>,
 );
 
 impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A> {
@@ -57,9 +56,7 @@ impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A
 	///
 	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
 	/// ```
-	pub fn new(
-		a: Apply!(brand: FnBrand, kind: ClonableFn, lifetimes: ('a), types: ((), A))
-	) -> Self {
+	pub fn new(a: <FnBrand as ClonableFn>::Of<'a, (), A>) -> Self {
 		Self(OnceBrand::new(), a)
 	}
 
@@ -108,7 +105,7 @@ impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A
 
 impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A: Clone> Clone for Lazy<'a, OnceBrand, FnBrand, A>
 where
-	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
+	<OnceBrand as Once>::Of<A>: Clone,
 {
 	fn clone(&self) -> Self {
 		Self(self.0.clone(), self.1.clone())
@@ -133,7 +130,7 @@ impl_kind! {
 impl<'b, OnceBrand: 'b + Once, FnBrand: 'b + ClonableFn, A: Semigroup + Clone + 'b> Semigroup
 	for Lazy<'b, OnceBrand, FnBrand, A>
 where
-	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
+	<OnceBrand as Once>::Of<A>: Clone,
 {
 	/// The result of combining the two values using the semigroup operation.
 	///
@@ -182,7 +179,7 @@ where
 impl<'b, OnceBrand: 'b + Once, FnBrand: 'b + ClonableFn, A: Monoid + Clone + 'b> Monoid
 	for Lazy<'b, OnceBrand, FnBrand, A>
 where
-	Apply!(brand: OnceBrand, kind: Once, lifetimes: (), types: (A)): Clone,
+	<OnceBrand as Once>::Of<A>: Clone,
 {
 	/// The identity element.
 	///
@@ -252,9 +249,7 @@ impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
-	fn defer<FnBrand_>(
-		f: Apply!(brand: FnBrand_, kind: ClonableFn, lifetimes: ('a), types: ((), Self))
-	) -> Self
+	fn defer<FnBrand_>(f: <FnBrand_ as ClonableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
 		FnBrand_: ClonableFn + 'a,

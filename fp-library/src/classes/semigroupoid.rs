@@ -13,7 +13,7 @@ use crate::{Apply, kinds::*};
 ///
 /// Semigroupoid instances must satisfy the associative law:
 /// * Associativity: `compose(p, compose(q, r)) = compose(compose(p, q), r)`.
-pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
+pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
 	/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.
@@ -50,18 +50,9 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
 	fn compose<'a, B: 'a, C: 'a, D: 'a>(
-		f: Apply!(
-			brand: Self,
-			signature: ('a, C, D),
-		),
-		g: Apply!(
-			brand: Self,
-			signature: ('a, B, C),
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B, D),
-	);
+		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
+		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>);
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -101,17 +92,8 @@ pub trait Semigroupoid: Kind_fcf9d56b89a0b8b9 {
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
 pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
-	f: Apply!(
-		brand: Brand,
-		signature: ('a, C, D),
-	),
-	g: Apply!(
-		brand: Brand,
-		signature: ('a, B, C),
-	),
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, B, D),
-) {
+	f: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
+	g: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
 	Brand::compose(f, g)
 }

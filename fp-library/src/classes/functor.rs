@@ -14,7 +14,7 @@ use crate::{Apply, kinds::*};
 /// `Functor` instances must satisfy the following laws:
 /// * Identity: `map(identity, fa) = fa`.
 /// * Composition: `map(compose(f, g), fa) = map(f, map(g, fa))`.
-pub trait Functor: Kind_c3c3610c70409ee6 {
+pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context.
 	///
 	/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).
@@ -50,14 +50,8 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn map<'a, F, A: 'a, B: 'a>(
 		f: F,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
-	) -> Apply!(
-		brand: Self,
-		signature: ('a, B: 'a) -> 'a,
-	)
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> B + 'a;
 }
@@ -98,14 +92,8 @@ pub trait Functor: Kind_c3c3610c70409ee6 {
 /// ```
 pub fn map<'a, Brand: Functor, F, A: 'a, B: 'a>(
 	f: F,
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
-) -> Apply!(
-	brand: Brand,
-	signature: ('a, B: 'a) -> 'a,
-)
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	F: Fn(A) -> B + 'a,
 {

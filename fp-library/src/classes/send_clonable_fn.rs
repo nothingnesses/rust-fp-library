@@ -3,7 +3,6 @@
 //! This module defines the [`SendClonableFn`] trait, which provides an abstraction for thread-safe clonable wrappers over closures.
 
 use super::clonable_fn::ClonableFn;
-use crate::Apply;
 use std::ops::Deref;
 
 /// Abstraction for thread-safe clonable wrappers over closures.
@@ -55,7 +54,7 @@ pub trait SendClonableFn: ClonableFn {
 	/// ```
 	fn new_send<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> Apply!(brand: Self, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B));
+	) -> <Self as SendClonableFn>::SendOf<'a, A, B>;
 }
 
 /// Creates a new thread-safe clonable function wrapper.
@@ -97,7 +96,7 @@ pub trait SendClonableFn: ClonableFn {
 /// ```
 pub fn new_send<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B + Send + Sync
-) -> Apply!(brand: Brand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B))
+) -> <Brand as SendClonableFn>::SendOf<'a, A, B>
 where
 	Brand: SendClonableFn,
 {

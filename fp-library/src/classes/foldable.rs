@@ -23,7 +23,7 @@ use crate::{
 /// *   If [`Foldable::fold_map`] is implemented, [`Foldable::fold_right`] is derived from it, and [`Foldable::fold_left`] is derived from the derived [`Foldable::fold_right`].
 ///
 /// Note that [`Foldable::fold_left`] is not sufficient on its own because the default implementations of [`Foldable::fold_right`] and [`Foldable::fold_map`] do not depend on it.
-pub trait Foldable: Kind_c3c3610c70409ee6 {
+pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// Folds the structure by applying a function from right to left.
 	///
 	/// This method performs a right-associative fold of the structure.
@@ -63,10 +63,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	fn fold_right<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
@@ -124,10 +121,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	fn fold_left<'a, FnBrand, Func, A: 'a + Clone, B: 'a>(
 		func: Func,
 		initial: B,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
@@ -192,10 +186,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 	/// ```
 	fn fold_map<'a, FnBrand, Func, A: 'a + Clone, M>(
 		func: Func,
-		fa: Apply!(
-			brand: Self,
-			signature: ('a, A: 'a) -> 'a,
-		),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
@@ -246,10 +237,7 @@ pub trait Foldable: Kind_c3c3610c70409ee6 {
 pub fn fold_right<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
 	initial: B,
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
 	Func: Fn(A, B) -> B + 'a,
@@ -298,10 +286,7 @@ where
 pub fn fold_left<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, B: 'a>(
 	func: Func,
 	initial: B,
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
 	Func: Fn(B, A) -> B + 'a,
@@ -349,10 +334,7 @@ where
 /// ```
 pub fn fold_map<'a, FnBrand, Brand: Foldable, Func, A: 'a + Clone, M>(
 	func: Func,
-	fa: Apply!(
-		brand: Brand,
-		signature: ('a, A: 'a) -> 'a,
-	),
+	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> M
 where
 	M: Monoid + 'a,

@@ -4,7 +4,6 @@
 //! This allows for generic handling of functions in higher-kinded contexts.
 
 use super::category::Category;
-use crate::Apply;
 use std::ops::Deref;
 
 /// Abstraction for wrappers over closures.
@@ -50,9 +49,7 @@ pub trait Function: Category {
 	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(brand: Self, kind: Function, lifetimes: ('a), types: (A, B));
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B>;
 }
 
 /// Creates a new function wrapper.
@@ -86,9 +83,7 @@ pub trait Function: Category {
 /// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, Brand, A, B>(
-	f: impl 'a + Fn(A) -> B
-) -> Apply!(brand: Brand, kind: Function, lifetimes: ('a), types: (A, B))
+pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as Function>::Of<'a, A, B>
 where
 	Brand: Function,
 {

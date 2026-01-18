@@ -1,7 +1,10 @@
 use fp_macros::{Apply, def_kind, impl_kind};
 
-// Define a simple Kind for testing
-def_kind!((), (T), ());
+// Define a Kind with 1 type parameter and no bounds
+def_kind!(
+	type Of<T>;
+);
+
 struct BoxWrapper<T>(Box<T>);
 struct BoxBrand;
 
@@ -11,116 +14,73 @@ impl_kind! {
 	}
 }
 
-// Test 1: Works in function signatures
-#[test]
-fn test_in_function_signatures() {
-	fn wrap(val: i32) -> Apply!(brand: BoxBrand, signature: (i32)) {
+trait GetValue {
+	fn get_value(&self) -> i32;
+}
+
+struct Container;
+
+impl Container {
+	fn wrap(val: i32) -> Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<i32>) {
 		BoxWrapper(Box::new(val))
 	}
 
-	fn unwrap(w: Apply!(brand: BoxBrand, signature: (i32))) -> i32 {
+	fn unwrap(w: Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<i32>)) -> i32 {
 		*w.0
 	}
-
-	let w = wrap(123);
-	assert_eq!(unwrap(w), 123);
 }
 
-// Test 2: Works in struct definitions
 #[test]
-fn test_in_struct_definitions() {
-	struct Container {
-		item: Apply!(brand: BoxBrand, signature: (String)),
-	}
-
-	let c = Container { item: BoxWrapper(Box::new("test".to_string())) };
-
-	assert_eq!(*c.item.0, "test");
+fn test_apply_in_fn_signature() {
+	let w = Container::wrap(42);
+	assert_eq!(Container::unwrap(w), 42);
 }
 
-// Test 3: Works in impl blocks
 #[test]
-fn test_in_impl_blocks() {
-	trait GetValue {
-		type Value;
-		fn get_value(&self) -> Self::Value;
+fn test_apply_in_struct_field() {
+	struct Item {
+		item: Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<String>),
 	}
 
-	// Implement trait for the Applied type directly
-	impl GetValue for Apply!(brand: BoxBrand, signature: (i32)) {
-		type Value = i32;
-		fn get_value(&self) -> i32 {
-			*self.0
-		}
-	}
+	let i = Item { item: BoxWrapper(Box::new("hello".to_string())) };
+	assert_eq!(*i.item.0, "hello");
+}
 
-	let w: Apply!(brand: BoxBrand, signature: (i32)) = BoxWrapper(Box::new(999));
+// Test using Apply! in impl block type
+impl GetValue for Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<i32>) {
+	fn get_value(&self) -> i32 {
+		*self.0
+	}
+}
+
+#[test]
+fn test_apply_in_impl_block() {
+	let w: Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<i32>) = BoxWrapper(Box::new(999));
 	assert_eq!(w.get_value(), 999);
 }
 
-// Test 4: Explicit Kind Mode with Lifetimes and Types
-#[test]
-fn test_explicit_kind_complex() {
-	trait MyExplicitKind {
-		type Of<'a, T: 'a>;
-	}
-
-	struct MyRef<'a, T: 'a>(&'a T);
-	struct MyBrand;
-
-	impl MyExplicitKind for MyBrand {
-		type Of<'a, T: 'a> = MyRef<'a, T>;
-	}
-
-	type Applied<'x> = Apply!(
-		brand: MyBrand,
-		kind: MyExplicitKind,
-		lifetimes: ('x),
-		types: (i32)
-	);
-
-	let val = 42;
-	let w: Applied = MyRef(&val);
-	assert_eq!(*w.0, 42);
-}
-
-// Test 5: Nested Apply! usage
+// Test nested Apply! usage
 #[test]
 fn test_nested_apply() {
-	// BoxWrapper<BoxWrapper<i32>>
-	type Nested = Apply!(
-		brand: BoxBrand,
-		signature: (Apply!(brand: BoxBrand, signature: (i32)))
-	);
+	// This is a bit contrived but tests macro expansion order/nesting
+	// Apply! inside Apply! signature
 
-	let inner = BoxWrapper(Box::new(10));
-	let outer: Nested = BoxWrapper(Box::new(inner));
+	// We need a Kind that takes another Kind's output
+	// But Apply! returns a concrete type, so it's just a type parameter
 
-	assert_eq!(*outer.0.0, 10);
-}
+	struct NestedWrapper<T>(T);
+	struct NestedBrand;
 
-// Test 6: Works with output parameter
-#[test]
-fn test_with_output_parameter() {
-	trait MyKind {
-		type Of<T>;
-		type Other<T>;
+	impl_kind! {
+		impl for NestedBrand {
+			type Of<T> = NestedWrapper<T>;
+		}
 	}
 
-	struct Wrapper<T>(T);
-	struct OtherWrapper<T>(T);
-	struct MyBrand;
+	type Nested = Apply!(<NestedBrand as Kind!( type Of<T>; )>::Of<
+		Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<i32>)
+	>);
 
-	impl MyKind for MyBrand {
-		type Of<T> = Wrapper<T>;
-		type Other<T> = OtherWrapper<T>;
-	}
-
-	// Default behavior (Of)
-	type Default = Apply!(brand: MyBrand, kind: MyKind, lifetimes: (), types: (i32));
-	let _: Default = Wrapper(1);
-
-	// With output parameter
-	type Custom = Apply!(brand: MyBrand, kind: MyKind, lifetimes: (), types: (i32), output: Other);
-	let _: Custom = OtherWrapper(1);
+	let n: Nested = NestedWrapper(BoxWrapper(Box::new(123)));
+	assert_eq!(*(n.0).0, 123);
 }

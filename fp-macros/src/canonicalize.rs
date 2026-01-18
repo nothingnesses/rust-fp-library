@@ -3,37 +3,68 @@
 //! This module provides functionality to convert type bounds and signatures
 //! into a canonical string representation that is deterministic and unique
 //! for semantically equivalent signatures.
+//!
+//! It handles:
+//! - Mapping lifetime names to positional indices (e.g., `'a` -> `l0`).
+//! - Mapping type parameter names to positional indices (e.g., `T` -> `T0`).
+//! - Sorting bounds to ensure order-independence.
+//! - Recursively canonicalizing nested types and generic arguments.
 
-use crate::parse::TypeInput;
 use quote::quote;
 use std::collections::BTreeMap;
 use syn::{
-	GenericArgument, Lifetime, PathArguments, ReturnType, Token, Type, TypeParamBound,
-	punctuated::Punctuated,
+	GenericArgument, GenericParam, Generics, PathArguments, ReturnType, Token, Type,
+	TypeParamBound, punctuated::Punctuated,
 };
 
 /// Handles the canonicalization of type bounds and signatures.
+///
+/// This struct maintains mappings from original parameter names to their
+/// canonical indices to ensure that renaming parameters doesn't change
+/// the generated hash.
 pub struct Canonicalizer {
+	/// Maps lifetime names to their index (e.g., "a" -> 0).
 	lifetime_map: BTreeMap<String, usize>,
+	/// Maps type parameter names to their index (e.g., "T" -> 0).
+	type_map: BTreeMap<String, usize>,
 }
 
 impl Canonicalizer {
-	/// Creates a new `Canonicalizer` with a mapping of lifetime names to indices.
-	pub fn new(
-		lifetimes: &Punctuated<Lifetime, Token![,]>,
-		_types: &Punctuated<TypeInput, Token![,]>,
-	) -> Self {
+	/// Creates a new `Canonicalizer` from a set of generics.
+	///
+	/// This initializes the mappings for lifetimes and type parameters based
+	/// on their order in the `Generics` definition.
+	pub fn new(generics: &Generics) -> Self {
 		let mut lifetime_map = BTreeMap::new();
-		for (i, lt) in lifetimes.iter().enumerate() {
-			lifetime_map.insert(lt.ident.to_string(), i);
+		let mut type_map = BTreeMap::new();
+
+		let mut l_idx = 0;
+		let mut t_idx = 0;
+
+		for param in &generics.params {
+			match param {
+				GenericParam::Lifetime(lt) => {
+					lifetime_map.insert(lt.lifetime.ident.to_string(), l_idx);
+					l_idx += 1;
+				}
+				GenericParam::Type(ty) => {
+					type_map.insert(ty.ident.to_string(), t_idx);
+					t_idx += 1;
+				}
+				GenericParam::Const(_) => {
+					// Const parameters are not currently supported for canonicalization mapping
+					// They will be treated as literal values in bounds
+				}
+			}
 		}
 
-		Self { lifetime_map }
+		Self { lifetime_map, type_map }
 	}
 
 	/// Canonicalizes a single type bound.
 	///
 	/// - Lifetimes are replaced by their index (e.g., `l0`).
+	/// - Type parameters are replaced by their index (e.g., `T0`).
 	/// - Traits are represented by their full path with generic arguments.
 	pub fn canonicalize_bound(
 		&self,
@@ -123,40 +154,49 @@ impl Canonicalizer {
 		ty: &Type,
 	) -> String {
 		match ty {
-			Type::Path(type_path) => type_path
-				.path
-				.segments
-				.iter()
-				.map(|seg| {
-					let ident = seg.ident.to_string();
-					match &seg.arguments {
-						PathArguments::None => ident,
-						PathArguments::AngleBracketed(args) => {
-							let args_str = args
-								.args
-								.iter()
-								.map(|a| self.canonicalize_generic_arg(a))
-								.collect::<Vec<_>>()
-								.join(",");
-							format!("{}<{}>", ident, args_str)
+			Type::Path(type_path) => {
+				// Check if it's a type parameter
+				if let Some(ident) = type_path.path.get_ident()
+					&& let Some(idx) = self.type_map.get(&ident.to_string())
+				{
+					return format!("T{}", idx);
+				}
+
+				type_path
+					.path
+					.segments
+					.iter()
+					.map(|seg| {
+						let ident = seg.ident.to_string();
+						match &seg.arguments {
+							PathArguments::None => ident,
+							PathArguments::AngleBracketed(args) => {
+								let args_str = args
+									.args
+									.iter()
+									.map(|a| self.canonicalize_generic_arg(a))
+									.collect::<Vec<_>>()
+									.join(",");
+								format!("{}<{}>", ident, args_str)
+							}
+							PathArguments::Parenthesized(args) => {
+								let inputs = args
+									.inputs
+									.iter()
+									.map(|t| self.canonicalize_type(t))
+									.collect::<Vec<_>>()
+									.join(",");
+								let output = match &args.output {
+									ReturnType::Default => "()".to_string(),
+									ReturnType::Type(_, ty) => self.canonicalize_type(ty),
+								};
+								format!("{}({})->{}", ident, inputs, output)
+							}
 						}
-						PathArguments::Parenthesized(args) => {
-							let inputs = args
-								.inputs
-								.iter()
-								.map(|t| self.canonicalize_type(t))
-								.collect::<Vec<_>>()
-								.join(",");
-							let output = match &args.output {
-								ReturnType::Default => "()".to_string(),
-								ReturnType::Type(_, ty) => self.canonicalize_type(ty),
-							};
-							format!("{}({})->{}", ident, inputs, output)
-						}
-					}
-				})
-				.collect::<Vec<_>>()
-				.join("::"),
+					})
+					.collect::<Vec<_>>()
+					.join("::")
+			}
 			Type::Reference(type_ref) => {
 				let lt = if let Some(lt) = &type_ref.lifetime {
 					if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
@@ -203,85 +243,61 @@ mod tests {
 	// ===========================================================================
 
 	/// Tests canonicalization of a simple trait bound like `Clone`.
-	///
-	/// Verifies that simple trait bounds are prefixed with 't' and the trait name
-	/// is preserved exactly.
 	#[test]
 	fn test_canonicalize_simple_bound() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Clone);
 		assert_eq!(canon.canonicalize_bound(&bound), "tClone");
 	}
 
 	/// Tests canonicalization of a fully qualified path bound like `std::fmt::Debug`.
-	///
-	/// Verifies that path segments are joined with `::` and prefixed with 't'.
 	#[test]
 	fn test_canonicalize_path_bound() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(std::fmt::Debug);
 		assert_eq!(canon.canonicalize_bound(&bound), "tstd::fmt::Debug");
 	}
 
 	/// Tests canonicalization of a generic trait bound with associated types.
-	///
-	/// Verifies that `Iterator<Item = String>` is correctly formatted with
-	/// the associated type binding included.
 	#[test]
 	fn test_canonicalize_generic_bound() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = String>);
 		assert_eq!(canon.canonicalize_bound(&bound), "tIterator<Item=String>");
 	}
 
 	/// Tests canonicalization of a `Fn` trait bound with parenthesized arguments.
-	///
-	/// Verifies that Fn-style bounds are formatted as `Fn(args)->return`.
 	#[test]
 	fn test_canonicalize_fn_bound() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Fn(i32) -> bool);
 		assert_eq!(canon.canonicalize_bound(&bound), "tFn(i32)->bool");
 	}
 
 	/// Tests canonicalization of a lifetime bound.
-	///
-	/// Verifies that lifetimes are mapped to positional indices (l0, l1, etc.)
-	/// rather than their actual names, ensuring name-independence.
 	#[test]
 	fn test_canonicalize_lifetime_bound() {
-		let mut lifetimes = Punctuated::new();
-		lifetimes.push(parse_quote!('a));
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<'a>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!('a);
 		assert_eq!(canon.canonicalize_bound(&bound), "l0");
 	}
 
 	/// Tests that bounds are sorted to produce deterministic output.
-	///
-	/// Verifies that `Clone + Debug` and `Debug + Clone` produce the same
-	/// canonical representation, ensuring order-independence.
 	#[test]
 	fn test_canonicalize_bounds_sorting() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
-		// These should produce the same result regardless of order
 		let bounds1: Punctuated<TypeParamBound, Token![+]> = parse_quote!(Clone + std::fmt::Debug);
 		let bounds2: Punctuated<TypeParamBound, Token![+]> = parse_quote!(std::fmt::Debug + Clone);
 
@@ -289,91 +305,105 @@ mod tests {
 	}
 
 	// ===========================================================================
+	// Canonicalizer - Type Parameter Mapping Tests
+	// ===========================================================================
+
+	/// Tests that type parameters are mapped to positional indices (T0, T1).
+	#[test]
+	fn test_canonicalize_type_param_mapping() {
+		let generics: Generics = parse_quote!(<T, U>);
+		let canon = Canonicalizer::new(&generics);
+
+		// T should be mapped to T0
+		let bound_t: TypeParamBound = parse_quote!(AsRef<T>);
+		assert_eq!(canon.canonicalize_bound(&bound_t), "tAsRef<T0>");
+
+		// U should be mapped to T1
+		let bound_u: TypeParamBound = parse_quote!(AsRef<U>);
+		assert_eq!(canon.canonicalize_bound(&bound_u), "tAsRef<T1>");
+	}
+
+	/// Tests that renaming type parameters doesn't change the canonical output.
+	#[test]
+	fn test_canonicalize_type_param_independence() {
+		// <A> vs <B> should produce same canonical form for same bounds
+		let generics1: Generics = parse_quote!(<A>);
+		let canon1 = Canonicalizer::new(&generics1);
+		let bound1: TypeParamBound = parse_quote!(AsRef<A>);
+
+		let generics2: Generics = parse_quote!(<B>);
+		let canon2 = Canonicalizer::new(&generics2);
+		let bound2: TypeParamBound = parse_quote!(AsRef<B>);
+
+		assert_eq!(canon1.canonicalize_bound(&bound1), "tAsRef<T0>");
+		assert_eq!(canon2.canonicalize_bound(&bound2), "tAsRef<T0>");
+	}
+
+	// ===========================================================================
 	// Canonicalizer - Nested Types Tests
 	// ===========================================================================
 
 	/// Tests canonicalization of nested generic types.
-	///
-	/// Verifies that types like `Iterator<Item = Option<String>>` are correctly
-	/// flattened into a canonical string representation.
 	#[test]
 	fn test_canonicalize_nested_generic() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
-		// Test with nested Option<Vec<T>>
-		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<String>>);
+		// Test with nested Option<Vec<String>>
+		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<Vec<String>>>);
 		let result = canon.canonicalize_bound(&bound);
 
 		assert!(result.contains("Iterator"));
-		assert!(result.contains("Option<String>"));
+		assert!(result.contains("Option<Vec<String>>"));
 	}
 
-	/// Tests canonicalization of deeply nested generic types (3 levels).
-	///
-	/// Verifies that the canonicalizer handles arbitrary nesting depth
-	/// like `AsRef<Vec<Option<String>>>`.
+	/// Tests canonicalization of deeply nested generic types with type parameters.
 	#[test]
-	fn test_canonicalize_deeply_nested_generic() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+	fn test_canonicalize_deeply_nested_with_params() {
+		let generics: Generics = parse_quote!(<T>);
+		let canon = Canonicalizer::new(&generics);
 
-		// Test with deeply nested types
-		let bound: TypeParamBound = parse_quote!(AsRef<Vec<Option<String>>>);
+		// Test with deeply nested types involving T
+		let bound: TypeParamBound = parse_quote!(AsRef<Vec<Option<T>>>);
 		let result = canon.canonicalize_bound(&bound);
 
-		assert!(result.contains("AsRef"));
-		assert!(result.contains("Vec<Option<String>>"));
+		assert_eq!(result, "tAsRef<Vec<Option<T0>>>");
 	}
 
 	/// Tests canonicalization of types with multiple generic parameters.
-	///
-	/// Verifies that types like `Result<String, Error>` with multiple
-	/// type parameters are correctly formatted.
 	#[test]
 	fn test_canonicalize_multiple_generic_params() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<E>);
+		let canon = Canonicalizer::new(&generics);
 
 		// Test with multiple type parameters
-		let bound: TypeParamBound = parse_quote!(Into<Result<String, Error>>);
+		let bound: TypeParamBound = parse_quote!(Into<Result<String, E>>);
 		let result = canon.canonicalize_bound(&bound);
 
-		assert!(result.contains("Into"));
-		assert!(result.contains("Result<String,Error>"));
+		assert_eq!(result, "tInto<Result<String,T0>>");
 	}
 
 	// ===========================================================================
 	// Canonicalizer - Complex Fn Bounds Tests
 	// ===========================================================================
 
-	/// Tests canonicalization of Fn bounds with multiple arguments.
-	///
-	/// Verifies that function bounds with multiple parameters are correctly
-	/// formatted as `Fn(arg1,arg2,arg3)->return`.
+	/// Tests canonicalization of Fn bounds with multiple arguments and type parameters.
 	#[test]
-	fn test_canonicalize_fn_multiple_args() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+	fn test_canonicalize_fn_complex() {
+		let generics: Generics = parse_quote!(<T>);
+		let canon = Canonicalizer::new(&generics);
 
-		let bound: TypeParamBound = parse_quote!(Fn(i32, String, bool) -> Option<u64>);
+		let bound: TypeParamBound = parse_quote!(Fn(T, String) -> Option<T>);
 		let result = canon.canonicalize_bound(&bound);
 
-		assert_eq!(result, "tFn(i32,String,bool)->Option<u64>");
+		assert_eq!(result, "tFn(T0,String)->Option<T0>");
 	}
 
 	/// Tests canonicalization of Fn bounds with no explicit return type.
-	///
-	/// Verifies that missing return types default to `()`.
 	#[test]
 	fn test_canonicalize_fn_no_return() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Fn(i32));
 		let result = canon.canonicalize_bound(&bound);
@@ -382,13 +412,10 @@ mod tests {
 	}
 
 	/// Tests canonicalization of FnMut bounds.
-	///
-	/// Verifies that FnMut is handled the same way as Fn.
 	#[test]
 	fn test_canonicalize_fnmut() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(FnMut(String) -> i32);
 		let result = canon.canonicalize_bound(&bound);
@@ -397,13 +424,10 @@ mod tests {
 	}
 
 	/// Tests canonicalization of FnOnce bounds.
-	///
-	/// Verifies that FnOnce with no arguments is handled correctly.
 	#[test]
 	fn test_canonicalize_fnonce() {
-		let lifetimes = Punctuated::new();
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(FnOnce() -> String);
 		let result = canon.canonicalize_bound(&bound);
@@ -416,17 +440,10 @@ mod tests {
 	// ===========================================================================
 
 	/// Tests canonicalization of multiple lifetimes to positional indices.
-	///
-	/// Verifies that lifetimes are assigned sequential indices (l0, l1, l2)
-	/// based on their declaration order.
 	#[test]
 	fn test_canonicalize_multiple_lifetimes() {
-		let mut lifetimes = Punctuated::new();
-		lifetimes.push(parse_quote!('a));
-		lifetimes.push(parse_quote!('b));
-		lifetimes.push(parse_quote!('c));
-		let types = Punctuated::new();
-		let canon = Canonicalizer::new(&lifetimes, &types);
+		let generics: Generics = parse_quote!(<'a, 'b, 'c>);
+		let canon = Canonicalizer::new(&generics);
 
 		let bound_a: TypeParamBound = parse_quote!('a);
 		let bound_b: TypeParamBound = parse_quote!('b);
@@ -438,20 +455,13 @@ mod tests {
 	}
 
 	/// Tests that lifetime names don't affect canonical representation.
-	///
-	/// Verifies that `'a` in position 0 produces the same result as `'x` in
-	/// position 0, ensuring that the actual lifetime name is irrelevant.
 	#[test]
 	fn test_canonicalize_lifetime_independence() {
-		// Different lifetime names should produce the same canonical form
-		// if they're in the same position
-		let mut lifetimes1 = Punctuated::new();
-		lifetimes1.push(parse_quote!('a));
-		let canon1 = Canonicalizer::new(&lifetimes1, &Punctuated::new());
+		let generics1: Generics = parse_quote!(<'a>);
+		let canon1 = Canonicalizer::new(&generics1);
 
-		let mut lifetimes2 = Punctuated::new();
-		lifetimes2.push(parse_quote!('x));
-		let canon2 = Canonicalizer::new(&lifetimes2, &Punctuated::new());
+		let generics2: Generics = parse_quote!(<'x>);
+		let canon2 = Canonicalizer::new(&generics2);
 
 		let bound1: TypeParamBound = parse_quote!('a);
 		let bound2: TypeParamBound = parse_quote!('x);

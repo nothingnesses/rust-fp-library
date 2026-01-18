@@ -4,7 +4,6 @@
 //! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
-	Apply,
 	classes::{monoid::Monoid, semigroup::Semigroup, send_clonable_fn::SendClonableFn},
 	functions::identity,
 };
@@ -24,7 +23,7 @@ use std::{
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
 pub struct SendEndofunction<'a, FnBrand: SendClonableFn, A>(
-	pub Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
+	pub <FnBrand as SendClonableFn>::SendOf<'a, A, A>,
 );
 
 impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
@@ -59,9 +58,7 @@ impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// let f = SendEndofunction::<ArcFnBrand, _>::new(<ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(
-		f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A))
-	) -> Self {
+	pub fn new(f: <FnBrand as SendClonableFn>::SendOf<'a, A, A>) -> Self {
 		Self(f)
 	}
 }
@@ -74,8 +71,7 @@ impl<'a, FnBrand: SendClonableFn, A> Clone for SendEndofunction<'a, FnBrand, A> 
 
 impl<'a, FnBrand: SendClonableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		Debug,
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Debug,
 {
 	fn fmt(
 		&self,
@@ -86,15 +82,13 @@ where
 }
 
 impl<'a, FnBrand: SendClonableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		Eq
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Eq
 {
 }
 
 impl<'a, FnBrand: SendClonableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		Hash,
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -106,8 +100,7 @@ where
 
 impl<'a, FnBrand: SendClonableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		Ord,
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Ord,
 {
 	fn cmp(
 		&self,
@@ -119,8 +112,7 @@ where
 
 impl<'a, FnBrand: SendClonableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		PartialEq,
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: PartialEq,
 {
 	fn eq(
 		&self,
@@ -132,8 +124,7 @@ where
 
 impl<'a, FnBrand: SendClonableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
 where
-	Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)):
-		PartialOrd,
+	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: PartialOrd,
 {
 	fn partial_cmp(
 		&self,
