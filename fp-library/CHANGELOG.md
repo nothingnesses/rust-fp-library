@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `Compactable`, `Filterable` and `Witherable` typeclasses for discarding values in contexts.
 
 ### Changed
+- **Data Shrinking API**:
+  - Updated `Compactable::separate`, `Filterable::partition_map`, and `Witherable::wilt` to return `Pair<Success, Failure>` (e.g., `Pair<Ok, Err>`), aligning with Rust's `Result` and `Iterator::partition` conventions.
+  - Added default implementations for `Filterable` and `Witherable` methods.
+  - Added comprehensive documentation for `Compactable`, `Filterable`, and `Witherable`.
 - **`Apply!` Macro Migration**:
   - Migrated all usages of `Apply!` to the new syntax: `Apply!(<Brand as Kind!(KindSignature)>::AssocType<Args>)`.
   - Converted usages of the deprecated "Explicit Kind Mode" to standard Rust syntax (e.g., `<Brand as Kind>::Of<Args>`).
