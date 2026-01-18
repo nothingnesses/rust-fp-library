@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Data Shrinking Typeclasses**:
   - Added `Compactable`, `Filterable` and `Witherable` typeclasses for discarding values in contexts.
+  - Implemented `Compactable`, `Filterable`, and `Witherable` for `OptionBrand` and `VecBrand`.
+  - Added property-based tests and edge case tests for `Compactable`, `Filterable`, and `Witherable` implementations for `Option` and `Vec`.
 
 ### Changed
 - **Data Shrinking API**:

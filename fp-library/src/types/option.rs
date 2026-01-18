@@ -7,12 +7,15 @@ use crate::{
 	brands::OptionBrand,
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
+		clonable_fn::ClonableFn, compactable::Compactable, filterable::Filterable,
+		foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
 		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
 		semimonad::Semimonad, send_clonable_fn::SendClonableFn, traversable::Traversable,
+		witherable::Witherable,
 	},
 	impl_kind,
 	kinds::*,
+	types::Pair,
 };
 
 impl_kind! {
@@ -533,18 +536,277 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 	}
 }
 
+impl Compactable for OptionBrand {
+	/// Compacts a nested option.
+	///
+	/// This method flattens a nested option.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Compactable Option => Option (Option a) -> Option a`
+	///
+	/// ### Parameters
+	///
+	/// * `fa`: The nested option.
+	///
+	/// ### Returns
+	///
+	/// The flattened option.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::compactable::Compactable;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(Some(5));
+	/// let y = OptionBrand::compact(x);
+	/// assert_eq!(y, Some(5));
+	/// ```
+	fn compact<'a, A: 'a>(
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+			'a,
+			Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fa.flatten()
+	}
+
+	/// Separates an option of result.
+	///
+	/// This method separates an option of result into a pair of options.
+	///
+	/// ### Type Signature
+	///
+	/// `forall e o. Compactable Option => Option (Result o e) -> (Option o, Option e)`
+	///
+	/// ### Parameters
+	///
+	/// * `fa`: The option of result.
+	///
+	/// ### Returns
+	///
+	/// A pair of options.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::compactable::Compactable;
+	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::types::Pair;
+	///
+	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
+	/// let Pair(oks, errs) = OptionBrand::separate(x);
+	/// assert_eq!(oks, Some(5));
+	/// assert_eq!(errs, None);
+	/// ```
+	fn separate<'a, E: 'a, O: 'a>(
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+	) -> Pair<
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	> {
+		match fa {
+			Some(Ok(o)) => Pair(Some(o), None),
+			Some(Err(e)) => Pair(None, Some(e)),
+			None => Pair(None, None),
+		}
+	}
+}
+
+impl Filterable for OptionBrand {
+	/// Partitions an option based on a function that returns a result.
+	///
+	/// This method partitions an option based on a function that returns a result.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a e o. Filterable Option => (a -> Result o e) -> Option a -> (Option o, Option e)`
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply.
+	/// * `fa`: The option to partition.
+	///
+	/// ### Returns
+	///
+	/// A pair of options.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::types::Pair;
+	///
+	/// let x = Some(5);
+	/// let Pair(oks, errs) = OptionBrand::partition_map(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// assert_eq!(oks, Some(5));
+	/// assert_eq!(errs, None);
+	/// ```
+	fn partition_map<'a, Func, A: 'a, E: 'a, O: 'a>(
+		func: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Pair<
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+	>
+	where
+		Func: Fn(A) -> Result<O, E> + 'a,
+	{
+		match fa {
+			Some(a) => match func(a) {
+				Ok(o) => Pair(Some(o), None),
+				Err(e) => Pair(None, Some(e)),
+			},
+			None => Pair(None, None),
+		}
+	}
+
+	/// Partitions an option based on a predicate.
+	///
+	/// This method partitions an option based on a predicate.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Filterable Option => (a -> bool) -> Option a -> (Option a, Option a)`
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The predicate.
+	/// * `fa`: The option to partition.
+	///
+	/// ### Returns
+	///
+	/// A pair of options.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::types::Pair;
+	///
+	/// let x = Some(5);
+	/// let Pair(satisfied, not_satisfied) = OptionBrand::partition(|a| a > 2, x);
+	/// assert_eq!(satisfied, Some(5));
+	/// assert_eq!(not_satisfied, None);
+	/// ```
+	fn partition<'a, Func, A: 'a + Clone>(
+		func: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Pair<
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	>
+	where
+		Func: Fn(A) -> bool + 'a,
+	{
+		match fa {
+			Some(a) => {
+				if func(a.clone()) {
+					Pair(Some(a), None)
+				} else {
+					Pair(None, Some(a))
+				}
+			}
+			None => Pair(None, None),
+		}
+	}
+
+	/// Maps a function over an option and filters out `None` results.
+	///
+	/// This method maps a function over an option and filters out `None` results.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a b. Filterable Option => (a -> Option b) -> Option a -> Option b`
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply.
+	/// * `fa`: The option to filter and map.
+	///
+	/// ### Returns
+	///
+	/// The filtered and mapped option.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::filter_map(|a| if a > 2 { Some(a * 2) } else { None }, x);
+	/// assert_eq!(y, Some(10));
+	/// ```
+	fn filter_map<'a, Func, A: 'a, B: 'a>(
+		func: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	where
+		Func: Fn(A) -> Option<B> + 'a,
+	{
+		fa.and_then(func)
+	}
+
+	/// Filters an option based on a predicate.
+	///
+	/// This method filters an option based on a predicate.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Filterable Option => (a -> bool) -> Option a -> Option a`
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The predicate.
+	/// * `fa`: The option to filter.
+	///
+	/// ### Returns
+	///
+	/// The filtered option.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::brands::OptionBrand;
+	///
+	/// let x = Some(5);
+	/// let y = OptionBrand::filter(|a| a > 2, x);
+	/// assert_eq!(y, Some(5));
+	/// ```
+	fn filter<'a, Func, A: 'a + Clone>(
+		func: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		Func: Fn(A) -> bool + 'a,
+	{
+		fa.filter(|a| func(a.clone()))
+	}
+}
+
+impl Witherable for OptionBrand {}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::{
 		brands::{ArcFnBrand, RcFnBrand},
 		classes::{
+			compactable::{compact, separate},
+			filterable::{filter, filter_map, partition, partition_map},
 			functor::map,
 			par_foldable::{par_fold_map, par_fold_right},
 			pointed::pure,
 			semiapplicative::apply,
 			semimonad::bind,
 			send_clonable_fn::new_send,
+			traversable::traverse,
+			witherable::{wilt, wither},
 		},
 		functions::{compose, identity},
 	};
@@ -761,5 +1023,200 @@ mod tests {
 		let x = Some(5);
 		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, OptionBrand, _, _>(f, 10, x), 15);
+	}
+
+	// Filterable Laws
+
+	/// Tests `filterMap identity ≡ compact`.
+	#[quickcheck]
+	fn filterable_filter_map_identity(x: Option<Option<i32>>) -> bool {
+		filter_map::<OptionBrand, _, _, _>(identity, x.clone()) == compact::<OptionBrand, _>(x)
+	}
+
+	/// Tests `filterMap Just ≡ identity`.
+	#[quickcheck]
+	fn filterable_filter_map_just(x: Option<i32>) -> bool {
+		filter_map::<OptionBrand, _, _, _>(Some, x.clone()) == x
+	}
+
+	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
+	#[quickcheck]
+	fn filterable_filter_map_composition(x: Option<i32>) -> bool {
+		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
+		let l = |i: i32| if i > 5 { Some(i) } else { None };
+		let composed = |i| r(i).and_then(l);
+
+		filter_map::<OptionBrand, _, _, _>(composed, x.clone())
+			== filter_map::<OptionBrand, _, _, _>(l, filter_map::<OptionBrand, _, _, _>(r, x))
+	}
+
+	/// Tests `filter ≡ filterMap <<< maybeBool`.
+	#[quickcheck]
+	fn filterable_filter_consistency(x: Option<i32>) -> bool {
+		let p = |i: i32| i % 2 == 0;
+		let maybe_bool = |i| if p(i) { Some(i) } else { None };
+
+		filter::<OptionBrand, _, _>(p, x.clone())
+			== filter_map::<OptionBrand, _, _, _>(maybe_bool, x)
+	}
+
+	/// Tests `partitionMap identity ≡ separate`.
+	#[quickcheck]
+	fn filterable_partition_map_identity(x: Option<Result<i32, i32>>) -> bool {
+		partition_map::<OptionBrand, _, _, _, _>(identity, x.clone())
+			== separate::<OptionBrand, _, _>(x)
+	}
+
+	/// Tests `partitionMap Right ≡ identity` (on the right side).
+	#[quickcheck]
+	fn filterable_partition_map_right_identity(x: Option<i32>) -> bool {
+		let Pair(oks, _) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		oks == x
+	}
+
+	/// Tests `partitionMap Left ≡ identity` (on the left side).
+	#[quickcheck]
+	fn filterable_partition_map_left_identity(x: Option<i32>) -> bool {
+		let Pair(_, errs) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		errs == x
+	}
+
+	/// Tests `f <<< partition ≡ partitionMap <<< eitherBool`.
+	#[quickcheck]
+	fn filterable_partition_consistency(x: Option<i32>) -> bool {
+		let p = |i: i32| i % 2 == 0;
+		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
+
+		let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(p, x.clone());
+		let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(either_bool, x);
+
+		satisfied == oks && not_satisfied == errs
+	}
+
+	// Witherable Laws
+
+	/// Tests `wither (pure <<< Just) ≡ pure`.
+	#[quickcheck]
+	fn witherable_identity(x: Option<i32>) -> bool {
+		wither::<OptionBrand, _, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+	}
+
+	/// Tests `wilt p ≡ map separate <<< traverse p`.
+	#[quickcheck]
+	fn witherable_wilt_consistency(x: Option<i32>) -> bool {
+		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
+
+		let lhs = wilt::<OptionBrand, _, OptionBrand, _, _, _>(p, x.clone());
+		let rhs = map::<OptionBrand, _, _, _>(
+			|res| separate::<OptionBrand, _, _>(res),
+			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
+		);
+
+		lhs == rhs
+	}
+
+	/// Tests `wither p ≡ map compact <<< traverse p`.
+	#[quickcheck]
+	fn witherable_wither_consistency(x: Option<i32>) -> bool {
+		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
+
+		let lhs = wither::<OptionBrand, _, OptionBrand, _, _>(p, x.clone());
+		let rhs = map::<OptionBrand, _, _, _>(
+			|opt| compact::<OptionBrand, _>(opt),
+			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
+		);
+
+		lhs == rhs
+	}
+
+	// Edge Cases
+
+	/// Tests `compact` on `Some(None)`.
+	#[test]
+	fn compact_some_none() {
+		assert_eq!(compact::<OptionBrand, _>(Some(None::<i32>)), None);
+	}
+
+	/// Tests `compact` on `Some(Some(x))`.
+	#[test]
+	fn compact_some_some() {
+		assert_eq!(compact::<OptionBrand, _>(Some(Some(5))), Some(5));
+	}
+
+	/// Tests `compact` on `None`.
+	#[test]
+	fn compact_none() {
+		assert_eq!(compact::<OptionBrand, _>(None::<Option<i32>>), None);
+	}
+
+	/// Tests `separate` on `Some(Ok(x))`.
+	#[test]
+	fn separate_some_ok() {
+		let Pair(oks, errs) = separate::<OptionBrand, _, _>(Some(Ok::<i32, &str>(5)));
+		assert_eq!(oks, Some(5));
+		assert_eq!(errs, None);
+	}
+
+	/// Tests `separate` on `Some(Err(e))`.
+	#[test]
+	fn separate_some_err() {
+		let Pair(oks, errs) = separate::<OptionBrand, _, _>(Some(Err::<i32, &str>("error")));
+		assert_eq!(oks, None);
+		assert_eq!(errs, Some("error"));
+	}
+
+	/// Tests `separate` on `None`.
+	#[test]
+	fn separate_none() {
+		let Pair(oks, errs) = separate::<OptionBrand, _, _>(None::<Result<i32, &str>>);
+		assert_eq!(oks, None);
+		assert_eq!(errs, None);
+	}
+
+	/// Tests `partition_map` on `None`.
+	#[test]
+	fn partition_map_none() {
+		let Pair(oks, errs) =
+			partition_map::<OptionBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), None::<i32>);
+		assert_eq!(oks, None);
+		assert_eq!(errs, None);
+	}
+
+	/// Tests `partition` on `None`.
+	#[test]
+	fn partition_none() {
+		let Pair(satisfied, not_satisfied) =
+			partition::<OptionBrand, _, _>(|x: i32| x > 0, None::<i32>);
+		assert_eq!(satisfied, None);
+		assert_eq!(not_satisfied, None);
+	}
+
+	/// Tests `filter_map` on `None`.
+	#[test]
+	fn filter_map_none() {
+		assert_eq!(filter_map::<OptionBrand, _, _, _>(|x: i32| Some(x), None::<i32>), None);
+	}
+
+	/// Tests `filter` on `None`.
+	#[test]
+	fn filter_none() {
+		assert_eq!(filter::<OptionBrand, _, _>(|x: i32| x > 0, None::<i32>), None);
+	}
+
+	/// Tests `wilt` on `None`.
+	#[test]
+	fn wilt_none() {
+		let res = wilt::<OptionBrand, _, OptionBrand, _, _, _>(
+			|x: i32| Some(Ok::<i32, i32>(x)),
+			None::<i32>,
+		);
+		assert_eq!(res, Some(Pair(None, None)));
+	}
+
+	/// Tests `wither` on `None`.
+	#[test]
+	fn wither_none() {
+		let res = wither::<OptionBrand, _, OptionBrand, _, _>(|x: i32| Some(Some(x)), None::<i32>);
+		assert_eq!(res, Some(None));
 	}
 }
