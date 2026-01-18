@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Testing**:
   - Updated property-based tests to reflect the new `KindInput` syntax and `Canonicalizer` API.
   - Removed obsolete UI tests for deprecated `Apply!` modes.
+- **Documentation**:
+  - Corrected `def_kind!` macro documentation to reflect the correct input syntax.
+  - Clarified `Apply!` macro documentation regarding the Kind trait reference syntax.
+  - Added comprehensive examples for `Kind!`, `def_kind!`, and `impl_kind!` macros.
+  - Updated module-level documentation to include all exported macros.
 
 ---
 

@@ -4,6 +4,8 @@
 //! It includes:
 //! - `Kind!`: Generates the name of a Kind trait based on its signature.
 //! - `def_kind!`: Defines a new Kind trait.
+//! - `impl_kind!`: Implements a Kind trait for a brand.
+//! - `Apply!`: Applies a brand to type arguments.
 
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
@@ -28,14 +30,20 @@ mod property_tests;
 ///
 /// This macro takes a list of associated type definitions, similar to a trait definition.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```ignore
-/// // Generates the name for a Kind with:
-/// // - 1 lifetime ('a)
-/// // - 1 type parameter (T) bounded by Display and Clone
-/// // - Output type bounded by Debug
-/// let name = Kind!(type Of<'a, T: Display + Clone>: Debug;);
+/// // Simple signature
+/// let name = Kind!(type Of<T>;);
+///
+/// // Signature with bounds and lifetimes
+/// let name = Kind!(type Of<'a, T: Display>: Debug;);
+///
+/// // Multiple associated types
+/// let name = Kind!(
+///     type Of<T>;
+///     type SendOf<T>: Send;
+/// );
 /// ```
 ///
 /// # Limitations
@@ -58,21 +66,22 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// Defines a new Kind trait.
 ///
 /// This macro generates a trait definition for a Higher-Kinded Type signature.
-/// It takes the same three arguments as `Kind!`:
-/// 1. **Lifetimes**
-/// 2. **Types**
-/// 3. **Output Bounds**
+/// It takes a list of associated type definitions, similar to a trait definition.
 ///
-/// The generated trait includes a single associated type `Of`.
-///
-/// # Example
+/// # Examples
 ///
 /// ```ignore
-/// // Defines a Kind trait for a signature with:
-/// // - 1 lifetime ('a)
-/// // - 1 type parameter (T) bounded by Display
-/// // - Output type bounded by Debug
-/// def_kind!(('a), (T: Display), (Debug));
+/// // Simple definition
+/// def_kind!(type Of<T>;);
+///
+/// // Definition with bounds and lifetimes
+/// def_kind!(type Of<'a, T: Display>: Debug;);
+///
+/// // Multiple associated types
+/// def_kind!(
+///     type Of<T>;
+///     type SendOf<T>: Send;
+/// );
 /// ```
 #[proc_macro]
 pub fn def_kind(input: TokenStream) -> TokenStream {
@@ -106,12 +115,28 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// # Example
+/// # Examples
 ///
 /// ```ignore
+/// // Simple implementation
 /// impl_kind! {
 ///     for OptionBrand {
 ///         type Of<A> = Option<A>;
+///     }
+/// }
+///
+/// // Implementation with generics
+/// impl_kind! {
+///     impl<E> for ResultBrand<E> {
+///         type Of<A> = Result<A, E>;
+///     }
+/// }
+///
+/// // Implementation with where clause and multiple types
+/// impl_kind! {
+///     impl<E> for MyBrand<E> where E: Clone {
+///         type Of<A> = MyType<A, E>;
+///         type SendOf<A> = MySendType<A, E>;
 ///     }
 /// }
 /// ```
@@ -124,8 +149,8 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Applies a brand to type arguments.
 ///
 /// This macro projects a brand type to its concrete type using the appropriate
-/// Kind trait. It uses a syntax that mimics a fully qualified path with an
-/// inline anonymous Kind trait definition.
+/// Kind trait. It uses a syntax that mimics a fully qualified path, where the
+/// Kind trait is specified by its signature.
 ///
 /// # Syntax
 ///
