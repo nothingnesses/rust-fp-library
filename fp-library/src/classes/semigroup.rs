@@ -1,6 +1,17 @@
 //! Semigroup type class.
 //!
 //! This module defines the [`Semigroup`] trait, which represents types that support an associative binary operation.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! let x = "Hello, ".to_string();
+//! let y = "World!".to_string();
+//! let z = append::<_>(x, y);
+//! assert_eq!(z, "Hello, World!".to_string());
+//! ```
 
 /// A type class for types that support an associative binary operation.
 ///
@@ -13,7 +24,7 @@ pub trait Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup a => (a, a) -> a`
+	/// `forall s. Semigroup s => (s, s) -> s`
 	///
 	/// ### Parameters
 	///
@@ -27,12 +38,11 @@ pub trait Semigroup {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semigroup::Semigroup;
-	/// use fp_library::types::string; // Import Semigroup impl for String
+	/// use fp_library::functions::*;
 	///
 	/// let x = "Hello, ".to_string();
 	/// let y = "World!".to_string();
-	/// let z = String::append(x, y);
+	/// let z = append::<_>(x, y);
 	/// assert_eq!(z, "Hello, World!".to_string());
 	/// ```
 	fn append(
@@ -47,7 +57,7 @@ pub trait Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall a. Semigroup a => (a, a) -> a`
+/// `forall s. Semigroup s => (s, s) -> s`
 ///
 /// ### Type Parameters
 ///
@@ -65,12 +75,11 @@ pub trait Semigroup {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::semigroup::append;
-/// use fp_library::types::string; // Import Semigroup impl for String
+/// use fp_library::functions::*;
 ///
 /// let x = "Hello, ".to_string();
 /// let y = "World!".to_string();
-/// let z = append(x, y);
+/// let z = append::<_>(x, y);
 /// assert_eq!(z, "Hello, World!".to_string());
 /// ```
 pub fn append<S: Semigroup>(

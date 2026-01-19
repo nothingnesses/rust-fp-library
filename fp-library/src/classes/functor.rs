@@ -1,6 +1,16 @@
 //! Functor type class.
 //!
 //! This module defines the [`Functor`] trait, which represents types that can be mapped over.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(5);
+//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+//! assert_eq!(y, Some(10));
+//! ```
 
 use crate::{Apply, kinds::*};
 
@@ -21,13 +31,13 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor f => (a -> b, f a) -> f b`
+	/// `forall f b a. Functor f => (a -> b, f a) -> f b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the value(s) inside the functor.
 	/// * `B`: The type of the result(s) of applying the function.
+	/// * `A`: The type of the value(s) inside the functor.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -41,14 +51,13 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::functor::Functor;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::map(|i| i * 2, x);
+	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn map<'a, F, A: 'a, B: 'a>(
+	fn map<'a, B: 'a, A: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -62,14 +71,14 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. Functor f => (a -> b, f a) -> f b`
+/// `forall f b a. Functor f => (a -> b, f a) -> f b`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the functor.
-/// * `F`: The type of the function to apply.
-/// * `A`: The type of the value(s) inside the functor.
 /// * `B`: The type of the result(s) of applying the function.
+/// * `A`: The type of the value(s) inside the functor.
+/// * `F`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -83,19 +92,18 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::functor::map;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
 /// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn map<'a, Brand: Functor, F, A: 'a, B: 'a>(
+pub fn map<'a, Brand: Functor, B: 'a, A: 'a, F>(
 	f: F,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	F: Fn(A) -> B + 'a,
 {
-	Brand::map(f, fa)
+	Brand::map::<B, A, F>(f, fa)
 }

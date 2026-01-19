@@ -22,6 +22,26 @@ use crate::{
 /// Wraps two values.
 ///
 /// A simple tuple struct that holds two values of potentially different types.
+///
+/// ### Type Parameters
+///
+/// * `First`: The type of the first value.
+/// * `Second`: The type of the second value.
+///
+/// ### Fields
+///
+/// * `0`: The first value.
+/// * `1`: The second value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::types::Pair;
+///
+/// let p = Pair(1, "hello");
+/// assert_eq!(p.0, 1);
+/// assert_eq!(p.1, "hello");
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Pair<First, Second>(pub First, pub Second);
 
@@ -46,13 +66,13 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Functor (Pair t) => (a -> b, Pair t a) -> Pair t b`
+	/// `forall t b a. Functor (Pair t) => (a -> b, Pair t a) -> Pair t b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the second value.
 	/// * `B`: The type of the result of applying the function.
+	/// * `A`: The type of the second value.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -66,13 +86,13 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::functor::map;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
 	///
 	/// assert_eq!(map::<PairWithFirstBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 	/// ```
-	fn map<'a, F, A: 'a, B: 'a>(
+	fn map<'a, B: 'a, A: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -93,14 +113,14 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c t. (Lift (Pair t), Semigroup t) => ((a, b) -> c, Pair t a, Pair t b) -> Pair t c`
+	/// `forall t c a b. (Lift (Pair t), Semigroup t) => ((a, b) -> c, Pair t a, Pair t b) -> Pair t c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result second value.
 	/// * `A`: The type of the first second value.
 	/// * `B`: The type of the second second value.
-	/// * `C`: The type of the result second value.
+	/// * `F`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
@@ -115,17 +135,16 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::lift::lift2;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(
 	///     lift2::<PairWithFirstBrand<String>, _, _, _, _>(|x, y| x + y, Pair("a".to_string(), 1), Pair("b".to_string(), 2)),
 	///     Pair("ab".to_string(), 3)
 	/// );
 	/// ```
-	fn lift2<'a, F, A, B, C>(
+	fn lift2<'a, C, A, B, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -150,7 +169,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a t. (Pointed (Pair t), Monoid t) => a -> Pair t a`
+	/// `forall t a. (Pointed (Pair t), Monoid t) => a -> Pair t a`
 	///
 	/// ### Type Parameters
 	///
@@ -167,10 +186,9 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::pointed::pure;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
 	/// ```
@@ -192,13 +210,13 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. (Semiapplicative (Pair t), Semigroup t) => (Pair t (a -> b), Pair t a) -> Pair t b`
+	/// `forall fn_brand t b a. (Semiapplicative (Pair t), Semigroup t) => (Pair t (fn_brand a b), Pair t a) -> Pair t b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function wrapper.
-	/// * `A`: The type of the input value.
 	/// * `B`: The type of the output value.
+	/// * `A`: The type of the input value.
 	///
 	/// ### Parameters
 	///
@@ -212,18 +230,12 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semiapplicative::apply;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::brands::PairWithFirstBrand;
-	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::types::string;
-	/// use std::rc::Rc;
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let f = Pair("a".to_string(), <RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// let f = Pair("a".to_string(), clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -241,13 +253,13 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. (Semimonad (Pair t), Semigroup t) => (Pair t a, a -> Pair t b) -> Pair t b`
+	/// `forall t b a. (Semimonad (Pair t), Semigroup t) => (Pair t a, a -> Pair t b) -> Pair t b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the result of the first computation.
 	/// * `B`: The type of the result of the second computation.
+	/// * `A`: The type of the result of the first computation.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -261,17 +273,16 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semimonad::bind;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithFirstBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(
 	///     bind::<PairWithFirstBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair("b".to_string(), x * 2)),
 	///     Pair("ab".to_string(), 10)
 	/// );
 	/// ```
-	fn bind<'a, F, A: 'a, B: 'a>(
+	fn bind<'a, B: 'a, A: 'a, F>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -291,14 +302,14 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Foldable (Pair t) => ((a, b) -> b, b, Pair t a) -> b`
+	/// `forall t b a. Foldable (Pair t) => ((a, b) -> b, b, Pair t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `Func`: The type of the folding function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
@@ -313,14 +324,13 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_right;
-	/// use fp_library::brands::PairWithFirstBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
 	/// ```
-	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -338,20 +348,20 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Foldable (Pair t) => ((b, a) -> b, b, Pair t a) -> b`
+	/// `forall t b a. Foldable (Pair t) => ((b, a) -> b, b, Pair t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `Func`: The type of the folding function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
 	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The pair to fold.
+	/// * `fa`: The identity to fold.
 	///
 	/// ### Returns
 	///
@@ -360,14 +370,13 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_left;
-	/// use fp_library::brands::PairWithFirstBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
 	/// ```
-	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -385,14 +394,14 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m t. (Foldable (Pair t), Monoid m) => ((a) -> m, Pair t a) -> m`
+	/// `forall t m a. (Foldable (Pair t), Monoid m) => ((a) -> m, Pair t a) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `Func`: The type of the mapping function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `M`: The type of the monoid.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
 	///
@@ -406,18 +415,16 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_map;
-	/// use fp_library::brands::PairWithFirstBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair((), 5)),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -437,14 +444,14 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b f t. (Traversable (Pair t), Applicative f) => (a -> f b, Pair t a) -> f (Pair t b)`
+	/// `forall t f b a. (Traversable (Pair t), Applicative f) => (a -> f b, Pair t a) -> f (Pair t b)`
 	///
 	/// ### Type Parameters
 	///
 	/// * `F`: The applicative context.
-	/// * `Func`: The type of the function to apply.
-	/// * `A`: The type of the elements in the traversable structure.
 	/// * `B`: The type of the elements in the resulting traversable structure.
+	/// * `A`: The type of the elements in the traversable structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -458,7 +465,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::traverse;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithFirstBrand, OptionBrand};
 	/// use fp_library::types::Pair;
 	///
@@ -467,7 +474,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///     Some(Pair((), 10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -484,7 +491,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f t. (Traversable (Pair t), Applicative f) => (Pair t (f a)) -> f (Pair t a)`
+	/// `forall t f a. (Traversable (Pair t), Applicative f) => (Pair t (f a)) -> f (Pair t a)`
 	///
 	/// ### Type Parameters
 	///
@@ -502,7 +509,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::sequence;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithFirstBrand, OptionBrand};
 	/// use fp_library::types::Pair;
 	///
@@ -530,13 +537,12 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m t. (ParFoldable (Pair t), Monoid m, Send m, Sync m) => (f a m, Pair t a) -> m`
+	/// `forall fn_brand t m a. (ParFoldable (Pair t), Monoid m, Send m, Sync m) => (fn_brand a m, Pair t a) -> m`
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendClonableFn`).
-	/// * `A`: The element type (must be `Send + Sync`).
 	/// * `M`: The monoid type (must be `Send + Sync`).
+	/// * `A`: The element type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -550,19 +556,18 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::par_foldable::par_fold_map;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithFirstBrand, ArcFnBrand};
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
-	/// use fp_library::types::{Pair, string};
+	/// use fp_library::types::Pair;
 	///
 	/// let x = Pair("a".to_string(), 1);
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x.to_string());
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(
 	///     par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, x),
 	///     "1".to_string()
 	/// );
 	/// ```
-	fn par_fold_map<'a, A, M>(
+	fn par_fold_map<'a, M, A>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -579,13 +584,12 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. ParFoldable (Pair t) => (f (a, b) b, b, Pair t a) -> b`
+	/// `forall fn_brand t b a. ParFoldable (Pair t) => (fn_brand (a, b) b, b, Pair t a) -> b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `A`: The element type (must be `Send + Sync`).
 	/// * `B`: The accumulator type (must be `Send + Sync`).
+	/// * `A`: The element type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -600,16 +604,15 @@ impl<First: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand> for PairWithF
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::par_foldable::par_fold_right;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithFirstBrand, ArcFnBrand};
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
 	/// use fp_library::types::Pair;
 	///
 	/// let x = Pair("a".to_string(), 1);
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|(a, b): (i32, i32)| a + b);
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
 	/// ```
-	fn par_fold_right<'a, A, B>(
+	fn par_fold_right<'a, B, A>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -636,13 +639,13 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Functor (Pair' t) => (a -> b, Pair a t) -> Pair b t`
+	/// `forall t b a. Functor (PairWithSecond t) => (a -> b, Pair a t) -> Pair b t`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the first value.
 	/// * `B`: The type of the result of applying the function.
+	/// * `A`: The type of the first value.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -656,13 +659,13 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::functor::map;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
 	///
 	/// assert_eq!(map::<PairWithSecondBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
 	/// ```
-	fn map<'a, F, A: 'a, B: 'a>(
+	fn map<'a, B: 'a, A: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -683,14 +686,14 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c t. (Lift (Pair' t), Semigroup t) => ((a, b) -> c, Pair a t, Pair b t) -> Pair c t`
+	/// `forall t c a b. (Lift (PairWithSecond t), Semigroup t) => ((a, b) -> c, Pair a t, Pair b t) -> Pair c t`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result first value.
 	/// * `A`: The type of the first first value.
 	/// * `B`: The type of the second first value.
-	/// * `C`: The type of the result first value.
+	/// * `F`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
@@ -705,17 +708,16 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::lift::lift2;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(
 	///     lift2::<PairWithSecondBrand<String>, _, _, _, _>(|x, y| x + y, Pair(1, "a".to_string()), Pair(2, "b".to_string())),
 	///     Pair(3, "ab".to_string())
 	/// );
 	/// ```
-	fn lift2<'a, F, A, B, C>(
+	fn lift2<'a, C, A, B, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -740,7 +742,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a t. (Pointed (Pair' t), Monoid t) => a -> Pair a t`
+	/// `forall t a. (Pointed (PairWithSecond t), Monoid t) => a -> Pair a t`
 	///
 	/// ### Type Parameters
 	///
@@ -757,10 +759,9 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::pointed::pure;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
 	/// ```
@@ -778,42 +779,36 @@ where
 {
 	/// Applies a wrapped function to a wrapped value (over first).
 	///
-	/// This method applies a function wrapped in a pair to a value wrapped in a pair. The second values are combined using their `Semigroup` implementation.
+	/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. (Semiapplicative (Pair' t), Semigroup t) => (Pair (a -> b) t, Pair a t) -> Pair b t`
+	/// `forall fn_brand t b a. (Semiapplicative (PairWithSecond t), Semigroup t) => (Pair (fn_brand a b) t, Pair a t) -> Pair b t`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function wrapper.
-	/// * `A`: The type of the input value.
 	/// * `B`: The type of the output value.
+	/// * `A`: The type of the input value.
 	///
 	/// ### Parameters
 	///
-	/// * `ff`: The pair containing the function.
-	/// * `fa`: The pair containing the value.
+	/// * `ff`: The pair containing the function (in Err).
+	/// * `fa`: The pair containing the value (in Err).
 	///
 	/// ### Returns
 	///
-	/// A new pair where the function is applied to the first value and the second values are combined.
+	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semiapplicative::apply;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::brands::PairWithSecondBrand;
-	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::types::string;
-	/// use std::rc::Rc;
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let f = Pair(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2), "a".to_string());
+	/// let f = Pair(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 	/// assert_eq!(apply::<RcFnBrand, PairWithSecondBrand<String>, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -827,41 +822,40 @@ where
 {
 	/// Chains pair computations (over first).
 	///
-	/// This method chains two computations, where the second computation depends on the result of the first. The second values are combined using their `Semigroup` implementation.
+	/// This method chains two computations, where the second computation depends on the result of the first (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. (Semimonad (Pair' t), Semigroup t) => (Pair a t, a -> Pair b t) -> Pair b t`
+	/// `forall t b a. (Semimonad (PairWithSecond t), Semigroup t) => (Pair a t, a -> Pair b t) -> Pair b t`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the result of the first computation.
 	/// * `B`: The type of the result of the second computation.
+	/// * `A`: The type of the result of the first computation.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first pair.
-	/// * `f`: The function to apply to the first value.
+	/// * `ma`: The first result.
+	/// * `f`: The function to apply to the error value.
 	///
 	/// ### Returns
 	///
-	/// A new pair where the second values are combined.
+	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semimonad::bind;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::PairWithSecondBrand;
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
 	///
 	/// assert_eq!(
 	///     bind::<PairWithSecondBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(x * 2, "b".to_string())),
 	///     Pair(10, "ab".to_string())
 	/// );
 	/// ```
-	fn bind<'a, F, A: 'a, B: 'a>(
+	fn bind<'a, B: 'a, A: 'a, F>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -877,46 +871,45 @@ where
 impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// Folds the pair from the right (over first).
 	///
-	/// This method performs a right-associative fold of the pair (over first).
+	/// This method performs a right-associative fold of the result (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Foldable (Pair' t) => ((a, b) -> b, b, Pair a t) -> b`
+	/// `forall t b a. Foldable (PairWithSecond t) => ((a, b) -> b, b, Pair a t) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `F`: The type of the folding function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
 	/// * `initial`: The initial value.
-	/// * `fa`: The pair to fold.
+	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `func(a, initial)`.
+	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_right;
-	/// use fp_library::brands::PairWithSecondBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
 	/// ```
-	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
-		func: Func,
+	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		Func: Fn(A, B) -> B + 'a,
+		F: Fn(A, B) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		func(fa.0, initial)
@@ -924,46 +917,45 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 
 	/// Folds the pair from the left (over first).
 	///
-	/// This method performs a left-associative fold of the pair (over first).
+	/// This method performs a left-associative fold of the result (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. Foldable (Pair' t) => ((b, a) -> b, b, Pair a t) -> b`
+	/// `forall t b a. Foldable (PairWithSecond t) => ((b, a) -> b, b, Pair a t) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `Func`: The type of the folding function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The pair to fold.
+	/// * `func`: The folding function.
+	/// * `initial`: The initial value.
+	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `func(initial, a)`.
+	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_left;
-	/// use fp_library::brands::PairWithSecondBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
 	/// ```
-	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
-		func: Func,
+	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		Func: Fn(B, A) -> B + 'a,
+		F: Fn(B, A) -> B + 'a,
 		FnBrand: ClonableFn + 'a,
 	{
 		func(initial, fa.0)
@@ -971,43 +963,41 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 
 	/// Maps the value to a monoid and returns it (over first).
 	///
-	/// This method maps the element of the pair to a monoid and then returns it (over first).
+	/// This method maps the element of the result to a monoid and then returns it (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m t. (Foldable (Pair' t), Monoid m) => ((a) -> m, Pair a t) -> m`
+	/// `forall t m a. (Foldable (PairWithSecond t), Monoid m) => ((a) -> m, Pair a t) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the clonable function to use.
-	/// * `Func`: The type of the mapping function.
-	/// * `A`: The type of the elements in the structure.
 	/// * `M`: The type of the monoid.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
-	/// * `fa`: The pair to fold.
+	/// * `fa`: The result to fold.
 	///
 	/// ### Returns
 	///
-	/// `func(a)`.
+	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::fold_map;
-	/// use fp_library::brands::PairWithSecondBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
 	/// use fp_library::types::Pair;
-	/// use fp_library::types::string;
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair(5, ())),
 	///     "5".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -1023,32 +1013,32 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// Traverses the pair with an applicative function (over first).
 	///
-	/// This method maps the element of the pair to a computation, evaluates it, and combines the result into an applicative context (over first).
+	/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b f t. (Traversable (Pair' t), Applicative f) => (a -> f b, Pair a t) -> f (Pair b t)`
+	/// `forall t f b a. (Traversable (PairWithSecond t), Applicative f) => (a -> f b, Pair a t) -> f (Pair b t)`
 	///
 	/// ### Type Parameters
 	///
 	/// * `F`: The applicative context.
-	/// * `Func`: The type of the function to apply.
-	/// * `A`: The type of the elements in the traversable structure.
 	/// * `B`: The type of the elements in the resulting traversable structure.
+	/// * `A`: The type of the elements in the traversable structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The pair to traverse.
+	/// * `func`: The function to apply.
+	/// * `ta`: The result to traverse.
 	///
 	/// ### Returns
 	///
-	/// The pair wrapped in the applicative context.
+	/// The result wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::traverse;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithSecondBrand, OptionBrand};
 	/// use fp_library::types::Pair;
 	///
@@ -1057,7 +1047,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///     Some(Pair(10, ()))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -1068,13 +1058,14 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		let Pair(first, second) = ta;
 		F::map(move |b| Pair(b, second.clone()), func(first))
 	}
+
 	/// Sequences a pair of applicative (over first).
 	///
-	/// This method evaluates the computation inside the pair and accumulates the result into an applicative context (over first).
+	/// This method evaluates the computation inside the result and accumulates the result into an applicative context (over error).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f t. (Traversable (Pair' t), Applicative f) => (Pair (f a) t) -> f (Pair a t)`
+	/// `forall t f a. (Traversable (PairWithSecond t), Applicative f) => (Pair (f a) t) -> f (Pair a t)`
 	///
 	/// ### Type Parameters
 	///
@@ -1083,16 +1074,16 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	/// * `ta`: The pair containing the applicative value.
+	/// * `ta`: The result containing the applicative value.
 	///
 	/// ### Returns
 	///
-	/// The pair wrapped in the applicative context.
+	/// The result wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::sequence;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithSecondBrand, OptionBrand};
 	/// use fp_library::types::Pair;
 	///
@@ -1122,13 +1113,12 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m t. (ParFoldable (Pair' t), Monoid m, Send m, Sync m) => (f a m, Pair a t) -> m`
+	/// `forall fn_brand t m a. (ParFoldable (PairWithSecond t), Monoid m, Send m, Sync m) => (fn_brand a m, Pair a t) -> m`
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendClonableFn`).
-	/// * `A`: The element type (must be `Send + Sync`).
 	/// * `M`: The monoid type (must be `Send + Sync`).
+	/// * `A`: The element type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -1142,19 +1132,18 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::par_foldable::par_fold_map;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithSecondBrand, ArcFnBrand};
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
-	/// use fp_library::types::{Pair, string};
+	/// use fp_library::types::Pair;
 	///
 	/// let x = Pair(1, "a".to_string());
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x.to_string());
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(
 	///     par_fold_map::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, x),
 	///     "1".to_string()
 	/// );
 	/// ```
-	fn par_fold_map<'a, A, M>(
+	fn par_fold_map<'a, M, A>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -1171,13 +1160,12 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b t. ParFoldable (Pair' t) => (f (a, b) b, b, Pair a t) -> b`
+	/// `forall fn_brand t b a. ParFoldable (PairWithSecond t) => (fn_brand (a, b) b, b, Pair a t) -> b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `A`: The element type (must be `Send + Sync`).
 	/// * `B`: The accumulator type (must be `Send + Sync`).
+	/// * `A`: The element type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -1192,15 +1180,15 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::par_foldable::par_fold_right;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{PairWithSecondBrand, ArcFnBrand};
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
 	/// use fp_library::types::Pair;
 	///
 	/// let x = Pair(1, "a".to_string());
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|(a, b): (i32, i32)| a + b);
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
-	fn par_fold_right<'a, A, B>(
+	/// ```
+	fn par_fold_right<'a, B, A>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1216,19 +1204,7 @@ impl<Second: 'static, FnBrand: SendClonableFn> ParFoldable<FnBrand>
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{
-		brands::{ArcFnBrand, PairWithFirstBrand, PairWithSecondBrand, RcFnBrand},
-		classes::{
-			clonable_fn::ClonableFn,
-			functor::map,
-			par_foldable::{par_fold_map, par_fold_right},
-			pointed::pure,
-			semiapplicative::apply,
-			semimonad::bind,
-			send_clonable_fn::new_send,
-		},
-		functions::{compose, identity},
-	};
+	use crate::{brands::*, functions::*};
 	use quickcheck_macros::quickcheck;
 
 	// Functor Laws
@@ -1392,7 +1368,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_pair_with_first() {
 		let x = Pair("a".to_string(), 1);
-		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(
 			par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, x),
 			"1".to_string()
@@ -1403,7 +1379,7 @@ mod tests {
 	#[test]
 	fn par_fold_right_pair_with_first() {
 		let x = Pair("a".to_string(), 1);
-		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
 	}
 
@@ -1413,7 +1389,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_pair_with_second() {
 		let x = Pair(1, "a".to_string());
-		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(
 			par_fold_map::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, x),
 			"1".to_string()
@@ -1424,7 +1400,7 @@ mod tests {
 	#[test]
 	fn par_fold_right_pair_with_second() {
 		let x = Pair(1, "a".to_string());
-		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
 	}
 }

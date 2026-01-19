@@ -1,6 +1,16 @@
 //! Compactable type class.
 //!
 //! This module defines the [`Compactable`] trait, which represents data structures that can be compacted (filtering out `None` values) and separated (splitting `Result` values).
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(Some(5));
+//! let y = compact::<OptionBrand, _>(x);
+//! assert_eq!(y, Some(5));
+//! ```
 
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
 
@@ -31,15 +41,14 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::compactable::Compactable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(Some(5));
-	/// let y = OptionBrand::compact(x);
+	/// let y = compact::<OptionBrand, _>(x);
 	/// assert_eq!(y, Some(5));
 	///
 	/// let z = Some(None::<i32>);
-	/// let w = OptionBrand::compact(z);
+	/// let w = compact::<OptionBrand, _>(z);
 	/// assert_eq!(w, None);
 	/// ```
 	fn compact<'a, A: 'a>(
@@ -53,12 +62,12 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a f. Compactable f => f (Result a e) -> (f a, f e)`
+	/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
 	///
 	/// ### Type Parameters
 	///
-	/// * `E`: The type of the error values.
 	/// * `O`: The type of the success values.
+	/// * `E`: The type of the error values.
 	///
 	/// ### Parameters
 	///
@@ -71,21 +80,19 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::compactable::Compactable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-	/// let Pair(oks, errs) = OptionBrand::separate(x);
+	/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	///
 	/// let y: Option<Result<i32, &str>> = Some(Err("error"));
-	/// let Pair(oks2, errs2) = OptionBrand::separate(y);
+	/// let Pair(oks2, errs2) = separate::<OptionBrand, _, _>(y);
 	/// assert_eq!(oks2, None);
 	/// assert_eq!(errs2, Some("error"));
 	/// ```
-	fn separate<'a, E: 'a, O: 'a>(
+	fn separate<'a, O: 'a, E: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 	) -> Pair<
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -117,8 +124,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::compactable::compact;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(Some(5));
 /// let y = compact::<OptionBrand, _>(x);
@@ -139,13 +145,13 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Signature
 ///
-/// `forall e a f. Compactable f => f (Result a e) -> (f a, f e)`
+/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the compactable structure.
-/// * `E`: The type of the error values.
 /// * `O`: The type of the success values.
+/// * `E`: The type of the error values.
 ///
 /// ### Parameters
 ///
@@ -158,20 +164,18 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::compactable::separate;
-/// use fp_library::brands::OptionBrand;
-/// use fp_library::types::Pair;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let x: Option<Result<i32, &str>> = Some(Ok(5));
 /// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn separate<'a, Brand: Compactable, E: 'a, O: 'a>(
+pub fn separate<'a, Brand: Compactable, O: 'a, E: 'a>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 ) -> Pair<
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 > {
-	Brand::separate(fa)
+	Brand::separate::<O, E>(fa)
 }

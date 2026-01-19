@@ -1,6 +1,17 @@
 //! Defer type class.
 //!
 //! This module defines the [`Defer`] trait, which provides an abstraction for types that can be constructed lazily.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, classes::*, functions::*, types::*};
+//!
+//! let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+//!     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
+//! );
+//! assert_eq!(Lazy::force(lazy), 42);
+//! ```
 
 use super::clonable_fn::ClonableFn;
 
@@ -29,14 +40,10 @@ pub trait Defer<'a> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::defer::Defer;
-	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::defer::<RcFnBrand>(
-	///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
+	/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+	///     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
@@ -55,8 +62,8 @@ pub trait Defer<'a> {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function wrapper.
 /// * `D`: The type of the deferred value.
+/// * `FnBrand`: The brand of the clonable function wrapper.
 ///
 /// ### Parameters
 ///
@@ -69,18 +76,14 @@ pub trait Defer<'a> {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::defer::defer;
-/// use fp_library::types::lazy::Lazy;
-/// use fp_library::brands::RcFnBrand;
-/// use fp_library::brands::OnceCellBrand;
-/// use fp_library::classes::clonable_fn::ClonableFn;
+/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 ///
-/// let lazy = defer::<RcFnBrand, Lazy<OnceCellBrand, RcFnBrand, _>>(
-///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
+/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+///     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
 /// );
 /// assert_eq!(Lazy::force(lazy), 42);
 /// ```
-pub fn defer<'a, FnBrand, D>(f: <FnBrand as ClonableFn>::Of<'a, (), D>) -> D
+pub fn defer<'a, D, FnBrand>(f: <FnBrand as ClonableFn>::Of<'a, (), D>) -> D
 where
 	D: Defer<'a>,
 	FnBrand: 'a + ClonableFn,

@@ -2,6 +2,15 @@
 //!
 //! This module defines the [`Category`] trait, which extends [`Semigroupoid`] with an identity element.
 //! A category consists of objects and morphisms between them, with composition and identity.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let id = category_identity::<RcFnBrand, i32>();
+//! assert_eq!(id(5), 5);
+//! ```
 
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
@@ -21,7 +30,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Category cat => () -> cat a a`
+	/// `forall c a. Category c => () -> c a a`
 	///
 	/// ### Type Parameters
 	///
@@ -34,10 +43,9 @@ pub trait Category: Semigroupoid {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::category::Category;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let id = RcFnBrand::identity::<i32>();
+	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
 	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>);
@@ -49,7 +57,7 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Signature
 ///
-/// `forall a. Category cat => () -> cat a a`
+/// `forall c a. Category c => () -> c a a`
 ///
 /// ### Type Parameters
 ///
@@ -63,10 +71,9 @@ pub trait Category: Semigroupoid {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::category::identity;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let id = identity::<RcFnBrand, i32>();
+/// let id = category_identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);
 /// ```
 pub fn identity<'a, Brand: Category, A>()

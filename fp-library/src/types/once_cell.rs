@@ -21,7 +21,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => () -> OnceCell a`
+	/// `forall a. Once OnceCell => () -> OnceCell a`
 	///
 	/// ### Type Parameters
 	///
@@ -34,11 +34,11 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
 	/// ```
 	fn new<A>() -> <Self as Once>::Of<A> {
 		OnceCell::new()
@@ -50,7 +50,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
+	/// `forall a. Once OnceCell => OnceCell a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -67,13 +67,13 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), Some(&42));
 	/// ```
 	fn get<A>(a: &<Self as Once>::Of<A>) -> Option<&A> {
 		OnceCell::get(a)
@@ -85,7 +85,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
+	/// `forall a. Once OnceCell => OnceCell a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -102,15 +102,15 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// if let Some(val) = <OnceCellBrand as Once>::get_mut(&mut cell) {
+	/// let mut cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// if let Some(val) = once_get_mut::<OnceCellBrand, _>(&mut cell) {
 	///     *val += 1;
 	/// }
-	/// assert_eq!(<OnceCellBrand as Once>::get_mut(&mut cell), Some(&mut 43));
+	/// assert_eq!(once_get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
 	/// ```
 	fn get_mut<A>(a: &mut <Self as Once>::Of<A>) -> Option<&mut A> {
 		OnceCell::get_mut(a)
@@ -122,7 +122,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => (OnceCell a, a) -> Result<(), a>`
+	/// `forall a. Once OnceCell => (OnceCell a, a) -> Result<(), a>`
 	///
 	/// ### Type Parameters
 	///
@@ -140,12 +140,12 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert!(<OnceCellBrand as Once>::set(&cell, 42).is_ok());
-	/// assert!(<OnceCellBrand as Once>::set(&cell, 10).is_err());
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert!(once_set::<OnceCellBrand, _>(&cell, 42).is_ok());
+	/// assert!(once_set::<OnceCellBrand, _>(&cell, 10).is_err());
 	/// ```
 	fn set<A>(
 		a: &<Self as Once>::Of<A>,
@@ -160,7 +160,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => (OnceCell a, () -> a) -> a`
+	/// `forall a. Once OnceCell => (OnceCell a, () -> a) -> a`
 	///
 	/// ### Type Parameters
 	///
@@ -179,12 +179,12 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 42), 42);
-	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 10), 42);
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 42), 42);
+	/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
 	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
 		a: &<Self as Once>::Of<A>,
@@ -199,7 +199,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
+	/// `forall a. Once OnceCell => OnceCell a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -216,12 +216,12 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::into_inner(cell), Some(42));
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_into_inner::<OnceCellBrand, _>(cell), Some(42));
 	/// ```
 	fn into_inner<A>(a: <Self as Once>::Of<A>) -> Option<A> {
 		OnceCell::into_inner(a)
@@ -233,7 +233,7 @@ impl Once for OnceCellBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceCellBrand => OnceCell a -> Option a`
+	/// `forall a. Once OnceCell => OnceCell a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -250,13 +250,13 @@ impl Once for OnceCellBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceCellBrand;
 	///
-	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
-	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), None);
+	/// let mut cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), Some(42));
+	/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), None);
 	/// ```
 	fn take<A>(a: &mut <Self as Once>::Of<A>) -> Option<A> {
 		OnceCell::take(a)

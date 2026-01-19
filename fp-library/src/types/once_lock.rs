@@ -21,7 +21,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => () -> OnceLock a`
+	/// `forall a. Once OnceLock => () -> OnceLock a`
 	///
 	/// ### Type Parameters
 	///
@@ -34,11 +34,11 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let cell = <OnceLockBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceLockBrand as Once>::get(&cell), None);
+	/// let cell = once_new::<OnceLockBrand, i32>();
+	/// assert_eq!(once_get::<OnceLockBrand, _>(&cell), None);
 	/// ```
 	fn new<A>() -> <Self as Once>::Of<A> {
 		OnceLock::new()
@@ -50,7 +50,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => OnceLock a -> Option a`
+	/// `forall a. Once OnceLock => OnceLock a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -67,13 +67,13 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let cell = <OnceLockBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceLockBrand as Once>::get(&cell), None);
-	/// <OnceLockBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceLockBrand as Once>::get(&cell), Some(&42));
+	/// let cell = once_new::<OnceLockBrand, i32>();
+	/// assert_eq!(once_get::<OnceLockBrand, _>(&cell), None);
+	/// once_set::<OnceLockBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_get::<OnceLockBrand, _>(&cell), Some(&42));
 	/// ```
 	fn get<A>(a: &<Self as Once>::Of<A>) -> Option<&A> {
 		OnceLock::get(a)
@@ -85,7 +85,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => OnceLock a -> Option a`
+	/// `forall a. Once OnceLock => OnceLock a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -102,15 +102,15 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let mut cell = <OnceLockBrand as Once>::new::<i32>();
-	/// <OnceLockBrand as Once>::set(&cell, 42).unwrap();
-	/// if let Some(val) = <OnceLockBrand as Once>::get_mut(&mut cell) {
+	/// let mut cell = once_new::<OnceLockBrand, i32>();
+	/// once_set::<OnceLockBrand, _>(&cell, 42).unwrap();
+	/// if let Some(val) = once_get_mut::<OnceLockBrand, _>(&mut cell) {
 	///     *val += 1;
 	/// }
-	/// assert_eq!(<OnceLockBrand as Once>::get_mut(&mut cell), Some(&mut 43));
+	/// assert_eq!(once_get_mut::<OnceLockBrand, _>(&mut cell), Some(&mut 43));
 	/// ```
 	fn get_mut<A>(a: &mut <Self as Once>::Of<A>) -> Option<&mut A> {
 		OnceLock::get_mut(a)
@@ -122,7 +122,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => (OnceLock a, a) -> Result<(), a>`
+	/// `forall a. Once OnceLock => (OnceLock a, a) -> Result<(), a>`
 	///
 	/// ### Type Parameters
 	///
@@ -140,12 +140,12 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let cell = <OnceLockBrand as Once>::new::<i32>();
-	/// assert!(<OnceLockBrand as Once>::set(&cell, 42).is_ok());
-	/// assert!(<OnceLockBrand as Once>::set(&cell, 10).is_err());
+	/// let cell = once_new::<OnceLockBrand, i32>();
+	/// assert!(once_set::<OnceLockBrand, _>(&cell, 42).is_ok());
+	/// assert!(once_set::<OnceLockBrand, _>(&cell, 10).is_err());
 	/// ```
 	fn set<A>(
 		a: &<Self as Once>::Of<A>,
@@ -160,7 +160,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => (OnceLock a, () -> a) -> a`
+	/// `forall a. Once OnceLock => (OnceLock a, () -> a) -> a`
 	///
 	/// ### Type Parameters
 	///
@@ -179,12 +179,12 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let cell = <OnceLockBrand as Once>::new::<i32>();
-	/// assert_eq!(*<OnceLockBrand as Once>::get_or_init(&cell, || 42), 42);
-	/// assert_eq!(*<OnceLockBrand as Once>::get_or_init(&cell, || 10), 42);
+	/// let cell = once_new::<OnceLockBrand, i32>();
+	/// assert_eq!(*once_get_or_init::<OnceLockBrand, _, _>(&cell, || 42), 42);
+	/// assert_eq!(*once_get_or_init::<OnceLockBrand, _, _>(&cell, || 10), 42);
 	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
 		a: &<Self as Once>::Of<A>,
@@ -199,7 +199,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => OnceLock a -> Option a`
+	/// `forall a. Once OnceLock => OnceLock a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -216,12 +216,12 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let cell = <OnceLockBrand as Once>::new::<i32>();
-	/// <OnceLockBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceLockBrand as Once>::into_inner(cell), Some(42));
+	/// let cell = once_new::<OnceLockBrand, i32>();
+	/// once_set::<OnceLockBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_into_inner::<OnceLockBrand, _>(cell), Some(42));
 	/// ```
 	fn into_inner<A>(a: <Self as Once>::Of<A>) -> Option<A> {
 		OnceLock::into_inner(a)
@@ -233,7 +233,7 @@ impl Once for OnceLockBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Once OnceLockBrand => OnceLock a -> Option a`
+	/// `forall a. Once OnceLock => OnceLock a -> Option a`
 	///
 	/// ### Type Parameters
 	///
@@ -250,13 +250,13 @@ impl Once for OnceLockBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OnceLockBrand;
 	///
-	/// let mut cell = <OnceLockBrand as Once>::new::<i32>();
-	/// <OnceLockBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceLockBrand as Once>::take(&mut cell), Some(42));
-	/// assert_eq!(<OnceLockBrand as Once>::take(&mut cell), None);
+	/// let mut cell = once_new::<OnceLockBrand, i32>();
+	/// once_set::<OnceLockBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_take::<OnceLockBrand, _>(&mut cell), Some(42));
+	/// assert_eq!(once_take::<OnceLockBrand, _>(&mut cell), None);
 	/// ```
 	fn take<A>(a: &mut <Self as Once>::Of<A>) -> Option<A> {
 		OnceLock::take(a)

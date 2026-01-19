@@ -17,6 +17,28 @@ use crate::{
 /// `Lazy` stores a computation (a thunk) that is executed only when the value is needed.
 /// The result is then cached (memoized) so that subsequent accesses return the same value
 /// without re-executing the computation.
+///
+/// ### Type Parameters
+///
+/// * `OnceBrand`: The brand of the once cell used for memoization.
+/// * `FnBrand`: The brand of the clonable function wrapper used for the thunk.
+/// * `A`: The type of the value.
+///
+/// ### Fields
+///
+/// * `0`: The once cell storing the memoized value.
+/// * `1`: The thunk that produces the value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::functions::*;
+/// use fp_library::types::lazy::Lazy;
+/// use fp_library::brands::{OnceCellBrand, RcFnBrand};
+///
+/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42));
+/// assert_eq!(Lazy::force(lazy), 42);
+/// ```
 pub struct Lazy<'a, OnceBrand: Once, FnBrand: ClonableFn, A>(
 	pub <OnceBrand as Once>::Of<A>,
 	pub <FnBrand as ClonableFn>::Of<'a, (), A>,
@@ -49,12 +71,11 @@ impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::brands::{OnceCellBrand, RcFnBrand};
 	///
-	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
+	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42));
 	/// ```
 	pub fn new(a: <FnBrand as ClonableFn>::Of<'a, (), A>) -> Self {
 		Self(OnceBrand::new(), a)
@@ -87,12 +108,11 @@ impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::brands::{OnceCellBrand, RcFnBrand};
 	///
-	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| 42));
+	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42));
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```
 	pub fn force(a: Self) -> A
@@ -101,6 +121,77 @@ impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A> Lazy<'a, OnceBrand, FnBrand, A
 	{
 		<OnceBrand as Once>::get_or_init(&a.0, move || (a.1)(())).clone()
 	}
+}
+
+/// Creates a new `Lazy` value from a thunk.
+///
+/// Free function version of [`Lazy::new`].
+///
+/// ### Type Signature
+///
+/// `forall once_brand fn_brand a. (() -> a) -> Lazy once_brand fn_brand a`
+///
+/// ### Type Parameters
+///
+/// * `OnceBrand`: The brand of the once cell.
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `A`: The type of the value.
+///
+/// ### Parameters
+///
+/// * `a`: The thunk that produces the value.
+///
+/// ### Returns
+///
+/// A new `Lazy` value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+///
+/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42));
+/// ```
+pub fn new<'a, OnceBrand: Once, FnBrand: ClonableFn, A>(
+	a: <FnBrand as ClonableFn>::Of<'a, (), A>
+) -> Lazy<'a, OnceBrand, FnBrand, A> {
+	Lazy::new(a)
+}
+
+/// Forces the evaluation of the thunk and returns the value.
+///
+/// Free function version of [`Lazy::force`].
+///
+/// ### Type Signature
+///
+/// `forall once_brand fn_brand a. Lazy once_brand fn_brand a -> a`
+///
+/// ### Type Parameters
+///
+/// * `OnceBrand`: The brand of the once cell.
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `A`: The type of the value.
+///
+/// ### Parameters
+///
+/// * `a`: The lazy value to force.
+///
+/// ### Returns
+///
+/// The computed value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+///
+/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42));
+/// assert_eq!(Lazy::force(lazy), 42);
+/// ```
+pub fn force<'a, OnceBrand: Once, FnBrand: ClonableFn, A: Clone>(
+	a: Lazy<'a, OnceBrand, FnBrand, A>
+) -> A {
+	Lazy::force(a)
 }
 
 impl<'a, OnceBrand: Once, FnBrand: ClonableFn, A: Clone> Clone for Lazy<'a, OnceBrand, FnBrand, A>
@@ -154,16 +245,14 @@ where
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::classes::semigroup::Semigroup;
+	/// use fp_library::brands::{OnceCellBrand, RcFnBrand};
 	/// use fp_library::types::string; // Import Semigroup impl for String
 	///
-	/// let x = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| "Hello, ".to_string()));
-	/// let y = Lazy::<OnceCellBrand, RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|_| "World!".to_string()));
-	/// let z = Semigroup::append(x, y);
+	/// let x = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| "Hello, ".to_string()));
+	/// let y = Lazy::<OnceCellBrand, RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|_| "World!".to_string()));
+	/// let z = append::<_>(x, y);
 	/// assert_eq!(Lazy::force(z), "Hello, World!".to_string());
 	/// ```
 	fn append(
@@ -196,13 +285,13 @@ where
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::lazy::Lazy;
 	/// use fp_library::brands::RcFnBrand;
 	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::monoid::Monoid;
 	/// use fp_library::types::string; // Import Monoid impl for String
 	///
-	/// let x = Lazy::<OnceCellBrand, RcFnBrand, String>::empty();
+	/// let x = empty::<Lazy<OnceCellBrand, RcFnBrand, String>>();
 	/// assert_eq!(Lazy::force(x), "".to_string());
 	/// ```
 	fn empty() -> Self {
@@ -222,9 +311,10 @@ impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a
 	/// ### Type Signature
 	///
 	/// `forall a. (() -> Lazy a) -> Lazy a`
+	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand_`: The brand of the clonable function wrapper.
 	///
 	/// ### Parameters
 	///
@@ -237,15 +327,12 @@ impl<'a, OnceBrand: Once + 'a, FnBrand: ClonableFn + 'a, A: Clone + 'a> Defer<'a
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::lazy::Lazy;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::brands::OnceCellBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::classes::defer::Defer;
-	/// use std::rc::Rc;
+	/// use fp_library::brands::{OnceCellBrand, RcFnBrand};
 	///
-	/// let lazy = Lazy::<OnceCellBrand, RcFnBrand, _>::defer::<RcFnBrand>(
-	///     <RcFnBrand as ClonableFn>::new(|_| Lazy::new(<RcFnBrand as ClonableFn>::new(|_| 42)))
+	/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
+	///     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force(lazy), 42);
 	/// ```

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-01-19
+
+### Added
+- **Architecture Documentation**: Added `docs/architecture.md` detailing module organization, type parameter ordering, and documentation standards.
+- **README**: Added `Function`, `ClonableFn`, `SendClonableFn`, and `ParFoldable` to the features list.
+
+### Changed
+- **Type Parameter Ordering (API Breaking)**:
+  - Reordered type parameters across the entire library to prioritize uninferable types (e.g., return types) over inferable types (e.g., input types, function types). This improves ergonomics when using turbofish syntax.
+  - **Functor**: `map<B, A, F>` (was `map<F, A, B>`).
+  - **Lift**: `lift2<C, A, B, F>` (was `lift2<F, A, B, C>`).
+  - **Semiapplicative**: `apply<FnBrand, B, A>` (was `apply<FnBrand, A, B>`).
+  - **Semimonad**: `bind<B, A, F>` (was `bind<F, A, B>`).
+  - **Foldable**:
+    - `fold_right<FnBrand, B, A, F>` (was `fold_right<FnBrand, F, A, B>`).
+    - `fold_left<FnBrand, B, A, F>` (was `fold_left<FnBrand, F, A, B>`).
+    - `fold_map<FnBrand, M, A, Func>` (was `fold_map<FnBrand, Func, A, M>`).
+  - **Traversable**: `traverse<F, B, A, Func>` (was `traverse<F, Func, A, B>`).
+  - **ParFoldable**:
+    - `par_fold_map<M, A>` (was `par_fold_map<A, M>`).
+    - `par_fold_right<B, A>` (was `par_fold_right<A, B>`).
+  - **Compactable**: `separate<O, E>` (was `separate<E, O>`).
+  - **Filterable**:
+    - `partition_map<O, E, A, Func>` (was `partition_map<Func, A, E, O>`).
+    - `filter_map<B, A, Func>` (was `filter_map<Func, A, B>`).
+  - **Witherable**:
+    - `wilt<M, O, E, A, Func>` (was `wilt<Func, M, A, E, O>`).
+    - `wither<M, B, A, Func>` (was `wither<Func, M, A, B>`).
+- **Renames (API Breaking)**:
+  - Renamed `SendClonableFn::new_send` to `SendClonableFn::send_clonable_fn_new` to facilitate unique re-exports.
+- **Parameter Ordering (API Breaking)**:
+  - Reordered arguments for `ParFoldable::par_fold_map` and `ParFoldable::par_fold_right` to place the function argument first (e.g., `par_fold_map(func, fa)`), aligning with `Foldable` conventions.
+- **Documentation**:
+  - Updated all code examples in README and crate documentation to use free functions (e.g., `map(f, x)`) instead of trait methods, reflecting the intended usage pattern.
+  - Updated type signatures in documentation to accurately reflect uncurried semantics and type parameter ordering.
+  - Added "Documentation" section to README linking to architecture and limitations docs.
+
 ## [0.4.1]
 
 ### Documentation

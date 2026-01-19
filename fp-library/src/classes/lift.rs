@@ -1,6 +1,17 @@
 //! Lift type class.
 //!
 //! This module defines the [`Lift`] trait, which allows binary functions to be lifted into a context.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(1);
+//! let y = Some(2);
+//! let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+//! assert_eq!(z, Some(3));
+//! ```
 
 use crate::{Apply, kinds::*};
 
@@ -14,14 +25,14 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
+	/// `forall c a b. Lift f => ((a, b) -> c, f a, f b) -> f c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result.
 	/// * `A`: The type of the first value.
 	/// * `B`: The type of the second value.
-	/// * `C`: The type of the result.
+	/// * `F`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
@@ -36,15 +47,14 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::lift::Lift;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(1);
 	/// let y = Some(2);
-	/// let z = OptionBrand::lift2(|a, b| a + b, x, y);
+	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	fn lift2<'a, F, A, B, C>(
+	fn lift2<'a, C, A, B, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -62,15 +72,15 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
+/// `forall c a b. Lift f => ((a, b) -> c, f a, f b) -> f c`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the context.
-/// * `F`: The type of the binary function.
+/// * `C`: The type of the result.
 /// * `A`: The type of the first value.
 /// * `B`: The type of the second value.
-/// * `C`: The type of the result.
+/// * `F`: The type of the binary function.
 ///
 /// ### Parameters
 ///
@@ -85,15 +95,14 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::lift::lift2;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(1);
 /// let y = Some(2);
 /// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 /// assert_eq!(z, Some(3));
 /// ```
-pub fn lift2<'a, Brand: Lift, F, A, B, C>(
+pub fn lift2<'a, Brand: Lift, C, A, B, F>(
 	f: F,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -104,5 +113,5 @@ where
 	B: Clone + 'a,
 	C: 'a,
 {
-	Brand::lift2(f, fa, fb)
+	Brand::lift2::<C, A, B, F>(f, fa, fb)
 }

@@ -1,6 +1,16 @@
 //! Semimonad type class.
 //!
 //! This module defines the [`Semimonad`] trait, which allows for sequencing computations where the second computation depends on the result of the first.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{functions::*, brands::*};
+//!
+//! let x = Some(5);
+//! let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+//! assert_eq!(y, Some(10));
+//! ```
 
 use crate::{Apply, kinds::*};
 
@@ -16,13 +26,13 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Semimonad m => (m a, a -> m b) -> m b`
+	/// `forall m b a. Semimonad m => (m a, a -> m b) -> m b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the function to apply.
-	/// * `A`: The type of the result of the first computation.
 	/// * `B`: The type of the result of the second computation.
+	/// * `A`: The type of the result of the first computation.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -36,14 +46,13 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semimonad::Semimonad;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::bind(x, |i| Some(i * 2));
+	/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn bind<'a, F, A: 'a, B: 'a>(
+	fn bind<'a, B: 'a, A: 'a, F>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -57,14 +66,14 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. Semimonad m => (m a, a -> m b) -> m b`
+/// `forall m b a. Semimonad m => (m a, a -> m b) -> m b`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the semimonad.
-/// * `F`: The type of the function to apply.
-/// * `A`: The type of the result of the first computation.
 /// * `B`: The type of the result of the second computation.
+/// * `A`: The type of the result of the first computation.
+/// * `F`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -78,19 +87,18 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::semimonad::bind;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(5);
 /// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn bind<'a, Brand: Semimonad, F, A: 'a, B: 'a>(
+pub fn bind<'a, Brand: Semimonad, B: 'a, A: 'a, F>(
 	ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	f: F,
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 {
-	Brand::bind(ma, f)
+	Brand::bind::<B, A, F>(ma, f)
 }

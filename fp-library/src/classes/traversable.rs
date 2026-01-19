@@ -1,6 +1,16 @@
 //! Traversable type class.
 //!
 //! This module defines the [`Traversable`] trait, which represents data structures that can be traversed, accumulating results in an applicative context.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{functions::*, brands::*};
+//!
+//! let x = Some(5);
+//! let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+//! assert_eq!(y, Some(Some(10)));
+//! ```
 
 use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
 use crate::{Apply, functions::identity, kinds::*};
@@ -20,14 +30,14 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b f. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
+	/// `forall t f b a. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
 	///
 	/// ### Type Parameters
 	///
 	/// * `F`: The applicative context.
-	/// * `Func`: The type of the function to apply.
-	/// * `A`: The type of the elements in the traversable structure.
 	/// * `B`: The type of the elements in the resulting traversable structure.
+	/// * `A`: The type of the elements in the traversable structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -41,14 +51,13 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::Traversable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::traverse::<OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -57,7 +66,11 @@ pub trait Traversable: Functor + Foldable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
-		Self::sequence::<F, B>(Self::map::<Func, A, _>(func, ta))
+		Self::sequence::<F, B>(Self::map::<
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+			A,
+			Func,
+		>(func, ta))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -66,7 +79,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
+	/// `forall t f a. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
 	///
 	/// ### Type Parameters
 	///
@@ -84,11 +97,10 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::Traversable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(Some(5));
-	/// let y = OptionBrand::sequence::<OptionBrand, _>(x);
+	/// let y = sequence::<OptionBrand, OptionBrand, _>(x);
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
@@ -98,7 +110,7 @@ pub trait Traversable: Functor + Foldable {
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
-		Self::traverse::<F, _, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A>(
+		Self::traverse::<F, A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), _>(
 			identity, ta,
 		)
 	}
@@ -110,15 +122,15 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Type Signature
 ///
-/// `forall a b f. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
+/// `forall t f b a. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the traversable structure.
 /// * `F`: The applicative context.
-/// * `Func`: The type of the function to apply.
-/// * `A`: The type of the elements in the traversable structure.
 /// * `B`: The type of the elements in the resulting traversable structure.
+/// * `A`: The type of the elements in the traversable structure.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -132,14 +144,13 @@ pub trait Traversable: Functor + Foldable {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::traversable::traverse;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(5);
 /// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn traverse<'a, Brand: Traversable, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+pub fn traverse<'a, Brand: Traversable, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 	func: Func,
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -148,7 +159,7 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 {
-	Brand::traverse::<F, Func, A, B>(func, ta)
+	Brand::traverse::<F, B, A, Func>(func, ta)
 }
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -157,7 +168,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a f. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
+/// `forall t f a. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
 ///
 /// ### Type Parameters
 ///
@@ -176,8 +187,7 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::traversable::sequence;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(Some(5));
 /// let y = sequence::<OptionBrand, OptionBrand, _>(x);

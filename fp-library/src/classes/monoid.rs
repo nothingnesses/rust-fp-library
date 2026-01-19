@@ -1,6 +1,15 @@
 //! Monoid type class.
 //!
 //! This module defines the [`Monoid`] trait, which extends [`Semigroup`] with an identity element.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::functions::*;
+//!
+//! let x: String = empty();
+//! assert_eq!(x, "".to_string());
+//! ```
 
 use super::semigroup::Semigroup;
 
@@ -20,7 +29,7 @@ pub trait Monoid: Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid a => () -> a`
+	/// `forall m. Monoid m => () -> m`
 	///
 	/// ### Returns
 	///
@@ -29,10 +38,9 @@ pub trait Monoid: Semigroup {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::monoid::Monoid;
-	/// use fp_library::types::string; // Import Monoid impl for String
+	/// use fp_library::functions::*;
 	///
-	/// let x = String::empty();
+	/// let x: String = empty();
 	/// assert_eq!(x, "".to_string());
 	/// ```
 	fn empty() -> Self;
@@ -44,7 +52,7 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall a. Monoid a => () -> a`
+/// `forall m. Monoid m => () -> m`
 ///
 /// ### Type Parameters
 ///
@@ -57,8 +65,7 @@ pub trait Monoid: Semigroup {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::monoid::empty;
-/// use fp_library::types::string; // Import Monoid impl for String
+/// use fp_library::functions::*;
 ///
 /// let x: String = empty();
 /// assert_eq!(x, "".to_string());

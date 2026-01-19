@@ -1,6 +1,17 @@
 //! Semigroupoid type class.
 //!
 //! This module defines the [`Semigroupoid`] trait, which represents a set of objects and composable relationships between them.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, classes::*, functions::*};
+//!
+//! let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+//! let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
+//! assert_eq!(h(5), 12); // (5 + 1) * 2
+//! ```
 
 use crate::{Apply, kinds::*};
 
@@ -20,13 +31,13 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b c d. Semigroupoid a => (a c d, a b c) -> a b d`
+	/// `forall b d c. Semigroupoid f => (f c d, f b c) -> f b d`
 	///
 	/// ### Type Parameters
 	///
 	/// * `B`: The source type of the first morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	/// * `D`: The target type of the second morphism.
+	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	///
 	/// ### Parameters
 	///
@@ -40,16 +51,14 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semigroupoid::Semigroupoid;
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
-	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
-	/// let g = <RcFnBrand as ClonableFn>::new(|x: i32| x + 1);
-	/// let h = RcFnBrand::compose(f, g);
+	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, C: 'a, D: 'a>(
+	fn compose<'a, B: 'a, D: 'a, C: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>);
@@ -61,14 +70,14 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Signature
 ///
-/// `forall b c d. Semigroupoid a => (a c d, a b c) -> a b d`
+/// `forall f b d c. Semigroupoid f => (f c d, f b c) -> f b d`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the semigroupoid.
 /// * `B`: The source type of the first morphism.
-/// * `C`: The target type of the first morphism and the source type of the second morphism.
 /// * `D`: The target type of the second morphism.
+/// * `C`: The target type of the first morphism and the source type of the second morphism.
 ///
 /// ### Parameters
 ///
@@ -82,18 +91,16 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::semigroupoid::compose;
-/// use fp_library::brands::RcFnBrand;
-/// use fp_library::classes::clonable_fn::ClonableFn;
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
-/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
-/// let g = <RcFnBrand as ClonableFn>::new(|x: i32| x + 1);
-/// let h = compose::<RcFnBrand, _, _, _>(f, g);
+/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
-pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
+pub fn compose<'a, Brand: Semigroupoid, B: 'a, D: 'a, C: 'a>(
 	f: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 	g: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
-	Brand::compose(f, g)
+	Brand::compose::<B, D, C>(f, g)
 }

@@ -8,16 +8,19 @@ A functional programming library for Rust featuring your favourite higher-kinded
 
 ## Features
 
-- **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (defunctionalization/brands).
+- **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 - **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - `Functor`, `Applicative`, `Monad`
   - `Semigroup`, `Monoid`
   - `Foldable`, `Traversable`
+  - `Compactable`, `Filterable`, `Witherable`
   - `Category`, `Semigroupoid`
   - `Pointed`, `Lift`, `Defer`, `Once`
   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-  - `SendClonableFn`, `ParFoldable` (Thread-safe and parallel operations)
+  - `Function`, `ClonableFn`, `SendClonableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
+- **Helper Functions:** Standard FP utilities:
+  - `compose`, `constant`, `flip`, `identity`
 - **Data Types:** Implementations for standard and custom types:
   - `Option`, `Result`, `Vec`, `String`
   - `Identity`, `Lazy`, `Pair`
@@ -41,10 +44,10 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.4"
+fp-library = "0.5"
 ```
 
-### Cargo Features
+### Crate Features
 
 The library offers optional features that can be enabled in your `Cargo.toml`:
 
@@ -54,18 +57,17 @@ To enable this feature:
 
 ```toml
 [dependencies]
-fp-library = { version = "0.4", features = ["rayon"] }
+fp-library = { version = "0.5", features = ["rayon"] }
 ```
 
-### Example: Using Functor with Option
+### Example: Using `Functor` with `Option`
 
 ```rust
-use fp_library::classes::functor::map;
-use fp_library::brands::OptionBrand;
+use fp_library::{brands::*, functions::*};
 
 fn main() {
 	let x = Some(5);
-	// Map a function over the Option using the Functor type class
+	// Map a function over the `Option` using the `Functor` type class
 	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	assert_eq!(y, Some(10));
 }
@@ -75,9 +77,9 @@ fn main() {
 
 ### Higher-Kinded Types (HKT)
 
-Since Rust doesn't support HKTs directly (e.g., `trait Functor<F<_>>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or defunctionalization).
+Since Rust doesn't support HKTs directly (e.g., `trait Functor<F<_>>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or type-level defunctionalization).
 
-Each type constructor has a corresponding "Brand" type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
+Each type constructor has a corresponding `Brand` type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
 
 ```rust
 use fp_library::{impl_kind, kinds::*};
@@ -116,7 +118,7 @@ While the library strives for zero-cost abstractions, some operations inherently
 - **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Lazy` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
 - **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
 
-For these specific cases, the library provides "Brand" types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost.
+For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost.
 
 ### Thread Safety and Parallelism
 
@@ -127,20 +129,23 @@ The library supports thread-safe operations through the `SendClonableFn` extensi
 - **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
 
 ```rust
-use fp_library::classes::par_foldable::par_fold_map;
-use fp_library::brands::{VecBrand, ArcFnBrand};
-use fp_library::classes::send_clonable_fn::new_send;
+use fp_library::{brands::*, functions::*};
 
 let v = vec![1, 2, 3, 4, 5];
 // Create a thread-safe function wrapper
-let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 // Fold in parallel (if rayon feature is enabled)
-let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(v, f);
+let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 assert_eq!(result, "12345".to_string());
 ```
 
-## Contributing
+## Documentation
 
+- [API Documentation](https://docs.rs/fp-library): The complete API reference on docs.rs.
+- [Architecture & Design](docs/architecture.md): Details on design decisions like uncurried semantics and type parameter ordering.
+- [Limitations](docs/limitations.md): Details all current limitations.
+
+## Contributing
 We welcome contributions! Please feel free to submit a Pull Request.
 
 ### Development Environment

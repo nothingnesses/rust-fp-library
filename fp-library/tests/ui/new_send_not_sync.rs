@@ -5,7 +5,7 @@ use std::cell::RefCell;
 fn main() {
     let cell = RefCell::new(42);
     // Should fail because cell is not Sync, so the closure is not Sync
-    let _ = <ArcFnBrand as SendClonableFn>::new_send(move |_: ()| {
+    let _ = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(move |_: ()| {
         println!("{:?}", cell);
     });
 }

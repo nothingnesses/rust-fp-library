@@ -1,6 +1,16 @@
 //! Filterable type class.
 //!
 //! This module defines the [`Filterable`] trait, which represents data structures that can be filtered and partitioned.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(5);
+//! let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+//! assert_eq!(y, Some(5));
+//! ```
 
 use crate::{
 	Apply,
@@ -16,6 +26,15 @@ use crate::{
 /// *   `filter_map`: Mapping and filtering in one step.
 /// *   `partition`: Splitting elements based on a predicate.
 /// *   `partition_map`: Mapping and partitioning in one step.
+///
+/// ### Minimal Implementation
+///
+/// A minimal implementation of `Filterable` requires no specific method implementations, as all methods have default implementations based on [`Compactable`] and [`Functor`].
+///
+/// However, it is recommended to implement [`Filterable::partition_map`] and [`Filterable::filter_map`] to avoid the intermediate structure created by the default implementations (which use [`Functor::map`] followed by [`Compactable::separate`] or [`Compactable::compact`]).
+///
+/// *   If [`Filterable::partition_map`] is implemented, [`Filterable::partition`] is derived from it.
+/// *   If [`Filterable::filter_map`] is implemented, [`Filterable::filter`] is derived from it.
 pub trait Filterable: Compactable + Functor {
 	/// Partitions a data structure based on a function that returns a `Result`.
 	///
@@ -23,14 +42,14 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a e o f. Filterable f => (a -> Result o e) -> f a -> (f o, f e)`
+	/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the function to apply.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `E`: The type of the error values.
 	/// * `O`: The type of the success values.
+	/// * `E`: The type of the error values.
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -44,16 +63,14 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(oks, errs) = OptionBrand::partition_map(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, Func, A: 'a, E: 'a, O: 'a>(
+	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -63,7 +80,7 @@ pub trait Filterable: Compactable + Functor {
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
-		Self::separate(Self::map(func, fa))
+		Self::separate::<O, E>(Self::map::<Result<O, E>, A, Func>(func, fa))
 	}
 
 	/// Partitions a data structure based on a predicate.
@@ -76,12 +93,12 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. Filterable f => (a -> bool) -> f a -> (f a, f a)`
+	/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the predicate function.
 	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the predicate function.
 	///
 	/// ### Parameters
 	///
@@ -95,16 +112,14 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(satisfied, not_satisfied) = OptionBrand::partition(|a| a > 2, x);
+	/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
-	fn partition<'a, Func, A: 'a + Clone>(
+	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -122,15 +137,15 @@ pub trait Filterable: Compactable + Functor {
 	/// The default implementation uses [`Functor::map`] and [`Compactable::compact`].
 	///
 	/// ### Type Signature
+	/// ### Type Signature
 	///
-	/// `forall a b f. Filterable f => (a -> Option b) -> f a -> f b`
+	/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the function to apply.
-	/// * `A`: The type of the elements in the input structure.
 	/// * `B`: The type of the elements in the output structure.
-	///
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an `Option`.
@@ -143,21 +158,20 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::filter_map(|a| if a > 2 { Some(a * 2) } else { None }, x);
+	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, Func, A: 'a, B: 'a>(
+	fn filter_map<'a, B: 'a, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Func: Fn(A) -> Option<B> + 'a,
 	{
-		Self::compact(Self::map(func, fa))
+		Self::compact::<B>(Self::map::<Option<B>, A, Func>(func, fa))
 	}
 
 	/// Filters a data structure based on a predicate.
@@ -166,12 +180,12 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. Filterable f => (a -> bool) -> f a -> f a`
+	/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the predicate function.
 	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the predicate function.
 	///
 	/// ### Parameters
 	///
@@ -185,14 +199,13 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::filter(|a| a > 2, x);
+	/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(y, Some(5));
 	/// ```
-	fn filter<'a, Func, A: 'a + Clone>(
+	fn filter<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -209,15 +222,15 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Signature
 ///
-/// `forall a e o f. Filterable f => (a -> Result o e) -> f a -> (f o, f e)`
+/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
-/// * `Func`: The type of the function to apply.
-/// * `A`: The type of the elements in the input structure.
-/// * `E`: The type of the error values.
 /// * `O`: The type of the success values.
+/// * `E`: The type of the error values.
+/// * `A`: The type of the elements in the input structure.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -231,16 +244,14 @@ pub trait Filterable: Compactable + Functor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::filterable::partition_map;
-/// use fp_library::brands::OptionBrand;
-/// use fp_library::types::Pair;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let x = Some(5);
 /// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn partition_map<'a, Brand: Filterable, Func, A: 'a, E: 'a, O: 'a>(
+pub fn partition_map<'a, Brand: Filterable, O: 'a, E: 'a, A: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
@@ -250,7 +261,7 @@ pub fn partition_map<'a, Brand: Filterable, Func, A: 'a, E: 'a, O: 'a>(
 where
 	Func: Fn(A) -> Result<O, E> + 'a,
 {
-	Brand::partition_map(func, fa)
+	Brand::partition_map::<O, E, A, Func>(func, fa)
 }
 
 /// Partitions a data structure based on a predicate.
@@ -261,13 +272,13 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a f. Filterable f => (a -> bool) -> f a -> (f a, f a)`
+/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
-/// * `Func`: The type of the predicate function.
 /// * `A`: The type of the elements in the structure.
+/// * `Func`: The type of the predicate function.
 ///
 /// ### Parameters
 ///
@@ -281,16 +292,14 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::filterable::partition;
-/// use fp_library::brands::OptionBrand;
-/// use fp_library::types::Pair;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let x = Some(5);
 /// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 /// assert_eq!(satisfied, Some(5));
 /// assert_eq!(not_satisfied, None);
 /// ```
-pub fn partition<'a, Brand: Filterable, Func, A: 'a + Clone>(
+pub fn partition<'a, Brand: Filterable, A: 'a + Clone, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
@@ -309,14 +318,14 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a b f. Filterable f => (a -> Option b) -> f a -> f b`
+/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
-/// * `Func`: The type of the function to apply.
-/// * `A`: The type of the elements in the input structure.
 /// * `B`: The type of the elements in the output structure.
+/// * `A`: The type of the elements in the input structure.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -330,21 +339,20 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::filterable::filter_map;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
 /// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn filter_map<'a, Brand: Filterable, Func, A: 'a, B: 'a>(
+pub fn filter_map<'a, Brand: Filterable, B: 'a, A: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	Func: Fn(A) -> Option<B> + 'a,
 {
-	Brand::filter_map(func, fa)
+	Brand::filter_map::<B, A, Func>(func, fa)
 }
 
 /// Filters a data structure based on a predicate.
@@ -353,13 +361,13 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a f. Filterable f => (a -> bool) -> f a -> f a`
+/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
-/// * `Func`: The type of the predicate function.
 /// * `A`: The type of the elements in the structure.
+/// * `Func`: The type of the predicate function.
 ///
 /// ### Parameters
 ///
@@ -373,14 +381,13 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::filterable::filter;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
 /// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 /// assert_eq!(y, Some(5));
 /// ```
-pub fn filter<'a, Brand: Filterable, Func, A: 'a + Clone>(
+pub fn filter<'a, Brand: Filterable, A: 'a + Clone, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
