@@ -4,9 +4,19 @@
 //! [types][crate::types], as opposed to concrete types, which are
 //! fully-applied.
 //!
-//! For example, [`VecBrand`] represents the higher-kinded type `Vec`, whereas
+//! For example, [`VecBrand`] represents the higher-kinded type [`Vec`], whereas
 //! `Vec A`/`Vec<A>` is the concrete type where `Vec` has been applied to some
 //! generic type `A`.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(5);
+//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+//! assert_eq!(y, Some(10));
+//! ```
 
 use crate::classes::{category::Category, clonable_fn::ClonableFn, once::Once};
 use std::marker::PhantomData;

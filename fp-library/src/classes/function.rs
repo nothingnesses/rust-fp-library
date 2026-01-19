@@ -2,6 +2,15 @@
 //!
 //! This module defines the [`Function`] trait, which provides an abstraction for wrappers over closures.
 //! This allows for generic handling of functions in higher-kinded contexts.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! assert_eq!(f(5), 10);
+//! ```
 
 use super::category::Category;
 use std::ops::Deref;
@@ -43,10 +52,9 @@ pub trait Function: Category {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::function::Function;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
+	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B>;
@@ -77,10 +85,9 @@ pub trait Function: Category {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::function::new;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
 pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as Function>::Of<'a, A, B>

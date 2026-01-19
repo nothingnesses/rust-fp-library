@@ -14,6 +14,7 @@ use impl_kind::{ImplKindInput, impl_kind_impl};
 use parse::KindInput;
 use proc_macro::TokenStream;
 use quote::quote;
+use reexport::{ReexportInput, generate_reexports_impl};
 use syn::parse_macro_input;
 
 pub(crate) mod apply;
@@ -22,6 +23,7 @@ pub(crate) mod def_kind;
 pub(crate) mod generate;
 pub(crate) mod impl_kind;
 pub(crate) mod parse;
+pub(crate) mod reexport;
 
 #[cfg(test)]
 mod property_tests;
@@ -190,4 +192,35 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 pub fn Apply(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ApplyInput);
 	apply_impl(input).into()
+}
+
+/// Generates re-exports for all public free functions in a directory.
+///
+/// This macro scans the specified directory for Rust files, parses them to find public free functions,
+/// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts.
+///
+/// # Syntax
+///
+/// ```ignore
+/// generate_reexports!("path/to/directory", {
+///     original_name: aliased_name,
+///     ...
+/// })
+/// ```
+///
+/// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
+/// * `aliases`: A map of function names to their desired aliases.
+///
+/// # Examples
+///
+/// ```ignore
+/// generate_reexports!("src/classes", {
+///     identity: category_identity,
+///     new: fn_new,
+/// });
+/// ```
+#[proc_macro]
+pub fn generate_reexports(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as ReexportInput);
+	generate_reexports_impl(input).into()
 }

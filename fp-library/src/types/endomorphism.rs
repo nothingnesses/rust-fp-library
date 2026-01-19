@@ -24,6 +24,26 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
 ///
 /// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
+///
+/// ### Type Parameters
+///
+/// * `C`: The category of the morphism.
+/// * `A`: The object of the morphism.
+///
+/// ### Fields
+///
+/// * `0`: The wrapped morphism.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::functions::*;
+/// use fp_library::types::endomorphism::Endomorphism;
+/// use fp_library::brands::RcFnBrand;
+///
+/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// assert_eq!(f.0(5), 10);
+/// ```
 pub struct Endomorphism<'a, C: Category, A>(
 	pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
 );
@@ -35,7 +55,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a c. Category c => c a a -> Endomorphism c a`
+	/// `forall c a. Category c => c a a -> Endomorphism c a`
 	///
 	/// ### Type Parameters
 	///
@@ -53,11 +73,11 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endomorphism::Endomorphism;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
 	pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
@@ -148,7 +168,7 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a c. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
+	/// `forall c a. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
 	///
 	/// ### Parameters
 	///
@@ -162,16 +182,15 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endomorphism::Endomorphism;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::classes::semigroup::Semigroup;
 	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+	/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let g = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 	///
 	/// // f(g(x)) = (x + 1) * 2
-	/// let h = Semigroup::append(f, g);
+	/// let h = append::<_>(f, g);
 	/// assert_eq!(h.0(5), 12);
 	/// ```
 	fn append(
@@ -189,7 +208,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a c. Monoid (Endomorphism c a) => () -> Endomorphism c a`
+	/// `forall c a. Monoid (Endomorphism c a) => () -> Endomorphism c a`
 	///
 	/// ### Returns
 	///
@@ -198,11 +217,11 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endomorphism::Endomorphism;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::monoid::Monoid;
 	///
-	/// let id = Endomorphism::<RcFnBrand, i32>::empty();
+	/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {

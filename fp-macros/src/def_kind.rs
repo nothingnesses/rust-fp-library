@@ -69,7 +69,8 @@ pub fn def_kind_impl(input: KindInput) -> TokenStream {
 						let bounds_str = if ty.bounds.is_empty() {
 							String::new()
 						} else {
-							format!(": {}", quote!(#ty.bounds))
+							let bounds = &ty.bounds;
+							format!(": {}", quote!(#bounds))
 						};
 						types_doc.push(format!("`{}{}`", ty.ident, bounds_str));
 					}
@@ -202,5 +203,88 @@ mod tests {
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("type Of < 'a , T : 'a + Clone > : Debug + Display ;"));
+	}
+
+	/// Tests that documentation correctly renders type parameter bounds.
+	/// This specifically tests for the bug where `#ty.bounds` was incorrectly
+	/// used in quote!, resulting in output like "A: A : 'a.bounds" instead of "A: 'a".
+	#[test]
+	fn test_def_kind_doc_type_param_bounds() {
+		let input = parse_kind_input("type Of<'a, A: 'a>: 'a;");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		// Verify the documentation contains correct type parameter bounds
+		assert!(
+			output_str.contains(r#"**Type parameters** (1): `A: 'a`"#),
+			"Expected documentation to contain 'Type parameters (1): `A: 'a`', got: {}",
+			output_str
+		);
+
+		// Ensure the buggy output is not present
+		assert!(
+			!output_str.contains(".bounds"),
+			"Documentation should not contain '.bounds', got: {}",
+			output_str
+		);
+		assert!(
+			!output_str.contains("A: A"),
+			"Documentation should not contain 'A: A', got: {}",
+			output_str
+		);
+	}
+
+	/// Tests documentation for type parameters without bounds.
+	#[test]
+	fn test_def_kind_doc_type_param_no_bounds() {
+		let input = parse_kind_input("type Of<A>;");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		// Type parameter without bounds should just show the identifier
+		assert!(
+			output_str.contains(r#"**Type parameters** (1): `A`"#),
+			"Expected documentation to contain 'Type parameters (1): `A`', got: {}",
+			output_str
+		);
+	}
+
+	/// Tests documentation for multiple type parameters with various bounds.
+	#[test]
+	fn test_def_kind_doc_multiple_type_params() {
+		let input = parse_kind_input("type Of<'a, T: Clone, U: 'a + Send>: Debug;");
+		let output = def_kind_impl(input);
+		let output_str = output.to_string();
+
+		// Verify lifetimes doc
+		assert!(
+			output_str.contains(r#"**Lifetimes** (1): `'a`"#),
+			"Expected documentation to contain lifetime 'a, got: {}",
+			output_str
+		);
+
+		// Verify type parameters doc (both T and U with their bounds)
+		assert!(
+			output_str.contains(r#"**Type parameters** (2):"#),
+			"Expected 2 type parameters, got: {}",
+			output_str
+		);
+		assert!(
+			output_str.contains("`T: Clone`"),
+			"Expected T: Clone in documentation, got: {}",
+			output_str
+		);
+		assert!(
+			output_str.contains("`U: 'a + Send`"),
+			"Expected U: 'a + Send in documentation, got: {}",
+			output_str
+		);
+
+		// Verify output bounds doc
+		assert!(
+			output_str.contains(r#"**Output bounds**: `Debug`"#),
+			"Expected output bounds Debug, got: {}",
+			output_str
+		);
 	}
 }

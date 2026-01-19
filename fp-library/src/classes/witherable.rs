@@ -1,6 +1,16 @@
 //! Witherable type class.
 //!
 //! This module defines the [`Witherable`] trait, which represents data structures that can be traversed and filtered in an applicative context.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{functions::*, brands::*};
+//!
+//! let x = Some(5);
+//! let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+//! assert_eq!(y, Some(Some(10)));
+//! ```
 
 use crate::{
 	Apply,
@@ -14,6 +24,12 @@ use crate::{
 /// `Witherable` extends [`Filterable`] and [`Traversable`], adding methods for:
 /// *   `wither`: Effectful `filter_map`.
 /// *   `wilt`: Effectful `partition_map`.
+///
+/// ### Minimal Implementation
+///
+/// A minimal implementation of `Witherable` requires no specific method implementations, as all methods have default implementations based on [`Traversable`] and [`Compactable`](crate::classes::compactable::Compactable).
+///
+/// However, it is recommended to implement [`Witherable::wilt`] and [`Witherable::wither`] to avoid the intermediate structure created by the default implementations (which use [`Traversable::traverse`] followed by [`Compactable::separate`](crate::classes::compactable::Compactable::separate) or [`Compactable::compact`](crate::classes::compactable::Compactable::compact)).
 pub trait Witherable: Filterable + Traversable {
 	/// Partitions a data structure based on a function that returns a `Result` in an applicative context.
 	///
@@ -21,15 +37,15 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a e o m f. (Witherable f, Applicative m) => (a -> m (Result o e)) -> f a -> m (f o, f e)`
+	/// `forall f m o e a. (Witherable f, Applicative m) => (a -> m (Result o e), f a) -> m (Pair (f o) (f e))`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the function to apply.
 	/// * `M`: The applicative context.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `E`: The type of the error values.
 	/// * `O`: The type of the success values.
+	/// * `E`: The type of the error values.
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -43,15 +59,13 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::witherable::Witherable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{functions::*, brands::*, types::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::wilt::<_, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 	/// assert_eq!(y, Some(Pair(Some(5), None)));
 	/// ```
-	fn wilt<'a, Func, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -66,7 +80,7 @@ pub trait Witherable: Filterable + Traversable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	{
-		M::map(|res| Self::separate(res), Self::traverse::<M, Func, A, Result<O, E>>(func, ta))
+		M::map(|res| Self::separate(res), Self::traverse::<M, Result<O, E>, A, Func>(func, ta))
 	}
 
 	/// Maps a function over a data structure and filters out `None` results in an applicative context.
@@ -75,14 +89,14 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b m f. (Witherable f, Applicative m) => (a -> m (Option b)) -> f a -> m (f b)`
+	/// `forall f m b a. (Witherable f, Applicative m) => (a -> m (Option b), f a) -> m (f b)`
 	///
 	/// ### Type Parameters
 	///
-	/// * `Func`: The type of the function to apply.
 	/// * `M`: The applicative context.
-	/// * `A`: The type of the elements in the input structure.
 	/// * `B`: The type of the elements in the output structure.
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -96,14 +110,13 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::witherable::Witherable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::wither::<_, OptionBrand, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn wither<'a, Func, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -115,7 +128,7 @@ pub trait Witherable: Filterable + Traversable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 	{
-		M::map(|opt| Self::compact(opt), Self::traverse::<M, Func, A, Option<B>>(func, ta))
+		M::map(|opt| Self::compact(opt), Self::traverse::<M, Option<B>, A, Func>(func, ta))
 	}
 }
 
@@ -125,16 +138,16 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Signature
 ///
-/// `forall a e o m f. (Witherable f, Applicative m) => (a -> m (Result o e)) -> f a -> m (f o, f e)`
+/// `forall f m o e a. (Witherable f, Applicative m) => (a -> m (Result o e), f a) -> m (Pair (f o) (f e))`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the witherable structure.
-/// * `Func`: The type of the function to apply.
 /// * `M`: The applicative context.
-/// * `A`: The type of the elements in the input structure.
-/// * `E`: The type of the error values.
 /// * `O`: The type of the success values.
+/// * `E`: The type of the error values.
+/// * `A`: The type of the elements in the input structure.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -148,22 +161,20 @@ pub trait Witherable: Filterable + Traversable {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::witherable::wilt;
-/// use fp_library::brands::OptionBrand;
-/// use fp_library::types::Pair;
+/// use fp_library::{functions::*, brands::*, types::*};
 ///
 /// let x = Some(5);
-/// let y = wilt::<OptionBrand, _, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 /// assert_eq!(y, Some(Pair(Some(5), None)));
 /// ```
 pub fn wilt<
 	'a,
 	Brand: Witherable,
-	Func,
 	M: Applicative,
-	A: 'a + Clone,
-	E: 'a + Clone,
 	O: 'a + Clone,
+	E: 'a + Clone,
+	A: 'a + Clone,
+	Func,
 >(
 	func: Func,
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -179,7 +190,7 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 {
-	Brand::wilt::<_, M, _, _, _>(func, ta)
+	Brand::wilt::<M, O, E, A, Func>(func, ta)
 }
 
 /// Maps a function over a data structure and filters out `None` results in an applicative context.
@@ -188,15 +199,15 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a b m f. (Witherable f, Applicative m) => (a -> m (Option b)) -> f a -> m (f b)`
+/// `forall f m b a. (Witherable f, Applicative m) => (a -> m (Option b), f a) -> m (f b)`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the witherable structure.
-/// * `Func`: The type of the function to apply.
 /// * `M`: The applicative context.
-/// * `A`: The type of the elements in the input structure.
 /// * `B`: The type of the elements in the output structure.
+/// * `A`: The type of the elements in the input structure.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -210,14 +221,13 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::witherable::wither;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(5);
-/// let y = wither::<OptionBrand, _, OptionBrand, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn wither<'a, Brand: Witherable, Func, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+pub fn wither<'a, Brand: Witherable, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 	func: Func,
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -229,5 +239,5 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 {
-	Brand::wither::<_, M, _, _>(func, ta)
+	Brand::wither::<M, B, A, Func>(func, ta)
 }

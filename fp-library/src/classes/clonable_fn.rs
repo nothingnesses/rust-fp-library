@@ -2,6 +2,15 @@
 //!
 //! This module defines the [`ClonableFn`] trait, which provides an abstraction for clonable wrappers over closures.
 //! This allows for generic handling of clonable functions (like `Rc<dyn Fn>`) in higher-kinded contexts.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! assert_eq!(f(5), 10);
+//! ```
 
 use super::function::Function;
 use std::ops::Deref;
@@ -43,10 +52,9 @@ pub trait ClonableFn: Function {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B>;
@@ -77,10 +85,9 @@ pub trait ClonableFn: Function {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::clonable_fn::new;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let f = new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
 pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as ClonableFn>::Of<'a, A, B>

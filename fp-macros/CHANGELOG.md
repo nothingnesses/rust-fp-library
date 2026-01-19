@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-01-19
+
+### Added
+- **`generate_reexports!` Macro**: Added a new procedural macro to automatically generate `pub use` statements for public free functions in a directory, with support for aliasing (e.g., renaming `new` to `fn_new`).
+
+### Fixed
+- **`def_kind!` Documentation**: Fixed a bug where type parameter bounds were incorrectly formatted in the generated documentation (e.g., showing `A: A : 'a.bounds` instead of `A: 'a`).
+
 ## [0.2.1]
 
 ### Documentation

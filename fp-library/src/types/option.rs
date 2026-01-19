@@ -31,7 +31,13 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor Option => (a -> b, Option a) -> Option b`
+	/// `forall b a. Functor Option => (a -> b, Option a) -> Option b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of applying the function.
+	/// * `A`: The type of the value inside the option.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -45,19 +51,14 @@ impl Functor for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::functor::Functor;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::map(|i| i * 2, x);
+	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::functor::map;
-	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, Some(5)), Some(10));
-	/// assert_eq!(map::<OptionBrand, _, _, _>(|x: i32| x * 2, None), None);
 	/// ```
-	fn map<'a, F, A: 'a, B: 'a>(
+	fn map<'a, B: 'a, A: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -75,7 +76,14 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
+	/// `forall c a b. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
+	///
+	/// ### Type Parameters
+	///
+	/// * `C`: The return type of the function.
+	/// * `A`: The type of the first option's value.
+	/// * `B`: The type of the second option's value.
+	/// * `F`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
@@ -90,20 +98,15 @@ impl Lift for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::lift::Lift;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(1);
 	/// let y = Some(2);
-	/// let z = OptionBrand::lift2(|a, b| a + b, x, y);
+	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::lift::lift2;
-	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), Some(2)), Some(3));
-	/// assert_eq!(lift2::<OptionBrand, _, _, _, _>(|x: i32, y: i32| x + y, Some(1), None), None);
 	/// ```
-	fn lift2<'a, F, A, B, C>(
+	fn lift2<'a, C, A, B, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -127,6 +130,10 @@ impl Pointed for OptionBrand {
 	///
 	/// `forall a. Pointed Option => a -> Option a`
 	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to wrap.
+	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -138,15 +145,11 @@ impl Pointed for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::pointed::Pointed;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
-	/// let x = OptionBrand::pure(5);
+	/// let x = pure::<OptionBrand, _>(5);
 	/// assert_eq!(x, Some(5));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::pointed::pure;
-	/// assert_eq!(pure::<OptionBrand, _>(5), Some(5));
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Some(a)
@@ -163,7 +166,13 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Semiapplicative Option => (Option (a -> b), Option a) -> Option b`
+	/// `forall fn_brand b a. Semiapplicative Option => (Option (fn_brand a b), Option a) -> Option b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `B`: The type of the output value.
+	/// * `A`: The type of the input value.
 	///
 	/// ### Parameters
 	///
@@ -177,23 +186,14 @@ impl Semiapplicative for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semiapplicative::Semiapplicative;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::brands::{OptionBrand};
-	/// use fp_library::brands::RcFnBrand;
-	/// use std::rc::Rc;
+	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
-	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// let f = Some(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
-	/// let y = OptionBrand::apply::<RcFnBrand, i32, i32>(f, x);
+	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::semiapplicative::apply;
-	/// let f = Some(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, OptionBrand, _, _>(f, Some(5)), Some(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, A: 'a + Clone, B: 'a>(
+	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -211,7 +211,13 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Semimonad Option => (Option a, a -> Option b) -> Option b`
+	/// `forall b a. Semimonad Option => (Option a, a -> Option b) -> Option b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of the second computation.
+	/// * `A`: The type of the result of the first computation.
+	/// * `F`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -225,19 +231,14 @@ impl Semimonad for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semimonad::Semimonad;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::bind(x, |i| Some(i * 2));
+	/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 	/// assert_eq!(y, Some(10));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::semimonad::bind;
-	/// assert_eq!(bind::<OptionBrand, _, _, _>(Some(5), |x| Some(x * 2)), Some(10));
-	/// assert_eq!(bind::<OptionBrand, _, _, _>(None, |x: i32| Some(x * 2)), None);
 	/// ```
-	fn bind<'a, F, A: 'a, B: 'a>(
+	fn bind<'a, B: 'a, A: 'a, F>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		f: F,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -255,7 +256,14 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Option => ((a, b) -> b, b, Option a) -> b`
+	/// `forall b a. Foldable Option => ((a, b) -> b, b, Option a) -> b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
@@ -270,20 +278,14 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::Foldable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{OptionBrand, RcFnBrand};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_right::<RcFnBrand, _, _, _>(|a, b| a + b, 10, x);
+	/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
-	///
-	/// // Using the free function
-	/// use fp_library::classes::foldable::fold_right;
-	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, Some(5)), 5);
-	/// assert_eq!(fold_right::<RcFnBrand, OptionBrand, _, _, _>(|x: i32, acc| x + acc, 0, None), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, Func, A: 'a, B: 'a>(
+	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -304,7 +306,14 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Option => ((b, a) -> b, b, Option a) -> b`
+	/// `forall b a. Foldable Option => ((b, a) -> b, b, Option a) -> b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
 	///
@@ -319,19 +328,14 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::Foldable;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{OptionBrand, RcFnBrand};
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_left::<RcFnBrand, _, _, _>(|b, a| b + a, 10, x);
+	/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
-	///
-	/// // Using the free function
-	/// use fp_library::classes::foldable::fold_left;
-	/// assert_eq!(fold_left::<RcFnBrand, OptionBrand, _, _, _>(|acc, x: i32| acc + x, 0, Some(5)), 5);
 	/// ```
-	fn fold_left<'a, FnBrand, Func, A: 'a, B: 'a>(
+	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -352,7 +356,14 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
+	/// `forall m a. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `M`: The type of the monoid.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
 	///
@@ -366,20 +377,15 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::foldable::Foldable;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::functions::*;
+	/// use fp_library::brands::{OptionBrand, RcFnBrand};
 	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
-	/// use fp_library::brands::RcFnBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::fold_map::<RcFnBrand, _, _, _>(|a: i32| a.to_string(), x);
+	/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
-	///
-	/// // Using the free function
-	/// use fp_library::classes::foldable::fold_map;
-	/// assert_eq!(fold_map::<RcFnBrand, OptionBrand, _, _, _>(|x: i32| x.to_string(), Some(5)), "5".to_string());
 	/// ```
-	fn fold_map<'a, FnBrand, Func, A: 'a, M>(
+	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -402,7 +408,14 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b f. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
+	/// `forall f b a. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `F`: The applicative context.
+	/// * `B`: The type of the elements in the resulting traversable structure.
+	/// * `A`: The type of the elements in the traversable structure.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -416,18 +429,14 @@ impl Traversable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::Traversable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::traverse::<OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::traversable::traverse;
-	/// assert_eq!(traverse::<OptionBrand, OptionBrand, _, _, _>(|x| Some(x * 2), Some(5)), Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, Func, A: 'a + Clone, B: 'a + Clone>(
+	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -446,7 +455,12 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
+	/// `forall f a. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `F`: The applicative context.
+	/// * `A`: The type of the elements in the traversable structure.
 	///
 	/// ### Parameters
 	///
@@ -459,16 +473,12 @@ impl Traversable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::traversable::Traversable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(Some(5));
-	/// let y = OptionBrand::sequence::<OptionBrand, _>(x);
+	/// let y = sequence::<OptionBrand, OptionBrand, _>(x);
 	/// assert_eq!(y, Some(Some(5)));
-	///
-	/// // Using the free function
-	/// use fp_library::classes::traversable::sequence;
-	/// assert_eq!(sequence::<OptionBrand, OptionBrand, _>(Some(Some(5))), Some(Some(5)));
 	/// ```
 	fn sequence<'a, F: Applicative, A: 'a + Clone>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -491,7 +501,12 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (ParFoldable Option, Monoid m, Send m, Sync m) => (f a m, Option a) -> m`
+	/// `forall fn_brand m a. (ParFoldable Option, Monoid m, Send m, Sync m) => (fn_brand a m, Option a) -> m`
+	///
+	/// ### Type Parameters
+	///
+	/// * `M`: The monoid type (must be `Send + Sync`).
+	/// * `A`: The element type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -505,23 +520,15 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::par_foldable::ParFoldable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::{OptionBrand, ArcFnBrand};
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
-	/// use fp_library::classes::send_clonable_fn::new_send;
 	///
 	/// let x = Some(1);
-	/// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-	/// let y = <OptionBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f, x);
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// let y = par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, "1".to_string());
-	///
-	/// // Using the free function
-	/// use fp_library::classes::par_foldable::par_fold_map;
-	/// let x = Some(1);
-	/// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-	/// assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "1".to_string());
 	/// ```
-	fn par_fold_map<'a, A, M>(
+	fn par_fold_map<'a, M, A>(
 		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -545,6 +552,10 @@ impl Compactable for OptionBrand {
 	///
 	/// `forall a. Compactable Option => Option (Option a) -> Option a`
 	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the elements.
+	///
 	/// ### Parameters
 	///
 	/// * `fa`: The nested option.
@@ -556,11 +567,11 @@ impl Compactable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::compactable::Compactable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(Some(5));
-	/// let y = OptionBrand::compact(x);
+	/// let y = compact::<OptionBrand, _>(x);
 	/// assert_eq!(y, Some(5));
 	/// ```
 	fn compact<'a, A: 'a>(
@@ -578,7 +589,12 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e o. Compactable Option => Option (Result o e) -> (Option o, Option e)`
+	/// `forall o e. Compactable Option => Option (Result o e) -> (Option o, Option e)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `O`: The type of the success value.
+	/// * `E`: The type of the error value.
 	///
 	/// ### Parameters
 	///
@@ -591,16 +607,16 @@ impl Compactable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::compactable::Compactable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::Pair;
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-	/// let Pair(oks, errs) = OptionBrand::separate(x);
+	/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn separate<'a, E: 'a, O: 'a>(
+	fn separate<'a, O: 'a, E: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 	) -> Pair<
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
@@ -621,7 +637,14 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a e o. Filterable Option => (a -> Result o e) -> Option a -> (Option o, Option e)`
+	/// `forall o e a. Filterable Option => (a -> Result o e, Option a) -> Pair (Option o) (Option e)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `O`: The type of the success value.
+	/// * `E`: The type of the error value.
+	/// * `A`: The type of the input value.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -635,16 +658,16 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::Pair;
 	///
 	/// let x = Some(5);
-	/// let Pair(oks, errs) = OptionBrand::partition_map(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, Func, A: 'a, E: 'a, O: 'a>(
+	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -662,14 +685,18 @@ impl Filterable for OptionBrand {
 			None => Pair(None, None),
 		}
 	}
-
 	/// Partitions an option based on a predicate.
 	///
 	/// This method partitions an option based on a predicate.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool) -> Option a -> (Option a, Option a)`
+	/// `forall a. Filterable Option => (a -> bool, Option a) -> Pair (Option a) (Option a)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the elements.
+	/// * `Func`: The type of the predicate.
 	///
 	/// ### Parameters
 	///
@@ -683,16 +710,16 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	/// use fp_library::types::Pair;
 	///
 	/// let x = Some(5);
-	/// let Pair(satisfied, not_satisfied) = OptionBrand::partition(|a| a > 2, x);
+	/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
-	fn partition<'a, Func, A: 'a + Clone>(
+	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -720,7 +747,13 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Filterable Option => (a -> Option b) -> Option a -> Option b`
+	/// `forall b a. Filterable Option => (a -> Option b, Option a) -> Option b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of applying the function.
+	/// * `A`: The type of the input value.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -734,14 +767,14 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::filter_map(|a| if a > 2 { Some(a * 2) } else { None }, x);
+	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, Func, A: 'a, B: 'a>(
+	fn filter_map<'a, B: 'a, A: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -757,7 +790,12 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool) -> Option a -> Option a`
+	/// `forall a. Filterable Option => (a -> bool, Option a) -> Option a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the elements.
+	/// * `Func`: The type of the predicate.
 	///
 	/// ### Parameters
 	///
@@ -771,14 +809,14 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::filterable::Filterable;
+	/// use fp_library::functions::*;
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = OptionBrand::filter(|a| a > 2, x);
+	/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(y, Some(5));
 	/// ```
-	fn filter<'a, Func, A: 'a + Clone>(
+	fn filter<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -789,27 +827,124 @@ impl Filterable for OptionBrand {
 	}
 }
 
-impl Witherable for OptionBrand {}
+impl Witherable for OptionBrand {
+	/// Partitions an option based on a function that returns a result in an applicative context.
+	///
+	/// This method partitions an option based on a function that returns a result in an applicative context.
+	///
+	/// ### Type Signature
+	///
+	/// `forall m o e a. (Witherable Option, Applicative m) => (a -> m (Result o e), Option a) -> m (Pair (Option o) (Option e))`
+	///
+	/// ### Type Parameters
+	///
+	/// * `M`: The applicative context.
+	/// * `O`: The type of the success values.
+	/// * `E`: The type of the error values.
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
+	/// * `ta`: The option to partition.
+	///
+	/// ### Returns
+	///
+	/// The partitioned option wrapped in the applicative context.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{functions::*, brands::*, types::*};
+	///
+	/// let x = Some(5);
+	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+	/// assert_eq!(y, Some(Pair(Some(5), None)));
+	/// ```
+	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
+		func: Func,
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		Pair<
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		>,
+	>)
+	where
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+	{
+		match ta {
+			Some(a) => M::map(
+				|res| match res {
+					Ok(o) => Pair(Some(o), None),
+					Err(e) => Pair(None, Some(e)),
+				},
+				func(a),
+			),
+			None => M::pure(Pair(None, None)),
+		}
+	}
+
+	/// Maps a function over an option and filters out `None` results in an applicative context.
+	///
+	/// This method maps a function over an option and filters out `None` results in an applicative context.
+	///
+	/// ### Type Signature
+	///
+	/// `forall m b a. (Witherable Option, Applicative m) => (a -> m (Option b), Option a) -> m (Option b)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `M`: The applicative context.
+	/// * `B`: The type of the result of applying the function.
+	/// * `A`: The type of the elements in the input structure.
+	/// * `Func`: The type of the function to apply.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
+	/// * `ta`: The option to filter and map.
+	///
+	/// ### Returns
+	///
+	/// The filtered and mapped option wrapped in the applicative context.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{functions::*, brands::*};
+	///
+	/// let x = Some(5);
+	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+	/// assert_eq!(y, Some(Some(10)));
+	/// ```
+	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+		func: Func,
+		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
+		'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	>)
+	where
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+	{
+		match ta {
+			Some(a) => func(a),
+			None => M::pure(None),
+		}
+	}
+}
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{
-		brands::{ArcFnBrand, RcFnBrand},
-		classes::{
-			compactable::{compact, separate},
-			filterable::{filter, filter_map, partition, partition_map},
-			functor::map,
-			par_foldable::{par_fold_map, par_fold_right},
-			pointed::pure,
-			semiapplicative::apply,
-			semimonad::bind,
-			send_clonable_fn::new_send,
-			traversable::traverse,
-			witherable::{wilt, wither},
-		},
-		functions::{compose, identity},
-	};
+	use crate::{brands::*, functions::*};
 	use quickcheck_macros::quickcheck;
 
 	// Functor Laws
@@ -1005,7 +1140,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_none() {
 		let x: Option<i32> = None;
-		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "".to_string());
 	}
 
@@ -1013,7 +1148,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_some() {
 		let x = Some(5);
-		let f = new_send::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x), "5".to_string());
 	}
 
@@ -1021,7 +1156,7 @@ mod tests {
 	#[test]
 	fn par_fold_right_some() {
 		let x = Some(5);
-		let f = new_send::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, OptionBrand, _, _>(f, 10, x), 15);
 	}
 
@@ -1098,7 +1233,7 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Option<i32>) -> bool {
-		wither::<OptionBrand, _, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<OptionBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -1106,7 +1241,7 @@ mod tests {
 	fn witherable_wilt_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<OptionBrand, _, OptionBrand, _, _, _>(p, x.clone());
+		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = map::<OptionBrand, _, _, _>(
 			|res| separate::<OptionBrand, _, _>(res),
 			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
@@ -1120,7 +1255,7 @@ mod tests {
 	fn witherable_wither_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<OptionBrand, _, OptionBrand, _, _>(p, x.clone());
+		let lhs = wither::<OptionBrand, OptionBrand, _, _, _>(p, x.clone());
 		let rhs = map::<OptionBrand, _, _, _>(
 			|opt| compact::<OptionBrand, _>(opt),
 			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
@@ -1206,7 +1341,7 @@ mod tests {
 	/// Tests `wilt` on `None`.
 	#[test]
 	fn wilt_none() {
-		let res = wilt::<OptionBrand, _, OptionBrand, _, _, _>(
+		let res = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
 			|x: i32| Some(Ok::<i32, i32>(x)),
 			None::<i32>,
 		);
@@ -1216,7 +1351,7 @@ mod tests {
 	/// Tests `wither` on `None`.
 	#[test]
 	fn wither_none() {
-		let res = wither::<OptionBrand, _, OptionBrand, _, _>(|x: i32| Some(Some(x)), None::<i32>);
+		let res = wither::<OptionBrand, OptionBrand, _, _, _>(|x: i32| Some(Some(x)), None::<i32>);
 		assert_eq!(res, Some(None));
 	}
 }

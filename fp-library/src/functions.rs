@@ -4,21 +4,34 @@
 //! This module provides a collection of utility functions commonly found in functional programming,
 //! such as function composition, constant functions, and identity functions. It also re-exports
 //! free function versions of methods defined in various type classes (traits) for convenience.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let f = |x: i32| x + 1;
+//! let g = |x: i32| x * 2;
+//! let h = compose::<i32, i32, _, _, _>(f, g);
+//!
+//! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
+//! ```
 
-pub use crate::classes::{
-	apply_first::apply_first,
-	apply_second::apply_second,
-	category::identity as category_identity,
-	foldable::{fold_left, fold_map, fold_right},
-	functor::map,
-	monoid::empty,
-	pointed::pure,
-	semiapplicative::apply,
-	semigroup::append,
-	semigroupoid::compose as semigroupoid_compose,
-	semimonad::bind,
-	traversable::{sequence, traverse},
-};
+// Auto-generate re-exports, passing in aliases for conflicting names.
+fp_macros::generate_reexports!("src/classes", {
+	"category::identity": category_identity,
+	"clonable_fn::new": clonable_fn_new,
+	"function::new": fn_new,
+	"once::new": once_new,
+	"once::get": once_get,
+	"once::get_mut": once_get_mut,
+	"once::set": once_set,
+	"once::get_or_init": once_get_or_init,
+	"once::into_inner": once_into_inner,
+	"once::take": once_take,
+	"semigroupoid::compose": semigroupoid_compose,
+	"send_clonable_fn::new": send_clonable_fn_new,
+});
 
 /// Composes two functions.
 ///
@@ -27,13 +40,13 @@ pub use crate::classes::{
 ///
 /// ### Type Signature
 ///
-/// `forall a b c. (b -> c, a -> b) -> (a -> c)`
+/// `forall a c b. (b -> c, a -> b) -> (a -> c)`
 ///
 /// ### Type Parameters
 ///
 /// * `A`: The input type of the inner function `g`.
-/// * `B`: The output type of `g` and the input type of `f`.
 /// * `C`: The output type of the outer function `f`.
+/// * `B`: The output type of `g` and the input type of `f`.
 /// * `F`: The type of the outer function.
 /// * `G`: The type of the inner function.
 ///
@@ -49,11 +62,11 @@ pub use crate::classes::{
 /// ### Examples
 ///
 /// ```rust
-/// use fp_library::functions::compose;
+/// use fp_library::functions::*;
 ///
 /// let add_one = |x: i32| x + 1;
 /// let times_two = |x: i32| x * 2;
-/// let times_two_add_one = compose(add_one, times_two);
+/// let times_two_add_one = compose::<i32, i32, _, _, _>(add_one, times_two);
 ///
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(
@@ -61,7 +74,7 @@ pub use crate::classes::{
 ///     7
 /// );
 /// ```
-pub fn compose<A, B, C, F, G>(
+pub fn compose<A, C, B, F, G>(
 	f: F,
 	g: G,
 ) -> impl Fn(A) -> C
@@ -79,12 +92,12 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a b. a -> (b -> a)`
+/// `forall b a. a -> (b -> a)`
 ///
 /// ### Type Parameters
 ///
-/// * `A`: The type of the value to return.
 /// * `B`: The type of the argument to ignore.
+/// * `A`: The type of the value to return.
 ///
 /// ### Parameters
 ///
@@ -97,14 +110,14 @@ where
 /// ### Examples
 ///
 /// ```rust
-/// use fp_library::functions::constant;
+/// use fp_library::functions::*;
 ///
 /// assert_eq!(
-///     constant(true)(false),
+///     constant::<bool, _>(true)(false),
 ///     true
 /// );
 /// ```
-pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
+pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 	move |_| a.clone()
 }
 
@@ -135,13 +148,13 @@ pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
 /// ### Examples
 ///
 /// ```rust
-/// use fp_library::functions::flip;
+/// use fp_library::functions::*;
 ///
 /// let subtract = |a, b| a - b;
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
-///     flip(subtract)(1, 0),
+///     flip::<i32, i32, _, _>(subtract)(1, 0),
 ///     -1
 /// );
 /// ```
@@ -175,7 +188,7 @@ where
 /// ### Examples
 ///
 /// ```rust
-/// use fp_library::functions::identity;
+/// use fp_library::functions::*;
 ///
 /// assert_eq!(
 ///     identity(()),

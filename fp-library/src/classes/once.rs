@@ -1,6 +1,15 @@
 //! Once type class.
 //!
 //! This module defines the [`Once`] trait, which represents a container that holds a value that is initialized at most once.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let cell = once_new::<OnceCellBrand, i32>();
+//! assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
+//! ```
 
 use crate::kinds::*;
 
@@ -30,11 +39,10 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
 	/// ```
 	fn new<A>() -> <Self as Once>::Of<A>;
 
@@ -61,13 +69,12 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), None);
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::get(&cell), Some(&42));
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), Some(&42));
 	/// ```
 	fn get<A>(a: &<Self as Once>::Of<A>) -> Option<&A>;
 
@@ -94,15 +101,14 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// if let Some(val) = <OnceCellBrand as Once>::get_mut(&mut cell) {
+	/// let mut cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// if let Some(val) = once_get_mut::<OnceCellBrand, _>(&mut cell) {
 	///     *val += 1;
 	/// }
-	/// assert_eq!(<OnceCellBrand as Once>::get_mut(&mut cell), Some(&mut 43));
+	/// assert_eq!(once_get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
 	/// ```
 	fn get_mut<A>(a: &mut <Self as Once>::Of<A>) -> Option<&mut A>;
 
@@ -130,12 +136,11 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert!(<OnceCellBrand as Once>::set(&cell, 42).is_ok());
-	/// assert!(<OnceCellBrand as Once>::set(&cell, 10).is_err());
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert!(once_set::<OnceCellBrand, _>(&cell, 42).is_ok());
+	/// assert!(once_set::<OnceCellBrand, _>(&cell, 10).is_err());
 	/// ```
 	fn set<A>(
 		a: &<Self as Once>::Of<A>,
@@ -167,12 +172,11 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 42), 42);
-	/// assert_eq!(*<OnceCellBrand as Once>::get_or_init(&cell, || 10), 42);
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 42), 42);
+	/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
 	/// ```
 	fn get_or_init<A, B: FnOnce() -> A>(
 		a: &<Self as Once>::Of<A>,
@@ -202,12 +206,11 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::into_inner(cell), Some(42));
+	/// let cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_into_inner::<OnceCellBrand, _>(cell), Some(42));
 	/// ```
 	fn into_inner<A>(a: <Self as Once>::Of<A>) -> Option<A>;
 
@@ -234,13 +237,12 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::once::Once;
-	/// use fp_library::brands::OnceCellBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let mut cell = <OnceCellBrand as Once>::new::<i32>();
-	/// <OnceCellBrand as Once>::set(&cell, 42).unwrap();
-	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), Some(42));
-	/// assert_eq!(<OnceCellBrand as Once>::take(&mut cell), None);
+	/// let mut cell = once_new::<OnceCellBrand, i32>();
+	/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+	/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), Some(42));
+	/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), None);
 	/// ```
 	fn take<A>(a: &mut <Self as Once>::Of<A>) -> Option<A>;
 }
@@ -265,12 +267,10 @@ pub trait Once: Kind_ad6c20556a82a1f0 {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::new;
-/// use fp_library::classes::once::get;
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let cell = new::<OnceCellBrand, i32>();
-/// assert_eq!(get::<OnceCellBrand, _>(&cell), None);
+/// let cell = once_new::<OnceCellBrand, i32>();
+/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
 /// ```
 pub fn new<Brand, A>() -> <Brand as Once>::Of<A>
 where
@@ -303,13 +303,12 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, get, set};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let cell = new::<OnceCellBrand, i32>();
-/// assert_eq!(get::<OnceCellBrand, _>(&cell), None);
-/// set::<OnceCellBrand, _>(&cell, 42).unwrap();
-/// assert_eq!(get::<OnceCellBrand, _>(&cell), Some(&42));
+/// let cell = once_new::<OnceCellBrand, i32>();
+/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), None);
+/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+/// assert_eq!(once_get::<OnceCellBrand, _>(&cell), Some(&42));
 /// ```
 pub fn get<Brand, A>(a: &<Brand as Once>::Of<A>) -> Option<&A>
 where
@@ -342,15 +341,14 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, get_mut, set};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let mut cell = new::<OnceCellBrand, i32>();
-/// set::<OnceCellBrand, _>(&cell, 42).unwrap();
-/// if let Some(val) = get_mut::<OnceCellBrand, _>(&mut cell) {
+/// let mut cell = once_new::<OnceCellBrand, i32>();
+/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+/// if let Some(val) = once_get_mut::<OnceCellBrand, _>(&mut cell) {
 ///     *val += 1;
 /// }
-/// assert_eq!(get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
+/// assert_eq!(once_get_mut::<OnceCellBrand, _>(&mut cell), Some(&mut 43));
 /// ```
 pub fn get_mut<Brand, A>(a: &mut <Brand as Once>::Of<A>) -> Option<&mut A>
 where
@@ -386,12 +384,11 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, set};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let cell = new::<OnceCellBrand, i32>();
-/// assert!(set::<OnceCellBrand, _>(&cell, 42).is_ok());
-/// assert!(set::<OnceCellBrand, _>(&cell, 10).is_err());
+/// let cell = once_new::<OnceCellBrand, i32>();
+/// assert!(once_set::<OnceCellBrand, _>(&cell, 42).is_ok());
+/// assert!(once_set::<OnceCellBrand, _>(&cell, 10).is_err());
 /// ```
 pub fn set<Brand, A>(
 	a: &<Brand as Once>::Of<A>,
@@ -429,12 +426,11 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, get_or_init};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let cell = new::<OnceCellBrand, i32>();
-/// assert_eq!(*get_or_init::<OnceCellBrand, _, _>(&cell, || 42), 42);
-/// assert_eq!(*get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
+/// let cell = once_new::<OnceCellBrand, i32>();
+/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 42), 42);
+/// assert_eq!(*once_get_or_init::<OnceCellBrand, _, _>(&cell, || 10), 42);
 /// ```
 pub fn get_or_init<Brand, A, B>(
 	a: &<Brand as Once>::Of<A>,
@@ -471,12 +467,11 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, set, into_inner};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let cell = new::<OnceCellBrand, i32>();
-/// set::<OnceCellBrand, _>(&cell, 42).unwrap();
-/// assert_eq!(into_inner::<OnceCellBrand, _>(cell), Some(42));
+/// let cell = once_new::<OnceCellBrand, i32>();
+/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+/// assert_eq!(once_into_inner::<OnceCellBrand, _>(cell), Some(42));
 /// ```
 pub fn into_inner<Brand, A>(a: <Brand as Once>::Of<A>) -> Option<A>
 where
@@ -509,13 +504,12 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::once::{new, set, take};
-/// use fp_library::brands::OnceCellBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
-/// let mut cell = new::<OnceCellBrand, i32>();
-/// set::<OnceCellBrand, _>(&cell, 42).unwrap();
-/// assert_eq!(take::<OnceCellBrand, _>(&mut cell), Some(42));
-/// assert_eq!(take::<OnceCellBrand, _>(&mut cell), None);
+/// let mut cell = once_new::<OnceCellBrand, i32>();
+/// once_set::<OnceCellBrand, _>(&cell, 42).unwrap();
+/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), Some(42));
+/// assert_eq!(once_take::<OnceCellBrand, _>(&mut cell), None);
 /// ```
 pub fn take<Brand, A>(a: &mut <Brand as Once>::Of<A>) -> Option<A>
 where

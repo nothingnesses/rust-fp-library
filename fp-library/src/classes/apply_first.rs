@@ -2,6 +2,17 @@
 //!
 //! This module defines the [`ApplyFirst`] trait, which provides the ability to sequence two computations
 //! but discard the result of the second computation, keeping only the result of the first.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let x = Some(5);
+//! let y = Some(10);
+//! let z = apply_first::<OptionBrand, _, _>(x, y);
+//! assert_eq!(z, Some(5));
+//! ```
 
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
@@ -36,12 +47,11 @@ pub trait ApplyFirst: Lift {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::apply_first::ApplyFirst;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
 	/// let y = Some(10);
-	/// let z = OptionBrand::apply_first(x, y);
+	/// let z = apply_first::<OptionBrand, _, _>(x, y);
 	/// assert_eq!(z, Some(5));
 	/// ```
 	fn apply_first<'a, A: 'a + Clone, B: 'a + Clone>(
@@ -78,8 +88,7 @@ pub trait ApplyFirst: Lift {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::apply_first::apply_first;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
 /// let y = Some(10);

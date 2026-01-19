@@ -48,9 +48,9 @@ impl Function for RcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::function::Function;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <RcFnBrand as Function>::new(|x: i32| x * 2);
+	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
@@ -86,9 +86,9 @@ impl ClonableFn for RcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B> {
@@ -103,13 +103,13 @@ impl Semigroupoid for RcFnBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b c d. Semigroupoid RcFnBrand => (RcFnBrand c d, RcFnBrand b c) -> RcFnBrand b d`
+	/// `forall b d c. Semigroupoid RcFnBrand => (RcFnBrand c d, RcFnBrand b c) -> RcFnBrand b d`
 	///
 	/// ### Type Parameters
 	///
 	/// * `B`: The source type of the first morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	/// * `D`: The target type of the second morphism.
+	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	///
 	/// ### Parameters
 	///
@@ -124,15 +124,14 @@ impl Semigroupoid for RcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::semigroupoid::Semigroupoid;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <RcFnBrand as ClonableFn>::new(|x: i32| x * 2);
-	/// let g = <RcFnBrand as ClonableFn>::new(|x: i32| x + 1);
-	/// let h = RcFnBrand::compose(f, g);
+	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, C: 'a, D: 'a>(
+	fn compose<'a, B: 'a, D: 'a, C: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
@@ -161,9 +160,9 @@ impl Category for RcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::category::Category;
+	/// use fp_library::functions::*;
 	///
-	/// let id = RcFnBrand::identity::<i32>();
+	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
 	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {

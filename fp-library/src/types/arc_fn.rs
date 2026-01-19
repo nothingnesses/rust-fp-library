@@ -49,9 +49,9 @@ impl Function for ArcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::ArcFnBrand;
-	/// use fp_library::classes::function::Function;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <ArcFnBrand as Function>::new(|x: i32| x * 2);
+	/// let f = fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
@@ -87,9 +87,9 @@ impl ClonableFn for ArcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::ArcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
+	/// let f = clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B> {
@@ -125,10 +125,10 @@ impl SendClonableFn for ArcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::ArcFnBrand;
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+	/// use fp_library::functions::*;
 	/// use std::thread;
 	///
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	///
 	/// // Can be sent to another thread
 	/// let handle = thread::spawn(move || {
@@ -136,7 +136,7 @@ impl SendClonableFn for ArcFnBrand {
 	/// });
 	/// handle.join().unwrap();
 	/// ```
-	fn new_send<'a, A, B>(
+	fn send_clonable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> <Self as SendClonableFn>::SendOf<'a, A, B> {
 		Arc::new(f)
@@ -150,13 +150,13 @@ impl Semigroupoid for ArcFnBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b c d. Semigroupoid ArcFnBrand => (ArcFnBrand c d, ArcFnBrand b c) -> ArcFnBrand b d`
+	/// `forall b d c. Semigroupoid ArcFnBrand => (ArcFnBrand c d, ArcFnBrand b c) -> ArcFnBrand b d`
 	///
 	/// ### Type Parameters
 	///
 	/// * `B`: The source type of the first morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	/// * `D`: The target type of the second morphism.
+	/// * `C`: The target type of the first morphism and the source type of the second morphism.
 	///
 	/// ### Parameters
 	///
@@ -171,15 +171,14 @@ impl Semigroupoid for ArcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::ArcFnBrand;
-	/// use fp_library::classes::semigroupoid::Semigroupoid;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
+	/// use fp_library::functions::*;
 	///
-	/// let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x * 2);
-	/// let g = <ArcFnBrand as ClonableFn>::new(|x: i32| x + 1);
-	/// let h = ArcFnBrand::compose(f, g);
+	/// let f = clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1);
+	/// let h = semigroupoid_compose::<ArcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, C: 'a, D: 'a>(
+	fn compose<'a, B: 'a, D: 'a, C: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
@@ -208,9 +207,9 @@ impl Category for ArcFnBrand {
 	///
 	/// ```
 	/// use fp_library::brands::ArcFnBrand;
-	/// use fp_library::classes::category::Category;
+	/// use fp_library::functions::*;
 	///
-	/// let id = ArcFnBrand::identity::<i32>();
+	/// let id = category_identity::<ArcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
 	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
@@ -230,17 +229,17 @@ mod tests {
 
 	// SendClonableFn Tests
 
-	/// Tests that `new_send` creates a callable function.
+	/// Tests that `send_clonable_fn_new` creates a callable function.
 	#[test]
-	fn new_send_callable() {
-		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+	fn send_clonable_fn_new_callable() {
+		let f = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x * 2);
 		assert_eq!(f(5), 10);
 	}
 
 	/// Tests that the function can be cloned.
 	#[test]
 	fn send_clonable_clone() {
-		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let f = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x * 2);
 		let g = f.clone();
 		assert_eq!(g(5), 10);
 	}
@@ -248,7 +247,7 @@ mod tests {
 	/// Tests that `SendOf` is `Send` (can be sent to another thread).
 	#[test]
 	fn send_of_is_send() {
-		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let f = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x * 2);
 		let handle = thread::spawn(move || f(5));
 		assert_eq!(handle.join().unwrap(), 10);
 	}
@@ -256,7 +255,7 @@ mod tests {
 	/// Tests that `SendOf` is `Sync` (can be shared across threads).
 	#[test]
 	fn send_of_is_sync() {
-		let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+		let f = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x * 2);
 		let f_clone = f.clone();
 		let handle = thread::spawn(move || f_clone(5));
 		assert_eq!(f(5), 10);
@@ -272,8 +271,12 @@ mod tests {
 		let g = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_mul(2));
 		let h = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_sub(3));
 
-		let lhs = ArcFnBrand::compose(f.clone(), ArcFnBrand::compose(g.clone(), h.clone()));
-		let rhs = ArcFnBrand::compose(ArcFnBrand::compose(f, g), h);
+		let lhs = <ArcFnBrand as Semigroupoid>::compose(
+			f.clone(),
+			<ArcFnBrand as Semigroupoid>::compose(g.clone(), h.clone()),
+		);
+		let rhs =
+			<ArcFnBrand as Semigroupoid>::compose(<ArcFnBrand as Semigroupoid>::compose(f, g), h);
 
 		lhs(x) == rhs(x)
 	}
@@ -284,9 +287,9 @@ mod tests {
 	#[quickcheck]
 	fn category_left_identity(x: i32) -> bool {
 		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
-		let id = ArcFnBrand::identity::<i32>();
+		let id = <ArcFnBrand as Category>::identity::<i32>();
 
-		let lhs = ArcFnBrand::compose(id, f.clone());
+		let lhs = <ArcFnBrand as Semigroupoid>::compose(id, f.clone());
 		let rhs = f;
 
 		lhs(x) == rhs(x)
@@ -296,9 +299,9 @@ mod tests {
 	#[quickcheck]
 	fn category_right_identity(x: i32) -> bool {
 		let f = <ArcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
-		let id = ArcFnBrand::identity::<i32>();
+		let id = <ArcFnBrand as Category>::identity::<i32>();
 
-		let lhs = ArcFnBrand::compose(f.clone(), id);
+		let lhs = <ArcFnBrand as Semigroupoid>::compose(f.clone(), id);
 		let rhs = f;
 
 		lhs(x) == rhs(x)

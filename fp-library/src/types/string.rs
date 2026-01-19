@@ -21,7 +21,7 @@ impl Semigroup for String {
 	///
 	/// ### Type Signature
 	///
-	/// `forall. Semigroup String => (String, String) -> String`
+	/// `Semigroup String => (String, String) -> String`
 	///
 	/// ### Parameters
 	///
@@ -35,16 +35,12 @@ impl Semigroup for String {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::semigroup::Semigroup;
+	/// use fp_library::functions::*;
 	///
 	/// let s1 = "Hello, ".to_string();
 	/// let s2 = "World!".to_string();
-	/// let result = String::append(s1, s2);
+	/// let result = append::<_>(s1, s2);
 	/// assert_eq!(result, "Hello, World!");
-	///
-	/// // Using the free function
-	/// use fp_library::classes::semigroup::append;
-	/// assert_eq!(append("foo".to_string(), "bar".to_string()), "foobar");
 	/// ```
 	fn append(
 		a: Self,
@@ -61,7 +57,7 @@ impl Monoid for String {
 	///
 	/// ### Type Signature
 	///
-	/// `forall. Monoid String => () -> String`
+	/// `Monoid String => () -> String`
 	///
 	/// ### Returns
 	///
@@ -70,14 +66,10 @@ impl Monoid for String {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::monoid::Monoid;
+	/// use fp_library::functions::*;
 	///
-	/// let empty_string = String::empty();
+	/// let empty_string = empty::<String>();
 	/// assert_eq!(empty_string, "");
-	///
-	/// // Using the free function
-	/// use fp_library::classes::monoid::empty;
-	/// assert_eq!(empty::<String>(), "");
 	/// ```
 	fn empty() -> Self {
 		String::new()

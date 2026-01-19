@@ -1,6 +1,21 @@
 //! Thread-safe clonable function wrappers.
 //!
 //! This module defines the [`SendClonableFn`] trait, which provides an abstraction for thread-safe clonable wrappers over closures.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{functions::*, brands::*};
+//! use std::thread;
+//!
+//! let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+//!
+//! // Can be sent to another thread
+//! let handle = thread::spawn(move || {
+//!     assert_eq!(f(5), 10);
+//! });
+//! handle.join().unwrap();
+//! ```
 
 use super::clonable_fn::ClonableFn;
 use std::ops::Deref;
@@ -40,11 +55,10 @@ pub trait SendClonableFn: ClonableFn {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::send_clonable_fn::SendClonableFn;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{functions::*, brands::*};
 	/// use std::thread;
 	///
-	/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	///
 	/// // Can be sent to another thread
 	/// let handle = thread::spawn(move || {
@@ -52,14 +66,14 @@ pub trait SendClonableFn: ClonableFn {
 	/// });
 	/// handle.join().unwrap();
 	/// ```
-	fn new_send<'a, A, B>(
+	fn send_clonable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> <Self as SendClonableFn>::SendOf<'a, A, B>;
 }
 
 /// Creates a new thread-safe clonable function wrapper.
 ///
-/// Free function version that dispatches to [the type class' associated function][`SendClonableFn::new_send`].
+/// Free function version that dispatches to [the type class' associated function][`SendClonableFn::send_clonable_fn_new`].
 ///
 /// ### Type Signature
 ///
@@ -67,7 +81,7 @@ pub trait SendClonableFn: ClonableFn {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the thread-safe clonable function wrapper.
+/// * `Brand`: The brand of the thread-safe clonable function wrapper.
 /// * `A`: The input type of the function.
 /// * `B`: The output type of the function.
 ///
@@ -82,11 +96,10 @@ pub trait SendClonableFn: ClonableFn {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::send_clonable_fn::new_send;
-/// use fp_library::brands::ArcFnBrand;
+/// use fp_library::{functions::*, brands::*};
 /// use std::thread;
 ///
-/// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x * 2);
+/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 ///
 /// // Can be sent to another thread
 /// let handle = thread::spawn(move || {
@@ -94,11 +107,11 @@ pub trait SendClonableFn: ClonableFn {
 /// });
 /// handle.join().unwrap();
 /// ```
-pub fn new_send<'a, Brand, A, B>(
+pub fn new<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B + Send + Sync
 ) -> <Brand as SendClonableFn>::SendOf<'a, A, B>
 where
 	Brand: SendClonableFn,
 {
-	<Brand as SendClonableFn>::new_send(f)
+	<Brand as SendClonableFn>::send_clonable_fn_new(f)
 }

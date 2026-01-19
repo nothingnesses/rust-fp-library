@@ -1,6 +1,15 @@
 //! Pointed type class.
 //!
 //! This module defines the [`Pointed`] trait, which represents a context that can be initialized with a value.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{functions::*, brands::*};
+//!
+//! let x = pure::<OptionBrand, _>(5);
+//! assert_eq!(x, Some(5));
+//! ```
 
 use crate::{Apply, kinds::*};
 
@@ -31,10 +40,9 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::classes::pointed::Pointed;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{functions::*, brands::*};
 	///
-	/// let x = OptionBrand::pure(5);
+	/// let x = pure::<OptionBrand, _>(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
@@ -46,7 +54,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a. Pointed f => a -> f a`
+/// `forall f a. Pointed f => a -> f a`
 ///
 /// ### Type Parameters
 ///
@@ -64,8 +72,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::pointed::pure;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{functions::*, brands::*};
 ///
 /// let x = pure::<OptionBrand, _>(5);
 /// assert_eq!(x, Some(5));

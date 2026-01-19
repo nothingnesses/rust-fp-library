@@ -2,6 +2,17 @@
 //!
 //! This module defines the [`Monad`] trait, which extends [`Applicative`] and [`Semimonad`].
 //! Monads allow for sequencing computations where the structure of the computation depends on the result of the previous computation.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! // Monad combines Pointed (pure) and Semimonad (bind)
+//! let x = pure::<OptionBrand, _>(5);
+//! let y = bind::<OptionBrand, _, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
+//! assert_eq!(y, Some(10));
+//! ```
 
 use super::{applicative::Applicative, semimonad::Semimonad};
 
@@ -17,10 +28,7 @@ use super::{applicative::Applicative, semimonad::Semimonad};
 /// ### Examples
 ///
 /// ```
-/// use fp_library::classes::monad::Monad;
-/// use fp_library::classes::pointed::pure;
-/// use fp_library::classes::semimonad::bind;
-/// use fp_library::brands::OptionBrand;
+/// use fp_library::{brands::*, functions::*};
 ///
 /// // Monad combines Pointed (pure) and Semimonad (bind)
 /// let x = pure::<OptionBrand, _>(5);

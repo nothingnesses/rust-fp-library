@@ -22,6 +22,26 @@ use std::{
 /// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 ///
 /// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
+///
+/// ### Type Parameters
+///
+/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `A`: The input and output type of the function.
+///
+/// ### Fields
+///
+/// * `0`: The wrapped function.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::functions::*;
+/// use fp_library::types::endofunction::Endofunction;
+/// use fp_library::brands::RcFnBrand;
+///
+/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// assert_eq!(f.0(5), 10);
+/// ```
 pub struct Endofunction<'a, FnBrand: ClonableFn, A>(pub <FnBrand as ClonableFn>::Of<'a, A, A>);
 
 impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
@@ -31,7 +51,7 @@ impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (a -> a) -> Endofunction a`
+	/// `forall fn_brand a. (a -> a) -> Endofunction fn_brand a`
 	///
 	/// ### Type Parameters
 	///
@@ -49,11 +69,11 @@ impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endofunction::Endofunction;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
 	///
-	/// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
+	/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
 	pub fn new(f: <FnBrand as ClonableFn>::Of<'a, A, A>) -> Self {
@@ -141,7 +161,7 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup (Endofunction a) => (Endofunction a, Endofunction a) -> Endofunction a`
+	/// `forall fn_brand a. Semigroup (Endofunction fn_brand a) => (Endofunction fn_brand a, Endofunction fn_brand a) -> Endofunction fn_brand a`
 	///
 	/// ### Parameters
 	///
@@ -155,16 +175,15 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endofunction::Endofunction;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::clonable_fn::ClonableFn;
-	/// use fp_library::classes::semigroup::Semigroup;
 	///
-	/// let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x * 2));
-	/// let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| x + 1));
+	/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let g = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 	///
 	/// // f(g(x)) = (x + 1) * 2
-	/// let h = Semigroup::append(f, g);
+	/// let h = append::<_>(f, g);
 	/// assert_eq!(h.0(5), 12);
 	/// ```
 	fn append(
@@ -185,7 +204,7 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid (Endofunction a) => () -> Endofunction a`
+	/// `forall fn_brand a. Monoid (Endofunction fn_brand a) => () -> Endofunction fn_brand a`
 	///
 	/// ### Returns
 	///
@@ -194,11 +213,11 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A
 	/// ### Examples
 	///
 	/// ```
+	/// use fp_library::functions::*;
 	/// use fp_library::types::endofunction::Endofunction;
 	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::classes::monoid::Monoid;
 	///
-	/// let id = Endofunction::<RcFnBrand, i32>::empty();
+	/// let id = empty::<Endofunction<RcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {

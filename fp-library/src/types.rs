@@ -3,6 +3,15 @@
 //! This module provides implementations of various functional programming
 //! data structures and wrappers, including `Identity`, `Lazy`, and extensions
 //! for standard library types like `Option` and `Result`.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::types::Identity;
+//!
+//! let x = Identity(5);
+//! assert_eq!(x.0, 5);
+//! ```
 
 pub mod arc_fn;
 pub mod endofunction;
