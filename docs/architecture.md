@@ -11,8 +11,8 @@ Brand structs (e.g., `OptionBrand`) are **centralized** in `src/brands.rs`.
 
 **Reasoning:**
 
-- **Leaf Nodes:** In the dependency graph, Brand structs are **leaf nodes**; they have no outgoing edges (dependencies) to other modules in the crate.
-- **Graph Stability:** Centralizing these leaf nodes in `brands.rs` creates a stable foundation. Higher-level modules (like `types/*.rs`) can import from this common sink without creating back-edges or cycles.
+* **Leaf Nodes:** In the dependency graph, Brand structs are **leaf nodes**; they have no outgoing edges (dependencies) to other modules in the crate.
+* **Graph Stability:** Centralizing these leaf nodes in `brands.rs` creates a stable foundation. Higher-level modules (like `types/*.rs`) can import from this common sink without creating back-edges or cycles.
 
 ### 2. Free Functions (Distributed)
 
@@ -21,30 +21,68 @@ Free function wrappers (e.g., `map`, `pure`) are **defined in their trait's modu
 
 **Reasoning:**
 
-- **Downstream Dependencies:** Free function wrappers are **downstream nodes**; they depend on (have outgoing edges to) the trait definitions.
-- **Cycle Prevention:** `functions.rs` also contains generic helpers (like `compose`) which are **leaf nodes**. If we defined the downstream wrappers in `functions.rs`, the file would effectively become both upstream _and_ downstream of the trait modules. This would create **bidirectional dependencies** (cycles) if a trait module ever needed to import a helper.
-- **Facade Pattern:** `functions.rs` acts as a **facade**, re-exporting symbols to provide a unified API surface without coupling the underlying definition graph.
+* **Downstream Dependencies:** Free function wrappers are **downstream nodes**; they depend on (have outgoing edges to) the trait definitions.
+* **Cycle Prevention:** `functions.rs` also contains generic helpers (like `compose`) which are **leaf nodes**. If we defined the downstream wrappers in `functions.rs`, the file would effectively become both upstream *and* downstream of the trait modules. This would create **bidirectional dependencies** (cycles) if a trait module ever needed to import a helper.
+* **Facade Pattern:** `functions.rs` acts as a **facade**, re-exporting symbols to provide a unified API surface without coupling the underlying definition graph.
 
 ### 3. Type Parameter Ordering
 
 **Decision:**
-Type parameters for traits and functions are ordered according to two principles, applied in sequence:
+Type parameters for traits and functions are ordered primarily by **Inference Priority**, and secondarily by **Dependency Order**:
 
-1.  **Inference Priority:** Concrete types that cannot be easily inferred by the compiler (e.g., "Brand" types or return types) are placed **before** types that can be inferred.
-2.  **Dependency Order:** Type parameters that are dependencies of other type parameters are placed **before** the dependent parameters.
+1. **Inference Priority:** Type parameters are ordered by inferability: **rarely inferable** types (e.g., "Brand" markers) are placed first, followed by **context-dependent** types (e.g., return types), and finally **usually inferable** types (e.g., input arguments).
+2. **Dependency Order:** Type parameters that are dependencies of other type parameters are placed **before** the dependent parameters.
 
 **Reasoning:**
 
-- **Ergonomics:** Placing uninferable types first allows users to specify them using turbofish syntax (e.g., `map::<OptionBrand, _, _, _>(...)`) without needing to specify inferable types that would otherwise precede them.
-  - _Note:_ Lifetime parameters do not affect this ordering as they are generally omitted in turbofish syntax (e.g., `func::<Type>` is valid even if `func` has lifetime parameters).
-- **Readability & Convention:** Ordering dependencies before dependents (e.g., `A, B` before `F: Fn(A) -> B`) mirrors the logical structure of the types and aligns with Rust standard library conventions (e.g., `std::iter::Map<I, F>` where `I` is the iterator and `F` is the function).
+* **Ergonomics:** Placing uninferable types first allows users to specify them using turbofish syntax (e.g., `map::<OptionBrand, _, _, _>(...)`) without needing to specify inferable types that would otherwise precede them.
+  * *Note:* Lifetime parameters do not affect this ordering as they are generally omitted in turbofish syntax (e.g., `func::<Type>` is valid even if `func` has lifetime parameters).
+* **Readability & Convention:** Ordering dependencies before dependents (e.g., `A, B` before `F: Fn(A) -> B`) mirrors the logical structure of the types and aligns with Rust standard library conventions (e.g., `std::iter::Map<I, F>` where `I` is the iterator and `F` is the function).
 
 #### Determining Inferability
 
-To determine which type parameters can be inferred (and thus should be placed later in the list):
+> **Note:** Inferability is fundamentally a property of the *call site*, not the function signature alone. The same type parameter may be inferable in one context and not another. The categories below are *heuristics* for predicting typical inference behavior.
 
-- **Inferable:** Parameters that appear in the function's input arguments (e.g., `A` in `fn map<A, B>(a: A, ...)`). The compiler can determine these from the values passed at the call site.
-- **Uninferable:** Parameters that only appear in the return type (e.g., `M` in `fn empty<M>() -> M`) or act as "Brand" markers for trait selection. These require explicit specification via turbofish (`::<>`) and should be placed first for better ergonomics.
+Type parameters fall into three categories based on how reliably the compiler can infer them:
+
+1. **Rarely Inferable:** Parameters appearing only in `where` bounds, or "Brand" markers used for trait selection. These typically require explicit turbofish specification.
+
+   ```rust
+   // Brand only appears in where bounds for trait selection
+   fn pure<Brand, A>(value: A) -> Kind<Brand, A>
+   where
+     Brand: Pointed<A>
+   { ... }
+
+   // Brand cannot be inferred; turbofish required
+   pure::<OptionBrand, _>(42)  // ✓
+   pure(42)                    // ✗ cannot infer Brand
+   ```
+
+2. **Context-Dependent:** Parameters appearing only in the return type. These *may* be inferred if the call-site provides type context, but often require turbofish when context is absent.
+
+   ```rust
+   fn default<T: Default>() -> T { T::default() }
+
+   let x: i32 = default();      // ✓ T inferred from annotation
+   vec.push(default());         // ✓ T inferred from vec's element type
+   let y = default();           // ✗ cannot infer T
+   let z = default::<String>(); // ✓ explicit turbofish
+   ```
+
+3. **Usually Inferable:** Parameters appearing in function input arguments. The compiler infers these from call-site values.
+
+   ```rust
+   fn map<Brand, FnBrand, A, B>(f: Kind<FnBrand, A, B>, fa: Kind<Brand, A>) -> Kind<Brand, B>
+   where
+     Brand: Functor<FnBrand, A, B>
+   { ... }
+
+   // A and B inferred from closure and input; Brand still needs turbofish
+   map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))
+   ```
+
+**Ordering:** Place type parameters in the order listed above (rarely inferable → context-dependent → usually inferable). This enables ergonomic turbofish patterns like `func::<Brand, _, _>(...)`, where users specify only the uninferable parameters and let the compiler fill in the rest.
 
 ### 4. Documentation & Examples
 
@@ -53,7 +91,7 @@ Documentation must adhere to the following standards regarding formatting, type 
 
 1. **Documentation Templates:** Documentation comments should use the following formats.
 
-   - **Functions & Methods:** (Note: functions use uncurried semantics, so the documentation should reflect this)
+   * **Functions & Methods:** (Note: functions use uncurried semantics, so the documentation should reflect this)
 
      ````rust
      /// Short description.
@@ -85,7 +123,7 @@ Documentation must adhere to the following standards regarding formatting, type 
      /// ```
      ````
 
-   - **Modules:**
+   * **Modules:**
 
      ````rust
      //! Short description of the module.
@@ -99,7 +137,7 @@ Documentation must adhere to the following standards regarding formatting, type 
      //! ```
      ````
 
-   - **Structs & Enums:**
+   * **Structs & Enums:**
 
      ````rust
      /// Short description.
@@ -121,7 +159,7 @@ Documentation must adhere to the following standards regarding formatting, type 
      /// ```
      ````
 
-   - **Struct Fields:**
+   * **Struct Fields:**
 
      ```rust
      /// Short description of the field's purpose and constraints.
@@ -130,6 +168,7 @@ Documentation must adhere to the following standards regarding formatting, type 
 Sections in the documentation that would be empty should be omitted.
 
 2. **Signature Accuracy:** The "Type Signature" section in documentation comments must be accurate to the code. Instances of `Brand` types in type parameters should be replaced with their corresponding concrete type in the signature, for consistency and to prevent confusion. E.g. prefer `forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e` instead of `forall fn_brand e b a. Semiapplicative (ResultWithErrBrand e) => (Result (fn_brand a b) e, Result a e) -> Result b e`.
+
 3. **Quantifier Accuracy & Ordering:** The quantifiers in the "Type Signature" section must be:
 
    3.1. Accurate and correctly ordered (matching the code).
@@ -137,6 +176,7 @@ Sections in the documentation that would be empty should be omitted.
    3.2. But omit quantifiers that aren't used in the rest of the signature, for clarity.
 
 4. **Parameter List Ordering:** The items in the "Type Parameters" section must be correctly ordered (matching the code).
+
 5. **Examples:** Where possible, all examples should:
 
    5.1. Import items using grouped wildcards instead of individually by name. Example:
@@ -155,10 +195,10 @@ Sections in the documentation that would be empty should be omitted.
 
    5.2. Use the free-function versions of trait methods, imported with `fp_library::functions::*`, with as many holes as possible, instead of importing the trait methods directly and instead of showing the holes filled in.
 
-   - Example: `map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))` instead of `OptionBrand::map(|i| i * 2, Some(5))`.
+   * Example: `map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))` instead of `OptionBrand::map(|i| i * 2, Some(5))`.
 
 **Reasoning:**
 
-- **Standardization:** A consistent comment format ensures that all API documentation is uniform, easy to read, and provides all necessary information (signatures, parameters, examples) in a predictable structure.
-- **Consistency:** Documentation must accurately reflect the architectural decisions regarding type parameter ordering (Section 3) to avoid confusion.
-- **Intended Usage:** The library is designed to be used via free functions with partial type inference (turbofish with holes). Examples must demonstrate this intended usage pattern to educate users on the ergonomic benefits of the chosen type parameter ordering.
+* **Standardization:** A consistent comment format ensures that all API documentation is uniform, easy to read, and provides all necessary information (signatures, parameters, examples) in a predictable structure.
+* **Consistency:** Documentation must accurately reflect the architectural decisions regarding type parameter ordering (Section 3) to avoid confusion.
+* **Intended Usage:** The library is designed to be used via free functions with partial type inference (turbofish with holes). Examples must demonstrate this intended usage pattern to educate users on the ergonomic benefits of the chosen type parameter ordering.
