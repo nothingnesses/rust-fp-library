@@ -9,6 +9,8 @@ This document outlines a plan to introduce a unified `SmartPointer` type class a
 3. **Reduced code duplication** by building multiple types on a single foundation
 4. **Future extensibility** for custom allocators or alternative smart pointers
 
+**Note**: This is a breaking change. Backward compatibility is not a goal; the focus is on the best possible design.
+
 ---
 
 ## Background & Motivation
@@ -32,7 +34,12 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 4. **The existing library already has similar patterns**:
    - `ClonableFn` abstracts over `RcFnBrand` vs `ArcFnBrand`
    - Users choose at call sites: `clonable_fn_new::<RcFnBrand, _, _>(...)`
-   - This pattern can be generalized
+   - This pattern can be generalized and unified
+
+5. **`SendClonableFn` extends `ClonableFn`** with thread-safe semantics:
+   - Uses a separate `SendOf` associated type
+   - Only `ArcFnBrand` implements it (not `RcFnBrand`)
+   - This pattern can be applied to `SmartPointer` → `SendSmartPointer`
 
 ### Current Architecture Gap
 
@@ -41,13 +48,18 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 │                        CURRENT: Ad-hoc Rc/Arc Abstraction                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ClonableFn                            Lazy (current)                      │
-│       │                                     │                               │
-│   ┌───┴───┐                          Uses OnceBrand (not shared)            │
-│   │       │                                                                 │
-│ RcFnBrand ArcFnBrand                 Clones create independent copies       │
+│   ClonableFn ─────extends───▶ SendClonableFn                                │
+│       │                            │                                        │
+│   ┌───┴───┐                    ┌───┘                                        │
+│   │       │                    │                                            │
+│ RcFnBrand ArcFnBrand ◀─────────┘  (only Arc implements SendClonableFn)      │
 │                                                                             │
-│   Problem: No shared foundation for the Rc/Arc choice                       │
+│                                                                             │
+│   Lazy (current)                                                            │
+│       │                                                                     │
+│   Uses OnceBrand (not shared across clones)                                 │
+│                                                                             │
+│   Problem: Rc/Arc choice is duplicated; no shared foundation                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,22 +70,29 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 │                     PROPOSED: Unified SmartPointer Foundation               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│                          SmartPointer (new trait)                           │
-│                                  │                                          │
-│                          ┌───────┴───────┐                                  │
-│                          │               │                                  │
-│                       RcBrand         ArcBrand                              │
-│                          │               │                                  │
-│            ┌─────────────┴───────────────┴─────────────┐                    │
-│            │                                           │                    │
-│            ▼                                           ▼                    │
-│   ┌────────────────────┐                   ┌────────────────────┐           │
-│   │  ClonableFn (via   │                   │ SharedLazy (uses   │           │
-│   │  GenericFnBrand)   │                   │ SmartPointer for   │           │
-│   │                    │                   │ shared OnceCell)   │           │
-│   └────────────────────┘                   └────────────────────┘           │
+│                    SmartPointer ─────extends───▶ SendSmartPointer           │
+│                          │                             │                    │
+│                  ┌───────┴───────┐                 ┌───┘                    │
+│                  │               │                 │                        │
+│               RcBrand         ArcBrand ◀───────────┘                        │
+│                  │               │                                          │
+│      ┌───────────┴───────────────┴───────────┐                              │
+│      │                                       │                              │
+│      ▼                                       ▼                              │
+│  ┌────────────────────────────┐    ┌────────────────────────────┐           │
+│  │ FnBrand<PtrBrand>          │    │ Lazy<PtrBrand, ...>        │           │
+│  │                            │    │                            │           │
+│  │ implements ClonableFn      │    │ Uses SmartPointer for      │           │
+│  │ implements SendClonableFn  │    │ shared memoization         │           │
+│  │   when PtrBrand: Send...   │    │                            │           │
+│  └────────────────────────────┘    └────────────────────────────┘           │
 │                                                                             │
-│   Benefits: Unified Rc/Arc choice, shared foundation, less duplication      │
+│  Type Aliases (for convenience):                                            │
+│    RcFnBrand  = FnBrand<RcBrand>                                            │
+│    ArcFnBrand = FnBrand<ArcBrand>                                           │
+│    RcLazy     = Lazy<RcBrand, OnceCellBrand, ...>                           │
+│    ArcLazy    = Lazy<ArcBrand, OnceLockBrand, ...>                          │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -84,22 +103,17 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 ### Primary Goals
 
 1. **Introduce `SmartPointer` trait** as a foundational abstraction for `Rc` and `Arc`
-2. **Create `SharedLazy`** type with Haskell-like shared memoization semantics
-3. **Maintain backward compatibility** with existing `Lazy`, `RcFnBrand`, `ArcFnBrand`
-4. **Enable composition** - users pick one smart pointer brand and use it consistently
-
-### Secondary Goals
-
-1. **Potentially refactor `ClonableFn`** to use `SmartPointer` internally (optional, for consistency)
-2. **Support thread-safe variants** via `SendSmartPointer` marker trait
-3. **Provide clear migration path** for existing code
-4. **Document trade-offs** between value semantics (`Lazy`) and shared semantics (`SharedLazy`)
+2. **Refactor `ClonableFn` to use `SmartPointer`** via `FnBrand<PtrBrand>` pattern
+3. **Create `Lazy` type** with Haskell-like shared memoization semantics (replacing current value-semantic `Lazy`)
+4. **Use extension trait pattern** (`SendSmartPointer` extends `SmartPointer`) for thread safety, mirroring `SendClonableFn`
+5. **Enable composition** - users pick one smart pointer brand and use it consistently
 
 ### Non-Goals
 
-1. **Replacing the existing `Lazy` type** - both semantics have valid use cases
-2. **Supporting non-reference-counted smart pointers** initially (e.g., `Box` - though could be added later)
-3. **Automatic selection** of Rc vs Arc based on context (user explicitly chooses)
+1. **Backward compatibility** - this is a breaking change; best design takes priority
+2. **Migration path** - not needed since we're not maintaining backward compat
+3. **Supporting non-reference-counted smart pointers** initially (e.g., `Box` - could be added later)
+4. **Automatic selection** of Rc vs Arc based on context (user explicitly chooses)
 
 ---
 
@@ -149,16 +163,22 @@ pub trait SmartPointer {
         Self::Of<T>: Sized;
 }
 
-/// Marker trait for thread-safe smart pointers.
+/// Extension trait for thread-safe smart pointers.
 ///
-/// Only implemented by brands whose `Of` type is `Send + Sync`
-/// when the inner type is `Send + Sync`.
+/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`.
+/// Only implemented by brands whose `Of` type is `Send + Sync` when the
+/// inner type is `Send + Sync` (i.e., `ArcBrand` but not `RcBrand`).
 ///
-/// This enables compile-time enforcement of thread safety requirements.
+/// ### Design Rationale
+///
+/// This mirrors the existing `SendClonableFn` pattern in the library:
+/// - Base trait (`SmartPointer`) works for all smart pointers
+/// - Extension trait (`SendSmartPointer`) adds thread-safety guarantees
+/// - Only thread-safe brands implement the extension trait
 pub trait SendSmartPointer: SmartPointer
 where
     // This bound ensures Of<T> is Send+Sync when T is Send+Sync
-    for<'a, T: Send + Sync + 'a> Self::Of<T>: Send + Sync,
+    for<T: Send + Sync> Self::Of<T>: Send + Sync,
 {
 }
 ```
@@ -166,18 +186,30 @@ where
 #### Brand Definitions
 
 ```rust
-// fp-library/src/brands.rs (additions)
+// fp-library/src/brands.rs
 
 /// Brand for `std::rc::Rc` smart pointer.
 /// Use this for single-threaded code where cloning is cheap.
+/// Does NOT implement `SendSmartPointer`.
 pub struct RcBrand;
 
 /// Brand for `std::sync::Arc` smart pointer.
 /// Use this for multi-threaded code requiring `Send + Sync`.
+/// Implements both `SmartPointer` and `SendSmartPointer`.
 pub struct ArcBrand;
+
+/// Generic function brand parameterized by smart pointer choice.
+/// This replaces the separate `RcFnBrand` and `ArcFnBrand` types.
+pub struct FnBrand<PtrBrand: SmartPointer>(PhantomData<PtrBrand>);
+
+/// Type alias for Rc-based function wrapper (convenience).
+pub type RcFnBrand = FnBrand<RcBrand>;
+
+/// Type alias for Arc-based function wrapper (convenience).
+pub type ArcFnBrand = FnBrand<ArcBrand>;
 ```
 
-#### Implementations
+#### SmartPointer Implementations
 
 ```rust
 // fp-library/src/types/rc_ptr.rs
@@ -192,6 +224,8 @@ impl SmartPointer for RcBrand {
         Rc::new(value)
     }
 }
+
+// Note: RcBrand does NOT implement SendSmartPointer
 ```
 
 ```rust
@@ -211,18 +245,136 @@ impl SmartPointer for ArcBrand {
     }
 }
 
+// ArcBrand implements SendSmartPointer because Arc<T: Send+Sync> is Send+Sync
 impl SendSmartPointer for ArcBrand {}
 ```
 
-### Part 2: SharedLazy Type
+### Part 2: Refactored ClonableFn Using SmartPointer
+
+This is a **required** part of the design, not optional. `ClonableFn` will be refactored to use `SmartPointer` as its foundation.
+
+#### The Unsized Coercion Problem
+
+**Problem**: `SmartPointer::new` accepts `T` (sized), but `ClonableFn` needs to create `Of<dyn Fn(A) -> B>` (unsized).
+
+**Why this happens**: When you write `Rc::new(closure)`, Rust performs implicit unsized coercion because it knows the target type. But `SmartPointer::new` is generic and can't know the target type.
+
+**Solution**: Use a macro to implement `ClonableFn` for each `FnBrand<PtrBrand>` variant. The macro handles the unsized coercion by explicitly calling `Rc::new` or `Arc::new`.
+
+#### Implementation Using Macro
+
+```rust
+// fp-library/src/types/fn_brand.rs
+
+use crate::{
+    brands::{ArcBrand, FnBrand, RcBrand},
+    classes::{
+        category::Category,
+        clonable_fn::ClonableFn,
+        function::Function,
+        semigroupoid::Semigroupoid,
+        send_clonable_fn::SendClonableFn,
+        smart_pointer::{SendSmartPointer, SmartPointer},
+    },
+};
+use std::{rc::Rc, sync::Arc};
+
+/// Macro to implement ClonableFn for FnBrand<PtrBrand>.
+/// This handles the unsized coercion which can't be done generically.
+macro_rules! impl_fn_brand {
+    ($ptr_brand:ty, $ptr_type:ident) => {
+        impl Function for FnBrand<$ptr_brand> {
+            type Of<'a, A, B> = $ptr_type<dyn 'a + Fn(A) -> B>;
+
+            fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+                $ptr_type::new(f)
+            }
+        }
+
+        impl ClonableFn for FnBrand<$ptr_brand> {
+            type Of<'a, A, B> = $ptr_type<dyn 'a + Fn(A) -> B>;
+
+            fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+                $ptr_type::new(f)
+            }
+        }
+
+        impl Semigroupoid for FnBrand<$ptr_brand> {
+            fn compose<'a, B: 'a, D: 'a, C: 'a>(
+                f: Self::Of<'a, C, D>,
+                g: Self::Of<'a, B, C>,
+            ) -> Self::Of<'a, B, D> {
+                <Self as ClonableFn>::new(move |b| f(g(b)))
+            }
+        }
+
+        impl Category for FnBrand<$ptr_brand> {
+            fn identity<'a, A>() -> Self::Of<'a, A, A> {
+                $ptr_type::new(|a| a)
+            }
+        }
+    };
+}
+
+// Apply macro for both brands
+impl_fn_brand!(RcBrand, Rc);
+impl_fn_brand!(ArcBrand, Arc);
+
+// SendClonableFn is only implemented for FnBrand<ArcBrand>
+impl SendClonableFn for FnBrand<ArcBrand> {
+    type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
+
+    fn send_clonable_fn_new<'a, A, B>(
+        f: impl 'a + Fn(A) -> B + Send + Sync
+    ) -> Self::SendOf<'a, A, B> {
+        Arc::new(f)
+    }
+}
+
+// Note: FnBrand<RcBrand> does NOT implement SendClonableFn
+```
+
+#### Alternative: Specialization-Based Approach (Nightly Only)
+
+If using nightly Rust, specialization could provide a cleaner solution:
+
+```rust
+#![feature(specialization)]
+
+impl<PtrBrand: SmartPointer> ClonableFn for FnBrand<PtrBrand> {
+    type Of<'a, A, B> = <PtrBrand as SmartPointer>::Of<dyn 'a + Fn(A) -> B>;
+
+    default fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+        unimplemented!("Specialized implementation required")
+    }
+}
+
+impl ClonableFn for FnBrand<RcBrand> {
+    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+        Rc::new(f)
+    }
+}
+
+impl ClonableFn for FnBrand<ArcBrand> {
+    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+        Arc::new(f)
+    }
+}
+```
+
+**Recommendation**: Use the macro approach for stable Rust compatibility.
+
+### Part 3: Lazy Type with Shared Memoization
+
+The new `Lazy` type replaces the current value-semantic implementation with Haskell-like shared memoization.
 
 #### Core Structure
 
 ```rust
-// fp-library/src/types/shared_lazy.rs
+// fp-library/src/types/lazy.rs (replacement)
 
 use crate::{
-    brands::SharedLazyBrand,
+    brands::LazyBrand,
     classes::{
         clonable_fn::ClonableFn,
         defer::Defer,
@@ -237,14 +389,13 @@ use crate::{
 
 /// Lazily-computed value with shared memoization (Haskell-like semantics).
 ///
-/// Unlike [`Lazy`], cloning a `SharedLazy` shares the memoization state.
+/// Cloning a `Lazy` shares the memoization state via the underlying smart pointer.
 /// When any clone is forced, all clones see the cached result.
 ///
 /// ### Type Parameters
 ///
 /// * `PtrBrand`: Smart pointer brand (`RcBrand` or `ArcBrand`)
 /// * `OnceBrand`: Once cell brand (`OnceCellBrand` or `OnceLockBrand`)
-/// * `FnBrand`: Clonable function brand (`RcFnBrand` or `ArcFnBrand`)
 /// * `A`: The type of the lazily-computed value
 ///
 /// ### Examples
@@ -257,7 +408,7 @@ use crate::{
 /// let counter = Rc::new(Cell::new(0));
 /// let counter_clone = counter.clone();
 ///
-/// let lazy = SharedLazy::<RcBrand, OnceCellBrand, RcFnBrand, _>::new(
+/// let lazy = Lazy::<RcBrand, OnceCellBrand, _>::new(
 ///     clonable_fn_new::<RcFnBrand, _, _>(move |_| {
 ///         counter_clone.set(counter_clone.get() + 1);
 ///         42
@@ -267,356 +418,314 @@ use crate::{
 /// let lazy2 = lazy.clone();  // Shares memoization state!
 ///
 /// assert_eq!(counter.get(), 0);
-/// assert_eq!(SharedLazy::force(&lazy), 42);
+/// assert_eq!(Lazy::force(&lazy), 42);
 /// assert_eq!(counter.get(), 1);  // Computed once
-/// assert_eq!(SharedLazy::force(&lazy2), 42);
+/// assert_eq!(Lazy::force(&lazy2), 42);
 /// assert_eq!(counter.get(), 1);  // NOT recomputed - shared!
 /// ```
-pub struct SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>(
+pub struct Lazy<'a, PtrBrand, OnceBrand, A>(
     <PtrBrand as SmartPointer>::Of<(
         <OnceBrand as Once>::Of<A>,
-        <FnBrand as ClonableFn>::Of<'a, (), A>,
+        <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>,
     )>,
 )
 where
     PtrBrand: SmartPointer,
-    OnceBrand: Once,
-    FnBrand: ClonableFn;
+    OnceBrand: Once;
 ```
+
+**Key design change**: The `Lazy` type now uses `FnBrand<PtrBrand>` internally, so the smart pointer brand determines both the sharing semantics AND the function wrapper type. This reduces the number of type parameters from 4 to 3.
 
 #### Implementation
 
 ```rust
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>
+impl<'a, PtrBrand, OnceBrand, A> Lazy<'a, PtrBrand, OnceBrand, A>
 where
     PtrBrand: SmartPointer,
     OnceBrand: Once,
-    FnBrand: ClonableFn,
 {
-    /// Creates a new `SharedLazy` value from a thunk.
-    ///
-    /// ### Type Signature
-    ///
-    /// `forall ptr once fn a. (() -> a) -> SharedLazy ptr once fn a`
-    pub fn new(thunk: <FnBrand as ClonableFn>::Of<'a, (), A>) -> Self {
+    /// Creates a new `Lazy` value from a thunk.
+    pub fn new(thunk: <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>) -> Self {
         Self(<PtrBrand as SmartPointer>::new((OnceBrand::new(), thunk)))
     }
 
     /// Forces the evaluation and returns the value.
     ///
-    /// If already computed, returns the cached result.
-    /// All clones share the same cache, so forcing one forces all.
-    ///
-    /// ### Type Signature
-    ///
-    /// `forall ptr once fn a. SharedLazy ptr once fn a -> a`
+    /// Takes `&self` because all clones share the same memoization state.
     pub fn force(this: &Self) -> A
     where
         A: Clone,
     {
-        // Dereference the smart pointer to access the shared (OnceCell, thunk) pair
         let (once_cell, thunk) = &*this.0;
         <OnceBrand as Once>::get_or_init(once_cell, || thunk(())).clone()
     }
 }
 
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Clone for SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>
+impl<'a, PtrBrand, OnceBrand, A> Clone for Lazy<'a, PtrBrand, OnceBrand, A>
 where
     PtrBrand: SmartPointer,
     OnceBrand: Once,
-    FnBrand: ClonableFn,
-    <PtrBrand as SmartPointer>::Of<(
-        <OnceBrand as Once>::Of<A>,
-        <FnBrand as ClonableFn>::Of<'a, (), A>,
-    )>: Clone,
 {
     fn clone(&self) -> Self {
-        // Clones the Rc/Arc, sharing the underlying (OnceCell, thunk)
+        // Cheap Rc/Arc clone - shares memoization state
         Self(self.0.clone())
     }
 }
 ```
 
-#### Type Class Implementations
+#### Convenience Type Aliases
 
 ```rust
-// Semigroup instance - lazy combination
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Semigroup
-    for SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>
-where
-    PtrBrand: SmartPointer + 'a,
-    OnceBrand: Once + 'a,
-    FnBrand: ClonableFn + 'a,
-    A: Semigroup + Clone + 'a,
-    // ... additional bounds
-{
-    fn append(a: Self, b: Self) -> Self {
-        SharedLazy::new(<FnBrand as ClonableFn>::new(move |_| {
-            Semigroup::append(SharedLazy::force(&a), SharedLazy::force(&b))
-        }))
-    }
-}
+// fp-library/src/types/lazy.rs (continued)
 
-// Monoid instance
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Monoid
-    for SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>
-where
-    // ... bounds
-    A: Monoid + Clone + 'a,
-{
-    fn empty() -> Self {
-        SharedLazy::new(<FnBrand as ClonableFn>::new(|_| Monoid::empty()))
-    }
-}
+/// Single-threaded lazy value using Rc.
+/// Not Send or Sync.
+pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
 
-// Defer instance
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Defer<'a>
-    for SharedLazy<'a, PtrBrand, OnceBrand, FnBrand, A>
-where
-    // ... bounds
-    A: Clone + 'a,
-{
-    fn defer<FnBrand_>(f: <FnBrand_ as ClonableFn>::Of<'a, (), Self>) -> Self
-    where
-        FnBrand_: ClonableFn + 'a,
-    {
-        SharedLazy::new(<FnBrand as ClonableFn>::new(move |_| {
-            SharedLazy::force(&f(()))
-        }))
-    }
-}
-```
-
-### Part 3: Optional - Refactoring ClonableFn
-
-This section describes how `ClonableFn` could be refactored to use `SmartPointer`. **This is optional** and would be a separate effort.
-
-#### Current Implementation
-
-```rust
-// Current: RcFnBrand and ArcFnBrand are separate brands
-pub struct RcFnBrand;
-pub struct ArcFnBrand;
-
-impl ClonableFn for RcFnBrand {
-    type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
-    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
-        Rc::new(f)
-    }
-}
-
-impl ClonableFn for ArcFnBrand {
-    type Of<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;
-    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
-        Arc::new(f)
-    }
-}
-```
-
-#### Potential Refactored Implementation
-
-```rust
-// Refactored: GenericFnBrand parameterized by SmartPointer
-pub struct GenericFnBrand<PtrBrand: SmartPointer>(PhantomData<PtrBrand>);
-
-// Type aliases for backward compatibility
-pub type RcFnBrand = GenericFnBrand<RcBrand>;
-pub type ArcFnBrand = GenericFnBrand<ArcBrand>;
-
-impl<PtrBrand: SmartPointer> ClonableFn for GenericFnBrand<PtrBrand> {
-    type Of<'a, A, B> = <PtrBrand as SmartPointer>::Of<dyn 'a + Fn(A) -> B>;
-
-    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
-        // Challenge: SmartPointer::new expects a sized type,
-        // but we need to coerce to unsized `dyn Fn(A) -> B`
-        // See "Challenges" section for solutions
-        todo!()
-    }
-}
-```
-
+/// Thread-safe lazy value using Arc.
+/// Send and Sync when A is Send and Sync.
 ---
 
 ## Challenges & Solutions
 
-### Challenge 1: Unsized Coercion
+### Challenge 1: Unsized Coercion in ClonableFn
 
-**Problem**: `SmartPointer::new` accepts `T` (sized), but we need to create `Of<dyn Trait>` (unsized).
+**Problem**: `SmartPointer::new` accepts `T` (sized), but `ClonableFn` needs to create `Of<dyn Fn(A) -> B>` (unsized).
 
-**Current workaround**: `Rc::new(f)` and `Arc::new(f)` perform implicit coercion from sized closure to `dyn Fn`. This coercion happens because Rust knows the concrete type being wrapped.
+**Why this happens**: When you write `Rc::new(closure)`, Rust performs implicit unsized coercion because it knows the target type. But `SmartPointer::new` is generic and can't know the target type.
 
-**Solutions**:
+**Solution**: Use a macro to implement `ClonableFn` for `FnBrand<RcBrand>` and `FnBrand<ArcBrand>` separately. The macro explicitly calls `Rc::new` or `Arc::new`, allowing the coercion to happen.
 
-1. **Add `new_unsized` method** (if stabilized):
-   ```rust
-   trait SmartPointer {
-       fn new_unsized<T: ?Sized>(value: /* ??? */) -> Self::Of<T>;
-   }
-   ```
-   This is problematic because you can't pass an unsized value by value.
+```rust
+macro_rules! impl_fn_brand {
+    ($ptr_brand:ty, $ptr_type:ident) => {
+        impl ClonableFn for FnBrand<$ptr_brand> {
+            type Of<'a, A, B> = $ptr_type<dyn 'a + Fn(A) -> B>;
+            fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+                $ptr_type::new(f)  // Unsized coercion happens here
+            }
+        }
+    };
+}
 
-2. **Use CoerceUnsized** (nightly only):
-   ```rust
-   fn new_coerce<T, U: ?Sized>(value: T) -> Self::Of<U>
-   where
-       Self::Of<T>: CoerceUnsized<Self::Of<U>>;
-   ```
+impl_fn_brand!(RcBrand, Rc);
+impl_fn_brand!(ArcBrand, Arc);
+```
 
-3. **Separate trait for function wrapping** (recommended):
-   ```rust
-   // Keep SmartPointer for general use
-   trait SmartPointer { ... }
-
-   // Add specialized method to ClonableFn brands that uses SmartPointer internally
-   impl<PtrBrand: SmartPointer> Function for GenericFnBrand<PtrBrand> {
-       fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
-           // Implementation specific to each PtrBrand variant
-           // using macro or specialization
-       }
-   }
-   ```
-
-4. **Accept current duplication** (simplest):
-   - Keep `RcFnBrand` and `ArcFnBrand` as separate implementations
-   - Use `SmartPointer` only for new types like `SharedLazy`
-   - The abstraction is still valuable for SharedLazy without changing ClonableFn
+**Why not other solutions?**
+- **nightly `CoerceUnsized`**: Would work but limits to nightly Rust
+- **`new_unsized` method**: Can't pass unsized values by value
+- **Specialization**: Also nightly-only
 
 ### Challenge 2: Thread Safety Bounds
 
-**Problem**: `Arc<T>` requires `T: Send + Sync` for the `Arc` itself to be `Send + Sync`. But `SmartPointer` is generic and can't enforce this.
+**Problem**: `Arc<T>` is `Send + Sync` when `T: Send + Sync`. But `SmartPointer` is generic and can't enforce this at the trait level.
 
-**Solution**: Use `SendSmartPointer` marker trait:
+**Solution**: Use `SendSmartPointer` extension trait, following the same pattern as `SendClonableFn`:
 
 ```rust
-/// Marker for thread-safe smart pointers.
+/// Extension trait for thread-safe smart pointers.
+/// Mirrors the SendClonableFn pattern.
 pub trait SendSmartPointer: SmartPointer
 where
-    for<'a, T: Send + Sync + 'a> Self::Of<T>: Send + Sync,
+    for<T: Send + Sync> Self::Of<T>: Send + Sync,
 {
 }
 
-// Only Arc implements this
+// Only ArcBrand implements this
 impl SendSmartPointer for ArcBrand {}
 
-// Thread-safe SharedLazy
-pub struct SendSharedLazy<PtrBrand: SendSmartPointer, ...>(...);
+// RcBrand does NOT implement SendSmartPointer
+```
+
+**Usage in constraints**:
+```rust
+// Require thread-safe smart pointer
+fn parallel_operation<P: SendSmartPointer>(ptr: P::Of<Data>) { ... }
 ```
 
 ### Challenge 3: Interaction with Once Brands
 
-**Problem**: `OnceCellBrand` uses `std::cell::OnceCell` (not `Send`). `OnceLockBrand` uses `std::sync::OnceLock` (`Send + Sync`).
+**Problem**: `OnceCellBrand` uses `std::cell::OnceCell` (not `Send`). `OnceLockBrand` uses `std::sync::OnceLock` (`Send + Sync`). Invalid combinations would cause surprising behavior.
 
-**Solution**: Constrain valid combinations:
+**Solution**: Use type aliases that enforce valid combinations:
 
 ```rust
-// Single-threaded: RcBrand + OnceCellBrand + RcFnBrand
-type RcLazy<A> = SharedLazy<'static, RcBrand, OnceCellBrand, RcFnBrand, A>;
+/// Single-threaded lazy: RcBrand + OnceCellBrand
+/// Neither Send nor Sync.
+pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
 
-// Multi-threaded: ArcBrand + OnceLockBrand + ArcFnBrand
-type ArcLazy<A> = SharedLazy<'static, ArcBrand, OnceLockBrand, ArcFnBrand, A>;
-
-// Invalid combination prevented by bounds:
-// SharedLazy<ArcBrand, OnceCellBrand, ...> would not be Send!
+/// Thread-safe lazy: ArcBrand + OnceLockBrand
+/// Send + Sync when A: Send + Sync.
+pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, A>;
 ```
 
-### Challenge 4: Maintaining Backward Compatibility
+Users CAN create invalid combinations like `Lazy<ArcBrand, OnceCellBrand, A>`, but:
+1. The result won't be `Send + Sync` (fails at use site)
+2. Documentation clearly recommends the type aliases
+3. Compiler errors will guide users to correct usage
 
-**Problem**: Adding `RcBrand`/`ArcBrand` might conflict with existing names or patterns.
+### Challenge 4: SendClonableFn Integration
 
-**Solutions**:
+**Problem**: The existing `SendClonableFn` trait has a separate `SendOf` associated type. How does this integrate with `FnBrand<PtrBrand>`?
 
-1. **New names**: Use `RcPtrBrand`/`ArcPtrBrand` to avoid confusion with `RcFnBrand`/`ArcFnBrand`
-2. **Feature flag**: Gate under `smart-pointer` feature initially
-3. **Documentation**: Clear migration guide showing old vs new patterns
+**Solution**: `SendClonableFn` is only implemented for `FnBrand<ArcBrand>`:
+
+```rust
+impl SendClonableFn for FnBrand<ArcBrand> {
+    type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
+
+    fn send_clonable_fn_new<'a, A, B>(
+        f: impl 'a + Fn(A) -> B + Send + Sync
+    ) -> Self::SendOf<'a, A, B> {
+        Arc::new(f)
+    }
+}
+
+// FnBrand<RcBrand> does NOT implement SendClonableFn
+```
+
+This maintains the same pattern: the extension trait is only implemented for thread-safe variants.
 
 ---
 
 ## Efficiency Analysis
 
-### Value Semantics (`Lazy`) vs Shared Semantics (`SharedLazy`)
+### Lazy Performance Characteristics
 
-| Scenario | Lazy (Value) | SharedLazy (Shared) |
-|----------|--------------|---------------------|
-| Create | `OnceCell::new()` ~1ns | `Rc/Arc::new(...)` ~20ns |
-| Clone (unforced) | `OnceCell` clone ~1ns | `Rc/Arc` clone ~3-5ns |
-| Clone (forced) | Clone `OnceCell` + Clone `A` | `Rc/Arc` clone ~3-5ns |
-| Force (first) | `thunk()` | `Rc/Arc` deref + `thunk()` |
-| Force (nth clone) | `thunk()` again! | Return cached (shared) |
+| Scenario | Cost |
+|----------|------|
+| Create | `Rc/Arc::new(...)` ~20ns (heap allocation) |
+| Clone | `Rc/Arc` clone ~3-5ns (reference count increment) |
+| Force (first) | `Rc/Arc` deref + `OnceCell::get_or_init` + `thunk()` |
+| Force (subsequent) | `Rc/Arc` deref + `OnceCell::get` + `clone()` |
 
-### When to Use Each
+### Comparison with Old Value-Semantic Lazy
 
-| Use Case | Recommended Type |
-|----------|------------------|
-| Single owner, force once | `Lazy` |
-| Many clones, expensive thunk | `SharedLazy` |
-| Recursive data structures | `SharedLazy` |
-| Simple memoization | `Lazy` |
-| Dynamic programming | `SharedLazy` |
-| Multi-threaded access | `SharedLazy<ArcBrand, OnceLockBrand, ArcFnBrand, _>` |
+| Operation | Old Lazy (Value) | New Lazy (Shared) |
+|-----------|------------------|-------------------|
+| Clone unforced | ~1ns (copy OnceCell) | ~3-5ns (Rc/Arc clone) |
+| Clone forced | O(size of A) | ~3-5ns |
+| Force 1 clone | O(thunk) | O(thunk) |
+| Force 2nd clone | O(thunk) again! | O(1) - cached |
+| Force nth clone | O(n × thunk) total | O(1) - all share |
+
+**Conclusion**: New shared semantics is more efficient when:
+- Multiple clones exist
+- Thunk is expensive
+- Value is large (expensive to clone)
+
+Old value semantics was only better for:
+- Single-use lazy values (rare use case)
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Required)
+### Phase 1: SmartPointer Foundation
 
-1. Add `SmartPointer` trait
-2. Add `RcBrand` and `ArcBrand` brands
-3. Implement `SmartPointer` for both brands
-4. Add `SendSmartPointer` marker trait
-5. Add free functions and re-exports
+1. Create `fp-library/src/classes/smart_pointer.rs`
+   - Define `SmartPointer` trait
+   - Define `SendSmartPointer` extension trait
+   - Add free function `smart_pointer_new`
+2. Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
+3. Create `fp-library/src/types/rc_ptr.rs` with `SmartPointer` impl for `RcBrand`
+4. Create `fp-library/src/types/arc_ptr.rs` with `SmartPointer` and `SendSmartPointer` impls for `ArcBrand`
+5. Update module re-exports
 
-### Phase 2: SharedLazy (Required)
+### Phase 2: FnBrand Refactor
 
-1. Create `SharedLazy` type
-2. Implement `Clone`, `force`, `new`
-3. Implement `Semigroup`, `Monoid`, `Defer`
-4. Add `SharedLazyBrand` and `impl_kind!`
-5. Add comprehensive tests
+1. Add `FnBrand<PtrBrand>` struct to `fp-library/src/brands.rs`
+2. Add `RcFnBrand` and `ArcFnBrand` type aliases
+3. Create `fp-library/src/types/fn_brand.rs`
+   - Implement `Function`, `ClonableFn`, `Semigroupoid`, `Category` for `FnBrand<RcBrand>`
+   - Implement same for `FnBrand<ArcBrand>`
+   - Implement `SendClonableFn` for `FnBrand<ArcBrand>` only
+   - Use macro to reduce duplication
+4. Remove old `fp-library/src/types/rc_fn.rs` and `arc_fn.rs`
+5. Update all code that referenced old brands
 
-### Phase 3: Integration & Polish (Required)
+### Phase 3: Lazy Refactor
 
-1. Add type aliases for common configurations
-2. Write documentation with examples
-3. Add doc tests
-4. Update `docs/std-coverage-checklist.md`
-5. Update `docs/architecture.md`
+1. Rewrite `fp-library/src/types/lazy.rs`
+   - Change to shared semantics using `SmartPointer`
+   - Use `FnBrand<PtrBrand>` for thunk storage
+   - Reduce type parameters from 4 to 3
+2. Add `RcLazy` and `ArcLazy` type aliases
+3. Implement `Semigroup`, `Monoid`, `Defer` for new `Lazy`
+4. Update `LazyBrand` and `impl_kind!`
+5. Update all tests
 
-### Phase 4: ClonableFn Refactor (Optional)
+### Phase 4: Integration & Polish
 
-1. Investigate unsized coercion options
-2. If viable, create `GenericFnBrand<PtrBrand>`
-3. Type alias `RcFnBrand = GenericFnBrand<RcBrand>`
-4. Type alias `ArcFnBrand = GenericFnBrand<ArcBrand>`
-5. Ensure all existing tests pass
+1. Update all documentation
+2. Update `docs/std-coverage-checklist.md`
+3. Update `docs/architecture.md` with new patterns
+4. Ensure all tests pass
+5. Run clippy and fix warnings
+6. Generate and review documentation
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `fp-library/src/classes/smart_pointer.rs` | `SmartPointer` and `SendSmartPointer` traits |
+| `fp-library/src/types/rc_ptr.rs` | `SmartPointer` impl for `RcBrand` |
+| `fp-library/src/types/arc_ptr.rs` | `SmartPointer` + `SendSmartPointer` impl for `ArcBrand` |
+| `fp-library/src/types/fn_brand.rs` | `FnBrand<PtrBrand>` implementations |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `fp-library/src/brands.rs` | Add `RcBrand`, `ArcBrand`, `FnBrand<P>`, type aliases |
+| `fp-library/src/classes.rs` | Re-export `smart_pointer` module |
+| `fp-library/src/types.rs` | Re-export new modules, remove old |
+| `fp-library/src/types/lazy.rs` | Complete rewrite with shared semantics |
+| `fp-library/src/functions.rs` | Re-export new free functions |
+
+## Files to Delete
+
+| File | Reason |
+|------|--------|
+| `fp-library/src/types/rc_fn.rs` | Replaced by `fn_brand.rs` |
+| `fp-library/src/types/arc_fn.rs` | Replaced by `fn_brand.rs` |
 
 ---
 
 ## Alternatives Considered
 
-### Alternative 1: Separate SharedLazy Module
+### Alternative 1: Separate SendSmartPointer with Own Associated Type
 
-**Description**: Don't abstract Rc/Arc; just create a hardcoded `SharedLazy` using `Rc`.
+**Description**: Like `SendClonableFn`, have `SendSmartPointer` define its own `SendOf` type.
 
-**Pros**: Simpler, fewer type parameters
-**Cons**: No Arc variant, duplicates code if we later need thread-safe version
-**Decision**: Rejected - the abstraction is worth the complexity
+```rust
+trait SendSmartPointer: SmartPointer {
+    type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+}
+```
 
-### Alternative 2: Generic Over Any Clone + Deref Type
+**Pros**: More explicit about thread-safe type
+**Cons**: Duplication, harder to use generically
+**Decision**: Rejected - marker trait is simpler and sufficient
 
-**Description**: Make SharedLazy generic over any type satisfying `Clone + Deref<Target = (OnceCell, Thunk)>`.
+### Alternative 2: No SmartPointer, Just Refactor ClonableFn
 
-**Pros**: Maximum flexibility
-**Cons**: Loses brand-based selection pattern, harder to use
-**Decision**: Rejected - doesn't fit library's design patterns
+**Description**: Keep separate `RcFnBrand`/`ArcFnBrand` but use them directly in `Lazy`.
 
-### Alternative 3: Use once_cell Crate's Lazy
+**Pros**: Less new abstraction
+**Cons**: Doesn't solve the problem of sharing semantics; FnBrand can't wrap arbitrary types
+**Decision**: Rejected - need `SmartPointer` for `Lazy` to wrap `(OnceCell, Thunk)`
 
-**Description**: Just wrap `once_cell::sync::Lazy` or use std's `LazyLock`.
+### Alternative 3: Keep Both Lazy Implementations
 
-**Pros**: Zero implementation effort
-**Cons**: Can't integrate with library's brand system, no FnBrand flexibility
-**Decision**: Rejected - need integration with existing type classes
+**Description**: Have `ValueLazy` (current) and `SharedLazy` (new).
+
+**Pros**: No breaking change, both options available
+**Cons**: Confusing API, maintenance burden, value semantics rarely useful
+**Decision**: Rejected - clean break is better since backward compat isn't a goal
 
 ---
 
@@ -625,6 +734,10 @@ type ArcLazy<A> = SharedLazy<'static, ArcBrand, OnceLockBrand, ArcFnBrand, A>;
 - [Haskell's Data.Lazy](https://hackage.haskell.org/package/lazy)
 - [PureScript's Data.Lazy](https://pursuit.purescript.org/packages/purescript-lazy)
 - [std::rc::Rc documentation](https://doc.rust-lang.org/std/rc/struct.Rc.html)
+- [std::sync::Arc documentation](https://doc.rust-lang.org/std/sync/struct.Arc.html)
+- [Existing SendClonableFn trait](../fp-library/src/classes/send_clonable_fn.rs)
+- [Existing ClonableFn trait](../fp-library/src/classes/clonable_fn.rs)
+- [Current Lazy implementation](../fp-library/src/types/lazy.rs)
 - [std::sync::Arc documentation](https://doc.rust-lang.org/std/sync/struct.Arc.html)
 - [Existing ClonableFn trait](../fp-library/src/classes/clonable_fn.rs)
 - [Existing Lazy implementation](../fp-library/src/types/lazy.rs)
