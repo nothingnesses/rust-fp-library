@@ -283,27 +283,53 @@ pub trait RefCountedPointer: Pointer {
         Self::CloneableOf<T>: Sized;
 }
 
-/// Marker trait for thread-safe reference-counted pointers.
+/// Extension trait for thread-safe reference-counted pointers.
 ///
-/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`.
-/// Only implemented by brands whose `CloneableOf` type is `Send + Sync` when
+/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`,
+/// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
+/// Only implemented by brands whose pointer type is `Send + Sync` when
 /// the inner type is `Send + Sync` (i.e., `ArcBrand` but not `RcBrand`).
 ///
 /// ### Design Rationale
 ///
-/// Unlike `SendClonableFn` which adds `SendOf`, this is a marker trait because:
-/// - For Arc, `CloneableOf<T: Send+Sync>` is naturally `Send + Sync`
-/// - No need for a separate type — the bound propagates through T
-/// - Simpler API: check `P: SendRefCountedPointer` for thread safety
+/// Like `SendClonableFn` which adds `SendOf`, this trait adds an explicit
+/// `SendOf` associated type with `Send + Sync` bounds because:
+/// - Rust's `for<T: Trait>` syntax doesn't exist (only `for<'a>` works)
+/// - Explicit bounds make the thread-safety contract clear in the type system
+/// - Consistent with the established `SendClonableFn` pattern in this codebase
 ///
 /// ### Implementors
 ///
-/// - `ArcBrand`: Implements this marker
+/// - `ArcBrand`: `SendOf<T: Send+Sync> = Arc<T>` (Arc<T: Send+Sync> is Send+Sync)
 /// - `RcBrand`: Does NOT implement (Rc is !Send)
-pub trait SendRefCountedPointer: RefCountedPointer
-where
-    for<T: Send + Sync> Self::CloneableOf<T>: Send + Sync,
-{
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, classes::pointer::*};
+///
+/// // Require thread-safe pointer
+/// fn spawn_with_data<P: SendRefCountedPointer, T: Send + Sync>(
+///     data: P::SendOf<T>
+/// ) {
+///     std::thread::spawn(move || {
+///         // data is guaranteed Send + Sync
+///     });
+/// }
+/// ```
+pub trait SendRefCountedPointer: RefCountedPointer {
+    /// The thread-safe pointer type constructor.
+    /// For `ArcBrand`, this is `Arc<T>` where `T: Send + Sync`.
+    type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+
+    /// Wraps a sized value in a thread-safe pointer.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall a. (SendRefCountedPointer p, Send a, Sync a) => a -> p a`
+    fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
+    where
+        Self::SendOf<T>: Sized;
 }
 ````
 
@@ -334,6 +360,18 @@ where
     P::CloneableOf<T>: Sized,
 {
     P::cloneable_new(value)
+}
+
+/// Wraps a value in a thread-safe pointer.
+///
+/// ### Type Signature
+///
+/// `forall p a. (SendRefCountedPointer p, Send a, Sync a) => a -> p a`
+pub fn send_ref_counted_new<P: SendRefCountedPointer, T: Send + Sync>(value: T) -> P::SendOf<T>
+where
+    P::SendOf<T>: Sized,
+{
+    P::send_new(value)
 }
 ```
 
@@ -438,9 +476,14 @@ impl RefCountedPointer for ArcBrand {
     }
 }
 
-// ArcBrand implements SendRefCountedPointer because
-// Arc<T: Send+Sync> is Send+Sync
-impl SendRefCountedPointer for ArcBrand {}
+// ArcBrand implements SendRefCountedPointer with explicit SendOf type
+impl SendRefCountedPointer for ArcBrand {
+    type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
+
+    fn send_new<T: Send + Sync>(value: T) -> Arc<T> {
+        Arc::new(value)
+    }
+}
 ```
 
 ```rust
@@ -462,10 +505,10 @@ impl Pointer for BoxBrand {
 
 #### Implementation Summary
 
-| Brand | `Pointer::Of<T>` | `RefCountedPointer::CloneableOf<T>` | `SendRefCountedPointer` |
-|-------|------------------|-------------------------------------|------------------------|
-| `RcBrand` | `Rc<T>` | `Rc<T>` (same) | ❌ |
-| `ArcBrand` | `Arc<T>` | `Arc<T>` (same) | ✅ |
+| Brand | `Pointer::Of<T>` | `RefCountedPointer::CloneableOf<T>` | `SendRefCountedPointer::SendOf<T>` |
+|-------|------------------|-------------------------------------|-----------------------------------|
+| `RcBrand` | `Rc<T>` | `Rc<T>` (same) | ❌ Not implemented |
+| `ArcBrand` | `Arc<T>` | `Arc<T>` (same) | `Arc<T>` (T: Send+Sync) |
 | `BoxBrand` | `Box<T>` | N/A (not impl) | N/A |
 
 ### Part 2: Refactored ClonableFn Using RefCountedPointer
@@ -635,10 +678,68 @@ The new `Lazy` type replaces the current value-semantic implementation with Hask
 
 The key insight is that `Lazy` needs **two** uses of the pointer brand:
 
-1. **Outer wrapper**: `P::CloneableOf<(OnceCell, Thunk)>` — enables cheap cloning that shares memoization
-2. **Thunk storage**: `FnBrand<P>::Of<(), A>` — stores the computation as a clonable function
+1. **Outer wrapper**: `P::CloneableOf<LazyInner>` — enables cheap cloning that shares memoization
+2. **Thunk storage**: `Option<FnBrand<P>::Of<(), A>>` — stores the computation, cleared after forcing
 
 By parameterizing on `RefCountedPointer`, both uses share the same pointer brand (Rc or Arc), ensuring consistency.
+
+#### ValidLazyCombination Marker Trait
+
+To prevent invalid `PtrBrand`/`OnceBrand` combinations at compile time, we introduce a marker trait:
+
+```rust
+/// Marker trait for valid Lazy pointer/once-cell combinations.
+///
+/// This prevents semantically invalid combinations like:
+/// - `Lazy<ArcBrand, OnceCellBrand, _>` — Arc is Send but OnceCell is not
+/// - `Lazy<RcBrand, OnceLockBrand, _>` — Wastes OnceLock's synchronization overhead
+///
+/// ### Implementors
+///
+/// - `(RcBrand, OnceCellBrand)`: Single-threaded lazy evaluation
+/// - `(ArcBrand, OnceLockBrand)`: Thread-safe lazy evaluation
+pub trait ValidLazyCombination<PtrBrand, OnceBrand> {}
+
+impl ValidLazyCombination<RcBrand, OnceCellBrand> for () {}
+impl ValidLazyCombination<ArcBrand, OnceLockBrand> for () {}
+```
+
+#### Thunk Cleanup Strategy
+
+To avoid retaining thunks (and their captured values) after forcing, the thunk is wrapped in `Option` and cleared after evaluation. The wrapper type varies by pointer brand:
+
+| PtrBrand | Thunk Wrapper | Reason |
+|----------|---------------|--------|
+| `RcBrand` | `RefCell<Option<Thunk>>` | Single-threaded, interior mutability |
+| `ArcBrand` | `Mutex<Option<Thunk>>` | Thread-safe, interior mutability |
+
+This is abstracted via a `ThunkCell` type alias:
+
+```rust
+/// Type alias for thunk storage wrapper.
+/// - For RcBrand: RefCell<Option<Thunk>>
+/// - For ArcBrand: Mutex<Option<Thunk>>
+pub type ThunkCell<PtrBrand, Thunk> = <PtrBrand as ThunkWrapper>::Cell<Thunk>;
+
+/// Trait for pointer-brand-specific thunk wrapper.
+pub trait ThunkWrapper {
+    type Cell<T>;
+    fn new_cell<T>(value: Option<T>) -> Self::Cell<T>;
+    fn take<T>(cell: &Self::Cell<T>) -> Option<T>;
+}
+
+impl ThunkWrapper for RcBrand {
+    type Cell<T> = std::cell::RefCell<Option<T>>;
+    fn new_cell<T>(value: Option<T>) -> Self::Cell<T> { RefCell::new(value) }
+    fn take<T>(cell: &Self::Cell<T>) -> Option<T> { cell.borrow_mut().take() }
+}
+
+impl ThunkWrapper for ArcBrand {
+    type Cell<T> = std::sync::Mutex<Option<T>>;
+    fn new_cell<T>(value: Option<T>) -> Self::Cell<T> { Mutex::new(value) }
+    fn take<T>(cell: &Self::Cell<T>) -> Option<T> { cell.lock().unwrap().take() }
+}
+```
 
 #### Core Structure
 
@@ -653,11 +754,25 @@ use crate::{
         monoid::Monoid,
         once::Once,
         semigroup::Semigroup,
-        pointer::RefCountedPointer,
+        pointer::{RefCountedPointer, ThunkWrapper, ValidLazyCombination},
     },
     impl_kind,
     kinds::*,
 };
+
+/// Inner state of a Lazy value, shared across clones.
+struct LazyInner<'a, PtrBrand, OnceBrand, A>
+where
+    PtrBrand: RefCountedPointer + ThunkWrapper,
+    OnceBrand: Once,
+{
+    /// The memoized value (computed at most once)
+    once: <OnceBrand as Once>::Of<A>,
+    /// The thunk, cleared after forcing to free captured values
+    thunk: <PtrBrand as ThunkWrapper>::Cell<
+        <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>
+    >,
+}
 
 /// Lazily-computed value with shared memoization (Haskell-like semantics).
 ///
@@ -670,6 +785,15 @@ use crate::{
 /// * `OnceBrand`: Once cell brand (`OnceCellBrand` or `OnceLockBrand`)
 /// * `A`: The type of the lazily-computed value
 ///
+/// ### Valid Combinations
+///
+/// Only certain `PtrBrand`/`OnceBrand` combinations are valid:
+/// - `RcBrand` + `OnceCellBrand`: Single-threaded lazy evaluation
+/// - `ArcBrand` + `OnceLockBrand`: Thread-safe lazy evaluation
+///
+/// Invalid combinations (e.g., `ArcBrand` + `OnceCellBrand`) will fail at compile time
+/// due to the `ValidLazyCombination` bound.
+///
 /// ### Shared Memoization
 ///
 /// Unlike value-semantic lazy evaluation, this type provides true computation sharing:
@@ -680,16 +804,17 @@ use crate::{
 ///   lazy1 ────┐
 ///             │
 ///             ▼
-///   ┌─────────────────────────────────┐
-///   │  RefCounted<OnceCell<A>, Thunk> │  ← Single shared allocation
-///   └─────────────────────────────────┘
+///   ┌─────────────────────────────────────────┐
+///   │  RefCounted<OnceCell<A>, Option<Thunk>> │  ← Single shared allocation
+///   └─────────────────────────────────────────┘
 ///             ▲
 ///             │
 ///   lazy2 ────┘
 ///
 /// When lazy1 is forced:
-///   - OnceCell computes and caches the value
-///   - lazy2 sees the cached result immediately
+///   1. OnceCell computes and caches the value
+///   2. Thunk is cleared (set to None) to free captured values
+///   3. lazy2 sees the cached result immediately
 /// ```
 ///
 /// ### Examples
@@ -703,7 +828,7 @@ use crate::{
 /// let counter_clone = counter.clone();
 ///
 /// // Create lazy value with memoized computation
-/// let lazy = Lazy::<RcBrand, OnceCellBrand, _>::new(
+/// let lazy = RcLazy::new(
 ///     clonable_fn_new::<RcFnBrand, _, _>(move |_| {
 ///         counter_clone.set(counter_clone.get() + 1);
 ///         42
@@ -712,22 +837,21 @@ use crate::{
 ///
 /// let lazy2 = lazy.clone();  // Shares memoization state!
 ///
-/// assert_eq!(counter.get(), 0);       // Not yet computed
-/// assert_eq!(Lazy::force(&lazy), 42); // First force computes
-/// assert_eq!(counter.get(), 1);       // Computed once
-/// assert_eq!(Lazy::force(&lazy2), 42);// Second force uses cache
-/// assert_eq!(counter.get(), 1);       // NOT recomputed - shared!
+/// assert_eq!(counter.get(), 0);             // Not yet computed
+/// assert_eq!(Lazy::force(&lazy), 42);       // First force computes
+/// assert_eq!(counter.get(), 1);             // Computed once
+/// assert_eq!(Lazy::force(&lazy2), 42);      // Second force uses cache
+/// assert_eq!(counter.get(), 1);             // NOT recomputed - shared!
+/// // Thunk has been cleared, freeing counter_clone
 /// ```
 pub struct Lazy<'a, PtrBrand, OnceBrand, A>(
-    // CloneableOf wraps the (OnceCell, Thunk) pair for shared ownership
-    <PtrBrand as RefCountedPointer>::CloneableOf<(
-        <OnceBrand as Once>::Of<A>,
-        <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>,
-    )>,
+    // CloneableOf wraps LazyInner for shared ownership
+    <PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, PtrBrand, OnceBrand, A>>,
 )
 where
-    PtrBrand: RefCountedPointer,
-    OnceBrand: Once;
+    PtrBrand: RefCountedPointer + ThunkWrapper,
+    OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>;  // Enforces valid combinations
 ````
 
 **Key design decision**: The `Lazy` type uses `RefCountedPointer::CloneableOf` (not `Pointer::Of`) because:
@@ -735,14 +859,16 @@ where
 1. **Clone requirement**: `Lazy::clone()` must be cheap (reference count increment)
 2. **FnBrand constraint**: `FnBrand<P>` requires `P: RefCountedPointer`
 3. **Consistency**: Same pointer brand for both outer wrapper and thunk storage
+4. **Thunk cleanup**: Using `Option<Thunk>` in a wrapper cell allows clearing after forcing
 
 #### Implementation
 
 ```rust
 impl<'a, PtrBrand, OnceBrand, A> Lazy<'a, PtrBrand, OnceBrand, A>
 where
-    PtrBrand: RefCountedPointer,
+    PtrBrand: RefCountedPointer + ThunkWrapper,
     OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>,
 {
     /// Creates a new `Lazy` value from a thunk.
     ///
@@ -750,41 +876,85 @@ where
     ///
     /// `new :: (() -> A) -> Lazy A`
     pub fn new(thunk: <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>) -> Self {
-        Self(PtrBrand::cloneable_new((OnceBrand::new(), thunk)))
+        Self(PtrBrand::cloneable_new(LazyInner {
+            once: OnceBrand::new(),
+            thunk: PtrBrand::new_cell(Some(thunk)),
+        }))
     }
 
-    /// Forces the evaluation and returns the value.
+    /// Forces the evaluation and returns a reference to the value.
+    ///
+    /// Takes `&self` because all clones share the same memoization state.
+    /// The value is computed at most once across all clones.
+    /// After forcing, the thunk is cleared to free captured values.
+    ///
+    /// ### Type Signature
+    ///
+    /// `force_ref :: &Lazy A -> &A`
+    ///
+    /// ### Note
+    ///
+    /// The returned reference has the same lifetime as `&self`.
+    /// Use `force` if you need an owned value.
+    pub fn force_ref(this: &Self) -> &A {
+        let inner = &*this.0;  // Deref through pointer
+        <OnceBrand as Once>::get_or_init(&inner.once, || {
+            // Take the thunk (clears it to None)
+            let thunk = PtrBrand::take(&inner.thunk)
+                .expect("Lazy::force_ref called but thunk was already taken");
+            thunk(())
+        })
+    }
+
+    /// Forces the evaluation and returns a cloned value.
     ///
     /// Takes `&self` because all clones share the same memoization state.
     /// The value is computed at most once across all clones.
     ///
     /// ### Type Signature
     ///
-    /// `force :: Lazy A -> A`
+    /// `force :: &Lazy A -> A`
+    ///
+    /// ### Note
+    ///
+    /// This clones the cached value on every call. If you need repeated
+    /// access without cloning, use `force_ref` instead.
     pub fn force(this: &Self) -> A
     where
         A: Clone,
     {
-        let (once_cell, thunk) = &*this.0;  // Deref through pointer
-        <OnceBrand as Once>::get_or_init(once_cell, || thunk(())).clone()
+        Self::force_ref(this).clone()
     }
     
-    /// Returns the inner value if already computed, None otherwise.
+    /// Returns a reference to the inner value if already computed, None otherwise.
+    ///
+    /// Does NOT force evaluation.
+    pub fn try_get_ref(this: &Self) -> Option<&A> {
+        let inner = &*this.0;
+        <OnceBrand as Once>::get(&inner.once)
+    }
+
+    /// Returns a cloned inner value if already computed, None otherwise.
     ///
     /// Does NOT force evaluation.
     pub fn try_get(this: &Self) -> Option<A>
     where
         A: Clone,
     {
-        let (once_cell, _thunk) = &*this.0;
-        <OnceBrand as Once>::get(once_cell).cloned()
+        Self::try_get_ref(this).cloned()
+    }
+    
+    /// Returns true if the value has been computed.
+    pub fn is_forced(this: &Self) -> bool {
+        Self::try_get_ref(this).is_some()
     }
 }
 
 impl<'a, PtrBrand, OnceBrand, A> Clone for Lazy<'a, PtrBrand, OnceBrand, A>
 where
-    PtrBrand: RefCountedPointer,
+    PtrBrand: RefCountedPointer + ThunkWrapper,
     OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>,
 {
     fn clone(&self) -> Self {
         // Cheap Rc/Arc clone - shares memoization state
@@ -804,6 +974,11 @@ where
 ///
 /// Use this for single-threaded code where you need lazy evaluation
 /// with shared memoization.
+///
+/// ### Note
+///
+/// This is the only valid Rc-based Lazy configuration due to the
+/// `ValidLazyCombination` constraint.
 pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
 
 /// Thread-safe lazy value using Arc + OnceLock.
@@ -811,6 +986,11 @@ pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
 ///
 /// Use this for multi-threaded code where lazy values may be
 /// shared across threads.
+///
+/// ### Note
+///
+/// This is the only valid Arc-based Lazy configuration due to the
+/// `ValidLazyCombination` constraint.
 pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, A>;
 ```
 
@@ -820,8 +1000,9 @@ pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, A>;
 // Semigroup: combine lazy values by combining their results
 impl<'a, PtrBrand, OnceBrand, A> Semigroup for Lazy<'a, PtrBrand, OnceBrand, A>
 where
-    PtrBrand: RefCountedPointer,
+    PtrBrand: RefCountedPointer + ThunkWrapper,
     OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>,
     A: Semigroup + Clone + 'a,
 {
     fn combine(x: Self, y: Self) -> Self {
@@ -834,8 +1015,9 @@ where
 // Monoid: empty lazy value that produces the identity
 impl<'a, PtrBrand, OnceBrand, A> Monoid for Lazy<'a, PtrBrand, OnceBrand, A>
 where
-    PtrBrand: RefCountedPointer,
+    PtrBrand: RefCountedPointer + ThunkWrapper,
     OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>,
     A: Monoid + Clone + 'a,
 {
     fn empty() -> Self {
@@ -846,8 +1028,9 @@ where
 // Defer: create lazy from a thunk-producing thunk
 impl<PtrBrand, OnceBrand> Defer for LazyBrand<PtrBrand, OnceBrand>
 where
-    PtrBrand: RefCountedPointer,
+    PtrBrand: RefCountedPointer + ThunkWrapper,
     OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>,
 {
     fn defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A>) -> Self::Of<'a, A>
     where
@@ -911,53 +1094,90 @@ impl_fn_brand!(ArcBrand, Arc);
 
 ### Challenge 2: Thread Safety Bounds
 
-**Problem**: `Arc<T>` is `Send + Sync` when `T: Send + Sync`. But `RefCountedPointer` is generic and can't enforce this at the trait level.
+**Problem**: `Arc<T>` is `Send + Sync` when `T: Send + Sync`. But `RefCountedPointer` is generic and can't enforce this at the trait level. Rust's `for<T: Trait>` syntax does **not exist** (only `for<'a>` works for lifetimes).
 
-**Solution**: Use `SendRefCountedPointer` marker trait, following the same pattern as `SendClonableFn`:
+**Solution**: Use `SendRefCountedPointer` with an explicit `SendOf` associated type, following the same pattern as `SendClonableFn` which adds `SendOf`:
 
 ```rust
-/// Marker trait for thread-safe reference-counted pointers.
-/// Mirrors the SendClonableFn pattern.
-pub trait SendRefCountedPointer: RefCountedPointer
-where
-    for<T: Send + Sync> Self::CloneableOf<T>: Send + Sync,
-{
+/// Extension trait for thread-safe reference-counted pointers.
+/// Adds SendOf associated type with explicit Send + Sync bounds.
+pub trait SendRefCountedPointer: RefCountedPointer {
+    type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+    
+    fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
+    where
+        Self::SendOf<T>: Sized;
 }
 
 // Only ArcBrand implements this
-impl SendRefCountedPointer for ArcBrand {}
+impl SendRefCountedPointer for ArcBrand {
+    type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
+    
+    fn send_new<T: Send + Sync>(value: T) -> Arc<T> {
+        Arc::new(value)
+    }
+}
 
 // RcBrand does NOT implement SendRefCountedPointer
 ```
+
+**Why this pattern?**
+
+* Rust's `for<T: Trait>` syntax doesn't exist (only `for<'a>` works)
+* Follows the established `SendClonableFn` pattern in this codebase
+* The `T: Send + Sync` bound and `SendOf: Send + Sync` bound make the contract explicit
 
 **Usage in constraints**:
 
 ```rust
 // Require thread-safe reference-counted pointer
-fn parallel_operation<P: SendRefCountedPointer>(ptr: P::CloneableOf<Data>) { ... }
+fn parallel_operation<P: SendRefCountedPointer, T: Send + Sync>(ptr: P::SendOf<T>) {
+    std::thread::spawn(move || {
+        // ptr is guaranteed Send + Sync
+    });
+}
 ```
 
 ### Challenge 3: Interaction with Once Brands
 
-**Problem**: `OnceCellBrand` uses `std::cell::OnceCell` (not `Send`). `OnceLockBrand` uses `std::sync::OnceLock` (`Send + Sync`). Invalid combinations would cause surprising behavior.
+**Problem**: `OnceCellBrand` uses `std::cell::OnceCell` (not `Send`). `OnceLockBrand` uses `std::sync::OnceLock` (`Send + Sync`). Invalid combinations would cause surprising behavior or silent performance issues:
 
-**Solution**: Use type aliases that enforce valid combinations:
+* `Lazy<ArcBrand, OnceCellBrand, _>` — Arc is Send but OnceCell is not, defeating the purpose
+* `Lazy<RcBrand, OnceLockBrand, _>` — Wastes OnceLock's synchronization overhead
+
+**Solution**: Enforce valid combinations at compile time with a marker trait:
 
 ```rust
-/// Single-threaded lazy: RcBrand + OnceCellBrand
-/// Neither Send nor Sync.
-pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
+/// Marker trait for valid Lazy pointer/once-cell combinations.
+pub trait ValidLazyCombination<PtrBrand, OnceBrand> {}
 
-/// Thread-safe lazy: ArcBrand + OnceLockBrand
-/// Send + Sync when A: Send + Sync.
-pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, A>;
+impl ValidLazyCombination<RcBrand, OnceCellBrand> for () {}
+impl ValidLazyCombination<ArcBrand, OnceLockBrand> for () {}
 ```
 
-Users CAN create invalid combinations like `Lazy<ArcBrand, OnceCellBrand, A>`, but:
+The `Lazy` struct includes this in its where clause:
 
-1. The result won't be `Send + Sync` (fails at use site)
-2. Documentation clearly recommends the type aliases
-3. Compiler errors will guide users to correct usage
+```rust
+pub struct Lazy<'a, PtrBrand, OnceBrand, A>(...)
+where
+    PtrBrand: RefCountedPointer + ThunkWrapper,
+    OnceBrand: Once,
+    (): ValidLazyCombination<PtrBrand, OnceBrand>;  // Compile-time enforcement
+```
+
+**Benefits**:
+
+1. Invalid combinations fail immediately at `Lazy::new` with clear error
+2. Users cannot accidentally create suboptimal configurations
+3. The marker trait explicitly documents valid combinations
+4. Third-party crates can add their own valid combinations if needed
+
+**Type aliases** still provide convenient defaults:
+
+```rust
+pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, A>;
+pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, A>;
+```
 
 ### Challenge 4: SendClonableFn Integration
 
@@ -995,6 +1215,64 @@ This maintains the same pattern: the extension trait is only implemented for thr
 3. **Semantic consistency**: Using `CloneableOf` for both the outer wrapper and the thunk storage (via `FnBrand`) ensures both use the same pointer type (Rc or Arc).
 
 **Alternative considered**: Could `Lazy` use `Pointer::Of` with a `where P::Of<T>: Clone` bound? Yes, but this would be more verbose and less clear about intent. The `RefCountedPointer` bound directly expresses "I need shared ownership semantics."
+
+### Challenge 6: FnBrand Extensibility for Third-Party Pointer Brands
+
+**Problem**: The `impl_fn_brand!` macro handles unsized coercion by explicitly calling `Rc::new` or `Arc::new`. Third-party crates implementing custom `RefCountedPointer` brands cannot automatically get `FnBrand<CustomBrand>` implementations.
+
+**Why this happens**: Rust's unsized coercion (`impl Fn` → `dyn Fn`) requires the compiler to know the concrete target type at the call site. In generic code like `P::cloneable_new(f)`, the compiler can't perform this coercion.
+
+**Solution**: Document the extension pattern clearly. Third-party crates must manually implement `ClonableFn`:
+
+```rust
+// In third-party crate implementing a custom pointer brand:
+use fp_library::{
+    brands::FnBrand,
+    classes::{clonable_fn::ClonableFn, function::Function},
+};
+use my_crate::CustomRc;
+
+impl Function for FnBrand<CustomRcBrand> {
+    type Of<'a, A, B> = CustomRc<dyn 'a + Fn(A) -> B>;
+    
+    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+        CustomRc::new(f)  // Concrete type enables unsized coercion
+    }
+}
+
+impl ClonableFn for FnBrand<CustomRcBrand> {
+    type Of<'a, A, B> = CustomRc<dyn 'a + Fn(A) -> B>;
+    
+    fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
+        CustomRc::new(f)
+    }
+}
+
+// If thread-safe, also implement SendClonableFn
+impl SendClonableFn for FnBrand<CustomArcBrand> {
+    type SendOf<'a, A, B> = CustomArc<dyn 'a + Fn(A) -> B + Send + Sync>;
+    
+    fn send_clonable_fn_new<'a, A, B>(
+        f: impl 'a + Fn(A) -> B + Send + Sync
+    ) -> Self::SendOf<'a, A, B> {
+        CustomArc::new(f)
+    }
+}
+```
+
+**Why this is acceptable**:
+
+1. **Inherent Rust limitation**: No stable workaround exists for unsized coercion in generic code
+2. **Rare use case**: Most users will use the built-in `RcBrand` and `ArcBrand`
+3. **Clear pattern**: The implementation is straightforward once documented
+4. **Consistent with ecosystem**: Other Rust libraries face the same limitation
+
+**Documentation requirements**:
+
+* Add "Extending FnBrand for Custom Pointers" section to module docs
+* Include complete working example
+* Note that `Function`, `ClonableFn`, `Semigroupoid`, and `Category` all need implementing
+* Mention `SendClonableFn` for thread-safe variants
 
 ***
 
@@ -1116,12 +1394,23 @@ Old value semantics was only better for:
 ```rust
 trait SendRefCountedPointer: RefCountedPointer {
     type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+    fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>;
 }
 ```
 
-**Pros**: More explicit about thread-safe type
-**Cons**: Duplication, harder to use generically
-**Decision**: Rejected - marker trait is simpler and sufficient for this use case
+**Pros**:
+
+* More explicit about thread-safe type
+* Consistent with `SendClonableFn` pattern
+* Type bounds are clear in the trait definition
+* Required because `for<T: Trait>` syntax doesn't exist in Rust
+
+**Cons**:
+
+* `SendOf<T>` and `CloneableOf<T>` are the same type for Arc (just with different bounds)
+* Slightly more API surface
+
+**Decision**: ✅ Adopted - necessary because Rust's `for<T: Trait>` higher-ranked bounds don't exist. A marker trait with the invalid syntax would not compile.
 
 ### Alternative 2: No Pointer Trait, Just Refactor ClonableFn
 
@@ -1192,7 +1481,7 @@ The three-level trait hierarchy was chosen after careful analysis of naming and 
 
 2. **`RefCountedPointer` (extends Pointer)**: Adds `CloneableOf` associated type with `Clone` bound. This captures the key property of Rc/Arc: unconditional cheap cloning with shared state.
 
-3. **`SendRefCountedPointer` (marker)**: Indicates thread safety. Unlike `SendClonableFn` which adds `SendOf`, this is a marker trait because `Arc<T: Send+Sync>` is naturally `Send+Sync` — no separate type needed.
+3. **`SendRefCountedPointer` (extends RefCountedPointer)**: Indicates thread safety. Like `SendClonableFn` which adds `SendOf`, this trait adds a `SendOf` associated type with explicit `Send + Sync` bounds. This is required because Rust's `for<T: Trait>` higher-ranked bounds syntax doesn't exist (only `for<'a>` works).
 
 #### Naming Decision: `Pointer` + `RefCountedPointer`
 

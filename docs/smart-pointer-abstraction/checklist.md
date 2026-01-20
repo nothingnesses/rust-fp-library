@@ -25,14 +25,30 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
       fn cloneable_new<T>(value: T) -> Self::CloneableOf<T> where Self::CloneableOf<T>: Sized;
   }
   ```
-* \[ ] Define `SendRefCountedPointer` marker trait:
+* \[ ] Define `SendRefCountedPointer` extension trait with `SendOf`:
   ```rust
-  pub trait SendRefCountedPointer: RefCountedPointer
-  where
-      for<T: Send + Sync> Self::CloneableOf<T>: Send + Sync,
-  {}
+  pub trait SendRefCountedPointer: RefCountedPointer {
+      type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+      fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
+      where
+          Self::SendOf<T>: Sized;
+  }
   ```
-* \[ ] Add free functions `pointer_new` and `ref_counted_new`
+* \[ ] Define `ThunkWrapper` trait for pointer-brand-specific thunk storage:
+  ```rust
+  pub trait ThunkWrapper {
+      type Cell<T>;
+      fn new_cell<T>(value: Option<T>) -> Self::Cell<T>;
+      fn take<T>(cell: &Self::Cell<T>) -> Option<T>;
+  }
+  ```
+* \[ ] Define `ValidLazyCombination` marker trait for valid PtrBrand/OnceBrand pairs:
+  ```rust
+  pub trait ValidLazyCombination<PtrBrand, OnceBrand> {}
+  impl ValidLazyCombination<RcBrand, OnceCellBrand> for () {}
+  impl ValidLazyCombination<ArcBrand, OnceLockBrand> for () {}
+  ```
+* \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
 
@@ -52,6 +68,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `RefCountedPointer` for `RcBrand`:
   * \[ ] `type CloneableOf<T: ?Sized> = Rc<T>` (same as `Of<T>`)
   * \[ ] `fn cloneable_new<T>(value: T) -> Rc<T>`
+* \[ ] Implement `ThunkWrapper` for `RcBrand`:
+  * \[ ] `type Cell<T> = RefCell<Option<T>>`
+  * \[ ] `fn new_cell<T>` returns `RefCell::new(value)`
+  * \[ ] `fn take<T>` uses `cell.borrow_mut().take()`
 * \[ ] Add documentation and examples
 * \[ ] Verify `RcBrand` does NOT implement `SendRefCountedPointer`
 
@@ -64,7 +84,13 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `RefCountedPointer` for `ArcBrand`:
   * \[ ] `type CloneableOf<T: ?Sized> = Arc<T>` (same as `Of<T>`)
   * \[ ] `fn cloneable_new<T>(value: T) -> Arc<T>`
-* \[ ] Implement `SendRefCountedPointer` for `ArcBrand`
+* \[ ] Implement `SendRefCountedPointer` for `ArcBrand`:
+  * \[ ] `type SendOf<T: ?Sized + Send + Sync> = Arc<T>`
+  * \[ ] `fn send_new<T: Send + Sync>(value: T) -> Arc<T>`
+* \[ ] Implement `ThunkWrapper` for `ArcBrand`:
+  * \[ ] `type Cell<T> = Mutex<Option<T>>`
+  * \[ ] `fn new_cell<T>` returns `Mutex::new(value)`
+  * \[ ] `fn take<T>` uses `cell.lock().unwrap().take()`
 * \[ ] Add documentation and examples
 
 ### 1.5 Free Functions & Re-exports
@@ -145,32 +171,50 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 ### 3.1 Rewrite Lazy Type
 
 * \[ ] Rewrite `fp-library/src/types/lazy.rs`
-* \[ ] New structure with shared semantics:
+* \[ ] Define `LazyInner` struct for shared inner state:
+  ```rust
+  struct LazyInner<'a, PtrBrand, OnceBrand, A> {
+      once: <OnceBrand as Once>::Of<A>,
+      thunk: <PtrBrand as ThunkWrapper>::Cell<
+          <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>
+      >,
+  }
+  ```
+* \[ ] New `Lazy` structure with `ValidLazyCombination` enforcement:
   ```rust
   pub struct Lazy<'a, PtrBrand, OnceBrand, A>(
-      <PtrBrand as RefCountedPointer>::CloneableOf<(
-          <OnceBrand as Once>::Of<A>,
-          <FnBrand<PtrBrand> as ClonableFn>::Of<'a, (), A>,
-      )>,
+      <PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, PtrBrand, OnceBrand, A>>,
   )
   where
-      PtrBrand: RefCountedPointer,
-      OnceBrand: Once;
+      PtrBrand: RefCountedPointer + ThunkWrapper,
+      OnceBrand: Once,
+      (): ValidLazyCombination<PtrBrand, OnceBrand>;
   ```
 * \[ ] Note: Only 3 type parameters (not 4) - FnBrand is derived from PtrBrand
+* \[ ] Note: Thunk stored in `Option<..>` wrapped in `ThunkWrapper::Cell` for cleanup
 
 ### 3.2 Core Implementation
 
 * \[ ] Implement `Lazy::new(thunk)` method
   * \[ ] Creates new OnceCell via `OnceBrand::new()`
-  * \[ ] Wraps `(OnceCell, thunk)` in `PtrBrand::cloneable_new`
-* \[ ] Implement `Lazy::force(&self)` method
-  * \[ ] Takes `&self` (not `Self` - shared semantics!)
+  * \[ ] Wraps thunk in `Option::Some` via `PtrBrand::new_cell`
+  * \[ ] Wraps `LazyInner { once, thunk }` in `PtrBrand::cloneable_new`
+* \[ ] Implement `Lazy::force_ref(&self)` method
+  * \[ ] Takes `&self` (shared semantics)
   * \[ ] Dereferences through `CloneableOf` pointer
   * \[ ] Uses `OnceCell::get_or_init`
+  * \[ ] On first call: takes thunk via `PtrBrand::take`, clears it to `None`
+  * \[ ] Returns `&A` reference
+* \[ ] Implement `Lazy::force(&self)` method
+  * \[ ] Calls `force_ref` and clones result
   * \[ ] Returns cloned value
+  * \[ ] Requires `A: Clone`
+* \[ ] Implement `Lazy::try_get_ref(&self)` method
+  * \[ ] Returns `Option<&A>` without forcing
 * \[ ] Implement `Lazy::try_get(&self)` method
-  * \[ ] Returns `Option<A>` without forcing
+  * \[ ] Returns `Option<A>` (cloned) without forcing
+* \[ ] Implement `Lazy::is_forced(&self)` method
+  * \[ ] Returns `bool` indicating if value computed
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone Implementation
@@ -209,8 +253,13 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 ### 3.8 Phase 3 Tests
 
 * \[ ] Unit test: `Lazy::new` + `Lazy::force` returns correct value
+* \[ ] Unit test: `Lazy::force_ref` returns correct reference
 * \[ ] **Critical test**: Thunk is only called once across all clones
 * \[ ] **Critical test**: Clones share memoization (counter test)
+* \[ ] **Critical test**: Thunk is cleared after forcing (weak ref test)
+* \[ ] Unit test: `Lazy::is_forced` returns correct state
+* \[ ] Unit test: `Lazy::try_get_ref` returns `None` before forcing
+* \[ ] Unit test: `Lazy::try_get_ref` returns `Some(&value)` after forcing
 * \[ ] Unit test: `Semigroup::combine` works correctly
 * \[ ] Unit test: `Monoid::empty` works correctly
 * \[ ] Unit test: `Defer::defer` works correctly
@@ -218,6 +267,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Property test: Monoid identity laws
 * \[ ] Compile-fail test: `RcLazy` is `!Send`
 * \[ ] Compile-success test: `ArcLazy<A: Send + Sync>` is `Send + Sync`
+* \[ ] Compile-fail test: `Lazy<ArcBrand, OnceCellBrand, _>` fails (ValidLazyCombination)
+* \[ ] Compile-fail test: `Lazy<RcBrand, OnceLockBrand, _>` fails (ValidLazyCombination)
 
 ***
 
@@ -248,14 +299,24 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] `Pointer` entry in Type Classes table
   * \[ ] `RefCountedPointer` entry in Type Classes table
   * \[ ] `SendRefCountedPointer` entry in Type Classes table
+  * \[ ] `ThunkWrapper` entry in Type Classes table
+  * \[ ] `ValidLazyCombination` entry in Type Classes table
   * \[ ] `RcBrand` entry in Data Types table
   * \[ ] `ArcBrand` entry in Data Types table
   * \[ ] Update `LazyBrand` entry to reflect new semantics
 * \[ ] Update `docs/architecture.md`:
   * \[ ] Document the Pointer → RefCountedPointer → SendRefCountedPointer pattern
   * \[ ] Document the macro-based impl approach for FnBrand
+  * \[ ] Document `ThunkWrapper` and `ValidLazyCombination` patterns
+* \[ ] Add "Extending FnBrand for Custom Pointers" documentation:
+  * \[ ] Add section to `fp-library/src/types/fn_brand.rs` module docs
+  * \[ ] Include complete working example with `Function`, `ClonableFn`, `Semigroupoid`, `Category`
+  * \[ ] Document `SendClonableFn` implementation for thread-safe variants
+  * \[ ] Explain unsized coercion limitation and why macro/manual impl is needed
 * \[ ] Update `docs/todo.md` to mark Lazy memoization item as addressed
-* \[ ] Update `docs/limitations.md` if any new limitations discovered
+* \[ ] Update `docs/limitations.md`:
+  * \[ ] Document FnBrand extensibility limitation (macro required)
+  * \[ ] Document thunk cleanup differences between RcBrand (RefCell) and ArcBrand (Mutex)
 
 ### 4.4 Final Verification
 
@@ -278,17 +339,23 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
     - Clones share memoization state
     - `force` takes `&self` instead of `self`
     - Type parameters reduced from 4 to 3
+    - Thunks cleared after forcing to free captured values
   - `RcFnBrand` is now a type alias for `FnBrand<RcBrand>`
   - `ArcFnBrand` is now a type alias for `FnBrand<ArcBrand>`
 
   ### Added
   - `Pointer` base trait for heap-allocated pointers
   - `RefCountedPointer` extension trait with `CloneableOf` for shared ownership
-  - `SendRefCountedPointer` marker trait for thread-safe pointers
+  - `SendRefCountedPointer` extension trait with `SendOf` for thread-safe pointers
+  - `ThunkWrapper` trait for pointer-brand-specific thunk storage
+  - `ValidLazyCombination` marker trait enforcing valid PtrBrand/OnceBrand pairs
   - `RcBrand` and `ArcBrand` implementing the pointer hierarchy
   - `BoxBrand` placeholder for future unique ownership support
   - `FnBrand<PtrBrand>` generic function brand
   - `RcLazy` and `ArcLazy` type aliases for common configurations
+  - `Lazy::force_ref(&self) -> &A` method (avoids cloning)
+  - `Lazy::try_get_ref(&self) -> Option<&A>` method
+  - `Lazy::is_forced(&self) -> bool` method
 
   ### Removed
   - Old value-semantic `Lazy` implementation
@@ -303,13 +370,21 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 1. **Three-level trait hierarchy**: `Pointer` → `RefCountedPointer` → `SendRefCountedPointer` allows future `BoxBrand` support at the `Pointer` level without reference counting
 
-2. **Additional Associated Type pattern**: `RefCountedPointer` adds `CloneableOf` with `Clone` bound rather than trying to add bounds to inherited `Of` (which Rust doesn't allow)
+2. **Additional Associated Type pattern**: `RefCountedPointer` adds `CloneableOf` with `Clone` bound; `SendRefCountedPointer` adds `SendOf` with `Send + Sync` bounds rather than using invalid `for<T: Trait>` syntax (which Rust doesn't support)
 
 3. **Macro for unsized coercion**: `impl_fn_brand!` macro handles the `Rc::new`/`Arc::new` calls that perform unsized coercion to `dyn Fn`
 
 4. **Reduced type parameters**: `Lazy` now has 3 parameters instead of 4 because `FnBrand` is derived from `PtrBrand`
 
 5. **Type aliases for ergonomics**: `RcFnBrand`, `ArcFnBrand`, `RcLazy`, `ArcLazy` provide good defaults
+
+6. **ValidLazyCombination marker trait**: Enforces valid `PtrBrand`/`OnceBrand` pairs at compile time, preventing misconfigurations like `Lazy<ArcBrand, OnceCellBrand, _>`
+
+7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `Mutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing
+
+8. **Thunk cleanup**: Thunks are cleared to `None` after forcing to free captured values and reduce memory usage
+
+9. **Dual force methods**: `force_ref(&self) -> &A` avoids cloning; `force(&self) -> A` clones for convenience
 
 ### Files Summary
 
