@@ -117,6 +117,19 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `UnsizedCoercible` for `ArcBrand`
 * \[ ] Implement `SendUnsizedCoercible` for `ArcBrand` only (not RcBrand)
 * \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init` and `into_inner`.
+* \[ ] Create `fp-library/src/classes/send_defer.rs`
+* \[ ] Define `SendDefer` extension trait for thread-safe deferred evaluation:
+  ```rust
+  /// Extension trait for types that support thread-safe deferred evaluation.
+  /// Follows ClonableFn → SendClonableFn pattern.
+  pub trait SendDefer: Defer {
+      /// Creates a value from a thread-safe thunk-producing thunk.
+      fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
+      where
+          A: Clone + Send + Sync + 'a;
+  }
+  ```
+* \[ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>`
 * \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
@@ -369,9 +382,20 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] **DO NOT** implement `Monoid` for `Lazy`:
   * \[ ] Same rationale as Semigroup
   * \[ ] `try_empty` from TryMonoid is always safe
-* \[ ] Implement `Defer` for `LazyBrand<PtrBrand, OnceBrand, FnBrand>`
+* \[ ] Implement `Defer` for `LazyBrand<RcBrand, OnceCellBrand, RcFnBrand>` (separate impl for RcLazy):
+  * \[ ] Uses `ClonableFn::new` for thunk (no thread-safety requirement)
   * \[ ] `defer(f)` creates `Lazy` that calls f, then forces result using `force_or_panic`
-  * \[ ] Inner Lazy created on-demand when outer is forced (optimisation)
+  * \[ ] Requires `A: Clone` only (no `Send + Sync`)
+* \[ ] Implement `Defer` for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>` (separate impl for ArcLazy):
+  * \[ ] Uses `SendClonableFn::send_clonable_fn_new` for thread-safe thunk
+  * \[ ] `defer(f)` captures non-Send+Sync thunk but wraps in Send+Sync closure
+  * \[ ] Requires `A: Clone + Send + Sync`
+* \[ ] Implement `SendDefer` for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>` only:
+  * \[ ] Uses `SendClonableFn::send_clonable_fn_new` for thread-safe thunk
+  * \[ ] `send_defer(f)` takes `f: impl Fn() -> Lazy + Send + Sync`
+  * \[ ] Requires `A: Clone + Send + Sync`
+* \[ ] Note: Separate impls needed because generic impl would use wrong thunk type for ArcLazy
+* \[ ] Note: `SendDefer` is for when the thunk-producing thunk itself must be `Send + Sync`
 
 ### 3.5 Kind Implementation
 
@@ -415,7 +439,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Unit test: `Debug` shows "Lazy::Unforced" before forcing
 * \[ ] Unit test: `Debug` shows "Lazy::Forced(value)" after forcing
 * \[ ] Unit test: `Debug` shows "Lazy::Poisoned" after panic
-* \[ ] Unit test: `Defer::defer` works correctly
+* \[ ] Unit test: `Defer::defer` works correctly for RcLazy
+* \[ ] Unit test: `Defer::defer` works correctly for ArcLazy
+* \[ ] Unit test: `SendDefer::send_defer` works correctly for ArcLazy
+* \[ ] Compile-fail test: `LazyBrand<RcBrand, ...>` does NOT implement `SendDefer`
 * \[ ] Property test: TrySemigroup associativity law (when all succeed)
 * \[ ] Property test: TryMonoid identity laws (when all succeed)
 * \[ ] Compile-fail test: `RcLazy` is `!Send`
@@ -445,6 +472,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Remove `arc_fn` export
 * \[ ] Update `fp-library/src/brands.rs` with all new brands
 * \[ ] Update `fp-library/src/classes.rs` with `pointer` export
+* \[ ] Update `fp-library/src/classes.rs` with `send_defer` export
 * \[ ] Verify no circular dependencies
 
 ### 4.3 Documentation Files
@@ -535,6 +563,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `SendUnsizedCoercible` trait for thread-safe function coercion
   - `TrySemigroup` trait for fallible semigroup operations
   - `TryMonoid` trait for fallible monoid operations
+  - `SendDefer` trait for thread-safe deferred evaluation (ArcLazy only)
   - `RcBrand` and `ArcBrand` implementing the pointer hierarchy
   - `BoxBrand` placeholder for future unique ownership support
   - `FnBrand<PtrBrand>` generic function brand
@@ -604,6 +633,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 | Action | File |
 |--------|------|
 | Create | `fp-library/src/classes/pointer.rs` |
+| Create | `fp-library/src/classes/send_defer.rs` |
 | Create | `fp-library/src/classes/try_semigroup.rs` |
 | Create | `fp-library/src/classes/try_monoid.rs` |
 | Create | `fp-library/src/types/rc_ptr.rs` |

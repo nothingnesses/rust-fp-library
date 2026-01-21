@@ -788,6 +788,22 @@ pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {
 ///
 /// This follows the same pattern as `ClonableFn` → `SendClonableFn`.
 ///
+/// ### Why This Trait Exists (Even Though `Lazy` Doesn't Require It)
+///
+/// The `Lazy` struct only constrains on `ValidLazyCombination`, not
+/// `ValidSendLazyCombination`. This is intentional because Rust's auto traits
+/// (`Send`/`Sync`) automatically propagate based on the concrete types used.
+/// So `ArcLazy<A>` is automatically `Send + Sync` when `A: Send + Sync`.
+///
+/// This extension trait exists for:
+///
+/// 1. **Future API methods**: Methods that explicitly require thread-safety
+///    (like `force_spawned`) can use this as a bound to ensure compile-time safety
+/// 2. **Downstream extensibility**: Third-party crates adding thread-safe
+///    combinations must also implement this trait
+/// 3. **Documentation**: Explicitly documents which combinations are thread-safe
+/// 4. **Consistency**: Follows the `ClonableFn` → `SendClonableFn` pattern
+///
 /// ### Implementors
 ///
 /// - `(ArcBrand, OnceLockBrand, ArcFnBrand)`: Thread-safe lazy with Send + Sync thunk
@@ -1446,7 +1462,7 @@ where
                         // No clone needed as we have sole ownership and Once::into_inner consumes the cell.
                         match result {
                             Ok(value) => Ok(Ok(value)),
-                            Err(arc_err) => Ok(Err((**arc_err).clone())),
+                            Err(arc_err) => Ok(Err((*arc_err).clone())),
                         }
                     }
                     None => unreachable!("Checked is_forced above"),
@@ -1646,7 +1662,7 @@ pub trait TryMonoid: TrySemigroup {
 
 ##### Lazy Type Class Implementations
 
-```rust
+````rust
 // TrySemigroup: safely combine lazy values with deferred evaluation
 //
 // The combine operation is LAZY: neither x nor y is forced until the
@@ -1654,6 +1670,22 @@ pub trait TryMonoid: TrySemigroup {
 // 1. Preserves lazy evaluation benefits (compute only what's needed)
 // 2. Allows building lazy computations without immediate failure
 // 3. Errors are only surfaced when the result is actually demanded
+//
+// ### ⚠️ IMPORTANT: `try_combine` Never Fails at Call Site
+//
+// `TrySemigroup::try_combine(x, y)` ALWAYS returns `Ok(lazy)` — it never returns
+// `Err` at the point of combination. Errors only surface when the returned lazy
+// is forced:
+//
+// ```rust
+// let lazy = TrySemigroup::try_combine(x, y)?;  // Always Ok
+// let result = Lazy::force(&lazy)?;              // Errors happen HERE
+// ```
+//
+// This is intentional: true lazy evaluation defers ALL computation, including
+// error checking. The tradeoff is that users expecting early validation will
+// be surprised. If you need to fail early on already-poisoned operands, check
+// `Lazy::is_poisoned()` before combining.
 //
 // Note: Lazy does NOT implement Semigroup/Monoid because those traits
 // require total functions. A `combine` that can panic violates the
@@ -1741,12 +1773,22 @@ where
 // - Force the lazy first and work with the unwrapped value
 
 // Defer: create lazy from a thunk-producing thunk
-impl<PtrBrand, OnceBrand, FnBrand> Defer for LazyBrand<PtrBrand, OnceBrand, FnBrand>
-where
-    PtrBrand: RefCountedPointer + ThunkWrapper,
-    OnceBrand: Once,
-    FnBrand: ClonableFn,
-    (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
+//
+// ### Why Separate Impls Instead of Generic?
+//
+// The `Defer` trait signature doesn't have `Send + Sync` bounds on the thunk:
+//   `fn defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A>) -> Self::Of<'a, A>`
+//
+// For RcLazy, this is fine - we use ClonableFn::new which doesn't require Send + Sync.
+// For ArcLazy, we need the thunk to be Send + Sync, but the trait signature doesn't
+// allow adding those bounds. Therefore:
+//
+// 1. RcLazy implements Defer normally
+// 2. ArcLazy does NOT implement Defer (can't satisfy the thread-safety requirement)
+// 3. ArcLazy implements SendDefer which has the necessary Send + Sync bounds
+
+// Defer for RcLazy (single-threaded) - uses ClonableFn::new
+impl Defer for LazyBrand<RcBrand, OnceCellBrand, RcFnBrand>
 {
     fn defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A>) -> Self::Of<'a, A>
     where
@@ -1756,12 +1798,85 @@ where
         // when this outer Lazy is forced, avoiding storing it as a captured value.
         // The inner Lazy is immediately forced, streaming the computation through
         // without extra heap allocation for the inner Lazy's result.
-        Lazy::new(<FnBrand as ClonableFn>::new(move |_| {
+        Lazy::new(<RcFnBrand as ClonableFn>::new(move |_| {
             Lazy::force_or_panic(&thunk())
         }))
     }
 }
-```
+
+// NOTE: ArcLazy does NOT implement Defer.
+// The Defer trait signature doesn't support Send + Sync bounds on the thunk.
+// Use SendDefer::send_defer instead for ArcLazy.
+
+/// Extension trait for deferred lazy evaluation with thread-safe thunks.
+///
+/// This follows the `ClonableFn` → `SendClonableFn` pattern:
+/// - `Defer` provides basic deferred evaluation (thunk doesn't need Send + Sync)
+/// - `SendDefer` adds thread-safe deferred evaluation (thunk must be Send + Sync)
+///
+/// ### Why a Separate Trait?
+///
+/// The `Defer` trait signature is:
+/// ```rust
+/// fn defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A>) -> Self::Of<'a, A>
+/// ```
+///
+/// For `ArcLazy`, the returned lazy must be `Send + Sync`, which requires the
+/// thunk to also be `Send + Sync`. But Rust doesn't allow implementations to
+/// add bounds to parameters in trait signatures.
+///
+/// By creating `SendDefer`, we can define:
+/// ```rust
+/// fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
+/// ```
+///
+/// ### Implementors
+///
+/// - `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>`: Thread-safe deferred lazy
+/// - RcLazy: Does NOT implement (use `Defer::defer` instead)
+pub trait SendDefer: Defer {
+    /// Creates a lazy value from a thunk that produces another lazy value.
+    /// The thunk must be `Send + Sync` for thread-safe lazy evaluation.
+    ///
+    /// ### Type Signature
+    ///
+    /// `send_defer :: (Send + Sync => () -> Lazy A) -> Lazy A`
+    fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
+    where
+        A: Clone + Send + Sync + 'a;
+}
+
+// SendDefer for ArcLazy (thread-safe) - uses SendClonableFn::send_clonable_fn_new
+impl SendDefer for LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>
+{
+    fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
+    where
+        A: Clone + Send + Sync + 'a,
+    {
+        Lazy::new(<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(move |_| {
+            Lazy::force_or_panic(&thunk())
+        }))
+    }
+}
+
+// Note: We still need a Defer impl for ArcLazy for trait coherence, but it will
+// only work for non-Send thunks (rare use case). In practice, users should use
+// SendDefer::send_defer for ArcLazy.
+impl Defer for LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>
+{
+    fn defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A>) -> Self::Of<'a, A>
+    where
+        A: Clone + 'a,
+    {
+        // This works but the resulting ArcLazy may not be Send + Sync
+        // unless the thunk happens to be Send + Sync.
+        // For guaranteed thread safety, use SendDefer::send_defer instead.
+        Lazy::new(<ArcFnBrand as ClonableFn>::new(move |_| {
+            Lazy::force_or_panic(&thunk())
+        }))
+    }
+}
+````
 
 #### Thread Safety Analysis
 
@@ -2102,8 +2217,8 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
     }
 }
 
-// SendClonableFn only for UnsizedCoercible + SendRefCountedPointer
-impl<P: UnsizedCoercible + SendRefCountedPointer> SendClonableFn for FnBrand<P> {
+// SendClonableFn only for SendUnsizedCoercible (which extends UnsizedCoercible + SendRefCountedPointer)
+impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
     type SendOf<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
     fn send_clonable_fn_new<'a, A, B>(
@@ -2368,6 +2483,7 @@ Loom exhaustively tests all possible thread interleavings, finding race conditio
 | `fp-library/src/classes/pointer.rs` | `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`, `UnsizedCoercible` traits |
 | `fp-library/src/classes/try_semigroup.rs` | `TrySemigroup` trait for fallible combination |
 | `fp-library/src/classes/try_monoid.rs` | `TryMonoid` trait extending `TrySemigroup` |
+| `fp-library/src/classes/send_defer.rs` | `SendDefer` trait extending `Defer` with `Send + Sync` thunk bounds |
 | `fp-library/src/types/rc_ptr.rs` | `Pointer` + `RefCountedPointer` + `UnsizedCoercible` impl for `RcBrand` |
 | `fp-library/src/types/arc_ptr.rs` | All four traits impl for `ArcBrand` |
 | `fp-library/src/types/fn_brand.rs` | `FnBrand<PtrBrand>` blanket implementations |
