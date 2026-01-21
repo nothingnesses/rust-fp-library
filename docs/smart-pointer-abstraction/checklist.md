@@ -43,34 +43,64 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
       fn take<T>(cell: &Self::Cell<T>) -> Option<T>;
   }
   ```
-* \[ ] Define `ValidLazyCombination` marker trait with `ThunkOf` associated type for valid PtrBrand/OnceBrand/FnBrand combinations:
+* \[ ] Define `LazyConfig` configuration trait with associated types (Configuration Struct Pattern):
   ```rust
-  pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {
-      /// Thunk type: ClonableFn::Of for Rc, SendClonableFn::SendOf for Arc
+  /// Configuration trait for valid Lazy brand combinations.
+  /// 
+  /// Uses Configuration Struct Pattern instead of `impl Trait<A,B,C> for ()`
+  /// to enable third-party extension without orphan rule violations.
+  pub trait LazyConfig: 'static {
+      /// The pointer brand (RcBrand or ArcBrand)
+      type PtrBrand: RefCountedPointer + ThunkWrapper;
+      /// The once-cell brand (OnceCellBrand or OnceLockBrand)
+      type OnceBrand: Once;
+      /// The function brand (RcFnBrand or ArcFnBrand)
+      type FnBrand: ClonableFn;
+      /// The thunk type - ClonableFn::Of for Rc, SendClonableFn::SendOf for Arc
       type ThunkOf<'a, A>: Clone;
   }
-  impl ValidLazyCombination<RcBrand, OnceCellBrand, RcFnBrand> for () {
+  ```
+* \[ ] Define `RcLazyConfig` configuration struct:
+  ```rust
+  /// Configuration for single-threaded lazy evaluation.
+  pub struct RcLazyConfig;
+  
+  impl LazyConfig for RcLazyConfig {
+      type PtrBrand = RcBrand;
+      type OnceBrand = OnceCellBrand;
+      type FnBrand = RcFnBrand;
       type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
   }
-  impl ValidLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {
+  ```
+* \[ ] Define `ArcLazyConfig` configuration struct:
+  ```rust
+  /// Configuration for thread-safe lazy evaluation.
+  pub struct ArcLazyConfig;
+  
+  impl LazyConfig for ArcLazyConfig {
+      type PtrBrand = ArcBrand;
+      type OnceBrand = OnceLockBrand;
+      type FnBrand = ArcFnBrand;
       type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
   }
   ```
-* \[ ] Define `ValidSendLazyCombination` extension trait for thread-safe combinations:
+* \[ ] Define `SendLazyConfig` extension trait for thread-safe configurations:
   ```rust
   /// Extension trait guaranteeing ThunkOf is Send + Sync.
   /// Follows ClonableFn → SendClonableFn pattern.
-  pub trait ValidSendLazyCombination<PtrBrand, OnceBrand, FnBrand>:
-      ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>
-  {
+  pub trait SendLazyConfig: LazyConfig {
       type SendThunkOf<'a, A: Send + Sync>: Clone + Send + Sync;
   }
-  impl ValidSendLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {
+  
+  impl SendLazyConfig for ArcLazyConfig {
       type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
   }
   ```
-* \[ ] Note: RcBrand combination does NOT implement `ValidSendLazyCombination`
-* \[ ] Document type-state pattern considerations in module docs (see plan.md)
+* \[ ] Note: `RcLazyConfig` does NOT implement `SendLazyConfig`
+* \[ ] Document Configuration Struct Pattern benefits in module docs (see plan.md):
+  * \[ ] Third-party extension enabled (no orphan rule violations)
+  * \[ ] Cleaner type signatures (`Config` vs 3 separate parameters)
+  * \[ ] Self-documenting configurations
 * \[ ] Define `LazyError` struct with `Arc<str>` for thread-safe error messages:
   ```rust
   use thiserror::Error;
@@ -118,18 +148,33 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `SendUnsizedCoercible` for `ArcBrand` only (not RcBrand)
 * \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init` and `into_inner`.
 * \[ ] Create `fp-library/src/classes/send_defer.rs`
-* \[ ] Define `SendDefer` extension trait for thread-safe deferred evaluation:
+* \[ ] Define `SendDefer` trait as **independent trait** (NOT extending `Defer`):
   ```rust
-  /// Extension trait for types that support thread-safe deferred evaluation.
-  /// Follows ClonableFn → SendClonableFn pattern.
-  pub trait SendDefer: Defer {
+  /// Trait for types that support thread-safe deferred evaluation.
+  /// 
+  /// ### Design Note: Independent from Defer
+  /// 
+  /// Unlike other extension trait pairs (ClonableFn → SendClonableFn),
+  /// `SendDefer` does NOT extend `Defer`. This is intentional because:
+  /// 
+  /// 1. `Defer::defer` takes a non-Send+Sync thunk
+  /// 2. If ArcLazy implemented Defer, users could accidentally create
+  ///    non-thread-safe ArcLazy values
+  /// 3. Making SendDefer independent prevents this misuse at compile time
+  ///
+  /// This means:
+  /// - RcLazy implements Defer (not SendDefer)
+  /// - ArcLazy implements SendDefer (not Defer)
+  /// - There is no type that implements both
+  pub trait SendDefer: Kind {
       /// Creates a value from a thread-safe thunk-producing thunk.
       fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
       where
           A: Clone + Send + Sync + 'a;
   }
   ```
-* \[ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>`
+* \[ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcLazyConfig>` 
+* \[ ] Note: `Defer` is only implemented for `LazyBrand<RcLazyConfig>` (NOT for ArcLazy)
 * \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
@@ -139,6 +184,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Add `RcBrand` struct to `fp-library/src/brands.rs`
 * \[ ] Add `ArcBrand` struct to `fp-library/src/brands.rs`
 * \[ ] Add `BoxBrand` struct placeholder (future extension)
+* \[ ] Add `RcLazyConfig` struct to `fp-library/src/brands.rs`
+* \[ ] Add `ArcLazyConfig` struct to `fp-library/src/brands.rs`
 * \[ ] Add documentation for all brands explaining their use cases
 
 ### 1.3 Rc Implementation
@@ -257,75 +304,69 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 ### 3.1 Rewrite Lazy Type
 
 * \[ ] Rewrite `fp-library/src/types/lazy.rs`
-* \[ ] Define `LazyInner` struct for shared inner state:
+* \[ ] Define `LazyInner` struct for shared inner state using `Config: LazyConfig`:
   ```rust
-  struct LazyInner<'a, PtrBrand, OnceBrand, FnBrand, A>
-  where
-      PtrBrand: RefCountedPointer + ThunkWrapper,
-      OnceBrand: Once,
-      FnBrand: ClonableFn,
-      (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
-  {
+  struct LazyInner<'a, Config: LazyConfig, A> {
       /// Stores Result<A, Arc<LazyError>> to enable panic-safe evaluation with stable Rust.
       /// Uses Arc<LazyError> so all clones see the same error with the same message.
-      once: <OnceBrand as Once>::Of<Result<A, Arc<LazyError>>>,
+      once: <Config::OnceBrand as Once>::Of<Result<A, Arc<LazyError>>>,
       /// Thunk wrapped in ThunkWrapper::Cell for interior mutability
-      /// Uses ValidLazyCombination::ThunkOf for correct Send+Sync bounds
-      thunk: <PtrBrand as ThunkWrapper>::Cell<
-          <() as ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>>::ThunkOf<'a, A>
-      >,
+      /// Uses Config::ThunkOf for correct Send+Sync bounds
+      thunk: <Config::PtrBrand as ThunkWrapper>::Cell<Config::ThunkOf<'a, A>>,
   }
   ```
-* \[ ] New `Lazy` structure with 4 type parameters and `ValidLazyCombination` enforcement:
+* \[ ] New `Lazy` structure with 2 type parameters using `Config: LazyConfig`:
   ```rust
-  pub struct Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>(
-      <PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, PtrBrand, OnceBrand, FnBrand, A>>,
-  )
-  where
-      PtrBrand: RefCountedPointer + ThunkWrapper,
-      OnceBrand: Once,
-      FnBrand: ClonableFn,
-      (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>;
+  pub struct Lazy<'a, Config: LazyConfig, A>(
+      <Config::PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, Config, A>>,
+  );
   ```
-* \[ ] Note: 4 type parameters - FnBrand is separate to enable generic code over both thread-local and thread-safe variants
+* \[ ] Note: Only 2 type parameters (Config, A) - Config bundles PtrBrand/OnceBrand/FnBrand
 * \[ ] Note: Thunk stored in `Option<..>` wrapped in `ThunkWrapper::Cell` for cleanup
-* \[ ] Note: OnceCell stores `Result<A, LazyError>` to avoid nightly-only `get_or_try_init`
+* \[ ] Note: OnceCell stores `Result<A, Arc<LazyError>>` to avoid nightly-only `get_or_try_init`
 
 ### 3.2 Core Implementation
 
 * \[ ] Implement `Lazy::new(thunk)` method
-  * \[ ] Takes `ValidLazyCombination::ThunkOf` (ensures correct Send+Sync for ArcLazy)
-  * \[ ] Creates new OnceCell via `OnceBrand::new()`
-  * \[ ] Wraps thunk in `Option::Some` via `PtrBrand::new_cell`
-  * \[ ] Wraps `LazyInner { once, thunk }` in `PtrBrand::cloneable_new`
+  * \[ ] Takes `Config::ThunkOf<'a, A>` (ensures correct Send+Sync for ArcLazy)
+  * \[ ] Creates new OnceCell via `Config::OnceBrand::new()`
+  * \[ ] Wraps thunk in `Option::Some` via `Config::PtrBrand::new_cell`
+  * \[ ] Wraps `LazyInner { once, thunk }` in `Config::PtrBrand::cloneable_new`
 * \[ ] Implement `Lazy::force(&self)` method returning `Result<&A, LazyError>`
   * \[ ] Takes `&self` (shared semantics)
   * \[ ] Dereferences through `CloneableOf` pointer
   * \[ ] Uses stable `OnceCell::get_or_init` (NOT nightly `get_or_try_init`)
-  * \[ ] Cell stores `Result<A, LazyError>`, so stable API suffices
-  * \[ ] On first call: takes thunk via `PtrBrand::take` with `expect()` (unreachable None)
+  * \[ ] Cell stores `Result<A, Arc<LazyError>>`, so stable API suffices
+  * \[ ] On first call: takes thunk via `Config::PtrBrand::take` with `expect()` (unreachable None)
   * \[ ] Wraps thunk call in `catch_unwind` with `AssertUnwindSafe` for panic safety
   * \[ ] Use `LazyError::from_panic(payload)` to preserve panic message for debugging
-  * \[ ] Use `LazyError::poisoned()` for secondary access (result already in cell)
   * \[ ] Document `AssertUnwindSafe` invariant with detailed safety analysis:
     * Thunk ownership transferred (taken) before invocation
-    * Result captures outcome (OnceCell stores Result\<A, LazyError>)
+    * Result captures outcome (OnceCell stores Result\<A, Arc\<LazyError\>\>)
     * No shared mutable state during execution
     * Single-writer guarantee from OnceCell::get\_or\_init
+    * Thunk is taken (moved out) atomically before execution begins
+    * If panic occurs, thunk is already consumed (no partial state)
+    * OnceCell stores the error, ensuring consistent state for all observers
   * \[ ] Returns `Ok(&A)` on success, `Err(LazyError)` if thunk panics
   * \[ ] Note: ThunkConsumed case unreachable due to `get_or_init`'s single-execution guarantee
 * \[ ] Implement `Lazy::force_cloned(&self)` method returning `Result<A, LazyError>`
-* \[ ] Calls `force` and clones result on success
-* \[ ] Requires `A: Clone`
-* \[ ] Document `A: Clone` limitation in method docs:
-  * Shared memoization requires `Clone` for multiple callers
-  * Alternatives: use `force`, wrap in `Rc`/`Arc`, or use `try_into_result`
+  * \[ ] Calls `force` and clones result on success
+  * \[ ] Requires `A: Clone`
+  * \[ ] Document `A: Clone` limitation in method docs:
+    * Shared memoization requires `Clone` for multiple callers
+    * Alternatives: use `force`, wrap in `Rc`/`Arc`, or use `try_into_result`
 * \[ ] Implement `Lazy::force_or_panic(&self)` convenience method
   * \[ ] Calls `force_cloned` and unwraps with expect
+  * \[ ] Requires `A: Clone`
   * \[ ] For use when panic on failure is acceptable
+* \[ ] Implement `Lazy::force_ref_or_panic(&self)` convenience method
+  * \[ ] Calls `force` and unwraps with expect
+  * \[ ] Does NOT require `A: Clone` (returns `&A`)
+  * \[ ] For use when panic on failure is acceptable and cloning is not desired
 * \[ ] Implement `Lazy::try_get_ref(&self)` method
   * \[ ] Returns `Option<&A>` without forcing (None if not forced or if poisoned)
-  * \[ ] Must handle `Result<A, LazyError>` stored in cell
+  * \[ ] Must handle `Result<A, Arc<LazyError>>` stored in cell
 * \[ ] Implement `Lazy::try_get(&self)` method
   * \[ ] Returns `Option<A>` (cloned) without forcing
 * \[ ] Implement `Lazy::is_forced(&self)` method
@@ -334,23 +375,25 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Returns `bool` indicating if thunk panicked during evaluation
 * \[ ] Implement `Lazy::get_error(&self)` method
   * \[ ] Returns `Option<LazyError>` - clones the stored `Arc<LazyError>` if poisoned
+  * \[ ] Document: "Returns cloned error (via Arc::clone + LazyError::clone)"
+  * \[ ] Document performance: "Lightweight clone - Arc increment + Arc<str> increment"
   * \[ ] Provides access to original panic message for debugging
 * \[ ] Implement `Lazy::try_into_result(self) -> Result<Result<A, LazyError>, Self>` method
-* \[ ] Checks if initialized before attempting `try_unwrap` to avoid re-allocation
-* \[ ] Uses `RefCountedPointer::try_unwrap` to check for sole ownership
-* \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
-* \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
-* \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
-* \[ ] Returns `Err(self)` if shared or not yet forced
-* \[ ] Does NOT require `A: Clone` (uses `Once::into_inner`)
+  * \[ ] Checks if initialized before attempting `try_unwrap` to avoid re-allocation
+  * \[ ] Uses `RefCountedPointer::try_unwrap` to check for sole ownership
+  * \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
+  * \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
+  * \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
+  * \[ ] Returns `Err(self)` if shared or not yet forced
+  * \[ ] Does NOT require `A: Clone` (uses `Once::into_inner`)
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone and Debug Implementation
 
-* \[ ] Implement `Clone` for `Lazy`
-* \[ ] Clone must be cheap (just reference count increment)
-* \[ ] Verify clones share memoization state (via test)
-* \[ ] Implement `Debug` for `Lazy` where `A: Debug`:
+* \[ ] Implement `Clone` for `Lazy<'a, Config, A>` where `Config: LazyConfig`
+  * \[ ] Clone must be cheap (just reference count increment)
+  * \[ ] Verify clones share memoization state (via test)
+* \[ ] Implement `Debug` for `Lazy<'a, Config, A>` where `Config: LazyConfig, A: Debug`:
   * \[ ] Shows "Lazy::Unforced" before forcing
   * \[ ] Shows "Lazy::Forced(value)" after forcing with value's Debug output
   * \[ ] Shows "Lazy::Poisoned" if thunk panicked
@@ -358,14 +401,29 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 ### 3.4 TrySemigroup, TryMonoid, and Type Class Implementations
 
 * \[ ] Create `fp-library/src/classes/try_semigroup.rs` with `TrySemigroup` trait
+  * \[ ] Document in trait-level docs that `try_combine` may always return `Ok`:
+    ```rust
+    /// ### Note: Some Implementations Always Return Ok
+    ///
+    /// For lazy types like `RcLazy` and `ArcLazy`, `try_combine` ALWAYS returns
+    /// `Ok(lazy)` at the call site. Errors only surface when the resulting lazy
+    /// is forced. This preserves lazy evaluation semantics but may surprise users
+    /// expecting immediate validation.
+    ///
+    /// If you need to fail early on already-poisoned operands, check
+    /// `Lazy::is_poisoned()` before combining.
+    ```
 * \[ ] Create `fp-library/src/classes/try_monoid.rs` with `TryMonoid` trait
 * \[ ] Implement `TrySemigroup` for `RcLazy` (separate impl, not generic):
   * \[ ] Uses `ClonableFn::new` for thunk (no thread-safety requirement)
-  * \[ ] `try_combine` returns NEW lazy that defers forcing until demanded
+  * \[ ] `try_combine` returns `Ok(NEW lazy)` that defers forcing until demanded
+  * \[ ] Document: "Always returns Ok - errors deferred until forcing"
   * \[ ] Requires `A: Semigroup + Clone` only (no `Send + Sync`)
   * \[ ] Type Error = LazyError
 * \[ ] Implement `TrySemigroup` for `ArcLazy` (separate impl, not generic):
   * \[ ] Uses `SendClonableFn::send_clonable_fn_new` for thread-safe thunk
+  * \[ ] `try_combine` returns `Ok(NEW lazy)` that defers forcing until demanded
+  * \[ ] Document: "Always returns Ok - errors deferred until forcing"
   * \[ ] Requires `A: Semigroup + Clone + Send + Sync`
   * \[ ] Type Error = LazyError
 * \[ ] Implement `TryMonoid` for `RcLazy`:
@@ -382,24 +440,25 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] **DO NOT** implement `Monoid` for `Lazy`:
   * \[ ] Same rationale as Semigroup
   * \[ ] `try_empty` from TryMonoid is always safe
-* \[ ] Implement `Defer` for `LazyBrand<RcBrand, OnceCellBrand, RcFnBrand>` (separate impl for RcLazy):
+* \[ ] Implement `Defer` for `LazyBrand<RcLazyConfig>` ONLY (not for ArcLazy):
   * \[ ] Uses `ClonableFn::new` for thunk (no thread-safety requirement)
   * \[ ] `defer(f)` creates `Lazy` that calls f, then forces result using `force_or_panic`
   * \[ ] Requires `A: Clone` only (no `Send + Sync`)
-* \[ ] Implement `Defer` for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>` (separate impl for ArcLazy):
-  * \[ ] Uses `SendClonableFn::send_clonable_fn_new` for thread-safe thunk
-  * \[ ] `defer(f)` captures non-Send+Sync thunk but wraps in Send+Sync closure
-  * \[ ] Requires `A: Clone + Send + Sync`
-* \[ ] Implement `SendDefer` for `LazyBrand<ArcBrand, OnceLockBrand, ArcFnBrand>` only:
+* \[ ] **DO NOT** implement `Defer` for `LazyBrand<ArcLazyConfig>`:
+  * \[ ] Rationale: Would allow non-thread-safe ArcLazy creation
+  * \[ ] `Defer::defer` takes non-Send+Sync thunk, breaking ArcLazy's thread-safety guarantee
+  * \[ ] Users must use `SendDefer::send_defer` instead for ArcLazy
+* \[ ] Implement `SendDefer` for `LazyBrand<ArcLazyConfig>` only:
   * \[ ] Uses `SendClonableFn::send_clonable_fn_new` for thread-safe thunk
   * \[ ] `send_defer(f)` takes `f: impl Fn() -> Lazy + Send + Sync`
   * \[ ] Requires `A: Clone + Send + Sync`
-* \[ ] Note: Separate impls needed because generic impl would use wrong thunk type for ArcLazy
-* \[ ] Note: `SendDefer` is for when the thunk-producing thunk itself must be `Send + Sync`
+* \[ ] Note: Separate impls - RcLazy has Defer, ArcLazy has SendDefer (mutually exclusive)
+* \[ ] Note: `SendDefer` does NOT extend `Defer` (independent traits - see Phase 1.1)
 
 ### 3.5 Kind Implementation
 
-* \[ ] Update `LazyBrand<PtrBrand, OnceBrand, FnBrand>` in `fp-library/src/brands.rs` (3 parameters)
+* \[ ] Update `LazyBrand<Config: LazyConfig>` in `fp-library/src/brands.rs` (1 parameter)
+* \[ ] Note: LazyBrand now takes single Config parameter instead of 3 separate parameters
 * \[ ] Update `impl_kind!` for `LazyBrand`
 * \[ ] Verify kind signature matches expected HKT pattern
 
@@ -411,14 +470,16 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 ### 3.7 Type Aliases
 
-* \[ ] Add `pub type RcLazy<'a, A> = Lazy<'a, RcBrand, OnceCellBrand, RcFnBrand, A>;`
-* \[ ] Add `pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, ArcFnBrand, A>;`
+* \[ ] Add `pub type RcLazy<'a, A> = Lazy<'a, RcLazyConfig, A>;`
+* \[ ] Add `pub type ArcLazy<'a, A> = Lazy<'a, ArcLazyConfig, A>;`
+* \[ ] Note: Type aliases now use Config structs (2 type params instead of 4)
 * \[ ] Document thread-safety characteristics of each alias
 
 ### 3.8 Phase 3 Tests
 
 * \[ ] Unit test: `Lazy::new` + `Lazy::force_cloned` returns `Ok(value)`
 * \[ ] Unit test: `Lazy::force` returns `Ok(&value)`
+* \[ ] Unit test: `Lazy::force_ref_or_panic` returns `&value` without Clone bound
 * \[ ] **Critical test**: Thunk is only called once across all clones
 * \[ ] **Critical test**: Clones share memoization (counter test)
 * \[ ] **Critical test**: Thunk is cleared after forcing (weak ref test)
@@ -430,9 +491,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] **Panic safety test**: `force` returns `Err(LazyError)` when thunk panics
 * \[ ] **Panic safety test**: All clones see `Err(LazyError)` after panic (shared poisoned state)
 * \[ ] Unit test: `force_or_panic` panics with appropriate message on error
-* \[ ] Unit test: `TrySemigroup::try_combine` returns lazy that computes combined value
+* \[ ] Unit test: `force_ref_or_panic` panics with appropriate message on error
+* \[ ] Unit test: `TrySemigroup::try_combine` returns `Ok(lazy)` (always succeeds at call site)
+* \[ ] Unit test: `TrySemigroup::try_combine` result's force returns `Err` when inner thunk fails
 * \[ ] Unit test: `TrySemigroup::try_combine` defers forcing (truly lazy semantics)
-* \[ ] Unit test: `TrySemigroup::try_combine` result's force returns `Err(LazyError)` when inner thunk fails
 * \[ ] Unit test: `TryMonoid::try_empty` works correctly
 * \[ ] Compile-fail test: `Lazy` does NOT implement `Semigroup`
 * \[ ] Compile-fail test: `Lazy` does NOT implement `Monoid`
@@ -440,16 +502,14 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Unit test: `Debug` shows "Lazy::Forced(value)" after forcing
 * \[ ] Unit test: `Debug` shows "Lazy::Poisoned" after panic
 * \[ ] Unit test: `Defer::defer` works correctly for RcLazy
-* \[ ] Unit test: `Defer::defer` works correctly for ArcLazy
+* \[ ] Compile-fail test: `LazyBrand<RcLazyConfig>` does NOT implement `SendDefer`
 * \[ ] Unit test: `SendDefer::send_defer` works correctly for ArcLazy
-* \[ ] Compile-fail test: `LazyBrand<RcBrand, ...>` does NOT implement `SendDefer`
+* \[ ] Compile-fail test: `LazyBrand<ArcLazyConfig>` does NOT implement `Defer`
 * \[ ] Property test: TrySemigroup associativity law (when all succeed)
 * \[ ] Property test: TryMonoid identity laws (when all succeed)
 * \[ ] Compile-fail test: `RcLazy` is `!Send`
 * \[ ] Compile-success test: `ArcLazy<A: Send + Sync>` is `Send + Sync`
-* \[ ] Compile-fail test: `Lazy<ArcBrand, OnceCellBrand, ArcFnBrand, _>` fails (ValidLazyCombination)
-* \[ ] Compile-fail test: `Lazy<RcBrand, OnceLockBrand, RcFnBrand, _>` fails (ValidLazyCombination)
-* \[ ] Compile-fail test: `Lazy<ArcBrand, OnceLockBrand, RcFnBrand, _>` fails (FnBrand mismatch)
+* \[ ] Compile-fail test: Custom `Lazy<MyInvalidConfig, _>` fails when `MyInvalidConfig` doesn't impl `LazyConfig`
 
 ***
 
@@ -470,7 +530,9 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Add `fn_brand` export
   * \[ ] Remove `rc_fn` export
   * \[ ] Remove `arc_fn` export
-* \[ ] Update `fp-library/src/brands.rs` with all new brands
+* \[ ] Update `fp-library/src/brands.rs` with all new brands:
+  * \[ ] RcBrand, ArcBrand, BoxBrand
+  * \[ ] RcLazyConfig, ArcLazyConfig
 * \[ ] Update `fp-library/src/classes.rs` with `pointer` export
 * \[ ] Update `fp-library/src/classes.rs` with `send_defer` export
 * \[ ] Verify no circular dependencies
@@ -482,27 +544,34 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] `RefCountedPointer` entry in Type Classes table
   * \[ ] `SendRefCountedPointer` entry in Type Classes table
   * \[ ] `ThunkWrapper` entry in Type Classes table
-  * \[ ] `ValidLazyCombination` entry in Type Classes table
+  * \[ ] `LazyConfig` entry in Type Classes table
+  * \[ ] `SendLazyConfig` entry in Type Classes table
   * \[ ] `RcBrand` entry in Data Types table
   * \[ ] `ArcBrand` entry in Data Types table
+  * \[ ] `RcLazyConfig` entry in Data Types table
+  * \[ ] `ArcLazyConfig` entry in Data Types table
   * \[ ] Update `LazyBrand` entry to reflect new semantics
 * \[ ] Update `docs/architecture.md`:
   * \[ ] Document the Pointer → RefCountedPointer → SendRefCountedPointer pattern
-  * \[ ] Document the macro-based impl approach for FnBrand
-  * \[ ] Document `ThunkWrapper` and `ValidLazyCombination` patterns
-* \[ ] Add "Extending FnBrand for Custom Pointers" documentation:
-  * \[ ] Add section to `fp-library/src/types/fn_brand.rs` module docs
-  * \[ ] Include complete working example with `Function`, `ClonableFn`, `Semigroupoid`, `Category`
-  * \[ ] Document `SendClonableFn` implementation for thread-safe variants
-  * \[ ] Explain unsized coercion limitation and why macro/manual impl is needed
+  * \[ ] Document the Configuration Struct Pattern for LazyConfig
+  * \[ ] Document the blanket impl approach for FnBrand via UnsizedCoercible
+  * \[ ] Document `ThunkWrapper` pattern
+  * \[ ] Document independent Defer/SendDefer traits (not a hierarchy)
+* \[ ] Add "Extending Lazy for Custom Configurations" documentation:
+  * \[ ] Add section to `fp-library/src/types/lazy.rs` module docs
+  * \[ ] Include complete working example with custom `MyLazyConfig`
+  * \[ ] Document `SendLazyConfig` implementation for thread-safe variants
+  * \[ ] Explain Configuration Struct Pattern benefits over impl-for-()
 * \[ ] Update `docs/todo.md` to mark Lazy memoization item as addressed
 * \[ ] Update `docs/limitations.md`:
-  * \[ ] Document FnBrand extensibility limitation (macro required)
+  * \[ ] Document FnBrand extensibility via UnsizedCoercible trait
   * \[ ] Document thunk cleanup differences between RcBrand (RefCell) and ArcBrand (Mutex)
   * \[ ] Document Known Limitations from plan.md:
     * \[ ] LazyError loses original panic payload type (required for thread safety)
-    * \[ ] `Lazy::force` requires `A: Clone` (inherent to shared memoization)
+    * \[ ] `Lazy::force_cloned` requires `A: Clone` (inherent to shared memoization)
+    * \[ ] `Lazy::force_or_panic` requires `A: Clone` (use `force_ref_or_panic` to avoid)
     * \[ ] Recursive lazy evaluation deadlocks for ArcLazy, panics for RcLazy
+    * \[ ] AssertUnwindSafe usage and safety invariants
 
 ### 4.4 Final Verification
 
@@ -545,20 +614,25 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `Lazy` now uses shared memoization semantics (Haskell-like)
     - Clones share memoization state
     - `force` and `force_cloned` take `&self` and return `Result<_, LazyError>`
-    - `Lazy` has 4 type parameters: PtrBrand, OnceBrand, FnBrand, A
+    - `Lazy` has 2 type parameters: Config (implementing LazyConfig), A
     - Thunks cleared after forcing to free captured values
-    - OnceCell stores `Result<A, LazyError>` for panic-safe evaluation
+    - OnceCell stores `Result<A, Arc<LazyError>>` for panic-safe evaluation
   - `RcFnBrand` is now a type alias for `FnBrand<RcBrand>`
   - `ArcFnBrand` is now a type alias for `FnBrand<ArcBrand>`
+  - `LazyBrand` now takes 1 type parameter (Config) instead of 3
+  - `SendDefer` is now independent from `Defer` (not a subtrait)
+    - RcLazy implements Defer only
+    - ArcLazy implements SendDefer only
 
   ### Added
   - `Pointer` base trait for heap-allocated pointers
   - `RefCountedPointer` extension trait with `CloneableOf` for shared ownership
   - `SendRefCountedPointer` extension trait with `SendOf` for thread-safe pointers
   - `ThunkWrapper` trait for pointer-brand-specific thunk storage
-  - `ValidLazyCombination` marker trait with `ThunkOf` associated type enforcing valid PtrBrand/OnceBrand/FnBrand triples and selecting correct thunk type for thread safety
+  - `LazyConfig` configuration trait for valid Lazy configurations
+  - `SendLazyConfig` extension trait for thread-safe configurations
+  - `RcLazyConfig` and `ArcLazyConfig` configuration structs
   - `LazyError` struct with panic payload for debugging
-  - `PanicPayload` wrapper with `panic_message()` and `into_inner()` methods
   - `UnsizedCoercible` trait for basic function coercion
   - `SendUnsizedCoercible` trait for thread-safe function coercion
   - `TrySemigroup` trait for fallible semigroup operations
@@ -570,14 +644,17 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `RcLazy` and `ArcLazy` type aliases for common configurations
   - `Lazy::force(&self) -> Result<&A, LazyError>` method (avoids cloning)
   - `Lazy::force_cloned(&self) -> Result<A, LazyError>` method
-  - `Lazy::force_or_panic(&self) -> A` convenience method
+  - `Lazy::force_or_panic(&self) -> A` convenience method (requires Clone)
+  - `Lazy::force_ref_or_panic(&self) -> &A` convenience method (no Clone required)
   - `Lazy::try_get_ref(&self) -> Option<&A>` method
   - `Lazy::is_forced(&self) -> bool` method
   - `Lazy::is_poisoned(&self) -> bool` method
+  - `Lazy::get_error(&self) -> Option<LazyError>` method
 
   ### Removed
   - Old value-semantic `Lazy` implementation
   - Separate `rc_fn.rs` and `arc_fn.rs` files (merged into `fn_brand.rs`)
+  - `ValidLazyCombination` trait (replaced by `LazyConfig` configuration structs)
   ```
 
 ***
@@ -590,33 +667,39 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 2. **Additional Associated Type pattern**: `RefCountedPointer` adds `CloneableOf` with `Clone` bound; `SendRefCountedPointer` adds `SendOf` with `Send + Sync` bounds rather than using invalid `for<T: Trait>` syntax (which Rust doesn't support)
 
-3. **Macro for unsized coercion**: `impl_fn_brand!` macro handles the `Rc::new`/`Arc::new` calls that perform unsized coercion to `dyn Fn`
+3. **Blanket impl via UnsizedCoercible**: `FnBrand<P>` implements `ClonableFn` for any `P: UnsizedCoercible`, enabling third-party extension
 
-4. **Four type parameters for Lazy**: `Lazy<PtrBrand, OnceBrand, FnBrand, A>` - FnBrand is separate to enable generic code over both thread-local and thread-safe variants
+4. **Configuration Struct Pattern for Lazy**: `Lazy<Config, A>` uses a single `Config: LazyConfig` parameter that bundles PtrBrand/OnceBrand/FnBrand. This solves the orphan rule issue that blocked third-party extension with the `impl for ()` pattern.
 
 5. **Type aliases for ergonomics**: `RcFnBrand`, `ArcFnBrand`, `RcLazy`, `ArcLazy` provide good defaults
 
-6. **ValidLazyCombination marker trait with ThunkOf**: Enforces valid `PtrBrand`/`OnceBrand`/`FnBrand` triples at compile time, preventing misconfigurations. The `ThunkOf` associated type ensures `ArcLazy` uses `SendClonableFn::SendOf` (with `Send + Sync` bounds) while `RcLazy` uses `ClonableFn::Of`.
+6. **LazyConfig trait with ThunkOf**: Bundles all configuration into a single trait. The `ThunkOf` associated type ensures `ArcLazy` uses `SendClonableFn::SendOf` (with `Send + Sync` bounds) while `RcLazy` uses `ClonableFn::Of`.
 
 7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `parking_lot::Mutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing. ⚠️ Note: Recursive forcing **will deadlock** for ArcLazy (at `OnceLock::get_or_init`) and **panic** for RcLazy (at `OnceCell::get_or_init`). This is documented as a Known Limitation.
 
-8. **Panic-safe evaluation with stable Rust**: `force` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
+8. **Panic-safe evaluation with stable Rust**: `force` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, Arc<LazyError>>` to capture both success and error states.
 
 9. **LazyError with Arc<str>**: Stores the panic message as `Arc<str>` for thread-safe sharing. Using raw `Box<dyn Any + Send>` would make `LazyError` `!Sync`, breaking `ArcLazy` thread safety. The tradeoff is losing the ability to re-panic with the original payload, but thread safety is essential.
 
 10. **Arc<LazyError> in OnceCell**: The cell stores `Result<A, Arc<LazyError>>` so all clones see the same error with the same message. Without `Arc`, secondary callers would get `LazyError::poisoned()` with no message.
 
-11. **Triple force methods**: `force(&self) -> Result<&A, LazyError>` for explicit error handling; `force_cloned(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience
+11. **Quadruple force methods**: `force(&self) -> Result<&A, LazyError>` for explicit error handling; `force_cloned(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience (requires Clone); `force_ref_or_panic(&self) -> &A` for convenience without Clone requirement
 
-12. **Clone bound limitation**: `force_cloned` requires `A: Clone` due to shared memoization semantics. This is an accepted limitation. Users needing to avoid cloning should use `force`, wrap values in `Rc`/`Arc`, or use `try_into_result` for unique ownership.
+12. **Clone bound limitation**: `force_cloned` and `force_or_panic` require `A: Clone` due to shared memoization semantics. Users needing to avoid cloning should use `force`, `force_ref_or_panic`, wrap values in `Rc`/`Arc`, or use `try_into_result` for unique ownership.
 
-13. **AssertUnwindSafe invariant**: The `catch_unwind` in `force` uses `AssertUnwindSafe` safely because: (1) thunk is taken before invocation, (2) Result stored in OnceCell captures panic state, (3) no mutable references to shared state exist during thunk execution
+13. **AssertUnwindSafe invariant**: The `catch_unwind` in `force` uses `AssertUnwindSafe` safely because:
+    - Thunk is taken (moved out) atomically before execution begins
+    - If panic occurs, thunk is already consumed (no partial state)
+    - Result stored in OnceCell captures panic state
+    - No mutable references to shared state exist during thunk execution
+    - Single-writer guarantee from OnceCell::get\_or\_init
+    - The key insight: AssertUnwindSafe asserts that catching a panic won't violate memory safety, and here the thunk has no access to LazyInner during execution
 
 14. **UnsizedCoercible/SendUnsizedCoercible traits**: Two-level hierarchy following ClonableFn → SendClonableFn pattern. `UnsizedCoercible` provides basic function coercion, `SendUnsizedCoercible` adds thread-safe coercion. RcBrand only implements `UnsizedCoercible` (no panicking methods).
 
-15. **TrySemigroup/TryMonoid only (no Semigroup/Monoid)**: Lazy does NOT implement Semigroup or Monoid because those traits require total functions. A panicking `combine` violates algebraic laws. Users must use `TrySemigroup::try_combine` which makes fallibility explicit.
+15. **TrySemigroup/TryMonoid only (no Semigroup/Monoid)**: Lazy does NOT implement Semigroup or Monoid because those traits require total functions. A panicking `combine` violates algebraic laws. Users must use `TrySemigroup::try_combine` which makes fallibility explicit. Note: `try_combine` always returns `Ok` for Lazy - errors are deferred until forcing.
 
-16. **Lazy TrySemigroup is truly lazy**: `try_combine` returns a NEW lazy that defers forcing until demanded. This preserves lazy semantics and allows building lazy computations without immediate failure.
+16. **Lazy TrySemigroup is truly lazy**: `try_combine` returns a NEW lazy that defers forcing until demanded. This preserves lazy semantics and allows building lazy computations without immediate failure. The tradeoff is that `try_combine` never fails at call site - use `is_poisoned()` if early validation is needed.
 
 17. **Separate TrySemigroup impls for RcLazy and ArcLazy**: A generic impl would use `ClonableFn::Of` for the thunk, but `ArcLazy` requires `SendClonableFn::SendOf` with `Send + Sync` bounds. Separate impls ensure correct thunk type for each.
 
@@ -624,9 +707,11 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 19. **try\_into\_result method**: Allows extracting owned value from unique Lazy reference without cloning. Returns `Err(self)` if shared or not yet forced.
 
-20. **ValidLazyCombination impl-for-() pattern**: Uses "type witness" pattern where `()` carries the impl. The constraint `(): ValidLazyCombination<P, O, F>` means "unit type has impl for this combination". This is idiomatic Rust for compile-time validation.
+20. **Configuration Struct Pattern**: Uses concrete structs (`RcLazyConfig`, `ArcLazyConfig`) implementing `LazyConfig` trait instead of `impl Trait<A,B,C> for ()`. This enables third-party extension without orphan rule violations - third parties can define their own config structs.
 
-21. **Loom concurrency testing**: Exhaustive testing of all thread interleavings for `ArcLazy` to verify correct synchronization.
+21. **Independent Defer/SendDefer traits**: Unlike other trait pairs (ClonableFn → SendClonableFn), `SendDefer` does NOT extend `Defer`. This prevents accidentally creating non-thread-safe `ArcLazy` values. RcLazy implements only `Defer`; ArcLazy implements only `SendDefer`.
+
+22. **Loom concurrency testing**: Exhaustive testing of all thread interleavings for `ArcLazy` to verify correct synchronization.
 
 ### Files Summary
 
@@ -665,7 +750,7 @@ The most important tests are:
    let counter = Rc::new(Cell::new(0));
    let counter_clone = counter.clone();
 
-   let lazy = RcLazy::new(
+   let lazy: RcLazy<i32> = RcLazy::new(
        clonable_fn_new::<RcFnBrand, _, _>(move |_| {
            counter_clone.set(counter_clone.get() + 1);
            42
@@ -681,7 +766,7 @@ The most important tests are:
 
 2. **Panic safety test with shared error** (must pass):
    ```rust
-   let lazy = RcLazy::new(
+   let lazy: RcLazy<i32> = RcLazy::new(
        clonable_fn_new::<RcFnBrand, _, _>(|_| -> i32 { panic!("computation failed") })
    );
    let lazy2 = lazy.clone();
@@ -710,4 +795,50 @@ The most important tests are:
    ```rust
    let lazy: RcLazy<i32> = RcLazy::new(/* ... */);
    std::thread::spawn(move || Lazy::force_cloned(&lazy)); // Should fail!
+   ```
+
+5. **force_ref_or_panic without Clone** (must pass):
+   ```rust
+   struct NonClone(i32);  // Does not implement Clone
+   
+   let lazy: RcLazy<NonClone> = RcLazy::new(
+       clonable_fn_new::<RcFnBrand, _, _>(|_| NonClone(42))
+   );
+   
+   // This works - no Clone required
+   let value_ref: &NonClone = Lazy::force_ref_or_panic(&lazy);
+   assert_eq!(value_ref.0, 42);
+   
+   // This would NOT compile - Clone required
+   // let value: NonClone = Lazy::force_or_panic(&lazy);
+   ```
+
+6. **ArcLazy does not implement Defer** (compile-fail):
+   ```rust
+   // This should fail to compile - ArcLazy only implements SendDefer
+   use fp_library::classes::defer::Defer;
+   
+   fn use_defer<B: Defer>() {}
+   use_defer::<LazyBrand<ArcLazyConfig>>(); // Should fail!
+   ```
+
+7. **TrySemigroup::try_combine always returns Ok** (must pass):
+   ```rust
+   // Even with poisoned operands, try_combine returns Ok
+   let poisoned: RcLazy<i32> = RcLazy::new(
+       clonable_fn_new::<RcFnBrand, _, _>(|_| panic!("oops"))
+   );
+   let _ = Lazy::force(&poisoned); // Force to poison it
+   
+   let normal: RcLazy<i32> = RcLazy::new(
+       clonable_fn_new::<RcFnBrand, _, _>(|_| 42)
+   );
+   
+   // try_combine succeeds - error deferred until forcing
+   let combined = TrySemigroup::try_combine(poisoned, normal);
+   assert!(combined.is_ok()); // Always Ok at call site!
+   
+   // Error surfaces when forcing
+   let result = Lazy::force(&combined.unwrap());
+   assert!(result.is_err()); // Error here, not at combine time
    ```
