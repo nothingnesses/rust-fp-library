@@ -735,6 +735,34 @@ pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {
     type ThunkOf<'a, A>: Clone;
 }
 
+/// Extension marker trait for thread-safe Lazy combinations.
+///
+/// This trait extends `ValidLazyCombination` with an explicit guarantee that
+/// `ThunkOf` is `Send + Sync`. This is needed because `ValidLazyCombination::ThunkOf`
+/// only requires `Clone`, and Rust cannot express "ThunkOf is Send + Sync when
+/// A is Send + Sync" without higher-kinded bounds.
+///
+/// ### Why a Separate Trait?
+///
+/// The original `ValidLazyCombination::ThunkOf` bound is just `: Clone`. For
+/// `ArcLazy` to be `Send + Sync`, we need `ThunkOf` to also be `Send + Sync`.
+/// By splitting into two traits:
+///
+/// 1. `ValidLazyCombination` - base validation, thunk only needs Clone
+/// 2. `ValidSendLazyCombination` - adds Send + Sync guarantee on ThunkOf
+///
+/// This follows the same pattern as `ClonableFn` → `SendClonableFn`.
+///
+/// ### Implementors
+///
+/// - `(ArcBrand, OnceLockBrand, ArcFnBrand)`: Thread-safe lazy with Send + Sync thunk
+pub trait ValidSendLazyCombination<PtrBrand, OnceBrand, FnBrand>:
+    ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>
+{
+    /// The thread-safe thunk type. Same as ThunkOf but guaranteed Send + Sync.
+    type SendThunkOf<'a, A: Send + Sync>: Clone + Send + Sync;
+}
+
 // ### Why `impl ... for ()` Instead of a Tuple Type?
 //
 // You might expect the impl to be on the combination tuple itself:
@@ -769,6 +797,66 @@ impl ValidLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {
     // Thread-safe: use SendClonableFn::SendOf (with Send + Sync)
     type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
 }
+
+// Only ArcBrand combination gets ValidSendLazyCombination
+impl ValidSendLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {
+    type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+}
+
+// ### Sealing ValidLazyCombination: Type-State Pattern Considerations
+//
+// Currently, `ValidLazyCombination` is an unsealed trait, meaning third-party
+// crates could implement it for arbitrary combinations. This raises a question:
+// should we seal it to prevent unsound combinations?
+//
+// #### The Type-State Pattern Approach
+//
+// One alternative is to encode validity in types themselves rather than trait
+// impls. For example:
+//
+// ```rust
+// // Sealed validity tokens
+// mod sealed {
+//     pub struct RcLazyConfig;
+//     pub struct ArcLazyConfig;
+// }
+//
+// pub trait LazyConfig {
+//     type PtrBrand: RefCountedPointer;
+//     type OnceBrand: Once;
+//     type FnBrand: ClonableFn;
+//     type ThunkOf<'a, A>: Clone;
+// }
+//
+// impl LazyConfig for sealed::RcLazyConfig {
+//     type PtrBrand = RcBrand;
+//     type OnceBrand = OnceCellBrand;
+//     type FnBrand = RcFnBrand;
+//     type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
+// }
+// ```
+//
+// #### Limitations of Type-State Pattern
+//
+// 1. **Reduced Extensibility**: Third-party brands cannot integrate with Lazy
+//    without forking the library, since only pre-defined configs exist.
+//
+// 2. **Generic Programming Difficulty**: Code generic over "any valid Lazy
+//    config" becomes verbose: `fn foo<C: LazyConfig>(lazy: Lazy<C, A>)` vs
+//    the current approach where bounds are more composable.
+//
+// 3. **Module Structure Coupling**: The sealed module pattern requires all
+//    valid combinations to be defined in the library crate.
+//
+// #### Current Decision
+//
+// We keep `ValidLazyCombination` unsealed but document that:
+// - Only library-defined impls are tested and guaranteed sound
+// - Third-party impls are at the implementor's risk
+// - The trait's purpose is compile-time validation, not runtime safety
+//
+// This balances extensibility with safety. If stricter sealing is needed
+// later, the type-state pattern can be adopted as a breaking change.
 ````
 
 #### Alternative Considered: 5th Type Parameter for Thunk Brand
@@ -846,15 +934,32 @@ impl ThunkWrapper for RcBrand {
 }
 
 impl ThunkWrapper for ArcBrand {
-    type Cell<T> = std::sync::Mutex<Option<T>>;
-    fn new_cell<T>(value: Option<T>) -> Self::Cell<T> { Mutex::new(value) }
-    // Gracefully handle mutex poisoning: if another thread panicked while
-    // holding the lock, we can still safely take the value since we're just
-    // moving it out of the Option.
+    /// Uses `parking_lot::ReentrantMutex` instead of `std::sync::Mutex`.
+    ///
+    /// ### Why ReentrantMutex?
+    ///
+    /// Standard `Mutex` would deadlock if a thunk recursively forces the same
+    /// `Lazy` value (e.g., a cyclic lazy graph). While this is typically a
+    /// programmer error, it's better to detect and report it rather than hang.
+    ///
+    /// With `ReentrantMutex`:
+    /// - Same-thread re-entry succeeds (lock is already held)
+    /// - `take()` returns `None` on re-entry (thunk already taken)
+    /// - `force_ref` sees `None` and can report the cycle error
+    ///
+    /// ### Dependency
+    ///
+    /// Requires `parking_lot` crate in `Cargo.toml`:
+    /// ```toml
+    /// [dependencies]
+    /// parking_lot = "0.12"
+    /// ```
+    type Cell<T> = parking_lot::ReentrantMutex<Option<T>>;
+    fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
+        parking_lot::ReentrantMutex::new(value)
+    }
     fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
-        cell.lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take()
+        cell.lock().take()
     }
 }
 ````
@@ -892,8 +997,21 @@ where
     (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
 {
     /// The memoized result (computed at most once).
-    /// Stores `Result<A, LazyError>` to capture both successful values and errors.
-    once: <OnceBrand as Once>::Of<Result<A, LazyError>>,
+    /// Stores `Result<A, Arc<LazyError>>` to capture both successful values and errors.
+    ///
+    /// ### Why `Arc<LazyError>`?
+    ///
+    /// Using `Arc<LazyError>` instead of plain `LazyError` ensures that ALL clones
+    /// of a poisoned `Lazy` see the same error with the same panic message. Without
+    /// `Arc`, secondary callers would need to construct a new `LazyError::poisoned()`
+    /// without the original panic message.
+    ///
+    /// With `Arc<LazyError>`:
+    /// - First caller creates `Arc::new(LazyError::from_panic(payload))`
+    /// - Cell stores this `Arc<LazyError>`
+    /// - All subsequent callers get `Arc::clone()` of the same error
+    /// - Everyone sees the original panic message
+    once: <OnceBrand as Once>::Of<Result<A, Arc<LazyError>>>,
     /// The thunk, wrapped in ThunkWrapper::Cell for interior mutability.
     /// Cleared after forcing to free captured values.
     /// Uses `ValidLazyCombination::ThunkOf` to ensure correct Send+Sync bounds.
@@ -994,23 +1112,28 @@ where
 
 ````rust
 use thiserror::Error;
-use std::any::Any;
+use std::sync::Arc;
 
 /// Error type for lazy evaluation failures.
 ///
-/// Stores the panic payload for debugging purposes. This provides access to
-/// the original panic message when a thunk panics during evaluation.
+/// Stores the panic message as an `Arc<str>` for thread-safe sharing across clones.
+/// This design ensures `LazyError` is both `Send` and `Sync`, which is required
+/// for `ArcLazy` to be usable across threads.
 ///
-/// ### Why Store the Panic Payload?
+/// ### Why `Arc<str>` Instead of Raw Panic Payload?
 ///
-/// When a thunk panics, the panic message often contains crucial debugging
-/// information (file/line, assertion messages, etc.). Discarding this
-/// information makes debugging significantly harder. By storing the payload,
-/// users can:
+/// The raw panic payload from `catch_unwind` is `Box<dyn Any + Send>`, which is
+/// `Send` but **not `Sync`**. Storing it directly would make `LazyError` `!Sync`,
+/// which would propagate to make `ArcLazy` `!Send` (since `Arc<T>` requires
+/// `T: Send + Sync` to be `Send`).
 ///
-/// 1. Log the original panic message
-/// 2. Display it in error reports
-/// 3. Re-panic with the original payload if desired
+/// By extracting the panic message eagerly as `Arc<str>`:
+/// 1. `LazyError` is `Send + Sync`
+/// 2. `ArcLazy` can be shared across threads
+/// 3. All clones see the same error message
+///
+/// The tradeoff is that we lose the ability to re-panic with the original payload,
+/// but this is rarely needed and the thread-safety benefit is essential.
 ///
 /// ### Example
 ///
@@ -1022,69 +1145,46 @@ use std::any::Any;
 /// match Lazy::force_ref(&lazy) {
 ///     Ok(value) => println!("Got: {}", value),
 ///     Err(e) => {
-///         // Access the original panic message
+///         // Access the panic message
 ///         if let Some(msg) = e.panic_message() {
 ///             eprintln!("Thunk panicked: {}", msg);
 ///         }
 ///     }
 /// }
 /// ```
-#[derive(Debug, Error)]
-#[error("thunk panicked during evaluation{}", .0.as_ref().and_then(|p| p.panic_message()).map(|m| format!(": {}", m)).unwrap_or_default())]
-pub struct LazyError(Option<PanicPayload>);
-
-/// Wrapper for panic payload that provides helper methods.
-#[derive(Debug)]
-pub struct PanicPayload(Box<dyn Any + Send + 'static>);
-
-impl PanicPayload {
-    /// Creates a new PanicPayload from a caught panic.
-    pub fn new(payload: Box<dyn Any + Send + 'static>) -> Self {
-        Self(payload)
-    }
-
-    /// Attempts to extract the panic message as a string.
-    ///
-    /// Returns `Some(&str)` if the panic was created with `panic!("message")`
-    /// or `panic!("{}", string)`. Returns `None` for other panic types.
-    pub fn panic_message(&self) -> Option<&str> {
-        self.0.downcast_ref::<&str>().copied()
-            .or_else(|| self.0.downcast_ref::<String>().map(|s| s.as_str()))
-    }
-
-    /// Returns the raw panic payload for advanced use cases.
-    ///
-    /// This can be used with `std::panic::resume_unwind` to re-panic
-    /// with the original payload.
-    pub fn into_inner(self) -> Box<dyn Any + Send + 'static> {
-        self.0
-    }
-}
+#[derive(Debug, Clone, Error)]
+#[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
+pub struct LazyError(Option<Arc<str>>);
 
 impl LazyError {
     /// Creates a LazyError from a caught panic payload.
-    pub fn from_panic(payload: Box<dyn Any + Send + 'static>) -> Self {
-        Self(Some(PanicPayload::new(payload)))
+    ///
+    /// Extracts the panic message eagerly as `Arc<str>` for thread-safe sharing.
+    /// If the payload is not a string type, stores a generic message.
+    pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+        let message: Arc<str> = payload.downcast::<&str>()
+            .map(|s| Arc::from(*s))
+            .or_else(|p| p.downcast::<String>().map(|s| Arc::from(s.as_str())))
+            .unwrap_or_else(|_| Arc::from("non-string panic payload"));
+        Self(Some(message))
     }
 
-    /// Creates a LazyError without a payload (e.g., for secondary access after poisoning).
+    /// Creates a LazyError without a message (should not normally be used).
+    ///
+    /// This exists for API completeness but `from_panic` should be preferred
+    /// since it preserves the error message. With `Arc<LazyError>` storage,
+    /// all clones see the same error anyway.
     pub fn poisoned() -> Self {
         Self(None)
     }
 
     /// Returns the panic message if available.
-    ///
-    /// Returns `None` if:
-    /// - This is a secondary error (thunk already panicked on a different clone)
-    /// - The panic payload was not a string type
     pub fn panic_message(&self) -> Option<&str> {
-        self.0.as_ref().and_then(|p| p.panic_message())
+        self.0.as_deref()
     }
 
-    /// Returns true if this error contains the original panic payload.
-    ///
-    /// Returns false for secondary errors on clones that weren't the first to force.
-    pub fn has_payload(&self) -> bool {
+    /// Returns true if this error contains a panic message.
+    pub fn has_message(&self) -> bool {
         self.0.is_some()
     }
 }
@@ -1170,8 +1270,8 @@ where
         let inner = &*this.0;  // Deref through pointer
         
         // Use get_or_init (stable) instead of get_or_try_init (nightly).
-        // The cell stores Result<A, LazyError>, so we can use the stable API.
-        let result: &Result<A, LazyError> = <OnceBrand as Once>::get_or_init(&inner.once, || {
+        // The cell stores Result<A, Arc<LazyError>>, so we can use the stable API.
+        let result: &Result<A, Arc<LazyError>> = <OnceBrand as Once>::get_or_init(&inner.once, || {
             // Take the thunk (clears it to None).
             // This cannot be None because get_or_init guarantees the closure runs exactly once,
             // and we only take the thunk inside this closure.
@@ -1181,13 +1281,12 @@ where
             // Catch panics from the thunk, preserving the panic payload for debugging.
             // AssertUnwindSafe is safe here - see doc comment above.
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| thunk(())))
-                .map_err(LazyError::from_panic)
+                .map_err(|payload| Arc::new(LazyError::from_panic(payload)))
         });
         
-        // Convert &Result<A, LazyError> to Result<&A, LazyError>
-        // For secondary access (already poisoned), we create a LazyError::poisoned()
-        // since the original payload is already stored in the cell.
-        result.as_ref().map_err(|_| LazyError::poisoned())
+        // Convert &Result<A, Arc<LazyError>> to Result<&A, LazyError>
+        // Clone the Arc<LazyError> so all callers see the same error with message.
+        result.as_ref().map_err(|e| (**e).clone())
     }
 
     /// Forces the evaluation and returns a cloned value.
@@ -1203,6 +1302,21 @@ where
     ///
     /// This clones the cached value on every call. If you need repeated
     /// access without cloning, use `force_ref` instead.
+    /// ### A: Clone Bound Limitation
+    ///
+    /// This method requires `A: Clone` because shared memoization semantics
+    /// mean multiple callers may need the value simultaneously. Alternatives
+    /// considered:
+    ///
+    /// 1. **Return `&A` only**: Requires callers to clone manually, less ergonomic
+    /// 2. **`Lazy<Rc<A>>`/`Lazy<Arc<A>>`**: User can wrap value if cloning is expensive
+    /// 3. **`try_into_result`**: Enables taking ownership when Lazy is unique
+    ///
+    /// This is an accepted limitation of the shared memoization design. Users
+    /// needing to avoid cloning should:
+    /// - Use `force_ref` and work with references
+    /// - Wrap expensive-to-clone values in `Rc`/`Arc` before storing in `Lazy`
+    /// - Use `try_into_result` when the `Lazy` has a single owner
     pub fn force(this: &Self) -> Result<A, LazyError>
     where
         A: Clone,
@@ -1317,6 +1431,17 @@ where
         <OnceBrand as Once>::get(&inner.once)
             .map(|r| r.is_err())
             .unwrap_or(false)
+    }
+    
+    /// Returns the stored error if the Lazy is poisoned.
+    ///
+    /// This provides access to the original panic message for debugging.
+    /// All clones see the same `LazyError` (via `Arc` sharing).
+    pub fn get_error(this: &Self) -> Option<LazyError> {
+        let inner = &*this.0;
+        <OnceBrand as Once>::get(&inner.once)
+            .and_then(|r| r.as_ref().err())
+            .map(|arc| (**arc).clone())
     }
 }
 
@@ -1463,23 +1588,28 @@ pub trait TryMonoid: TrySemigroup {
 // Note: Lazy does NOT implement Semigroup/Monoid because those traits
 // require total functions. A `combine` that can panic violates the
 // algebraic laws that users depend on. Use TrySemigroup/TryMonoid instead.
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> TrySemigroup for Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
+//
+// ### Why Separate Impls for RcLazy and ArcLazy?
+//
+// A generic impl `impl<P, O, F, A> TrySemigroup for Lazy<P, O, F, A>` would use
+// `ClonableFn::Of` for the thunk, but `ArcLazy` requires `SendClonableFn::SendOf`
+// (with `Send + Sync` bounds). The captured `x` and `y` values in the closure
+// must be `Send + Sync` for the combined lazy to be thread-safe.
+//
+// By providing separate impls:
+// - `RcLazy` uses `ClonableFn::new` (no thread-safety requirement)
+// - `ArcLazy` uses `SendClonableFn::send_clonable_fn_new` (requires Send + Sync)
+
+// TrySemigroup for RcLazy (single-threaded)
+impl<'a, A> TrySemigroup for RcLazy<'a, A>
 where
-    PtrBrand: RefCountedPointer + ThunkWrapper,
-    OnceBrand: Once,
-    FnBrand: ClonableFn,
-    (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
     A: Semigroup + Clone + 'a,
 {
     type Error = LazyError;
     
     fn try_combine(x: Self, y: Self) -> Result<Self, LazyError> {
-        // Return a NEW lazy value that defers forcing until demanded.
-        // This preserves lazy semantics: building a combined lazy doesn't
-        // force either input, and errors only surface when the result is forced.
-        Ok(Lazy::new(<FnBrand as ClonableFn>::new(move |_| {
-            // Force happens here, at the time the combined lazy is forced.
-            // Panics from x or y will be caught by force_ref's catch_unwind.
+        // Use ClonableFn::new since RcLazy doesn't require Send + Sync
+        Ok(Lazy::new(<RcFnBrand as ClonableFn>::new(move |_| {
             let a = Lazy::force_or_panic(&x);
             let b = Lazy::force_or_panic(&y);
             A::combine(a, b)
@@ -1487,18 +1617,41 @@ where
     }
 }
 
-// TryMonoid: identity element for lazy values
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> TryMonoid for Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
+// TrySemigroup for ArcLazy (thread-safe)
+// Requires A: Send + Sync for the closure to be Send + Sync
+impl<'a, A> TrySemigroup for ArcLazy<'a, A>
 where
-    PtrBrand: RefCountedPointer + ThunkWrapper,
-    OnceBrand: Once,
-    FnBrand: ClonableFn,
-    (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
+    A: Semigroup + Clone + Send + Sync + 'a,
+{
+    type Error = LazyError;
+    
+    fn try_combine(x: Self, y: Self) -> Result<Self, LazyError> {
+        // Use SendClonableFn::send_clonable_fn_new for thread-safe thunk
+        Ok(Lazy::new(<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(move |_| {
+            let a = Lazy::force_or_panic(&x);
+            let b = Lazy::force_or_panic(&y);
+            A::combine(a, b)
+        })))
+    }
+}
+
+// TryMonoid for RcLazy (single-threaded)
+impl<'a, A> TryMonoid for RcLazy<'a, A>
+where
     A: Monoid + Clone + 'a,
 {
     fn try_empty() -> Self {
-        // The identity element never fails - it's just a constant
-        Lazy::new(<FnBrand as ClonableFn>::new(|_| A::empty()))
+        Lazy::new(<RcFnBrand as ClonableFn>::new(|_| A::empty()))
+    }
+}
+
+// TryMonoid for ArcLazy (thread-safe)
+impl<'a, A> TryMonoid for ArcLazy<'a, A>
+where
+    A: Monoid + Clone + Send + Sync + 'a,
+{
+    fn try_empty() -> Self {
+        Lazy::new(<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|_| A::empty()))
     }
 }
 
