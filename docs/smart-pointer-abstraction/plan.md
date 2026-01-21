@@ -2421,28 +2421,29 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
                    panic!("intentional test panic")
                })
            ));
-           
+
            let lazy1 = lazy.clone();
            let lazy2 = lazy.clone();
-           
-           let t1 = thread::spawn(move || {
-               std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                   Lazy::force(&*lazy1)
-               }))
-           });
-           let t2 = thread::spawn(move || {
-               std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                   Lazy::force(&*lazy2)
-               }))
-           });
-           
-           // Both threads should see the error (either ThunkPanicked from catching,
-           // or the panic propagated)
+
+           let t1 = thread::spawn(move || Lazy::force(&*lazy1));
+           let t2 = thread::spawn(move || Lazy::force(&*lazy2));
+
            let r1 = t1.join().unwrap();
            let r2 = t2.join().unwrap();
-           
-           // At least one should have caught the error
-           assert!(r1.is_ok() || r2.is_ok());
+
+           // BOTH threads should see Err(LazyError), not Ok
+           assert!(r1.is_err());
+           assert!(r2.is_err());
+
+           // Both should see the same panic message
+           assert_eq!(
+               r1.unwrap_err().panic_message(),
+               Some("intentional test panic")
+           );
+           assert_eq!(
+               r2.unwrap_err().panic_message(),
+               Some("intentional test panic")
+           );
        });
    }
    ```
