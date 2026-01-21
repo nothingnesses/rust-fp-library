@@ -55,21 +55,47 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
       type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
   }
   ```
-* \[ ] Define `LazyError` unit struct for panic-safe lazy evaluation:
+* \[ ] Define `LazyError` struct with panic payload for debugging:
   ```rust
+  use thiserror::Error;
+  use std::any::Any;
+
   /// Error type for lazy evaluation failures.
-  /// A unit struct since only one error state is reachable (thunk panicked).
-  #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-  pub struct LazyError;
+  /// Stores the panic payload for debugging purposes.
+  #[derive(Debug, Error)]
+  #[error("thunk panicked during evaluation{}", .0.as_ref().and_then(|p| p.panic_message()).map(|m| format!(": {}", m)).unwrap_or_default())]
+  pub struct LazyError(Option<PanicPayload>);
+
+  /// Wrapper for panic payload with helper methods.
+  #[derive(Debug)]
+  pub struct PanicPayload(Box<dyn Any + Send + 'static>);
   ```
-* \[ ] Define `UnsizedCoercible` trait for third-party `FnBrand` support:
+* \[ ] Implement `LazyError::from_panic(payload)` constructor
+* \[ ] Implement `LazyError::poisoned()` for secondary access errors
+* \[ ] Implement `LazyError::panic_message() -> Option<&str>`
+* \[ ] Implement `PanicPayload::panic_message() -> Option<&str>` (downcast to \&str or String)
+* \[ ] Implement `PanicPayload::into_inner()` for re-panicking
+* \[ ] Add `thiserror = "1.0"` to dependencies in `fp-library/Cargo.toml`
+* \[ ] Define `UnsizedCoercible` trait for basic function coercion:
   ```rust
+  /// Trait for pointer brands that can coerce to `dyn Fn`.
   pub trait UnsizedCoercible: RefCountedPointer {
       fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
-      fn coerce_fn_send<'a, A, B>(f: impl 'a + Fn(A) -> B + Send + Sync) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
   }
   ```
-* \[ ] Implement `UnsizedCoercible` for `RcBrand` and `ArcBrand`
+* \[ ] Define `SendUnsizedCoercible` extension trait for thread-safe coercion:
+  ```rust
+  /// Extension trait for thread-safe function coercion.
+  /// Follows ClonableFn → SendClonableFn pattern.
+  pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
+      fn coerce_fn_send<'a, A, B>(
+          f: impl 'a + Fn(A) -> B + Send + Sync
+      ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+  }
+  ```
+* \[ ] Implement `UnsizedCoercible` for `RcBrand` (basic coercion only)
+* \[ ] Implement `UnsizedCoercible` for `ArcBrand`
+* \[ ] Implement `SendUnsizedCoercible` for `ArcBrand` only (not RcBrand)
 * \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init`.
 * \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
@@ -154,9 +180,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement blanket `ClonableFn` for `FnBrand<P: UnsizedCoercible>` using `P::coerce_fn`
 * \[ ] Implement blanket `Semigroupoid` for `FnBrand<P: UnsizedCoercible>`
 * \[ ] Implement blanket `Category` for `FnBrand<P: UnsizedCoercible>`
-* \[ ] Implement blanket `SendClonableFn` for `FnBrand<P: UnsizedCoercible + SendRefCountedPointer>` using `P::coerce_fn_send`
-* \[ ] Verify `FnBrand<RcBrand>` does NOT implement `SendClonableFn` (RcBrand not SendRefCountedPointer)
-* \[ ] Note: Third-party brands automatically get FnBrand support by implementing `UnsizedCoercible`
+* \[ ] Implement blanket `SendClonableFn` for `FnBrand<P: SendUnsizedCoercible>` using `P::coerce_fn_send`
+* \[ ] Verify `FnBrand<RcBrand>` does NOT implement `SendClonableFn` (RcBrand doesn't impl SendUnsizedCoercible)
+* \[ ] Note: Third-party brands get FnBrand support by implementing `UnsizedCoercible`
+* \[ ] Note: Thread-safe third-party brands additionally implement `SendUnsizedCoercible`
 
 ### 2.3 Remove Old Files
 
@@ -235,7 +262,13 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Cell stores `Result<A, LazyError>`, so stable API suffices
   * \[ ] On first call: takes thunk via `PtrBrand::take` with `expect()` (unreachable None)
   * \[ ] Wraps thunk call in `catch_unwind` with `AssertUnwindSafe` for panic safety
-  * \[ ] Document `AssertUnwindSafe` invariant: thunk taken before invocation, Result captures state
+  * \[ ] Use `LazyError::from_panic(payload)` to preserve panic message for debugging
+  * \[ ] Use `LazyError::poisoned()` for secondary access (result already in cell)
+  * \[ ] Document `AssertUnwindSafe` invariant with detailed safety analysis:
+    * Thunk ownership transferred (taken) before invocation
+    * Result captures outcome (OnceCell stores Result\<A, LazyError>)
+    * No shared mutable state during execution
+    * Single-writer guarantee from OnceCell::get\_or\_init
   * \[ ] Returns `Ok(&A)` on success, `Err(LazyError)` if thunk panics
   * \[ ] Note: ThunkConsumed case unreachable due to `get_or_init`'s single-execution guarantee
 * \[ ] Implement `Lazy::force(&self)` method returning `Result<A, LazyError>`
@@ -253,6 +286,12 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Returns `bool` indicating if value computed successfully (not poisoned)
 * \[ ] Implement `Lazy::is_poisoned(&self)` method
   * \[ ] Returns `bool` indicating if thunk panicked during evaluation
+* \[ ] Implement `Lazy::try_into_result(self) -> Result<Result<A, LazyError>, Self>` method
+  * \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
+  * \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
+  * \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
+  * \[ ] Returns `Err(self)` if shared or not yet forced
+  * \[ ] Note: Requires `RefCountedPointer::try_unwrap` extension (deferred)
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone and Debug Implementation
@@ -270,15 +309,19 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Create `fp-library/src/classes/try_semigroup.rs` with `TrySemigroup` trait
 * \[ ] Create `fp-library/src/classes/try_monoid.rs` with `TryMonoid` trait
 * \[ ] Implement `TrySemigroup` for `Lazy` where `A: Semigroup + Clone`
-  * \[ ] `try_combine` forces both, propagates errors, returns new Lazy with combined result
+  * \[ ] `try_combine` returns NEW lazy that defers forcing until demanded (truly lazy)
+  * \[ ] Inner closure captures x and y, forces both at evaluation time
+  * \[ ] Panics from x or y are caught by force\_ref's catch\_unwind
   * \[ ] Type Error = LazyError
 * \[ ] Implement `TryMonoid` for `Lazy` where `A: Monoid + Clone`
   * \[ ] `try_empty` creates `Lazy` returning `Monoid::empty()` (never fails)
-* \[ ] Implement `Semigroup` for `Lazy` delegating to `TrySemigroup`:
-  * \[ ] `combine` calls `try_combine` then `expect()` with helpful message
-  * \[ ] Document: panics if thunk fails; prefer `TrySemigroup` for safe composition
-* \[ ] Implement `Monoid` for `Lazy` delegating to `TryMonoid`:
-  * \[ ] `empty` calls `try_empty()`
+* \[ ] **DO NOT** implement `Semigroup` for `Lazy`:
+  * \[ ] Rationale: Semigroup laws require total functions
+  * \[ ] A panicking `combine` violates algebraic laws users depend on
+  * \[ ] Document: use `TrySemigroup::try_combine` for safe composition
+* \[ ] **DO NOT** implement `Monoid` for `Lazy`:
+  * \[ ] Same rationale as Semigroup
+  * \[ ] `try_empty` from TryMonoid is always safe
 * \[ ] Implement `Defer` for `LazyBrand<PtrBrand, OnceBrand, FnBrand>`
   * \[ ] `defer(f)` creates `Lazy` that calls f, then forces result using `force_or_panic`
   * \[ ] Inner Lazy created on-demand when outer is forced (optimisation)
@@ -316,16 +359,18 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] **Panic safety test**: `force_ref` returns `Err(LazyError)` when thunk panics
 * \[ ] **Panic safety test**: All clones see `Err(LazyError)` after panic (shared poisoned state)
 * \[ ] Unit test: `force_or_panic` panics with appropriate message on error
-* \[ ] Unit test: `TrySemigroup::try_combine` returns `Ok(combined)` on success
-* \[ ] Unit test: `TrySemigroup::try_combine` returns `Err(LazyError)` when thunk fails
-* \[ ] Unit test: `Semigroup::combine` works correctly (delegates to TrySemigroup)
-* \[ ] Unit test: `Monoid::empty` works correctly
+* \[ ] Unit test: `TrySemigroup::try_combine` returns lazy that computes combined value
+* \[ ] Unit test: `TrySemigroup::try_combine` defers forcing (truly lazy semantics)
+* \[ ] Unit test: `TrySemigroup::try_combine` result's force returns `Err(LazyError)` when inner thunk fails
+* \[ ] Unit test: `TryMonoid::try_empty` works correctly
+* \[ ] Compile-fail test: `Lazy` does NOT implement `Semigroup`
+* \[ ] Compile-fail test: `Lazy` does NOT implement `Monoid`
 * \[ ] Unit test: `Debug` shows "Lazy::Unforced" before forcing
 * \[ ] Unit test: `Debug` shows "Lazy::Forced(value)" after forcing
 * \[ ] Unit test: `Debug` shows "Lazy::Poisoned" after panic
 * \[ ] Unit test: `Defer::defer` works correctly
-* \[ ] Property test: Semigroup associativity law
-* \[ ] Property test: Monoid identity laws
+* \[ ] Property test: TrySemigroup associativity law (when all succeed)
+* \[ ] Property test: TryMonoid identity laws (when all succeed)
 * \[ ] Compile-fail test: `RcLazy` is `!Send`
 * \[ ] Compile-success test: `ArcLazy<A: Send + Sync>` is `Send + Sync`
 * \[ ] Compile-fail test: `Lazy<ArcBrand, OnceCellBrand, ArcFnBrand, _>` fails (ValidLazyCombination)
@@ -433,8 +478,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `SendRefCountedPointer` extension trait with `SendOf` for thread-safe pointers
   - `ThunkWrapper` trait for pointer-brand-specific thunk storage
   - `ValidLazyCombination` marker trait with `ThunkOf` associated type enforcing valid PtrBrand/OnceBrand/FnBrand triples and selecting correct thunk type for thread safety
-  - `LazyError` unit struct for thunk panic failures
-  - `UnsizedCoercible` trait for third-party FnBrand support
+  - `LazyError` struct with panic payload for debugging
+  - `PanicPayload` wrapper with `panic_message()` and `into_inner()` methods
+  - `UnsizedCoercible` trait for basic function coercion
+  - `SendUnsizedCoercible` trait for thread-safe function coercion
   - `TrySemigroup` trait for fallible semigroup operations
   - `TryMonoid` trait for fallible monoid operations
   - `RcBrand` and `ArcBrand` implementing the pointer hierarchy
@@ -475,19 +522,25 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 8. **Panic-safe evaluation with stable Rust**: `force_ref` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
 
-9. **LazyError unit struct**: Simplified from enum since only one error state is reachable (thunk panicked). The ThunkConsumed case is unreachable due to `get_or_init`'s single-execution guarantee.
+9. **LazyError with panic payload**: Stores the original panic payload for debugging. `LazyError::from_panic(payload)` captures the payload, `LazyError::poisoned()` creates secondary errors without payload. `PanicPayload::panic_message()` attempts to extract string messages via downcasting.
 
 10. **Triple force methods**: `force_ref(&self) -> Result<&A, LazyError>` for explicit error handling; `force(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience
 
 11. **AssertUnwindSafe invariant**: The `catch_unwind` in `force_ref` uses `AssertUnwindSafe` safely because: (1) thunk is taken before invocation, (2) Result stored in OnceCell captures panic state, (3) no mutable references to shared state exist during thunk execution
 
-12. **UnsizedCoercible trait**: Enables blanket `FnBrand` implementations for any pointer brand, eliminating the need for macros. Third-party brands just implement `coerce_fn` and `coerce_fn_send`.
+12. **UnsizedCoercible/SendUnsizedCoercible traits**: Two-level hierarchy following ClonableFn → SendClonableFn pattern. `UnsizedCoercible` provides basic function coercion, `SendUnsizedCoercible` adds thread-safe coercion. RcBrand only implements `UnsizedCoercible` (no panicking methods).
 
-13. **TrySemigroup/TryMonoid traits**: Provide safe fallible composition for types like `Lazy` where operations can fail. `Semigroup::combine` delegates to `TrySemigroup::try_combine` with panic on error.
+13. **TrySemigroup/TryMonoid only (no Semigroup/Monoid)**: Lazy does NOT implement Semigroup or Monoid because those traits require total functions. A panicking `combine` violates algebraic laws. Users must use `TrySemigroup::try_combine` which makes fallibility explicit.
 
-14. **Debug implementation**: Shows `Lazy::Unforced`, `Lazy::Forced(value)`, or `Lazy::Poisoned` depending on current state, requires `A: Debug`.
+14. **Lazy TrySemigroup is truly lazy**: `try_combine` returns a NEW lazy that defers forcing until demanded. This preserves lazy semantics and allows building lazy computations without immediate failure.
 
-15. **Loom concurrency testing**: Exhaustive testing of all thread interleavings for `ArcLazy` to verify correct synchronization.
+15. **Debug implementation**: Shows `Lazy::Unforced`, `Lazy::Forced(value)`, or `Lazy::Poisoned` depending on current state, requires `A: Debug`.
+
+16. **try\_into\_result method**: Allows extracting owned value from unique Lazy reference without cloning. Returns `Err(self)` if shared or not yet forced.
+
+17. **ValidLazyCombination impl-for-() pattern**: Uses "type witness" pattern where `()` carries the impl. The constraint `(): ValidLazyCombination<P, O, F>` means "unit type has impl for this combination". This is idiomatic Rust for compile-time validation.
+
+18. **Loom concurrency testing**: Exhaustive testing of all thread interleavings for `ArcLazy` to verify correct synchronization.
 
 ### Files Summary
 
@@ -539,16 +592,22 @@ The most important tests are:
    assert_eq!(counter.get(), 1);  // Still 1 - shared!
    ```
 
-2. **Panic safety test** (must pass):
+2. **Panic safety test with message** (must pass):
    ```rust
    let lazy = RcLazy::new(
-       clonable_fn_new::<RcFnBrand, _, _>(|_| -> i32 { panic!("oops") })
+       clonable_fn_new::<RcFnBrand, _, _>(|_| -> i32 { panic!("computation failed") })
    );
    let lazy2 = lazy.clone();
 
-   assert_eq!(Lazy::force_ref(&lazy), Err(LazyError));
-   // Second call on any clone also sees the error (shared poisoned state)
-   assert_eq!(Lazy::force_ref(&lazy2), Err(LazyError));
+   let err = Lazy::force_ref(&lazy).unwrap_err();
+   // First caller gets the original panic message
+   assert_eq!(err.panic_message(), Some("computation failed"));
+   assert!(err.has_payload());
+
+   // Second call on any clone sees poisoned error (no payload)
+   let err2 = Lazy::force_ref(&lazy2).unwrap_err();
+   assert_eq!(err2.panic_message(), None);
+   assert!(!err2.has_payload());
    ```
 
 3. **Thread safety test** (for ArcLazy):

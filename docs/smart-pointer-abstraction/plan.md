@@ -735,6 +735,31 @@ pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {
     type ThunkOf<'a, A>: Clone;
 }
 
+// ### Why `impl ... for ()` Instead of a Tuple Type?
+//
+// You might expect the impl to be on the combination tuple itself:
+// ```rust
+// impl ValidLazyCombination for (RcBrand, OnceCellBrand, RcFnBrand) { ... }
+// ```
+//
+// However, this pattern has a problem: the trait would need to be defined
+// without type parameters, making it impossible to associate the types
+// with the constraint. Instead, we use what's called the "type witness"
+// or "zero-sized type as impl carrier" pattern:
+//
+// 1. The trait takes the combination as TYPE PARAMETERS
+// 2. We impl the trait FOR the unit type `()`
+// 3. The constraint `(): ValidLazyCombination<P, O, F>` then means
+//    "the unit type has an impl for this specific combination"
+//
+// This pattern is common in Rust for compile-time validation:
+// - `serde`'s `Serialize` bounds sometimes use similar tricks
+// - The `frunk` crate uses this for HList operations
+// - The standard library's `PhantomData` patterns
+//
+// The key insight: `()` is just a convenient type to hang the impl on.
+// Any zero-sized type would work, but `()` is conventional and clear.
+
 impl ValidLazyCombination<RcBrand, OnceCellBrand, RcFnBrand> for () {
     // Single-threaded: use ClonableFn::Of (no Send + Sync)
     type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
@@ -967,22 +992,102 @@ where
 
 #### Implementation
 
-```rust
+````rust
+use thiserror::Error;
+use std::any::Any;
+
 /// Error type for lazy evaluation failures.
 ///
-/// This is a unit struct because only one error state is reachable:
-/// the thunk panicked during evaluation. The `Lazy` value becomes
-/// poisoned and cannot be forced again.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LazyError;
+/// Stores the panic payload for debugging purposes. This provides access to
+/// the original panic message when a thunk panics during evaluation.
+///
+/// ### Why Store the Panic Payload?
+///
+/// When a thunk panics, the panic message often contains crucial debugging
+/// information (file/line, assertion messages, etc.). Discarding this
+/// information makes debugging significantly harder. By storing the payload,
+/// users can:
+///
+/// 1. Log the original panic message
+/// 2. Display it in error reports
+/// 3. Re-panic with the original payload if desired
+///
+/// ### Example
+///
+/// ```rust
+/// let lazy = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+///     panic!("computation failed: invalid input");
+/// }));
+///
+/// match Lazy::force_ref(&lazy) {
+///     Ok(value) => println!("Got: {}", value),
+///     Err(e) => {
+///         // Access the original panic message
+///         if let Some(msg) = e.panic_message() {
+///             eprintln!("Thunk panicked: {}", msg);
+///         }
+///     }
+/// }
+/// ```
+#[derive(Debug, Error)]
+#[error("thunk panicked during evaluation{}", .0.as_ref().and_then(|p| p.panic_message()).map(|m| format!(": {}", m)).unwrap_or_default())]
+pub struct LazyError(Option<PanicPayload>);
 
-impl std::fmt::Display for LazyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "thunk panicked during evaluation")
+/// Wrapper for panic payload that provides helper methods.
+#[derive(Debug)]
+pub struct PanicPayload(Box<dyn Any + Send + 'static>);
+
+impl PanicPayload {
+    /// Creates a new PanicPayload from a caught panic.
+    pub fn new(payload: Box<dyn Any + Send + 'static>) -> Self {
+        Self(payload)
+    }
+
+    /// Attempts to extract the panic message as a string.
+    ///
+    /// Returns `Some(&str)` if the panic was created with `panic!("message")`
+    /// or `panic!("{}", string)`. Returns `None` for other panic types.
+    pub fn panic_message(&self) -> Option<&str> {
+        self.0.downcast_ref::<&str>().copied()
+            .or_else(|| self.0.downcast_ref::<String>().map(|s| s.as_str()))
+    }
+
+    /// Returns the raw panic payload for advanced use cases.
+    ///
+    /// This can be used with `std::panic::resume_unwind` to re-panic
+    /// with the original payload.
+    pub fn into_inner(self) -> Box<dyn Any + Send + 'static> {
+        self.0
     }
 }
 
-impl std::error::Error for LazyError {}
+impl LazyError {
+    /// Creates a LazyError from a caught panic payload.
+    pub fn from_panic(payload: Box<dyn Any + Send + 'static>) -> Self {
+        Self(Some(PanicPayload::new(payload)))
+    }
+
+    /// Creates a LazyError without a payload (e.g., for secondary access after poisoning).
+    pub fn poisoned() -> Self {
+        Self(None)
+    }
+
+    /// Returns the panic message if available.
+    ///
+    /// Returns `None` if:
+    /// - This is a secondary error (thunk already panicked on a different clone)
+    /// - The panic payload was not a string type
+    pub fn panic_message(&self) -> Option<&str> {
+        self.0.as_ref().and_then(|p| p.panic_message())
+    }
+
+    /// Returns true if this error contains the original panic payload.
+    ///
+    /// Returns false for secondary errors on clones that weren't the first to force.
+    pub fn has_payload(&self) -> bool {
+        self.0.is_some()
+    }
+}
 
 impl<'a, PtrBrand, OnceBrand, FnBrand, A> Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
 where
@@ -1034,15 +1139,33 @@ where
     /// ### Implementation Note: AssertUnwindSafe
     ///
     /// The `catch_unwind` call uses `AssertUnwindSafe` to wrap the thunk invocation.
-    /// This is safe because:
-    /// 1. The thunk is taken (moved out) before invocation, so panic cannot leave it
-    ///    in an inconsistent state
-    /// 2. The `OnceCell` stores the `Result`, so panic state is captured, not ignored
-    /// 3. No mutable references to shared state exist during thunk execution
+    /// This assertion is safe because the following invariants are maintained:
     ///
-    /// The invariant being upheld: after `take()`, the thunk field is `None` and stays
-    /// that way regardless of whether the thunk panics. The `Result` in the `OnceCell`
-    /// captures whether evaluation succeeded or failed.
+    /// 1. **Thunk ownership transfer**: The thunk is `take()`n (moved out) BEFORE
+    ///    invocation begins. The thunk cell transitions to `None` atomically with
+    ///    respect to this closure. If the thunk panics, it's already been consumed
+    ///    — there's no "partial thunk" state to worry about.
+    ///
+    /// 2. **Result captures outcome**: The `OnceCell` stores `Result<A, LazyError>`,
+    ///    explicitly modeling both success and failure. The panic is converted to
+    ///    `Err(LazyError)` and stored, ensuring all future accesses see the error
+    ///    rather than re-running the thunk.
+    ///
+    /// 3. **No shared mutable state during execution**: The thunk runs with NO
+    ///    references (mutable or otherwise) to the `LazyInner` structure. The
+    ///    `OnceCell::get_or_init` closure has captured `&inner`, but:
+    ///    - The thunk itself has been MOVED OUT of inner
+    ///    - The OnceCell is only written to AFTER the closure returns
+    ///    - No aliasing occurs during thunk execution
+    ///
+    /// 4. **Single-writer guarantee**: `OnceCell::get_or_init` ensures exactly one
+    ///    thread/call executes the initialization closure. Even with concurrent
+    ///    access via `ArcLazy`, only one thread runs the thunk.
+    ///
+    /// The key insight: `AssertUnwindSafe` is about asserting that catching a panic
+    /// won't violate memory safety. Here, the only state that could be corrupted is
+    /// the `LazyInner`, but we've ensured the thunk has no access to it during
+    /// execution, and the Result storage handles the panic case explicitly.
     pub fn force_ref(this: &Self) -> Result<&A, LazyError> {
         let inner = &*this.0;  // Deref through pointer
         
@@ -1055,14 +1178,16 @@ where
             let thunk = PtrBrand::take(&inner.thunk)
                 .expect("unreachable: get_or_init guarantees single execution");
             
-            // Catch panics from the thunk.
+            // Catch panics from the thunk, preserving the panic payload for debugging.
             // AssertUnwindSafe is safe here - see doc comment above.
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| thunk(())))
-                .map_err(|_| LazyError)
+                .map_err(LazyError::from_panic)
         });
         
         // Convert &Result<A, LazyError> to Result<&A, LazyError>
-        result.as_ref().map_err(|_| LazyError)
+        // For secondary access (already poisoned), we create a LazyError::poisoned()
+        // since the original payload is already stored in the cell.
+        result.as_ref().map_err(|_| LazyError::poisoned())
     }
 
     /// Forces the evaluation and returns a cloned value.
@@ -1099,6 +1224,57 @@ where
     {
         Self::force(this).expect("Lazy::force_or_panic failed")
     }
+
+    /// Attempts to extract the owned inner value if this is the sole reference.
+    ///
+    /// Returns `Ok(Ok(value))` if:
+    /// - This is the only reference to the Lazy (strong count == 1)
+    /// - The value has been computed successfully
+    ///
+    /// Returns `Ok(Err(LazyError))` if:
+    /// - This is the only reference
+    /// - The thunk panicked during evaluation
+    ///
+    /// Returns `Err(self)` if:
+    /// - There are other references to this Lazy
+    /// - The value has not been forced yet
+    ///
+    /// ### Use Cases
+    ///
+    /// This method enables extracting the final value without cloning when
+    /// the Lazy is no longer shared, which is useful for:
+    /// - Pipeline termination: `lazy.force(); let value = Lazy::try_into_result(lazy)?;`
+    /// - Resource cleanup: Take ownership of computed value
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// let lazy = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+    ///     vec![1, 2, 3, 4, 5]  // Expensive to clone
+    /// }));
+    ///
+    /// // Force evaluation
+    /// let _ = Lazy::force_ref(&lazy);
+    ///
+    /// // Extract owned value without cloning
+    /// match Lazy::try_into_result(lazy) {
+    ///     Ok(Ok(vec)) => println!("Got vec with {} elements", vec.len()),
+    ///     Ok(Err(e)) => println!("Thunk failed: {}", e),
+    ///     Err(lazy) => println!("Still shared, can't take ownership"),
+    /// }
+    /// ```
+    pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self> {
+        // For Rc: Rc::try_unwrap returns Err(self) if strong_count > 1
+        // For Arc: Arc::try_unwrap returns Err(self) if strong_count > 1
+        // We need a way to abstract this - adding to RefCountedPointer trait
+        // would be the cleanest approach.
+        //
+        // For now, we document that this requires the inner value to be
+        // accessible and forced. Implementation deferred to the type-specific
+        // impl blocks for RcLazy and ArcLazy.
+        todo!("Requires RefCountedPointer::try_unwrap - see implementation notes")
+    }
+
     /// Returns a reference to the inner value if already computed successfully, None otherwise.
     ///
     /// Does NOT force evaluation. Returns `None` if:
@@ -1177,7 +1353,7 @@ where
         }
     }
 }
-```
+````
 
 **Note on `Once` trait**: The `Once` trait does NOT require `get_or_try_init` (which is nightly-only). Instead, we store `Result<A, LazyError>` in the cell and use the stable `get_or_init`:
 
@@ -1276,7 +1452,17 @@ pub trait TryMonoid: TrySemigroup {
 ##### Lazy Type Class Implementations
 
 ```rust
-// TrySemigroup: safely combine lazy values, propagating errors
+// TrySemigroup: safely combine lazy values with deferred evaluation
+//
+// The combine operation is LAZY: neither x nor y is forced until the
+// resulting Lazy is itself forced. This is the correct semantic because:
+// 1. Preserves lazy evaluation benefits (compute only what's needed)
+// 2. Allows building lazy computations without immediate failure
+// 3. Errors are only surfaced when the result is actually demanded
+//
+// Note: Lazy does NOT implement Semigroup/Monoid because those traits
+// require total functions. A `combine` that can panic violates the
+// algebraic laws that users depend on. Use TrySemigroup/TryMonoid instead.
 impl<'a, PtrBrand, OnceBrand, FnBrand, A> TrySemigroup for Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
 where
     PtrBrand: RefCountedPointer + ThunkWrapper,
@@ -1288,13 +1474,15 @@ where
     type Error = LazyError;
     
     fn try_combine(x: Self, y: Self) -> Result<Self, LazyError> {
-        // Force both lazy values, propagating any errors
-        let a = Lazy::force(&x)?;
-        let b = Lazy::force(&y)?;
-        
-        // Create a new lazy value with the combined result (already computed)
+        // Return a NEW lazy value that defers forcing until demanded.
+        // This preserves lazy semantics: building a combined lazy doesn't
+        // force either input, and errors only surface when the result is forced.
         Ok(Lazy::new(<FnBrand as ClonableFn>::new(move |_| {
-            A::combine(a.clone(), b.clone())
+            // Force happens here, at the time the combined lazy is forced.
+            // Panics from x or y will be caught by force_ref's catch_unwind.
+            let a = Lazy::force_or_panic(&x);
+            let b = Lazy::force_or_panic(&y);
+            A::combine(a, b)
         })))
     }
 }
@@ -1314,40 +1502,20 @@ where
     }
 }
 
-// Standard Semigroup: kept for compatibility, delegates to TrySemigroup
-// Note: This can panic if underlying thunks fail. Prefer TrySemigroup for safety.
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Semigroup for Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
-where
-    PtrBrand: RefCountedPointer + ThunkWrapper,
-    OnceBrand: Once,
-    FnBrand: ClonableFn,
-    (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
-    A: Semigroup + Clone + 'a,
-{
-    /// Combines two lazy values.
-    ///
-    /// # Panics
-    ///
-    /// Panics if either lazy value's thunk fails during evaluation.
-    /// For safe composition, use `TrySemigroup::try_combine` instead.
-    fn combine(x: Self, y: Self) -> Self {
-        TrySemigroup::try_combine(x, y).expect("Semigroup::combine failed: use TrySemigroup for safe composition")
-    }
-}
-
-// Standard Monoid: kept for compatibility
-impl<'a, PtrBrand, OnceBrand, FnBrand, A> Monoid for Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>
-where
-    PtrBrand: RefCountedPointer + ThunkWrapper,
-    OnceBrand: Once,
-    FnBrand: ClonableFn,
-    (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
-    A: Monoid + Clone + 'a,
-{
-    fn empty() -> Self {
-        TryMonoid::try_empty()
-    }
-}
+// NOTE: Lazy does NOT implement Semigroup or Monoid.
+//
+// Rationale: Semigroup/Monoid laws require that `combine` be a total function.
+// Since Lazy's thunks can panic, any `combine` implementation would either:
+// 1. Panic (violating totality)
+// 2. Silently swallow errors (violating user expectations)
+// 3. Return a different type (violating the trait signature)
+//
+// Instead, users should use TrySemigroup::try_combine which explicitly
+// returns Result and makes the fallibility clear in the type signature.
+//
+// If you need to use Lazy with APIs that require Semigroup:
+// - Map over the lazy to lift the inner value, or
+// - Force the lazy first and work with the unwrapped value
 
 // Defer: create lazy from a thunk-producing thunk
 impl<PtrBrand, OnceBrand, FnBrand> Defer for LazyBrand<PtrBrand, OnceBrand, FnBrand>
@@ -1565,7 +1733,7 @@ This maintains the same pattern: the extension trait is only implemented for thr
 
 **Why this happens**: Rust's unsized coercion (`impl Fn` → `dyn Fn`) requires the compiler to know the concrete target type at the call site. In generic code like `P::cloneable_new(f)`, the compiler can't perform this coercion.
 
-**Solution**: Introduce an `UnsizedCoercible` trait that abstracts the coercion operation, enabling automatic `FnBrand` implementations for any pointer brand that implements it:
+**Solution**: Introduce a two-level trait hierarchy for unsized coercion: `UnsizedCoercible` for basic function coercion, and `SendUnsizedCoercible` (extending it) for thread-safe function coercion. This follows the same pattern as `ClonableFn` → `SendClonableFn` and eliminates the runtime panic for non-Send brands:
 
 ````rust
 // fp-library/src/classes/pointer.rs (continued)
@@ -1597,13 +1765,6 @@ This maintains the same pattern: the extension trait is only implemented for thr
 ///     fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B> {
 ///         MyRc::new(f)  // Concrete type enables unsized coercion
 ///     }
-///
-///     fn coerce_fn_send<'a, A, B>(f: impl 'a + Fn(A) -> B + Send + Sync) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>
-///     where
-///         Self: SendRefCountedPointer,
-///     {
-///         unimplemented!("MyRcBrand is not Send")
-///     }
 /// }
 /// ```
 pub trait UnsizedCoercible: RefCountedPointer {
@@ -1611,11 +1772,46 @@ pub trait UnsizedCoercible: RefCountedPointer {
     fn coerce_fn<'a, A, B>(
         f: impl 'a + Fn(A) -> B
     ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
-    
+}
+
+/// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
+///
+/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`:
+/// - `UnsizedCoercible` provides basic function coercion (`dyn Fn`)
+/// - `SendUnsizedCoercible` adds thread-safe coercion (`dyn Fn + Send + Sync`)
+///
+/// ### Why a Separate Trait?
+///
+/// Previously, `UnsizedCoercible` had a `coerce_fn_send` method that panicked
+/// for non-Send brands like `RcBrand`. This violated the principle of static
+/// type safety — if a method can't be meaningfully implemented, it shouldn't
+/// exist on that type.
+///
+/// By splitting into two traits:
+/// 1. `RcBrand` only implements `UnsizedCoercible` (no panicking methods)
+/// 2. `ArcBrand` implements both traits
+/// 3. `SendClonableFn` requires `SendUnsizedCoercible`, ensuring compile-time safety
+///
+/// ### Implementors
+///
+/// - `ArcBrand`: Implements both via `Arc::new`
+/// - `RcBrand`: Does NOT implement (Rc is !Send)
+/// - Third-party Send brands: Implement if their pointer is Send + Sync
+///
+/// ### Examples
+///
+/// ```rust
+/// // Third-party thread-safe implementation:
+/// impl SendUnsizedCoercible for MyArcBrand {
+///     fn coerce_fn_send<'a, A, B>(
+///         f: impl 'a + Fn(A) -> B + Send + Sync
+///     ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync> {
+///         MyArc::new(f)
+///     }
+/// }
+/// ```
+pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
     /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
-    ///
-    /// Only meaningful for `SendRefCountedPointer` implementors.
-    /// Other implementors should `unimplemented!()` or panic.
     fn coerce_fn_send<'a, A, B>(
         f: impl 'a + Fn(A) -> B + Send + Sync
     ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
@@ -1625,19 +1821,16 @@ impl UnsizedCoercible for RcBrand {
     fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
         Rc::new(f)
     }
-    
-    fn coerce_fn_send<'a, A, B>(
-        _f: impl 'a + Fn(A) -> B + Send + Sync
-    ) -> Rc<dyn 'a + Fn(A) -> B + Send + Sync> {
-        panic!("RcBrand does not support Send + Sync functions")
-    }
 }
+// Note: RcBrand does NOT implement SendUnsizedCoercible (Rc is !Send)
 
 impl UnsizedCoercible for ArcBrand {
     fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
         Arc::new(f)
     }
-    
+}
+
+impl SendUnsizedCoercible for ArcBrand {
     fn coerce_fn_send<'a, A, B>(
         f: impl 'a + Fn(A) -> B + Send + Sync
     ) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
@@ -1709,25 +1902,47 @@ impl<P: UnsizedCoercible + SendRefCountedPointer> SendClonableFn for FnBrand<P> 
 
 ```rust
 // In third-party crate:
-use fp_library::classes::pointer::{RefCountedPointer, UnsizedCoercible};
+use fp_library::classes::pointer::{
+    Pointer, RefCountedPointer, UnsizedCoercible, SendUnsizedCoercible
+};
 
+// Example 1: Single-threaded custom Rc (like RcBrand)
 pub struct MyRcBrand;
 
 impl Pointer for MyRcBrand { ... }
 impl RefCountedPointer for MyRcBrand { ... }
 
-// Just implement this trait to get FnBrand<MyRcBrand> support!
+// Just implement UnsizedCoercible to get FnBrand<MyRcBrand> support!
+// Note: NO coerce_fn_send method - MyRcBrand is not thread-safe.
 impl UnsizedCoercible for MyRcBrand {
     fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> MyRc<dyn 'a + Fn(A) -> B> {
         MyRc::new(f)
     }
-    
-    fn coerce_fn_send<'a, A, B>(_f: impl 'a + Fn(A) -> B + Send + Sync) -> MyRc<dyn 'a + Fn(A) -> B + Send + Sync> {
-        panic!("MyRcBrand is not thread-safe")
+}
+// FnBrand<MyRcBrand> now implements ClonableFn (but NOT SendClonableFn)!
+
+// Example 2: Thread-safe custom Arc (like ArcBrand)
+pub struct MyArcBrand;
+
+impl Pointer for MyArcBrand { ... }
+impl RefCountedPointer for MyArcBrand { ... }
+impl SendRefCountedPointer for MyArcBrand { ... }
+
+// Implement both traits for thread-safe brands
+impl UnsizedCoercible for MyArcBrand {
+    fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> MyArc<dyn 'a + Fn(A) -> B> {
+        MyArc::new(f)
     }
 }
 
-// FnBrand<MyRcBrand> now automatically implements ClonableFn!
+impl SendUnsizedCoercible for MyArcBrand {
+    fn coerce_fn_send<'a, A, B>(
+        f: impl 'a + Fn(A) -> B + Send + Sync
+    ) -> MyArc<dyn 'a + Fn(A) -> B + Send + Sync> {
+        MyArc::new(f)
+    }
+}
+// FnBrand<MyArcBrand> now implements BOTH ClonableFn AND SendClonableFn!
 ```
 
 ***
