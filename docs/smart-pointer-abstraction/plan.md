@@ -195,7 +195,7 @@ use std::ops::Deref;
 /// This is the minimal abstraction: any type that can wrap a value and
 /// dereference to it. Does NOT require Clone — that's added by subtraits.
 ///
-/// ### Type Signature (Haskell-like)
+/// ### Type Signature
 ///
 /// `class Pointer p where`
 /// `  type Of :: Type -> Type`
@@ -210,11 +210,11 @@ use std::ops::Deref;
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::pointer::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// // Generic over any pointer type
 /// fn wrap_value<P: Pointer>(value: i32) -> P::Of<i32> {
-///     P::new(value)
+///     pointer_new::<P, _>(value)
 /// }
 ///
 /// let boxed = wrap_value::<BoxBrand>(42);  // Future: Box<i32>
@@ -247,7 +247,7 @@ pub trait Pointer {
 /// `Pointer::Of`. For Rc/Arc, both types are identical; for Box, only `Of`
 /// would be implemented.
 ///
-/// ### Type Signature (Haskell-like)
+/// ### Type Signature
 ///
 /// `class Pointer p => RefCountedPointer p where`
 /// `  type CloneableOf :: Type -> Type`
@@ -261,11 +261,11 @@ pub trait Pointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::pointer::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// // Requires Clone capability
 /// fn shared_value<P: RefCountedPointer>(value: i32) -> P::CloneableOf<i32> {
-///     P::cloneable_new(value)
+///     ref_counted_new::<P, _>(value)
 /// }
 ///
 /// let rc = shared_value::<RcBrand>(42);  // Rc<i32>, can clone
@@ -300,11 +300,11 @@ pub trait RefCountedPointer: Pointer {
     ///
     /// ### Examples
     ///
-    /// ```rust
-    /// use fp_library::{brands::*, classes::pointer::*};
+    /// ```
+    /// use fp_library::{brands::*, classes::*, functions::*};
     ///
-    /// let ptr = RcBrand::cloneable_new(42);
-    /// match RcBrand::try_unwrap(ptr) {
+    /// let ptr = ref_counted_new::<RcBrand, _>(42);
+    /// match try_unwrap::<RcBrand, _>(ptr) {
     ///     Ok(value) => println!("Got owned value: {}", value),
     ///     Err(ptr) => println!("Still shared, value: {}", *ptr),
     /// }
@@ -335,7 +335,7 @@ pub trait RefCountedPointer: Pointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::pointer::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// // Require thread-safe pointer
 /// fn spawn_with_data<P: SendRefCountedPointer, T: Send + Sync>(
@@ -1088,7 +1088,7 @@ struct LazyInner<'a, Config: LazyConfig, A> {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 /// use std::cell::Cell;
 /// use std::rc::Rc;
 ///
@@ -1096,7 +1096,7 @@ struct LazyInner<'a, Config: LazyConfig, A> {
 /// let counter_clone = counter.clone();
 ///
 /// // Create lazy value with memoized computation
-/// let lazy = RcLazy::new(
+/// let lazy = lazy_new::<RcLazyConfig, _>(
 ///     clonable_fn_new::<RcFnBrand, _, _>(move |_| {
 ///         counter_clone.set(counter_clone.get() + 1);
 ///         42
@@ -1105,11 +1105,11 @@ struct LazyInner<'a, Config: LazyConfig, A> {
 ///
 /// let lazy2 = lazy.clone();  // Shares memoization state!
 ///
-/// assert_eq!(counter.get(), 0);             // Not yet computed
-/// assert_eq!(Lazy::force_cloned(&lazy), Ok(42));       // First force computes
-/// assert_eq!(counter.get(), 1);                        // Computed once
-/// assert_eq!(Lazy::force_cloned(&lazy2), Ok(42));      // Second force uses cache
-/// assert_eq!(counter.get(), 1);             // NOT recomputed - shared!
+/// assert_eq!(counter.get(), 0);                                          // Not yet computed
+/// assert_eq!(lazy_force_cloned::<RcLazyConfig, _>(&lazy), Ok(42));       // First force computes
+/// assert_eq!(counter.get(), 1);                                          // Computed once
+/// assert_eq!(lazy_force_cloned::<RcLazyConfig, _>(&lazy2), Ok(42));      // Second force uses cache
+/// assert_eq!(counter.get(), 1);                                          // NOT recomputed - shared!
 /// // Thunk has been cleared, freeing counter_clone
 /// ```
 pub struct Lazy<'a, Config: LazyConfig, A>(
@@ -1155,11 +1155,11 @@ use std::sync::Arc;
 /// ### Example
 ///
 /// ```rust
-/// let lazy = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+/// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
 ///     panic!("computation failed: invalid input");
 /// }));
 ///
-/// match Lazy::force(&lazy) {
+/// match lazy_force::<RcLazyConfig, _>(&lazy) {
 ///     Ok(value) => println!("Got: {}", value),
 ///     Err(e) => {
 ///         // Access the panic message
@@ -1214,7 +1214,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///
     /// ### Type Signature
     ///
-    /// `new :: (() -> A) -> Lazy A`
+    /// `forall config a. LazyConfig config => (() -> a) -> Lazy config a`
     ///
     /// ### Note
     ///
@@ -1235,7 +1235,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///
     /// ### Type Signature
     ///
-    /// `force :: &Lazy A -> Result<&A, LazyError>`
+    /// `forall config a. LazyConfig config => &Lazy config a -> Result LazyError &a`
     ///
     /// ### Errors
     ///
@@ -1330,7 +1330,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///
     /// ### Type Signature
     ///
-    /// `force_cloned :: &Lazy A -> Result<A, LazyError>`
+    /// `forall config a. (LazyConfig config, Clone a) => &Lazy config a -> Result LazyError a`
     ///
     /// ### Note
     ///
@@ -1366,6 +1366,18 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// ### Panics
     ///
     /// Panics if the thunk panicked or was already consumed.
+    /// Forces the evaluation, panicking on error.
+    ///
+    /// This is a convenience method for cases where panic on thunk failure
+    /// is acceptable. Prefer `force` or `force_cloned` for explicit error handling.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. (LazyConfig config, Clone a) => &Lazy config a -> a`
+    ///
+    /// ### Panics
+    ///
+    /// Panics if the thunk panicked or was already consumed.
     pub fn force_or_panic(this: &Self) -> A
     where
         A: Clone,
@@ -1382,7 +1394,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///
     /// ### Type Signature
     ///
-    /// `force_ref_or_panic :: &Lazy A -> &A`
+    /// `forall config a. LazyConfig config => &Lazy config a -> &a`
     ///
     /// ### Panics
     ///
@@ -1391,12 +1403,12 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// ### Example
     ///
     /// ```rust
-    /// let lazy: RcLazy<Vec<u8>> = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+    /// let lazy: RcLazy<Vec<u8>> = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
     ///     vec![1, 2, 3, 4, 5]  // Expensive to clone, but we only need a reference
     /// }));
     ///
     /// // Get reference without cloning - no A: Clone required!
-    /// let slice: &[u8] = Lazy::force_ref_or_panic(&lazy);
+    /// let slice: &[u8] = lazy_force_ref_or_panic::<RcLazyConfig, _>(&lazy);
     /// println!("First element: {}", slice[0]);
     /// ```
     pub fn force_ref_or_panic(this: &Self) -> &A {
@@ -1427,21 +1439,24 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// ### Example
     ///
     /// ```rust
-    /// let lazy = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+    /// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
     ///     vec![1, 2, 3, 4, 5]  // Expensive to clone
     /// }));
     ///
     /// // Force evaluation
-    /// // Force evaluation
-    /// let _ = Lazy::force(&lazy);
+    /// let _ = lazy_force::<RcLazyConfig, _>(&lazy);
     ///
     /// // Extract owned value without cloning
-    /// match Lazy::try_into_result(lazy) {
+    /// match lazy_try_into_result::<RcLazyConfig, _>(lazy) {
     ///     Ok(Ok(vec)) => println!("Got vec with {} elements", vec.len()),
     ///     Ok(Err(e)) => println!("Thunk failed: {}", e),
     ///     Err(lazy) => println!("Still shared, can't take ownership"),
     /// }
     /// ```
+    /// ### Type Signature
+    ///
+    /// `forall config a. LazyConfig config => Lazy config a -> Either (Lazy config a) (Result LazyError a)`
+    ///
     pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self> {
         // 1. Optimization: If not initialized, return immediately without touching the allocation
         if <Config::OnceBrand as Once>::get(&(*this.0).once).is_none() {
@@ -1477,6 +1492,11 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// Does NOT force evaluation. Returns `None` if:
     /// - The value has not been forced yet
     /// - The thunk panicked during evaluation (value is `Err`)
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. LazyConfig config => &Lazy config a -> Option &a`
+    ///
     pub fn try_get_ref(this: &Self) -> Option<&A> {
         let inner = &*this.0;
         // Cell stores Result<A, LazyError>, so we need to unwrap Ok case
@@ -1488,6 +1508,11 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// Does NOT force evaluation. Returns `None` if:
     /// - The value has not been forced yet
     /// - The thunk panicked during evaluation
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. (LazyConfig config, Clone a) => &Lazy config a -> Option a`
+    ///
     pub fn try_get(this: &Self) -> Option<A>
     where
         A: Clone,
@@ -1500,6 +1525,11 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// Returns `false` if:
     /// - The value has not been forced yet
     /// - The thunk panicked during evaluation (poisoned state)
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. LazyConfig config => &Lazy config a -> Bool`
+    ///
     pub fn is_forced(this: &Self) -> bool {
         Self::try_get_ref(this).is_some()
     }
@@ -1509,6 +1539,11 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// Returns `false` if:
     /// - The value has not been forced yet
     /// - The value was computed successfully
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. LazyConfig config => &Lazy config a -> Bool`
+    ///
     pub fn is_poisoned(this: &Self) -> bool {
         let inner = &*this.0;
         <Config::OnceBrand as Once>::get(&inner.once)
@@ -1527,6 +1562,11 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// The clone is cheap (just an Arc reference count increment for the
     /// inner string), but if you're calling this frequently in a hot path
     /// and only need to check if an error exists, prefer `is_poisoned()`.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall config a. LazyConfig config => &Lazy config a -> Option LazyError`
+    ///
     pub fn get_error(this: &Self) -> Option<LazyError> {
         let inner = &*this.0;
         <Config::OnceBrand as Once>::get(&inner.once)
@@ -1611,11 +1651,9 @@ To enable safe composition of lazy values without hidden panics, we introduce `T
 /// - **Associativity**: `try_combine(try_combine(x, y)?, z)? == try_combine(x, try_combine(y, z)?)?`
 ///   (when all operations succeed)
 ///
-/// ### Type Signature (Haskell-like)
+/// ### Type Signature
 ///
-/// `class TrySemigroup a where`
-/// `  type Error :: Type`
-/// `  try_combine :: a -> a -> Result a Error`
+/// `forall a e. (TrySemigroup a, e ~ Error a) => a -> a -> Result e a`
 pub trait TrySemigroup: Sized {
     /// The error type returned when combining fails.
     type Error;
@@ -1663,11 +1701,11 @@ pub trait TryMonoid: TrySemigroup {
 // let poisoned_lazy = ...;  // A lazy that will fail when forced
 // let ok_lazy = ...;         // A lazy that will succeed
 //
-// // This ALWAYS succeeds — even though poisoned_lazy will fail when forced!
-// let combined = TrySemigroup::try_combine(poisoned_lazy, ok_lazy)?;  // Always Ok(...)
-//
-// // Errors only surface HERE when the lazy is actually forced:
-// let result = Lazy::force(&combined)?;  // Err(LazyError) if either operand failed
+/// // This ALWAYS succeeds — even though poisoned_lazy will fail when forced!
+/// let combined = try_combine::<RcLazy<'_, i32>, _>(poisoned_lazy, ok_lazy)?;  // Always Ok(...)
+///
+/// // Errors only surface HERE when the lazy is actually forced:
+/// let result = lazy_force::<RcLazyConfig, _>(&combined)?;  // Err(LazyError) if either operand failed
 // ```
 //
 // ### Why This Design?
@@ -1682,10 +1720,10 @@ pub trait TryMonoid: TrySemigroup {
 //
 // If you need to fail early on already-poisoned operands:
 // ```rust
-// if Lazy::is_poisoned(&x) || Lazy::is_poisoned(&y) {
-//     return Err(x.get_error().or_else(|| y.get_error()).unwrap());
-// }
-// let combined = TrySemigroup::try_combine(x, y).unwrap();  // Safe after check
+/// if lazy_is_poisoned::<RcLazyConfig, _>(&x) || lazy_is_poisoned::<RcLazyConfig, _>(&y) {
+///     return Err(lazy_get_error::<RcLazyConfig, _>(&x).or_else(|| lazy_get_error::<RcLazyConfig, _>(&y)).unwrap());
+/// }
+/// let combined = try_combine::<RcLazy<'_, i32>, _>(x, y).unwrap();  // Safe after check
 // ```
 //
 // Note: Lazy does NOT implement Semigroup/Monoid because those traits
@@ -1840,7 +1878,7 @@ pub trait SendDefer: Kind {
     ///
     /// ### Type Signature
     ///
-    /// `send_defer :: (Send + Sync => () -> Lazy A) -> Lazy A`
+    /// `forall config a. (SendLazyConfig config, Send a, Sync a, Clone a) => (() -> Lazy config a) -> Lazy config a`
     fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
     where
         A: Clone + Send + Sync + 'a;
@@ -2717,15 +2755,15 @@ This section documents inherent limitations of the design that cannot be fully r
 
 ```rust
 // Instead of:
-let lazy: RcLazy<Vec<u8>> = RcLazy::new(...);
-let vec = Lazy::force_cloned(&lazy)?;  // Clones the entire Vec
+// Instead of:
+let lazy: RcLazy<Vec<u8>> = lazy_new::<RcLazyConfig, _>(...);
+let vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Clones the entire Vec
 
 // Do this:
-let lazy: RcLazy<Arc<Vec<u8>>> = RcLazy::new(
+let lazy: RcLazy<Arc<Vec<u8>>> = lazy_new::<RcLazyConfig, _>(
     clonable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
 );
-let arc_vec = Lazy::force_cloned(&lazy)?;  // Only clones the Arc (cheap)
-```
+let arc_vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Only clones the Arc (cheap)
 
 **Why this tradeoff was made**: Shared memoization is the core semantic of `Lazy`. Removing `Clone` from `force_cloned` would require either:
 

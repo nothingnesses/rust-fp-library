@@ -175,7 +175,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```
 * \[ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcLazyConfig>` 
 * \[ ] Note: `Defer` is only implemented for `LazyBrand<RcLazyConfig>` (NOT for ArcLazy)
-* \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
+* \[ ] Add free functions `pointer_new`, `ref_counted_new`, `send_ref_counted_new`, and `try_unwrap`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
 
@@ -466,6 +466,9 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 * \[ ] Update `lazy_new` free function (or rename)
 * \[ ] Update `lazy_force` free function
+* \[ ] Add `lazy_force_cloned`, `lazy_force_or_panic`, and `lazy_force_ref_or_panic` free functions
+* \[ ] Add `lazy_is_forced`, `lazy_is_poisoned`, and `lazy_get_error` free functions
+* \[ ] Add `lazy_try_get`, `lazy_try_get_ref`, and `lazy_try_into_result` free functions
 * \[ ] Re-export in `fp-library/src/functions.rs`
 
 ### 3.7 Type Aliases
@@ -749,10 +752,11 @@ The most important tests are:
 
 1. **Shared memoization test** (must pass):
    ```rust
+   use fp_library::{brands::*, classes::*, functions::*};
    let counter = Rc::new(Cell::new(0));
    let counter_clone = counter.clone();
 
-   let lazy: RcLazy<i32> = RcLazy::new(
+   let lazy: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(move |_| {
            counter_clone.set(counter_clone.get() + 1);
            42
@@ -760,25 +764,26 @@ The most important tests are:
    );
    let lazy2 = lazy.clone();
 
-   assert_eq!(Lazy::force_cloned(&lazy), Ok(42));
+   assert_eq!(lazy_force_cloned::<RcLazyConfig, _>(&lazy), Ok(42));
    assert_eq!(counter.get(), 1);  // Called once
-   assert_eq!(Lazy::force_cloned(&lazy2), Ok(42));
+   assert_eq!(lazy_force_cloned::<RcLazyConfig, _>(&lazy2), Ok(42));
    assert_eq!(counter.get(), 1);  // Still 1 - shared!
    ```
 
 2. **Panic safety test with shared error** (must pass):
    ```rust
-   let lazy: RcLazy<i32> = RcLazy::new(
+   use fp_library::{brands::*, classes::*, functions::*};
+   let lazy: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| -> i32 { panic!("computation failed") })
    );
    let lazy2 = lazy.clone();
 
-   let err = Lazy::force(&lazy).unwrap_err();
+   let err = lazy_force::<RcLazyConfig, _>(&lazy).unwrap_err();
    // First caller gets the original panic message
    assert_eq!(err.panic_message(), Some("computation failed"));
 
    // Second call on any clone ALSO sees the same message (via Arc<LazyError>)
-   let err2 = Lazy::force(&lazy2).unwrap_err();
+   let err2 = lazy_force::<RcLazyConfig, _>(&lazy2).unwrap_err();
    assert_eq!(err2.panic_message(), Some("computation failed"));
 
    // Both errors are clones of the same Arc<LazyError>
@@ -787,10 +792,11 @@ The most important tests are:
 
 3. **Thread safety test** (for ArcLazy):
    ```rust
-   let lazy: ArcLazy<i32> = ArcLazy::new(
+   use fp_library::{brands::*, classes::*, functions::*};
+   let lazy: ArcLazy<i32> = lazy_new::<ArcLazyConfig, _>(
        send_clonable_fn_new::<ArcFnBrand, _, _>(|_| 42)
    );
-   std::thread::spawn(move || Lazy::force_cloned(&lazy).unwrap()).join().unwrap();
+   std::thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&lazy).unwrap()).join().unwrap();
    ```
 
 4. **Compile-fail for RcLazy Send**:
@@ -803,12 +809,13 @@ The most important tests are:
    ```rust
    struct NonClone(i32);  // Does not implement Clone
    
-   let lazy: RcLazy<NonClone> = RcLazy::new(
+   use fp_library::{brands::*, classes::*, functions::*};
+   let lazy: RcLazy<NonClone> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| NonClone(42))
    );
    
    // This works - no Clone required
-   let value_ref: &NonClone = Lazy::force_ref_or_panic(&lazy);
+   let value_ref: &NonClone = lazy_force_ref_or_panic::<RcLazyConfig, _>(&lazy);
    assert_eq!(value_ref.0, 42);
    
    // This would NOT compile - Clone required
@@ -827,20 +834,21 @@ The most important tests are:
 7. **TrySemigroup::try_combine always returns Ok** (must pass):
    ```rust
    // Even with poisoned operands, try_combine returns Ok
-   let poisoned: RcLazy<i32> = RcLazy::new(
+   use fp_library::{brands::*, classes::*, functions::*};
+   let poisoned: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| panic!("oops"))
    );
-   let _ = Lazy::force(&poisoned); // Force to poison it
+   let _ = lazy_force::<RcLazyConfig, _>(&poisoned); // Force to poison it
    
-   let normal: RcLazy<i32> = RcLazy::new(
+   let normal: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| 42)
    );
    
    // try_combine succeeds - error deferred until forcing
-   let combined = TrySemigroup::try_combine(poisoned, normal);
+   let combined = try_combine::<RcLazy<'_, i32>, _>(poisoned, normal);
    assert!(combined.is_ok()); // Always Ok at call site!
    
    // Error surfaces when forcing
-   let result = Lazy::force(&combined.unwrap());
+   let result = lazy_force::<RcLazyConfig, _>(&combined.unwrap());
    assert!(result.is_err()); // Error here, not at combine time
    ```
