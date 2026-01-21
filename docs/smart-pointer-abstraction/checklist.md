@@ -808,27 +808,27 @@ The most important tests are:
    ```
 
 5. **force_ref_or_panic without Clone** (must pass):
+
    ```rust
    struct NonClone(i32);  // Does not implement Clone
-   
+
    use fp_library::{brands::*, classes::*, functions::*};
    let lazy: RcLazy<NonClone> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| NonClone(42))
    );
-   
+
    // This works - no Clone required
    let value_ref: &NonClone = lazy_force_ref_or_panic::<RcLazyConfig, _>(&lazy);
    assert_eq!(value_ref.0, 42);
    
    // This would NOT compile - Clone required
-   // let value: NonClone = Lazy::force_or_panic(&lazy);
+   // let value: NonClone = lazy_force_or_panic::<RcLazyConfig, _>(&lazy);
    ```
-
-6. **ArcLazy does not implement Defer** (compile-fail):
+   6. **ArcLazy does not implement Defer** (compile-fail):
    ```rust
    // This should fail to compile - ArcLazy only implements SendDefer
    use fp_library::classes::defer::Defer;
-   
+
    fn use_defer<B: Defer>() {}
    use_defer::<LazyBrand<ArcLazyConfig>>(); // Should fail!
    ```
@@ -841,11 +841,11 @@ The most important tests are:
        clonable_fn_new::<RcFnBrand, _, _>(|_| panic!("oops"))
    );
    let _ = lazy_force::<RcLazyConfig, _>(&poisoned); // Force to poison it
-   
+
    let normal: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(
        clonable_fn_new::<RcFnBrand, _, _>(|_| 42)
    );
-   
+
    // try_combine succeeds - error deferred until forcing
    let combined = try_combine(poisoned, normal);
    assert!(combined.is_ok()); // Always Ok at call site!

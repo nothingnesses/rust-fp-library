@@ -1153,8 +1153,9 @@ use std::sync::Arc;
 /// but this is rarely needed and the thread-safety benefit is essential.
 ///
 /// ### Example
-///
 /// ```rust
+/// use fp_library::{brands::*, classes::*, functions::*};
+///
 /// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
 ///     panic!("computation failed: invalid input");
 /// }));
@@ -1401,8 +1402,9 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// Panics if the thunk panicked during evaluation.
     ///
     /// ### Example
-    ///
     /// ```rust
+    /// use fp_library::{brands::*, classes::*, functions::*};
+    ///
     /// let lazy: RcLazy<Vec<u8>> = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
     ///     vec![1, 2, 3, 4, 5]  // Expensive to clone, but we only need a reference
     /// }));
@@ -1436,9 +1438,14 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// - Pipeline termination: `let _ = Lazy::force(&lazy); let value = Lazy::try_into_result(lazy)?;`
     /// - Resource cleanup: Take ownership of computed value
     ///
-    /// ### Example
+    /// ### Type Signature
     ///
+    /// `forall config a. LazyConfig config => Lazy config a -> Either (Lazy config a) (Either LazyError a)`
+    ///
+    /// ### Example
     /// ```rust
+    /// use fp_library::{brands::*, classes::*, functions::*};
+    ///
     /// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
     ///     vec![1, 2, 3, 4, 5]  // Expensive to clone
     /// }));
@@ -1453,10 +1460,6 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///     Err(lazy) => println!("Still shared, can't take ownership"),
     /// }
     /// ```
-    /// ### Type Signature
-    ///
-    /// `forall config a. LazyConfig config => Lazy config a -> Either (Lazy config a) (Result LazyError a)`
-    ///
     pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self> {
         // 1. Optimization: If not initialized, return immediately without touching the allocation
         if <Config::OnceBrand as Once>::get(&(*this.0).once).is_none() {
@@ -2044,7 +2047,9 @@ pub type ArcLazy<'a, A> = Lazy<'a, ArcBrand, OnceLockBrand, ArcFnBrand, A>;
 Users can create thread-safe lazy values with:
 
 ```rust
-let lazy: ArcLazy<i32> = ArcLazy::new(
+use fp_library::{brands::*, classes::*, functions::*};
+
+let lazy: ArcLazy<i32> = lazy_new::<ArcLazyConfig, _>(
     send_clonable_fn_new::<ArcFnBrand, _, _>(|_| 42)
 );
 // lazy is Send + Sync, can be shared across threads
@@ -2119,8 +2124,10 @@ This maintains the same pattern: the extension trait is only implemented for thr
 /// - Third-party brands: Implement using their pointer's `new` method
 ///
 /// ### Examples
-///
+/// 
 /// ```rust
+/// use fp_library::{brands::*, classes::*, functions::*};
+///
 /// // Third-party implementation:
 /// impl UnsizedCoercible for MyRcBrand {
 ///     fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B> {
@@ -2162,6 +2169,8 @@ pub trait UnsizedCoercible: RefCountedPointer {
 /// ### Examples
 ///
 /// ```rust
+/// use fp_library::{brands::*, classes::*, functions::*};
+///
 /// // Third-party thread-safe implementation:
 /// impl SendUnsizedCoercible for MyArcBrand {
 ///     fn coerce_fn_send<'a, A, B>(
@@ -2263,9 +2272,7 @@ impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
 
 ```rust
 // In third-party crate:
-use fp_library::classes::pointer::{
-    Pointer, RefCountedPointer, UnsizedCoercible, SendUnsizedCoercible
-};
+use fp_library::{brands::*, classes::*, functions::*};
 
 // Example 1: Single-threaded custom Rc (like RcBrand)
 pub struct MyRcBrand;
@@ -2413,78 +2420,77 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
    ```
 
 2. Create `fp-library/tests/loom_tests.rs` with concurrent lazy tests:
-   ```rust
-   #![cfg(loom)]
 
-   use loom::thread;
-   use loom::sync::Arc;
+```rust
+#![cfg(loom)]
 
-   #[test]
-   fn arc_lazy_concurrent_force() {
-       loom::model(|| {
-           // Create a lazy value that tracks execution count
-           let counter = Arc::new(loom::sync::atomic::AtomicUsize::new(0));
-           let counter_clone = counter.clone();
-           
-           let lazy = Arc::new(ArcLazy::new(
-               send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
-                   counter_clone.fetch_add(1, loom::sync::atomic::Ordering::SeqCst);
-                   42
-               })
-           ));
-           
-           let lazy1 = lazy.clone();
-           let lazy2 = lazy.clone();
-           
-           let t1 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy1));
-           let t2 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy2));
-           
-           let r1 = t1.join().unwrap();
-           let r2 = t2.join().unwrap();
-           
-           // Both should succeed with the same value
-           assert_eq!(r1, Ok(42));
-           assert_eq!(r2, Ok(42));
-           
-           // Thunk should have been called exactly once
-           assert_eq!(counter.load(loom::sync::atomic::Ordering::SeqCst), 1);
-       });
-   }
+use loom::thread;
+use loom::sync::Arc;
 
-   #[test]
-   fn arc_lazy_panic_propagation() {
-       loom::model(|| {
-           let lazy = Arc::new(ArcLazy::new(
-               send_clonable_fn_new::<ArcFnBrand, _, _>(|_| -> i32 {
-                   panic!("intentional test panic")
-               })
-           ));
+#[test]
+fn arc_lazy_concurrent_force() {
+    loom::model(|| {
+        // Create a lazy value that tracks execution count
+        let counter = Arc::new(loom::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = counter.clone();
 
-           let lazy1 = lazy.clone();
-           let lazy2 = lazy.clone();
+        let lazy = Arc::new(lazy_new::<ArcLazyConfig, _>(
+            send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
+                counter_clone.fetch_add(1, loom::sync::atomic::Ordering::SeqCst);
+            })
+        ));
 
-           let t1 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy1));
-           let t2 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy2));
+        let lazy1 = lazy.clone();
+        let lazy2 = lazy.clone();
 
-           let r1 = t1.join().unwrap();
-           let r2 = t2.join().unwrap();
+        let t1 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy1));
+        let t2 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy2));
 
-           // BOTH threads should see Err(LazyError), not Ok
-           assert!(r1.is_err());
-           assert!(r2.is_err());
+        let r1 = t1.join().unwrap();
+        let r2 = t2.join().unwrap();
 
-           // Both should see the same panic message
-           assert_eq!(
-               r1.unwrap_err().panic_message(),
-               Some("intentional test panic")
-           );
-           assert_eq!(
-               r2.unwrap_err().panic_message(),
-               Some("intentional test panic")
-           );
-       });
-   }
-   ```
+        // Both should succeed with the same value
+        assert_eq!(r1, Ok(42));
+        assert_eq!(r2, Ok(42));
+
+        // Thunk should have been called exactly once
+        assert_eq!(counter.load(loom::sync::atomic::Ordering::SeqCst), 1);
+    });
+}
+
+fn arc_lazy_panic_propagation() {
+    loom::model(|| {
+        let lazy = Arc::new(lazy_new::<ArcLazyConfig, _>(
+            send_clonable_fn_new::<ArcFnBrand, _, _>(|_| -> i32 {
+                panic!("intentional test panic")
+            })
+        ));
+
+        let lazy1 = lazy.clone();
+        let lazy2 = lazy.clone();
+
+        let t1 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy1));
+        let t2 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy2));
+
+        let r1 = t1.join().unwrap();
+        let r2 = t2.join().unwrap();
+
+        // BOTH threads should see Err(LazyError), not Ok
+        assert!(r1.is_err());
+        assert!(r2.is_err());
+
+        // Both should see the same panic message
+        assert_eq!(
+            r1.unwrap_err().panic_message(),
+            Some("intentional test panic")
+        );
+        assert_eq!(
+            r2.unwrap_err().panic_message(),
+            Some("intentional test panic")
+        );
+    });
+}
+```
 
 3. Run loom tests with:
    ```bash
@@ -2755,15 +2761,17 @@ This section documents inherent limitations of the design that cannot be fully r
 
 ```rust
 // Instead of:
-// Instead of:
+use fp_library::{brands::*, classes::*, functions::*};
 let lazy: RcLazy<Vec<u8>> = lazy_new::<RcLazyConfig, _>(...);
 let vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Clones the entire Vec
 
 // Do this:
+use fp_library::{brands::*, classes::*, functions::*};
 let lazy: RcLazy<Arc<Vec<u8>>> = lazy_new::<RcLazyConfig, _>(
     clonable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
 );
 let arc_vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Only clones the Arc (cheap)
+```
 
 **Why this tradeoff was made**: Shared memoization is the core semantic of `Lazy`. Removing `Clone` from `force_cloned` would require either:
 
@@ -2785,10 +2793,9 @@ The `Clone` requirement is explicit in the type signature, making the cost visib
 **Example of problematic code**:
 
 ```rust
-// DO NOT DO THIS
 let lazy: Arc<ArcLazy<i32>> = Arc::new_cyclic(|weak| {
     let weak = weak.clone();
-    ArcLazy::new(send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
+    lazy_new::<ArcLazyConfig, _>(send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
         // Recursive force - DEADLOCK!
         let self_ref = weak.upgrade().unwrap();
         lazy_force::<ArcLazyConfig, _>(&*self_ref).unwrap_or(0) + 1
