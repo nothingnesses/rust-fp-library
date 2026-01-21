@@ -116,7 +116,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `UnsizedCoercible` for `RcBrand` (basic coercion only)
 * \[ ] Implement `UnsizedCoercible` for `ArcBrand`
 * \[ ] Implement `SendUnsizedCoercible` for `ArcBrand` only (not RcBrand)
-* \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init`.
+* \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init` and `into_inner`.
 * \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
@@ -285,7 +285,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Creates new OnceCell via `OnceBrand::new()`
   * \[ ] Wraps thunk in `Option::Some` via `PtrBrand::new_cell`
   * \[ ] Wraps `LazyInner { once, thunk }` in `PtrBrand::cloneable_new`
-* \[ ] Implement `Lazy::force_ref(&self)` method returning `Result<&A, LazyError>`
+* \[ ] Implement `Lazy::force(&self)` method returning `Result<&A, LazyError>`
   * \[ ] Takes `&self` (shared semantics)
   * \[ ] Dereferences through `CloneableOf` pointer
   * \[ ] Uses stable `OnceCell::get_or_init` (NOT nightly `get_or_try_init`)
@@ -301,14 +301,14 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
     * Single-writer guarantee from OnceCell::get\_or\_init
   * \[ ] Returns `Ok(&A)` on success, `Err(LazyError)` if thunk panics
   * \[ ] Note: ThunkConsumed case unreachable due to `get_or_init`'s single-execution guarantee
-* \[ ] Implement `Lazy::force(&self)` method returning `Result<A, LazyError>`
-  * \[ ] Calls `force_ref` and clones result on success
-  * \[ ] Requires `A: Clone`
-  * \[ ] Document `A: Clone` limitation in method docs:
-    * Shared memoization requires `Clone` for multiple callers
-    * Alternatives: use `force_ref`, wrap in `Rc`/`Arc`, or use `try_into_result`
+* \[ ] Implement `Lazy::force_cloned(&self)` method returning `Result<A, LazyError>`
+* \[ ] Calls `force` and clones result on success
+* \[ ] Requires `A: Clone`
+* \[ ] Document `A: Clone` limitation in method docs:
+  * Shared memoization requires `Clone` for multiple callers
+  * Alternatives: use `force`, wrap in `Rc`/`Arc`, or use `try_into_result`
 * \[ ] Implement `Lazy::force_or_panic(&self)` convenience method
-  * \[ ] Calls `force` and unwraps with expect
+  * \[ ] Calls `force_cloned` and unwraps with expect
   * \[ ] For use when panic on failure is acceptable
 * \[ ] Implement `Lazy::try_get_ref(&self)` method
   * \[ ] Returns `Option<&A>` without forcing (None if not forced or if poisoned)
@@ -323,12 +323,13 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Returns `Option<LazyError>` - clones the stored `Arc<LazyError>` if poisoned
   * \[ ] Provides access to original panic message for debugging
 * \[ ] Implement `Lazy::try_into_result(self) -> Result<Result<A, LazyError>, Self>` method
-  * \[ ] Uses `RefCountedPointer::try_unwrap` to check for sole ownership
-  * \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
-  * \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
-  * \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
-  * \[ ] Returns `Err(self)` if shared or not yet forced
-  * \[ ] Requires `A: Clone` due to OnceCell extraction limitations
+* \[ ] Checks if initialized before attempting `try_unwrap` to avoid re-allocation
+* \[ ] Uses `RefCountedPointer::try_unwrap` to check for sole ownership
+* \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
+* \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
+* \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
+* \[ ] Returns `Err(self)` if shared or not yet forced
+* \[ ] Does NOT require `A: Clone` (uses `Once::into_inner`)
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone and Debug Implementation
@@ -392,8 +393,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 ### 3.8 Phase 3 Tests
 
-* \[ ] Unit test: `Lazy::new` + `Lazy::force` returns `Ok(value)`
-* \[ ] Unit test: `Lazy::force_ref` returns `Ok(&value)`
+* \[ ] Unit test: `Lazy::new` + `Lazy::force_cloned` returns `Ok(value)`
+* \[ ] Unit test: `Lazy::force` returns `Ok(&value)`
 * \[ ] **Critical test**: Thunk is only called once across all clones
 * \[ ] **Critical test**: Clones share memoization (counter test)
 * \[ ] **Critical test**: Thunk is cleared after forcing (weak ref test)
@@ -402,7 +403,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Unit test: `Lazy::try_get_ref` returns `None` before forcing
 * \[ ] Unit test: `Lazy::try_get_ref` returns `Some(&value)` after successful forcing
 * \[ ] Unit test: `Lazy::try_get_ref` returns `None` after panic (poisoned state)
-* \[ ] **Panic safety test**: `force_ref` returns `Err(LazyError)` when thunk panics
+* \[ ] **Panic safety test**: `force` returns `Err(LazyError)` when thunk panics
 * \[ ] **Panic safety test**: All clones see `Err(LazyError)` after panic (shared poisoned state)
 * \[ ] Unit test: `force_or_panic` panics with appropriate message on error
 * \[ ] Unit test: `TrySemigroup::try_combine` returns lazy that computes combined value
@@ -515,7 +516,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ### Changed (Breaking)
   - `Lazy` now uses shared memoization semantics (Haskell-like)
     - Clones share memoization state
-    - `force` and `force_ref` take `&self` and return `Result<_, LazyError>`
+    - `force` and `force_cloned` take `&self` and return `Result<_, LazyError>`
     - `Lazy` has 4 type parameters: PtrBrand, OnceBrand, FnBrand, A
     - Thunks cleared after forcing to free captured values
     - OnceCell stores `Result<A, LazyError>` for panic-safe evaluation
@@ -538,8 +539,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `BoxBrand` placeholder for future unique ownership support
   - `FnBrand<PtrBrand>` generic function brand
   - `RcLazy` and `ArcLazy` type aliases for common configurations
-  - `Lazy::force_ref(&self) -> Result<&A, LazyError>` method (avoids cloning)
-  - `Lazy::force(&self) -> Result<A, LazyError>` method
+  - `Lazy::force(&self) -> Result<&A, LazyError>` method (avoids cloning)
+  - `Lazy::force_cloned(&self) -> Result<A, LazyError>` method
   - `Lazy::force_or_panic(&self) -> A` convenience method
   - `Lazy::try_get_ref(&self) -> Option<&A>` method
   - `Lazy::is_forced(&self) -> bool` method
@@ -570,17 +571,17 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `parking_lot::Mutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing. ⚠️ Note: Recursive forcing **will deadlock** for ArcLazy (at `OnceLock::get_or_init`) and **panic** for RcLazy (at `OnceCell::get_or_init`). This is documented as a Known Limitation.
 
-8. **Panic-safe evaluation with stable Rust**: `force_ref` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
+8. **Panic-safe evaluation with stable Rust**: `force` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
 
 9. **LazyError with Arc<str>**: Stores the panic message as `Arc<str>` for thread-safe sharing. Using raw `Box<dyn Any + Send>` would make `LazyError` `!Sync`, breaking `ArcLazy` thread safety. The tradeoff is losing the ability to re-panic with the original payload, but thread safety is essential.
 
 10. **Arc<LazyError> in OnceCell**: The cell stores `Result<A, Arc<LazyError>>` so all clones see the same error with the same message. Without `Arc`, secondary callers would get `LazyError::poisoned()` with no message.
 
-11. **Triple force methods**: `force_ref(&self) -> Result<&A, LazyError>` for explicit error handling; `force(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience
+11. **Triple force methods**: `force(&self) -> Result<&A, LazyError>` for explicit error handling; `force_cloned(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience
 
-12. **Clone bound limitation**: `force` requires `A: Clone` due to shared memoization semantics. This is an accepted limitation. Users needing to avoid cloning should use `force_ref`, wrap values in `Rc`/`Arc`, or use `try_into_result` for unique ownership.
+12. **Clone bound limitation**: `force_cloned` requires `A: Clone` due to shared memoization semantics. This is an accepted limitation. Users needing to avoid cloning should use `force`, wrap values in `Rc`/`Arc`, or use `try_into_result` for unique ownership.
 
-13. **AssertUnwindSafe invariant**: The `catch_unwind` in `force_ref` uses `AssertUnwindSafe` safely because: (1) thunk is taken before invocation, (2) Result stored in OnceCell captures panic state, (3) no mutable references to shared state exist during thunk execution
+13. **AssertUnwindSafe invariant**: The `catch_unwind` in `force` uses `AssertUnwindSafe` safely because: (1) thunk is taken before invocation, (2) Result stored in OnceCell captures panic state, (3) no mutable references to shared state exist during thunk execution
 
 14. **UnsizedCoercible/SendUnsizedCoercible traits**: Two-level hierarchy following ClonableFn → SendClonableFn pattern. `UnsizedCoercible` provides basic function coercion, `SendUnsizedCoercible` adds thread-safe coercion. RcBrand only implements `UnsizedCoercible` (no panicking methods).
 
@@ -642,9 +643,9 @@ The most important tests are:
    );
    let lazy2 = lazy.clone();
 
-   assert_eq!(Lazy::force(&lazy), Ok(42));
+   assert_eq!(Lazy::force_cloned(&lazy), Ok(42));
    assert_eq!(counter.get(), 1);  // Called once
-   assert_eq!(Lazy::force(&lazy2), Ok(42));
+   assert_eq!(Lazy::force_cloned(&lazy2), Ok(42));
    assert_eq!(counter.get(), 1);  // Still 1 - shared!
    ```
 
@@ -655,12 +656,12 @@ The most important tests are:
    );
    let lazy2 = lazy.clone();
 
-   let err = Lazy::force_ref(&lazy).unwrap_err();
+   let err = Lazy::force(&lazy).unwrap_err();
    // First caller gets the original panic message
    assert_eq!(err.panic_message(), Some("computation failed"));
 
    // Second call on any clone ALSO sees the same message (via Arc<LazyError>)
-   let err2 = Lazy::force_ref(&lazy2).unwrap_err();
+   let err2 = Lazy::force(&lazy2).unwrap_err();
    assert_eq!(err2.panic_message(), Some("computation failed"));
 
    // Both errors are clones of the same Arc<LazyError>
@@ -672,11 +673,11 @@ The most important tests are:
    let lazy: ArcLazy<i32> = ArcLazy::new(
        send_clonable_fn_new::<ArcFnBrand, _, _>(|_| 42)
    );
-   std::thread::spawn(move || Lazy::force(&lazy).unwrap()).join().unwrap();
+   std::thread::spawn(move || Lazy::force_cloned(&lazy).unwrap()).join().unwrap();
    ```
 
 4. **Compile-fail for RcLazy Send**:
    ```rust
    let lazy: RcLazy<i32> = RcLazy::new(/* ... */);
-   std::thread::spawn(move || Lazy::force(&lazy)); // Should fail!
+   std::thread::spawn(move || Lazy::force_cloned(&lazy)); // Should fail!
    ```

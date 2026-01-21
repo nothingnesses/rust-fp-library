@@ -110,7 +110,7 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 │  │    - Uses PtrBrand::CloneableOf for shared memoization                │  │
 │  │    - Uses FnBrand for thunk storage (enables generic code)            │  │
 │  │    - All clones share the same OnceCell                               │  │
-│  │    - force_ref returns Result for panic safety                        │  │
+│  │    - force returns Result for panic safety                            │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  Type Aliases (for convenience):                                            │
@@ -1134,9 +1134,9 @@ where
 /// let lazy2 = lazy.clone();  // Shares memoization state!
 ///
 /// assert_eq!(counter.get(), 0);             // Not yet computed
-/// assert_eq!(Lazy::force(&lazy), 42);       // First force computes
-/// assert_eq!(counter.get(), 1);             // Computed once
-/// assert_eq!(Lazy::force(&lazy2), 42);      // Second force uses cache
+/// assert_eq!(Lazy::force_cloned(&lazy), Ok(42));       // First force computes
+/// assert_eq!(counter.get(), 1);                        // Computed once
+/// assert_eq!(Lazy::force_cloned(&lazy2), Ok(42));      // Second force uses cache
 /// assert_eq!(counter.get(), 1);             // NOT recomputed - shared!
 /// // Thunk has been cleared, freeing counter_clone
 /// ```
@@ -1192,7 +1192,7 @@ use std::sync::Arc;
 ///     panic!("computation failed: invalid input");
 /// }));
 ///
-/// match Lazy::force_ref(&lazy) {
+/// match Lazy::force(&lazy) {
 ///     Ok(value) => println!("Got: {}", value),
 ///     Err(e) => {
 ///         // Access the panic message
@@ -1273,7 +1273,7 @@ where
     ///
     /// ### Type Signature
     ///
-    /// `force_ref :: &Lazy A -> Result<&A, LazyError>`
+    /// `force :: &Lazy A -> Result<&A, LazyError>`
     ///
     /// ### Errors
     ///
@@ -1316,7 +1316,7 @@ where
     /// won't violate memory safety. Here, the only state that could be corrupted is
     /// the `LazyInner`, but we've ensured the thunk has no access to it during
     /// execution, and the Result storage handles the panic case explicitly.
-    pub fn force_ref(this: &Self) -> Result<&A, LazyError> {
+    pub fn force(this: &Self) -> Result<&A, LazyError> {
         let inner = &*this.0;  // Deref through pointer
         
         // Use get_or_init (stable) instead of get_or_try_init (nightly).
@@ -1346,12 +1346,12 @@ where
     ///
     /// ### Type Signature
     ///
-    /// `force :: &Lazy A -> Result<A, LazyError>`
+    /// `force_cloned :: &Lazy A -> Result<A, LazyError>`
     ///
     /// ### Note
     ///
     /// This clones the cached value on every call. If you need repeated
-    /// access without cloning, use `force_ref` instead.
+    /// access without cloning, use `force` instead.
     /// ### A: Clone Bound Limitation
     ///
     /// This method requires `A: Clone` because shared memoization semantics
@@ -1364,20 +1364,20 @@ where
     ///
     /// This is an accepted limitation of the shared memoization design. Users
     /// needing to avoid cloning should:
-    /// - Use `force_ref` and work with references
+    /// - Use `force` and work with references
     /// - Wrap expensive-to-clone values in `Rc`/`Arc` before storing in `Lazy`
     /// - Use `try_into_result` when the `Lazy` has a single owner
-    pub fn force(this: &Self) -> Result<A, LazyError>
+    pub fn force_cloned(this: &Self) -> Result<A, LazyError>
     where
         A: Clone,
     {
-        Self::force_ref(this).map(Clone::clone)
+        Self::force(this).map(Clone::clone)
     }
 
     /// Forces the evaluation, panicking on error.
     ///
     /// This is a convenience method for cases where panic on thunk failure
-    /// is acceptable. Prefer `force_ref` or `force` for explicit error handling.
+    /// is acceptable. Prefer `force` or `force_cloned` for explicit error handling.
     ///
     /// ### Panics
     ///
@@ -1386,7 +1386,7 @@ where
     where
         A: Clone,
     {
-        Self::force(this).expect("Lazy::force_or_panic failed")
+        Self::force_cloned(this).expect("Lazy::force_or_panic failed")
     }
 
     /// Attempts to extract the owned inner value if this is the sole reference.
@@ -1407,7 +1407,7 @@ where
     ///
     /// This method enables extracting the final value without cloning when
     /// the Lazy is no longer shared, which is useful for:
-    /// - Pipeline termination: `lazy.force(); let value = Lazy::try_into_result(lazy)?;`
+    /// - Pipeline termination: `let _ = Lazy::force(&lazy); let value = Lazy::try_into_result(lazy)?;`
     /// - Resource cleanup: Take ownership of computed value
     ///
     /// ### Example
@@ -1418,7 +1418,8 @@ where
     /// }));
     ///
     /// // Force evaluation
-    /// let _ = Lazy::force_ref(&lazy);
+    /// // Force evaluation
+    /// let _ = Lazy::force(&lazy);
     ///
     /// // Extract owned value without cloning
     /// match Lazy::try_into_result(lazy) {
@@ -1427,32 +1428,28 @@ where
     ///     Err(lazy) => println!("Still shared, can't take ownership"),
     /// }
     /// ```
-    pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self>
-    where
-        A: Clone,
-    {
+    pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self> {
+        // 1. Optimization: If not initialized, return immediately without touching the allocation
+        if <OnceBrand as Once>::get(&(*this.0).once).is_none() {
+            return Err(this);
+        }
+
+        // 2. Now try to unwrap. If it fails (shared), we get 'this' back zero-cost.
         // Use RefCountedPointer::try_unwrap to attempt to get sole ownership
         match PtrBrand::try_unwrap(this.0) {
             Ok(inner) => {
-                // We have sole ownership of LazyInner.
-                // Check if the value has been forced.
-                match <OnceBrand as Once>::get(&inner.once) {
+                // 3. We have ownership. Use into_inner to get value zero-cost.
+                // We know it's forced because of step 1.
+                match <OnceBrand as Once>::into_inner(inner.once) {
                     Some(result) => {
                         // Value was forced. Extract the result.
-                        // Note: We clone here because OnceCell doesn't provide into_inner
-                        // in stable Rust in a way that works with our abstraction.
-                        // This is documented: for truly zero-clone extraction, users
-                        // should ensure A is cheap to clone (e.g., wrapped in Arc).
+                        // No clone needed as we have sole ownership and Once::into_inner consumes the cell.
                         match result {
-                            Ok(value) => Ok(Ok(value.clone())),
+                            Ok(value) => Ok(Ok(value)),
                             Err(arc_err) => Ok(Err((**arc_err).clone())),
                         }
                     }
-                    None => {
-                        // Not yet forced - reconstruct and return Err(self)
-                        let ptr = PtrBrand::cloneable_new(inner);
-                        Err(Self(ptr))
-                    }
+                    None => unreachable!("Checked is_forced above"),
                 }
             }
             Err(ptr) => {
@@ -1461,7 +1458,6 @@ where
             }
         }
     }
-
     /// Returns a reference to the inner value if already computed successfully, None otherwise.
     ///
     /// Does NOT force evaluation. Returns `None` if:
@@ -1562,6 +1558,7 @@ pub trait Once {
     fn new<A>() -> Self::Of<A>;
     fn get<A>(this: &Self::Of<A>) -> Option<&A>;
     fn get_or_init<A>(this: &Self::Of<A>, f: impl FnOnce() -> A) -> &A;
+    fn into_inner<A>(this: Self::Of<A>) -> Option<A>;
 }
 ```
 
@@ -2239,7 +2236,7 @@ Old value semantics was only better for:
    * Use separate `FnBrand` type parameter for thunk storage (4 type parameters total)
    * Store `Result<A, LazyError>` in OnceCell to enable panic-safe evaluation with stable Rust
    * Add `LazyError` unit struct (simplified from enum since only ThunkPanicked is reachable)
-   * Change `force_ref` to return `Result<&A, LazyError>` using stable `get_or_init`
+   * Change `force` to return `Result<&A, LazyError>` using stable `get_or_init`
    * Add `force_or_panic` convenience method
    * Add `is_poisoned` method to check for thunk panic state
    * Add `Debug` implementation for `Lazy` where `A: Debug`
@@ -2252,7 +2249,7 @@ Old value semantics was only better for:
    * `TrySemigroup::try_combine` propagates errors safely
 6. Update `LazyBrand` to take 3 parameters: `LazyBrand<PtrBrand, OnceBrand, FnBrand>`
 7. Update `impl_kind!` for new `LazyBrand`
-8. Update all tests to handle `Result` return type from `force_ref` and `force`
+8. Update all tests to handle `Result` return type from `force` and `force_cloned`
 
 ### Phase 4: Integration & Polish
 
@@ -2299,8 +2296,8 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
            let lazy1 = lazy.clone();
            let lazy2 = lazy.clone();
            
-           let t1 = thread::spawn(move || Lazy::force(&*lazy1));
-           let t2 = thread::spawn(move || Lazy::force(&*lazy2));
+           let t1 = thread::spawn(move || Lazy::force_cloned(&*lazy1));
+           let t2 = thread::spawn(move || Lazy::force_cloned(&*lazy2));
            
            let r1 = t1.join().unwrap();
            let r2 = t2.join().unwrap();
@@ -2328,12 +2325,12 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
            
            let t1 = thread::spawn(move || {
                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                   Lazy::force_ref(&*lazy1)
+                   Lazy::force(&*lazy1)
                }))
            });
            let t2 = thread::spawn(move || {
                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                   Lazy::force_ref(&*lazy2)
+                   Lazy::force(&*lazy2)
                }))
            });
            
@@ -2595,41 +2592,41 @@ This section documents inherent limitations of the design that cannot be fully r
 
 **Why this tradeoff was made**: Thread safety is a hard requirement for `ArcLazy` to be useful in concurrent code. Losing the original panic type affects debugging but doesn't affect correctness. Users who need rich error information should use `Result` types rather than panics.
 
-### Limitation 2: `Lazy::force` Requires `A: Clone`
+### Limitation 2: `Lazy::force_cloned` Requires `A: Clone`
 
-**What**: The `force(&self) -> Result<A, LazyError>` method requires `A: Clone` because it returns an owned value while keeping the cached value in the `Lazy`.
+**What**: The `force_cloned(&self) -> Result<A, LazyError>` method requires `A: Clone` because it returns an owned value while keeping the cached value in the `Lazy`.
 
 **Why this happens**: Shared memoization means multiple callers may need the value simultaneously. The `OnceCell` keeps the canonical value; callers receive clones.
 
 **Impact**:
 
 * Types that are expensive to clone (large `Vec`, complex structs) incur clone overhead
-* Types that cannot be cloned (`!Clone` types) cannot use `force` (only `force_ref`)
+* Types that cannot be cloned (`!Clone` types) cannot use `force_cloned` (only `force`)
 
 **Workarounds**:
 
-1. **Use `force_ref`**: Returns `Result<&A, LazyError>` without cloning
+1. **Use `force`**: Returns `Result<&A, LazyError>` without cloning
 2. **Wrap in `Rc`/`Arc`**: `Lazy<..., Arc<ExpensiveType>>` makes cloning cheap
-3. **Use `try_into_result`**: Extracts owned value when `Lazy` has single owner
+3. **Use `try_into_result`**: Extracts owned value when `Lazy` has single owner (does NOT require `A: Clone`)
 
 **Example for expensive types**:
 
 ```rust
 // Instead of:
 let lazy: RcLazy<Vec<u8>> = RcLazy::new(...);
-let vec = Lazy::force(&lazy)?;  // Clones the entire Vec
+let vec = Lazy::force_cloned(&lazy)?;  // Clones the entire Vec
 
 // Do this:
 let lazy: RcLazy<Arc<Vec<u8>>> = RcLazy::new(
     clonable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
 );
-let arc_vec = Lazy::force(&lazy)?;  // Only clones the Arc (cheap)
+let arc_vec = Lazy::force_cloned(&lazy)?;  // Only clones the Arc (cheap)
 ```
 
-**Why this tradeoff was made**: Shared memoization is the core semantic of `Lazy`. Removing `Clone` would require either:
+**Why this tradeoff was made**: Shared memoization is the core semantic of `Lazy`. Removing `Clone` from `force_cloned` would require either:
 
 * Taking `self` by value (destroying the `Lazy`, not shared)
-* Returning `&A` only (covered by `force_ref`)
+* Returning `&A` only (covered by `force`)
 * Unsafe transmutation (unsound)
 
 The `Clone` requirement is explicit in the type signature, making the cost visible to users.
