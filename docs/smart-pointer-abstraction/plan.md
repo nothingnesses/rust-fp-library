@@ -230,6 +230,18 @@ pub trait Pointer {
     /// ### Type Signature
     ///
     /// `forall a. Pointer p => a -> p a`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `T`: The type of the value to wrap.
+    ///
+    /// ### Parameters
+    ///
+    /// * `value`: The value to wrap in the pointer.
+    ///
+    /// ### Returns
+    ///
+    /// A new pointer of type `Of<T>` containing the value.
     fn new<T>(value: T) -> Self::Of<T>
     where
         Self::Of<T>: Sized;
@@ -280,6 +292,18 @@ pub trait RefCountedPointer: Pointer {
     /// ### Type Signature
     ///
     /// `forall a. RefCountedPointer p => a -> p a`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `T`: The type of the value to wrap.
+    ///
+    /// ### Parameters
+    ///
+    /// * `value`: The value to wrap in the clonable pointer.
+    ///
+    /// ### Returns
+    ///
+    /// A new clonable pointer of type `CloneableOf<T>` containing the value.
     fn cloneable_new<T>(value: T) -> Self::CloneableOf<T>
     where
         Self::CloneableOf<T>: Sized;
@@ -292,6 +316,18 @@ pub trait RefCountedPointer: Pointer {
     /// ### Type Signature
     ///
     /// `forall a. RefCountedPointer p => p a -> Result a (p a)`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `T`: The type of the value contained in the pointer.
+    ///
+    /// ### Parameters
+    ///
+    /// * `ptr`: The pointer to attempt to unwrap.
+    ///
+    /// ### Returns
+    ///
+    /// `Ok(value)` if the pointer was the sole reference, or `Err(ptr)` with the original pointer if shared.
     ///
     /// ### Use Cases
     ///
@@ -356,6 +392,18 @@ pub trait SendRefCountedPointer: RefCountedPointer {
     /// ### Type Signature
     ///
     /// `forall a. (SendRefCountedPointer p, Send a, Sync a) => a -> p a`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `T`: The type of the value to wrap, must be `Send + Sync`.
+    ///
+    /// ### Parameters
+    ///
+    /// * `value`: The value to wrap in the thread-safe pointer.
+    ///
+    /// ### Returns
+    ///
+    /// A new thread-safe pointer of type `SendOf<T>` containing the value.
     fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
     where
         Self::SendOf<T>: Sized;
@@ -372,6 +420,19 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// ### Type Signature
 ///
 /// `forall p a. Pointer p => a -> p a`
+///
+/// ### Type Parameters
+///
+/// * `P`: The pointer brand to use.
+/// * `T`: The type of the value to wrap.
+///
+/// ### Parameters
+///
+/// * `value`: The value to wrap in the pointer.
+///
+/// ### Returns
+///
+/// A new pointer of type `P::Of<T>` containing the value.
 pub fn pointer_new<P: Pointer, T>(value: T) -> P::Of<T>
 where
     P::Of<T>: Sized,
@@ -384,6 +445,19 @@ where
 /// ### Type Signature
 ///
 /// `forall p a. RefCountedPointer p => a -> p a`
+///
+/// ### Type Parameters
+///
+/// * `P`: The reference-counted pointer brand to use.
+/// * `T`: The type of the value to wrap.
+///
+/// ### Parameters
+///
+/// * `value`: The value to wrap in the clonable pointer.
+///
+/// ### Returns
+///
+/// A new clonable pointer of type `P::CloneableOf<T>` containing the value.
 pub fn ref_counted_new<P: RefCountedPointer, T>(value: T) -> P::CloneableOf<T>
 where
     P::CloneableOf<T>: Sized,
@@ -396,6 +470,19 @@ where
 /// ### Type Signature
 ///
 /// `forall p a. (SendRefCountedPointer p, Send a, Sync a) => a -> p a`
+///
+/// ### Type Parameters
+///
+/// * `P`: The thread-safe reference-counted pointer brand to use.
+/// * `T`: The type of the value to wrap, must be `Send + Sync`.
+///
+/// ### Parameters
+///
+/// * `value`: The value to wrap in the thread-safe pointer.
+///
+/// ### Returns
+///
+/// A new thread-safe pointer of type `P::SendOf<T>` containing the value.
 pub fn send_ref_counted_new<P: SendRefCountedPointer, T: Send + Sync>(value: T) -> P::SendOf<T>
 where
     P::SendOf<T>: Sized,
@@ -1570,6 +1657,13 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     ///
     /// `forall config a. LazyConfig config => &Lazy config a -> Option LazyError`
     ///
+    /// ### Parameters
+    ///
+    /// * `this`: The `Lazy` value to inspect.
+    ///
+    /// ### Returns
+    ///
+    /// `Some(LazyError)` if the `Lazy` is poisoned, `None` otherwise.
     pub fn get_error(this: &Self) -> Option<LazyError> {
         let inner = &*this.0;
         <Config::OnceBrand as Once>::get(&inner.once)
@@ -1663,8 +1757,18 @@ pub trait TrySemigroup: Sized {
     
     /// Attempts to combine two values.
     ///
-    /// Returns `Err` if either operand cannot be evaluated or if the
-    /// combination itself fails.
+    /// ### Type Signature
+    ///
+    /// `forall a e. (TrySemigroup a, e ~ Error a) => a -> a -> Result e a`
+    ///
+    /// ### Parameters
+    ///
+    /// * `x`: The first value to combine.
+    /// * `y`: The second value to combine.
+    ///
+    /// ### Returns
+    ///
+    /// `Ok(combined)` if successful, or `Err(Error)` if the combination fails.
     fn try_combine(x: Self, y: Self) -> Result<Self, Self::Error>;
 }
 
@@ -1677,8 +1781,13 @@ pub trait TrySemigroup: Sized {
 pub trait TryMonoid: TrySemigroup {
     /// Returns the identity element.
     ///
-    /// This should never fail - it returns a value that, when combined
-    /// with any other value, yields that other value.
+    /// ### Type Signature
+    ///
+    /// `forall a. TryMonoid a => a`
+    ///
+    /// ### Returns
+    ///
+    /// The identity element for the `TryMonoid`.
     fn try_empty() -> Self;
 }
 ```
@@ -1882,6 +1991,18 @@ pub trait SendDefer: Kind {
     /// ### Type Signature
     ///
     /// `forall config a. (SendLazyConfig config, Send a, Sync a, Clone a) => (() -> Lazy config a) -> Lazy config a`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `A`: The type of the value to be computed lazily, must be `Clone + Send + Sync`.
+    ///
+    /// ### Parameters
+    ///
+    /// * `thunk`: The computation that produces a `Lazy` value.
+    ///
+    /// ### Returns
+    ///
+    /// A new `Lazy` value that defers the execution of the thunk.
     fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
     where
         A: Clone + Send + Sync + 'a;
@@ -2137,6 +2258,23 @@ This maintains the same pattern: the extension trait is only implemented for thr
 /// ```
 pub trait UnsizedCoercible: RefCountedPointer {
     /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall a b. UnsizedCoercible p => (a -> b) -> p (a -> b)`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `A`: The input type of the function.
+    /// * `B`: The output type of the function.
+    ///
+    /// ### Parameters
+    ///
+    /// * `f`: The closure to coerce.
+    ///
+    /// ### Returns
+    ///
+    /// A clonable pointer containing the coerced function.
     fn coerce_fn<'a, A, B>(
         f: impl 'a + Fn(A) -> B
     ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
@@ -2182,6 +2320,23 @@ pub trait UnsizedCoercible: RefCountedPointer {
 /// ```
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
     /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall a b. SendUnsizedCoercible p => (a -> b) -> p (a -> b)`
+    ///
+    /// ### Type Parameters
+    ///
+    /// * `A`: The input type of the function.
+    /// * `B`: The output type of the function.
+    ///
+    /// ### Parameters
+    ///
+    /// * `f`: The closure to coerce, must be `Send + Sync`.
+    ///
+    /// ### Returns
+    ///
+    /// A clonable pointer containing the coerced thread-safe function.
     fn coerce_fn_send<'a, A, B>(
         f: impl 'a + Fn(A) -> B + Send + Sync
     ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;

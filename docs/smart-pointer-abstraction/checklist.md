@@ -14,22 +14,97 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Define `Pointer` base trait:
   ```rust
   pub trait Pointer {
+      /// The pointer type constructor.
       type Of<T: ?Sized>: Deref<Target = T>;
+
+      /// Wraps a sized value in the pointer.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a. Pointer p => a -> p a`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the value to wrap.
+      ///
+      /// ### Parameters
+      ///
+      /// * `value`: The value to wrap in the pointer.
+      ///
+      /// ### Returns
+      ///
+      /// A new pointer of type `Of<T>` containing the value.
       fn new<T>(value: T) -> Self::Of<T> where Self::Of<T>: Sized;
   }
   ```
 * \[ ] Define `RefCountedPointer` extension trait:
   ```rust
   pub trait RefCountedPointer: Pointer {
+      /// The clonable pointer type constructor.
       type CloneableOf<T: ?Sized>: Clone + Deref<Target = T>;
+
+      /// Wraps a sized value in a clonable pointer.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a. RefCountedPointer p => a -> p a`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the value to wrap.
+      ///
+      /// ### Parameters
+      ///
+      /// * `value`: The value to wrap in the clonable pointer.
+      ///
+      /// ### Returns
+      ///
+      /// A new clonable pointer of type `CloneableOf<T>` containing the value.
       fn cloneable_new<T>(value: T) -> Self::CloneableOf<T> where Self::CloneableOf<T>: Sized;
+
+      /// Attempts to unwrap the inner value if this is the sole reference.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a. RefCountedPointer p => p a -> Result a (p a)`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the value contained in the pointer.
+      ///
+      /// ### Parameters
+      ///
+      /// * `ptr`: The pointer to attempt to unwrap.
+      ///
+      /// ### Returns
+      ///
+      /// `Ok(value)` if the pointer was the sole reference, or `Err(ptr)` with the original pointer if shared.
       fn try_unwrap<T>(ptr: Self::CloneableOf<T>) -> Result<T, Self::CloneableOf<T>>;
   }
   ```
 * \[ ] Define `SendRefCountedPointer` extension trait with `SendOf`:
   ```rust
   pub trait SendRefCountedPointer: RefCountedPointer {
+      /// The thread-safe pointer type constructor.
       type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+
+      /// Wraps a sized value in a thread-safe pointer.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a. (SendRefCountedPointer p, Send a, Sync a) => a -> p a`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the value to wrap, must be `Send + Sync`.
+      ///
+      /// ### Parameters
+      ///
+      /// * `value`: The value to wrap in the thread-safe pointer.
+      ///
+      /// ### Returns
+      ///
+      /// A new thread-safe pointer of type `SendOf<T>` containing the value.
       fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
       where
           Self::SendOf<T>: Sized;
@@ -37,9 +112,44 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```
 * \[ ] Define `ThunkWrapper` trait for pointer-brand-specific thunk storage:
   ```rust
+  /// Trait for pointer-brand-specific thunk storage.
+  ///
+  /// ### Type Signature
+  ///
+  /// `class ThunkWrapper w where`
+  ///
   pub trait ThunkWrapper {
+      /// The cell type used for thunk storage.
       type Cell<T>;
+
+      /// Creates a new cell containing an optional thunk.
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the thunk to store.
+      ///
+      /// ### Parameters
+      ///
+      /// * `value`: The optional thunk to store.
+      ///
+      /// ### Returns
+      ///
+      /// A new cell containing the thunk.
       fn new_cell<T>(value: Option<T>) -> Self::Cell<T>;
+
+      /// Takes the thunk out of the cell, leaving `None` in its place.
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `T`: The type of the thunk to take.
+      ///
+      /// ### Parameters
+      ///
+      /// * `cell`: The cell to take the thunk from.
+      ///
+      /// ### Returns
+      ///
+      /// The thunk if it was present, `None` otherwise.
       fn take<T>(cell: &Self::Cell<T>) -> Option<T>;
   }
   ```
@@ -49,8 +159,14 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   /// 
   /// Uses Configuration Struct Pattern instead of `impl Trait<A,B,C> for ()`
   /// to enable third-party extension without orphan rule violations.
+  /// Configuration trait for valid Lazy brand combinations.
+  ///
+  /// ### Type Signature
+  ///
+  /// `class LazyConfig c where`
+  ///
   pub trait LazyConfig: 'static {
-      /// The pointer brand (RcBrand or ArcBrand)
+      /// The pointer brand (RcBrand or ArcBrand).
       type PtrBrand: RefCountedPointer + ThunkWrapper;
       /// The once-cell brand (OnceCellBrand or OnceLockBrand)
       type OnceBrand: Once;
@@ -88,7 +204,13 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```rust
   /// Extension trait guaranteeing ThunkOf is Send + Sync.
   /// Follows ClonableFn → SendClonableFn pattern.
+  ///
+  /// ### Type Signature
+  ///
+  /// `class LazyConfig c => SendLazyConfig c where`
+  ///
   pub trait SendLazyConfig: LazyConfig {
+      /// The thread-safe thunk type.
       type SendThunkOf<'a, A: Send + Sync>: Clone + Send + Sync;
   }
   
@@ -116,6 +238,24 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   #[derive(Debug, Clone, Error)]
   #[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
   pub struct LazyError(Option<Arc<str>>);
+
+  /// ### Fields
+  ///
+  /// * `0`: The optional panic message stored as an `Arc<str>`.
+  ///
+  /// ### Examples
+  ///
+  /// ```rust
+  /// use fp_library::{brands::*, classes::*, functions::*};
+  ///
+  /// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+  ///     panic!("computation failed");
+  /// }));
+  ///
+  /// if let Err(e) = lazy_force::<RcLazyConfig, _>(&lazy) {
+  ///     assert_eq!(e.panic_message(), Some("computation failed"));
+  /// }
+  /// ```
   ```
 * \[ ] Implement `LazyError::from_panic(payload)` constructor
   * \[ ] Extract message from payload via downcast to `&str` or `String`
@@ -130,6 +270,24 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```rust
   /// Trait for pointer brands that can coerce to `dyn Fn`.
   pub trait UnsizedCoercible: RefCountedPointer {
+      /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a b. UnsizedCoercible p => (a -> b) -> p (a -> b)`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `A`: The input type of the function.
+      /// * `B`: The output type of the function.
+      ///
+      /// ### Parameters
+      ///
+      /// * `f`: The closure to coerce.
+      ///
+      /// ### Returns
+      ///
+      /// A clonable pointer containing the coerced function.
       fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
   }
   ```
@@ -138,6 +296,24 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   /// Extension trait for thread-safe function coercion.
   /// Follows ClonableFn → SendClonableFn pattern.
   pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
+      /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall a b. SendUnsizedCoercible p => (a -> b) -> p (a -> b)`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `A`: The input type of the function.
+      /// * `B`: The output type of the function.
+      ///
+      /// ### Parameters
+      ///
+      /// * `f`: The closure to coerce, must be `Send + Sync`.
+      ///
+      /// ### Returns
+      ///
+      /// A clonable pointer containing the coerced thread-safe function.
       fn coerce_fn_send<'a, A, B>(
           f: impl 'a + Fn(A) -> B + Send + Sync
       ) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
@@ -168,6 +344,22 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   /// - There is no type that implements both
   pub trait SendDefer: Kind {
       /// Creates a value from a thread-safe thunk-producing thunk.
+      ///
+      /// ### Type Signature
+      ///
+      /// `forall config a. (SendLazyConfig config, Send a, Sync a, Clone a) => (() -> Lazy config a) -> Lazy config a`
+      ///
+      /// ### Type Parameters
+      ///
+      /// * `A`: The type of the value to be computed lazily, must be `Clone + Send + Sync`.
+      ///
+      /// ### Parameters
+      ///
+      /// * `thunk`: The computation that produces a `Lazy` value.
+      ///
+      /// ### Returns
+      ///
+      /// A new `Lazy` value that defers the execution of the thunk.
       fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
       where
           A: Clone + Send + Sync + 'a;
@@ -319,9 +511,27 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```
 * \[ ] New `Lazy` structure with 2 type parameters using `Config: LazyConfig`:
   ```rust
+  /// Lazily-computed value with shared memoization (Haskell-like semantics).
+  ///
+  /// ### Type Parameters
+  ///
+  /// * `Config`: A type implementing `LazyConfig` that bundles PtrBrand, OnceBrand, FnBrand.
+  /// * `A`: The type of the lazily-computed value.
   pub struct Lazy<'a, Config: LazyConfig, A>(
       <Config::PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, Config, A>>,
   );
+
+  /// ### Examples
+  ///
+  /// ```
+  /// use fp_library::{brands::*, classes::*, functions::*};
+  ///
+  /// let lazy = lazy_new::<RcLazyConfig, _>(
+  ///     clonable_fn_new::<RcFnBrand, _, _>(|_| 42)
+  /// );
+  ///
+  /// assert_eq!(lazy_force_cloned::<RcLazyConfig, _>(&lazy), Ok(42));
+  /// ```
   ```
 * \[ ] Note: Only 2 type parameters (Config, A) - Config bundles PtrBrand/OnceBrand/FnBrand
 * \[ ] Note: Thunk stored in `Option<..>` wrapped in `ThunkWrapper::Cell` for cleanup
@@ -827,7 +1037,7 @@ The most important tests are:
    6. **ArcLazy does not implement Defer** (compile-fail):
    ```rust
    // This should fail to compile - ArcLazy only implements SendDefer
-   use fp_library::classes::defer::Defer;
+   use fp_library::classes::*;
 
    fn use_defer<B: Defer>() {}
    use_defer::<LazyBrand<ArcLazyConfig>>(); // Should fail!
