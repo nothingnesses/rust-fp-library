@@ -510,6 +510,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Compile-fail test: `RcLazy` is `!Send`
 * \[ ] Compile-success test: `ArcLazy<A: Send + Sync>` is `Send + Sync`
 * \[ ] Compile-fail test: Custom `Lazy<MyInvalidConfig, _>` fails when `MyInvalidConfig` doesn't impl `LazyConfig`
+* \[ ] Compile-fail test: `ArcLazy::new` with non-`Send` closure fails
+* \[ ] Compile-fail test: `ArcLazy::new` with non-`Sync` closure fails
 
 ***
 

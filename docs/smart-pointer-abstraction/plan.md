@@ -1178,6 +1178,9 @@ impl LazyError {
     ///
     /// Extracts the panic message eagerly as `Arc<str>` for thread-safe sharing.
     /// If the payload is not a string type, stores a generic message.
+    ///
+    /// SAFETY: panic! payloads are 'static, so &str payloads are &'static str.
+    /// Arc::from copies the data, so no lifetime issues.
     pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
         let message: Arc<str> = payload.downcast::<&str>()
             .map(|s| Arc::from(*s))
