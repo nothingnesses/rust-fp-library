@@ -42,20 +42,28 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
       fn take<T>(cell: &Self::Cell<T>) -> Option<T>;
   }
   ```
-* \[ ] Define `ValidLazyCombination` marker trait for valid PtrBrand/OnceBrand/FnBrand combinations:
+* \[ ] Define `ValidLazyCombination` marker trait with `ThunkOf` associated type for valid PtrBrand/OnceBrand/FnBrand combinations:
   ```rust
-  pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {}
-  impl ValidLazyCombination<RcBrand, OnceCellBrand, RcFnBrand> for () {}
-  impl ValidLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {}
+  pub trait ValidLazyCombination<PtrBrand, OnceBrand, FnBrand> {
+      /// Thunk type: ClonableFn::Of for Rc, SendClonableFn::SendOf for Arc
+      type ThunkOf<'a, A>: Clone;
+  }
+  impl ValidLazyCombination<RcBrand, OnceCellBrand, RcFnBrand> for () {
+      type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
+  }
+  impl ValidLazyCombination<ArcBrand, OnceLockBrand, ArcFnBrand> for () {
+      type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+  }
   ```
 * \[ ] Define `LazyError` enum for panic-safe lazy evaluation:
   ```rust
+  #[derive(Debug, Clone, PartialEq, Eq)]
   pub enum LazyError {
       ThunkPanicked,
       ThunkConsumed,
   }
   ```
-* \[ ] Update `Once` trait to add `get_or_try_init` method for panic-safe evaluation
+* \[ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init`.
 * \[ ] Add free functions `pointer_new`, `ref_counted_new`, and `send_ref_counted_new`
 * \[ ] Add comprehensive documentation following `docs/architecture.md` standards
 * \[ ] Add module-level examples
@@ -181,19 +189,26 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Rewrite `fp-library/src/types/lazy.rs`
 * \[ ] Define `LazyInner` struct for shared inner state:
   ```rust
-  struct LazyInner<'a, FnBrand, OnceBrand, A>
+  struct LazyInner<'a, PtrBrand, OnceBrand, FnBrand, A>
   where
-      FnBrand: ClonableFn,
+      PtrBrand: RefCountedPointer + ThunkWrapper,
       OnceBrand: Once,
+      FnBrand: ClonableFn,
+      (): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>,
   {
-      once: <OnceBrand as Once>::Of<A>,
-      thunk: UnsafeCell<Option<<FnBrand as ClonableFn>::Of<'a, (), A>>>,
+      /// Stores Result<A, LazyError> to enable panic-safe evaluation with stable Rust
+      once: <OnceBrand as Once>::Of<Result<A, LazyError>>,
+      /// Thunk wrapped in ThunkWrapper::Cell for interior mutability
+      /// Uses ValidLazyCombination::ThunkOf for correct Send+Sync bounds
+      thunk: <PtrBrand as ThunkWrapper>::Cell<
+          <() as ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>>::ThunkOf<'a, A>
+      >,
   }
   ```
 * \[ ] New `Lazy` structure with 4 type parameters and `ValidLazyCombination` enforcement:
   ```rust
   pub struct Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>(
-      <PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, FnBrand, OnceBrand, A>>,
+      <PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, PtrBrand, OnceBrand, FnBrand, A>>,
   )
   where
       PtrBrand: RefCountedPointer + ThunkWrapper,
@@ -203,19 +218,23 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   ```
 * \[ ] Note: 4 type parameters - FnBrand is separate to enable generic code over both thread-local and thread-safe variants
 * \[ ] Note: Thunk stored in `Option<..>` wrapped in `ThunkWrapper::Cell` for cleanup
+* \[ ] Note: OnceCell stores `Result<A, LazyError>` to avoid nightly-only `get_or_try_init`
 
 ### 3.2 Core Implementation
 
 * \[ ] Implement `Lazy::new(thunk)` method
+  * \[ ] Takes `ValidLazyCombination::ThunkOf` (ensures correct Send+Sync for ArcLazy)
   * \[ ] Creates new OnceCell via `OnceBrand::new()`
   * \[ ] Wraps thunk in `Option::Some` via `PtrBrand::new_cell`
   * \[ ] Wraps `LazyInner { once, thunk }` in `PtrBrand::cloneable_new`
 * \[ ] Implement `Lazy::force_ref(&self)` method returning `Result<&A, LazyError>`
   * \[ ] Takes `&self` (shared semantics)
   * \[ ] Dereferences through `CloneableOf` pointer
-  * \[ ] Uses `OnceCell::get_or_try_init` for panic-safe evaluation
+  * \[ ] Uses stable `OnceCell::get_or_init` (NOT nightly `get_or_try_init`)
+  * \[ ] Cell stores `Result<A, LazyError>`, so stable API suffices
   * \[ ] On first call: takes thunk via `PtrBrand::take`, clears it to `None`
-  * \[ ] Wraps thunk call in `catch_unwind` for panic safety
+  * \[ ] Wraps thunk call in `catch_unwind` with `AssertUnwindSafe` for panic safety
+  * \[ ] Document `AssertUnwindSafe` invariant: thunk taken before invocation, Result captures state
   * \[ ] Returns `Ok(&A)` on success, `Err(LazyError::ThunkPanicked)` if thunk panics
   * \[ ] Returns `Err(LazyError::ThunkConsumed)` if called after prior panic
 * \[ ] Implement `Lazy::force(&self)` method returning `Result<A, LazyError>`
@@ -225,11 +244,14 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Calls `force` and unwraps with expect
   * \[ ] For use when panic on failure is acceptable
 * \[ ] Implement `Lazy::try_get_ref(&self)` method
-  * \[ ] Returns `Option<&A>` without forcing
+  * \[ ] Returns `Option<&A>` without forcing (None if not forced or if poisoned)
+  * \[ ] Must handle `Result<A, LazyError>` stored in cell
 * \[ ] Implement `Lazy::try_get(&self)` method
   * \[ ] Returns `Option<A>` (cloned) without forcing
 * \[ ] Implement `Lazy::is_forced(&self)` method
-  * \[ ] Returns `bool` indicating if value computed successfully
+  * \[ ] Returns `bool` indicating if value computed successfully (not poisoned)
+* \[ ] Implement `Lazy::is_poisoned(&self)` method
+  * \[ ] Returns `bool` indicating if thunk panicked during evaluation
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone Implementation
@@ -274,8 +296,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] **Critical test**: Clones share memoization (counter test)
 * \[ ] **Critical test**: Thunk is cleared after forcing (weak ref test)
 * \[ ] Unit test: `Lazy::is_forced` returns correct state
+* \[ ] Unit test: `Lazy::is_poisoned` returns `false` before forcing, `true` after panic
 * \[ ] Unit test: `Lazy::try_get_ref` returns `None` before forcing
-* \[ ] Unit test: `Lazy::try_get_ref` returns `Some(&value)` after forcing
+* \[ ] Unit test: `Lazy::try_get_ref` returns `Some(&value)` after successful forcing
+* \[ ] Unit test: `Lazy::try_get_ref` returns `None` after panic (poisoned state)
 * \[ ] **Panic safety test**: `force_ref` returns `Err(ThunkPanicked)` when thunk panics
 * \[ ] **Panic safety test**: `force_ref` returns `Err(ThunkConsumed)` on subsequent calls after panic
 * \[ ] Unit test: `force_or_panic` panics with appropriate message on error
@@ -360,16 +384,16 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
     - `force` and `force_ref` take `&self` and return `Result<_, LazyError>`
     - `Lazy` has 4 type parameters: PtrBrand, OnceBrand, FnBrand, A
     - Thunks cleared after forcing to free captured values
+    - OnceCell stores `Result<A, LazyError>` for panic-safe evaluation
   - `RcFnBrand` is now a type alias for `FnBrand<RcBrand>`
   - `ArcFnBrand` is now a type alias for `FnBrand<ArcBrand>`
-  - `Once` trait now requires `get_or_try_init` method
 
   ### Added
   - `Pointer` base trait for heap-allocated pointers
   - `RefCountedPointer` extension trait with `CloneableOf` for shared ownership
   - `SendRefCountedPointer` extension trait with `SendOf` for thread-safe pointers
   - `ThunkWrapper` trait for pointer-brand-specific thunk storage
-  - `ValidLazyCombination` marker trait enforcing valid PtrBrand/OnceBrand/FnBrand triples
+  - `ValidLazyCombination` marker trait with `ThunkOf` associated type enforcing valid PtrBrand/OnceBrand/FnBrand triples and selecting correct thunk type for thread safety
   - `LazyError` enum with `ThunkPanicked` and `ThunkConsumed` variants
   - `RcBrand` and `ArcBrand` implementing the pointer hierarchy
   - `BoxBrand` placeholder for future unique ownership support
@@ -380,6 +404,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   - `Lazy::force_or_panic(&self) -> A` convenience method
   - `Lazy::try_get_ref(&self) -> Option<&A>` method
   - `Lazy::is_forced(&self) -> bool` method
+  - `Lazy::is_poisoned(&self) -> bool` method
 
   ### Removed
   - Old value-semantic `Lazy` implementation
@@ -402,15 +427,17 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 5. **Type aliases for ergonomics**: `RcFnBrand`, `ArcFnBrand`, `RcLazy`, `ArcLazy` provide good defaults
 
-6. **ValidLazyCombination marker trait**: Enforces valid `PtrBrand`/`OnceBrand`/`FnBrand` triples at compile time, preventing misconfigurations
+6. **ValidLazyCombination marker trait with ThunkOf**: Enforces valid `PtrBrand`/`OnceBrand`/`FnBrand` triples at compile time, preventing misconfigurations. The `ThunkOf` associated type ensures `ArcLazy` uses `SendClonableFn::SendOf` (with `Send + Sync` bounds) while `RcLazy` uses `ClonableFn::Of`.
 
 7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `Mutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing. Arc uses graceful mutex poisoning recovery.
 
-8. **Panic-safe evaluation**: `force_ref` returns `Result<&A, LazyError>` and uses `get_or_try_init` + `catch_unwind` for panic safety
+8. **Panic-safe evaluation with stable Rust**: `force_ref` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
 
 9. **LazyError enum**: Distinguishes between `ThunkPanicked` (thunk panicked during evaluation) and `ThunkConsumed` (prior panic consumed the thunk)
 
 10. **Triple force methods**: `force_ref(&self) -> Result<&A, LazyError>` for explicit error handling; `force(&self) -> Result<A, LazyError>` clones; `force_or_panic(&self) -> A` for convenience
+
+11. **AssertUnwindSafe invariant**: The `catch_unwind` in `force_ref` uses `AssertUnwindSafe` safely because: (1) thunk is taken before invocation, (2) Result stored in OnceCell captures panic state, (3) no mutable references to shared state exist during thunk execution
 
 ### Files Summary
 
