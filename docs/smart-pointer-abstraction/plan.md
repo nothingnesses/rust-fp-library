@@ -1291,7 +1291,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     /// ```rust
     /// let counter = Rc::new(RefCell::new(0));
     /// let counter_clone = counter.clone();
-    /// let lazy = RcLazy::new(clonable_fn_new::<RcFnBrand, _, _>(move |_| {
+    /// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(move |_| {
     ///     *counter_clone.borrow_mut() += 1;  // State mutated
     ///     panic!("oops");                     // Then panic
     ///     // counter is now 1, but no value was produced
@@ -1702,7 +1702,7 @@ pub trait TryMonoid: TrySemigroup {
 // let ok_lazy = ...;         // A lazy that will succeed
 //
 /// // This ALWAYS succeeds — even though poisoned_lazy will fail when forced!
-/// let combined = try_combine::<RcLazy<'_, i32>, _>(poisoned_lazy, ok_lazy)?;  // Always Ok(...)
+/// let combined = try_combine(poisoned_lazy, ok_lazy)?;  // Always Ok(...)
 ///
 /// // Errors only surface HERE when the lazy is actually forced:
 /// let result = lazy_force::<RcLazyConfig, _>(&combined)?;  // Err(LazyError) if either operand failed
@@ -1723,7 +1723,7 @@ pub trait TryMonoid: TrySemigroup {
 /// if lazy_is_poisoned::<RcLazyConfig, _>(&x) || lazy_is_poisoned::<RcLazyConfig, _>(&y) {
 ///     return Err(lazy_get_error::<RcLazyConfig, _>(&x).or_else(|| lazy_get_error::<RcLazyConfig, _>(&y)).unwrap());
 /// }
-/// let combined = try_combine::<RcLazy<'_, i32>, _>(x, y).unwrap();  // Safe after check
+/// let combined = try_combine(x, y).unwrap();  // Safe after check
 // ```
 //
 // Note: Lazy does NOT implement Semigroup/Monoid because those traits
@@ -2048,7 +2048,7 @@ let lazy: ArcLazy<i32> = ArcLazy::new(
     send_clonable_fn_new::<ArcFnBrand, _, _>(|_| 42)
 );
 // lazy is Send + Sync, can be shared across threads
-std::thread::spawn(move || Lazy::force(&lazy));
+std::thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&lazy));
 ```
 
 ### Challenge 4: SendClonableFn Integration
@@ -2436,8 +2436,8 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
            let lazy1 = lazy.clone();
            let lazy2 = lazy.clone();
            
-           let t1 = thread::spawn(move || Lazy::force_cloned(&*lazy1));
-           let t2 = thread::spawn(move || Lazy::force_cloned(&*lazy2));
+           let t1 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy1));
+           let t2 = thread::spawn(move || lazy_force_cloned::<ArcLazyConfig, _>(&*lazy2));
            
            let r1 = t1.join().unwrap();
            let r2 = t2.join().unwrap();
@@ -2463,8 +2463,8 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
            let lazy1 = lazy.clone();
            let lazy2 = lazy.clone();
 
-           let t1 = thread::spawn(move || Lazy::force(&*lazy1));
-           let t2 = thread::spawn(move || Lazy::force(&*lazy2));
+           let t1 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy1));
+           let t2 = thread::spawn(move || lazy_force::<ArcLazyConfig, _>(&*lazy2));
 
            let r1 = t1.join().unwrap();
            let r2 = t2.join().unwrap();
@@ -2791,7 +2791,7 @@ let lazy: Arc<ArcLazy<i32>> = Arc::new_cyclic(|weak| {
     ArcLazy::new(send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
         // Recursive force - DEADLOCK!
         let self_ref = weak.upgrade().unwrap();
-        Lazy::force(&*self_ref).unwrap_or(0) + 1
+        lazy_force::<ArcLazyConfig, _>(&*self_ref).unwrap_or(0) + 1
     }))
 });
 ```

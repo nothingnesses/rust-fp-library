@@ -231,6 +231,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 * \[ ] Add free function `pointer_new<P: Pointer, T>` to `fp-library/src/classes/pointer.rs`
 * \[ ] Add free function `ref_counted_new<P: RefCountedPointer, T>` to same file
+* \[ ] Add free function `send_ref_counted_new<P: SendRefCountedPointer, T: Send + Sync>` to same file
+* \[ ] Add free function `try_unwrap<P: RefCountedPointer, T>` to same file
 * \[ ] Update `fp-library/src/classes.rs` to re-export `pointer` module
 * \[ ] Update `fp-library/src/functions.rs` to re-export free functions
 * \[ ] Update `fp-library/src/types.rs` to re-export `rc_ptr` and `arc_ptr` modules
@@ -801,8 +803,8 @@ The most important tests are:
 
 4. **Compile-fail for RcLazy Send**:
    ```rust
-   let lazy: RcLazy<i32> = RcLazy::new(/* ... */);
-   std::thread::spawn(move || Lazy::force_cloned(&lazy)); // Should fail!
+   let lazy: RcLazy<i32> = lazy_new::<RcLazyConfig, _>(/* ... */);
+   std::thread::spawn(move || lazy_force_cloned::<RcLazyConfig, _>(&lazy)); // Should fail!
    ```
 
 5. **force_ref_or_panic without Clone** (must pass):
@@ -845,7 +847,7 @@ The most important tests are:
    );
    
    // try_combine succeeds - error deferred until forcing
-   let combined = try_combine::<RcLazy<'_, i32>, _>(poisoned, normal);
+   let combined = try_combine(poisoned, normal);
    assert!(combined.is_ok()); // Always Ok at call site!
    
    // Error surfaces when forcing
