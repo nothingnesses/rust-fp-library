@@ -23,6 +23,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   pub trait RefCountedPointer: Pointer {
       type CloneableOf<T: ?Sized>: Clone + Deref<Target = T>;
       fn cloneable_new<T>(value: T) -> Self::CloneableOf<T> where Self::CloneableOf<T>: Sized;
+      fn try_unwrap<T>(ptr: Self::CloneableOf<T>) -> Result<T, Self::CloneableOf<T>>;
   }
   ```
 * \[ ] Define `SendRefCountedPointer` extension trait with `SendOf`:
@@ -136,6 +137,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `RefCountedPointer` for `RcBrand`:
   * \[ ] `type CloneableOf<T: ?Sized> = Rc<T>` (same as `Of<T>`)
   * \[ ] `fn cloneable_new<T>(value: T) -> Rc<T>`
+  * \[ ] `fn try_unwrap<T>(ptr: Rc<T>) -> Result<T, Rc<T>>` using `Rc::try_unwrap`
 * \[ ] Implement `ThunkWrapper` for `RcBrand`:
   * \[ ] `type Cell<T> = RefCell<Option<T>>`
   * \[ ] `fn new_cell<T>` returns `RefCell::new(value)`
@@ -152,14 +154,16 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Implement `RefCountedPointer` for `ArcBrand`:
   * \[ ] `type CloneableOf<T: ?Sized> = Arc<T>` (same as `Of<T>`)
   * \[ ] `fn cloneable_new<T>(value: T) -> Arc<T>`
+  * \[ ] `fn try_unwrap<T>(ptr: Arc<T>) -> Result<T, Arc<T>>` using `Arc::try_unwrap`
 * \[ ] Implement `SendRefCountedPointer` for `ArcBrand`:
   * \[ ] `type SendOf<T: ?Sized + Send + Sync> = Arc<T>`
   * \[ ] `fn send_new<T: Send + Sync>(value: T) -> Arc<T>`
-* \[ ] Implement `ThunkWrapper` for `ArcBrand` using `parking_lot::ReentrantMutex`:
-  * \[ ] `type Cell<T> = parking_lot::ReentrantMutex<Option<T>>`
-  * \[ ] `fn new_cell<T>` returns `ReentrantMutex::new(value)`
+* \[ ] Implement `ThunkWrapper` for `ArcBrand` using `parking_lot::Mutex`:
+  * \[ ] `type Cell<T> = parking_lot::Mutex<Option<T>>`
+  * \[ ] `fn new_cell<T>` returns `Mutex::new(value)`
   * \[ ] `fn take<T>` uses `cell.lock().take()` (no poisoning with parking\_lot)
-  * \[ ] Note: `ReentrantMutex` prevents deadlock on recursive forcing, returns `None` instead
+  * \[ ] ⚠️ Note: Recursive forcing **will deadlock** at `OnceLock::get_or_init`, not at the Mutex
+  * \[ ] Document deadlock behavior in module docs (see Known Limitations in plan.md)
 * \[ ] Add `parking_lot = "0.12"` to dependencies in `fp-library/Cargo.toml`
 * \[ ] Add documentation and examples
 
@@ -180,6 +184,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Unit test: `Clone` works for `RcBrand::CloneableOf<T>`
 * \[ ] Unit test: `Clone` works for `ArcBrand::CloneableOf<T>`
 * \[ ] Unit test: `Deref` works correctly for both
+* \[ ] Unit test: `RcBrand::try_unwrap` returns `Ok(value)` when sole reference
+* \[ ] Unit test: `RcBrand::try_unwrap` returns `Err(ptr)` when shared
+* \[ ] Unit test: `ArcBrand::try_unwrap` returns `Ok(value)` when sole reference
+* \[ ] Unit test: `ArcBrand::try_unwrap` returns `Err(ptr)` when shared
 * \[ ] Compile-fail test: `Rc<T>` is `!Send`
 * \[ ] Compile-success test: `Arc<T: Send + Sync>` is `Send + Sync`
 
@@ -315,11 +323,12 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
   * \[ ] Returns `Option<LazyError>` - clones the stored `Arc<LazyError>` if poisoned
   * \[ ] Provides access to original panic message for debugging
 * \[ ] Implement `Lazy::try_into_result(self) -> Result<Result<A, LazyError>, Self>` method
+  * \[ ] Uses `RefCountedPointer::try_unwrap` to check for sole ownership
   * \[ ] Attempts to extract owned value if sole reference (strong\_count == 1)
   * \[ ] Returns `Ok(Ok(value))` if unique and forced successfully
   * \[ ] Returns `Ok(Err(LazyError))` if unique and poisoned
   * \[ ] Returns `Err(self)` if shared or not yet forced
-  * \[ ] Note: Requires `RefCountedPointer::try_unwrap` extension (deferred)
+  * \[ ] Requires `A: Clone` due to OnceCell extraction limitations
 * \[ ] Add documentation with type signatures
 
 ### 3.3 Clone and Debug Implementation
@@ -461,6 +470,10 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 * \[ ] Update `docs/limitations.md`:
   * \[ ] Document FnBrand extensibility limitation (macro required)
   * \[ ] Document thunk cleanup differences between RcBrand (RefCell) and ArcBrand (Mutex)
+  * \[ ] Document Known Limitations from plan.md:
+    * \[ ] LazyError loses original panic payload type (required for thread safety)
+    * \[ ] `Lazy::force` requires `A: Clone` (inherent to shared memoization)
+    * \[ ] Recursive lazy evaluation deadlocks for ArcLazy, panics for RcLazy
 
 ### 4.4 Final Verification
 
@@ -555,7 +568,7 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 6. **ValidLazyCombination marker trait with ThunkOf**: Enforces valid `PtrBrand`/`OnceBrand`/`FnBrand` triples at compile time, preventing misconfigurations. The `ThunkOf` associated type ensures `ArcLazy` uses `SendClonableFn::SendOf` (with `Send + Sync` bounds) while `RcLazy` uses `ClonableFn::Of`.
 
-7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `parking_lot::ReentrantMutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing. ReentrantMutex prevents deadlock on recursive forcing by allowing re-entry (which returns `None` on second `take()`).
+7. **ThunkWrapper trait**: Abstracts over `RefCell<Option<Thunk>>` (for Rc) and `parking_lot::Mutex<Option<Thunk>>` (for Arc) to enable thunk cleanup after forcing. ⚠️ Note: Recursive forcing **will deadlock** for ArcLazy (at `OnceLock::get_or_init`) and **panic** for RcLazy (at `OnceCell::get_or_init`). This is documented as a Known Limitation.
 
 8. **Panic-safe evaluation with stable Rust**: `force_ref` returns `Result<&A, LazyError>` and uses stable `get_or_init` (NOT nightly-only `get_or_try_init`). The OnceCell stores `Result<A, LazyError>` to capture both success and error states.
 

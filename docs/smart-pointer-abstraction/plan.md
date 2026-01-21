@@ -283,6 +283,33 @@ pub trait RefCountedPointer: Pointer {
     fn cloneable_new<T>(value: T) -> Self::CloneableOf<T>
     where
         Self::CloneableOf<T>: Sized;
+
+    /// Attempts to unwrap the inner value if this is the sole reference.
+    ///
+    /// Returns `Ok(inner)` if `strong_count == 1`, otherwise returns
+    /// `Err(ptr)` with the original pointer unchanged.
+    ///
+    /// ### Type Signature
+    ///
+    /// `forall a. RefCountedPointer p => p a -> Result a (p a)`
+    ///
+    /// ### Use Cases
+    ///
+    /// This is primarily used by `Lazy::try_into_result` to extract the
+    /// computed value without cloning when the Lazy has a single owner.
+    ///
+    /// ### Examples
+    ///
+    /// ```rust
+    /// use fp_library::{brands::*, classes::pointer::*};
+    ///
+    /// let ptr = RcBrand::cloneable_new(42);
+    /// match RcBrand::try_unwrap(ptr) {
+    ///     Ok(value) => println!("Got owned value: {}", value),
+    ///     Err(ptr) => println!("Still shared, value: {}", *ptr),
+    /// }
+    /// ```
+    fn try_unwrap<T>(ptr: Self::CloneableOf<T>) -> Result<T, Self::CloneableOf<T>>;
 }
 
 /// Extension trait for thread-safe reference-counted pointers.
@@ -447,6 +474,10 @@ impl RefCountedPointer for RcBrand {
     fn cloneable_new<T>(value: T) -> Rc<T> {
         Rc::new(value)
     }
+
+    fn try_unwrap<T>(ptr: Rc<T>) -> Result<T, Rc<T>> {
+        Rc::try_unwrap(ptr)
+    }
 }
 
 // Note: RcBrand does NOT implement SendRefCountedPointer
@@ -475,6 +506,10 @@ impl RefCountedPointer for ArcBrand {
 
     fn cloneable_new<T>(value: T) -> Arc<T> {
         Arc::new(value)
+    }
+
+    fn try_unwrap<T>(ptr: Arc<T>) -> Result<T, Arc<T>> {
+        Arc::try_unwrap(ptr)
     }
 }
 
@@ -934,18 +969,33 @@ impl ThunkWrapper for RcBrand {
 }
 
 impl ThunkWrapper for ArcBrand {
-    /// Uses `parking_lot::ReentrantMutex` instead of `std::sync::Mutex`.
+    /// Uses `parking_lot::Mutex` for thread-safe thunk storage.
     ///
-    /// ### Why ReentrantMutex?
+    /// ### ⚠️ Recursive Forcing Will Deadlock
     ///
-    /// Standard `Mutex` would deadlock if a thunk recursively forces the same
-    /// `Lazy` value (e.g., a cyclic lazy graph). While this is typically a
-    /// programmer error, it's better to detect and report it rather than hang.
+    /// If a thunk recursively forces the same `ArcLazy` value (e.g., a cyclic
+    /// lazy graph), the program will **deadlock**. This happens because:
     ///
-    /// With `ReentrantMutex`:
-    /// - Same-thread re-entry succeeds (lock is already held)
-    /// - `take()` returns `None` on re-entry (thunk already taken)
-    /// - `force_ref` sees `None` and can report the cycle error
+    /// 1. `OnceLock::get_or_init` is called first
+    /// 2. `OnceLock` detects re-entry and blocks waiting for initialization
+    /// 3. The initialization can never complete because it's waiting for itself
+    ///
+    /// The `Mutex` protecting the thunk is **never reached** during recursion —
+    /// the deadlock occurs at the `OnceLock` level, not the `Mutex` level.
+    ///
+    /// ### Why Not Use ReentrantMutex?
+    ///
+    /// A `ReentrantMutex` for the thunk cell would not help because:
+    /// - The deadlock happens in `OnceLock::get_or_init`, not in `Mutex::lock`
+    /// - The thunk's `take()` is only called INSIDE the `get_or_init` closure
+    /// - `OnceLock` blocks re-entrant access before the closure runs
+    ///
+    /// ### Mitigation
+    ///
+    /// Recursive lazy evaluation is a programmer error. Users should:
+    /// - Avoid cyclic dependencies between `Lazy` values
+    /// - Use explicit recursion with non-lazy intermediate values
+    /// - Consider using `RcLazy` for single-threaded code (panics instead of deadlock)
     ///
     /// ### Dependency
     ///
@@ -954,9 +1004,9 @@ impl ThunkWrapper for ArcBrand {
     /// [dependencies]
     /// parking_lot = "0.12"
     /// ```
-    type Cell<T> = parking_lot::ReentrantMutex<Option<T>>;
+    type Cell<T> = parking_lot::Mutex<Option<T>>;
     fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
-        parking_lot::ReentrantMutex::new(value)
+        parking_lot::Mutex::new(value)
     }
     fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
         cell.lock().take()
@@ -1377,16 +1427,39 @@ where
     ///     Err(lazy) => println!("Still shared, can't take ownership"),
     /// }
     /// ```
-    pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self> {
-        // For Rc: Rc::try_unwrap returns Err(self) if strong_count > 1
-        // For Arc: Arc::try_unwrap returns Err(self) if strong_count > 1
-        // We need a way to abstract this - adding to RefCountedPointer trait
-        // would be the cleanest approach.
-        //
-        // For now, we document that this requires the inner value to be
-        // accessible and forced. Implementation deferred to the type-specific
-        // impl blocks for RcLazy and ArcLazy.
-        todo!("Requires RefCountedPointer::try_unwrap - see implementation notes")
+    pub fn try_into_result(this: Self) -> Result<Result<A, LazyError>, Self>
+    where
+        A: Clone,
+    {
+        // Use RefCountedPointer::try_unwrap to attempt to get sole ownership
+        match PtrBrand::try_unwrap(this.0) {
+            Ok(inner) => {
+                // We have sole ownership of LazyInner.
+                // Check if the value has been forced.
+                match <OnceBrand as Once>::get(&inner.once) {
+                    Some(result) => {
+                        // Value was forced. Extract the result.
+                        // Note: We clone here because OnceCell doesn't provide into_inner
+                        // in stable Rust in a way that works with our abstraction.
+                        // This is documented: for truly zero-clone extraction, users
+                        // should ensure A is cheap to clone (e.g., wrapped in Arc).
+                        match result {
+                            Ok(value) => Ok(Ok(value.clone())),
+                            Err(arc_err) => Ok(Err((**arc_err).clone())),
+                        }
+                    }
+                    None => {
+                        // Not yet forced - reconstruct and return Err(self)
+                        let ptr = PtrBrand::cloneable_new(inner);
+                        Err(Self(ptr))
+                    }
+                }
+            }
+            Err(ptr) => {
+                // Multiple references exist, return self unchanged
+                Err(Self(ptr))
+            }
+        }
     }
 
     /// Returns a reference to the inner value if already computed successfully, None otherwise.
@@ -2488,6 +2561,109 @@ impl RefCountedPointer for MyCustomRcBrand {
 ```
 
 This allows the FP library's abstractions (Lazy, FnBrand, etc.) to work with custom allocators without library changes.
+
+***
+
+## Known Limitations
+
+This section documents inherent limitations of the design that cannot be fully resolved without significant tradeoffs.
+
+### Limitation 1: LazyError Loses Original Panic Payload Type
+
+**What**: When a thunk panics, the panic payload is converted to `Arc<str>` and stored in `LazyError`. The original payload type (e.g., custom panic types) is lost.
+
+**Why this happens**: The raw panic payload from `catch_unwind` is `Box<dyn Any + Send>`, which is `Send` but **not `Sync`**. Storing it directly would make `LazyError` `!Sync`, which would propagate to make `ArcLazy` `!Send` (since `Arc<T>` requires `T: Send + Sync` to be `Send`). Thread safety is essential for `ArcLazy`.
+
+**What is lost**:
+
+* The ability to re-panic with the original payload via `resume_unwind`
+* Custom panic types that carry structured error information
+* The ability to downcast to the original panic type
+
+**What is preserved**:
+
+* The panic message string (if the payload was `&str` or `String`)
+* A generic message for non-string payloads ("non-string panic payload")
+* Thread-safe access to error information via `ArcLazy`
+
+**Workarounds**:
+
+1. **Use string panic messages**: `panic!("descriptive message")` works best
+2. **Include structured info in message**: `panic!("error code: {}, details: {}", code, details)`
+3. **Log before panicking**: Log detailed error info before panicking if needed for debugging
+4. **Avoid panics in thunks**: Return `Result<A, E>` from thunks instead of panicking
+
+**Why this tradeoff was made**: Thread safety is a hard requirement for `ArcLazy` to be useful in concurrent code. Losing the original panic type affects debugging but doesn't affect correctness. Users who need rich error information should use `Result` types rather than panics.
+
+### Limitation 2: `Lazy::force` Requires `A: Clone`
+
+**What**: The `force(&self) -> Result<A, LazyError>` method requires `A: Clone` because it returns an owned value while keeping the cached value in the `Lazy`.
+
+**Why this happens**: Shared memoization means multiple callers may need the value simultaneously. The `OnceCell` keeps the canonical value; callers receive clones.
+
+**Impact**:
+
+* Types that are expensive to clone (large `Vec`, complex structs) incur clone overhead
+* Types that cannot be cloned (`!Clone` types) cannot use `force` (only `force_ref`)
+
+**Workarounds**:
+
+1. **Use `force_ref`**: Returns `Result<&A, LazyError>` without cloning
+2. **Wrap in `Rc`/`Arc`**: `Lazy<..., Arc<ExpensiveType>>` makes cloning cheap
+3. **Use `try_into_result`**: Extracts owned value when `Lazy` has single owner
+
+**Example for expensive types**:
+
+```rust
+// Instead of:
+let lazy: RcLazy<Vec<u8>> = RcLazy::new(...);
+let vec = Lazy::force(&lazy)?;  // Clones the entire Vec
+
+// Do this:
+let lazy: RcLazy<Arc<Vec<u8>>> = RcLazy::new(
+    clonable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
+);
+let arc_vec = Lazy::force(&lazy)?;  // Only clones the Arc (cheap)
+```
+
+**Why this tradeoff was made**: Shared memoization is the core semantic of `Lazy`. Removing `Clone` would require either:
+
+* Taking `self` by value (destroying the `Lazy`, not shared)
+* Returning `&A` only (covered by `force_ref`)
+* Unsafe transmutation (unsound)
+
+The `Clone` requirement is explicit in the type signature, making the cost visible to users.
+
+### Limitation 3: Recursive Lazy Evaluation Deadlocks (ArcLazy)
+
+**What**: If a thunk recursively forces the same `ArcLazy` value, the program will **deadlock**. For `RcLazy`, this causes a panic instead.
+
+**Why this happens**:
+
+* `OnceLock::get_or_init` (used by `ArcLazy`) blocks on re-entry waiting for initialization
+* `OnceCell::get_or_init` (used by `RcLazy`) panics on re-entry
+
+**Example of problematic code**:
+
+```rust
+// DO NOT DO THIS
+let lazy: Arc<ArcLazy<i32>> = Arc::new_cyclic(|weak| {
+    let weak = weak.clone();
+    ArcLazy::new(send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
+        // Recursive force - DEADLOCK!
+        let self_ref = weak.upgrade().unwrap();
+        Lazy::force(&*self_ref).unwrap_or(0) + 1
+    }))
+});
+```
+
+**Workarounds**:
+
+1. **Avoid cyclic dependencies**: Structure code to avoid self-referential lazy values
+2. **Use intermediate values**: Break cycles with non-lazy intermediate computations
+3. **Explicit cycle detection**: Track forcing state manually if cycles are unavoidable
+
+**Why this tradeoff was made**: Detecting cycles at runtime would require additional state (e.g., thread-local "currently forcing" set), adding overhead to every `force` call. Since recursive lazy evaluation is a programmer error (violates referential transparency), the design prioritizes performance for correct usage over error messages for incorrect usage.
 
 ***
 
