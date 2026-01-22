@@ -129,7 +129,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 }
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
-pub trait UnsizedCoercible: RefCountedPointer {
+pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 	///
 	/// ### Type Signature
@@ -152,7 +152,7 @@ pub trait UnsizedCoercible: RefCountedPointer {
 }
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
-pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
+pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 	///
 	/// ### Type Signature
@@ -173,7 +173,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
 	/// The closure wrapped in the pointer type as a thread-safe trait object.
 	fn coerce_fn_send<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+	) -> Self::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 }
 
 /// Wraps a sized value in the pointer.

@@ -1,35 +1,39 @@
-//! Reference-counted function wrapper.
+//! Function wrappers.
 //!
-//! This module defines the [`RcFnBrand`] struct, which provides implementations for reference-counted closures (`Rc<dyn Fn(A) -> B>`).
+//! This module defines the [`FnBrand`] struct, which provides generic implementations for reference-counted closures (e.g., `Rc<dyn Fn(A) -> B>`, `Arc<dyn Fn(A) -> B>`).
 //! It implements [`Function`], [`ClonableFn`], [`Semigroupoid`], and [`Category`].
 
 use crate::{
 	Apply,
-	brands::RcFnBrand,
+	brands::FnBrand,
 	classes::{
-		category::Category, clonable_fn::ClonableFn, function::Function, semigroupoid::Semigroupoid,
+		category::Category,
+		clonable_fn::ClonableFn,
+		function::Function,
+		pointer::{SendUnsizedCoercible, UnsizedCoercible},
+		semigroupoid::Semigroupoid,
+		send_clonable_fn::SendClonableFn,
 	},
 	impl_kind,
 	kinds::*,
 };
-use std::rc::Rc;
 
 impl_kind! {
-	for RcFnBrand {
-		type Of<'a, A, B> = Rc<dyn 'a + Fn(A) -> B>;
+	impl<P: UnsizedCoercible> for FnBrand<P> {
+		type Of<'a, A, B> = <P as crate::classes::pointer::RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
 	}
 }
 
-impl Function for RcFnBrand {
+impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
 	/// Creates a new function wrapper.
 	///
-	/// This function wraps the provided closure `f` into an `Rc`-wrapped function.
+	/// This function wraps the provided closure `f` into a pointer-wrapped function.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Function RcFnBrand => (a -> b) -> RcFnBrand a b`
+	/// `forall p a b. (Function (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
 	///
 	/// ### Type Parameters
 	///
@@ -47,27 +51,26 @@ impl Function for RcFnBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::functions::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
-		Rc::new(f)
+		P::coerce_fn(f)
 	}
 }
 
-impl ClonableFn for RcFnBrand {
+impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
 	type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
 	/// Creates a new clonable function wrapper.
 	///
-	/// This function wraps the provided closure `f` into an `Rc`-wrapped clonable function.
+	/// This function wraps the provided closure `f` into a pointer-wrapped clonable function.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. ClonableFn RcFnBrand => (a -> b) -> RcFnBrand a b`
+	/// `forall p a b. (ClonableFn (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
 	///
 	/// ### Type Parameters
 	///
@@ -85,25 +88,24 @@ impl ClonableFn for RcFnBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::functions::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B> {
-		Rc::new(f)
+		P::coerce_fn(f)
 	}
 }
 
-impl Semigroupoid for RcFnBrand {
+impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
-	/// This method composes two `Rc`-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
+	/// This method composes two pointer-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
 	///
 	/// ### Type Signature
 	///
-	/// `forall b d c. Semigroupoid RcFnBrand => (RcFnBrand c d, RcFnBrand b c) -> RcFnBrand b d`
+	/// `forall p b d c. (Semigroupoid (FnBrand p), UnsizedCoercible p) => (FnBrand p c d, FnBrand p b c) -> FnBrand p b d`
 	///
 	/// ### Type Parameters
 	///
@@ -123,8 +125,7 @@ impl Semigroupoid for RcFnBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::functions::*;
+	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
 	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
@@ -135,18 +136,18 @@ impl Semigroupoid for RcFnBrand {
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
-		<Self as ClonableFn>::new(move |b| f(g(b)))
+		P::coerce_fn(move |b| f(g(b)))
 	}
 }
 
-impl Category for RcFnBrand {
+impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	/// Returns the identity morphism.
 	///
-	/// The identity morphism is a function that maps every object to itself, wrapped in an `Rc`.
+	/// The identity morphism is a function that maps every object to itself, wrapped in the pointer type.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Category RcFnBrand => () -> RcFnBrand a a`
+	/// `forall p a. (Category (FnBrand p), UnsizedCoercible p) => () -> FnBrand p a a`
 	///
 	/// ### Type Parameters
 	///
@@ -159,21 +160,61 @@ impl Category for RcFnBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::RcFnBrand;
-	/// use fp_library::functions::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
 	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
-		Rc::new(|a| a)
+		P::coerce_fn(|a| a)
+	}
+}
+
+impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
+	type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+
+	/// Creates a new thread-safe clonable function wrapper.
+	///
+	/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe clonable function.
+	///
+	/// ### Type Signature
+	///
+	/// `forall p a b. (SendClonableFn (FnBrand p), SendUnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The input type of the function.
+	/// * `B`: The output type of the function.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The closure to wrap.
+	///
+	/// ### Returns
+	///
+	/// The wrapped thread-safe clonable function.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	/// assert_eq!(f(5), 10);
+	/// ```
+	fn send_clonable_fn_new<'a, A, B>(
+		f: impl 'a + Fn(A) -> B + Send + Sync
+	) -> Self::SendOf<'a, A, B> {
+		P::coerce_fn_send(f)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid};
+	use crate::{
+		brands::*,
+		classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid},
+	};
 	use quickcheck_macros::quickcheck;
 
 	// Semigroupoid Laws

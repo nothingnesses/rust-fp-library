@@ -13,17 +13,16 @@
 //! assert_eq!(x.0, 5);
 //! ```
 
-pub mod arc_fn;
 pub mod arc_ptr;
 pub mod endofunction;
 pub mod endomorphism;
+pub mod fn_brand;
 pub mod identity;
 pub mod lazy;
 pub mod once_cell;
 pub mod once_lock;
 pub mod option;
 pub mod pair;
-pub mod rc_fn;
 pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;

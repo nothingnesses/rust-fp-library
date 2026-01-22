@@ -43,6 +43,8 @@ use crate::{
 ///
 /// This enables third-party pointer brands to automatically get FnBrand support
 /// by implementing the UnsizedCoercible trait.
+///
+/// Note: UnsizedCoercible requires 'static bound to satisfy Semigroupoid lifetime requirements.
 impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	type Of<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B>;
 
@@ -76,7 +78,7 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 
 // SendClonableFn only for SendUnsizedCoercible (which extends UnsizedCoercible + SendRefCountedPointer)
 impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
-	type SendOf<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+	type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
 	fn send_clonable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
@@ -108,19 +110,19 @@ The `FnBrand` constraint requires `PtrBrand: RefCountedPointer` because:
 
 ## Checklist
 
-- [ ] Add `FnBrand<PtrBrand: RefCountedPointer>` struct to `fp-library/src/brands.rs`
-- [ ] Add `RcFnBrand` and `ArcFnBrand` type aliases
-- [ ] Create `fp-library/src/types/fn_brand.rs`
+- [x] Add `FnBrand<PtrBrand: RefCountedPointer>` struct to `fp-library/src/brands.rs`
+- [x] Add `RcFnBrand` and `ArcFnBrand` type aliases
+- [x] Create `fp-library/src/types/fn_brand.rs`
    - Implement blanket `Function`, `ClonableFn`, `Semigroupoid`, `Category` for `FnBrand<P: UnsizedCoercible>`
    - Implement blanket `SendClonableFn` for `FnBrand<P: SendUnsizedCoercible>`
-- [ ] Remove old `fp-library/src/types/rc_fn.rs` and `arc_fn.rs`
-- [ ] Update all code that referenced old brands
+- [x] Remove old `fp-library/src/types/rc_fn.rs` and `arc_fn.rs`
+- [x] Update all code that referenced old brands
 
 ### Phase 2 Tests
 
-- [ ] All existing `RcFnBrand` tests still pass
-- [ ] All existing `ArcFnBrand` tests still pass
-- [ ] `SendClonableFn` tests pass for `FnBrand<ArcBrand>`
-- [ ] Compile-fail: `FnBrand<RcBrand>` cannot be used with `SendClonableFn`
-- [ ] Semigroupoid associativity law
-- [ ] Category identity laws
+- [x] All existing `RcFnBrand` tests still pass
+- [x] All existing `ArcFnBrand` tests still pass
+- [x] `SendClonableFn` tests pass for `FnBrand<ArcBrand>`
+- [x] Compile-fail: `FnBrand<RcBrand>` cannot be used with `SendClonableFn`
+- [x] Semigroupoid associativity law
+- [x] Category identity laws

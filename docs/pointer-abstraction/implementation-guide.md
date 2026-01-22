@@ -5,7 +5,7 @@ This guide outlines the implementation plan for introducing a unified pointer ty
 ## Navigation
 
 1. [x] [Step 1: Pointer Trait Foundation](./steps/01-pointer-traits/README.md) - Defining the base traits and brands.
-2. [] [Step 2: FnBrand Refactor](./steps/02-fn-brand-refactor/README.md) - Updating function brands to use the new pointer hierarchy.
+2. [x] [Step 2: FnBrand Refactor](./steps/02-fn-brand-refactor/README.md) - Updating function brands to use the new pointer hierarchy.
 3. [] [Step 3: Lazy Refactor](./steps/03-lazy-refactor/README.md) - Implementing the new shared-memoization `Lazy` type.
 4. [] [Step 4: Integration & Polish](./steps/04-integration/README.md) - Cleanup, documentation, and final checks.
 5. [] [Step 5: Concurrency Testing](./steps/05-concurrency-testing/README.md) - Verifying thread safety with Loom.
@@ -182,6 +182,8 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 
 | Date | Decision | Rationale |
 | ---- | -------- | --------- |
+| 2026-01-22 | `UnsizedCoercible` requires `'static` bound | `coerce_fn` is generic over `'a`, so the resulting pointer type must be valid for any `'a`, implying the brand must be `'static`. This is required for `Semigroupoid` implementation. |
+| 2026-01-22 | `SendUnsizedCoercible` returns `SendOf` | `SendClonableFn` requires `SendOf` to be `Send + Sync`. `CloneableOf` does not guarantee this for generic pointers, so `SendUnsizedCoercible` must return `SendOf` which has the correct bounds. |
 
 ### Blockers
 
