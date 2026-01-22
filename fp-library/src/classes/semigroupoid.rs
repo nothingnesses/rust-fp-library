@@ -7,8 +7,8 @@
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*};
 //!
-//! let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-//! let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+//! let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+//! let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 //! let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
@@ -53,8 +53,8 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
-	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
@@ -93,8 +93,8 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*};
 ///
-/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 /// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```

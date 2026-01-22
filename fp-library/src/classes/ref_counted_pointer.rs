@@ -6,14 +6,14 @@ use std::ops::Deref;
 /// Extension trait for reference-counted pointers with shared ownership.
 ///
 /// Adds `CloneableOf` associated type which is Clone + Deref. This follows
-/// the pattern of `SendClonableFn` adding `SendOf` to `ClonableFn`.
+/// the pattern of `SendCloneableFn` adding `SendOf` to `CloneableFn`.
 pub trait RefCountedPointer: Pointer {
-	/// The clonable pointer type constructor.
+	/// The cloneable pointer type constructor.
 	///
 	/// For Rc/Arc, this is the same as `Of<T>`.
 	type CloneableOf<T: ?Sized>: Clone + Deref<Target = T>;
 
-	/// Wraps a sized value in a clonable pointer.
+	/// Wraps a sized value in a cloneable pointer.
 	///
 	/// ### Type Signature
 	///
@@ -29,7 +29,7 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Returns
 	///
-	/// The value wrapped in the clonable pointer type.
+	/// The value wrapped in the cloneable pointer type.
 	fn cloneable_new<T>(value: T) -> Self::CloneableOf<T>
 	where
 		Self::CloneableOf<T>: Sized;
@@ -54,7 +54,7 @@ pub trait RefCountedPointer: Pointer {
 	fn try_unwrap<T>(ptr: Self::CloneableOf<T>) -> Result<T, Self::CloneableOf<T>>;
 }
 
-/// Wraps a sized value in a clonable pointer.
+/// Wraps a sized value in a cloneable pointer.
 ///
 /// ### Type Signature
 ///
@@ -71,7 +71,7 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Returns
 ///
-/// The value wrapped in the clonable pointer type.
+/// The value wrapped in the cloneable pointer type.
 ///
 /// ### Examples
 ///

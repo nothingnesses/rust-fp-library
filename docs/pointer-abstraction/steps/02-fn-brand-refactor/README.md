@@ -12,13 +12,13 @@ This step refactors the function brands to use the new pointer hierarchy, enabli
 
 ## Technical Design
 
-### Refactored ClonableFn Using RefCountedPointer
+### Refactored CloneableFn Using RefCountedPointer
 
-`ClonableFn` will be refactored to use `RefCountedPointer` as its foundation.
+`CloneableFn` will be refactored to use `RefCountedPointer` as its foundation.
 
 #### The Unsized Coercion Problem
 
-**Problem**: `RefCountedPointer::cloneable_new` accepts `T` (sized), but `ClonableFn` needs to create `CloneableOf<dyn Fn(A) -> B>` (unsized).
+**Problem**: `RefCountedPointer::cloneable_new` accepts `T` (sized), but `CloneableFn` needs to create `CloneableOf<dyn Fn(A) -> B>` (unsized).
 
 **Solution**: We use the `UnsizedCoercible` and `SendUnsizedCoercible` traits defined in Step 1. These traits abstract the unsized coercion that Rust can only perform with concrete types.
 
@@ -31,15 +31,15 @@ use crate::{
 	brands::{FnBrand, RcBrand, ArcBrand},
 	classes::{
 		category::Category,
-		clonable_fn::ClonableFn,
+		cloneable_fn::CloneableFn,
 		function::Function,
 		semigroupoid::Semigroupoid,
-		send_clonable_fn::SendClonableFn,
+		send_cloneable_fn::SendCloneableFn,
 		pointer::{UnsizedCoercible, SendUnsizedCoercible},
 	},
 };
 
-/// Blanket implementation of ClonableFn for any FnBrand<P> where P: UnsizedCoercible.
+/// Blanket implementation of CloneableFn for any FnBrand<P> where P: UnsizedCoercible.
 ///
 /// This enables third-party pointer brands to automatically get FnBrand support
 /// by implementing the UnsizedCoercible trait.
@@ -53,7 +53,7 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	}
 }
 
-impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
+impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	type Of<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B>;
 
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
@@ -76,11 +76,11 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	}
 }
 
-// SendClonableFn only for SendUnsizedCoercible (which extends UnsizedCoercible + SendRefCountedPointer)
-impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
+// SendCloneableFn only for SendUnsizedCoercible (which extends UnsizedCoercible + SendRefCountedPointer)
+impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
-	fn send_clonable_fn_new<'a, A, B>(
+	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
 		P::coerce_fn_send(f)
@@ -96,15 +96,15 @@ The `FnBrand<PtrBrand>` pattern demonstrates how library types build on `RefCoun
 RefCountedPointer (trait)
 	│
 	├── RcBrand (impl)
-	│      └── FnBrand<RcBrand> → ClonableFn using Rc<dyn Fn>
+	│      └── FnBrand<RcBrand> → CloneableFn using Rc<dyn Fn>
 	│
 	└── ArcBrand (impl SendRefCountedPointer)
-		   └── FnBrand<ArcBrand> → ClonableFn + SendClonableFn using Arc<dyn Fn>
+		   └── FnBrand<ArcBrand> → CloneableFn + SendCloneableFn using Arc<dyn Fn>
 ```
 
 The `FnBrand` constraint requires `PtrBrand: RefCountedPointer` because:
 
-1. **Clonability**: `ClonableFn::Of` must be `Clone` (satisfied by `CloneableOf`)
+1. **Clonability**: `CloneableFn::Of` must be `Clone` (satisfied by `CloneableOf`)
 2. **Deref**: Function wrappers must deref to `dyn Fn` (satisfied by `Deref`)
 3. **new factory**: Creating wrapped functions requires `cloneable_new` (via `UnsizedCoercible`)
 
@@ -113,8 +113,8 @@ The `FnBrand` constraint requires `PtrBrand: RefCountedPointer` because:
 - [x] Add `FnBrand<PtrBrand: RefCountedPointer>` struct to `fp-library/src/brands.rs`
 - [x] Add `RcFnBrand` and `ArcFnBrand` type aliases
 - [x] Create `fp-library/src/types/fn_brand.rs`
-   - Implement blanket `Function`, `ClonableFn`, `Semigroupoid`, `Category` for `FnBrand<P: UnsizedCoercible>`
-   - Implement blanket `SendClonableFn` for `FnBrand<P: SendUnsizedCoercible>`
+   - Implement blanket `Function`, `CloneableFn`, `Semigroupoid`, `Category` for `FnBrand<P: UnsizedCoercible>`
+   - Implement blanket `SendCloneableFn` for `FnBrand<P: SendUnsizedCoercible>`
 - [x] Remove old `fp-library/src/types/rc_fn.rs` and `arc_fn.rs`
 - [x] Update all code that referenced old brands
 
@@ -122,7 +122,7 @@ The `FnBrand` constraint requires `PtrBrand: RefCountedPointer` because:
 
 - [x] All existing `RcFnBrand` tests still pass
 - [x] All existing `ArcFnBrand` tests still pass
-- [x] `SendClonableFn` tests pass for `FnBrand<ArcBrand>`
-- [x] Compile-fail: `FnBrand<RcBrand>` cannot be used with `SendClonableFn`
+- [x] `SendCloneableFn` tests pass for `FnBrand<ArcBrand>`
+- [x] Compile-fail: `FnBrand<RcBrand>` cannot be used with `SendCloneableFn`
 - [x] Semigroupoid associativity law
 - [x] Category identity laws

@@ -1,9 +1,6 @@
 //! Thread-safe unsized coercible pointer trait.
 
-use super::{
-	send_ref_counted_pointer::SendRefCountedPointer,
-	unsized_coercible::UnsizedCoercible,
-};
+use super::{send_ref_counted_pointer::SendRefCountedPointer, unsized_coercible::UnsizedCoercible};
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {

@@ -45,7 +45,7 @@ grep -r "impl.*for" fp-library/src/v2/types
 | `classes/defer.rs`           | `Defer`                      |
 | `classes/function.rs`        | `Function`                   |
 | `classes/category.rs`        | `Category`                   |
-| `classes/clonable_fn.rs`     | `ClonableFn`                 |
+| `classes/cloneable_fn.rs`     | `CloneableFn`                 |
 | `classes/monoid.rs`          | `Monoid`, `Monoid1L0T`       |
 | `classes/functor.rs`         | `Functor`                    |
 | `classes/applicative.rs`     | `Applicative`                |
@@ -65,8 +65,8 @@ grep -r "impl.*for" fp-library/src/v2/types
 | `types/endofunction.rs`           | `EndofunctionBrand`   | `Kind1L0T`                                                                                                               |
 | `types/result.rs`                 | `ResultBrand`         | `Kind0L2T`                                                                                                               |
 | `types/vec.rs`                    | `VecBrand`            | `Kind0L1T`, `Functor`, `Semiapplicative`, `ApplyFirst`, `ApplySecond`, `Pointed`, `Semimonad`, `Foldable`, `Traversable` |
-| `types/arc_fn.rs`                 | `ArcFnBrand`          | `Kind1L2T`, `Function`, `ClonableFn`, `Semigroupoid`, `Category`                                                         |
-| `types/rc_fn.rs`                  | `RcFnBrand`           | `Kind1L2T`, `Function`, `ClonableFn`, `Semigroupoid`, `Category`                                                         |
+| `types/arc_fn.rs`                 | `ArcFnBrand`          | `Kind1L2T`, `Function`, `CloneableFn`, `Semigroupoid`, `Category`                                                         |
+| `types/rc_fn.rs`                  | `RcFnBrand`           | `Kind1L2T`, `Function`, `CloneableFn`, `Semigroupoid`, `Category`                                                         |
 | `types/identity.rs`               | `IdentityBrand`       | `Kind0L1T`, `Functor`, `Semiapplicative`, `ApplyFirst`, `ApplySecond`, `Pointed`, `Semimonad`, `Foldable`, `Traversable` |
 | `types/lazy.rs`                   | `Lazy`                | `Defer`                                                                                                                  |
 | `types/lazy.rs`                   | `LazyBrand`           | (None listed in grep, likely Kind1L0T?)                                                                                  |
@@ -96,7 +96,7 @@ grep -r "impl.*for" fp-library/src/v2/types
 | `v2/classes/defer.rs`           | `Defer`           |
 | `v2/classes/function.rs`        | `Function`        |
 | `v2/classes/category.rs`        | `Category`        |
-| `v2/classes/clonable_fn.rs`     | `ClonableFn`      |
+| `v2/classes/cloneable_fn.rs`     | `CloneableFn`      |
 | `v2/classes/monoid.rs`          | `Monoid`          |
 | `v2/classes/functor.rs`         | `Functor`         |
 | `v2/classes/applicative.rs`     | `Applicative`     |
@@ -115,8 +115,8 @@ grep -r "impl.*for" fp-library/src/v2/types
 | -------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `v2/types/endofunction.rs` | `Endofunction`        | `Clone`, `Debug`, `Eq`, `Hash`, `Ord`, `PartialEq`, `PartialOrd`, `Semigroup`, `Monoid`                                          |
 | `v2/types/result.rs`       | `ResultBrand`         | `Kind0L2T`                                                                                                                       |
-| `v2/types/arc_fn.rs`       | `ArcFnBrand`          | `Kind1L2T`, `Function`, `ClonableFn`, `Semigroupoid`, `Category`                                                                 |
-| `v2/types/rc_fn.rs`        | `RcFnBrand`           | `Kind1L2T`, `Function`, `ClonableFn`, `Semigroupoid`, `Category`                                                                 |
+| `v2/types/arc_fn.rs`       | `ArcFnBrand`          | `Kind1L2T`, `Function`, `CloneableFn`, `Semigroupoid`, `Category`                                                                 |
+| `v2/types/rc_fn.rs`        | `RcFnBrand`           | `Kind1L2T`, `Function`, `CloneableFn`, `Semigroupoid`, `Category`                                                                 |
 | `v2/types/lazy.rs`         | `Lazy`                | `Defer`, `Semigroup`, `Monoid`                                                                                                   |
 | `v2/types/lazy.rs`         | `LazyBrand`           | `Kind1L1T`                                                                                                                       |
 | `v2/types/once_cell.rs`    | `OnceCellBrand`       | `Kind0L1T`, `Once`                                                                                                               |

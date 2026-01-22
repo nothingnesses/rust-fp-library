@@ -27,7 +27,7 @@ pub trait LazyConfig {
 	/// The once-cell brand for memoization (e.g., OnceCellBrand, OnceLockBrand).
 	type OnceBrand: Once;
 	/// The function brand for thunk storage (e.g., RcFnBrand, ArcFnBrand).
-	type FnBrand: ClonableFn;
+	type FnBrand: CloneableFn;
 	/// The thunk type to use for this configuration.
 	type ThunkOf<'a, A>: Clone;
 }
@@ -42,7 +42,7 @@ impl LazyConfig for RcLazyConfig {
 	type PtrBrand = RcBrand;
 	type OnceBrand = OnceCellBrand;
 	type FnBrand = RcFnBrand;
-	type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
+	type ThunkOf<'a, A> = <RcFnBrand as CloneableFn>::Of<'a, (), A>;
 }
 
 pub struct ArcLazyConfig;
@@ -50,10 +50,10 @@ impl LazyConfig for ArcLazyConfig {
 	type PtrBrand = ArcBrand;
 	type OnceBrand = OnceLockBrand;
 	type FnBrand = ArcFnBrand;
-	type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+	type ThunkOf<'a, A> = <ArcFnBrand as SendCloneableFn>::SendOf<'a, (), A>;
 }
 impl SendLazyConfig for ArcLazyConfig {
-	type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+	type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendCloneableFn>::SendOf<'a, (), A>;
 }
 ```
 

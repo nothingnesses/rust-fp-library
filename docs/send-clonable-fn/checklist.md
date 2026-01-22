@@ -1,6 +1,6 @@
-# SendClonableFn Extension Trait Implementation Checklist
+# SendCloneableFn Extension Trait Implementation Checklist
 
-This checklist tracks implementation progress for the [SendClonableFn Extension Trait Plan](./plan.md).
+This checklist tracks implementation progress for the [SendCloneableFn Extension Trait Plan](./plan.md).
 
 ---
 
@@ -68,19 +68,19 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ---
 
-## Phase 2: Core SendClonableFn Implementation
+## Phase 2: Core SendCloneableFn Implementation
 
-### 2.1 SendClonableFn Trait Definition
+### 2.1 SendCloneableFn Trait Definition
 
-- [x] **Create `send_clonable_fn.rs` module**
+- [x] **Create `send_cloneable_fn.rs` module**
 
-  - [x] Create file [`fp-library/src/classes/send_clonable_fn.rs`](../../fp-library/src/classes/send_clonable_fn.rs)
+  - [x] Create file [`fp-library/src/classes/send_cloneable_fn.rs`](../../fp-library/src/classes/send_cloneable_fn.rs)
   - [x] Add module-level documentation explaining thread safety
-  - [x] Add imports (`ClonableFn`, `std::ops::Deref`)
+  - [x] Add imports (`CloneableFn`, `std::ops::Deref`)
 
-- [x] **Define `SendClonableFn` trait**
+- [x] **Define `SendCloneableFn` trait**
 
-  - [x] Define trait extending `ClonableFn`
+  - [x] Define trait extending `CloneableFn`
   - [x] Add `SendOf<'a, A, B>` associated type with bounds:
     - [x] `Clone`
     - [x] `Send`
@@ -95,28 +95,28 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [x] Add documentation with examples
 
 - [x] **Export from `classes/mod.rs`**
-  - [x] Add `pub mod send_clonable_fn;`
+  - [x] Add `pub mod send_cloneable_fn;`
   - [x] Re-export trait and function
 
 ### 2.2 ArcFnBrand Implementation
 
-- [x] **Implement `SendClonableFn` for `ArcFnBrand`**
+- [x] **Implement `SendCloneableFn` for `ArcFnBrand`**
 
   - [x] Update [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs)
-  - [x] Add import for `SendClonableFn`
+  - [x] Add import for `SendCloneableFn`
   - [x] Define `SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>`
   - [x] Implement `new_send` method with `Arc::new(f)`
   - [x] Add documentation with threading example
 
-- [x] **Verify RcFnBrand does NOT implement SendClonableFn**
-  - [x] Confirm [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs) has no `SendClonableFn` impl
+- [x] **Verify RcFnBrand does NOT implement SendCloneableFn**
+  - [x] Confirm [`fp-library/src/types/rc_fn.rs`](../../fp-library/src/types/rc_fn.rs) has no `SendCloneableFn` impl
   - [x] Add compile-fail test to verify this
 
 ### 2.3 Library Exports
 
 - [x] **Update `fp-library/src/lib.rs`**
 
-  - [x] Re-export `SendClonableFn` trait
+  - [x] Re-export `SendCloneableFn` trait
   - [x] Re-export `new_send` function
 
 - [x] **Update `fp-library/src/classes.rs`** (if exists)
@@ -132,18 +132,18 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
   - [x] Create file [`fp-library/src/classes/par_foldable.rs`](../../fp-library/src/classes/par_foldable.rs)
   - [x] Add module-level documentation explaining parallel folding
-  - [x] Add imports (`Foldable`, `Monoid`, `SendClonableFn`, `Apply`, `kinds`)
+  - [x] Add imports (`Foldable`, `Monoid`, `SendCloneableFn`, `Apply`, `kinds`)
 
 - [x] **Define `ParFoldable` trait**
 
-  - [x] Define trait with `FnBrand: SendClonableFn` generic parameter
+  - [x] Define trait with `FnBrand: SendCloneableFn` generic parameter
   - [x] Add supertrait bound `Foldable`
   - [x] Define `par_fold_map` method
-    - [x] Use `Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, ...)` for function parameter
+    - [x] Use `Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, ...)` for function parameter
     - [x] `Send + Sync` bounds on `A` and `M`
     - [x] Monoid bound on `M`
   - [x] Define `par_fold_right` method
-    - [x] Use `Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, ...)` for function parameter
+    - [x] Use `Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, ...)` for function parameter
     - [x] `Send + Sync` bounds on `A` and `B`
   - [x] Add comprehensive doc comments with examples
 
@@ -172,7 +172,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 - [x] **Implement `ParFoldable` for `VecBrand`**
 
   - [x] Update [`fp-library/src/types/vec.rs`](../../fp-library/src/types/vec.rs)
-  - [x] Add import for `ParFoldable` and `SendClonableFn`
+  - [x] Add import for `ParFoldable` and `SendCloneableFn`
   - [x] Implement `par_fold_map` (sequential baseline)
   - [x] Implement `par_fold_right` (sequential baseline)
   - [x] Add documentation
@@ -189,7 +189,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 - [x] **Implement `ParFoldable` for `OptionBrand`**
 
   - [x] Update [`fp-library/src/types/option.rs`](../../fp-library/src/types/option.rs)
-  - [x] Add import for `ParFoldable` and `SendClonableFn`
+  - [x] Add import for `ParFoldable` and `SendCloneableFn`
   - [x] Implement `par_fold_map`
   - [x] Implement `par_fold_right`
   - [x] Add documentation
@@ -245,7 +245,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 - [x] **Create `send_endofunction.rs` module**
   - [x] Create file [`fp-library/src/types/send_endofunction.rs`](../../fp-library/src/types/send_endofunction.rs)
-  - [x] Define `SendEndofunction` struct wrapping `SendClonableFn::SendOf`
+  - [x] Define `SendEndofunction` struct wrapping `SendCloneableFn::SendOf`
   - [x] Implement `Monoid` for `SendEndofunction` (using function composition)
   - [x] Implement `Semigroup` for `SendEndofunction`
 
@@ -269,7 +269,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 7.1 Unit Tests
 
-- [x] **SendClonableFn unit tests** ([`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs))
+- [x] **SendCloneableFn unit tests** ([`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs))
 
   - [x] Test `new_send` creates callable function
   - [x] Test function can be cloned
@@ -294,7 +294,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 - [x] **Compatibility tests**
   - [x] Verify existing `Foldable` tests still pass
-  - [x] Verify existing `ClonableFn` tests still pass
+  - [x] Verify existing `CloneableFn` tests still pass
   - [x] No regression in functionality
 
 ### 7.3 Property-Based Tests
@@ -315,7 +315,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
   - [x] Test: cannot `new_send` with non-`Send` closure
   - [x] Test: cannot `new_send` with non-`Sync` closure
-  - [x] Test: `RcFnBrand` does not implement `SendClonableFn`
+  - [x] Test: `RcFnBrand` does not implement `SendCloneableFn`
   - [x] Test: cannot use `Send + Sync` function in non-`Send` context (expected failure)
 
 - [x] **Setup trybuild for UI tests** (if not already present)
@@ -328,7 +328,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 ### 8.1 Code Documentation
 
-- [x] **Document `SendClonableFn` trait**
+- [x] **Document `SendCloneableFn` trait**
 
   - [x] Module-level documentation
   - [x] Trait documentation
@@ -342,7 +342,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
   - [x] Method documentation with examples
 
 - [x] **Document implementations**
-  - [x] `ArcFnBrand::SendClonableFn` implementation
+  - [x] `ArcFnBrand::SendCloneableFn` implementation
   - [x] `VecBrand::ParFoldable` implementation
   - [x] `OptionBrand::ParFoldable` implementation
 
@@ -361,7 +361,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 
 - [x] **Update CHANGELOG.md**
   - [x] Add `Apply!` macro `output` parameter
-  - [x] Add new `SendClonableFn` trait
+  - [x] Add new `SendCloneableFn` trait
   - [x] Add new `ParFoldable` trait
   - [x] Add `ArcFnBrand` implementation
   - [x] Add optional `rayon` feature
@@ -402,7 +402,7 @@ This phase must be completed **first** to enable the `output` parameter in `Appl
 - [x] `SendOf` type is actually `Send` (verified by spawning thread in test)
 - [x] `SendOf` type is actually `Sync` (verified by sharing across threads in test)
 - [x] Non-`Send` closures cannot be wrapped with `new_send` (compile-fail test)
-- [x] `RcFnBrand` does not implement `SendClonableFn` (compile-fail test)
+- [x] `RcFnBrand` does not implement `SendCloneableFn` (compile-fail test)
 
 ---
 
@@ -413,7 +413,7 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 ### Implementation Status
 
 - **Phase 1 Status**: Completed (Apply! macro enhancement - prerequisite)
-- **Phase 2 Status**: Completed (SendClonableFn trait)
+- **Phase 2 Status**: Completed (SendCloneableFn trait)
 - **Phase 3 Status**: Completed (ParFoldable trait)
 - **Phase 4 Status**: Completed (Type implementations)
 - **Phase 5 Status**: Completed (Optional rayon integration)
@@ -451,9 +451,9 @@ _Add implementation notes, decisions, and blockers here as work progresses._
    - Commutativity may affect result ordering
    - Proposed: Test with both commutative (sum) and non-commutative (string) monoids
 
-4. **Should there be a `SendFunction` trait (non-clonable)?**
-   - Proposed: Not initially, `SendClonableFn` covers the primary use case
-   - Future: Add if there's demand for non-clonable thread-safe functions
+4. **Should there be a `SendFunction` trait (non-cloneable)?**
+   - Proposed: Not initially, `SendCloneableFn` covers the primary use case
+   - Future: Add if there's demand for non-cloneable thread-safe functions
 
 ---
 
@@ -461,5 +461,5 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 
 - [Implementation Plan](./plan.md)
 - [Limitations: Thread Safety and Parallelism](../limitations.md#thread-safety-and-parallelism)
-- [Current ClonableFn Implementation](../../fp-library/src/classes/clonable_fn.rs)
+- [Current CloneableFn Implementation](../../fp-library/src/classes/cloneable_fn.rs)
 - [Current Foldable Implementation](../../fp-library/src/classes/foldable.rs)

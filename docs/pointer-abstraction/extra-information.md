@@ -14,7 +14,7 @@ The three-level trait hierarchy was chosen after careful analysis of naming and 
 
 2. **`RefCountedPointer` (extends Pointer)**: Adds `CloneableOf` associated type with `Clone` bound. This captures the key property of Rc/Arc: unconditional cheap cloning with shared state.
 
-3. **`SendRefCountedPointer` (extends RefCountedPointer)**: Indicates thread safety. Like `SendClonableFn` which adds `SendOf`, this trait adds a `SendOf` associated type with explicit `Send + Sync` bounds. This is required because Rust's `for<T: Trait>` higher-ranked bounds syntax doesn't exist (only `for<'a>` works).
+3. **`SendRefCountedPointer` (extends RefCountedPointer)**: Indicates thread safety. Like `SendCloneableFn` which adds `SendOf`, this trait adds a `SendOf` associated type with explicit `Send + Sync` bounds. This is required because Rust's `for<T: Trait>` higher-ranked bounds syntax doesn't exist (only `for<'a>` works).
 
 #### Naming Decision: `Pointer` + `RefCountedPointer`
 
@@ -24,11 +24,11 @@ After considering multiple options, the final names were chosen for:
 | ----------------------- | ------------------------------------------------ |
 | `Pointer`               | Minimal, accurate descriptor for `new` + `Deref` |
 | `RefCountedPointer`     | Precise — describes Rc/Arc's reference counting  |
-| `SendRefCountedPointer` | Follows `SendClonableFn` naming pattern          |
+| `SendRefCountedPointer` | Follows `SendCloneableFn` naming pattern          |
 
 ### Why Additional Associated Type (CloneableOf) Instead of Marker Trait?
 
-**Pattern**: Following `SendClonableFn`'s approach where subtraits add NEW associated types rather than marker traits.
+**Pattern**: Following `SendCloneableFn`'s approach where subtraits add NEW associated types rather than marker traits.
 
 **Reason**: Rust doesn't allow subtraits to strengthen bounds on inherited associated types:
 
@@ -42,18 +42,18 @@ By adding `CloneableOf`, `RefCountedPointer` can express "Clone + Deref" without
 
 ## Challenges & Solutions
 
-### Challenge 1: Unsized Coercion in ClonableFn
+### Challenge 1: Unsized Coercion in CloneableFn
 
-**Problem**: `RefCountedPointer::cloneable_new` accepts `T` (sized), but `ClonableFn` needs to create `CloneableOf<dyn Fn(A) -> B>` (unsized).
+**Problem**: `RefCountedPointer::cloneable_new` accepts `T` (sized), but `CloneableFn` needs to create `CloneableOf<dyn Fn(A) -> B>` (unsized).
 
 **Why this happens**: When you write `Rc::new(closure)`, Rust performs implicit unsized coercion because it knows the target type. But `cloneable_new` is generic and can't know the target type.
 
-**Solution**: Use a macro to implement `ClonableFn` for `FnBrand<RcBrand>` and `FnBrand<ArcBrand>` separately. The macro explicitly calls `Rc::new` or `Arc::new`, allowing the coercion to happen.
+**Solution**: Use a macro to implement `CloneableFn` for `FnBrand<RcBrand>` and `FnBrand<ArcBrand>` separately. The macro explicitly calls `Rc::new` or `Arc::new`, allowing the coercion to happen.
 
 ```rust
 macro_rules! impl_fn_brand {
 	($ptr_brand:ty, $ptr_type:ident) => {
-		impl ClonableFn for FnBrand<$ptr_brand> {
+		impl CloneableFn for FnBrand<$ptr_brand> {
 			type Of<'a, A, B> = $ptr_type<dyn 'a + Fn(A) -> B>;
 			fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
 				$ptr_type::new(f)  // Unsized coercion happens here
@@ -76,7 +76,7 @@ impl_fn_brand!(ArcBrand, Arc);
 
 **Problem**: `Arc<T>` is `Send + Sync` when `T: Send + Sync`. But `RefCountedPointer` is generic and can't enforce this at the trait level. Rust's `for<T: Trait>` syntax does **not exist** (only `for<'a>` works for lifetimes).
 
-**Solution**: Use `SendRefCountedPointer` with an explicit `SendOf` associated type, following the same pattern as `SendClonableFn` which adds `SendOf`:
+**Solution**: Use `SendRefCountedPointer` with an explicit `SendOf` associated type, following the same pattern as `SendCloneableFn` which adds `SendOf`:
 
 ```rust
 /// Extension trait for thread-safe reference-counted pointers.
@@ -104,7 +104,7 @@ impl SendRefCountedPointer for ArcBrand {
 **Why this pattern?**
 
 - Rust's `for<T: Trait>` syntax doesn't exist (only `for<'a>` works)
-- Follows the established `SendClonableFn` pattern in this codebase
+- Follows the established `SendCloneableFn` pattern in this codebase
 - The `T: Send + Sync` bound and `SendOf: Send + Sync` bound make the contract explicit
 
 **Usage in constraints**:
@@ -143,7 +143,7 @@ pub struct Lazy<'a, PtrBrand, OnceBrand, FnBrand, A>(...)
 where
 	PtrBrand: RefCountedPointer + ThunkWrapper,
 	OnceBrand: Once,
-	FnBrand: ClonableFn,
+	FnBrand: CloneableFn,
 	(): ValidLazyCombination<PtrBrand, OnceBrand, FnBrand>;  // Compile-time enforcement
 ```
 
@@ -155,24 +155,24 @@ where
 4. Third-party crates can add their own valid combinations if needed
 5. Function brand is explicitly part of the type, enabling generic code over both local and thread-safe variants
 
-### Challenge 4: SendClonableFn Integration
+### Challenge 4: SendCloneableFn Integration
 
-**Problem**: The existing `SendClonableFn` trait has a separate `SendOf` associated type. How does this integrate with `FnBrand<PtrBrand>`?
+**Problem**: The existing `SendCloneableFn` trait has a separate `SendOf` associated type. How does this integrate with `FnBrand<PtrBrand>`?
 
-**Solution**: `SendClonableFn` is only implemented for `FnBrand<ArcBrand>`:
+**Solution**: `SendCloneableFn` is only implemented for `FnBrand<ArcBrand>`:
 
 ```rust
-impl SendClonableFn for FnBrand<ArcBrand> {
+impl SendCloneableFn for FnBrand<ArcBrand> {
 	type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
 
-	fn send_clonable_fn_new<'a, A, B>(
+	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
 		Arc::new(f)
 	}
 }
 
-// FnBrand<RcBrand> does NOT implement SendClonableFn
+// FnBrand<RcBrand> does NOT implement SendCloneableFn
 // because RcBrand does NOT implement SendRefCountedPointer
 ```
 
@@ -186,7 +186,7 @@ This maintains the same pattern: the extension trait is only implemented for thr
 
 1. **Clone requirement**: `Lazy::clone()` must work unconditionally. The `CloneableOf` associated type guarantees `Clone` without requiring `T: Clone`.
 
-2. **FnBrand constraint**: `FnBrand<P>` requires `P: RefCountedPointer`, not just `P: Pointer`. The thunk stored in `Lazy` must be clonable.
+2. **FnBrand constraint**: `FnBrand<P>` requires `P: RefCountedPointer`, not just `P: Pointer`. The thunk stored in `Lazy` must be cloneable.
 
 3. **Semantic consistency**: Using `CloneableOf` for both the outer wrapper and the thunk storage (via `FnBrand`) ensures both use the same pointer type (Rc or Arc).
 
@@ -198,7 +198,7 @@ This maintains the same pattern: the extension trait is only implemented for thr
 
 **Why this happens**: Rust's unsized coercion (`impl Fn` → `dyn Fn`) requires the compiler to know the concrete target type at the call site. In generic code like `P::cloneable_new(f)`, the compiler can't perform this coercion.
 
-**Solution**: Introduce a two-level trait hierarchy for unsized coercion: `UnsizedCoercible` for basic function coercion, and `SendUnsizedCoercible` (extending it) for thread-safe function coercion. This follows the same pattern as `ClonableFn` → `SendClonableFn` and eliminates the runtime panic for non-Send brands:
+**Solution**: Introduce a two-level trait hierarchy for unsized coercion: `UnsizedCoercible` for basic function coercion, and `SendUnsizedCoercible` (extending it) for thread-safe function coercion. This follows the same pattern as `CloneableFn` → `SendCloneableFn` and eliminates the runtime panic for non-Send brands:
 
 ```rust
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
@@ -240,8 +240,8 @@ impl SendUnsizedCoercible for ArcBrand {
 Now `FnBrand` can have a blanket implementation:
 
 ```rust
-/// Blanket implementation of ClonableFn for any FnBrand<P> where P: UnsizedCoercible.
-impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
+/// Blanket implementation of CloneableFn for any FnBrand<P> where P: UnsizedCoercible.
+impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	type Of<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B>;
 
 	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B> {
@@ -249,11 +249,11 @@ impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
 	}
 }
 
-// SendClonableFn only for SendUnsizedCoercible
-impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
+// SendCloneableFn only for SendUnsizedCoercible
+impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	type SendOf<'a, A, B> = P::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
-	fn send_clonable_fn_new<'a, A, B>(
+	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
 		P::coerce_fn_send(f)
@@ -286,7 +286,7 @@ impl UnsizedCoercible for MyRcBrand {
 		MyRc::new(f)
 	}
 }
-// FnBrand<MyRcBrand> now implements ClonableFn (but NOT SendClonableFn)!
+// FnBrand<MyRcBrand> now implements CloneableFn (but NOT SendCloneableFn)!
 
 // Example 2: Thread-safe custom Arc (like ArcBrand)
 pub struct MyArcBrand;
@@ -309,7 +309,7 @@ impl SendUnsizedCoercible for MyArcBrand {
 		MyArc::new(f)
 	}
 }
-// FnBrand<MyArcBrand> now implements BOTH ClonableFn AND SendClonableFn!
+// FnBrand<MyArcBrand> now implements BOTH CloneableFn AND SendCloneableFn!
 ```
 
 ## Efficiency Analysis
@@ -394,7 +394,7 @@ let vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Clones the entire Ve
 // Do this:
 use fp_library::{brands::*, classes::*, functions::*};
 let lazy: RcLazy<Arc<Vec<u8>>> = lazy_new::<RcLazyConfig, _>(
-	clonable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
+	cloneable_fn_new::<RcFnBrand, _, _>(|_| Arc::new(vec![...]))
 );
 let arc_vec = lazy_force_cloned::<RcLazyConfig, _>(&lazy)?;  // Only clones the Arc (cheap)
 ```
@@ -421,7 +421,7 @@ The `Clone` requirement is explicit in the type signature, making the cost visib
 ```rust
 let lazy: Arc<ArcLazy<i32>> = Arc::new_cyclic(|weak| {
 	let weak = weak.clone();
-	lazy_new::<ArcLazyConfig, _>(send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
+	lazy_new::<ArcLazyConfig, _>(send_cloneable_fn_new::<ArcFnBrand, _, _>(move |_| {
 		// Recursive force - DEADLOCK!
 		let self_ref = weak.upgrade().unwrap();
 		lazy_force::<ArcLazyConfig, _>(&*self_ref).unwrap_or(0) + 1
@@ -441,7 +441,7 @@ let lazy: Arc<ArcLazy<i32>> = Arc::new_cyclic(|weak| {
 
 ### Alternative 1: Separate SendRefCountedPointer with Own Associated Type
 
-**Description**: Like `SendClonableFn`, have `SendRefCountedPointer` define its own `SendOf` type.
+**Description**: Like `SendCloneableFn`, have `SendRefCountedPointer` define its own `SendOf` type.
 
 ```rust
 trait SendRefCountedPointer: RefCountedPointer {
@@ -453,7 +453,7 @@ trait SendRefCountedPointer: RefCountedPointer {
 **Pros**:
 
 - More explicit about thread-safe type
-- Consistent with `SendClonableFn` pattern
+- Consistent with `SendCloneableFn` pattern
 - Type bounds are clear in the trait definition
 - Required because `for<T: Trait>` syntax doesn't exist in Rust
 
@@ -464,7 +464,7 @@ trait SendRefCountedPointer: RefCountedPointer {
 
 **Decision**: ✅ Adopted - necessary because Rust's `for<T: Trait>` higher-ranked bounds don't exist. A marker trait with the invalid syntax would not compile.
 
-### Alternative 2: No Pointer Trait, Just Refactor ClonableFn
+### Alternative 2: No Pointer Trait, Just Refactor CloneableFn
 
 **Description**: Keep separate `RcFnBrand`/`ArcFnBrand` but use them directly in `Lazy`.
 
@@ -489,9 +489,9 @@ trait SendRefCountedPointer: RefCountedPointer {
 The current implementation has a peculiar hybrid structure:
 
 ```rust
-pub struct Lazy<'a, OnceBrand: Once, FnBrand: ClonableFn, A>(
+pub struct Lazy<'a, OnceBrand: Once, FnBrand: CloneableFn, A>(
 	pub <OnceBrand as Once>::Of<A>,              // OnceCell<A> - DEEP cloned
-	pub <FnBrand as ClonableFn>::Of<'a, (), A>,  // Rc<dyn Fn> - SHALLOW cloned (shared!)
+	pub <FnBrand as CloneableFn>::Of<'a, (), A>,  // Rc<dyn Fn> - SHALLOW cloned (shared!)
 );
 ```
 
@@ -509,7 +509,7 @@ This means cloning shares the thunk but not the memoization — the worst of bot
 
 2. **"I want snapshot isolation for impure thunks"** → Side-effectful thunks violate referential transparency. This is a bug, not a feature.
 
-3. **"I want to avoid Rc/Arc overhead"** → The thunk is already wrapped in Rc via ClonableFn, so you pay the overhead anyway.
+3. **"I want to avoid Rc/Arc overhead"** → The thunk is already wrapped in Rc via CloneableFn, so you pay the overhead anyway.
 
 4. **"I want thread-local memoization"** → Use `thread_local!` with `OnceCell` directly, or use shared `Lazy` with thread-local access patterns.
 
@@ -586,6 +586,6 @@ This allows the FP library's abstractions (Lazy, FnBrand, etc.) to work with cus
 - [std::sync::Arc documentation](https://doc.rust-lang.org/std/sync/struct.Arc.html)
 - [std::boxed::Box documentation](https://doc.rust-lang.org/std/boxed/struct.Box.html)
 - [std::borrow::Cow documentation](https://doc.rust-lang.org/std/borrow/enum.Cow.html)
-- [Existing SendClonableFn trait](../fp-library/src/classes/send_clonable_fn.rs)
-- [Existing ClonableFn trait](../fp-library/src/classes/clonable_fn.rs)
+- [Existing SendCloneableFn trait](../fp-library/src/classes/send_cloneable_fn.rs)
+- [Existing CloneableFn trait](../fp-library/src/classes/cloneable_fn.rs)
 - [Current Lazy implementation](../fp-library/src/types/lazy.rs)

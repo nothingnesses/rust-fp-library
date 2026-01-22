@@ -9,18 +9,18 @@
 //! use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 //!
 //! let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-//!     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 //! );
 //! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 //! ```
 
-use super::clonable_fn::ClonableFn;
+use super::cloneable_fn::CloneableFn;
 
 /// A type class for types that can be constructed lazily.
 pub trait Defer<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
-	/// This function takes a thunk (wrapped in a clonable function) and creates a deferred value that will be computed using the thunk.
+	/// This function takes a thunk (wrapped in a cloneable function) and creates a deferred value that will be computed using the thunk.
 	///
 	/// ### Type Signature
 	///
@@ -28,11 +28,11 @@ pub trait Defer<'a> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
 	///
 	/// ### Returns
 	///
@@ -45,11 +45,11 @@ pub trait Defer<'a> {
 	/// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 	///
 	/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 	/// ```
-	fn defer<FnBrand: 'a + ClonableFn>(f: <FnBrand as ClonableFn>::Of<'a, (), Self>) -> Self
+	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized;
 }
@@ -65,11 +65,11 @@ pub trait Defer<'a> {
 /// ### Type Parameters
 ///
 /// * `D`: The type of the deferred value.
-/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `FnBrand`: The brand of the cloneable function wrapper.
 ///
 /// ### Parameters
 ///
-/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
 ///
 /// ### Returns
 ///
@@ -82,14 +82,14 @@ pub trait Defer<'a> {
 /// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 ///
 /// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 /// );
 /// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 /// ```
-pub fn defer<'a, D, FnBrand>(f: <FnBrand as ClonableFn>::Of<'a, (), D>) -> D
+pub fn defer<'a, D, FnBrand>(f: <FnBrand as CloneableFn>::Of<'a, (), D>) -> D
 where
 	D: Defer<'a>,
-	FnBrand: 'a + ClonableFn,
+	FnBrand: 'a + CloneableFn,
 {
 	D::defer::<FnBrand>(f)
 }

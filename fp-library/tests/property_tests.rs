@@ -5,7 +5,7 @@ mod tests {
 	use fp_library::classes::monoid::Monoid;
 	use fp_library::classes::par_foldable::ParFoldable;
 	use fp_library::classes::semigroup::Semigroup;
-	use fp_library::classes::send_clonable_fn::SendClonableFn;
+	use fp_library::classes::send_cloneable_fn::SendCloneableFn;
 	use fp_library::classes::send_defer::SendDefer;
 	use fp_library::types::lazy::{ArcLazy, ArcLazyConfig, Lazy, RcLazy, RcLazyConfig};
 	use quickcheck_macros::quickcheck;
@@ -36,7 +36,7 @@ mod tests {
 	#[test]
 	fn test_large_vector_par_fold_map() {
 		let xs: Vec<i32> = (0..100000).collect();
-		let f_par = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| Sum(x as i64));
+		let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 		let res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 		assert_eq!(res, Sum(4999950000));
 	}
@@ -46,7 +46,7 @@ mod tests {
 	#[quickcheck]
 	fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
 		let f_seq = |x: i32| Sum(x as i64);
-		let f_par = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| Sum(x as i64));
+		let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 
 		// Foldable::fold_map takes (f, fa)
 		let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _, _>(f_seq, xs.clone());
@@ -63,7 +63,7 @@ mod tests {
 		// Use wrapping_add to avoid overflow panics in debug mode
 		let f_seq = |a: i32, b: i32| a.wrapping_add(b);
 		// ParFoldable::par_fold_right takes Fn((A, B)) -> B (tuple arg)
-		let f_par = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|(a, b): (i32, i32)| {
+		let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|(a, b): (i32, i32)| {
 			a.wrapping_add(b)
 		});
 		let init = 0;
@@ -86,7 +86,7 @@ mod tests {
 			return true;
 		}
 
-		let f_par = <ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| Sum(x as i64));
+		let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 		let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
 
 		par_res == Sum::empty()
@@ -96,8 +96,8 @@ mod tests {
 	/// when called twice on the same input).
 	#[quickcheck]
 	fn prop_par_fold_map_deterministic(xs: Vec<i32>) -> bool {
-		let f_par: <ArcFnBrand as SendClonableFn>::SendOf<'_, i32, Sum> =
-			<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| Sum(x as i64));
+		let f_par: <ArcFnBrand as SendCloneableFn>::SendOf<'_, i32, Sum> =
+			<ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 
 		let res1 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par.clone(), xs.clone());
 		let res2 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);

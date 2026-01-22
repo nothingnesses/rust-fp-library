@@ -17,7 +17,7 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
 
 - [x] **Step 1.1**: Review `Function` trait in `fp-library/src/classes/function.rs`.
   - [x] Confirm it is kept as a base abstraction.
-- [x] **Step 1.2**: Review `ClonableFn` trait in `fp-library/src/classes/clonable_fn.rs`.
+- [x] **Step 1.2**: Review `CloneableFn` trait in `fp-library/src/classes/cloneable_fn.rs`.
   - [x] Remove it from signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable` (will be done in Phase 2).
   - [x] Ensure it is retained for `Semiapplicative::apply`, `Lazy`, `Defer`, `Endofunction`, `Endomorphism`.
 
@@ -30,7 +30,7 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
   - [x] Define `lift2` with signature: `fn lift2<A, B, C, F>(f: F, fa: ..., fb: ...) -> ... where F: Fn(A, B) -> C`.
 - [x] **Step 2.3**: Refactor `Semiapplicative` in `fp-library/src/classes/semiapplicative.rs`.
   - [x] Make it extend `Lift + Functor`.
-  - [x] Update `apply` signature (keep `ClonableFnBrand` for type erasure).
+  - [x] Update `apply` signature (keep `CloneableFnBrand` for type erasure).
 - [x] **Step 2.4**: Refactor `Semimonad` in `fp-library/src/classes/semimonad.rs`.
   - [x] Update `bind` signature to be uncurried: `fn bind<A, B, F>(ma: ..., f: F) -> ... where F: Fn(A) -> ...`.
 - [x] **Step 2.5**: Refactor `Foldable` in `fp-library/src/classes/foldable.rs`.
@@ -47,7 +47,7 @@ _Note: These changes might need to be mirrored or adapted in `v2` if they are fo
   - [x] Update `fp-library/src/classes/semigroupoid.rs`: `compose` uncurried.
   - [x] Update `fp-library/src/classes/category.rs`: `identity` (no changes needed usually, but check).
 - [x] **Step 2.10**: Refactor `Pointed` in `fp-library/src/classes/pointed.rs`.
-  - [x] Remove `ClonableFnBrand` from `pure`.
+  - [x] Remove `CloneableFnBrand` from `pure`.
 - [x] **Step 2.11**: Verify `Applicative` and `Monad`.
   - [x] Check `fp-library/src/classes/applicative.rs` and `fp-library/src/classes/monad.rs` for compatibility.
 

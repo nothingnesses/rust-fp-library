@@ -27,11 +27,11 @@ git diff 7f50bd37912f175dc706f00d6f96e690d11fb488
 
 ### Initial Questions
 
-The conversation began with an analysis of the `Function` and `ClonableFn` traits in the fp-library:
+The conversation began with an analysis of the `Function` and `CloneableFn` traits in the fp-library:
 
 **Questions Asked:**
 
-1. Does the existence of the traits `Function` and `ClonableFn` make sense?
+1. Does the existence of the traits `Function` and `CloneableFn` make sense?
 2. Is their existence reasonable and justified?
 3. Are the traits appropriate/good abstractions?
 4. Do they have drawbacks and limitations?
@@ -41,7 +41,7 @@ The conversation began with an analysis of the `Function` and `ClonableFn` trait
 
 #### What These Traits Accomplish
 
-The `Function` and `ClonableFn` traits solve a fundamental challenge in Rust: **closures are anonymous types that don't implement `Clone`**. In functional programming, you frequently need to:
+The `Function` and `CloneableFn` traits solve a fundamental challenge in Rust: **closures are anonymous types that don't implement `Clone`**. In functional programming, you frequently need to:
 
 1. Pass functions generically (e.g., to `Functor::map`)
 2. Clone functions (e.g., when applying the same function multiple times in `Semiapplicative::apply`)
@@ -69,7 +69,7 @@ The library's solution wraps closures in smart pointers (`Rc`/`Arc`) and abstrac
    - Reference counting overhead (`Rc`/`Arc` increment/decrement)
    - Cache-unfriendly indirection due to heap-allocated closures
 
-3. **Redundancy Between Traits**: `Function` and `ClonableFn` have nearly identical definitions, with the only difference being the `Clone` bound. `Function` is never used standalone in the codebase.
+3. **Redundancy Between Traits**: `Function` and `CloneableFn` have nearly identical definitions, with the only difference being the `Clone` bound. `Function` is never used standalone in the codebase.
 
 4. **Type Complexity**: Generic type parameters proliferate through the codebase, making error messages difficult to read.
 
@@ -84,7 +84,7 @@ The user proposed moving from curried semantics to uncurried semantics, where fu
 | Source           | Cause                                  | Example                                  |
 | ---------------- | -------------------------------------- | ---------------------------------------- |
 | **Currying**     | Partial application creates closures   | `map(f)` returns a closure capturing `f` |
-| **Clonability**  | Closures must be wrapped in `Rc`/`Arc` | `ApplyClonableFn<'a, RcFnBrand, A, B>`   |
+| **Clonability**  | Closures must be wrapped in `Rc`/`Arc` | `ApplyCloneableFn<'a, RcFnBrand, A, B>`   |
 | **Type erasure** | `dyn Fn` for uniform function types    | Dynamic vtable dispatch                  |
 
 #### What Uncurrying Eliminates
@@ -118,7 +118,7 @@ A **hybrid approach** was recommended:
    | Operation                | Where Functions Are Data                        | Why Dynamic Dispatch Needed                                                      |
    | ------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------- |
    | `Semiapplicative::apply` | `ff: F<A -> B>` - functions inside a functor    | Multiple heterogeneous functions stored in container                             |
-   | `Lazy` type              | Stores thunk `() -> A` for deferred computation | Thunk must be clonable for lazy evaluation semantics                             |
+   | `Lazy` type              | Stores thunk `() -> A` for deferred computation | Thunk must be cloneable for lazy evaluation semantics                             |
    | `Defer::defer`           | Takes `() -> Self` thunk                        | Deferred construction pattern                                                    |
    | `Endofunction`           | Stores `A -> A` for Monoid composition          | `Monoid::append` requires `Self -> Self`, so composed type must equal input type |
    | `Endomorphism`           | Same as Endofunction for category morphisms     | Same reason as Endofunction                                                      |
@@ -127,17 +127,17 @@ A **hybrid approach** was recommended:
 
    ```rust
    fn apply<'a, A, B, FnBrand>(
-       ff: Apply0L1T<Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+       ff: Apply0L1T<Self, ApplyCloneableFn<'a, FnBrand, A, B>>,
        fa: Apply0L1T<Self, A>
    ) -> Apply0L1T<Self, B>
    where
-       FnBrand: ClonableFn,
+       FnBrand: CloneableFn,
        A: Clone;
    ```
 
    → Overhead is inherent to these abstractions
 
-   **Reasoning**: These operations fundamentally require storing functions in data structures. The brand abstraction (`FnBrand: ClonableFn`) is preserved rather than hardcoding `Rc` because:
+   **Reasoning**: These operations fundamentally require storing functions in data structures. The brand abstraction (`FnBrand: CloneableFn`) is preserved rather than hardcoding `Rc` because:
 
    - Users can choose between `RcFnBrand` (single-threaded, lower overhead) and `ArcFnBrand` (thread-safe)
    - Consistent with the library's existing abstraction pattern
@@ -154,7 +154,7 @@ A **hybrid approach** was recommended:
 | File                 | Traits/Functions                                  | Currying Pattern                                           |
 | -------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
 | `function.rs`        | `Function`                                        | Core abstraction for wrapped functions                     |
-| `clonable_fn.rs`     | `ClonableFn`                                      | Extends `Function` with `Clone`                            |
+| `cloneable_fn.rs`     | `CloneableFn`                                      | Extends `Function` with `Clone`                            |
 | `functor.rs`         | `Functor`, `map`                                  | `map(f) -> (fa -> fb)` - curried                           |
 | `semiapplicative.rs` | `Semiapplicative`, `apply`                        | `apply(ff) -> (fa -> fb)` - curried, **functions-as-data** |
 | `semimonad.rs`       | `Semimonad`, `bind`                               | `bind(ma) -> (f -> mb)` - curried                          |
@@ -169,7 +169,7 @@ A **hybrid approach** was recommended:
 | `monoid.rs`          | `Monoid`, `empty`                                 | Not curried                                                |
 | `applicative.rs`     | `Applicative`                                     | Marker trait (blanket impl)                                |
 | `monad.rs`           | `Monad`                                           | Marker trait (blanket impl)                                |
-| `defer.rs`           | `Defer`                                           | Uses `ClonableFn`                                          |
+| `defer.rs`           | `Defer`                                           | Uses `CloneableFn`                                          |
 | `once.rs`            | `Once`                                            | Not curried (uses `FnOnce`)                                |
 
 #### Helper Functions (`fp-library/src/functions.rs`)
@@ -185,15 +185,15 @@ A **hybrid approach** was recommended:
 
 | File                        | Brand                                                    | Curried Methods                                                                        |
 | --------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `option.rs`                 | `OptionBrand`                                            | All type class implementations use curried `ClonableFn`                                |
-| `vec.rs`                    | `VecBrand`                                               | All type class implementations use curried `ClonableFn`, plus `construct`              |
-| `identity.rs`               | `IdentityBrand`                                          | All type class implementations use curried `ClonableFn`                                |
-| `result/result_with_err.rs` | `ResultWithErrBrand<E>`                                  | All type class implementations use curried `ClonableFn`                                |
-| `result/result_with_ok.rs`  | `ResultWithOkBrand<T>`                                   | All type class implementations use curried `ClonableFn`                                |
+| `option.rs`                 | `OptionBrand`                                            | All type class implementations use curried `CloneableFn`                                |
+| `vec.rs`                    | `VecBrand`                                               | All type class implementations use curried `CloneableFn`, plus `construct`              |
+| `identity.rs`               | `IdentityBrand`                                          | All type class implementations use curried `CloneableFn`                                |
+| `result/result_with_err.rs` | `ResultWithErrBrand<E>`                                  | All type class implementations use curried `CloneableFn`                                |
+| `result/result_with_ok.rs`  | `ResultWithOkBrand<T>`                                   | All type class implementations use curried `CloneableFn`                                |
 | `pair.rs`                   | `PairBrand`, `PairWithFirstBrand`, `PairWithSecondBrand` | `Pair::new` is curried                                                                 |
-| `arc_fn.rs`                 | `ArcFnBrand`                                             | Implements `Function`, `ClonableFn`, `Semigroupoid`, `Category`, `Semigroup`, `Monoid` |
-| `rc_fn.rs`                  | `RcFnBrand`                                              | Implements `Function`, `ClonableFn`, `Semigroupoid`, `Category`, `Semigroup`, `Monoid` |
-| `endofunction.rs`           | `EndofunctionBrand`                                      | Uses `ClonableFn` internally, implements `Semigroup`, `Monoid`                         |
+| `arc_fn.rs`                 | `ArcFnBrand`                                             | Implements `Function`, `CloneableFn`, `Semigroupoid`, `Category`, `Semigroup`, `Monoid` |
+| `rc_fn.rs`                  | `RcFnBrand`                                              | Implements `Function`, `CloneableFn`, `Semigroupoid`, `Category`, `Semigroup`, `Monoid` |
+| `endofunction.rs`           | `EndofunctionBrand`                                      | Uses `CloneableFn` internally, implements `Semigroup`, `Monoid`                         |
 | `endomorphism.rs`           | `EndomorphismBrand`                                      | Uses `Category` internally, implements `Semigroup`, `Monoid`                           |
 | `lazy.rs`                   | `LazyBrand`                                              | Uses `Defer` trait                                                                     |
 
@@ -217,7 +217,7 @@ A **hybrid approach** was recommended:
 
 ### Phase 1: Simplify and Restrict Function Wrapper Traits
 
-**Goal**: Retain the `Function` trait hierarchy but restrict usage to operations that inherently require stored/clonable functions.
+**Goal**: Retain the `Function` trait hierarchy but restrict usage to operations that inherently require stored/cloneable functions.
 
 #### Step 1.1: Keep `Function` Trait
 
@@ -237,7 +237,7 @@ A **hybrid approach** was recommended:
            Box::new(f)
        }
    }
-   // BoxFnBrand does NOT implement ClonableFn because Box<dyn Fn> isn't Clone
+   // BoxFnBrand does NOT implement CloneableFn because Box<dyn Fn> isn't Clone
    ```
 
    **Use case**: When a function will only be called (not cloned), avoiding reference counting overhead.
@@ -253,13 +253,13 @@ A **hybrid approach** was recommended:
 
    **Use case**: Single-use callbacks, resource-consuming operations.
 
-3. **Conceptual hierarchy**: `Function` represents "all function wrappers", while `ClonableFn` adds clonability. This mirrors Rust's `Fn` trait hierarchy (`FnOnce` ⊃ `FnMut` ⊃ `Fn`).
+3. **Conceptual hierarchy**: `Function` represents "all function wrappers", while `CloneableFn` adds clonability. This mirrors Rust's `Fn` trait hierarchy (`FnOnce` ⊃ `FnMut` ⊃ `Fn`).
 
 **Impact**: Minimal code savings from deletion, but significant loss of extension potential.
 
-#### Step 1.2: Keep `ClonableFn` Trait for Functions-as-Data
+#### Step 1.2: Keep `CloneableFn` Trait for Functions-as-Data
 
-**File**: `fp-library/src/classes/clonable_fn.rs`
+**File**: `fp-library/src/classes/cloneable_fn.rs`
 
 **Action**: Keep this trait, but remove it from the signatures of `Functor`, `Semimonad`, `Foldable`, `Traversable`, etc. It will only be used for operations that inherently need to store or clone functions:
 
@@ -268,9 +268,9 @@ A **hybrid approach** was recommended:
 - `Defer::defer` (deferred construction)
 - `Endofunction` / `Endomorphism` (function composition as Monoid)
 
-**Update**: Remove `A: 'a` and `B: 'a` bounds from `Function` and `ClonableFn` definitions. This relaxation is necessary to allow `RcFnBrand` to implement `Semigroupoid` without conflicting lifetime requirements.
+**Update**: Remove `A: 'a` and `B: 'a` bounds from `Function` and `CloneableFn` definitions. This relaxation is necessary to allow `RcFnBrand` to implement `Semigroupoid` without conflicting lifetime requirements.
 
-**Reasoning**: `Lazy` and `Defer` store thunks that must be clonable. `Semiapplicative::apply` stores functions inside containers (e.g., `Vec<fn>`). We cannot easily replace `Rc`/`Arc` with `Box<dyn Fn>` because `Box` is not `Clone`, and cloning is often required (e.g., `Vec::apply` needs to apply each function to each element).
+**Reasoning**: `Lazy` and `Defer` store thunks that must be cloneable. `Semiapplicative::apply` stores functions inside containers (e.g., `Vec<fn>`). We cannot easily replace `Rc`/`Arc` with `Box<dyn Fn>` because `Box` is not `Clone`, and cloning is often required (e.g., `Vec::apply` needs to apply each function to each element).
 
 ---
 
@@ -286,9 +286,9 @@ A **hybrid approach** was recommended:
 
 ```rust
 pub trait Functor: Kind0L1T {
-    fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-        f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
-    ) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
+    fn map<'a, CloneableFnBrand: 'a + CloneableFn, A: 'a, B: 'a>(
+        f: ApplyCloneableFn<'a, CloneableFnBrand, A, B>
+    ) -> ApplyCloneableFn<'a, CloneableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>>;
 }
 ```
 
@@ -356,8 +356,8 @@ pub trait Semiapplicative: Lift + Functor {
     /// When a container (like `Vec`) holds multiple different closures, they must be
     /// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
     /// distinct anonymous type.
-    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + CloneableFn>(
+        ff: Apply1L1T<'a, Self, ApplyCloneableFn<'a, FnBrand, A, B>>,
         fa: Apply1L1T<'a, Self, A>
     ) -> Apply1L1T<'a, Self, B>;
 }
@@ -366,7 +366,7 @@ pub trait Semiapplicative: Lift + Functor {
 **Reasoning**:
 
 - **Composition**: Extends both `Lift` and `Functor`, combining the ability to lift binary functions and map unary functions.
-- **Type Erasure Required**: The `ff` parameter uses `ApplyClonableFn<'a, FnBrand, A, B>` (e.g., `Rc<dyn Fn(A) -> B>`) because containers like `Vec` cannot hold heterogeneous generic function types. Each Rust closure `|x| ...` is a unique anonymous type, so `Vec<F>` where `F: Fn(A) -> B` can only hold closures of the exact same concrete type—useless for any practical multi-function container. Type erasure via `dyn Fn` is the only way to store different closures in the same container.
+- **Type Erasure Required**: The `ff` parameter uses `ApplyCloneableFn<'a, FnBrand, A, B>` (e.g., `Rc<dyn Fn(A) -> B>`) because containers like `Vec` cannot hold heterogeneous generic function types. Each Rust closure `|x| ...` is a unique anonymous type, so `Vec<F>` where `F: Fn(A) -> B` can only hold closures of the exact same concrete type—useless for any practical multi-function container. Type erasure via `dyn Fn` is the only way to store different closures in the same container.
 - **Clone Bounds**: `Clone` bounds are required to support `Vec` implementation (Cartesian product).
 - **Brand Abstraction**: Users can choose between `RcFnBrand` (single-threaded) and `ArcFnBrand` (thread-safe).
 
@@ -495,7 +495,7 @@ pub trait Semigroup {
 }
 ```
 
-**Reasoning**: Simplified to standard Rust style. Removed lifetime `'b` and `ClonableFnBrand` as they are implementation details of specific semigroups (like `Endofunction`), not the trait itself.
+**Reasoning**: Simplified to standard Rust style. Removed lifetime `'b` and `CloneableFnBrand` as they are implementation details of specific semigroups (like `Endofunction`), not the trait itself.
 
 #### Step 2.9: Refactor `Semigroupoid` and `Category` Traits
 
@@ -536,7 +536,7 @@ pub trait Pointed: Kind0L1T {
 }
 ```
 
-**Reasoning**: Remove `ClonableFnBrand` dependency. `pure` simply lifts a value; it doesn't involve function application or storage that requires branding.
+**Reasoning**: Remove `CloneableFnBrand` dependency. `pure` simply lifts a value; it doesn't involve function application or storage that requires branding.
 
 #### Step 2.11: Verify `Applicative` and `Monad` Traits
 
@@ -564,10 +564,10 @@ pub trait Pointed: Kind0L1T {
 **Current**:
 
 ```rust
-fn map<'a, ClonableFnBrand: 'a + ClonableFn, A: 'a, B: 'a>(
-    f: ApplyClonableFn<'a, ClonableFnBrand, A, B>
-) -> ApplyClonableFn<'a, ClonableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
-    <ClonableFnBrand as ClonableFn>::new(move |fa: Apply0L1T<Self, _>| fa.map(&*f))
+fn map<'a, CloneableFnBrand: 'a + CloneableFn, A: 'a, B: 'a>(
+    f: ApplyCloneableFn<'a, CloneableFnBrand, A, B>
+) -> ApplyCloneableFn<'a, CloneableFnBrand, Apply0L1T<Self, A>, Apply0L1T<Self, B>> {
+    <CloneableFnBrand as CloneableFn>::new(move |fa: Apply0L1T<Self, _>| fa.map(&*f))
 }
 ```
 
@@ -600,20 +600,20 @@ Update `IdentityBrand`, `ResultWithErrBrand`, `ResultWithOkBrand`, `PairWithFirs
 
 **File**: `fp-library/src/types/lazy.rs`
 
-**Action**: `Lazy` must continue to use `ClonableFn` (or `ArcFnBrand`/`RcFnBrand`) because it stores a thunk that must be clonable to allow the `Lazy` value itself to be cloned before evaluation.
+**Action**: `Lazy` must continue to use `CloneableFn` (or `ArcFnBrand`/`RcFnBrand`) because it stores a thunk that must be cloneable to allow the `Lazy` value itself to be cloned before evaluation.
 
 **Current State**: The `Lazy` type currently implements only `Semigroup`, `Monoid`, and `Defer`. It does **not** have `Functor`, `Semimonad`, `Semiapplicative`, or other type class implementations yet.
 
 **Proposed**:
 
-1. Keep `ClonableFnBrand` in the struct definition
+1. Keep `CloneableFnBrand` in the struct definition
 2. Add new implementations for `Semiapplicative`, `Semigroup`, `Monoid`, `Defer`.
 3. **Note**: `Functor`, `Pointed`, and `Semimonad` are **omitted** because `Lazy` requires `A: Clone` for memoization, which conflicts with the trait definitions (which must work for all `A`).
 
 ```rust
-impl<OnceBrand: Once, CFB: ClonableFn> Semiapplicative for LazyBrand<OnceBrand, CFB> {
-    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + ClonableFn>(
-        ff: Apply1L1T<'a, Self, ApplyClonableFn<'a, FnBrand, A, B>>,
+impl<OnceBrand: Once, CFB: CloneableFn> Semiapplicative for LazyBrand<OnceBrand, CFB> {
+    fn apply<'a, A: 'a + Clone, B: 'a, FnBrand: 'a + CloneableFn>(
+        ff: Apply1L1T<'a, Self, ApplyCloneableFn<'a, FnBrand, A, B>>,
         fa: Apply1L1T<'a, Self, A>
     ) -> Apply1L1T<'a, Self, B> {
         // Implementation using Lazy::new and force
@@ -681,15 +681,15 @@ where
 **Current Signature** (curried):
 
 ```rust
-impl<'b, CFB: 'b + ClonableFn, A> Semigroup<'b> for Endofunction<'b, CFB, A> {
-    fn append<'a, ClonableFnBrand: 'a + 'b + ClonableFn>(
+impl<'b, CFB: 'b + CloneableFn, A> Semigroup<'b> for Endofunction<'b, CFB, A> {
+    fn append<'a, CloneableFnBrand: 'a + 'b + CloneableFn>(
         a: Self
-    ) -> ApplyClonableFn<'a, ClonableFnBrand, Self, Self>
+    ) -> ApplyCloneableFn<'a, CloneableFnBrand, Self, Self>
     where
         Self: Sized,
         'b: 'a,
     {
-        <ClonableFnBrand as ClonableFn>::new(move |b: Self| {
+        <CloneableFnBrand as CloneableFn>::new(move |b: Self| {
             Self::new(compose::<'b, CFB, _, _, _>(a.0.clone())(b.0))
         })
     }
@@ -699,21 +699,21 @@ impl<'b, CFB: 'b + ClonableFn, A> Semigroup<'b> for Endofunction<'b, CFB, A> {
 **Proposed Reimplementation** (uncurried):
 
 ```rust
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
+impl<'a, CFB: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
     fn append(a: Self, b: Self) -> Self {
-        // a.0 and b.0 are both ApplyClonableFn<'a, CFB, A, A>
+        // a.0 and b.0 are both ApplyCloneableFn<'a, CFB, A, A>
         // which implements Deref<Target = dyn Fn(A) -> A>
         // We compose them by creating a new closure and wrapping it
-        Self::new(<CFB as ClonableFn>::new(move |x| a.0(b.0(x))))
+        Self::new(<CFB as CloneableFn>::new(move |x| a.0(b.0(x))))
     }
 }
 ```
 
 **Reasoning**: This works because:
 
-1. **Type-erased inner functions**: `Endofunction<'a, CFB, A>` wraps `ApplyClonableFn<'a, CFB, A, A>`, which is `Rc<dyn Fn(A) -> A>` or `Arc<dyn Fn(A) -> A>` depending on the brand. Both `a.0` and `b.0` implement `Deref<Target = dyn Fn(A) -> A>`, so they can be called directly.
+1. **Type-erased inner functions**: `Endofunction<'a, CFB, A>` wraps `ApplyCloneableFn<'a, CFB, A, A>`, which is `Rc<dyn Fn(A) -> A>` or `Arc<dyn Fn(A) -> A>` depending on the brand. Both `a.0` and `b.0` implement `Deref<Target = dyn Fn(A) -> A>`, so they can be called directly.
 
-2. **Brand-aware construction**: The struct is parameterized by `CFB: ClonableFn`, so it knows how to construct new wrapped functions using `<CFB as ClonableFn>::new(...)`.
+2. **Brand-aware construction**: The struct is parameterized by `CFB: CloneableFn`, so it knows how to construct new wrapped functions using `<CFB as CloneableFn>::new(...)`.
 
 3. **Composition creates same type**: The new closure `move |x| a.0(b.0(x))` is wrapped into a fresh `Rc<dyn Fn>` or `Arc<dyn Fn>`, producing another `Endofunction<'a, CFB, A>`.
 
@@ -722,9 +722,9 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, CFB, A> {
 **Monoid Implementation** (unchanged in structure):
 
 ```rust
-impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
+impl<'a, CFB: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
     fn empty() -> Self {
-        Self::new(<CFB as ClonableFn>::new(identity))
+        Self::new(<CFB as CloneableFn>::new(identity))
     }
 }
 ```
@@ -735,7 +735,7 @@ impl<'a, CFB: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, CFB, A> {
 
 **File**: `fp-library/src/types/endomorphism.rs`
 
-Apply the same uncurried `Semigroup` reimplementation to `Endomorphism`, which uses `Category` instead of `ClonableFn` but follows the same composition pattern.
+Apply the same uncurried `Semigroup` reimplementation to `Endomorphism`, which uses `Category` instead of `CloneableFn` but follows the same composition pattern.
 
 ---
 
@@ -1044,7 +1044,7 @@ map(|x: i32| x * 2, vec![1, 2, 3])
 
 1. **Update imports**: Change from `fp_library::classes::*` to `fp_library::v2::classes::*` during the transition period
 
-2. **Remove `ClonableFnBrand` parameters**: Most functions no longer need them
+2. **Remove `CloneableFnBrand` parameters**: Most functions no longer need them
 
    ```rust
    // Before:
@@ -1231,12 +1231,12 @@ pub trait Functor: Kind1L1T {
 **Current Code (lines 169-175)**:
 
 ```rust
-impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
-    for LazyBrand<OnceBrand, ClonableFnBrand>
+impl<OnceBrand: Once, CloneableFnBrand: CloneableFn> Kind0L1T
+    for LazyBrand<OnceBrand, CloneableFnBrand>
 where
     A: 'static,  // ERROR: `A` is not in scope
 {
-    type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
+    type Output<A> = Lazy<'static, OnceBrand, CloneableFnBrand, A>;
 }
 ```
 
@@ -1245,10 +1245,10 @@ where
 **Fix**: Remove the erroneous where clause. The `'static` bound on the output type should be sufficient:
 
 ```rust
-impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
-    for LazyBrand<OnceBrand, ClonableFnBrand>
+impl<OnceBrand: Once, CloneableFnBrand: CloneableFn> Kind0L1T
+    for LazyBrand<OnceBrand, CloneableFnBrand>
 {
-    type Output<A> = Lazy<'static, OnceBrand, ClonableFnBrand, A>;
+    type Output<A> = Lazy<'static, OnceBrand, CloneableFnBrand, A>;
 }
 ```
 
@@ -1266,7 +1266,7 @@ impl<OnceBrand: Once, ClonableFnBrand: ClonableFn> Kind0L1T
 
 After fixing the compilation error, verify that:
 
-1. `LazyBrand` can be instantiated with various `OnceBrand` and `ClonableFnBrand` combinations
+1. `LazyBrand` can be instantiated with various `OnceBrand` and `CloneableFnBrand` combinations
 2. Thunks are properly deferred and memoized
 3. Add `Functor`, `Semimonad`, and other type class implementations (currently missing from codebase)
 

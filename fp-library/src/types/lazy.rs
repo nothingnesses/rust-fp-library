@@ -11,14 +11,9 @@
 use crate::{
 	brands::{ArcBrand, ArcFnBrand, LazyBrand, OnceCellBrand, OnceLockBrand, RcBrand, RcFnBrand},
 	classes::{
-		clonable_fn::ClonableFn,
-		defer::Defer,
-		monoid::Monoid,
-		once::Once,
-		ref_counted_pointer::RefCountedPointer,
-		semigroup::Semigroup,
-		thunk_wrapper::ThunkWrapper,
-		send_clonable_fn::SendClonableFn,
+		cloneable_fn::CloneableFn, defer::Defer, monoid::Monoid, once::Once,
+		ref_counted_pointer::RefCountedPointer, semigroup::Semigroup,
+		send_cloneable_fn::SendCloneableFn, thunk_wrapper::ThunkWrapper,
 	},
 	impl_kind,
 	kinds::*,
@@ -40,9 +35,9 @@ pub trait LazyConfig: Sized + 'static {
 	/// The once-cell brand for memoization (e.g., `OnceCellBrand`, `OnceLockBrand`).
 	type OnceBrand: Once;
 	/// The function brand for thunk storage (e.g., `RcFnBrand`, `ArcFnBrand`).
-	type FnBrand: ClonableFn;
+	type FnBrand: CloneableFn;
 	/// The thunk type to use for this configuration.
-	/// Thunks deref to `Fn(()) -> A` to match the clonable function wrapper.
+	/// Thunks deref to `Fn(()) -> A` to match the cloneable function wrapper.
 	type ThunkOf<'a, A>: Clone + Deref<Target: Fn(()) -> A>
 	where
 		A: 'a;
@@ -127,11 +122,11 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the clonable function wrapper.
+	/// * `FnBrand_`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
 	///
 	/// ### Returns
 	///
@@ -143,15 +138,15 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = <RcLazyConfig as LazyDefer<i32>>::defer::<RcFnBrand>(
-	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
 	fn defer<FnBrand_>(
-		f: <FnBrand_ as ClonableFn>::Of<'a, (), Lazy<'a, Self, A>>
+		f: <FnBrand_ as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
 	) -> Lazy<'a, Self, A>
 	where
-		FnBrand_: ClonableFn + 'a,
+		FnBrand_: CloneableFn + 'a,
 		A: Clone + 'a;
 }
 
@@ -208,7 +203,7 @@ impl RcLazyConfig {
 		A: 'a,
 		F: Fn(()) -> A + Clone + 'a,
 	{
-		<RcFnBrand as ClonableFn>::new(f)
+		<RcFnBrand as CloneableFn>::new(f)
 	}
 }
 
@@ -217,7 +212,7 @@ impl LazyConfig for RcLazyConfig {
 	type OnceBrand = OnceCellBrand;
 	type FnBrand = RcFnBrand;
 	type ThunkOf<'a, A>
-		= <RcFnBrand as ClonableFn>::Of<'a, (), A>
+		= <RcFnBrand as CloneableFn>::Of<'a, (), A>
 	where
 		A: 'a;
 }
@@ -316,11 +311,11 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the clonable function wrapper.
+	/// * `FnBrand_`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
 	///
 	/// ### Returns
 	///
@@ -332,15 +327,15 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = RcLazyConfig::defer::<RcFnBrand>(
-	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
 	fn defer<FnBrand_>(
-		f: <FnBrand_ as ClonableFn>::Of<'a, (), Lazy<'a, Self, A>>
+		f: <FnBrand_ as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
 	) -> Lazy<'a, Self, A>
 	where
-		FnBrand_: ClonableFn + 'a,
+		FnBrand_: CloneableFn + 'a,
 		A: Clone + 'a,
 	{
 		let thunk = Self::new_thunk(move |_| {
@@ -421,7 +416,7 @@ impl ArcLazyConfig {
 		A: 'a,
 		F: Fn(()) -> A + Send + Sync + 'a,
 	{
-		<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(f)
+		<ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(f)
 	}
 }
 
@@ -431,7 +426,7 @@ impl LazyConfig for ArcLazyConfig {
 	type FnBrand = ArcFnBrand;
 	// Use SendOf for thread-safe thunks
 	type ThunkOf<'a, A>
-		= <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>
+		= <ArcFnBrand as SendCloneableFn>::SendOf<'a, (), A>
 	where
 		A: 'a;
 }
@@ -670,10 +665,8 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 	/// ```
 	pub fn new(thunk: Config::ThunkOf<'a, A>) -> Self {
-		let inner = LazyInner {
-			once: Config::OnceBrand::new(),
-			thunk: Config::PtrBrand::new(Some(thunk)),
-		};
+		let inner =
+			LazyInner { once: Config::OnceBrand::new(), thunk: Config::PtrBrand::new(Some(thunk)) };
 		Self(Config::PtrBrand::cloneable_new(inner))
 	}
 
@@ -986,11 +979,11 @@ impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config,
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the clonable function wrapper.
+	/// * `FnBrand_`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
 	///
 	/// ### Returns
 	///
@@ -1002,14 +995,14 @@ impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config,
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = defer::<RcLazy<i32>, RcFnBrand>(
-	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
-	fn defer<FnBrand_>(f: <FnBrand_ as ClonableFn>::Of<'a, (), Self>) -> Self
+	fn defer<FnBrand_>(f: <FnBrand_ as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
-		FnBrand_: ClonableFn + 'a,
+		FnBrand_: CloneableFn + 'a,
 	{
 		Config::defer::<FnBrand_>(f)
 	}
@@ -1068,7 +1061,7 @@ mod tests {
 	use super::*;
 	use crate::{
 		brands::RcFnBrand,
-		classes::{clonable_fn::ClonableFn, defer::Defer},
+		classes::{cloneable_fn::CloneableFn, defer::Defer},
 	};
 	use std::{cell::RefCell, rc::Rc};
 
@@ -1078,7 +1071,7 @@ mod tests {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
 
-		let lazy = RcLazy::new(<RcFnBrand as ClonableFn>::new(move |_| {
+		let lazy = RcLazy::new(<RcFnBrand as CloneableFn>::new(move |_| {
 			*counter_clone.borrow_mut() += 1;
 			42
 		}));
@@ -1100,9 +1093,9 @@ mod tests {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
 
-		let lazy = RcLazy::defer::<RcFnBrand>(<RcFnBrand as ClonableFn>::new(move |_| {
+		let lazy = RcLazy::defer::<RcFnBrand>(<RcFnBrand as CloneableFn>::new(move |_| {
 			*counter_clone.borrow_mut() += 1;
-			RcLazy::new(<RcFnBrand as ClonableFn>::new(|_| 42))
+			RcLazy::new(<RcFnBrand as CloneableFn>::new(|_| 42))
 		}));
 
 		assert_eq!(*counter.borrow(), 0);
@@ -1116,7 +1109,7 @@ mod tests {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
 
-		let lazy = RcLazy::new(<RcFnBrand as ClonableFn>::new(move |_| {
+		let lazy = RcLazy::new(<RcFnBrand as CloneableFn>::new(move |_| {
 			*counter_clone.borrow_mut() += 1;
 			if *counter_clone.borrow() == 1 {
 				panic!("oops");

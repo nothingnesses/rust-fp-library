@@ -4,7 +4,7 @@
 //! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
-	classes::{clonable_fn::ClonableFn, monoid::Monoid, semigroup::Semigroup},
+	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
 };
 use std::{
@@ -25,7 +25,7 @@ use std::{
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `FnBrand`: The brand of the cloneable function wrapper.
 /// * `A`: The input and output type of the function.
 ///
 /// ### Fields
@@ -39,12 +39,12 @@ use std::{
 /// use fp_library::types::endofunction::Endofunction;
 /// use fp_library::brands::RcFnBrand;
 ///
-/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
 /// ```
-pub struct Endofunction<'a, FnBrand: ClonableFn, A>(pub <FnBrand as ClonableFn>::Of<'a, A, A>);
+pub struct Endofunction<'a, FnBrand: CloneableFn, A>(pub <FnBrand as CloneableFn>::Of<'a, A, A>);
 
-impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	/// Creates a new `Endofunction`.
 	///
 	/// This function wraps a function `a -> a` in an `Endofunction` struct.
@@ -73,23 +73,23 @@ impl<'a, FnBrand: ClonableFn, A> Endofunction<'a, FnBrand, A> {
 	/// use fp_library::types::endofunction::Endofunction;
 	/// use fp_library::brands::RcFnBrand;
 	///
-	/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(f: <FnBrand as ClonableFn>::Of<'a, A, A>) -> Self {
+	pub fn new(f: <FnBrand as CloneableFn>::Of<'a, A, A>) -> Self {
 		Self(f)
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> Clone for Endofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: CloneableFn, A> Clone for Endofunction<'a, FnBrand, A> {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> Debug for Endofunction<'a, FnBrand, A>
+impl<'a, FnBrand: CloneableFn, A> Debug for Endofunction<'a, FnBrand, A>
 where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: Debug,
+	<FnBrand as CloneableFn>::Of<'a, A, A>: Debug,
 {
 	fn fmt(
 		&self,
@@ -99,14 +99,14 @@ where
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> Eq for Endofunction<'a, FnBrand, A> where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: Eq
+impl<'a, FnBrand: CloneableFn, A> Eq for Endofunction<'a, FnBrand, A> where
+	<FnBrand as CloneableFn>::Of<'a, A, A>: Eq
 {
 }
 
-impl<'a, FnBrand: ClonableFn, A> Hash for Endofunction<'a, FnBrand, A>
+impl<'a, FnBrand: CloneableFn, A> Hash for Endofunction<'a, FnBrand, A>
 where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: Hash,
+	<FnBrand as CloneableFn>::Of<'a, A, A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -116,9 +116,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> Ord for Endofunction<'a, FnBrand, A>
+impl<'a, FnBrand: CloneableFn, A> Ord for Endofunction<'a, FnBrand, A>
 where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: Ord,
+	<FnBrand as CloneableFn>::Of<'a, A, A>: Ord,
 {
 	fn cmp(
 		&self,
@@ -128,9 +128,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
+impl<'a, FnBrand: CloneableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
 where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: PartialEq,
+	<FnBrand as CloneableFn>::Of<'a, A, A>: PartialEq,
 {
 	fn eq(
 		&self,
@@ -140,9 +140,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: ClonableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
+impl<'a, FnBrand: CloneableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
 where
-	<FnBrand as ClonableFn>::Of<'a, A, A>: PartialOrd,
+	<FnBrand as CloneableFn>::Of<'a, A, A>: PartialOrd,
 {
 	fn partial_cmp(
 		&self,
@@ -152,7 +152,7 @@ where
 	}
 }
 
-impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
 	/// The result of combining the two values using the semigroup operation.
 	///
 	/// This method composes two endofunctions into a single endofunction.
@@ -179,8 +179,8 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand
 	/// use fp_library::types::endofunction::Endofunction;
 	/// use fp_library::brands::RcFnBrand;
 	///
-	/// let f = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// let g = Endofunction::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 	///
 	/// // f(g(x)) = (x + 1) * 2
 	/// let h = append::<_>(f, g);
@@ -193,11 +193,11 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand
 		let f = a.0;
 		let g = b.0;
 		// Compose: f . g
-		Self::new(<FnBrand as ClonableFn>::new(move |x| f(g(x))))
+		Self::new(<FnBrand as CloneableFn>::new(move |x| f(g(x))))
 	}
 }
 
-impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
 	/// The identity element.
 	///
 	/// This method returns the identity endofunction, which wraps the identity function.
@@ -221,7 +221,7 @@ impl<'a, FnBrand: 'a + ClonableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {
-		Self::new(<FnBrand as ClonableFn>::new(identity))
+		Self::new(<FnBrand as CloneableFn>::new(identity))
 	}
 }
 
@@ -230,7 +230,7 @@ mod tests {
 	use super::*;
 	use crate::{
 		brands::RcFnBrand,
-		classes::{clonable_fn::ClonableFn, monoid::empty, semigroup::append},
+		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
 	};
 	use quickcheck_macros::quickcheck;
 
@@ -239,13 +239,13 @@ mod tests {
 	/// Tests the associativity law for Semigroup.
 	#[quickcheck]
 	fn semigroup_associativity(val: i32) -> bool {
-		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
-		let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let g = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_mul(2)
 		}));
-		let h = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let h = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_sub(3)
 		}));
 
@@ -260,7 +260,7 @@ mod tests {
 	/// Tests the left identity law for Monoid.
 	#[quickcheck]
 	fn monoid_left_identity(val: i32) -> bool {
-		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endofunction<RcFnBrand, i32>>();
@@ -272,7 +272,7 @@ mod tests {
 	/// Tests the right identity law for Monoid.
 	#[quickcheck]
 	fn monoid_right_identity(val: i32) -> bool {
-		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endofunction::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endofunction<RcFnBrand, i32>>();

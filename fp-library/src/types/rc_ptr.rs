@@ -16,9 +16,7 @@
 use crate::{
 	brands::RcBrand,
 	classes::{
-		pointer::Pointer,
-		ref_counted_pointer::RefCountedPointer,
-		thunk_wrapper::ThunkWrapper,
+		pointer::Pointer, ref_counted_pointer::RefCountedPointer, thunk_wrapper::ThunkWrapper,
 		unsized_coercible::UnsizedCoercible,
 	},
 };

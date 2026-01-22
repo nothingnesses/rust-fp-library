@@ -1,19 +1,15 @@
 //! Function wrappers.
 //!
 //! This module defines the [`FnBrand`] struct, which provides generic implementations for reference-counted closures (e.g., `Rc<dyn Fn(A) -> B>`, `Arc<dyn Fn(A) -> B>`).
-//! It implements [`Function`], [`ClonableFn`], [`Semigroupoid`], and [`Category`].
+//! It implements [`Function`], [`CloneableFn`], [`Semigroupoid`], and [`Category`].
 
 use crate::{
 	Apply,
 	brands::FnBrand,
 	classes::{
-		category::Category,
-		clonable_fn::ClonableFn,
-		function::Function,
-		semigroupoid::Semigroupoid,
-		send_unsized_coercible::SendUnsizedCoercible,
-		unsized_coercible::UnsizedCoercible,
-		send_clonable_fn::SendClonableFn,
+		category::Category, cloneable_fn::CloneableFn, function::Function,
+		semigroupoid::Semigroupoid, send_cloneable_fn::SendCloneableFn,
+		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
 	},
 	impl_kind,
 	kinds::*,
@@ -62,16 +58,16 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	}
 }
 
-impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
+impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
-	/// Creates a new clonable function wrapper.
+	/// Creates a new cloneable function wrapper.
 	///
-	/// This function wraps the provided closure `f` into a pointer-wrapped clonable function.
+	/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (ClonableFn (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	/// `forall p a b. (CloneableFn (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
 	///
 	/// ### Type Parameters
 	///
@@ -84,17 +80,17 @@ impl<P: UnsizedCoercible> ClonableFn for FnBrand<P> {
 	///
 	/// ### Returns
 	///
-	/// The wrapped clonable function.
+	/// The wrapped cloneable function.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as ClonableFn>::Of<'a, A, B> {
+	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
 		P::coerce_fn(f)
 	}
 }
@@ -128,8 +124,8 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
-	/// let f = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let g = clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
@@ -171,16 +167,16 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	}
 }
 
-impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
+impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
-	/// Creates a new thread-safe clonable function wrapper.
+	/// Creates a new thread-safe cloneable function wrapper.
 	///
-	/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe clonable function.
+	/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (SendClonableFn (FnBrand p), SendUnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	/// `forall p a b. (SendCloneableFn (FnBrand p), SendUnsizedCoercible p) => (a -> b) -> FnBrand p a b`
 	///
 	/// ### Type Parameters
 	///
@@ -193,17 +189,17 @@ impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
 	///
 	/// ### Returns
 	///
-	/// The wrapped thread-safe clonable function.
+	/// The wrapped thread-safe cloneable function.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn send_clonable_fn_new<'a, A, B>(
+	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
 		P::coerce_fn_send(f)
@@ -214,7 +210,7 @@ impl<P: SendUnsizedCoercible> SendClonableFn for FnBrand<P> {
 mod tests {
 	use crate::{
 		brands::*,
-		classes::{category::Category, clonable_fn::ClonableFn, semigroupoid::Semigroupoid},
+		classes::{category::Category, cloneable_fn::CloneableFn, semigroupoid::Semigroupoid},
 	};
 	use quickcheck_macros::quickcheck;
 
@@ -223,9 +219,9 @@ mod tests {
 	/// Tests the associativity law for Semigroupoid.
 	#[quickcheck]
 	fn semigroupoid_associativity(x: i32) -> bool {
-		let f = <RcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
-		let g = <RcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_mul(2));
-		let h = <RcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_sub(3));
+		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
+		let g = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_mul(2));
+		let h = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_sub(3));
 
 		let lhs = RcFnBrand::compose(f.clone(), RcFnBrand::compose(g.clone(), h.clone()));
 		let rhs = RcFnBrand::compose(RcFnBrand::compose(f, g), h);
@@ -238,7 +234,7 @@ mod tests {
 	/// Tests the left identity law for Category.
 	#[quickcheck]
 	fn category_left_identity(x: i32) -> bool {
-		let f = <RcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(id, f.clone());
@@ -250,7 +246,7 @@ mod tests {
 	/// Tests the right identity law for Category.
 	#[quickcheck]
 	fn category_right_identity(x: i32) -> bool {
-		let f = <RcFnBrand as ClonableFn>::new(|x: i32| x.wrapping_add(1));
+		let f = <RcFnBrand as CloneableFn>::new(|x: i32| x.wrapping_add(1));
 		let id = RcFnBrand::identity::<i32>();
 
 		let lhs = RcFnBrand::compose(f.clone(), id);

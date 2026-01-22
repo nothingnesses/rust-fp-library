@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`Apply!` Macro Enhancement**:
   - Added optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
-  - Example: `Apply!(brand: ArcFnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (i32, i32))`.
+  - Example: `Apply!(brand: ArcFnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (i32, i32))`.
 - **Testing**:
   - Added UI test `apply_invalid_output.rs` for invalid output parameter error messages.
   - Added unit tests for `output` parameter parsing and code generation.

@@ -15,7 +15,7 @@
 use super::monoid::Monoid;
 use crate::{
 	Apply,
-	classes::{clonable_fn::ClonableFn, semigroup::Semigroup},
+	classes::{cloneable_fn::CloneableFn, semigroup::Semigroup},
 	kinds::*,
 	types::Endofunction,
 };
@@ -44,7 +44,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the folding function.
@@ -75,13 +75,13 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
-		let f = <FnBrand as ClonableFn>::new(move |(a, b)| func(a, b));
+		let f = <FnBrand as CloneableFn>::new(move |(a, b)| func(a, b));
 		let m = Self::fold_map::<FnBrand, Endofunction<FnBrand, B>, A, _>(
 			move |a: A| {
 				let f = f.clone();
-				Endofunction::<FnBrand, B>::new(<FnBrand as ClonableFn>::new(move |b| {
+				Endofunction::<FnBrand, B>::new(<FnBrand as CloneableFn>::new(move |b| {
 					f((a.clone(), b))
 				}))
 			},
@@ -100,7 +100,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the folding function.
@@ -131,9 +131,9 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
-		let f = <FnBrand as ClonableFn>::new(move |(b, a)| func(b, a));
+		let f = <FnBrand as CloneableFn>::new(move |(b, a)| func(b, a));
 		let m = Self::fold_right::<FnBrand, Endofunction<FnBrand, B>, A, _>(
 			move |a: A, k: Endofunction<'a, FnBrand, B>| {
 				let f = f.clone();
@@ -143,7 +143,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 				// So we want k . current.
 				// append(k, current).
 				let current =
-					Endofunction::<FnBrand, B>::new(<FnBrand as ClonableFn>::new(move |b| {
+					Endofunction::<FnBrand, B>::new(<FnBrand as CloneableFn>::new(move |b| {
 						f((b, a.clone()))
 					}));
 				Semigroup::append(k, current)
@@ -164,7 +164,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the mapping function.
@@ -194,7 +194,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	where
 		M: Monoid + 'a,
 		Func: Fn(A) -> M + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		Self::fold_right::<FnBrand, M, A, _>(move |a, m| M::append(func(a), m), M::empty(), fa)
 	}
@@ -210,7 +210,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function to use.
+/// * `FnBrand`: The brand of the cloneable function to use.
 /// * `Brand`: The brand of the foldable structure.
 /// * `B`: The type of the accumulator.
 /// * `A`: The type of the elements in the structure.
@@ -242,7 +242,7 @@ pub fn fold_right<'a, FnBrand, Brand: Foldable, B: 'a, A: 'a + Clone, Func>(
 ) -> B
 where
 	Func: Fn(A, B) -> B + 'a,
-	FnBrand: ClonableFn + 'a,
+	FnBrand: CloneableFn + 'a,
 {
 	Brand::fold_right::<FnBrand, B, A, Func>(func, initial, fa)
 }
@@ -257,7 +257,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function to use.
+/// * `FnBrand`: The brand of the cloneable function to use.
 /// * `Brand`: The brand of the foldable structure.
 /// * `B`: The type of the accumulator.
 /// * `A`: The type of the elements in the structure.
@@ -289,7 +289,7 @@ pub fn fold_left<'a, FnBrand, Brand: Foldable, B: 'a, A: 'a + Clone, Func>(
 ) -> B
 where
 	Func: Fn(B, A) -> B + 'a,
-	FnBrand: ClonableFn + 'a,
+	FnBrand: CloneableFn + 'a,
 {
 	Brand::fold_left::<FnBrand, B, A, Func>(func, initial, fa)
 }
@@ -304,7 +304,7 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function to use.
+/// * `FnBrand`: The brand of the cloneable function to use.
 /// * `Brand`: The brand of the foldable structure.
 /// * `M`: The type of the monoid.
 /// * `A`: The type of the elements in the structure.
@@ -335,7 +335,7 @@ pub fn fold_map<'a, FnBrand, Brand: Foldable, M, A: 'a + Clone, Func>(
 where
 	M: Monoid + 'a,
 	Func: Fn(A) -> M + 'a,
-	FnBrand: ClonableFn + 'a,
+	FnBrand: CloneableFn + 'a,
 {
 	Brand::fold_map::<FnBrand, M, A, Func>(func, fa)
 }

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Architecture Documentation**: Added `docs/architecture.md` detailing module organization, type parameter ordering, and documentation standards.
-- **README**: Added `Function`, `ClonableFn`, `SendClonableFn`, and `ParFoldable` to the features list.
+- **README**: Added `Function`, `CloneableFn`, `SendCloneableFn`, and `ParFoldable` to the features list.
 
 ### Changed
 - **Type Parameter Ordering (API Breaking)**:
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `wilt<M, O, E, A, Func>` (was `wilt<Func, M, A, E, O>`).
     - `wither<M, B, A, Func>` (was `wither<Func, M, A, B>`).
 - **Renames (API Breaking)**:
-  - Renamed `SendClonableFn::new_send` to `SendClonableFn::send_clonable_fn_new` to facilitate unique re-exports.
+  - Renamed `SendCloneableFn::new_send` to `SendCloneableFn::send_cloneable_fn_new` to facilitate unique re-exports.
 - **Parameter Ordering (API Breaking)**:
   - Reordered arguments for `ParFoldable::par_fold_map` and `ParFoldable::par_fold_right` to place the function argument first (e.g., `par_fold_map(func, fa)`), aligning with `Foldable` conventions.
 - **Documentation**:
@@ -75,16 +75,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Thread Safety and Parallelism**:
-  - Added `SendClonableFn` extension trait for thread-safe function wrappers with `Send + Sync` bounds.
+  - Added `SendCloneableFn` extension trait for thread-safe function wrappers with `Send + Sync` bounds.
   - Added `ParFoldable` trait providing `par_fold_map` and `par_fold_right` for parallel folding operations.
   - Added `SendEndofunction` type for thread-safe endofunctions using `ArcFnBrand`.
-  - Implemented `SendClonableFn` for `ArcFnBrand` with `new_send` constructor.
+  - Implemented `SendCloneableFn` for `ArcFnBrand` with `new_send` constructor.
   - Implemented `ParFoldable` for `VecBrand` (with optional Rayon parallelism) and `OptionBrand`.
 - **Feature Flags**:
   - Added optional `rayon` feature (`rayon = ["dep:rayon"]`) enabling parallel execution in `VecBrand::par_fold_map`.
 - **Testing Infrastructure**:
   - Added compile-fail tests using `trybuild` to verify thread safety error messages.
-  - Added UI tests for `SendClonableFn`: `new_send_not_send.rs`, `new_send_not_sync.rs`, `rc_fn_not_send.rs`.
+  - Added UI tests for `SendCloneableFn`: `new_send_not_send.rs`, `new_send_not_sync.rs`, `rc_fn_not_send.rs`.
   - Added property-based tests for `ParFoldable` in `tests/property_tests.rs`.
   - Added thread safety integration tests in `tests/thread_safety.rs`.
 
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Semimonad::bind` and `Lift::lift2` reorder type parameters to put function type `F` first.
 - **Parameter Naming**:
   - Renamed internal parameters `f` to `func` and `init` to `initial` in folding traits for clarity.
-  - Renamed `ClonableFnBrand` type parameter to `FnBrand` across the library.
+  - Renamed `CloneableFnBrand` type parameter to `FnBrand` across the library.
 - **Documentation**:
   - Updated function and method documentation in `fp-library/src/classes/` to follow a consistent format with detailed sections for type signatures, type parameters, parameters, returns, and examples.
   - Rewrote module-level documentation in `fp-library/src/classes.rs` for clarity and accuracy regarding Brand types and HKT simulation.
@@ -137,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Uncurried API**: All type class methods (`map`, `bind`, `apply`, `fold_right`, etc.) are now uncurried.
   - `map(f)(fa)` -> `map(f, fa)`
   - `bind(ma)(f)` -> `bind(ma, f)`
-- **Generic Bounds**: Trait methods now use generic `F: Fn(A) -> B` bounds instead of `ClonableFn` where possible, enabling inlining and monomorphization.
+- **Generic Bounds**: Trait methods now use generic `F: Fn(A) -> B` bounds instead of `CloneableFn` where possible, enabling inlining and monomorphization.
 - **`Lazy`**: Now implements `Semigroup`, `Monoid`, and `Defer`. It does _not_ implement `Functor` or `Monad` due to `Clone` requirements for memoization.
 - **`Endofunction` / `Endomorphism`**: Updated to work with the new uncurried `Semigroup` trait while preserving type erasure for composition.
 

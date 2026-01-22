@@ -189,7 +189,7 @@ Sections in the documentation that would be empty should be omitted.
 
    ```rust
    /// use fp_library::functions::apply;
-   /// use fp_library::classes::clonable_fn::ClonableFn;
+   /// use fp_library::classes::cloneable_fn::CloneableFn;
    /// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
    ```
 
@@ -219,7 +219,7 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 1.  **Generic Function Brands:** `FnBrand<P>` is parameterized over a `RefCountedPointer` brand `P`.
     *   `RcFnBrand` is a type alias for `FnBrand<RcBrand>`.
     *   `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
-    *   This allows unified implementation of `ClonableFn` while `SendClonableFn` is only implemented when `P: SendRefCountedPointer`.
+    *   This allows unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`.
 
 2.  **Shared Lazy Evaluation:** `Lazy` uses `RefCountedPointer` to share the memoization state (`OnceCell`) across clones.
     *   `Lazy<Config, A>` is parameterized by a `LazyConfig` which bundles the pointer brand and other configuration.

@@ -34,7 +34,7 @@ fn arc_lazy_concurrent_force() {
 		let counter_clone = counter.clone();
 
 		let lazy = Arc::new(lazy_new::<ArcLazyConfig, _>(
-			send_clonable_fn_new::<ArcFnBrand, _, _>(move |_| {
+			send_cloneable_fn_new::<ArcFnBrand, _, _>(move |_| {
 				counter_clone.fetch_add(1, loom::sync::atomic::Ordering::SeqCst);
 			})
 		));
@@ -66,7 +66,7 @@ Verify that if the thunk panics, all threads forcing the `ArcLazy` value receive
 fn arc_lazy_panic_propagation() {
 	loom::model(|| {
 		let lazy = Arc::new(lazy_new::<ArcLazyConfig, _>(
-			send_clonable_fn_new::<ArcFnBrand, _, _>(|_| -> i32 {
+			send_cloneable_fn_new::<ArcFnBrand, _, _>(|_| -> i32 {
 				panic!("intentional test panic")
 			})
 		));

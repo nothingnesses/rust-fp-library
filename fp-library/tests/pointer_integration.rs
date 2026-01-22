@@ -18,15 +18,15 @@ fn test_arc_ptr_basic() {
 	assert_eq!(*clone, 42);
 }
 
-/// Tests basic functionality of `ArcFnBrand` clonable function.
+/// Tests basic functionality of `ArcFnBrand` cloneable function.
 ///
 /// Verifies that:
-/// 1. `send_clonable_fn_new` creates a callable function wrapper.
+/// 1. `send_cloneable_fn_new` creates a callable function wrapper.
 /// 2. The wrapper can be called to produce a result.
 /// 3. Cloning the wrapper works and the clone produces the same result.
 #[test]
 fn test_arc_fn_basic() {
-	let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1);
+	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1);
 	assert_eq!(f(1), 2);
 	let clone = f.clone();
 	assert_eq!(clone(1), 2);
@@ -39,7 +39,7 @@ fn test_arc_fn_basic() {
 /// 2. The function can be executed in a separate thread.
 #[test]
 fn test_arc_fn_thread_safety() {
-	let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1);
+	let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1);
 	let handle = thread::spawn(move || f(10));
 	assert_eq!(handle.join().unwrap(), 11);
 }

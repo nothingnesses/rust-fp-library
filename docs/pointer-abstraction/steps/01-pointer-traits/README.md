@@ -15,7 +15,7 @@ This step establishes the core trait hierarchy and brand definitions that underp
 
 ### Pointer Type Class Hierarchy
 
-The design uses a three-level trait hierarchy following the "Additional Associated Type" pattern established by `ClonableFn` → `SendClonableFn`:
+The design uses a three-level trait hierarchy following the "Additional Associated Type" pattern established by `CloneableFn` → `SendCloneableFn`:
 
 ```
 Pointer                    (base: Of<T> with Deref)
@@ -50,13 +50,13 @@ pub trait Pointer {
 /// Extension trait for reference-counted pointers with shared ownership.
 ///
 /// Adds `CloneableOf` associated type which is Clone + Deref. This follows
-/// the pattern of `SendClonableFn` adding `SendOf` to `ClonableFn`.
+/// the pattern of `SendCloneableFn` adding `SendOf` to `CloneableFn`.
 pub trait RefCountedPointer: Pointer {
-	/// The clonable pointer type constructor.
+	/// The cloneable pointer type constructor.
 	/// For Rc/Arc, this is the same as `Of<T>`.
 	type CloneableOf<T: ?Sized>: Clone + Deref<Target = T>;
 
-	/// Wraps a sized value in a clonable pointer.
+	/// Wraps a sized value in a cloneable pointer.
 	fn cloneable_new<T>(value: T) -> Self::CloneableOf<T>
 	where
 		Self::CloneableOf<T>: Sized;
@@ -67,7 +67,7 @@ pub trait RefCountedPointer: Pointer {
 
 /// Extension trait for thread-safe reference-counted pointers.
 ///
-/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`,
+/// This follows the same pattern as `SendCloneableFn` extends `CloneableFn`,
 /// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
 pub trait SendRefCountedPointer: RefCountedPointer {
 	/// The thread-safe pointer type constructor.

@@ -22,7 +22,7 @@
 //!   - `Category`, `Semigroupoid`
 //!   - `Pointed`, `Lift`, `Defer`, `Once`
 //!   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-//!   - `Function`, `ClonableFn`, `SendClonableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
+//!   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
 //!   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
 //!   - `TrySemigroup`, `TryMonoid`, `SendDefer`
 //! - **Helper Functions:** Standard FP utilities:
@@ -83,9 +83,9 @@
 //!
 //! ### Thread Safety and Parallelism
 //!
-//! The library supports thread-safe operations through the `SendClonableFn` extension trait and parallel folding via `ParFoldable`.
+//! The library supports thread-safe operations through the `SendCloneableFn` extension trait and parallel folding via `ParFoldable`.
 //!
-//! - **`SendClonableFn`**: Extends `ClonableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
+//! - **`SendCloneableFn`**: Extends `CloneableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
 //! - **`ParFoldable`**: Provides `par_fold_map` and `par_fold_right` for parallel execution.
 //! - **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
 //!
@@ -94,7 +94,7 @@
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //! // Create a thread-safe function wrapper
-//! let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+//! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 //! // Fold in parallel (if rayon feature is enabled)
 //! let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 //! assert_eq!(result, "12345".to_string());

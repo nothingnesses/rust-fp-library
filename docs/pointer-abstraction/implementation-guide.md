@@ -52,11 +52,11 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 3. **To achieve Haskell-like semantics**, the `OnceCell` must be wrapped in a shared smart pointer (`Rc` or `Arc`)
 
 4. **The existing library already has similar patterns**:
-   - `ClonableFn` abstracts over `RcFnBrand` vs `ArcFnBrand`
-   - Users choose at call sites: `clonable_fn_new::<RcFnBrand, _, _>(...)`
+   - `CloneableFn` abstracts over `RcFnBrand` vs `ArcFnBrand`
+   - Users choose at call sites: `cloneable_fn_new::<RcFnBrand, _, _>(...)`
    - This pattern can be generalized and unified
 
-5. **`SendClonableFn` extends `ClonableFn`** with thread-safe semantics:
+5. **`SendCloneableFn` extends `CloneableFn`** with thread-safe semantics:
    - Uses a separate `SendOf` associated type
    - Only `ArcFnBrand` implements it (not `RcFnBrand`)
    - This pattern inspires the `Pointer` → `RefCountedPointer` → `SendRefCountedPointer` hierarchy
@@ -68,11 +68,11 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 │                        CURRENT: Ad-hoc Rc/Arc Abstraction                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ClonableFn ─────extends───▶ SendClonableFn                                │
+│   CloneableFn ─────extends───▶ SendCloneableFn                                │
 │       │                            │                                        │
 │   ┌───┴───┐                    ┌───┘                                        │
 │   │       │                    │                                            │
-│ RcFnBrand ArcFnBrand ◀─────────┘  (only Arc implements SendClonableFn)      │
+│ RcFnBrand ArcFnBrand ◀─────────┘  (only Arc implements SendCloneableFn)      │
 │                                                                             │
 │                                                                             │
 │   Lazy (current)                                                            │
@@ -106,8 +106,8 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 │  │ Library types use RefCountedPointer for shared semantics:             │  │
 │  │                                                                       │  │
 │  │  FnBrand<P: RefCountedPointer>                                        │  │
-│  │    - Uses P::CloneableOf for clonable function wrappers               │  │
-│  │    - Implements ClonableFn, SendClonableFn (when P: SendRefCounted)   │  │
+│  │    - Uses P::CloneableOf for cloneable function wrappers               │  │
+│  │    - Implements CloneableFn, SendCloneableFn (when P: SendRefCounted)   │  │
 │  │                                                                       │  │
 │  │  Lazy<Config, A> where Config: LazyConfig                             │  │
 │  │    - Config bundles PtrBrand, OnceBrand, FnBrand, ThunkOf             │  │
@@ -132,7 +132,7 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 1. **Introduce `Pointer` trait** as a minimal base abstraction for all heap-allocated pointers
 2. **Introduce `RefCountedPointer` trait** extending `Pointer` with `CloneableOf` for shared ownership (Rc/Arc)
 3. **Introduce `SendRefCountedPointer` marker** for thread-safe reference counting (Arc only)
-4. **Refactor `ClonableFn` to use `RefCountedPointer`** via `FnBrand<PtrBrand>` pattern
+4. **Refactor `CloneableFn` to use `RefCountedPointer`** via `FnBrand<PtrBrand>` pattern
 5. **Create `Lazy` type** with Haskell-like shared memoization semantics using `RefCountedPointer`
 6. **Enable future extensibility** - Box support via `Pointer` without `RefCountedPointer`
 
@@ -184,7 +184,7 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 | Date | Decision | Rationale |
 | ---- | -------- | --------- |
 | 2026-01-22 | `UnsizedCoercible` requires `'static` bound | `coerce_fn` is generic over `'a`, so the resulting pointer type must be valid for any `'a`, implying the brand must be `'static`. This is required for `Semigroupoid` implementation. |
-| 2026-01-22 | `SendUnsizedCoercible` returns `SendOf` | `SendClonableFn` requires `SendOf` to be `Send + Sync`. `CloneableOf` does not guarantee this for generic pointers, so `SendUnsizedCoercible` must return `SendOf` which has the correct bounds. |
+| 2026-01-22 | `SendUnsizedCoercible` returns `SendOf` | `SendCloneableFn` requires `SendOf` to be `Send + Sync`. `CloneableOf` does not guarantee this for generic pointers, so `SendUnsizedCoercible` must return `SendOf` which has the correct bounds. |
 | 2026-01-22 | `LazyConfig` adds associated functions | Added `new_thunk`, `new_send_thunk`, `into_thunk` and bounds (`Deref`, `A: 'a`, `: 'static`) to `LazyConfig`/`SendLazyConfig` to support generic thunk construction and usage. |
 | 2026-01-22 | `TrySemigroup` blanket impl for `Lazy` | Relied on blanket implementations for `Lazy` instead of explicit ones, as `Lazy` composition is infallible. `try_append` returns `Ok(Lazy)`, deferring panics to `force`. |
 | 2026-01-22 | `ArcBrand` uses `std::sync::Mutex` | Used `std::sync::Mutex` instead of `parking_lot::Mutex` for `ThunkWrapper` to avoid adding a new dependency. |
@@ -195,7 +195,7 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 | 2026-01-22 | `Lazy` adds convenience methods | Added `force_or_panic`, `force_ref_or_panic`, `force_cloned`, `is_poisoned`, and `get_error` to `Lazy` for better ergonomics and safety. |
 | 2026-01-22 | `ThunkWrapper` placed in `pointer.rs` | Moved `ThunkWrapper` trait from `lazy.rs` (as shown in Step 3 plan) to `pointer.rs` for better cohesion with other pointer traits. This keeps all pointer-related abstractions in one module. |
 | 2026-01-22 | `SendLazyConfig` replaced by helper traits | Instead of `SendLazyConfig` extending `LazyConfig` with `SendThunkOf`, implemented separate `LazySemigroup`, `LazyMonoid`, and `LazyDefer` traits. This provides better separation of concerns and allows `ArcLazyConfig` to constrain `A: Send + Sync` only where needed. |
-| 2026-01-22 | `defer.rs` doc examples updated | File not in original "Files to Modify" list. Required update because the `Lazy` API changed significantly: type from `Lazy<OnceBrand, FnBrand, A>` to `Lazy<'a, Config, A>`, constructor from `Lazy::new(clonable_fn_new(...))` to `RcLazy::new(RcLazyConfig::new_thunk(...))`, and `force` from returning `A` to `Result<&A, LazyError>`. |
+| 2026-01-22 | `defer.rs` doc examples updated | File not in original "Files to Modify" list. Required update because the `Lazy` API changed significantly: type from `Lazy<OnceBrand, FnBrand, A>` to `Lazy<'a, Config, A>`, constructor from `Lazy::new(cloneable_fn_new(...))` to `RcLazy::new(RcLazyConfig::new_thunk(...))`, and `force` from returning `A` to `Result<&A, LazyError>`. |
 
 ### Blockers
 

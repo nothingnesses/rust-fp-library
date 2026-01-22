@@ -1,17 +1,17 @@
 error[E0277]: the trait bound `RcBrand: SendUnsizedCoercible` is not satisfied
  --> tests/ui/rc_fn_not_send.rs:6:11
   |
-6 |     let _ = <RcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x);
+6 |     let _ = <RcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| x);
   |              ^^^^^^^^^ the trait `SendUnsizedCoercible` is not implemented for `RcBrand`
   |
   = help: the trait `SendUnsizedCoercible` is implemented for `ArcBrand`
-  = note: required for `FnBrand<RcBrand>` to implement `SendClonableFn`
+  = note: required for `FnBrand<RcBrand>` to implement `SendCloneableFn`
 
 error[E0277]: the trait bound `RcBrand: SendUnsizedCoercible` is not satisfied
  --> tests/ui/rc_fn_not_send.rs:6:10
   |
-6 |     let _ = <RcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x);
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SendUnsizedCoercible` is not implemented for `RcBrand`
+6 |     let _ = <RcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| x);
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SendUnsizedCoercible` is not implemented for `RcBrand`
   |
   = help: the trait `SendUnsizedCoercible` is implemented for `ArcBrand`
-  = note: required for `FnBrand<RcBrand>` to implement `SendClonableFn`
+  = note: required for `FnBrand<RcBrand>` to implement `SendCloneableFn`

@@ -19,9 +19,7 @@
 //! ```
 
 use crate::classes::{
-	category::Category,
-	clonable_fn::ClonableFn,
-	ref_counted_pointer::RefCountedPointer,
+	category::Category, cloneable_fn::CloneableFn, ref_counted_pointer::RefCountedPointer,
 };
 use std::marker::PhantomData;
 
@@ -42,7 +40,7 @@ pub struct BoxBrand;
 
 /// Brand for [`Endofunction`](crate::types::Endofunction).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndofunctionBrand<FnBrand: ClonableFn, A>(PhantomData<(FnBrand, A)>);
+pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>);
 
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

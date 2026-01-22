@@ -9,7 +9,7 @@
 //! use fp_library::{brands::*, classes::*, functions::*};
 //!
 //! // Applicative combines Pointed (pure) and Semiapplicative (apply)
-//! let f = pure::<OptionBrand, _>(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+//! let f = pure::<OptionBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = pure::<OptionBrand, _>(5);
 //! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 //! assert_eq!(y, Some(10));
@@ -35,7 +35,7 @@ use super::{
 /// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// // Applicative combines Pointed (pure) and Semiapplicative (apply)
-/// let f = pure::<OptionBrand, _>(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// let f = pure::<OptionBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// let x = pure::<OptionBrand, _>(5);
 /// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));

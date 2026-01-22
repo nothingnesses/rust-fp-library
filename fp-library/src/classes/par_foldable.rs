@@ -10,12 +10,12 @@
 //! use fp_library::{brands::*, functions::*};
 //!
 //! let v = vec![1, 2, 3, 4, 5];
-//! let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+//! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 //! let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 //! assert_eq!(result, "12345");
 //! ```
 
-use super::{foldable::Foldable, monoid::Monoid, send_clonable_fn::SendClonableFn};
+use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*, types::SendEndofunction};
 
 /// A type class for structures that can be folded in parallel.
@@ -45,7 +45,7 @@ use crate::{Apply, kinds::*, types::SendEndofunction};
 ///
 /// 1. **Thread-safe function values as first-class HKT types**: Function parameters
 ///    like `func` in [`ParFoldable::par_fold_map`] are HKT-applied types via
-///    `Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, ...)`. This allows
+///    `Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, ...)`. This allows
 ///    the type system to enforce thread-safety at the API boundary.
 ///
 /// 2. **Guaranteed `Send + Sync` bounds**: The `output: SendOf` in the `Apply!` macro
@@ -53,7 +53,7 @@ use crate::{Apply, kinds::*, types::SendEndofunction};
 ///    execution, rather than relying on runtime checks.
 ///
 /// 3. **Default implementation requirements**: The default [`ParFoldable::par_fold_right`]
-///    implementation needs to call `<FnBrand as SendClonableFn>::send_clonable_fn_new(...)` to
+///    implementation needs to call `<FnBrand as SendCloneableFn>::send_cloneable_fn_new(...)` to
 ///    create new wrapped functions. Having `FnBrand` at the trait level makes it
 ///    available throughout the implementation.
 ///
@@ -67,11 +67,11 @@ use crate::{Apply, kinds::*, types::SendEndofunction};
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let v = vec![1, 2, 3, 4, 5];
-/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 /// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 /// assert_eq!(result, "12345");
 /// ```
-pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
+pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 	/// Parallel version of fold_map.
 	///
 	/// Maps each element to a monoid value using `func`, then combines all values using the monoid's `append` operation. The mapping operations may be executed in parallel.
@@ -82,7 +82,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendClonableFn`).
+	/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`).
 	/// * `A`: The element type (must be `Send + Sync`).
 	/// * `M`: The monoid type (must be `Send + Sync`).
 	///
@@ -101,12 +101,12 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 	/// assert_eq!(result, "12345");
 	/// ```
 	fn par_fold_map<'a, M, A>(
-		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
@@ -143,12 +143,12 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);
 	/// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 	/// assert_eq!(sum, 25);
 	/// ```
 	fn par_fold_right<'a, B, A>(
-		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
+		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		init: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
@@ -159,10 +159,10 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 	{
 		let f_clone = func.clone();
 		let endo = Self::par_fold_map(
-			<FnBrand as SendClonableFn>::send_clonable_fn_new(move |a: A| {
+			<FnBrand as SendCloneableFn>::send_cloneable_fn_new(move |a: A| {
 				let f_inner = f_clone.clone();
 				SendEndofunction::<FnBrand, B>::new(
-					<FnBrand as SendClonableFn>::send_clonable_fn_new(move |b: B| {
+					<FnBrand as SendCloneableFn>::send_cloneable_fn_new(move |b: B| {
 						f_inner((a.clone(), b))
 					}),
 				)
@@ -183,7 +183,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendClonableFn`).
+/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`).
 /// * `Brand`: The brand of the foldable structure.
 /// * `M`: The monoid type (must be `Send + Sync`).
 /// * `A`: The element type (must be `Send + Sync`).
@@ -203,16 +203,16 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let v = vec![1, 2, 3, 4, 5];
-/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 /// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 /// assert_eq!(result, "12345");
 /// ```
 pub fn par_fold_map<'a, FnBrand, Brand, M, A>(
-	func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+	func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> M
 where
-	FnBrand: SendClonableFn,
+	FnBrand: SendCloneableFn,
 	Brand: ParFoldable<FnBrand>,
 	A: 'a + Clone + Send + Sync,
 	M: Monoid + Send + Sync + 'a,
@@ -251,17 +251,17 @@ where
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let v = vec![1, 2, 3, 4, 5];
-/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);
+/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);
 /// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 /// assert_eq!(sum, 25);
 /// ```
 pub fn par_fold_right<'a, FnBrand, Brand, B, A>(
-	func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
+	func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 	init: B,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
-	FnBrand: SendClonableFn,
+	FnBrand: SendCloneableFn,
 	Brand: ParFoldable<FnBrand>,
 	A: 'a + Clone + Send + Sync,
 	B: Send + Sync + 'a,

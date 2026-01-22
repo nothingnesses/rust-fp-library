@@ -1,7 +1,7 @@
 use fp_library::brands::RcFnBrand;
-use fp_library::classes::send_clonable_fn::SendClonableFn;
+use fp_library::classes::send_cloneable_fn::SendCloneableFn;
 
 fn main() {
-	// Should fail because RcFnBrand does not implement SendClonableFn
-	let _ = <RcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x);
+	// Should fail because RcFnBrand does not implement SendCloneableFn
+	let _ = <RcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| x);
 }

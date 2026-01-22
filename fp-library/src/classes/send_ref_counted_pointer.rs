@@ -5,7 +5,7 @@ use std::ops::Deref;
 
 /// Extension trait for thread-safe reference-counted pointers.
 ///
-/// This follows the same pattern as `SendClonableFn` extends `ClonableFn`,
+/// This follows the same pattern as `SendCloneableFn` extends `CloneableFn`,
 /// adding a `SendOf` associated type with explicit `Send + Sync` bounds.
 pub trait SendRefCountedPointer: RefCountedPointer {
 	/// The thread-safe pointer type constructor.

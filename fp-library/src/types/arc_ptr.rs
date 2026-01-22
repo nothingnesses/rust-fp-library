@@ -16,11 +16,9 @@
 use crate::{
 	brands::ArcBrand,
 	classes::{
-		pointer::Pointer,
-		ref_counted_pointer::RefCountedPointer,
+		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
 		send_ref_counted_pointer::SendRefCountedPointer,
-		send_unsized_coercible::SendUnsizedCoercible,
-		thunk_wrapper::ThunkWrapper,
+		send_unsized_coercible::SendUnsizedCoercible, thunk_wrapper::ThunkWrapper,
 		unsized_coercible::UnsizedCoercible,
 	},
 };
@@ -222,9 +220,7 @@ impl ThunkWrapper for ArcBrand {
 mod tests {
 	use super::*;
 	use crate::classes::{
-		pointer::new,
-		ref_counted_pointer::cloneable_new,
-		send_ref_counted_pointer::send_new,
+		pointer::new, ref_counted_pointer::cloneable_new, send_ref_counted_pointer::send_new,
 	};
 
 	/// Tests that `pointer_new` correctly creates an `Arc` wrapping the value.
