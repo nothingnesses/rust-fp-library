@@ -163,127 +163,6 @@ pub trait ThunkWrapper {
 }
 ```
 
-- [ ] Define `LazyConfig` configuration trait with associated types (Configuration Struct Pattern):
-```rust
-/// Configuration trait for valid Lazy brand combinations.
-///
-/// Uses Configuration Struct Pattern instead of `impl Trait<A,B,C> for ()`
-/// to enable third-party extension without orphan rule violations.
-/// Configuration trait for valid Lazy brand combinations.
-///
-/// ### Type Signature
-///
-/// `class LazyConfig c where`
-///
-pub trait LazyConfig: 'static {
-	/// The pointer brand (RcBrand or ArcBrand).
-	type PtrBrand: RefCountedPointer + ThunkWrapper;
-	/// The once-cell brand (OnceCellBrand or OnceLockBrand)
-	type OnceBrand: Once;
-	/// The function brand (RcFnBrand or ArcFnBrand)
-	type FnBrand: ClonableFn;
-	/// The thunk type - ClonableFn::Of for Rc, SendClonableFn::SendOf for Arc
-	type ThunkOf<'a, A>: Clone;
-}
-```
-- [ ] Define `RcLazyConfig` configuration struct:
-
-```rust
-/// Configuration for single-threaded lazy evaluation.
-pub struct RcLazyConfig;
-
-impl LazyConfig for RcLazyConfig {
-	type PtrBrand = RcBrand;
-	type OnceBrand = OnceCellBrand;
-	type FnBrand = RcFnBrand;
-	type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
-}
-```
-
-- [ ] Define `ArcLazyConfig` configuration struct:
-
-```rust
-/// Configuration for thread-safe lazy evaluation.
-pub struct ArcLazyConfig;
-
-impl LazyConfig for ArcLazyConfig {
-	type PtrBrand = ArcBrand;
-	type OnceBrand = OnceLockBrand;
-	type FnBrand = ArcFnBrand;
-	type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
-}
-```
-
-- [ ] Define `SendLazyConfig` extension trait for thread-safe configurations:
-
-```rust
-/// Extension trait guaranteeing ThunkOf is Send + Sync.
-/// Follows ClonableFn → SendClonableFn pattern.
-///
-/// ### Type Signature
-///
-/// `class LazyConfig c => SendLazyConfig c where`
-///
-pub trait SendLazyConfig: LazyConfig {
-	/// The thread-safe thunk type.
-	type SendThunkOf<'a, A: Send + Sync>: Clone + Send + Sync;
-}
-
-impl SendLazyConfig for ArcLazyConfig {
-	type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
-}
-```
-
-- [ ] Note: `RcLazyConfig` does NOT implement `SendLazyConfig`
-- [ ] Document Configuration Struct Pattern benefits in module docs (see plan.md):
-- [ ] Third-party extension enabled (no orphan rule violations)
-- [ ] Cleaner type signatures (`Config` vs 3 separate parameters)
-- [ ] Self-documenting configurations
-- [ ] Define `LazyError` struct with `Arc<str>` for thread-safe error messages:
-
-````rust
-use thiserror::Error;
-use std::sync::Arc;
-
-/// Error type for lazy evaluation failures.
-/// Uses Arc<str> for thread-safe sharing - NOT raw panic payload.
-///
-/// ### Why Arc<str> instead of Box<dyn Any + Send>?
-///
-/// Raw panic payload is Send but NOT Sync, which would make LazyError !Sync,
-/// breaking ArcLazy thread safety. Arc<str> is both Send and Sync.
-#[derive(Debug, Clone, Error)]
-#[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
-pub struct LazyError(Option<Arc<str>>);
-
-/// ### Fields
-///
-/// * `0`: The optional panic message stored as an `Arc<str>`.
-///
-/// ### Examples
-///
-/// ```rust
-/// use fp_library::{brands::*, classes::*, functions::*};
-///
-/// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
-///     panic!("computation failed");
-/// }));
-///
-/// if let Err(e) = lazy_force::<RcLazyConfig, _>(&lazy) {
-///     assert_eq!(e.panic_message(), Some("computation failed"));
-/// }
-/// ```
-````
-
-- [ ] Implement `LazyError::from_panic(payload)` constructor
-- [ ] Extract message from payload via downcast to `&str` or `String`
-- [ ] Store as `Arc<str>` for thread-safe sharing
-- [ ] Use generic message for non-string panic payloads
-- [ ] Implement `LazyError::poisoned()` for API completeness (not typically used with Arc storage)
-- [ ] Implement `LazyError::panic_message() -> Option<&str>`
-- [ ] Implement `LazyError::has_message() -> bool`
-- [ ] Derive `Clone` for `LazyError` (required for `Arc<LazyError>` pattern)
-- [ ] Add `thiserror = "1.0"` to dependencies in `fp-library/Cargo.toml`
 - [ ] Define `UnsizedCoercible` trait for basic function coercion:
 ```rust
 /// Trait for pointer brands that can coerce to `dyn Fn`.
@@ -341,54 +220,6 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
 - [ ] Implement `UnsizedCoercible` for `ArcBrand`
 - [ ] Implement `SendUnsizedCoercible` for `ArcBrand` only (not RcBrand)
 - [ ] Note: `Once` trait does NOT require `get_or_try_init` (nightly-only). We store `Result<A, LazyError>` in the cell and use stable `get_or_init` and `into_inner`.
-- [ ] Create `fp-library/src/classes/send_defer.rs`
-- [ ] Define `SendDefer` trait as **independent trait** (NOT extending `Defer`):
-```rust
-/// Trait for types that support thread-safe deferred evaluation.
-///
-/// ### HKT Requirement
-///
-/// This trait extends `Kind` and requires the implementor to support the `type Of<'a, A>` kind signature.
-///
-/// ### Design Note: Independent from Defer
-///
-/// Unlike other extension trait pairs (ClonableFn → SendClonableFn),
-/// `SendDefer` does NOT extend `Defer`. This is intentional because:
-///
-/// 1. `Defer::defer` takes a non-Send+Sync thunk
-/// 2. If ArcLazy implemented Defer, users could accidentally create
-///    non-thread-safe ArcLazy values
-/// 3. Making SendDefer independent prevents this misuse at compile time
-///
-/// This means:
-/// - RcLazy implements Defer (not SendDefer)
-/// - ArcLazy implements SendDefer (not Defer)
-/// - There is no type that implements both
-pub trait SendDefer: Kind {
-	/// Creates a value from a thread-safe thunk-producing thunk.
-	///
-	/// ### Type Signature
-	///
-	/// `forall config a. (SendLazyConfig config, Send a, Sync a, Clone a) => (() -> Lazy config a) -> Lazy config a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the value to be computed lazily, must be `Clone + Send + Sync`.
-	///
-	/// ### Parameters
-	///
-	/// * `thunk`: The computation that produces a `Lazy` value.
-	///
-	/// ### Returns
-	///
-	/// A new `Lazy` value that defers the execution of the thunk.
-	fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
-	where
-		A: Clone + Send + Sync + 'a;
-}
-```
-- [ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcLazyConfig>`
-- [ ] Note: `Defer` is only implemented for `LazyBrand<RcLazyConfig>` (NOT for ArcLazy)
 - [ ] Add free functions `pointer_new`, `ref_counted_new`, `send_ref_counted_new`, and `try_unwrap`
 - [ ] Add comprehensive documentation following `docs/architecture.md` standards
 - [ ] Add module-level examples
@@ -398,8 +229,6 @@ pub trait SendDefer: Kind {
 - [ ] Add `RcBrand` struct to `fp-library/src/brands.rs`
 - [ ] Add `ArcBrand` struct to `fp-library/src/brands.rs`
 - [ ] Add `BoxBrand` struct placeholder (future extension)
-- [ ] Add `RcLazyConfig` struct to `fp-library/src/brands.rs`
-- [ ] Add `ArcLazyConfig` struct to `fp-library/src/brands.rs`
 - [ ] Add documentation for all brands explaining their use cases
 
 ### 1.3 Rc Implementation
@@ -517,7 +346,180 @@ pub trait SendDefer: Kind {
 
 ## Phase 3: Lazy Refactor
 
-### 3.1 Rewrite Lazy Type
+### 3.1 Lazy Traits & Error
+
+- [ ] Define `LazyConfig` configuration trait with associated types (Configuration Struct Pattern):
+```rust
+/// Configuration trait for valid Lazy brand combinations.
+///
+/// Uses Configuration Struct Pattern instead of `impl Trait<A,B,C> for ()`
+/// to enable third-party extension without orphan rule violations.
+/// Configuration trait for valid Lazy brand combinations.
+///
+/// ### Type Signature
+///
+/// `class LazyConfig c where`
+///
+pub trait LazyConfig: 'static {
+	/// The pointer brand (RcBrand or ArcBrand).
+	type PtrBrand: RefCountedPointer + ThunkWrapper;
+	/// The once-cell brand (OnceCellBrand or OnceLockBrand)
+	type OnceBrand: Once;
+	/// The function brand (RcFnBrand or ArcFnBrand)
+	type FnBrand: ClonableFn;
+	/// The thunk type - ClonableFn::Of for Rc, SendClonableFn::SendOf for Arc
+	type ThunkOf<'a, A>: Clone;
+}
+```
+- [ ] Define `RcLazyConfig` configuration struct:
+
+```rust
+/// Configuration for single-threaded lazy evaluation.
+pub struct RcLazyConfig;
+
+impl LazyConfig for RcLazyConfig {
+	type PtrBrand = RcBrand;
+	type OnceBrand = OnceCellBrand;
+	type FnBrand = RcFnBrand;
+	type ThunkOf<'a, A> = <RcFnBrand as ClonableFn>::Of<'a, (), A>;
+}
+```
+
+- [ ] Define `ArcLazyConfig` configuration struct:
+
+```rust
+/// Configuration for thread-safe lazy evaluation.
+pub struct ArcLazyConfig;
+
+impl LazyConfig for ArcLazyConfig {
+	type PtrBrand = ArcBrand;
+	type OnceBrand = OnceLockBrand;
+	type FnBrand = ArcFnBrand;
+	type ThunkOf<'a, A> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+}
+```
+
+- [ ] Define `SendLazyConfig` extension trait for thread-safe configurations:
+
+```rust
+/// Extension trait guaranteeing ThunkOf is Send + Sync.
+/// Follows ClonableFn → SendClonableFn pattern.
+///
+/// ### Type Signature
+///
+/// `class LazyConfig c => SendLazyConfig c where`
+///
+pub trait SendLazyConfig: LazyConfig {
+	/// The thread-safe thunk type.
+	type SendThunkOf<'a, A: Send + Sync>: Clone + Send + Sync;
+}
+
+impl SendLazyConfig for ArcLazyConfig {
+	type SendThunkOf<'a, A: Send + Sync> = <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>;
+}
+```
+
+- [ ] Note: `RcLazyConfig` does NOT implement `SendLazyConfig`
+- [ ] Document Configuration Struct Pattern benefits in module docs (see plan.md):
+- [ ] Third-party extension enabled (no orphan rule violations)
+- [ ] Cleaner type signatures (`Config` vs 3 separate parameters)
+- [ ] Self-documenting configurations
+- [ ] Add `RcLazyConfig` and `ArcLazyConfig` structs to `fp-library/src/brands.rs`
+- [ ] Define `LazyError` struct with `Arc<str>` for thread-safe error messages:
+
+````rust
+use thiserror::Error;
+use std::sync::Arc;
+
+/// Error type for lazy evaluation failures.
+/// Uses Arc<str> for thread-safe sharing - NOT raw panic payload.
+///
+/// ### Why Arc<str> instead of Box<dyn Any + Send>?
+///
+/// Raw panic payload is Send but NOT Sync, which would make LazyError !Sync,
+/// breaking ArcLazy thread safety. Arc<str> is both Send and Sync.
+#[derive(Debug, Clone, Error)]
+#[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
+pub struct LazyError(Option<Arc<str>>);
+
+/// ### Fields
+///
+/// * `0`: The optional panic message stored as an `Arc<str>`.
+///
+/// ### Examples
+///
+/// ```rust
+/// use fp_library::{brands::*, classes::*, functions::*};
+///
+/// let lazy = lazy_new::<RcLazyConfig, _>(clonable_fn_new::<RcFnBrand, _, _>(|_| {
+///     panic!("computation failed");
+/// }));
+///
+/// if let Err(e) = lazy_force::<RcLazyConfig, _>(&lazy) {
+///     assert_eq!(e.panic_message(), Some("computation failed"));
+/// }
+/// ```
+````
+
+- [ ] Implement `LazyError::from_panic(payload)` constructor
+- [ ] Extract message from payload via downcast to `&str` or `String`
+- [ ] Store as `Arc<str>` for thread-safe sharing
+- [ ] Use generic message for non-string panic payloads
+- [ ] Implement `LazyError::poisoned()` for API completeness (not typically used with Arc storage)
+- [ ] Implement `LazyError::panic_message() -> Option<&str>`
+- [ ] Implement `LazyError::has_message() -> bool`
+- [ ] Derive `Clone` for `LazyError` (required for `Arc<LazyError>` pattern)
+- [ ] Add `thiserror = "1.0"` to dependencies in `fp-library/Cargo.toml`
+- [ ] Create `fp-library/src/classes/send_defer.rs`
+- [ ] Define `SendDefer` trait as **independent trait** (NOT extending `Defer`):
+```rust
+/// Trait for types that support thread-safe deferred evaluation.
+///
+/// ### HKT Requirement
+///
+/// This trait extends `Kind` and requires the implementor to support the `type Of<'a, A>` kind signature.
+///
+/// ### Design Note: Independent from Defer
+///
+/// Unlike other extension trait pairs (ClonableFn → SendClonableFn),
+/// `SendDefer` does NOT extend `Defer`. This is intentional because:
+///
+/// 1. `Defer::defer` takes a non-Send+Sync thunk
+/// 2. If ArcLazy implemented Defer, users could accidentally create
+///    non-thread-safe ArcLazy values
+/// 3. Making SendDefer independent prevents this misuse at compile time
+///
+/// This means:
+/// - RcLazy implements Defer (not SendDefer)
+/// - ArcLazy implements SendDefer (not Defer)
+/// - There is no type that implements both
+pub trait SendDefer: Kind {
+	/// Creates a value from a thread-safe thunk-producing thunk.
+	///
+	/// ### Type Signature
+	///
+	/// `forall config a. (SendLazyConfig config, Send a, Sync a, Clone a) => (() -> Lazy config a) -> Lazy config a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to be computed lazily, must be `Clone + Send + Sync`.
+	///
+	/// ### Parameters
+	///
+	/// * `thunk`: The computation that produces a `Lazy` value.
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` value that defers the execution of the thunk.
+	fn send_defer<'a, A>(thunk: impl 'a + Fn() -> Self::Of<'a, A> + Send + Sync) -> Self::Of<'a, A>
+	where
+		A: Clone + Send + Sync + 'a;
+}
+```
+- [ ] Note: `SendDefer` is only implemented for `LazyBrand<ArcLazyConfig>`
+- [ ] Note: `Defer` is only implemented for `LazyBrand<RcLazyConfig>` (NOT for ArcLazy)
+
+### 3.2 Rewrite Lazy Type
 
 - [ ] Rewrite `fp-library/src/types/lazy.rs`
 - [ ] Define `LazyInner` struct for shared inner state using `Config: LazyConfig`:

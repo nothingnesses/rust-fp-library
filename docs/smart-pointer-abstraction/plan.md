@@ -2541,21 +2541,20 @@ Old value semantics was only better for:
    - Define `Pointer` base trait with `Of<T>` and `new`
    - Define `RefCountedPointer` extension with `CloneableOf<T>` and `cloneable_new`
    - Define `SendRefCountedPointer` marker trait
+   - Define `UnsizedCoercible` trait for basic function coercion
+   - Define `SendUnsizedCoercible` trait for thread-safe function coercion
    - Add free functions `pointer_new` and `ref_counted_new`
 3. Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
-4. Create `fp-library/src/types/rc_ptr.rs` with `Pointer` and `RefCountedPointer` impls for `RcBrand`
-5. Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `SendRefCountedPointer` impls for `ArcBrand`
+4. Create `fp-library/src/types/rc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `UnsizedCoercible` impls for `RcBrand`
+5. Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`, `UnsizedCoercible`, and `SendUnsizedCoercible` impls for `ArcBrand`
 6. Update module re-exports
-
 ### Phase 2: FnBrand Refactor
-
 1. Add `FnBrand<PtrBrand: RefCountedPointer>` struct to `fp-library/src/brands.rs`
 2. Add `RcFnBrand` and `ArcFnBrand` type aliases
 3. Create `fp-library/src/types/fn_brand.rs`
-   - Implement `Function`, `ClonableFn`, `Semigroupoid`, `Category` for `FnBrand<RcBrand>`
-   - Implement same for `FnBrand<ArcBrand>`
-   - Implement `SendClonableFn` for `FnBrand<ArcBrand>` only
-   - Use macro to reduce duplication
+   - Implement blanket `Function`, `ClonableFn`, `Semigroupoid`, `Category` for `FnBrand<P: UnsizedCoercible>`
+   - Implement blanket `SendClonableFn` for `FnBrand<P: SendUnsizedCoercible>`
+   - Use trait bounds instead of macros for extensibility
 4. Remove old `fp-library/src/types/rc_fn.rs` and `arc_fn.rs`
 5. Update all code that referenced old brands
 
