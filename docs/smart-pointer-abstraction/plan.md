@@ -2599,10 +2599,10 @@ For thorough verification of the `ArcLazy` synchronization code, we use the `loo
 
 1. Add `loom` as a dev dependency in `fp-library/Cargo.toml`:
 
-   ```toml
-   [dev-dependencies]
-   loom = "0.7"
-   ```
+```toml
+[target.'cfg(loom)'.dependencies]
+loom = "0.7"
+```
 
 2. Create `fp-library/tests/loom_tests.rs` with concurrent lazy tests:
 
@@ -2678,9 +2678,10 @@ fn arc_lazy_panic_propagation() {
 ```
 
 3. Run loom tests with:
-   ```bash
-   RUSTFLAGS="--cfg loom" cargo test --test loom_tests
-   ```
+
+```bash
+RUSTFLAGS="--cfg loom" cargo test --test loom_tests
+```
 
 **Why Loom?**
 

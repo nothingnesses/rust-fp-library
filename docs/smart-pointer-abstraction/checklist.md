@@ -469,7 +469,7 @@ pub struct LazyError(Option<Arc<str>>);
 - [ ] Implement `LazyError::panic_message() -> Option<&str>`
 - [ ] Implement `LazyError::has_message() -> bool`
 - [ ] Derive `Clone` for `LazyError` (required for `Arc<LazyError>` pattern)
-- [ ] Add `thiserror = "1.0"` to dependencies in `fp-library/Cargo.toml`
+- [ ] Add `thiserror = "2.0"` to dependencies in `fp-library/Cargo.toml`
 - [ ] Create `fp-library/src/classes/send_defer.rs`
 - [ ] Define `SendDefer` trait as **independent trait** (NOT extending `Defer`):
 ```rust
@@ -830,7 +830,7 @@ pub struct Lazy<'a, Config: LazyConfig, A>(
 
 ### 5.1 Setup
 
-- [ ] Add `loom = "0.7"` to dev-dependencies in `fp-library/Cargo.toml`
+- [ ] Add `loom = "0.7"` to `[target.'cfg(loom)'.dependencies]` in `fp-library/Cargo.toml`
 - [ ] Create `fp-library/tests/loom_tests.rs`
 
 ### 5.2 Loom Tests for ArcLazy
