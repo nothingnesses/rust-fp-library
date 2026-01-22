@@ -99,8 +99,8 @@ fn arc_lazy_panic_propagation() {
 
 ## Checklist
 
-- [ ] Add `loom` as a dev dependency in `fp-library/Cargo.toml`
-- [ ] Create `fp-library/tests/loom_tests.rs`
-- [ ] Implement `arc_lazy_concurrent_force` test
-- [ ] Implement `arc_lazy_panic_propagation` test
-- [ ] Run loom tests with `RUSTFLAGS="--cfg loom" cargo test --test loom_tests`
+- [x] Add `loom` as a dev dependency in `fp-library/Cargo.toml`
+- [x] Create `fp-library/tests/loom_tests.rs`
+- [x] Implement `arc_lazy_concurrent_force` test
+- [x] Implement `arc_lazy_panic_propagation` test
+- [x] Run loom tests with `RUSTFLAGS="--cfg loom" cargo test --test loom_tests`

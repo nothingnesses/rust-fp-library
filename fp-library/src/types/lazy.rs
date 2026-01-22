@@ -546,7 +546,7 @@ pub type ArcLazy<'a, A> = Lazy<'a, ArcLazyConfig, A>;
 /// Error type for `Lazy` evaluation failures.
 ///
 /// This error is returned when a thunk panics during evaluation.
-#[derive(Debug, Clone, Error)]
+#[derive(Clone, Debug, Default, Error, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
 pub struct LazyError(Option<Arc<str>>);
 
@@ -581,6 +581,29 @@ impl LazyError {
 			payload.downcast_ref::<String>().map(|s| Arc::from(s.as_str()))
 		};
 		Self(msg)
+	}
+
+	/// Returns the panic message, if available.
+	///
+	/// ### Type Signature
+	///
+	/// `LazyError -> Option &str`
+	///
+	/// ### Returns
+	///
+	/// The panic message as a string slice, or `None` if no message was captured.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::lazy::LazyError;
+	///
+	/// let payload = Box::new("oops");
+	/// let error = LazyError::from_panic(payload);
+	/// assert_eq!(error.panic_message(), Some("oops"));
+	/// ```
+	pub fn panic_message(&self) -> Option<&str> {
+		self.0.as_deref()
 	}
 }
 

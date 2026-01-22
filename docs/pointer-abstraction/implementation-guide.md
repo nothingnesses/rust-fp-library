@@ -8,7 +8,7 @@ This guide outlines the implementation plan for introducing a unified pointer ty
 2. [x] [Step 2: FnBrand Refactor](./steps/02-fn-brand-refactor/README.md) - Updating function brands to use the new pointer hierarchy.
 3. [x] [Step 3: Lazy Refactor](./steps/03-lazy-refactor/README.md) - Implementing the new shared-memoization `Lazy` type.
 4. [x] [Step 4: Integration & Polish](./steps/04-integration/README.md) - Cleanup, documentation, and final checks.
-5. [] [Step 5: Concurrency Testing](./steps/05-concurrency-testing/README.md) - Verifying thread safety with Loom.
+5. [x] [Step 5: Concurrency Testing](./steps/05-concurrency-testing/README.md) - Verifying thread safety with Loom.
 
 [This document](../architecture.md) contains coding guidelines and conventions to be adhered to during implementation.
 
