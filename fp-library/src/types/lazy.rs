@@ -2,6 +2,11 @@
 //!
 //! This module defines the [`Lazy`] struct, which represents a lazily-computed, memoized value.
 //! It implements [`Semigroup`], [`Monoid`], and [`Defer`].
+//!
+//! ## Configurations
+//!
+//! - [`RcLazyConfig`] / [`RcLazy`]: Single-threaded lazy values using `Rc`. Not thread-safe.
+//! - [`ArcLazyConfig`] / [`ArcLazy`]: Thread-safe lazy values using `Arc`. Requires `A: Send + Sync`.
 
 use crate::{
 	brands::{ArcBrand, ArcFnBrand, LazyBrand, OnceCellBrand, OnceLockBrand, RcBrand, RcFnBrand},
@@ -27,8 +32,8 @@ use thiserror::Error;
 /// Configuration trait for `Lazy` types.
 ///
 /// This trait defines the types used for pointer storage, memoization, and thunk execution.
-/// It ensures that compatible types are used together (e.g., `Rc` with `RefCell`, `Arc` with `Mutex`).
-pub trait LazyConfig: 'static {
+/// It ensures that compatible types are used together (e.g., `Rc` with `OnceCell`, `Arc` with `OnceLock`).
+pub trait LazyConfig: Sized + 'static {
 	/// The pointer brand for shared ownership (e.g., `RcBrand`, `ArcBrand`).
 	type PtrBrand: RefCountedPointer + ThunkWrapper;
 	/// The once-cell brand for memoization (e.g., `OnceCellBrand`, `OnceLockBrand`).
@@ -36,16 +41,145 @@ pub trait LazyConfig: 'static {
 	/// The function brand for thunk storage (e.g., `RcFnBrand`, `ArcFnBrand`).
 	type FnBrand: ClonableFn;
 	/// The thunk type to use for this configuration.
-	/// Thunks deref to `Fn(()) -> A` to match `ClonableFn::Of<'a, (), A>`.
+	/// Thunks deref to `Fn(()) -> A` to match the clonable function wrapper.
 	type ThunkOf<'a, A>: Clone + Deref<Target: Fn(()) -> A>
 	where
 		A: 'a;
+}
 
+/// Trait for `Lazy` configurations that support semigroup operations.
+pub trait LazySemigroup<A>: LazyConfig {
+	/// Combines two lazy values.
+	///
+	/// This method combines two lazy values into a new lazy value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall config a. Semigroup a => (Lazy config a, Lazy config a) -> Lazy config a`
+	///
+	/// ### Parameters
+	///
+	/// * `x`: The first lazy value.
+	/// * `y`: The second lazy value.
+	///
+	/// ### Returns
+	///
+	/// A new lazy value that combines the results.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
+	///
+	/// let x = RcLazy::new(RcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
+	/// let y = RcLazy::new(RcLazyConfig::new_thunk(|_| "World!".to_string()));
+	/// // Note: LazySemigroup::append is usually called via Semigroup::append on the Lazy type
+	/// let z = <RcLazyConfig as LazySemigroup<String>>::append(x, y);
+	/// assert_eq!(Lazy::force_or_panic(&z), "Hello, World!".to_string());
+	/// ```
+	fn append<'a>(
+		x: Lazy<'a, Self, A>,
+		y: Lazy<'a, Self, A>,
+	) -> Lazy<'a, Self, A>
+	where
+		A: Semigroup + Clone + 'a;
+}
+
+/// Trait for `Lazy` configurations that support monoid operations.
+pub trait LazyMonoid<A>: LazySemigroup<A> {
+	/// Returns the identity element.
+	///
+	/// This method returns a lazy value that evaluates to the identity element.
+	///
+	/// ### Type Signature
+	///
+	/// `forall config a. Monoid a => () -> Lazy config a`
+	///
+	/// ### Returns
+	///
+	/// A lazy value containing the identity element.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
+	///
+	/// let x = <RcLazyConfig as LazyMonoid<String>>::empty();
+	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
+	/// ```
+	fn empty<'a>() -> Lazy<'a, Self, A>
+	where
+		A: Monoid + Clone + 'a;
+}
+
+/// Trait for `Lazy` configurations that support defer operations.
+pub trait LazyDefer<'a, A>: LazyConfig {
+	/// Creates a value from a computation that produces the value.
+	///
+	/// This method defers the construction of a `Lazy` value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall config a. (() -> Lazy config a) -> Lazy config a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand_`: The brand of the clonable function wrapper.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	///
+	/// ### Returns
+	///
+	/// A new lazy value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	///
+	/// let lazy = <RcLazyConfig as LazyDefer<i32>>::defer::<RcFnBrand>(
+	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	/// );
+	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
+	/// ```
+	fn defer<FnBrand_>(
+		f: <FnBrand_ as ClonableFn>::Of<'a, (), Lazy<'a, Self, A>>
+	) -> Lazy<'a, Self, A>
+	where
+		FnBrand_: ClonableFn + 'a,
+		A: Clone + 'a;
+}
+
+// =============================================================================
+// RcLazyConfig - Single-threaded lazy values
+// =============================================================================
+
+/// Configuration for `Rc`-based `Lazy` values.
+///
+/// Uses `Rc` for shared ownership, `OnceCell` for memoization, and `RcFn` for thunks.
+/// This configuration is **not thread-safe**.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+///
+/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
+/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcLazyConfig;
+
+impl RcLazyConfig {
 	/// Creates a new thunk from a closure.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. (Fn(()) -> a) -> ThunkOf a`
+	/// `forall a. (Fn(()) -> a) -> ThunkOf a`
 	///
 	/// ### Type Parameters
 	///
@@ -68,92 +202,14 @@ pub trait LazyConfig: 'static {
 	/// let thunk = RcLazyConfig::new_thunk(|_| 42);
 	/// assert_eq!(thunk(()), 42);
 	/// ```
-	fn new_thunk<'a, A, F>(f: F) -> Self::ThunkOf<'a, A>
+	pub fn new_thunk<'a, A, F>(f: F) -> <Self as LazyConfig>::ThunkOf<'a, A>
 	where
 		A: 'a,
-		F: Fn(()) -> A + Clone + 'a;
+		F: Fn(()) -> A + Clone + 'a,
+	{
+		<RcFnBrand as ClonableFn>::new(f)
+	}
 }
-
-/// Extension trait for thread-safe `Lazy` configurations.
-pub trait SendLazyConfig: LazyConfig {
-	/// The thread-safe thunk type. Same as `ThunkOf` but guaranteed `Send + Sync`.
-	type SendThunkOf<'a, A: Send + Sync>: Clone
-		+ Send
-		+ Sync
-		+ Deref<Target: Fn(()) -> A + Send + Sync>
-	where
-		A: 'a;
-
-	/// Creates a new thread-safe thunk from a closure.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a f. (Fn(()) -> a + Send + Sync) -> SendThunkOf a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The return type of the closure.
-	/// * `F`: The closure type.
-	///
-	/// ### Parameters
-	///
-	/// * `f`: The closure to wrap.
-	///
-	/// ### Returns
-	///
-	/// A new thread-safe thunk.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	///
-	/// let thunk = ArcLazyConfig::new_send_thunk(|_| 42);
-	/// assert_eq!(thunk(()), 42);
-	/// ```
-	fn new_send_thunk<'a, A, F>(f: F) -> Self::SendThunkOf<'a, A>
-	where
-		A: Send + Sync + 'a,
-		F: Fn(()) -> A + Send + Sync + 'a;
-
-	/// Converts a thread-safe thunk into a regular thunk.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. SendThunkOf a -> ThunkOf a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The return type of the thunk.
-	///
-	/// ### Parameters
-	///
-	/// * `t`: The thread-safe thunk.
-	///
-	/// ### Returns
-	///
-	/// The thunk as a regular `ThunkOf`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	///
-	/// let send_thunk = ArcLazyConfig::new_send_thunk(|_| 42);
-	/// let thunk = ArcLazyConfig::into_thunk(send_thunk);
-	/// assert_eq!(thunk(()), 42);
-	/// ```
-	fn into_thunk<'a, A>(t: Self::SendThunkOf<'a, A>) -> Self::ThunkOf<'a, A>
-	where
-		A: 'a + Send + Sync;
-}
-
-/// Configuration for `Rc`-based `Lazy` values.
-///
-/// Uses `Rc` for shared ownership, `OnceCell` for memoization, and `RcFn` for thunks.
-/// This configuration is not thread-safe.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RcLazyConfig;
 
 impl LazyConfig for RcLazyConfig {
 	type PtrBrand = RcBrand;
@@ -163,113 +219,185 @@ impl LazyConfig for RcLazyConfig {
 		= <RcFnBrand as ClonableFn>::Of<'a, (), A>
 	where
 		A: 'a;
+}
 
-	/// Creates a new thunk from a closure.
+impl<A> LazySemigroup<A> for RcLazyConfig {
+	/// Combines two lazy values.
+	///
+	/// The combination is itself lazy: the result is a new thunk that, when forced,
+	/// forces both input values and combines them.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. (Fn(()) -> a) -> ThunkOf a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The return type of the closure.
-	/// * `F`: The closure type.
+	/// `forall a. Semigroup a => (RcLazy a, RcLazy a) -> RcLazy a`
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
+	/// * `x`: The first lazy value.
+	/// * `y`: The second lazy value.
 	///
 	/// ### Returns
 	///
-	/// A new thunk.
+	/// A new lazy value that combines the results.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
+	///
+	/// let x = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
+	/// let y = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "World!".to_string()));
+	/// let z = ArcLazyConfig::append(x, y);
+	/// assert_eq!(Lazy::force_or_panic(&z), "Hello, World!".to_string());
+	/// ```
+	fn append<'a>(
+		x: Lazy<'a, Self, A>,
+		y: Lazy<'a, Self, A>,
+	) -> Lazy<'a, Self, A>
+	where
+		A: Semigroup + Clone + 'a,
+	{
+		let thunk = Self::new_thunk(move |_| {
+			let x_val = match Lazy::force(&x) {
+				Ok(v) => v.clone(),
+				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			};
+			let y_val = match Lazy::force(&y) {
+				Ok(v) => v.clone(),
+				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			};
+			Semigroup::append(x_val, y_val)
+		});
+		Lazy::new(thunk)
+	}
+}
+
+impl<A> LazyMonoid<A> for RcLazyConfig {
+	/// Returns the identity element.
+	///
+	/// This method returns a lazy value that evaluates to the underlying type's identity element.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Monoid a => () -> RcLazy a`
+	///
+	/// ### Returns
+	///
+	/// A lazy value containing the identity element.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
+	///
+	/// let x: ArcLazy<String> = ArcLazyConfig::empty();
+	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
+	/// ```
+	fn empty<'a>() -> Lazy<'a, Self, A>
+	where
+		A: Monoid + Clone + 'a,
+	{
+		let thunk = Self::new_thunk(move |_| Monoid::empty());
+		Lazy::new(thunk)
+	}
+}
+
+impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
+	/// Creates a value from a computation that produces the value.
+	///
+	/// This method defers the construction of a `Lazy` value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. (() -> RcLazy a) -> RcLazy a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand_`: The brand of the clonable function wrapper.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: A thunk (wrapped in a clonable function) that produces the value.
+	///
+	/// ### Returns
+	///
+	/// A new lazy value.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
 	///
-	/// let thunk = RcLazyConfig::new_thunk(|_| 42);
-	/// assert_eq!(thunk(()), 42);
+	/// let lazy = RcLazyConfig::defer::<RcFnBrand>(
+	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	/// );
+	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
-	fn new_thunk<'a, A, F>(f: F) -> Self::ThunkOf<'a, A>
+	fn defer<FnBrand_>(
+		f: <FnBrand_ as ClonableFn>::Of<'a, (), Lazy<'a, Self, A>>
+	) -> Lazy<'a, Self, A>
 	where
-		A: 'a,
-		F: Fn(()) -> A + Clone + 'a,
+		FnBrand_: ClonableFn + 'a,
+		A: Clone + 'a,
 	{
-		<RcFnBrand as ClonableFn>::new(f)
+		let thunk = Self::new_thunk(move |_| {
+			let inner_lazy = f(());
+			match Lazy::force(&inner_lazy) {
+				Ok(v) => v.clone(),
+				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			}
+		});
+		Lazy::new(thunk)
 	}
 }
+
+// =============================================================================
+// ArcLazyConfig - Thread-safe lazy values
+// =============================================================================
 
 /// Configuration for `Arc`-based `Lazy` values.
 ///
-/// Uses `Arc` for shared ownership, `OnceLock` for memoization, and `ArcFn` for thunks.
-/// This configuration is thread-safe when `A` is `Send + Sync`.
+/// Uses `Arc` for shared ownership, `OnceLock` for memoization, and thread-safe `ArcFn` for thunks.
+/// This configuration is **thread-safe** and requires `A: Send + Sync` for full functionality.
+///
+/// ### Thread Safety
+///
+/// `ArcLazy<A>` is `Send + Sync` when `A: Send + Sync`. This allows lazy values
+/// to be shared across threads safely.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+/// use std::thread;
+///
+/// let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42));
+/// let lazy_clone = lazy.clone();
+///
+/// let handle = thread::spawn(move || {
+///     Lazy::force_or_panic(&lazy_clone)
+/// });
+///
+/// assert_eq!(handle.join().unwrap(), 42);
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcLazyConfig;
 
-impl LazyConfig for ArcLazyConfig {
-	type PtrBrand = ArcBrand;
-	type OnceBrand = OnceLockBrand;
-	type FnBrand = ArcFnBrand;
-	// Use ClonableFn::Of (non-Send) for ThunkOf to satisfy LazyConfig bounds.
-	// ArcLazy will not be Send by default; use SendLazyConfig for Send thunks.
-	type ThunkOf<'a, A>
-		= <ArcFnBrand as ClonableFn>::Of<'a, (), A>
-	where
-		A: 'a;
-
-	/// Creates a new thunk from a closure.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a f. (Fn(()) -> a) -> ThunkOf a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The return type of the closure.
-	/// * `F`: The closure type.
-	///
-	/// ### Parameters
-	///
-	/// * `f`: The closure to wrap.
-	///
-	/// ### Returns
-	///
-	/// A new thunk.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	///
-	/// let thunk = ArcLazyConfig::new_thunk(|_| 42);
-	/// assert_eq!(thunk(()), 42);
-	/// ```
-	fn new_thunk<'a, A, F>(f: F) -> Self::ThunkOf<'a, A>
-	where
-		A: 'a,
-		F: Fn(()) -> A + Clone + 'a,
-	{
-		<ArcFnBrand as ClonableFn>::new(f)
-	}
-}
-
-impl SendLazyConfig for ArcLazyConfig {
-	type SendThunkOf<'a, A: Send + Sync>
-		= <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>
-	where
-		A: 'a;
-
+impl ArcLazyConfig {
 	/// Creates a new thread-safe thunk from a closure.
 	///
+	/// The closure must be `Send + Sync` to ensure thread safety.
+	///
 	/// ### Type Signature
 	///
-	/// `forall a f. (Fn(()) -> a + Send + Sync) -> SendThunkOf a`
+	/// `forall a. (Fn(()) -> a + Send + Sync) -> ThunkOf a`
 	///
 	/// ### Type Parameters
 	///
 	/// * `A`: The return type of the closure.
-	/// * `F`: The closure type.
+	/// * `F`: The closure type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -284,57 +412,136 @@ impl SendLazyConfig for ArcLazyConfig {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
 	///
-	/// let thunk = ArcLazyConfig::new_send_thunk(|_| 42);
+	/// let thunk = ArcLazyConfig::new_thunk(|_| 42);
 	/// assert_eq!(thunk(()), 42);
 	/// ```
-	fn new_send_thunk<'a, A, F>(f: F) -> Self::SendThunkOf<'a, A>
+	pub fn new_thunk<'a, A, F>(f: F) -> <Self as LazyConfig>::ThunkOf<'a, A>
 	where
-		A: Send + Sync + 'a,
+		A: 'a,
 		F: Fn(()) -> A + Send + Sync + 'a,
 	{
 		<ArcFnBrand as SendClonableFn>::send_clonable_fn_new(f)
 	}
+}
 
-	/// Converts a thread-safe thunk into a regular thunk.
+impl LazyConfig for ArcLazyConfig {
+	type PtrBrand = ArcBrand;
+	type OnceBrand = OnceLockBrand;
+	type FnBrand = ArcFnBrand;
+	// Use SendOf for thread-safe thunks
+	type ThunkOf<'a, A>
+		= <ArcFnBrand as SendClonableFn>::SendOf<'a, (), A>
+	where
+		A: 'a;
+}
+
+// LazySemigroup for ArcLazyConfig requires A: Send + Sync because:
+// 1. The closure captures Lazy values which must be Send + Sync to be in a Send + Sync closure
+// 2. The result A is stored in OnceLock which requires Send + Sync for thread-safe access
+impl<A: Send + Sync> LazySemigroup<A> for ArcLazyConfig {
+	/// Combines two lazy values.
+	///
+	/// The combination is itself lazy: the result is a new thunk that, when forced,
+	/// forces both input values and combines them.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. SendThunkOf a -> ThunkOf a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The return type of the thunk.
+	/// `forall a. (Semigroup a, Send a, Sync a) => (ArcLazy a, ArcLazy a) -> ArcLazy a`
 	///
 	/// ### Parameters
 	///
-	/// * `t`: The thread-safe thunk.
+	/// * `x`: The first lazy value.
+	/// * `y`: The second lazy value.
 	///
 	/// ### Returns
 	///
-	/// The thunk as a regular `ThunkOf`.
+	/// A new lazy value that combines the results.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
 	///
-	/// let send_thunk = ArcLazyConfig::new_send_thunk(|_| 42);
-	/// let thunk = ArcLazyConfig::into_thunk(send_thunk);
-	/// assert_eq!(thunk(()), 42);
+	/// let x = RcLazy::new(RcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
+	/// let y = RcLazy::new(RcLazyConfig::new_thunk(|_| "World!".to_string()));
+	/// let z = RcLazyConfig::append(x, y);
+	/// assert_eq!(Lazy::force_or_panic(&z), "Hello, World!".to_string());
 	/// ```
-	fn into_thunk<'a, A>(t: Self::SendThunkOf<'a, A>) -> Self::ThunkOf<'a, A>
+	fn append<'a>(
+		x: Lazy<'a, Self, A>,
+		y: Lazy<'a, Self, A>,
+	) -> Lazy<'a, Self, A>
 	where
-		A: 'a + Send + Sync,
+		A: Semigroup + Clone + 'a,
 	{
-		t
+		let thunk = Self::new_thunk(move |_| {
+			let x_val = match Lazy::force(&x) {
+				Ok(v) => v.clone(),
+				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			};
+			let y_val = match Lazy::force(&y) {
+				Ok(v) => v.clone(),
+				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			};
+			Semigroup::append(x_val, y_val)
+		});
+		Lazy::new(thunk)
 	}
 }
 
+impl<A: Send + Sync> LazyMonoid<A> for ArcLazyConfig {
+	/// Returns the identity element.
+	///
+	/// This method returns a lazy value that evaluates to the underlying type's identity element.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. (Monoid a, Send a, Sync a) => () -> ArcLazy a`
+	///
+	/// ### Returns
+	///
+	/// A lazy value containing the identity element.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::string;
+	///
+	/// let x: RcLazy<String> = RcLazyConfig::empty();
+	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
+	/// ```
+	fn empty<'a>() -> Lazy<'a, Self, A>
+	where
+		A: Monoid + Clone + 'a,
+	{
+		let thunk = Self::new_thunk(move |_| Monoid::empty());
+		Lazy::new(thunk)
+	}
+}
+
+// Note: LazyDefer is NOT implemented for ArcLazyConfig because the Defer trait
+// allows any FnBrand_, but ArcLazy requires Send + Sync closures. Users should
+// use SendDefer instead for thread-safe deferred lazy evaluation.
+
+// =============================================================================
+// Type Aliases
+// =============================================================================
+
 /// Type alias for `Rc`-based `Lazy` values.
+///
+/// Use this for single-threaded lazy evaluation. Not thread-safe.
 pub type RcLazy<'a, A> = Lazy<'a, RcLazyConfig, A>;
 
 /// Type alias for `Arc`-based `Lazy` values.
+///
+/// Use this for thread-safe lazy evaluation. Requires `A: Send + Sync`.
 pub type ArcLazy<'a, A> = Lazy<'a, ArcLazyConfig, A>;
+
+// =============================================================================
+// LazyError
+// =============================================================================
 
 /// Error type for `Lazy` evaluation failures.
 ///
@@ -377,6 +584,10 @@ impl LazyError {
 	}
 }
 
+// =============================================================================
+// LazyInner and Lazy
+// =============================================================================
+
 struct LazyInner<'a, Config: LazyConfig, A: 'a> {
 	/// The memoized result (computed at most once).
 	/// Stores Result<A, Arc<LazyError>> to capture both successful values and errors.
@@ -399,6 +610,11 @@ struct LazyInner<'a, Config: LazyConfig, A: 'a> {
 ///
 /// * `Config`: The configuration for the `Lazy` value (e.g., `RcLazyConfig`, `ArcLazyConfig`).
 /// * `A`: The type of the value.
+///
+/// ### Configuration Choice
+///
+/// - Use [`RcLazy`] for single-threaded contexts
+/// - Use [`ArcLazy`] for thread-safe contexts (requires `A: Send + Sync`)
 pub struct Lazy<'a, Config: LazyConfig, A>(
 	// CloneableOf wraps LazyInner for shared ownership
 	<Config::PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, Config, A>>,
@@ -661,12 +877,16 @@ impl_kind! {
 	}
 }
 
+// =============================================================================
+// Type Class Implementations
+// =============================================================================
+
 // Note: We do NOT implement TrySemigroup/TryMonoid explicitly for Lazy.
 // Since Lazy implements Semigroup/Monoid, it inherits the blanket impls from
 // TrySemigroup/TryMonoid which use Error = Infallible. Users should handle
 // errors via force() returning Result<&A, LazyError>.
 
-impl<'a, Config: LazyConfig, A: Semigroup + Clone + 'a> Semigroup for Lazy<'a, Config, A> {
+impl<'a, Config: LazySemigroup<A>, A: Semigroup + Clone + 'a> Semigroup for Lazy<'a, Config, A> {
 	/// Combines two lazy values.
 	///
 	/// The combination is itself lazy: the result is a new thunk that, when forced,
@@ -700,22 +920,11 @@ impl<'a, Config: LazyConfig, A: Semigroup + Clone + 'a> Semigroup for Lazy<'a, C
 		x: Self,
 		y: Self,
 	) -> Self {
-		let thunk = Config::new_thunk(move |_| {
-			let x_val = match Lazy::force(&x) {
-				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
-			};
-			let y_val = match Lazy::force(&y) {
-				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
-			};
-			Semigroup::append(x_val, y_val)
-		});
-		Lazy::new(thunk)
+		Config::append(x, y)
 	}
 }
 
-impl<'a, Config: LazyConfig, A: Monoid + Clone + 'a> Monoid for Lazy<'a, Config, A> {
+impl<'a, Config: LazyMonoid<A>, A: Monoid + Clone + 'a> Monoid for Lazy<'a, Config, A> {
 	/// Returns the identity element.
 	///
 	/// This method returns a lazy value that evaluates to the underlying type's identity element.
@@ -738,12 +947,11 @@ impl<'a, Config: LazyConfig, A: Monoid + Clone + 'a> Monoid for Lazy<'a, Config,
 	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
 	/// ```
 	fn empty() -> Self {
-		let thunk = Config::new_thunk(move |_| Monoid::empty());
-		Lazy::new(thunk)
+		Config::empty()
 	}
 }
 
-impl<'a, Config: LazyConfig, A: Clone + 'a> Defer<'a> for Lazy<'a, Config, A> {
+impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config, A> {
 	/// Creates a value from a computation that produces the value.
 	///
 	/// This method defers the construction of a `Lazy` value.
@@ -779,25 +987,18 @@ impl<'a, Config: LazyConfig, A: Clone + 'a> Defer<'a> for Lazy<'a, Config, A> {
 		Self: Sized,
 		FnBrand_: ClonableFn + 'a,
 	{
-		let thunk = Config::new_thunk(move |_| {
-			let inner_lazy = f(());
-			match Lazy::force(&inner_lazy) {
-				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
-			}
-		});
-		Lazy::new(thunk)
+		Config::defer::<FnBrand_>(f)
 	}
 }
 
 use crate::classes::send_defer::SendDefer;
 
-impl<Config: SendLazyConfig> SendDefer for LazyBrand<Config> {
+impl SendDefer for LazyBrand<ArcLazyConfig> {
 	/// Creates a deferred value from a thread-safe thunk.
 	///
 	/// ### Type Signature
 	///
-	/// `forall config a. (Send a, Sync a) => (() -> Lazy config a) -> Lazy config a`
+	/// `forall a. (Send a, Sync a) => (() -> ArcLazy a) -> ArcLazy a`
 	///
 	/// ### Type Parameters
 	///
@@ -823,16 +1024,20 @@ impl<Config: SendLazyConfig> SendDefer for LazyBrand<Config> {
 	where
 		A: Clone + Send + Sync + 'a,
 	{
-		let thunk = Config::new_send_thunk(move |_| {
+		let thunk = ArcLazyConfig::new_thunk(move |_| {
 			let inner_lazy = thunk();
 			match Lazy::force(&inner_lazy) {
 				Ok(v) => v.clone(),
 				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
 			}
 		});
-		Lazy::new(Config::into_thunk(thunk))
+		Lazy::new(thunk)
 	}
 }
+
+// =============================================================================
+// Tests
+// =============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -858,9 +1063,7 @@ mod tests {
 		assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 		assert_eq!(*counter.borrow(), 1);
 		assert_eq!(Lazy::force(&lazy).unwrap(), &42);
-		// Since we clone before forcing, and OnceCell is not shared across clones (it's deep cloned),
-		// the counter increments again.
-		// WAIT: The new implementation uses shared semantics!
+		// The new implementation uses shared semantics!
 		// So cloning the Lazy should SHARE the OnceCell.
 		let lazy_clone = lazy.clone();
 		assert_eq!(Lazy::force(&lazy_clone).unwrap(), &42);
@@ -967,6 +1170,47 @@ mod tests {
 	#[test]
 	fn monoid_empty() {
 		let x = <RcLazy<String> as Monoid>::empty();
+		assert_eq!(Lazy::force_or_panic(&x), "".to_string());
+	}
+
+	/// Tests that `ArcLazy` is thread-safe.
+	#[test]
+	fn arc_lazy_thread_safety() {
+		use std::sync::{Arc, Mutex};
+		use std::thread;
+
+		let counter = Arc::new(Mutex::new(0));
+		let counter_clone = counter.clone();
+
+		let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(move |_| {
+			let mut guard = counter_clone.lock().unwrap();
+			*guard += 1;
+			42
+		}));
+
+		let lazy_clone = lazy.clone();
+
+		let handle = thread::spawn(move || Lazy::force_or_panic(&lazy_clone));
+
+		assert_eq!(handle.join().unwrap(), 42);
+		assert_eq!(Lazy::force_or_panic(&lazy), 42);
+		// Should only be computed once due to shared memoization
+		assert_eq!(*counter.lock().unwrap(), 1);
+	}
+
+	/// Tests `Semigroup::append` for `ArcLazy`.
+	#[test]
+	fn arc_lazy_semigroup_append() {
+		let x = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
+		let y = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "World!".to_string()));
+		let z = Semigroup::append(x, y);
+		assert_eq!(Lazy::force_or_panic(&z), "Hello, World!".to_string());
+	}
+
+	/// Tests `Monoid::empty` for `ArcLazy`.
+	#[test]
+	fn arc_lazy_monoid_empty() {
+		let x = <ArcLazy<String> as Monoid>::empty();
 		assert_eq!(Lazy::force_or_panic(&x), "".to_string());
 	}
 }

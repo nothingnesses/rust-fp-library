@@ -202,3 +202,33 @@ Sections in the documentation that would be empty should be omitted.
 * **Standardization:** A consistent comment format ensures that all API documentation is uniform, easy to read, and provides all necessary information (signatures, parameters, examples) in a predictable structure.
 * **Consistency:** Documentation must accurately reflect the architectural decisions regarding type parameter ordering (Section 3) to avoid confusion.
 * **Intended Usage:** The library is designed to be used via free functions with partial type inference (turbofish with holes). Examples must demonstrate this intended usage pattern to educate users on the ergonomic benefits of the chosen type parameter ordering.
+
+### 5. Pointer Abstraction & Shared Semantics
+
+**Decision:**
+The library uses a unified pointer hierarchy to abstract over reference counting strategies (`Rc` vs `Arc`) and to enable shared memoization semantics for lazy evaluation.
+
+**Hierarchy:**
+
+*   `Pointer`: Base trait for heap-allocated pointers (requires `Deref`).
+*   `RefCountedPointer`: Extends `Pointer` with `CloneableOf` (requires `Clone + Deref`).
+*   `SendRefCountedPointer`: Extends `RefCountedPointer` with `SendOf` (requires `Send + Sync`).
+
+**Patterns:**
+
+1.  **Generic Function Brands:** `FnBrand<P>` is parameterized over a `RefCountedPointer` brand `P`.
+    *   `RcFnBrand` is a type alias for `FnBrand<RcBrand>`.
+    *   `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
+    *   This allows unified implementation of `ClonableFn` while `SendClonableFn` is only implemented when `P: SendRefCountedPointer`.
+
+2.  **Shared Lazy Evaluation:** `Lazy` uses `RefCountedPointer` to share the memoization state (`OnceCell`) across clones.
+    *   `Lazy<Config, A>` is parameterized by a `LazyConfig` which bundles the pointer brand and other configuration.
+    *   `RcLazy` uses `Rc` for sharing (not thread-safe).
+    *   `ArcLazy` uses `Arc` and `Mutex` for sharing (thread-safe).
+    *   This ensures Haskell-like semantics where forcing one reference updates the value for all clones.
+
+**Reasoning:**
+
+*   **Code Reuse:** Eliminates duplication between `Rc` and `Arc` implementations.
+*   **Correctness:** Ensures `Lazy` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
+*   **Extensibility:** The `Pointer` base trait allows for future support of unique pointers (`Box`) or custom allocators.

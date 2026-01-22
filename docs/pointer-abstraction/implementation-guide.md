@@ -7,7 +7,7 @@ This guide outlines the implementation plan for introducing a unified pointer ty
 1. [x] [Step 1: Pointer Trait Foundation](./steps/01-pointer-traits/README.md) - Defining the base traits and brands.
 2. [x] [Step 2: FnBrand Refactor](./steps/02-fn-brand-refactor/README.md) - Updating function brands to use the new pointer hierarchy.
 3. [x] [Step 3: Lazy Refactor](./steps/03-lazy-refactor/README.md) - Implementing the new shared-memoization `Lazy` type.
-4. [] [Step 4: Integration & Polish](./steps/04-integration/README.md) - Cleanup, documentation, and final checks.
+4. [x] [Step 4: Integration & Polish](./steps/04-integration/README.md) - Cleanup, documentation, and final checks.
 5. [] [Step 5: Concurrency Testing](./steps/05-concurrency-testing/README.md) - Verifying thread safety with Loom.
 
 [This document](../architecture.md) contains coding guidelines and conventions to be adhered to during implementation.
@@ -158,14 +158,15 @@ This plan originated from a code review of `fp-library/src/types/lazy.rs`, which
 
 ## Files to Modify
 
-| File                           | Changes                                                           |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `fp-library/src/kinds.rs`      | Add missing `type Of<'a, A>` kind trait                           |
-| `fp-library/src/brands.rs`     | Add `RcBrand`, `ArcBrand`, `BoxBrand`, `FnBrand<P>`, type aliases |
-| `fp-library/src/classes.rs`    | Re-export `pointer` module                                        |
-| `fp-library/src/types.rs`      | Re-export new modules, remove old                                 |
-| `fp-library/src/types/lazy.rs` | Complete rewrite with shared semantics using `RefCountedPointer`  |
-| `fp-library/src/functions.rs`  | Re-export new free functions (`pointer_new`, `ref_counted_new`)   |
+| File                             | Changes                                                           |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `fp-library/src/kinds.rs`        | Add missing `type Of<'a, A>` kind trait                           |
+| `fp-library/src/brands.rs`       | Add `RcBrand`, `ArcBrand`, `BoxBrand`, `FnBrand<P>`, type aliases |
+| `fp-library/src/classes.rs`      | Re-export `pointer` module                                        |
+| `fp-library/src/types.rs`        | Re-export new modules, remove old                                 |
+| `fp-library/src/types/lazy.rs`   | Complete rewrite with shared semantics using `RefCountedPointer`  |
+| `fp-library/src/functions.rs`    | Re-export new free functions (`pointer_new`, `ref_counted_new`)   |
+| `fp-library/src/classes/defer.rs`| Update doc examples for new `Lazy` API (added during impl)        |
 
 ## Files to Delete
 
@@ -189,6 +190,12 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 | 2026-01-22 | `ArcBrand` uses `std::sync::Mutex` | Used `std::sync::Mutex` instead of `parking_lot::Mutex` for `ThunkWrapper` to avoid adding a new dependency. |
 | 2026-01-22 | `LazyBrand` struct bound omitted | Omitted `Config: LazyConfig` bound on `LazyBrand` struct definition to follow Rust best practices (avoiding unnecessary bounds on structs). Bound is enforced in `impl_kind!`. |
 | 2026-01-22 | Added `thiserror` dependency | Added `thiserror` to support `#[derive(Error)]` for `LazyError`. |
+| 2026-01-22 | `SendDefer` extends `Kind` | `SendDefer` extends `Kind` instead of `Defer` because `Defer::defer` requires generic `FnBrand` support, which is incompatible with `ArcLazy`'s `Send + Sync` thunk requirement. |
+| 2026-01-22 | `RefCountedPointer` adds `try_unwrap` | Added `try_unwrap` to `RefCountedPointer` to support safe unwrapping and testing of reference counts. |
+| 2026-01-22 | `Lazy` adds convenience methods | Added `force_or_panic`, `force_ref_or_panic`, `force_cloned`, `is_poisoned`, and `get_error` to `Lazy` for better ergonomics and safety. |
+| 2026-01-22 | `ThunkWrapper` placed in `pointer.rs` | Moved `ThunkWrapper` trait from `lazy.rs` (as shown in Step 3 plan) to `pointer.rs` for better cohesion with other pointer traits. This keeps all pointer-related abstractions in one module. |
+| 2026-01-22 | `SendLazyConfig` replaced by helper traits | Instead of `SendLazyConfig` extending `LazyConfig` with `SendThunkOf`, implemented separate `LazySemigroup`, `LazyMonoid`, and `LazyDefer` traits. This provides better separation of concerns and allows `ArcLazyConfig` to constrain `A: Send + Sync` only where needed. |
+| 2026-01-22 | `defer.rs` doc examples updated | File not in original "Files to Modify" list. Required update because the `Lazy` API changed significantly: type from `Lazy<OnceBrand, FnBrand, A>` to `Lazy<'a, Config, A>`, constructor from `Lazy::new(clonable_fn_new(...))` to `RcLazy::new(RcLazyConfig::new_thunk(...))`, and `force` from returning `A` to `Result<&A, LazyError>`. |
 
 ### Blockers
 

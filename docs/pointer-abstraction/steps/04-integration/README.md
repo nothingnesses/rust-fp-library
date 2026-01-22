@@ -1,15 +1,16 @@
 # Step 4: Integration & Polish
 
-This step focuses on integrating the changes, updating documentation, and ensuring the codebase is clean and consistent.
+This step focuses on integrating the changes, updating documentation, and ensuring the codebase is clean and consistent. The files to focus on are those listed in the "Files to Create" and "Files to Modify" sections of the [Implementation Guide](../../implementation-guide.md).
 
 ## Goals
 
 1.  Update module re-exports in `fp-library/src/classes.rs`, `fp-library/src/types.rs`, and `fp-library/src/functions.rs`.
 2.  Update `docs/std-coverage-checklist.md`.
 3.  Update `docs/architecture.md` with new patterns.
-4.  Ensure all tests pass.
-5.  Run clippy and fix warnings.
-6.  Generate and review documentation.
+4.  Ensure all code paths and edge-cases are fully tested.
+5.  Ensure all tests pass.
+6.  Run clippy and fix warnings.
+7.  Generate and review documentation.
 
 ## Technical Design
 
@@ -51,11 +52,11 @@ The architecture documentation needs to reflect the new pointer hierarchy and th
 
 ## Checklist
 
-- [ ] Update module re-exports in `fp-library/src/classes.rs`
-- [ ] Update module re-exports in `fp-library/src/types.rs`
-- [ ] Update module re-exports in `fp-library/src/functions.rs`
-- [ ] Update `docs/std-coverage-checklist.md`
-- [ ] Update `docs/architecture.md` with new patterns
-- [ ] Ensure all tests pass
-- [ ] Run clippy and fix warnings
-- [ ] Generate and review documentation
+- [x] Update module re-exports in `fp-library/src/classes.rs`
+- [x] Update module re-exports in `fp-library/src/types.rs`
+- [x] Update module re-exports in `fp-library/src/functions.rs`
+- [x] Update `docs/std-coverage-checklist.md`
+- [x] Update `docs/architecture.md` with new patterns
+- [x] Ensure all tests pass
+- [x] Run clippy and fix warnings
+- [x] Generate and review documentation

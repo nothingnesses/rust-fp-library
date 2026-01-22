@@ -27,6 +27,9 @@ fp-macros = { path = "../fp-macros", version = "0.2" }
 rayon = { version = "1.11", optional = true }
 thiserror = "2.0"
 
+[target.'cfg(loom)'.dependencies]
+loom = "0.7"
+
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1.0"
