@@ -269,32 +269,32 @@ To ensure full integration with the library's Higher-Kinded Type (HKT) machinery
 
 ## Checklist
 
-- [ ] **Add missing Kind trait** to `fp-library/src/kinds.rs`:
+- [x] **Add missing Kind trait** to `fp-library/src/kinds.rs`:
    - Add `def_kind! { type Of<'a, A>; }` to support `SendDefer`.
-- [ ] Create `fp-library/src/classes/pointer.rs`
+- [x] Create `fp-library/src/classes/pointer.rs`
    - Define `Pointer` base trait with `Of<T>` and `new`
    - Define `RefCountedPointer` extension with `CloneableOf<T>` and `cloneable_new`
    - Define `SendRefCountedPointer` marker trait
    - Define `UnsizedCoercible` trait for basic function coercion
    - Define `SendUnsizedCoercible` trait for thread-safe function coercion
    - Add free functions `pointer_new` and `ref_counted_new`
-- [ ] Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
-- [ ] Create `fp-library/src/types/rc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `UnsizedCoercible` impls for `RcBrand`
-- [ ] Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`, `UnsizedCoercible`, and `SendUnsizedCoercible` impls for `ArcBrand`
-- [ ] Update module re-exports
+- [x] Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
+- [x] Create `fp-library/src/types/rc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `UnsizedCoercible` impls for `RcBrand`
+- [x] Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`, `UnsizedCoercible`, and `SendUnsizedCoercible` impls for `ArcBrand`
+- [x] Update module re-exports
 
 ### Phase 1 Tests
 
-- [ ] Unit test: `RcBrand::new` creates `Rc<T>`
-- [ ] Unit test: `ArcBrand::new` creates `Arc<T>`
-- [ ] Unit test: `RcBrand::cloneable_new` creates `Rc<T>`
-- [ ] Unit test: `ArcBrand::cloneable_new` creates `Arc<T>`
-- [ ] Unit test: `Clone` works for `RcBrand::CloneableOf<T>`
-- [ ] Unit test: `Clone` works for `ArcBrand::CloneableOf<T>`
-- [ ] Unit test: `Deref` works correctly for both
-- [ ] Unit test: `RcBrand::try_unwrap` returns `Ok(value)` when sole reference
-- [ ] Unit test: `RcBrand::try_unwrap` returns `Err(ptr)` when shared
-- [ ] Unit test: `ArcBrand::try_unwrap` returns `Ok(value)` when sole reference
-- [ ] Unit test: `ArcBrand::try_unwrap` returns `Err(ptr)` when shared
-- [ ] Compile-fail test: `Rc<T>` is `!Send`
-- [ ] Compile-success test: `Arc<T: Send + Sync>` is `Send + Sync`
+- [x] Unit test: `RcBrand::new` creates `Rc<T>`
+- [x] Unit test: `ArcBrand::new` creates `Arc<T>`
+- [x] Unit test: `RcBrand::cloneable_new` creates `Rc<T>`
+- [x] Unit test: `ArcBrand::cloneable_new` creates `Arc<T>`
+- [x] Unit test: `Clone` works for `RcBrand::CloneableOf<T>`
+- [x] Unit test: `Clone` works for `ArcBrand::CloneableOf<T>`
+- [x] Unit test: `Deref` works correctly for both
+- [x] Unit test: `RcBrand::try_unwrap` returns `Ok(value)` when sole reference
+- [x] Unit test: `RcBrand::try_unwrap` returns `Err(ptr)` when shared
+- [x] Unit test: `ArcBrand::try_unwrap` returns `Ok(value)` when sole reference
+- [x] Unit test: `ArcBrand::try_unwrap` returns `Err(ptr)` when shared
+- [x] Compile-fail test: `Rc<T>` is `!Send`
+- [x] Compile-success test: `Arc<T: Send + Sync>` is `Send + Sync`

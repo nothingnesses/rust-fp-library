@@ -1,15 +1,15 @@
-error[E0277]: the trait bound `RcFnBrand: SendClonableFn` is not satisfied
+error[E0277]: the trait bound `FnBrand<RcBrand>: SendClonableFn` is not satisfied
  --> tests/ui/rc_fn_not_send.rs:6:11
   |
 6 |     let _ = <RcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x);
-  |              ^^^^^^^^^ the trait `SendClonableFn` is not implemented for `RcFnBrand`
+  |              ^^^^^^^^^ the trait `SendClonableFn` is not implemented for `FnBrand<RcBrand>`
   |
-  = help: the trait `SendClonableFn` is implemented for `ArcFnBrand`
+  = help: the trait `SendClonableFn` is implemented for `FnBrand<ArcBrand>`
 
-error[E0277]: the trait bound `RcFnBrand: SendClonableFn` is not satisfied
+error[E0277]: the trait bound `FnBrand<RcBrand>: SendClonableFn` is not satisfied
  --> tests/ui/rc_fn_not_send.rs:6:10
   |
 6 |     let _ = <RcFnBrand as SendClonableFn>::send_clonable_fn_new(|x: i32| x);
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SendClonableFn` is not implemented for `RcFnBrand`
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SendClonableFn` is not implemented for `FnBrand<RcBrand>`
   |
-  = help: the trait `SendClonableFn` is implemented for `ArcFnBrand`
+  = help: the trait `SendClonableFn` is implemented for `FnBrand<ArcBrand>`

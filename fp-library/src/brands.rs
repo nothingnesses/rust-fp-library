@@ -18,22 +18,33 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{category::Category, clonable_fn::ClonableFn, once::Once};
+use crate::classes::{
+	category::Category, clonable_fn::ClonableFn, once::Once, pointer::RefCountedPointer,
+};
 use std::marker::PhantomData;
+
+/// Brand for [`std::sync::Arc`] atomic reference-counted pointer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcBrand;
 
 /// Brand for [atomically reference-counted][std::sync::Arc]
 /// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
-/// This struct implements [`ClonableFn`] to provide a way to construct and
-/// type-check [`std::sync::Arc`]-wrapped closures in a generic context. The lifetime `'a`
-/// ensures the closure doesn't outlive referenced data, while `A` and `B`
-/// represent input and output types.
+/// This type alias provides a way to construct and type-check [`std::sync::Arc`]-wrapped
+/// closures in a generic context.
+pub type ArcFnBrand = FnBrand<ArcBrand>;
+
+/// Brand for [`std::boxed::Box`] unique ownership pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFnBrand;
+pub struct BoxBrand;
 
 /// Brand for [`Endofunction`](crate::types::Endofunction).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndofunctionBrand<FnBrand: ClonableFn, A>(PhantomData<(FnBrand, A)>);
+
+/// Generic function brand parameterized by reference-counted pointer choice.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 
 /// Brand for [`Endomorphism`](crate::types::Endomorphism).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -71,15 +82,16 @@ pub struct PairWithFirstBrand<First>(First);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairWithSecondBrand<Second>(Second);
 
+/// Brand for [`std::rc::Rc`] reference-counted pointer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcBrand;
+
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
 ///
-/// This struct implements [`ClonableFn`] to provide a way to construct and
-/// type-check [`std::rc::Rc`]-wrapped closures in a generic context. The lifetime `'a`
-/// ensures the closure doesn't outlive referenced data, while `A` and `B`
-/// represent input and output types.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RcFnBrand;
+/// This type alias provides a way to construct and type-check [`std::rc::Rc`]-wrapped
+/// closures in a generic context.
+pub type RcFnBrand = FnBrand<RcBrand>;
 
 /// Brand for [`Result`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

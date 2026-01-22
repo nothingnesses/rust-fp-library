@@ -34,6 +34,7 @@ pub mod monoid;
 pub mod once;
 pub mod par_foldable;
 pub mod pointed;
+pub mod pointer;
 pub mod semiapplicative;
 pub mod semigroup;
 pub mod semigroupoid;

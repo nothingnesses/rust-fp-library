@@ -47,6 +47,10 @@ def_kind! {
 }
 
 def_kind! {
+	type Of<'a, A>;
+}
+
+def_kind! {
 	type Of<'a, A, B>;
 }
 

@@ -14,6 +14,7 @@
 //! ```
 
 pub mod arc_fn;
+pub mod arc_ptr;
 pub mod endofunction;
 pub mod endomorphism;
 pub mod identity;
@@ -23,6 +24,7 @@ pub mod once_lock;
 pub mod option;
 pub mod pair;
 pub mod rc_fn;
+pub mod rc_ptr;
 pub mod result;
 pub mod send_endofunction;
 pub mod string;
