@@ -6,11 +6,12 @@
 //!
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*, types::*};
+//! use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 //!
-//! let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
-//!     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
+//! let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
+//!     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 //! );
-//! assert_eq!(Lazy::force(lazy), 42);
+//! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 //! ```
 
 use super::clonable_fn::ClonableFn;
@@ -41,11 +42,12 @@ pub trait Defer<'a> {
 	///
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 	///
-	/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
-	///     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
+	/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
+	///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 	/// );
-	/// assert_eq!(Lazy::force(lazy), 42);
+	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 	/// ```
 	fn defer<FnBrand: 'a + ClonableFn>(f: <FnBrand as ClonableFn>::Of<'a, (), Self>) -> Self
 	where
@@ -77,11 +79,12 @@ pub trait Defer<'a> {
 ///
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*, types::*};
+/// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 ///
-/// let lazy = defer::<Lazy<OnceCellBrand, RcFnBrand, _>, RcFnBrand>(
-///     clonable_fn_new::<RcFnBrand, _, _>(|_| Lazy::new(clonable_fn_new::<RcFnBrand, _, _>(|_| 42)))
+/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
+///     clonable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
 /// );
-/// assert_eq!(Lazy::force(lazy), 42);
+/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 /// ```
 pub fn defer<'a, D, FnBrand>(f: <FnBrand as ClonableFn>::Of<'a, (), D>) -> D
 where

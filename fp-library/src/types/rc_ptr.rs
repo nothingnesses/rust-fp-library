@@ -15,9 +15,9 @@
 
 use crate::{
 	brands::RcBrand,
-	classes::pointer::{Pointer, RefCountedPointer, UnsizedCoercible},
+	classes::pointer::{Pointer, RefCountedPointer, ThunkWrapper, UnsizedCoercible},
 };
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 impl Pointer for RcBrand {
 	type Of<T: ?Sized> = Rc<T>;
@@ -111,6 +111,52 @@ impl UnsizedCoercible for RcBrand {
 	/// The closure wrapped in an `Rc` as a trait object.
 	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 		Rc::new(f)
+	}
+}
+
+impl ThunkWrapper for RcBrand {
+	type Cell<T> = RefCell<Option<T>>;
+
+	/// Creates a new cell containing the value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Option a -> RefCell (Option a)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `T`: The type of the value.
+	///
+	/// ### Parameters
+	///
+	/// * `value`: The value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new cell containing the value.
+	fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
+		RefCell::new(value)
+	}
+
+	/// Takes the value out of the cell.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. RefCell (Option a) -> Option a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `T`: The type of the value.
+	///
+	/// ### Parameters
+	///
+	/// * `cell`: The cell to take the value from.
+	///
+	/// ### Returns
+	///
+	/// The value if it was present, or `None`.
+	fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
+		cell.borrow_mut().take()
 	}
 }
 

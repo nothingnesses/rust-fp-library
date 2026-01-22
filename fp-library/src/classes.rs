@@ -40,5 +40,8 @@ pub mod semigroup;
 pub mod semigroupoid;
 pub mod semimonad;
 pub mod send_clonable_fn;
+pub mod send_defer;
 pub mod traversable;
+pub mod try_monoid;
+pub mod try_semigroup;
 pub mod witherable;

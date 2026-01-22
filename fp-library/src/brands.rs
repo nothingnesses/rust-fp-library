@@ -18,9 +18,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{
-	category::Category, clonable_fn::ClonableFn, once::Once, pointer::RefCountedPointer,
-};
+use crate::classes::{category::Category, clonable_fn::ClonableFn, pointer::RefCountedPointer};
 use std::marker::PhantomData;
 
 /// Brand for [`std::sync::Arc`] atomic reference-counted pointer.
@@ -56,7 +54,7 @@ pub struct IdentityBrand;
 
 /// Brand for [`Lazy`](crate::types::Lazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LazyBrand<OnceBrand: Once, FnBrand: ClonableFn>(PhantomData<(OnceBrand, FnBrand)>);
+pub struct LazyBrand<Config>(PhantomData<Config>);
 
 /// Brand for [`OnceCell`](std::cell::OnceCell).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

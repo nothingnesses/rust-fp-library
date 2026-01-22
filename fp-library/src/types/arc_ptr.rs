@@ -16,10 +16,11 @@
 use crate::{
 	brands::ArcBrand,
 	classes::pointer::{
-		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, UnsizedCoercible,
+		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, ThunkWrapper,
+		UnsizedCoercible,
 	},
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 impl Pointer for ArcBrand {
 	type Of<T: ?Sized> = Arc<T>;
@@ -164,6 +165,52 @@ impl SendUnsizedCoercible for ArcBrand {
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 		Arc::new(f)
+	}
+}
+
+impl ThunkWrapper for ArcBrand {
+	type Cell<T> = Mutex<Option<T>>;
+
+	/// Creates a new cell containing the value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Option a -> Mutex (Option a)`
+	///
+	/// ### Type Parameters
+	///
+	/// * `T`: The type of the value.
+	///
+	/// ### Parameters
+	///
+	/// * `value`: The value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new cell containing the value.
+	fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
+		Mutex::new(value)
+	}
+
+	/// Takes the value out of the cell.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Mutex (Option a) -> Option a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `T`: The type of the value.
+	///
+	/// ### Parameters
+	///
+	/// * `cell`: The cell to take the value from.
+	///
+	/// ### Returns
+	///
+	/// The value if it was present, or `None`.
+	fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
+		cell.lock().unwrap().take()
 	}
 }
 

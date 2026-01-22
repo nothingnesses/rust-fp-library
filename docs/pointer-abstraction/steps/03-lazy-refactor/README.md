@@ -174,7 +174,7 @@ pub trait SendDefer: Kind {
 
 ## Checklist
 
-- [ ] Rewrite `fp-library/src/types/lazy.rs`
+- [x] Rewrite `fp-library/src/types/lazy.rs`
    - Change to shared semantics using `RefCountedPointer::CloneableOf`
    - Use Configuration Struct Pattern with `LazyConfig` trait
    - Define `RcLazyConfig` and `ArcLazyConfig` configuration structs
@@ -186,12 +186,12 @@ pub trait SendDefer: Kind {
    - Add `is_poisoned` and `get_error` methods
    - Add `Debug` implementation
    - Use `LazyConfig::ThunkOf` for thunk type selection
-- [ ] Add `RcLazy` and `ArcLazy` type aliases
-- [ ] Create `fp-library/src/classes/try_semigroup.rs` with `TrySemigroup` trait
-- [ ] Create `fp-library/src/classes/try_monoid.rs` with `TryMonoid` trait
-- [ ] Create `fp-library/src/classes/send_defer.rs` with `SendDefer` trait
-- [ ] Implement `TrySemigroup`, `TryMonoid`, `Defer` for `RcLazy`
-- [ ] Implement `TrySemigroup`, `TryMonoid`, `SendDefer` for `ArcLazy`
-- [ ] Update `LazyBrand` to take 1 config parameter: `LazyBrand<Config: LazyConfig>`
-- [ ] Update `impl_kind!` for new `LazyBrand`
-- [ ] Update all tests to handle `Result` return type from `force` and `force_cloned`
+- [x] Add `RcLazy` and `ArcLazy` type aliases
+- [x] Create `fp-library/src/classes/try_semigroup.rs` with `TrySemigroup` trait
+- [x] Create `fp-library/src/classes/try_monoid.rs` with `TryMonoid` trait
+- [x] Create `fp-library/src/classes/send_defer.rs` with `SendDefer` trait
+- [x] Implement `TrySemigroup`, `TryMonoid`, `Defer` for `RcLazy`
+- [x] Implement `TrySemigroup`, `TryMonoid`, `SendDefer` for `ArcLazy`
+- [x] Update `LazyBrand` to take 1 config parameter: `LazyBrand<Config: LazyConfig>`
+- [x] Update `impl_kind!` for new `LazyBrand`
+- [x] Update all tests to handle `Result` return type from `force` and `force_cloned`

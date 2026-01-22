@@ -6,7 +6,7 @@ This guide outlines the implementation plan for introducing a unified pointer ty
 
 1. [x] [Step 1: Pointer Trait Foundation](./steps/01-pointer-traits/README.md) - Defining the base traits and brands.
 2. [x] [Step 2: FnBrand Refactor](./steps/02-fn-brand-refactor/README.md) - Updating function brands to use the new pointer hierarchy.
-3. [] [Step 3: Lazy Refactor](./steps/03-lazy-refactor/README.md) - Implementing the new shared-memoization `Lazy` type.
+3. [x] [Step 3: Lazy Refactor](./steps/03-lazy-refactor/README.md) - Implementing the new shared-memoization `Lazy` type.
 4. [] [Step 4: Integration & Polish](./steps/04-integration/README.md) - Cleanup, documentation, and final checks.
 5. [] [Step 5: Concurrency Testing](./steps/05-concurrency-testing/README.md) - Verifying thread safety with Loom.
 
@@ -184,6 +184,11 @@ _Add implementation notes, decisions, and blockers here as work progresses._
 | ---- | -------- | --------- |
 | 2026-01-22 | `UnsizedCoercible` requires `'static` bound | `coerce_fn` is generic over `'a`, so the resulting pointer type must be valid for any `'a`, implying the brand must be `'static`. This is required for `Semigroupoid` implementation. |
 | 2026-01-22 | `SendUnsizedCoercible` returns `SendOf` | `SendClonableFn` requires `SendOf` to be `Send + Sync`. `CloneableOf` does not guarantee this for generic pointers, so `SendUnsizedCoercible` must return `SendOf` which has the correct bounds. |
+| 2026-01-22 | `LazyConfig` adds associated functions | Added `new_thunk`, `new_send_thunk`, `into_thunk` and bounds (`Deref`, `A: 'a`, `: 'static`) to `LazyConfig`/`SendLazyConfig` to support generic thunk construction and usage. |
+| 2026-01-22 | `TrySemigroup` blanket impl for `Lazy` | Relied on blanket implementations for `Lazy` instead of explicit ones, as `Lazy` composition is infallible. `try_append` returns `Ok(Lazy)`, deferring panics to `force`. |
+| 2026-01-22 | `ArcBrand` uses `std::sync::Mutex` | Used `std::sync::Mutex` instead of `parking_lot::Mutex` for `ThunkWrapper` to avoid adding a new dependency. |
+| 2026-01-22 | `LazyBrand` struct bound omitted | Omitted `Config: LazyConfig` bound on `LazyBrand` struct definition to follow Rust best practices (avoiding unnecessary bounds on structs). Bound is enforced in `impl_kind!`. |
+| 2026-01-22 | Added `thiserror` dependency | Added `thiserror` to support `#[derive(Error)]` for `LazyError`. |
 
 ### Blockers
 
