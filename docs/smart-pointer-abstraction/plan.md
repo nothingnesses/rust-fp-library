@@ -638,7 +638,26 @@ impl Pointer for BoxBrand {
 | `ArcBrand` | `Arc<T>`         | `Arc<T>` (same)                     | `Arc<T>` (T: Send+Sync)            |
 | `BoxBrand` | `Box<T>`         | N/A (not impl)                      | N/A                                |
 
-### Part 2: Refactored ClonableFn Using RefCountedPointer
+### Part 2: HKT Integration & Kind Traits
+
+To ensure full integration with the library's Higher-Kinded Type (HKT) machinery, the new types rely on specific `Kind` traits defined in `fp-library/src/kinds.rs`.
+
+#### Specific Kind Traits Used
+
+1.  **`Kind_140eb1e35dc7afb3`** (Signature: `type Of<'a, A, B>`)
+    *   **Used By:** `FnBrand<P>`
+    *   **Integration:** The `FnBrand` implements `Semigroupoid`, `Category`, and `Function`. All of these traits explicitly extend this Kind trait. This ensures `FnBrand` participates in the library's function composition machinery.
+
+2.  **`Kind_ad6c20556a82a1f0`** (Signature: `type Of<A>`)
+    *   **Used By:** `Pointer` brands (`RcBrand`, `ArcBrand`)
+    *   **Integration:** The `Pointer` trait's `type Of<T>` is isomorphic to this Kind. Implementing this Kind allows pointer brands to participate in single-parameter type classes like `Functor` (e.g., `Rc` is a Monad).
+
+3.  **`Kind` with Signature `type Of<'a, A>`** (Currently **MISSING**)
+    *   **Used By:** `LazyBrand` (specifically for `SendDefer`)
+    *   **Integration:** The `SendDefer` trait extends `Kind` and requires a return type of `Self::Of<'a, A>`.
+    *   **Action Required:** The current `kinds.rs` defines `type Of<'a>` and `type Of<'a, A: 'a>: 'a`, but **not** the unbounded `type Of<'a, A>`. This specific `Kind` trait must be added to `kinds.rs` and implemented by `LazyBrand`.
+
+### Part 3: Refactored ClonableFn Using RefCountedPointer
 
 This is a **required** part of the design, not optional. `ClonableFn` will be refactored to use `RefCountedPointer` as its foundation.
 
@@ -797,7 +816,7 @@ The `FnBrand` constraint requires `PtrBrand: RefCountedPointer` because:
 2. **Deref**: Function wrappers must deref to `dyn Fn` (satisfied by `Deref`)
 3. **new factory**: Creating wrapped functions requires `cloneable_new`
 
-### Part 3: Lazy Type with Shared Memoization
+### Part 4: Lazy Type with Shared Memoization
 
 The new `Lazy` type replaces the current value-semantic implementation with Haskell-like shared memoization.
 
@@ -1967,6 +1986,11 @@ impl Defer for LazyBrand<RcLazyConfig>
 /// Unlike `Defer`, this trait requires the thunk to be `Send + Sync`, ensuring
 /// the resulting lazy value is thread-safe.
 ///
+/// ### HKT Requirement
+///
+/// This trait extends `Kind` and requires the implementor to support the `type Of<'a, A>` kind signature.
+/// This is distinct from `Defer`, which does not currently enforce a `Kind` supertrait.
+///
 /// ### Why NOT `SendDefer: Defer`?
 ///
 /// Originally, `SendDefer` extended `Defer`. This was problematic because:
@@ -2511,15 +2535,17 @@ Old value semantics was only better for:
 
 ### Phase 1: Pointer Trait Foundation
 
-1. Create `fp-library/src/classes/pointer.rs`
+1. **Add missing Kind trait** to `fp-library/src/kinds.rs`:
+   - Add `def_kind! { type Of<'a, A>; }` to support `SendDefer`.
+2. Create `fp-library/src/classes/pointer.rs`
    - Define `Pointer` base trait with `Of<T>` and `new`
    - Define `RefCountedPointer` extension with `CloneableOf<T>` and `cloneable_new`
    - Define `SendRefCountedPointer` marker trait
    - Add free functions `pointer_new` and `ref_counted_new`
-2. Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
-3. Create `fp-library/src/types/rc_ptr.rs` with `Pointer` and `RefCountedPointer` impls for `RcBrand`
-4. Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `SendRefCountedPointer` impls for `ArcBrand`
-5. Update module re-exports
+3. Add `RcBrand` and `ArcBrand` to `fp-library/src/brands.rs`
+4. Create `fp-library/src/types/rc_ptr.rs` with `Pointer` and `RefCountedPointer` impls for `RcBrand`
+5. Create `fp-library/src/types/arc_ptr.rs` with `Pointer`, `RefCountedPointer`, and `SendRefCountedPointer` impls for `ArcBrand`
+6. Update module re-exports
 
 ### Phase 2: FnBrand Refactor
 
@@ -2685,6 +2711,7 @@ Loom exhaustively tests all possible thread interleavings, finding race conditio
 
 | File                           | Changes                                                           |
 | ------------------------------ | ----------------------------------------------------------------- |
+| `fp-library/src/kinds.rs`      | Add missing `type Of<'a, A>` kind trait                           |
 | `fp-library/src/brands.rs`     | Add `RcBrand`, `ArcBrand`, `BoxBrand`, `FnBrand<P>`, type aliases |
 | `fp-library/src/classes.rs`    | Re-export `pointer` module                                        |
 | `fp-library/src/types.rs`      | Re-export new modules, remove old                                 |

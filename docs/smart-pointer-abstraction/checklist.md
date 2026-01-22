@@ -10,6 +10,8 @@ This checklist tracks progress on implementing the `Pointer` → `RefCountedPoin
 
 ### 1.1 Trait Definition
 
+- [ ] Add missing Kind trait to `fp-library/src/kinds.rs`:
+- [ ] Add `def_kind! { type Of<'a, A>; }` to support `SendDefer`
 - [ ] Create `fp-library/src/classes/pointer.rs`
 - [ ] Define `Pointer` base trait:
 
@@ -343,6 +345,10 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
 - [ ] Define `SendDefer` trait as **independent trait** (NOT extending `Defer`):
 ```rust
 /// Trait for types that support thread-safe deferred evaluation.
+///
+/// ### HKT Requirement
+///
+/// This trait extends `Kind` and requires the implementor to support the `type Of<'a, A>` kind signature.
 ///
 /// ### Design Note: Independent from Defer
 ///
