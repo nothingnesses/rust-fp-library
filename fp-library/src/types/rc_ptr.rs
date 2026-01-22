@@ -15,7 +15,12 @@
 
 use crate::{
 	brands::RcBrand,
-	classes::pointer::{Pointer, RefCountedPointer, ThunkWrapper, UnsizedCoercible},
+	classes::{
+		pointer::Pointer,
+		ref_counted_pointer::RefCountedPointer,
+		thunk_wrapper::ThunkWrapper,
+		unsized_coercible::UnsizedCoercible,
+	},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -134,7 +139,7 @@ impl ThunkWrapper for RcBrand {
 	/// ### Returns
 	///
 	/// A new cell containing the value.
-	fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
+	fn new<T>(value: Option<T>) -> Self::Cell<T> {
 		RefCell::new(value)
 	}
 
@@ -163,26 +168,26 @@ impl ThunkWrapper for RcBrand {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::classes::pointer::*;
+	use crate::classes::{pointer::new, ref_counted_pointer::cloneable_new};
 
 	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.
 	#[test]
 	fn test_rc_new() {
-		let ptr = pointer_new::<RcBrand, _>(42);
+		let ptr = new::<RcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `ref_counted_new` correctly creates an `Rc` wrapping the value.
+	/// Tests that `ref_counted_pointer_new` correctly creates an `Rc` wrapping the value.
 	#[test]
 	fn test_rc_cloneable_new() {
-		let ptr = ref_counted_new::<RcBrand, _>(42);
+		let ptr = cloneable_new::<RcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
 	/// Tests that cloning the pointer works as expected (shared ownership).
 	#[test]
 	fn test_rc_clone() {
-		let ptr = ref_counted_new::<RcBrand, _>(42);
+		let ptr = cloneable_new::<RcBrand, _>(42);
 		let clone = ptr.clone();
 		assert_eq!(*clone, 42);
 	}
@@ -192,10 +197,10 @@ mod tests {
 	/// - Returns `Err(ptr)` when there are multiple references.
 	#[test]
 	fn test_rc_try_unwrap() {
-		let ptr = ref_counted_new::<RcBrand, _>(42);
+		let ptr = cloneable_new::<RcBrand, _>(42);
 		assert_eq!(RcBrand::try_unwrap(ptr), Ok(42));
 
-		let ptr = ref_counted_new::<RcBrand, _>(42);
+		let ptr = cloneable_new::<RcBrand, _>(42);
 		let _clone = ptr.clone();
 		assert!(RcBrand::try_unwrap(ptr).is_err());
 	}

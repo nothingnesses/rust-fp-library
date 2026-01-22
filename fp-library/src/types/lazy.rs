@@ -15,8 +15,9 @@ use crate::{
 		defer::Defer,
 		monoid::Monoid,
 		once::Once,
-		pointer::{RefCountedPointer, ThunkWrapper},
+		ref_counted_pointer::RefCountedPointer,
 		semigroup::Semigroup,
+		thunk_wrapper::ThunkWrapper,
 		send_clonable_fn::SendClonableFn,
 	},
 	impl_kind,
@@ -671,7 +672,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	pub fn new(thunk: Config::ThunkOf<'a, A>) -> Self {
 		let inner = LazyInner {
 			once: Config::OnceBrand::new(),
-			thunk: Config::PtrBrand::new_cell(Some(thunk)),
+			thunk: Config::PtrBrand::new(Some(thunk)),
 		};
 		Self(Config::PtrBrand::cloneable_new(inner))
 	}

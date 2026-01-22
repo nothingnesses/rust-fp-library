@@ -9,15 +9,19 @@
 //! ```
 //! use fp_library::{brands::*, classes::pointer::*, functions::*};
 //!
-//! let ptr = send_ref_counted_new::<ArcBrand, _>(42);
+//! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
 //! ```
 
 use crate::{
 	brands::ArcBrand,
-	classes::pointer::{
-		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, ThunkWrapper,
-		UnsizedCoercible,
+	classes::{
+		pointer::Pointer,
+		ref_counted_pointer::RefCountedPointer,
+		send_ref_counted_pointer::SendRefCountedPointer,
+		send_unsized_coercible::SendUnsizedCoercible,
+		thunk_wrapper::ThunkWrapper,
+		unsized_coercible::UnsizedCoercible,
 	},
 };
 use std::sync::{Arc, Mutex};
@@ -188,7 +192,7 @@ impl ThunkWrapper for ArcBrand {
 	/// ### Returns
 	///
 	/// A new cell containing the value.
-	fn new_cell<T>(value: Option<T>) -> Self::Cell<T> {
+	fn new<T>(value: Option<T>) -> Self::Cell<T> {
 		Mutex::new(value)
 	}
 
@@ -217,33 +221,37 @@ impl ThunkWrapper for ArcBrand {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::classes::pointer::*;
+	use crate::classes::{
+		pointer::new,
+		ref_counted_pointer::cloneable_new,
+		send_ref_counted_pointer::send_new,
+	};
 
 	/// Tests that `pointer_new` correctly creates an `Arc` wrapping the value.
 	#[test]
 	fn test_arc_new() {
-		let ptr = pointer_new::<ArcBrand, _>(42);
+		let ptr = new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `ref_counted_new` correctly creates an `Arc` wrapping the value.
+	/// Tests that `ref_counted_pointer_new` correctly creates an `Arc` wrapping the value.
 	#[test]
 	fn test_arc_cloneable_new() {
-		let ptr = ref_counted_new::<ArcBrand, _>(42);
+		let ptr = cloneable_new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
-	/// Tests that `send_ref_counted_new` correctly creates an `Arc` wrapping the value.
+	/// Tests that `send_ref_counted_pointer_new` correctly creates an `Arc` wrapping the value.
 	#[test]
 	fn test_arc_send_new() {
-		let ptr = send_ref_counted_new::<ArcBrand, _>(42);
+		let ptr = send_new::<ArcBrand, _>(42);
 		assert_eq!(*ptr, 42);
 	}
 
 	/// Tests that cloning the pointer works as expected (shared ownership).
 	#[test]
 	fn test_arc_clone() {
-		let ptr = ref_counted_new::<ArcBrand, _>(42);
+		let ptr = cloneable_new::<ArcBrand, _>(42);
 		let clone = ptr.clone();
 		assert_eq!(*clone, 42);
 	}
@@ -253,10 +261,10 @@ mod tests {
 	/// - Returns `Err(ptr)` when there are multiple references.
 	#[test]
 	fn test_arc_try_unwrap() {
-		let ptr = ref_counted_new::<ArcBrand, _>(42);
+		let ptr = cloneable_new::<ArcBrand, _>(42);
 		assert_eq!(ArcBrand::try_unwrap(ptr), Ok(42));
 
-		let ptr = ref_counted_new::<ArcBrand, _>(42);
+		let ptr = cloneable_new::<ArcBrand, _>(42);
 		let _clone = ptr.clone();
 		assert!(ArcBrand::try_unwrap(ptr).is_err());
 	}

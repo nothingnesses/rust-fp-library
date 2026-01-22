@@ -18,7 +18,11 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{category::Category, clonable_fn::ClonableFn, pointer::RefCountedPointer};
+use crate::classes::{
+	category::Category,
+	clonable_fn::ClonableFn,
+	ref_counted_pointer::RefCountedPointer,
+};
 use std::marker::PhantomData;
 
 /// Brand for [`std::sync::Arc`] atomic reference-counted pointer.

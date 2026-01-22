@@ -10,8 +10,9 @@ use crate::{
 		category::Category,
 		clonable_fn::ClonableFn,
 		function::Function,
-		pointer::{SendUnsizedCoercible, UnsizedCoercible},
 		semigroupoid::Semigroupoid,
+		send_unsized_coercible::SendUnsizedCoercible,
+		unsized_coercible::UnsizedCoercible,
 		send_clonable_fn::SendClonableFn,
 	},
 	impl_kind,
@@ -20,7 +21,7 @@ use crate::{
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {
-		type Of<'a, A, B> = <P as crate::classes::pointer::RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
+		type Of<'a, A, B> = <P as crate::classes::ref_counted_pointer::RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
 	}
 }
 

@@ -7,12 +7,12 @@ use std::thread;
 /// Tests basic functionality of `ArcBrand` pointer creation and dereferencing.
 ///
 /// Verifies that:
-/// 1. `send_ref_counted_new` creates a valid pointer.
+/// 1. `send_ref_counted_pointer_new` creates a valid pointer.
 /// 2. The pointer can be dereferenced to access the value.
 /// 3. Cloning the pointer works and preserves the value.
 #[test]
 fn test_arc_ptr_basic() {
-	let ptr = send_ref_counted_new::<ArcBrand, _>(42);
+	let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 	assert_eq!(*ptr, 42);
 	let clone = ptr.clone();
 	assert_eq!(*clone, 42);

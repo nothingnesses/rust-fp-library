@@ -29,6 +29,9 @@ fp_macros::generate_reexports!("src/classes", {
 	"once::get_or_init": once_get_or_init,
 	"once::into_inner": once_into_inner,
 	"once::take": once_take,
+	"pointer::new": pointer_new,
+	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
+	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_clonable_fn::new": send_clonable_fn_new,
 });
