@@ -165,36 +165,73 @@ Without these, users cannot compose lazy computations without forcing evaluation
 - Cannot sequence lazy operations compositionally
 - Significantly limits usefulness as an FP building block
 
-#### Approach 1: Implement Functor with Lazy map (Recommended)
+**Architectural Constraint:**
+The library's `Functor` trait is defined as:
+```rust
+fn map<'a, B: 'a, A: 'a, F>(f: F, fa: Self::Of<'a, A>) -> Self::Of<'a, B>
+where
+    F: Fn(A) -> B + 'a;
+```
+
+This signature does **not** require `F: Clone`. However, `Lazy` requires all captured closures to be `Clone` (for `RcLazy`) or `Clone + Send + Sync` (for `ArcLazy`) because the thunk must be stored in a cloneable wrapper. This makes implementing the standard `Functor` trait impossible without modifying the core trait definition.
+
+#### Approach 1: Lazy-Specific Functor Traits (Recommended)
+
+Following the established pattern of `SendDefer` alongside `Defer`, create Lazy-specific mapping traits:
 
 ```rust
-use crate::classes::functor::Functor;
-
-impl<'a, Config: LazyConfig> Functor for LazyBrand<Config>
-where
-    Config: 'static,
-{
+/// Functor-like trait for Lazy types requiring cloneable mapping functions.
+///
+/// This follows the pattern of `SendDefer` extending `Defer` with additional bounds.
+pub trait LazyFunctor: LazyConfig {
     /// Maps a function over a lazy value, returning a new lazy value.
     ///
     /// The transformation is itself lazy - neither the original value
     /// nor the mapped result is computed until forced.
-    ///
-    /// ### Type Signature
-    ///
-    /// `forall config a b. (a -> b, Lazy config a) -> Lazy config b`
-    fn map<'b, FnBrand, A, B>(
-        f: <FnBrand as CloneableFn>::Of<'b, A, B>,
-        fa: Lazy<'b, Config, A>,
-    ) -> Lazy<'b, Config, B>
+    fn lazy_map<'a, A, B, F>(f: F, fa: Lazy<'a, Self, A>) -> Lazy<'a, Self, B>
     where
-        FnBrand: CloneableFn + 'b,
-        A: Clone + 'b,
-        B: Clone + 'b,
+        A: Clone + 'a,
+        B: Clone + 'a,
+        F: Fn(A) -> B + Clone + 'a;
+}
+
+impl LazyFunctor for RcLazyConfig {
+    fn lazy_map<'a, A, B, F>(f: F, fa: Lazy<'a, Self, A>) -> Lazy<'a, Self, B>
+    where
+        A: Clone + 'a,
+        B: Clone + 'a,
+        F: Fn(A) -> B + Clone + 'a,
     {
-        let thunk = Config::new_thunk(move |_| {
+        let thunk = Self::new_thunk(move |_| {
             match Lazy::force(&fa) {
                 Ok(a) => f(a.clone()),
-                Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
+                Err(e) => std::panic::resume_unwind(Box::new(e)),
+            }
+        });
+        Lazy::new(thunk)
+    }
+}
+
+/// Thread-safe variant for ArcLazy, requiring Send + Sync on the function.
+pub trait SendLazyFunctor: LazyConfig {
+    fn send_lazy_map<'a, A, B, F>(f: F, fa: Lazy<'a, Self, A>) -> Lazy<'a, Self, B>
+    where
+        A: Clone + Send + Sync + 'a,
+        B: Clone + Send + Sync + 'a,
+        F: Fn(A) -> B + Clone + Send + Sync + 'a;
+}
+
+impl SendLazyFunctor for ArcLazyConfig {
+    fn send_lazy_map<'a, A, B, F>(f: F, fa: Lazy<'a, Self, A>) -> Lazy<'a, Self, B>
+    where
+        A: Clone + Send + Sync + 'a,
+        B: Clone + Send + Sync + 'a,
+        F: Fn(A) -> B + Clone + Send + Sync + 'a,
+    {
+        let thunk = Self::new_thunk(move |_| {
+            match Lazy::force(&fa) {
+                Ok(a) => f(a.clone()),
+                Err(e) => std::panic::resume_unwind(Box::new(e)),
             }
         });
         Lazy::new(thunk)
@@ -204,32 +241,31 @@ where
 
 **Trade-offs:**
 
-- ✅ Enables functional composition of lazy values
+- ✅ Follows established codebase pattern (`SendDefer`, `SendCloneableFn`)
+- ✅ Type-safe and works correctly with Lazy's requirements
 - ✅ Preserves laziness (computation deferred until forced)
-- ✅ Follows standard FP patterns
+- ✅ No changes to core `Functor` trait needed
+- ⚠️ Users must use `lazy_map` / `send_lazy_map` instead of generic `map`
+- ⚠️ `Lazy` won't work with generic `Functor`-based combinators
 - ⚠️ Requires `A: Clone` to extract value for mapping
-- ⚠️ Creates a chain of lazy values (may accumulate thunks)
 
-#### Approach 2: Implement Functor with Reference-Based map
+#### Approach 2: Reference-Based Mapping
+
+Add methods that pass references instead of cloning:
 
 ```rust
-impl<'a, Config: LazyConfig> Functor for LazyBrand<Config> {
-    fn map<'b, FnBrand, A, B>(
-        f: <FnBrand as CloneableFn>::Of<'b, &A, B>,  // Note: &A instead of A
-        fa: Lazy<'b, Config, A>,
-    ) -> Lazy<'b, Config, B>
+impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
+    /// Maps a function over the lazy value using a reference.
+    ///
+    /// The function receives a reference to the computed value rather than
+    /// a clone, avoiding the `Clone` requirement on `A`.
+    pub fn map_ref<B, F>(self, f: F) -> Lazy<'a, Config, B>
     where
-        FnBrand: CloneableFn + 'b,
-        A: 'b,
-        B: Clone + 'b,
+        B: 'a,
+        F: Fn(&A) -> B + Clone + 'a,
+        Config: /* appropriate bounds */,
     {
-        let thunk = Config::new_thunk(move |_| {
-            match Lazy::force(&fa) {
-                Ok(a) => f(a),  // Pass reference directly
-                Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
-            }
-        });
-        Lazy::new(thunk)
+        // Implementation
     }
 }
 ```
@@ -238,40 +274,10 @@ impl<'a, Config: LazyConfig> Functor for LazyBrand<Config> {
 
 - ✅ No `Clone` requirement on input type `A`
 - ✅ More efficient for large types
-- ⚠️ Different signature from standard `Functor` (`&A` vs `A`)
-- ⚠️ May not compose well with other library components
-- ⚠️ Breaks the standard `Functor` contract
+- ⚠️ Different signature from standard `Functor`
+- ⚠️ Cannot compose with other functor-based libraries
 
-#### Approach 3: Provide Both via Separate Traits
-
-```rust
-/// Standard Functor with clone semantics
-trait LazyFunctor<Config: LazyConfig>: Functor {
-    fn lazy_map<'a, A, B, F>(f: F, fa: Lazy<'a, Config, A>) -> Lazy<'a, Config, B>
-    where
-        A: Clone + 'a,
-        B: Clone + 'a,
-        F: Fn(A) -> B + Clone + 'a;
-}
-
-/// Reference-based mapping without clone
-trait LazyFunctorRef<Config: LazyConfig> {
-    fn lazy_map_ref<'a, A, B, F>(f: F, fa: Lazy<'a, Config, A>) -> Lazy<'a, Config, B>
-    where
-        A: 'a,
-        B: Clone + 'a,
-        F: Fn(&A) -> B + Clone + 'a;
-}
-```
-
-**Trade-offs:**
-
-- ✅ Provides both semantics
-- ✅ Users can choose based on their needs
-- ⚠️ API complexity increases
-- ⚠️ Multiple ways to do the same thing
-
-**Recommendation:** Approach 1 is preferred as it follows standard FP conventions. The `Clone` requirement is acceptable given that lazy values typically need to be shareable.
+**Recommendation:** Approach 1 is recommended as it follows established patterns in the codebase (`SendDefer` pattern) and provides correct, type-safe mapping for Lazy values.
 
 ---
 
@@ -776,18 +782,26 @@ pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
 - ⚠️ Still loses type information (everything becomes a string)
 - ⚠️ Cannot handle arbitrary custom types without `Debug` or `Display`
 
-#### Approach 2: Store the Original Payload (Recommended)
+#### Approach 2: Store the Original Payload with Mutex (Recommended)
 
-Preserve the full panic payload for later inspection:
+Preserve the full panic payload for later inspection.
+
+**Architectural Constraint:**
+`std::panic::catch_unwind` returns `Box<dyn Any + Send>`. This is **not** `Sync`. However, `LazyError` must be `Sync` for use in `ArcLazy` (which stores errors in a `Sync` container). The naive approach of storing `Arc<dyn Any + Send + Sync>` is **not possible** because you cannot cast a non-`Sync` payload to a `Sync` trait object.
+
+**Solution:** Use `Mutex` to provide interior mutability and make the struct `Sync`:
 
 ```rust
+use std::sync::Mutex;
+
 /// Error type for `Lazy` evaluation failures.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct LazyError {
     /// Human-readable message if available
     message: Option<Arc<str>>,
-    /// The original panic payload (type-erased but preserved)
-    payload: Option<Arc<dyn std::any::Any + Send + Sync>>,
+    /// The original panic payload, wrapped in Mutex for Sync safety.
+    /// Mutex<T> is Sync when T is Send, and Box<dyn Any + Send> is Send.
+    payload: Mutex<Option<Box<dyn std::any::Any + Send + 'static>>>,
 }
 
 impl LazyError {
@@ -800,15 +814,14 @@ impl LazyError {
             None
         };
         
-        // Convert Box to Arc for shared ownership
-        // Note: requires payload to be Sync, or use a wrapper
         Self {
             message,
-            payload: None, // Simplified - full impl would preserve payload
+            payload: Mutex::new(Some(payload)),
         }
     }
     
     /// Attempts to downcast the payload to a specific type.
+    /// Returns None if the payload was already taken or doesn't match the type.
     ///
     /// ### Examples
     ///
@@ -822,50 +835,45 @@ impl LazyError {
     /// let _ = Lazy::force(&lazy);
     ///
     /// if let Some(err) = Lazy::get_error(&lazy) {
-    ///     if let Some(my_err) = err.downcast_ref::<MyError>() {
+    ///     // Note: requires holding a lock guard
+    ///     let guard = err.payload().unwrap();
+    ///     if let Some(my_err) = guard.downcast_ref::<MyError>() {
     ///         assert_eq!(my_err.0, 404);
     ///     }
     /// }
     /// ```
-    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
-        self.payload.as_ref()?.downcast_ref::<T>()
+    pub fn payload(&self) -> Option<std::sync::MutexGuard<'_, Option<Box<dyn std::any::Any + Send + 'static>>>> {
+        self.payload.lock().ok()
+    }
+    
+    /// Takes the payload out for re-panicking. Returns None if already taken.
+    pub fn take_payload(&self) -> Option<Box<dyn std::any::Any + Send + 'static>> {
+        self.payload.lock().ok()?.take()
+    }
+}
+
+// Clone must be manually implemented since Mutex isn't Clone
+impl Clone for LazyError {
+    fn clone(&self) -> Self {
+        Self {
+            message: self.message.clone(),
+            // Payload cannot be cloned - clones only get the message
+            payload: Mutex::new(None),
+        }
     }
 }
 ```
 
 **Trade-offs:**
 
-- ✅ Preserves full error information
-- ✅ Allows programmatic error inspection via `downcast_ref`
+- ✅ Preserves full error information (original payload accessible)
+- ✅ Allows programmatic error inspection via `payload()` and downcasting
 - ✅ Human-readable message still available when possible
+- ✅ Works correctly with `ArcLazy` (is `Send + Sync`)
 - ⚠️ More complex implementation
-- ⚠️ `Arc<dyn Any + Send + Sync>` has constraints (payload must be `Sync`)
+- ⚠️ Minor locking overhead on payload access
+- ⚠️ `Clone` implementation loses the payload (only message is cloned)
 - ⚠️ Requires changes to `LazyError` structure (breaking change)
-
-#### Approach 3: Use Debug Formatting as Fallback
-
-If the payload implements `Debug`, use that for the message:
-
-```rust
-pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
-    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
-        Some(Arc::from(*s))
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        Some(Arc::from(s.as_str()))
-    } else {
-        // Unfortunately, Box<dyn Any> doesn't give us Debug access
-        // We'd need a custom trait or runtime type inspection
-        None
-    };
-    Self(msg)
-}
-```
-
-**Trade-offs:**
-
-- ⚠️ Not actually feasible - `Box<dyn Any>` doesn't provide `Debug` access
-- ⚠️ Would require a custom `PanicPayload` trait that extends `Any + Debug`
-- ⚠️ Cannot retrofit onto existing panic infrastructure
 
 **Recommendation:** Approach 1 is the pragmatic minimal fix. Approach 2 is preferred for comprehensive error handling but requires more significant changes.
 
@@ -1300,7 +1308,7 @@ impl<'a, A> ArcLazy<'a, A> {
 
 ### Priority 2 (High Impact, Medium Effort)
 
-4. **Implement `Functor`** with lazy map (Issue 2, Approach 1)
+4. **Implement `LazyFunctor` / `SendLazyFunctor`** traits for lazy mapping (Issue 2, Approach 1)
 5. **Preserve error information** in re-panics (Issue 5, Approach 1)
 6. **Add error context** to semigroup operations (Issue 9, Approach 1)
 
