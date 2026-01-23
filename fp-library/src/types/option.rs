@@ -377,9 +377,7 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, RcFnBrand};
-	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Some(5);
 	/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
@@ -607,9 +605,7 @@ impl Compactable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
 	/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
@@ -658,9 +654,7 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Some(5);
 	/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
@@ -710,9 +704,7 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::OptionBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Some(5);
 	/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);

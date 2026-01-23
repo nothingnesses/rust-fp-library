@@ -1,4 +1,4 @@
-//! RcBrand pointer implementation.
+//! [`RcBrand`] pointer implementation.
 //!
 //! This module provides implementations of the pointer traits for [`RcBrand`],
 //! enabling the use of `Rc` as a reference-counted pointer in the library's
@@ -7,7 +7,7 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::pointer::*, functions::*};
+//! use fp_library::{brands::*, functions::*};
 //!
 //! let ptr = pointer_new::<RcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -42,6 +42,15 @@ impl Pointer for RcBrand {
 	/// ### Returns
 	///
 	/// The value wrapped in an `Rc`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = pointer_new::<RcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn new<T>(value: T) -> Rc<T> {
 		Rc::new(value)
 	}
@@ -67,6 +76,15 @@ impl RefCountedPointer for RcBrand {
 	/// ### Returns
 	///
 	/// The value wrapped in an `Rc`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn cloneable_new<T>(value: T) -> Rc<T> {
 		Rc::new(value)
 	}
@@ -88,6 +106,15 @@ impl RefCountedPointer for RcBrand {
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
+	/// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
+	/// ```
 	fn try_unwrap<T>(ptr: Rc<T>) -> Result<T, Rc<T>> {
 		Rc::try_unwrap(ptr)
 	}
@@ -112,6 +139,15 @@ impl UnsizedCoercible for RcBrand {
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Rc` as a trait object.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+	/// assert_eq!(f(1), 2);
+	/// ```
 	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 		Rc::new(f)
 	}
@@ -137,6 +173,15 @@ impl ThunkWrapper for RcBrand {
 	/// ### Returns
 	///
 	/// A new cell containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let cell = thunk_wrapper_new::<RcBrand, _>(Some(42));
+	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), Some(42));
+	/// ```
 	fn new<T>(value: Option<T>) -> Self::Cell<T> {
 		RefCell::new(value)
 	}
@@ -158,6 +203,16 @@ impl ThunkWrapper for RcBrand {
 	/// ### Returns
 	///
 	/// The value if it was present, or `None`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let cell = thunk_wrapper_new::<RcBrand, _>(Some(42));
+	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), Some(42));
+	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), None);
+	/// ```
 	fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
 		cell.borrow_mut().take()
 	}

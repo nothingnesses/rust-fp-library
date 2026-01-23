@@ -148,6 +148,7 @@ assert_eq!(result, "12345".to_string());
 - [Limitations](docs/limitations.md): Details all current limitations.
 
 ## Contributing
+
 We welcome contributions! Please feel free to submit a Pull Request.
 
 ### Development Environment

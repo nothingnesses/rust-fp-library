@@ -37,9 +37,7 @@ use std::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::functions::*;
-/// use fp_library::types::endomorphism::Endomorphism;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
@@ -73,9 +71,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
@@ -182,9 +178,7 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -217,9 +211,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);

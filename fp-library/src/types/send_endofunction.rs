@@ -35,9 +35,7 @@ use std::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::functions::*;
-/// use fp_library::types::send_endofunction::SendEndofunction;
-/// use fp_library::brands::ArcFnBrand;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
@@ -71,9 +69,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
@@ -179,9 +175,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
 	/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1));
@@ -219,9 +213,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let id = empty::<SendEndofunction<ArcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);

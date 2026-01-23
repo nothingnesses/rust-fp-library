@@ -1,6 +1,4 @@
-//! Lift type class.
-//!
-//! This module defines the [`Lift`] trait, which allows binary functions to be lifted into a context.
+//! A type class for lifting binary functions into a context.
 //!
 //! ### Examples
 //!
@@ -15,9 +13,7 @@
 
 use crate::{Apply, kinds::*};
 
-/// A type class for types that can be lifted.
-///
-/// `Lift` allows binary functions to be lifted into the context.
+/// A type class for lifting binary functions into a context.
 pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// Lifts a binary function into the context.
 	///

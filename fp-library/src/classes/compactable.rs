@@ -1,6 +1,4 @@
-//! Compactable type class.
-//!
-//! This module defines the [`Compactable`] trait, which represents data structures that can be compacted (filtering out `None` values) and separated (splitting `Result` values).
+//! A type class for data structures that can be compacted (filtering out `None` values) and separated (splitting `Result` values).
 //!
 //! ### Examples
 //!

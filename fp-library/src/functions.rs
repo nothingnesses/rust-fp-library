@@ -18,7 +18,7 @@
 //! ```
 
 // Auto-generate re-exports, passing in aliases for conflicting names.
-fp_macros::generate_reexports!("src/classes", {
+fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
 	"cloneable_fn::new": cloneable_fn_new,
 	"function::new": fn_new,
@@ -34,6 +34,8 @@ fp_macros::generate_reexports!("src/classes", {
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
+	"thunk_wrapper::new": thunk_wrapper_new,
+	"thunk_wrapper::take": thunk_wrapper_take,
 });
 
 /// Composes two functions.

@@ -83,7 +83,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
-		P::coerce_fn_send(f)
+		P::coerce_send_fn(f)
 	}
 }
 ```

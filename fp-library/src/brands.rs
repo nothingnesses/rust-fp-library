@@ -34,7 +34,7 @@ pub struct ArcBrand;
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
 
-/// Brand for [`std::boxed::Box`] unique ownership pointer.
+/// Brand for [`Box`] unique ownership pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BoxBrand;
 
@@ -74,22 +74,22 @@ pub struct OptionBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairBrand;
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with [the first value][crate::types::Pair] filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the first value filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairWithFirstBrand<First>(First);
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with [the second value][crate::types::Pair] filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the second value filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairWithSecondBrand<Second>(Second);
 
-/// Brand for [`std::rc::Rc`] reference-counted pointer.
+/// Brand for [`Rc`](`std::rc::Rc`) reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RcBrand;
 
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
 ///
-/// This type alias provides a way to construct and type-check [`std::rc::Rc`]-wrapped
+/// This type alias provides a way to construct and type-check [`Rc`](`std::rc::Rc`)-wrapped
 /// closures in a generic context.
 pub type RcFnBrand = FnBrand<RcBrand>;
 

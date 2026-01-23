@@ -1,6 +1,4 @@
-//! Semigroup type class.
-//!
-//! This module defines the [`Semigroup`] trait, which represents types that support an associative binary operation.
+//! A type class for types that support an associative binary operation.
 //!
 //! ### Examples
 //!

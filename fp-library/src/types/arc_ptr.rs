@@ -1,13 +1,13 @@
-//! ArcBrand pointer implementation.
+//! [`ArcBrand`] pointer implementation.
 //!
 //! This module provides implementations of the pointer traits for [`ArcBrand`],
-//! enabling the use of `Arc` as a thread-safe reference-counted pointer in the library's
+//! enabling the use of [`Arc`] as a thread-safe reference-counted pointer in the library's
 //! abstraction hierarchy.
 //!
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::pointer::*, functions::*};
+//! use fp_library::{brands::*, functions::*};
 //!
 //! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -44,6 +44,15 @@ impl Pointer for ArcBrand {
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = pointer_new::<ArcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn new<T>(value: T) -> Arc<T> {
 		Arc::new(value)
 	}
@@ -69,6 +78,15 @@ impl RefCountedPointer for ArcBrand {
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn cloneable_new<T>(value: T) -> Arc<T> {
 		Arc::new(value)
 	}
@@ -90,6 +108,15 @@ impl RefCountedPointer for ArcBrand {
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
+	/// assert_eq!(try_unwrap::<ArcBrand, _>(ptr), Ok(42));
+	/// ```
 	fn try_unwrap<T>(ptr: Arc<T>) -> Result<T, Arc<T>> {
 		Arc::try_unwrap(ptr)
 	}
@@ -115,6 +142,15 @@ impl SendRefCountedPointer for ArcBrand {
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn send_new<T: Send + Sync>(value: T) -> Arc<T> {
 		Arc::new(value)
 	}
@@ -139,6 +175,15 @@ impl UnsizedCoercible for ArcBrand {
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a trait object.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+	/// assert_eq!(f(1), 2);
+	/// ```
 	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
 		Arc::new(f)
 	}
@@ -163,7 +208,16 @@ impl SendUnsizedCoercible for ArcBrand {
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a thread-safe trait object.
-	fn coerce_fn_send<'a, A, B>(
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+	/// assert_eq!(f(1), 2);
+	/// ```
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 		Arc::new(f)
@@ -190,6 +244,15 @@ impl ThunkWrapper for ArcBrand {
 	/// ### Returns
 	///
 	/// A new cell containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let cell = thunk_wrapper_new::<ArcBrand, _>(Some(42));
+	/// assert_eq!(thunk_wrapper_take::<ArcBrand, _>(&cell), Some(42));
+	/// ```
 	fn new<T>(value: Option<T>) -> Self::Cell<T> {
 		Mutex::new(value)
 	}
@@ -211,6 +274,16 @@ impl ThunkWrapper for ArcBrand {
 	/// ### Returns
 	///
 	/// The value if it was present, or `None`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let cell = thunk_wrapper_new::<ArcBrand, _>(Some(42));
+	/// assert_eq!(thunk_wrapper_take::<ArcBrand, _>(&cell), Some(42));
+	/// assert_eq!(thunk_wrapper_take::<ArcBrand, _>(&cell), None);
+	/// ```
 	fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
 		cell.lock().unwrap().take()
 	}

@@ -1,12 +1,9 @@
-//! Defer type class.
-//!
-//! This module defines the [`Defer`] trait, which provides an abstraction for types that can be constructed lazily.
+//! A type class for types that can be constructed lazily.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*, types::*};
-//! use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 //!
 //! let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
 //!     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
@@ -14,7 +11,7 @@
 //! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
 //! ```
 
-use super::cloneable_fn::CloneableFn;
+use super::CloneableFn;
 
 /// A type class for types that can be constructed lazily.
 pub trait Defer<'a> {
@@ -42,7 +39,6 @@ pub trait Defer<'a> {
 	///
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	/// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 	///
 	/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
@@ -79,7 +75,6 @@ pub trait Defer<'a> {
 ///
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*, types::*};
-/// use fp_library::types::lazy::{RcLazy, RcLazyConfig, LazyConfig};
 ///
 /// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
 ///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))

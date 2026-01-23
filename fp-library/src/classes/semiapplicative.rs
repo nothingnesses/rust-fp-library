@@ -1,6 +1,4 @@
-//! Semiapplicative type class.
-//!
-//! This module defines the [`Semiapplicative`] trait, which provides the ability to apply functions within a context to values within a context.
+//! A type class for applying functions within a context to values within a context.
 //!
 //! ### Examples
 //!
@@ -16,7 +14,7 @@
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
 
-/// A type class for types that support function application within a context.
+/// A type class for applying functions within a context to values within a context.
 ///
 /// `Semiapplicative` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.

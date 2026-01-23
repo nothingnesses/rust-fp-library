@@ -1,7 +1,4 @@
-//! ApplySecond type class.
-//!
-//! This module defines the [`ApplySecond`] trait, which provides the ability to sequence two computations
-//! but discard the result of the first computation, keeping only the result of the second.
+//! A type class for sequencing two computations and keeping the result of the second.
 //!
 //! ### Examples
 //!

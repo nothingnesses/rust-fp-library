@@ -1,6 +1,4 @@
-//! Thread-safe cloneable function wrappers.
-//!
-//! This module defines the [`SendCloneableFn`] trait, which provides an abstraction for thread-safe cloneable wrappers over closures.
+//! A trait for thread-safe cloneable wrappers over closures.
 //!
 //! ### Examples
 //!

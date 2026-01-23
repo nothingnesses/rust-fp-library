@@ -1,6 +1,4 @@
-//! Once type class.
-//!
-//! This module defines the [`Once`] trait, which represents a container that holds a value that is initialized at most once.
+//! A type class for containers that hold a value that is initialized at most once.
 //!
 //! ### Examples
 //!
@@ -13,9 +11,8 @@
 
 use crate::kinds::*;
 
-/// A type class for types that can be initialized once.
+/// A type class for containers that hold a value that is initialized at most once.
 ///
-/// `Once` represents a container that holds a value that is initialized at most once.
 /// It provides methods for initialization, access, and consumption.
 pub trait Once: Kind_ad6c20556a82a1f0 {
 	type Of<A>;

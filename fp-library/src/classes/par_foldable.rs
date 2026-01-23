@@ -1,6 +1,4 @@
-//! Parallel folding operations.
-//!
-//! This module defines the [`ParFoldable`] trait, which provides parallel versions of `Foldable` operations.
+//! A type class for data structures that can be folded in parallel.
 //!
 //! **Note: The `rayon` feature must be enabled to use parallel iteration.**
 //!
@@ -18,7 +16,7 @@
 use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*, types::SendEndofunction};
 
-/// A type class for structures that can be folded in parallel.
+/// A type class for data structures that can be folded in parallel.
 ///
 /// This trait provides parallel versions of `Foldable` operations that require
 /// `Send + Sync` bounds on elements and functions. It uses the branded

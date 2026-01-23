@@ -1,7 +1,4 @@
-//! Applicative functors.
-//!
-//! This module defines the [`Applicative`] trait, which extends [`Pointed`] and [`Semiapplicative`].
-//! Applicative functors allow for values to be wrapped in a context and for functions within a context to be applied to values within a context.
+//! A type class for applicative functors, allowing for values to be wrapped in a context and for functions within a context to be applied to values within a context.
 //!
 //! ### Examples
 //!
@@ -20,10 +17,7 @@ use super::{
 	semiapplicative::Semiapplicative,
 };
 
-/// A type class for applicative functors.
-///
-/// `Applicative` extends [`Pointed`] and [`Semiapplicative`].
-/// It allows for values to be wrapped in a context and for functions within a context to be applied to values within a context.
+/// A type class for applicative functors, allowing for values to be wrapped in a context and for functions within a context to be applied to values within a context.
 ///
 /// ### Type Signature
 ///

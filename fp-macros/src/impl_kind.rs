@@ -168,7 +168,7 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 
 	// Generate doc comment
 	let doc_comment =
-		format!("Generated implementation of `{}` for `{}`.", kind_trait_name, quote!(#brand));
+		format!("Generated implementation of `{kind_trait_name}` for `{}`.", quote!(#brand));
 
 	let (impl_generics_impl, _, impl_generics_where) = impl_generics.split_for_impl();
 

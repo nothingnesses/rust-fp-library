@@ -5,13 +5,13 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::try_monoid::*, functions::*};
+//! use fp_library::{brands::*, classes::*, functions::*};
 //!
 //! let x = try_empty::<String>();
 //! assert_eq!(x, String::new());
 //! ```
 
-use super::{monoid::Monoid, try_semigroup::TrySemigroup};
+use super::{Monoid, TrySemigroup};
 
 /// A trait for types that can be combined fallibly and have an empty value.
 ///
@@ -30,7 +30,7 @@ pub trait TryMonoid: TrySemigroup {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::try_monoid::*, functions::*};
+	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
 	/// let x = String::try_empty();
 	/// assert_eq!(x, String::new());
@@ -63,7 +63,7 @@ impl<T: Monoid> TryMonoid for T {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::try_monoid::*, functions::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// let x = try_empty::<String>();
 /// assert_eq!(x, String::new());

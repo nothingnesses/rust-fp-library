@@ -36,7 +36,7 @@ use crate::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::types::Pair;
+/// use fp_library::types::*;
 ///
 /// let p = Pair(1, "hello");
 /// assert_eq!(p.0, 1);
@@ -86,9 +86,7 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithFirstBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(map::<PairWithFirstBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 	/// ```
@@ -135,9 +133,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithFirstBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     lift2::<PairWithFirstBrand<String>, _, _, _, _>(|x, y| x + y, Pair("a".to_string(), 1), Pair("b".to_string(), 2)),
@@ -186,9 +182,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithFirstBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
 	/// ```
@@ -230,7 +224,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Pair("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
@@ -273,9 +267,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithFirstBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     bind::<PairWithFirstBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair("b".to_string(), x * 2)),
@@ -324,9 +316,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
 	/// ```
@@ -370,9 +360,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
 	/// ```
@@ -415,9 +403,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair((), 5)),
@@ -465,9 +451,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     traverse::<PairWithFirstBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Pair((), 5)),
@@ -509,9 +493,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     sequence::<PairWithFirstBrand<()>, OptionBrand, _>(Pair((), Some(5))),
@@ -556,9 +538,7 @@ impl<First: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for PairWith
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, ArcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Pair("a".to_string(), 1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -604,9 +584,7 @@ impl<First: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for PairWith
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithFirstBrand, ArcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Pair("a".to_string(), 1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -659,9 +637,7 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithSecondBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(map::<PairWithSecondBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
 	/// ```
@@ -708,9 +684,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithSecondBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     lift2::<PairWithSecondBrand<String>, _, _, _, _>(|x, y| x + y, Pair(1, "a".to_string()), Pair(2, "b".to_string())),
@@ -759,9 +733,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithSecondBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
 	/// ```
@@ -803,7 +775,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Pair(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 	/// assert_eq!(apply::<RcFnBrand, PairWithSecondBrand<String>, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
@@ -846,9 +818,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::PairWithSecondBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     bind::<PairWithSecondBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(x * 2, "b".to_string())),
@@ -897,9 +867,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
 	/// ```
@@ -943,9 +911,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
 	/// ```
@@ -988,9 +954,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, RcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair(5, ())),
@@ -1038,9 +1002,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     traverse::<PairWithSecondBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Pair(5, ())),
@@ -1083,9 +1045,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
 	///     sequence::<PairWithSecondBrand<()>, OptionBrand, _>(Pair(Some(5), ())),
@@ -1132,9 +1092,7 @@ impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, ArcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Pair(1, "a".to_string());
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -1180,9 +1138,7 @@ impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{PairWithSecondBrand, ArcFnBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Pair(1, "a".to_string());
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);

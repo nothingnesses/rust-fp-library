@@ -1,12 +1,12 @@
 //! A trait for deferred lazy evaluation with thread-safe thunks.
 //!
-//! This module defines the [`SendDefer`] trait, which extends [`Kind`] to support creating deferred values
-//! where the thunk is `Send + Sync`.
+//! This module defines the [`SendDefer`] trait, which extends `Kind!(type Of<'a, A: 'a>: 'a;)`
+//! to support creating deferred values where the thunk is `Send + Sync`.
 //!
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::send_defer::*, functions::*, types::lazy::*};
+//! use fp_library::{brands::*, functions::*, types::lazy::*};
 //!
 //! let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
 //! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
@@ -35,6 +35,15 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 	/// ### Returns
 	///
 	/// A deferred value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*};
+	///
+	/// let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
+	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+	/// ```
 	fn send_defer<'a, A>(
 		thunk: impl 'a
 		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -66,6 +75,15 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 /// ### Returns
 ///
 /// A deferred value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, functions::*, types::*};
+///
+/// let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
+/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+/// ```
 pub fn send_defer<'a, Brand, A, F>(
 	thunk: F
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)

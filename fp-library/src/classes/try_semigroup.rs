@@ -7,7 +7,7 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::try_semigroup::*, functions::*};
+//! use fp_library::{brands::*, classes::*, functions::*};
 //!
 //! let x = String::from("Hello, ");
 //! let y = String::from("World!");
@@ -15,7 +15,7 @@
 //! assert_eq!(z, Ok(String::from("Hello, World!")));
 //! ```
 
-use super::semigroup::Semigroup;
+use super::Semigroup;
 
 /// A trait for types that can be combined fallibly.
 ///
@@ -44,7 +44,7 @@ pub trait TrySemigroup: Sized {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::try_semigroup::*, functions::*};
+	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
 	/// let x = String::from("Hello, ");
 	/// let y = String::from("World!");
@@ -92,7 +92,7 @@ impl<T: Semigroup> TrySemigroup for T {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::try_semigroup::*, functions::*};
+/// use fp_library::{brands::*, classes::*, functions::*};
 ///
 /// let x = String::from("Hello, ");
 /// let y = String::from("World!");

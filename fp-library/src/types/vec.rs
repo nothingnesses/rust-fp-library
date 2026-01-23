@@ -456,9 +456,7 @@ impl Foldable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{VecBrand, RcFnBrand};
-	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
@@ -683,7 +681,7 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let v = vec![1, 2, 3];
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -773,9 +771,7 @@ impl Compactable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![Ok(1), Err("error"), Ok(2)];
 	/// let Pair(oks, errs) = separate::<VecBrand, _, _>(x);
@@ -828,9 +824,7 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let Pair(oks, errs) = partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
@@ -882,9 +876,7 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let Pair(satisfied, not_satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
@@ -1021,9 +1013,7 @@ impl Witherable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{VecBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), x);

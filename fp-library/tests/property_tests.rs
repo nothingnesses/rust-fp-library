@@ -1,13 +1,10 @@
 #[cfg(test)]
 mod tests {
 	use fp_library::brands::{ArcFnBrand, LazyBrand, VecBrand};
-	use fp_library::classes::foldable::Foldable;
-	use fp_library::classes::monoid::Monoid;
-	use fp_library::classes::par_foldable::ParFoldable;
-	use fp_library::classes::semigroup::Semigroup;
-	use fp_library::classes::send_cloneable_fn::SendCloneableFn;
-	use fp_library::classes::send_defer::SendDefer;
-	use fp_library::types::lazy::{ArcLazy, ArcLazyConfig, Lazy, RcLazy, RcLazyConfig};
+	use fp_library::classes::{
+		Foldable, Monoid, ParFoldable, Semigroup, SendCloneableFn, SendDefer,
+	};
+	use fp_library::types::{ArcLazy, ArcLazyConfig, Lazy, RcLazy, RcLazyConfig};
 	use quickcheck_macros::quickcheck;
 
 	// Monoid for testing (Sum of i64 using wrapping_add to avoid overflow)
@@ -73,7 +70,7 @@ mod tests {
 			<VecBrand as ParFoldable<ArcFnBrand>>::par_fold_right(f_par, init, xs.clone());
 
 		if seq_res != par_res {
-			println!("Fold right mismatch: seq={}, par={}, xs={:?}", seq_res, par_res, xs);
+			println!("Fold right mismatch: seq={seq_res}, par={par_res}, xs={xs:?}");
 			return false;
 		}
 		true

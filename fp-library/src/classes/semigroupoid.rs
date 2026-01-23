@@ -1,6 +1,4 @@
-//! Semigroupoid type class.
-//!
-//! This module defines the [`Semigroupoid`] trait, which represents a set of objects and composable relationships between them.
+//! A type class for semigroupoids, representing a set of objects and composable relationships between them.
 //!
 //! ### Examples
 //!

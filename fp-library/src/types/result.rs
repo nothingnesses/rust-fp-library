@@ -411,9 +411,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
-	/// use fp_library::types::string;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
@@ -944,9 +942,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithOkBrand, RcFnBrand};
-	/// use fp_library::types::string;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),

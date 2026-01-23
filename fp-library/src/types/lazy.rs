@@ -5,8 +5,8 @@
 //!
 //! ## Configurations
 //!
-//! - [`RcLazyConfig`] / [`RcLazy`]: Single-threaded lazy values using `Rc`. Not thread-safe.
-//! - [`ArcLazyConfig`] / [`ArcLazy`]: Thread-safe lazy values using `Arc`. Requires `A: Send + Sync`.
+//! - [`RcLazyConfig`] / [`RcLazy`]: Single-threaded lazy values using [`Rc`](std::rc::Rc). Not thread-safe.
+//! - [`ArcLazyConfig`] / [`ArcLazy`]: Thread-safe lazy values using [`Arc`]. Requires `A: Send + Sync`.
 
 use crate::{
 	brands::{ArcBrand, ArcFnBrand, LazyBrand, OnceCellBrand, OnceLockBrand, RcBrand, RcFnBrand},
@@ -65,8 +65,7 @@ pub trait LazySemigroup<A>: LazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x = RcLazy::new(RcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
 	/// let y = RcLazy::new(RcLazyConfig::new_thunk(|_| "World!".to_string()));
@@ -99,8 +98,7 @@ pub trait LazyMonoid<A>: LazySemigroup<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x = <RcLazyConfig as LazyMonoid<String>>::empty();
 	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
@@ -135,7 +133,7 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::{brands::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = <RcLazyConfig as LazyDefer<i32>>::defer::<RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
@@ -162,7 +160,7 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+/// use fp_library::types::lazy::*;
 ///
 /// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 /// assert_eq!(Lazy::force_or_panic(&lazy), 42);
@@ -193,7 +191,7 @@ impl RcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let thunk = RcLazyConfig::new_thunk(|_| 42);
 	/// assert_eq!(thunk(()), 42);
@@ -239,8 +237,7 @@ impl<A> LazySemigroup<A> for RcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
 	/// let y = ArcLazy::new(ArcLazyConfig::new_thunk(|_| "World!".to_string()));
@@ -257,11 +254,11 @@ impl<A> LazySemigroup<A> for RcLazyConfig {
 		let thunk = Self::new_thunk(move |_| {
 			let x_val = match Lazy::force(&x) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			};
 			let y_val = match Lazy::force(&y) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			};
 			Semigroup::append(x_val, y_val)
 		});
@@ -285,8 +282,7 @@ impl<A> LazyMonoid<A> for RcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x: ArcLazy<String> = ArcLazyConfig::empty();
 	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
@@ -324,7 +320,7 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::{brands::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = RcLazyConfig::defer::<RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
@@ -342,7 +338,7 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 			let inner_lazy = f(());
 			match Lazy::force(&inner_lazy) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			}
 		});
 		Lazy::new(thunk)
@@ -366,7 +362,7 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+/// use fp_library::types::lazy::*;
 /// use std::thread;
 ///
 /// let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42));
@@ -406,7 +402,7 @@ impl ArcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let thunk = ArcLazyConfig::new_thunk(|_| 42);
 	/// assert_eq!(thunk(()), 42);
@@ -456,8 +452,7 @@ impl<A: Send + Sync> LazySemigroup<A> for ArcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x = RcLazy::new(RcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
 	/// let y = RcLazy::new(RcLazyConfig::new_thunk(|_| "World!".to_string()));
@@ -474,11 +469,11 @@ impl<A: Send + Sync> LazySemigroup<A> for ArcLazyConfig {
 		let thunk = Self::new_thunk(move |_| {
 			let x_val = match Lazy::force(&x) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			};
 			let y_val = match Lazy::force(&y) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			};
 			Semigroup::append(x_val, y_val)
 		});
@@ -502,8 +497,7 @@ impl<A: Send + Sync> LazyMonoid<A> for ArcLazyConfig {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string;
+	/// use fp_library::types::lazy::*;
 	///
 	/// let x: RcLazy<String> = RcLazyConfig::empty();
 	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
@@ -543,7 +537,7 @@ pub type ArcLazy<'a, A> = Lazy<'a, ArcLazyConfig, A>;
 ///
 /// This error is returned when a thunk panics during evaluation.
 #[derive(Clone, Debug, Default, Error, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {}", m)).unwrap_or_default())]
+#[error("thunk panicked during evaluation{}", .0.as_ref().map(|m| format!(": {m}")).unwrap_or_default())]
 pub struct LazyError(Option<Arc<str>>);
 
 impl LazyError {
@@ -564,11 +558,11 @@ impl LazyError {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::lazy::LazyError;
+	/// use fp_library::types::*;
 	///
 	/// let payload = Box::new("oops");
 	/// let error = LazyError::from_panic(payload);
-	/// assert_eq!(format!("{}", error), "thunk panicked during evaluation: oops");
+	/// assert_eq!(error.to_string(), "thunk panicked during evaluation: oops");
 	/// ```
 	pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
 		let msg = if let Some(s) = payload.downcast_ref::<&str>() {
@@ -592,7 +586,7 @@ impl LazyError {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::lazy::LazyError;
+	/// use fp_library::types::*;
 	///
 	/// let payload = Box::new("oops");
 	/// let error = LazyError::from_panic(payload);
@@ -659,7 +653,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
@@ -691,7 +685,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
@@ -728,7 +722,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 	/// assert_eq!(Lazy::force_cloned(&lazy).unwrap(), 42);
@@ -759,7 +753,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
@@ -770,7 +764,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	{
 		match Self::force(this) {
 			Ok(v) => v.clone(),
-			Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 		}
 	}
 
@@ -793,7 +787,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
 	/// assert_eq!(Lazy::force_ref_or_panic(&lazy), &42);
@@ -801,7 +795,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	pub fn force_ref_or_panic(this: &Self) -> &A {
 		match Self::force(this) {
 			Ok(v) => v,
-			Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+			Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 		}
 	}
 
@@ -822,7 +816,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| panic!("oops")));
 	/// let _ = Lazy::force(&lazy);
@@ -854,7 +848,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::types::lazy::*;
 	///
 	/// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| panic!("oops")));
 	/// let _ = Lazy::force(&lazy);
@@ -925,8 +919,7 @@ impl<'a, Config: LazySemigroup<A>, A: Semigroup + Clone + 'a> Semigroup for Lazy
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string; // Import Semigroup impl for String
+	/// use fp_library::{functions::*, types::*};
 	///
 	/// let x = RcLazy::new(RcLazyConfig::new_thunk(|_| "Hello, ".to_string()));
 	/// let y = RcLazy::new(RcLazyConfig::new_thunk(|_| "World!".to_string()));
@@ -957,8 +950,7 @@ impl<'a, Config: LazyMonoid<A>, A: Monoid + Clone + 'a> Monoid for Lazy<'a, Conf
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
-	/// use fp_library::types::string; // Import Monoid impl for String
+	/// use fp_library::{functions::*, types::*};
 	///
 	/// let x = empty::<RcLazy<String>>();
 	/// assert_eq!(Lazy::force_or_panic(&x), "".to_string());
@@ -992,7 +984,7 @@ impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config,
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::lazy::*};
+	/// use fp_library::{brands::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = defer::<RcLazy<i32>, RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
@@ -1032,7 +1024,7 @@ impl SendDefer for LazyBrand<ArcLazyConfig> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::send_defer::*, functions::*, types::lazy::*};
+	/// use fp_library::{brands::*, functions::*, types::lazy::*};
 	///
 	/// let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
@@ -1045,7 +1037,7 @@ impl SendDefer for LazyBrand<ArcLazyConfig> {
 			let inner_lazy = thunk();
 			match Lazy::force(&inner_lazy) {
 				Ok(v) => v.clone(),
-				Err(e) => std::panic::resume_unwind(Box::new(format!("{}", e))),
+				Err(e) => std::panic::resume_unwind(Box::new(e.to_string())),
 			}
 		});
 		Lazy::new(thunk)
@@ -1164,7 +1156,7 @@ mod tests {
 
 		assert!(Lazy::is_poisoned(&lazy));
 		let err = Lazy::get_error(&lazy).unwrap();
-		assert_eq!(format!("{}", err), "thunk panicked during evaluation: oops");
+		assert_eq!(err.to_string(), "thunk panicked during evaluation: oops");
 	}
 
 	/// Tests that `force_cloned` returns a cloned value.

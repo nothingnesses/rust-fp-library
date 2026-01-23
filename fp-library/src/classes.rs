@@ -1,7 +1,7 @@
 //! Functional programming type classes.
 //!
 //! This module defines traits for common algebraic structures and functional abstractions,
-//! such as [`Functor`][functor::Functor], [`Applicative`][applicative::Applicative] and [`Monad`][monad::Monad].
+//! such as [`Functor`], [`Applicative`] and [`Monad`].
 //!
 //! Traits representing higher-kinded types (e.g., `Functor`) are implemented by
 //! [`Brand` types][crate::brands] to simulate higher-kinded polymorphism, as Rust does not
@@ -50,3 +50,6 @@ pub mod try_monoid;
 pub mod try_semigroup;
 pub mod unsized_coercible;
 pub mod witherable;
+
+// Automatically re-export all traits defined in submodules.
+fp_macros::generate_trait_re_exports!("src/classes", {});

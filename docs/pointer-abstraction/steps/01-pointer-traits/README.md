@@ -99,7 +99,7 @@ pub trait UnsizedCoercible: RefCountedPointer {
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
-	fn coerce_fn_send<'a, A, B>(
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 }
@@ -245,7 +245,7 @@ impl UnsizedCoercible for ArcBrand {
 }
 
 impl SendUnsizedCoercible for ArcBrand {
-	fn coerce_fn_send<'a, A, B>(
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 		Arc::new(f)

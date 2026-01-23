@@ -1,6 +1,4 @@
-//! Witherable type class.
-//!
-//! This module defines the [`Witherable`] trait, which represents data structures that can be traversed and filtered in an applicative context.
+//! A type class for data structures that can be traversed and filtered in an applicative context.
 //!
 //! ### Examples
 //!
@@ -14,7 +12,7 @@
 
 use crate::{
 	Apply,
-	classes::{applicative::Applicative, filterable::Filterable, traversable::Traversable},
+	classes::{Applicative, Filterable, Traversable},
 	kinds::*,
 	types::Pair,
 };

@@ -210,7 +210,7 @@ pub trait UnsizedCoercible: RefCountedPointer {
 
 /// Extension trait for thread-safe function coercion.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
-	fn coerce_fn_send<'a, A, B>(
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::CloneableOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 }
@@ -229,7 +229,7 @@ impl UnsizedCoercible for ArcBrand {
 }
 
 impl SendUnsizedCoercible for ArcBrand {
-	fn coerce_fn_send<'a, A, B>(
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 		Arc::new(f)
@@ -256,7 +256,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	fn send_cloneable_fn_new<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<'a, A, B> {
-		P::coerce_fn_send(f)
+		P::coerce_send_fn(f)
 	}
 }
 ```
@@ -303,7 +303,7 @@ impl UnsizedCoercible for MyArcBrand {
 }
 
 impl SendUnsizedCoercible for MyArcBrand {
-	fn coerce_fn_send<'a, A, B>(
+	fn coerce_send_fn<'a, A, B>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
 	) -> MyArc<dyn 'a + Fn(A) -> B + Send + Sync> {
 		MyArc::new(f)

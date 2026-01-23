@@ -1,6 +1,4 @@
-//! Filterable type class.
-//!
-//! This module defines the [`Filterable`] trait, which represents data structures that can be filtered and partitioned.
+//! A type class for data structures that can be filtered and partitioned.
 //!
 //! ### Examples
 //!

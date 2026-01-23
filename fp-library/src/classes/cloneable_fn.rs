@@ -1,7 +1,4 @@
-//! Cloneable function wrappers.
-//!
-//! This module defines the [`CloneableFn`] trait, which provides an abstraction for cloneable wrappers over closures.
-//! This allows for generic handling of cloneable functions (like `Rc<dyn Fn>`) in higher-kinded contexts.
+//! A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
 //!
 //! ### Examples
 //!
@@ -15,7 +12,7 @@
 use super::function::Function;
 use std::ops::Deref;
 
-/// Abstraction for cloneable wrappers over closures.
+/// A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
 ///
 /// This trait is implemented by "Brand" types (like [`ArcFnBrand`][crate::brands::ArcFnBrand]
 /// and [`RcFnBrand`][crate::brands::RcFnBrand]) to provide a way to construct

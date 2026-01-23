@@ -1,6 +1,4 @@
-//! Functor type class.
-//!
-//! This module defines the [`Functor`] trait, which represents types that can be mapped over.
+//! A type class for types that can be mapped over.
 //!
 //! ### Examples
 //!

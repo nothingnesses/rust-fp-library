@@ -1,6 +1,4 @@
-//! Foldable type class.
-//!
-//! This module defines the [`Foldable`] trait, which represents data structures that can be folded to a single value.
+//! A type class for data structures that can be folded to a single value.
 //!
 //! ### Examples
 //!

@@ -32,6 +32,6 @@ pub mod vec;
 pub use endofunction::Endofunction;
 pub use endomorphism::Endomorphism;
 pub use identity::Identity;
-pub use lazy::Lazy;
+pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyError, RcLazy, RcLazyConfig};
 pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;

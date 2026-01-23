@@ -35,9 +35,7 @@ use std::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::functions::*;
-/// use fp_library::types::endofunction::Endofunction;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
@@ -69,9 +67,7 @@ impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endofunction::Endofunction;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
@@ -175,9 +171,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBran
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endofunction::Endofunction;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -213,9 +207,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, 
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endofunction::Endofunction;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let id = empty::<Endofunction<RcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);

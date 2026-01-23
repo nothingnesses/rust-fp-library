@@ -32,7 +32,7 @@ use crate::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::types::Identity;
+/// use fp_library::types::*;
 ///
 /// let x = Identity(5);
 /// assert_eq!(x.0, 5);
@@ -73,9 +73,7 @@ impl Functor for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
@@ -121,9 +119,7 @@ impl Lift for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
 	/// let y = Identity(2);
@@ -169,9 +165,7 @@ impl Pointed for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = pure::<IdentityBrand, _>(5);
 	/// assert_eq!(x, Identity(5));
@@ -211,7 +205,7 @@ impl Semiapplicative for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let f = Identity(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Identity(5);
@@ -253,9 +247,7 @@ impl Semimonad for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
@@ -301,9 +293,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
@@ -349,9 +339,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
@@ -396,9 +384,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::{Identity, string}; // Import to bring Monoid impl for String into scope
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
@@ -445,9 +431,7 @@ impl Traversable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, OptionBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = traverse::<IdentityBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
@@ -487,9 +471,7 @@ impl Traversable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, OptionBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(Some(5));
 	/// let y = sequence::<IdentityBrand, OptionBrand, _>(x);
@@ -532,9 +514,7 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, ArcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -578,9 +558,7 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, ArcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);

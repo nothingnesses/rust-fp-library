@@ -17,21 +17,24 @@ all-features = true
 harness = false
 name = "benchmarks"
 
-[features]
-default = []
-# Enable parallel folding operations using Rayon
-rayon = ["dep:rayon"]
-
 [dependencies]
 fp-macros = { path = "../fp-macros", version = "0.2" }
 rayon = { version = "1.11", optional = true }
 thiserror = "2.0"
-
-[target.'cfg(loom)'.dependencies]
-loom = "0.7"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 quickcheck = "1.0"
 quickcheck_macros = "1.1"
 trybuild = "1.0"
+
+[target.'cfg(loom)'.dependencies]
+loom = "0.7"
+
+[features]
+default = []
+# Enable parallel folding operations using Rayon
+rayon = ["dep:rayon"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }

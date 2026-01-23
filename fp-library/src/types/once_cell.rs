@@ -1,4 +1,4 @@
-//! OnceCell wrapper.
+//! [`OnceCell`] wrapper.
 //!
 //! This module defines the [`OnceCellBrand`] struct, which provides implementations for [`OnceCell`].
 //! It implements [`Once`].

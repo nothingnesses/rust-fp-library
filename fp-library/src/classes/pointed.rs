@@ -1,6 +1,4 @@
-//! Pointed type class.
-//!
-//! This module defines the [`Pointed`] trait, which represents a context that can be initialized with a value.
+//! A type class for contexts that can be initialized with a value.
 //!
 //! ### Examples
 //!
@@ -13,9 +11,7 @@
 
 use crate::{Apply, kinds::*};
 
-/// A type class for types that can be constructed from a single value.
-///
-/// `Pointed` represents a context that can be initialized with a value.
+/// A type class for contexts that can be initialized with a value.
 pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// The value wrapped in the context.
 	///

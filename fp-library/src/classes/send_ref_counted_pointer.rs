@@ -1,6 +1,15 @@
-//! Thread-safe reference-counted pointer trait.
+//! A trait for thread-safe reference-counted pointers.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
+//! assert_eq!(*ptr, 42);
+//! ```
 
-use super::ref_counted_pointer::RefCountedPointer;
+use super::RefCountedPointer;
 use std::ops::Deref;
 
 /// Extension trait for thread-safe reference-counted pointers.
@@ -30,6 +39,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	/// ### Returns
 	///
 	/// The value wrapped in the thread-safe pointer type.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
+	/// assert_eq!(*ptr, 42);
+	/// ```
 	fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
 	where
 		Self::SendOf<T>: Sized;
@@ -57,7 +75,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::send_ref_counted_pointer::*, functions::*};
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 /// assert_eq!(*ptr, 42);
