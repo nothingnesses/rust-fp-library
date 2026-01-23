@@ -25,7 +25,14 @@ This document provides a comprehensive analysis of the compatibility between the
 8. [Trade-off Analysis Matrix](#trade-off-analysis-matrix)
 9. [Recommendations](#recommendations)
 10. [Drastic HKT System Changes for Better Integration](#drastic-hkt-system-changes-for-better-integration)
-11. [Conclusion](#conclusion)
+11. [Additional Viable Alternatives](#additional-viable-alternatives)
+    - [Alternative A: RefFunctor-Only Integration](#alternative-a-reffunctor-only-integration)
+    - [Alternative B: Dual-Type Design (Eval + Memo)](#alternative-b-dual-type-design-eval--memo)
+    - [Alternative C: Clone-Bounded Kind Hierarchy](#alternative-c-clone-bounded-kind-hierarchy)
+    - [Alternative D: Arc-Based Value Sharing](#alternative-d-arc-based-value-sharing)
+    - [Alternative E: Comonadic Operations](#alternative-e-comonadic-operations)
+12. [Final Recommendations](#final-recommendations)
+13. [Conclusion](#conclusion)
 
 ---
 
@@ -850,7 +857,7 @@ If we add `B: Clone` to the trait, it ceases to be a generic Monad trait and bec
 
 | Aspect               | Assessment                           |
 | -------------------- | ------------------------------------ |
-| Type safety          | ⚠️ Flawed for Monads (missing bounds)|
+| Type safety          | ⚠️ Flawed for Monads (missing bounds) |
 | Ergonomics           | ✅ FnOnce with references             |
 | Existing code compat | ❌ Cannot use with Functor-based code |
 | Library complexity   | ❌ Doubles the number of typeclasses  |
@@ -1468,16 +1475,787 @@ This forces `Clone` bounds on **all** mapping functions. This directly contradic
 
 ### Summary: Trade-off Matrix for HKT Changes
 
-| Change Option           | Lazy Compat  | Breaking Level | Complexity | Semantic Fit           |
-| ----------------------- | ------------ | -------------- | ---------- | ---------------------- |
-| 1. Bounded Kinds        | ⚠️ Partial    | Medium         | High       | Medium                 |
-| 2. Add map_ref          | ❌ Impossible | N/A            | N/A        | N/A                    |
-| 3. Reference-based      | ✅ Full       | **Very High**  | Medium     | ❌ Broken for non-Clone |
-| 4. FnOnce + Clone       | ⚠️ Partial    | High           | Low        | ❌ Restrictive          |
+| Change Option      | Lazy Compat  | Breaking Level | Complexity | Semantic Fit           |
+| ------------------ | ------------ | -------------- | ---------- | ---------------------- |
+| 1. Bounded Kinds   | ⚠️ Partial    | Medium         | High       | Medium                 |
+| 2. Add map_ref     | ❌ Impossible | N/A            | N/A        | N/A                    |
+| 3. Reference-based | ✅ Full       | **Very High**  | Medium     | ❌ Broken for non-Clone |
+| 4. FnOnce + Clone  | ⚠️ Partial    | High           | Low        | ❌ Restrictive          |
 
 ### Recommendation
 
 **None of the drastic changes are recommended.** They all introduce severe regressions or limitations that outweigh the benefits of `Lazy` integration.
+
+---
+
+## Additional Viable Alternatives
+
+After exhaustive analysis, several additional approaches emerge that could enable some form of `Lazy` type integration with HKT/typeclass systems. These alternatives think beyond the original proposals and consider more drastic but potentially viable architectural choices.
+
+### Alternative A: RefFunctor-Only Integration
+
+**Philosophy**: Accept that `Lazy` is a valid `Functor` in a reference-based sense, but explicitly **not** a `Monad`. Many types in functional programming are `Functor` but not `Monad` - this is perfectly valid mathematically.
+
+#### The Key Insight
+
+The document's dismissal of Proposal 2 (Parallel Hierarchies) is based on the failure of `OnceSemimonad`. But **we don't have to make `Lazy` a Monad at all**. A Functor-only integration is still valuable.
+
+Consider Haskell's `ZipList` - it's an `Applicative` but famously cannot be a valid `Monad` because it would violate the monad laws. This doesn't make `ZipList` useless; it just means it participates in a subset of the typeclass hierarchy.
+
+#### Implementation
+
+```rust
+// ============================================================================
+// RefFunctor: A valid, complete typeclass for reference-based mapping
+// ============================================================================
+
+def_kind! {
+    type OfRef<'a, A: 'a>: 'a;
+}
+
+/// A functor where the contained value is accessed by reference.
+///
+/// # Laws
+///
+/// RefFunctor must satisfy the functor laws:
+/// 1. Identity: `map_ref(|x| x.clone(), fa) ≡ fa` (for A: Clone)
+/// 2. Composition: `map_ref(|x| g(f(x)), fa) ≡ map_ref(g, map_ref(f, fa))`
+///
+/// Note: The identity law requires Clone because we're working with references.
+/// This is the inherent trade-off of reference-based access.
+pub trait RefFunctor: Kind_RefHash {
+    fn map_ref<'a, B: 'a, A: 'a, F>(
+        f: F,
+        fa: Self::OfRef<'a, A>,
+    ) -> Self::OfRef<'a, B>
+    where
+        F: FnOnce(&A) -> B + 'a;
+}
+
+// Brand and implementation for Lazy
+pub struct LazyBrand;
+
+impl_kind! {
+    for LazyBrand {
+        type OfRef<'a, A: 'a>: 'a = Lazy<'a, A>;
+    }
+}
+
+impl RefFunctor for LazyBrand {
+    fn map_ref<'a, B: 'a, A: 'a, F>(f: F, fa: Lazy<'a, A>) -> Lazy<'a, B>
+    where
+        F: FnOnce(&A) -> B + 'a,
+    {
+        Lazy::new(move || f(fa.force()))
+    }
+}
+```
+
+#### What This Enables
+
+```rust
+// Generic code over RefFunctor works with Lazy!
+fn transform<Brand: RefFunctor>(fa: Brand::OfRef<'_, i32>) -> Brand::OfRef<'_, String> {
+    Brand::map_ref(|x: &i32| x.to_string(), fa)
+}
+
+let lazy: Lazy<i32> = Lazy::new(|| 42);
+let transformed: Lazy<String> = transform::<LazyBrand>(lazy);
+
+// Utility functions for RefFunctor
+fn void_ref<Brand: RefFunctor, A>(fa: Brand::OfRef<'_, A>) -> Brand::OfRef<'_, ()> {
+    Brand::map_ref(|_| (), fa)
+}
+
+fn replace_ref<Brand: RefFunctor, A, B: Clone>(
+    b: B,
+    fa: Brand::OfRef<'_, A>
+) -> Brand::OfRef<'_, B> {
+    Brand::map_ref(move |_| b.clone(), fa)
+}
+```
+
+#### What This Does NOT Enable
+
+- `bind`/`flat_map` via typeclass (requires `B: Clone` which can't be in trait)
+- `Applicative::apply` (same issue)
+- Generic monad transformers
+
+#### Trade-off Analysis
+
+| Aspect                | Assessment                            |
+| --------------------- | ------------------------------------- |
+| Type Safety           | ✅ Fully sound                        |
+| Functor Integration   | ✅ Full RefFunctor support            |
+| Monad Integration     | ❌ Not supported (by design)          |
+| Ergonomics            | ✅ Natural `FnOnce(&A) -> B` API      |
+| Library Complexity    | ⚠️ Adds parallel RefFunctor hierarchy |
+| Mathematical Validity | ✅ Valid functor instance             |
+
+**Verdict**: ✅ **Viable.** Provides meaningful typeclass integration while being honest about what `Lazy` can and cannot do. Many useful types are Functor but not Monad.
+
+---
+
+### Alternative B: Dual-Type Design (Eval + Memo)
+
+**Philosophy**: Instead of trying to make one `Lazy` type do everything, split the design into two complementary types with different capabilities. This mirrors Cats Effect's `Eval` type which has `Now`, `Later`, and `Always` variants.
+
+#### The Design
+
+```rust
+// ============================================================================
+// Eval<A>: Non-memoized deferred computation - FULL Functor/Monad support
+// ============================================================================
+
+/// A deferred computation that is NOT memoized.
+///
+/// Each call to `run()` re-executes the computation.
+/// Because `run()` returns `A` by value (consuming self), this type
+/// can implement the standard Functor and Monad typeclasses.
+pub struct Eval<A> {
+    thunk: Box<dyn FnOnce() -> A>,
+}
+
+impl<A> Eval<A> {
+    /// Creates a new deferred computation.
+    pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
+        Self { thunk: Box::new(f) }
+    }
+
+    /// Creates an already-computed value (like Cats `Eval.now`).
+    pub fn now(a: A) -> Self {
+        Self::new(move || a)
+    }
+
+    /// Runs the computation, consuming the Eval and returning the value.
+    pub fn run(self) -> A {
+        (self.thunk)()
+    }
+
+    /// Converts to a memoized Memo.
+    pub fn memoize(self) -> Memo<A> {
+        Memo::new(move || self.run())
+    }
+}
+
+// Eval IS a valid Functor!
+pub struct EvalBrand;
+
+impl_kind! {
+    for EvalBrand {
+        type Of<'a, A: 'a>: 'a = Eval<A>;
+    }
+}
+
+impl Functor for EvalBrand {
+    fn map<'a, B: 'a, A: 'a, F>(f: F, fa: Eval<A>) -> Eval<B>
+    where
+        F: Fn(A) -> B + 'a,
+    {
+        Eval::new(move || f(fa.run()))
+    }
+}
+
+// Eval IS a valid Monad!
+impl Semimonad for EvalBrand {
+    fn bind<'a, B: 'a, A: 'a, F>(ma: Eval<A>, f: F) -> Eval<B>
+    where
+        F: Fn(A) -> Eval<B> + 'a,
+    {
+        Eval::new(move || f(ma.run()).run())
+    }
+}
+
+// ============================================================================
+// Memo<A>: Memoized value - RefFunctor only (no Monad)
+// ============================================================================
+
+/// A memoized lazy value with shared semantics.
+///
+/// The computation runs at most once; subsequent accesses return the cached value.
+/// Because `force()` returns `&A`, this type can only implement RefFunctor.
+pub struct Memo<A> {
+    inner: Rc<MemoInner<A>>,
+}
+
+struct MemoInner<A> {
+    cell: OnceCell<A>,
+    thunk: UnsafeCell<Option<Box<dyn FnOnce() -> A>>>,
+}
+
+impl<A> Memo<A> {
+    pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
+        Self {
+            inner: Rc::new(MemoInner {
+                cell: OnceCell::new(),
+                thunk: UnsafeCell::new(Some(Box::new(f))),
+            }),
+        }
+    }
+
+    /// Forces evaluation and returns a reference to the cached value.
+    pub fn force(&self) -> &A {
+        self.inner.cell.get_or_init(|| {
+            let thunk = unsafe { (*self.inner.thunk.get()).take() };
+            thunk.expect("Memo already forced")()
+        })
+    }
+
+    /// Converts back to an Eval (requires Clone on A).
+    pub fn to_eval(&self) -> Eval<A>
+    where
+        A: Clone
+    {
+        let val = self.force().clone();
+        Eval::now(val)
+    }
+}
+
+impl<A> Clone for Memo<A> {
+    fn clone(&self) -> Self {
+        Self { inner: self.inner.clone() }
+    }
+}
+
+// Memo implements RefFunctor
+pub struct MemoBrand;
+
+impl_kind! {
+    for MemoBrand {
+        type OfRef<'a, A: 'a>: 'a = Memo<A>;
+    }
+}
+
+impl RefFunctor for MemoBrand {
+    fn map_ref<'a, B: 'a, A: 'a, F>(f: F, fa: Memo<A>) -> Memo<B>
+    where
+        F: FnOnce(&A) -> B + 'a,
+    {
+        Memo::new(move || f(fa.force()))
+    }
+}
+```
+
+#### Usage Patterns
+
+```rust
+// Use Eval when you need full Monad capabilities
+let computation: Eval<i32> = Eval::new(|| expensive_computation());
+
+// Monad operations work!
+let result = bind::<EvalBrand, _, _, _>(computation, |x| {
+    Eval::new(move || x * 2)
+});
+
+// Use Memo when you need memoization with shared semantics
+let cached: Memo<i32> = Memo::new(|| expensive_computation());
+let shared = cached.clone();  // Both point to same cached value
+
+// RefFunctor operations work!
+let transformed = map_ref::<MemoBrand, _, _, _>(|x| x.to_string(), cached);
+
+// Convert between them as needed
+let eval_from_memo: Eval<i32> = memo.to_eval();  // Requires Clone
+let memo_from_eval: Memo<i32> = eval.memoize();
+```
+
+#### Relationship to Cats Effect's Eval
+
+This design is directly inspired by Cats Effect's `Eval[A]`:
+
+| Cats Eval Variant | Our Equivalent | Semantics               |
+| ----------------- | -------------- | ----------------------- |
+| `Eval.now(a)`     | `Eval::now(a)` | Already computed        |
+| `Eval.later(f)`   | `Memo::new(f)` | Memoized, computed once |
+| `Eval.always(f)`  | `Eval::new(f)` | Recomputed each time    |
+
+#### Trade-off Analysis
+
+| Aspect           | Eval         | Memo                   |
+| ---------------- | ------------ | ---------------------- |
+| Functor          | ✅ Full       | ✅ RefFunctor           |
+| Monad            | ✅ Full       | ❌ No                   |
+| Memoization      | ❌ No         | ✅ Yes                  |
+| Shared semantics | ❌ No         | ✅ Yes                  |
+| Clone on A       | Not required | Required for to_eval() |
+
+**Verdict**: ✅ **Viable.** Users choose the type based on their needs. Clear semantics, no compromises.
+
+---
+
+### Alternative C: Clone-Bounded Kind Hierarchy
+
+**Philosophy**: Accept that `Lazy<A>` for memoized values fundamentally requires `A: Clone` to work with standard typeclasses. Create a parallel Kind hierarchy where `Clone` is baked into the contract.
+
+#### The Insight
+
+The question to ask: **Is `Lazy<NonCloneType>` genuinely useful?**
+
+For pure functional programming, most useful value types are `Clone`:
+
+- All primitives (`i32`, `f64`, `bool`, etc.)
+- `String`, `Vec<T>`, `HashMap<K, V>` (when contents are Clone)
+- Most data structures representing values (not resources)
+
+Non-Clone types are typically:
+
+- Resource handles (file handles, connections)
+- Types with interior mutability relying on uniqueness
+- Types representing ownership of external resources
+
+These are arguably **not appropriate for lazy memoization anyway** - you don't want to share a single file handle via lazy evaluation.
+
+#### Implementation
+
+```rust
+// ============================================================================
+// Clone-Bounded Kind: A Kind where A: Clone is guaranteed
+// ============================================================================
+
+def_kind! {
+    type Of<'a, A: 'a + Clone>: 'a;  // Clone bound baked into Kind!
+}
+
+// This generates a different trait hash due to the different signature
+// pub trait Kind_CloneHash {
+//     type Of<'a, A: 'a + Clone>: 'a;
+// }
+
+// ============================================================================
+// CloneFunctor: Functor for Clone-bounded types
+// ============================================================================
+
+pub trait CloneFunctor: Kind_CloneHash {
+    fn map<'a, B: Clone + 'a, A: Clone + 'a, F>(
+        f: F,
+        fa: Self::Of<'a, A>,
+    ) -> Self::Of<'a, B>
+    where
+        F: Fn(A) -> B + 'a;
+}
+
+// ============================================================================
+// CloneMonad: Monad for Clone-bounded types
+// ============================================================================
+
+pub trait CloneSemimonad: Kind_CloneHash {
+    fn bind<'a, B: Clone + 'a, A: Clone + 'a, F>(
+        ma: Self::Of<'a, A>,
+        f: F,
+    ) -> Self::Of<'a, B>
+    where
+        F: Fn(A) -> Self::Of<'a, B> + 'a;
+}
+
+// ============================================================================
+// Lazy implementation
+// ============================================================================
+
+pub struct Lazy<A: Clone> {
+    inner: Rc<LazyInner<A>>,
+}
+
+impl<A: Clone> Lazy<A> {
+    pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self { /* ... */ }
+    pub fn force(&self) -> &A { /* ... */ }
+}
+
+pub struct LazyBrand;
+
+impl_kind! {
+    for LazyBrand {
+        type Of<'a, A: 'a + Clone>: 'a = Lazy<A>;
+    }
+}
+
+// NOW THIS WORKS! A: Clone is available from the trait!
+impl CloneFunctor for LazyBrand {
+    fn map<'a, B: Clone + 'a, A: Clone + 'a, F>(f: F, fa: Lazy<A>) -> Lazy<B>
+    where
+        F: Fn(A) -> B + 'a,
+    {
+        Lazy::new(move || f(fa.force().clone()))  // Clone is available!
+    }
+}
+
+impl CloneSemimonad for LazyBrand {
+    fn bind<'a, B: Clone + 'a, A: Clone + 'a, F>(ma: Lazy<A>, f: F) -> Lazy<B>
+    where
+        F: Fn(A) -> Lazy<B> + 'a,
+    {
+        Lazy::new(move || {
+            let inner = f(ma.force().clone());
+            inner.force().clone()  // Both clones work!
+        })
+    }
+}
+```
+
+#### Generic Programming with Clone-Bounded Kinds
+
+```rust
+// Functions generic over CloneFunctor
+fn double_all<Brand: CloneFunctor>(fa: Brand::Of<'_, i32>) -> Brand::Of<'_, i32> {
+    Brand::map(|x| x * 2, fa)
+}
+
+// Works with Lazy!
+let lazy: Lazy<i32> = Lazy::new(|| 42);
+let doubled = double_all::<LazyBrand>(lazy);
+
+// Also works with other Clone-bounded types if we implement them
+let vec: Vec<i32> = vec![1, 2, 3];
+let doubled_vec = double_all::<CloneVecBrand>(vec);
+```
+
+#### Trade-off Analysis
+
+| Aspect                          | Assessment                      |
+| ------------------------------- | ------------------------------- |
+| Full Functor                    | ✅ Yes (for Clone types)         |
+| Full Monad                      | ✅ Yes (for Clone types)         |
+| Non-Clone types                 | ❌ Not supported                 |
+| Library complexity              | ⚠️ Parallel Clone hierarchy      |
+| Interop with standard hierarchy | ❌ Different trait               |
+| Use case coverage               | ⚠️ Covers most pure FP use cases |
+
+**Verdict**: ⚠️ **Viable with significant trade-offs.** Creates a "Clone world" that doesn't interoperate with the standard typeclasses. However, it may cover the majority of practical use cases since most pure functional programming deals with cloneable values.
+
+---
+
+### Alternative D: Arc-Based Value Sharing
+
+**Philosophy**: Change the internal representation to store `Arc<A>` instead of `A`, and return `Arc<A>` from `force()`. This eliminates the Clone requirement on `A` entirely by making the container itself handle sharing.
+
+#### The Design
+
+```rust
+// ============================================================================
+// ArcLazy: Stores Arc<A> internally, returns Arc<A> from force
+// ============================================================================
+
+pub struct ArcLazy<A> {
+    inner: Arc<ArcLazyInner<A>>,
+}
+
+struct ArcLazyInner<A> {
+    cell: OnceLock<Arc<A>>,  // Stores Arc<A>!
+    thunk: Mutex<Option<Box<dyn FnOnce() -> A + Send>>>,
+}
+
+impl<A> ArcLazy<A> {
+    pub fn new<F: FnOnce() -> A + Send + 'static>(f: F) -> Self {
+        Self {
+            inner: Arc::new(ArcLazyInner {
+                cell: OnceLock::new(),
+                thunk: Mutex::new(Some(Box::new(f))),
+            }),
+        }
+    }
+
+    /// Forces evaluation and returns an Arc to the value.
+    /// The Arc can be cheaply cloned regardless of whether A is Clone.
+    pub fn force(&self) -> Arc<A> {
+        self.inner.cell.get_or_init(|| {
+            let mut guard = self.inner.thunk.lock().unwrap();
+            let thunk = guard.take().expect("Already forced");
+            Arc::new(thunk())
+        }).clone()
+    }
+}
+
+// ============================================================================
+// ArcFunctor: Functor where map receives Arc<A>
+// ============================================================================
+
+def_kind! {
+    type Of<'a, A: 'a>: 'a;
+}
+
+/// A functor where the mapping function receives Arc<A>.
+/// This allows working with non-Clone types through Arc sharing.
+pub trait ArcFunctor: Kind_Hash {
+    fn map_arc<'a, B: 'a, A: 'a, F>(
+        f: F,
+        fa: Self::Of<'a, A>,
+    ) -> Self::Of<'a, B>
+    where
+        F: Fn(Arc<A>) -> B + 'a;
+}
+
+pub struct ArcLazyBrand;
+
+impl_kind! {
+    for ArcLazyBrand {
+        type Of<'a, A: 'a>: 'a = ArcLazy<A>;
+    }
+}
+
+impl ArcFunctor for ArcLazyBrand {
+    fn map_arc<'a, B: 'a, A: 'a, F>(f: F, fa: ArcLazy<A>) -> ArcLazy<B>
+    where
+        F: Fn(Arc<A>) -> B + 'a,
+    {
+        ArcLazy::new(move || f(fa.force()))
+    }
+}
+```
+
+#### Usage
+
+```rust
+// A type that is NOT Clone
+struct ExpensiveResource {
+    data: Vec<u8>,
+    handle: SomeNonCloneHandle,
+}
+
+// We can still use it with ArcLazy!
+let lazy: ArcLazy<ExpensiveResource> = ArcLazy::new(|| {
+    ExpensiveResource::load_from_disk()
+});
+
+// Map receives Arc<ExpensiveResource>
+let processed = map_arc::<ArcLazyBrand, _, _, _>(
+    |resource: Arc<ExpensiveResource>| {
+        // Can access resource via Deref
+        process(&resource.data)
+    },
+    lazy
+);
+
+// Multiple consumers can share the Arc
+let arc1: Arc<ExpensiveResource> = lazy.force();
+let arc2: Arc<ExpensiveResource> = lazy.force();  // Same Arc, just cloned
+```
+
+#### Trade-off Analysis
+
+| Aspect              | Assessment                            |
+| ------------------- | ------------------------------------- |
+| Clone on A required | ❌ No! Arc handles sharing             |
+| Ergonomics          | ⚠️ Must work with Arc<A> in closures   |
+| Thread safety       | ✅ Built-in (uses Arc/OnceLock)        |
+| Allocation overhead | ⚠️ Extra Arc allocation                |
+| Standard Functor    | ❌ Different signature                 |
+| Interop             | ⚠️ Users must understand Arc semantics |
+
+**Verdict**: ⚠️ **Viable but different ergonomics.** Eliminates Clone requirement entirely but forces users to work with `Arc<A>` in their mapping functions. Good for types that genuinely cannot be Clone.
+
+---
+
+### Alternative E: Comonadic Operations
+
+**Philosophy**: `Lazy` is actually more naturally a **Comonad** than a Monad. Comonads are the categorical dual of Monads, and `Lazy` fits the comonadic pattern well.
+
+#### Comonad Refresher
+
+A Comonad has three operations:
+
+1. **extract**: `W<A> -> A` - Get the current value
+2. **extend**: `(W<A> -> B) -> W<A> -> W<B>` - Apply a function that sees the whole context
+3. **duplicate**: `W<A> -> W<W<A>>` - Nest the context
+
+The key insight: `extend` receives the **entire container**, not just the value. This sidesteps the `&A` vs `A` problem!
+
+#### Implementation
+
+```rust
+// ============================================================================
+// RefComonad: Comonad with reference-based extract
+// ============================================================================
+
+pub trait RefComonad: Kind_Hash {
+    /// Extract the value from the comonadic context.
+    /// Requires Clone because we only have a reference internally.
+    fn extract<'a, A: Clone + 'a>(wa: &Self::Of<'a, A>) -> A;
+
+    /// Extend a function over the comonadic context.
+    /// The function receives the ENTIRE Lazy, not just the value!
+    /// This works for ANY A, no Clone required!
+    fn extend<'a, B: 'a, A: 'a, F>(
+        f: F,
+        wa: Self::Of<'a, A>,
+    ) -> Self::Of<'a, B>
+    where
+        F: Fn(&Self::Of<'a, A>) -> B + 'a;
+
+    /// Duplicate the comonadic context.
+    fn duplicate<'a, A: 'a>(wa: Self::Of<'a, A>) -> Self::Of<'a, Self::Of<'a, A>>
+    where
+        Self::Of<'a, A>: Clone;
+}
+
+// ============================================================================
+// Lazy implementation
+// ============================================================================
+
+impl RefComonad for LazyBrand {
+    fn extract<'a, A: Clone + 'a>(wa: &Lazy<A>) -> A {
+        wa.force().clone()  // Requires Clone
+    }
+
+    fn extend<'a, B: 'a, A: 'a, F>(f: F, wa: Lazy<A>) -> Lazy<B>
+    where
+        F: Fn(&Lazy<A>) -> B + 'a,
+    {
+        // This works for ANY A! The function receives &Lazy<A>,
+        // and can call force() to get &A if it wants.
+        let wa_clone = wa.clone();  // Clone the Rc, not A
+        Lazy::new(move || f(&wa_clone))
+    }
+
+    fn duplicate<'a, A: 'a>(wa: Lazy<A>) -> Lazy<Lazy<A>>
+    where
+        Lazy<A>: Clone,
+    {
+        Lazy::new(move || wa)
+    }
+}
+```
+
+#### Usage Patterns
+
+```rust
+// extend works with ANY type, even non-Clone!
+struct NonCloneData { /* ... */ }
+
+let lazy: Lazy<NonCloneData> = Lazy::new(|| NonCloneData::new());
+
+// extend receives the whole Lazy, can inspect it as needed
+let extended = extend::<LazyBrand, _, _, _>(
+    |lazy_ref: &Lazy<NonCloneData>| {
+        // Can call force() to get &NonCloneData
+        let data: &NonCloneData = lazy_ref.force();
+        compute_summary(data)
+    },
+    lazy
+);
+
+// extract requires Clone (the inherent limitation)
+let cloneable_lazy: Lazy<String> = Lazy::new(|| "hello".to_string());
+let extracted: String = extract::<LazyBrand, _>(&cloneable_lazy);
+
+// Comonad laws work!
+// extend(extract, wa) ≡ wa  (for Clone types)
+// extract(extend(f, wa)) ≡ f(wa)
+// extend(g, extend(f, wa)) ≡ extend(|w| g(extend(f, w)), wa)
+```
+
+#### When Comonad is Useful
+
+Comonads are useful for:
+
+- **Windowed computations**: Each position has access to its neighborhood
+- **Attribute grammars**: Computing inherited and synthesized attributes
+- **Cellular automata**: Each cell sees surrounding context
+- **Spreadsheets**: Each cell can reference others
+
+For `Lazy`, `extend` enables patterns like:
+
+```rust
+// Compute something that depends on whether the value was already forced
+let with_metadata = extend::<LazyBrand, _, _, _>(
+    |lazy_ref| {
+        let was_forced = lazy_ref.is_forced();
+        let value = lazy_ref.force();
+        (value.clone(), was_forced)
+    },
+    original_lazy
+);
+```
+
+#### Trade-off Analysis
+
+| Aspect            | Assessment                      |
+| ----------------- | ------------------------------- |
+| extract           | ⚠️ Requires Clone                |
+| extend            | ✅ Works on any A                |
+| duplicate         | ✅ Works (Lazy is Clone via Rc)  |
+| Standard Functor  | ❌ Not the same abstraction      |
+| Monad             | ❌ Comonad is dual, not Monad    |
+| Practical utility | ⚠️ More niche than Functor/Monad |
+
+**Verdict**: ✅ **Partially viable.** Provides a valid typeclass instance for a different abstraction. `extend` and `duplicate` work without Clone requirements. `extract` requires Clone. Good for specific comonadic patterns.
+
+---
+
+### Summary: Additional Alternatives Matrix
+
+| Alternative        | Functor  | Monad    | No Clone on A | Memoization | Complexity |
+| ------------------ | ---------| -------- | ------------- | ----------- | ---------- |
+| A. RefFunctor-Only | ✅ (Ref)  | ❌        | ✅             | ✅           | Low        |
+| B. Dual Types      | ✅ (Eval) | ✅ (Eval) | ✅             | ✅ (Memo)    | Medium     |
+| C. Clone-Bounded   | ✅        | ✅        | ❌             | ✅           | Medium     |
+| D. Arc-Based       | ✅ (Arc)  | ✅ (Arc)  | ✅             | ✅           | Medium     |
+| E. Comonadic       | N/A      | N/A      | Partial       | ✅           | Low        |
+
+---
+
+## Final Recommendations
+
+After comprehensive analysis of all approaches - the original four proposals, the drastic HKT changes, and the additional alternatives - here are the recommended paths forward:
+
+### Tier 1: Most Recommended
+
+#### Option 1: Proposal 3 + Alternative A (Inherent Methods + RefFunctor)
+
+**For minimal complexity with meaningful integration:**
+
+1. Implement `Lazy` with inherent methods (`map`, `flat_map`, `map2`)
+2. Additionally implement `RefFunctor` for typeclass-based generic programming
+3. Document clearly that `Lazy` is a `RefFunctor` but not a `Monad`
+
+```rust
+// Users get both:
+// 1. Ergonomic inherent methods
+let result = lazy.map(|x| x + 1).flat_map(|x| other_lazy);
+
+// 2. Generic programming via RefFunctor
+fn transform<Brand: RefFunctor>(fa: Brand::OfRef<'_, i32>) -> Brand::OfRef<'_, String> {
+    Brand::map_ref(|x| x.to_string(), fa)
+}
+```
+
+**Pros**: Low complexity, meaningful integration, honest about limitations
+**Cons**: No Monad integration
+
+#### Option 2: Alternative B (Dual Types: Eval + Memo)
+
+**For maximum flexibility with clear semantics:**
+
+1. Provide `Eval<A>` - non-memoized, full Functor/Monad support
+2. Provide `Memo<A>` - memoized, RefFunctor only
+3. Provide conversions between them
+
+**Pros**: Complete Monad for Eval, memoization for Memo, clear trade-offs
+**Cons**: Two types to understand, conversion overhead
+
+### Tier 2: Situationally Recommended
+
+#### Option 3: Alternative C (Clone-Bounded Hierarchy)
+
+**If most use cases involve Clone types:**
+
+If analysis of actual use cases shows that `Lazy<NonCloneType>` is rare, a Clone-bounded hierarchy provides full typeclass integration for the common case.
+
+**Pros**: Full Functor/Monad for Clone types
+**Cons**: Creates parallel "Clone world", doesn't interoperate with standard hierarchy
+
+#### Option 4: Alternative D (Arc-Based)
+
+**If non-Clone types are critical and sharing semantics are acceptable:**
+
+Arc-based storage eliminates Clone requirements entirely at the cost of different ergonomics.
+
+**Pros**: No Clone requirement at all
+**Cons**: Users work with `Arc<A>`, different API feel
+
+### Not Recommended
+
+- **Proposals 1, 2, 4**: Flawed or unsound as analyzed
+- **Drastic HKT Changes (Options 2-4)**: Break existing functionality or are impossible
+- **Drastic HKT Change Option 1 (Bounded Kinds)**: High complexity for partial benefit
 
 ---
 
@@ -1495,10 +2273,18 @@ These incompatibilities are not bugs but reflect **different design philosophies
 - **Library**: Maximize abstraction and reuse through standard typeclasses
 - **Redesigns**: Maximize ergonomics and safety for lazy evaluation
 
-The recommended path forward is to:
+However, **viable paths forward exist**:
 
-1. Implement the redesigned `Lazy` with inherent methods (`map`, `flat_map`)
-2. Keep compatible typeclass implementations (`Semigroup`, `Monoid`, `Defer`)
-3. Document the design rationale clearly
+1. **RefFunctor integration** provides meaningful typeclass participation while acknowledging Monad limitations
+2. **Dual-type design (Eval/Memo)** offers complete solutions for different use cases
+3. **Clone-bounded hierarchies** serve the majority of pure FP use cases
+4. **Comonadic operations** provide alternative abstractions that fit `Lazy` naturally
 
-This approach provides an ergonomic, safe `Lazy` type while maintaining honesty about what can and cannot integrate with the library's typeclass system.
+The recommended approach is to:
+
+1. Implement `Lazy` with ergonomic inherent methods
+2. Implement `RefFunctor` for typeclass-based generic code
+3. Optionally provide `Eval` for users who need full Monad capabilities without memoization
+4. Document the design rationale and trade-offs clearly
+
+This approach provides an ergonomic, safe `Lazy` type while enabling meaningful integration with the library's typeclass system where it makes mathematical and practical sense.
