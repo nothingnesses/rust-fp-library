@@ -46,7 +46,7 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.5"
+fp-library = "0.6"
 ```
 
 ### Crate Features
@@ -59,7 +59,7 @@ To enable this feature:
 
 ```toml
 [dependencies]
-fp-library = { version = "0.5", features = ["rayon"] }
+fp-library = { version = "0.6", features = ["rayon"] }
 ```
 
 ### Example: Using `Functor` with `Option`

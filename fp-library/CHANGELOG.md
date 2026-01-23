@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-23
+
+### Added
+- **Pointer Abstraction**:
+  - Added `Pointer`, `RefCountedPointer`, and `SendRefCountedPointer` traits for abstracting over smart pointers (Rc/Arc).
+  - Added `UnsizedCoercible` and `SendUnsizedCoercible` traits for function coercion.
+  - Added `RcBrand` and `ArcBrand` implementations in `src/types/rc_ptr.rs` and `src/types/arc_ptr.rs`.
+  - Added `FnBrand<P>` generic implementation to replace `RcFnBrand` and `ArcFnBrand`.
+- **Lazy**:
+  - Added `RcLazy` and `ArcLazy` type aliases.
+  - Added `LazyError` for thread-safe panic propagation with `panic_message` method.
+  - Added `force_or_panic` and other convenience methods to `Lazy`.
+  - Implemented `TrySemigroup`, `TryMonoid`, and `SendDefer` for `Lazy`.
+  - Added `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `Default` derives to `LazyError`.
+- **Free Functions**:
+  - Added free function wrappers for `ThunkWrapper` and `UnsizedCoercible`.
+
+### Changed
+- **Renames (API Breaking)**:
+  - Renamed `clonable` to `cloneable` in all filenames and identifiers (e.g., `CloneableFn`, `SendCloneableFn`).
+  - Renamed `coerce_fn_send` to `coerce_send_fn`.
+  - Renamed creation functions in `src/functions.rs`:
+    - `pointer_new` -> `new`
+    - `ref_counted_new` -> `cloneable_new`
+    - `send_ref_counted_new` -> `send_new`
+  - Renamed `ThunkWrapper::new_cell` to `ThunkWrapper::new`.
+- **Lazy Refactor (API Breaking)**:
+  - Refactored `Lazy` to use shared memoization semantics (Haskell-like) using `RefCountedPointer`.
+  - Refactored `Lazy` to use `LazySemigroup`, `LazyMonoid`, and `LazyDefer` helper traits.
+- **Module Structure**:
+  - Split pointer traits into separate modules in `src/classes/`.
+  - Moved `RcBrand` and `ArcBrand` to `src/types/rc_ptr.rs` and `src/types/arc_ptr.rs`.
+- **Documentation**:
+  - Standardized inline documentation examples to use free functions and turbofish syntax.
+  - Updated architecture documentation.
+
+### Removed
+- **Legacy Types**:
+  - Removed `RcFnBrand` and `ArcFnBrand` in favor of generic `FnBrand<P>`.
+
 ## [0.5.0] - 2026-01-19
 
 ### Added
