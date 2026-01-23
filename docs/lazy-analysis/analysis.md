@@ -15,9 +15,12 @@ This document provides a comprehensive analysis of the `Lazy` type implementatio
    - [Issue 5: Error Information Loss](#issue-5-error-information-loss-during-re-panic)
    - [Issue 6: No LazyDefer for ArcLazyConfig](#issue-6-no-lazydefer-for-arclazyconfig)
    - [Issue 7: Verbose Construction Pattern](#issue-7-verbose-construction-pattern)
+   - [Issue 10: LazyError Incomplete Payload Capture](#issue-10-lazyerror-incomplete-payload-capture)
 5. [Minor Issues](#minor-issues)
    - [Issue 8: AssertUnwindSafe Risk](#issue-8-assertunwindsafe-risk)
    - [Issue 9: Sequential Error Evaluation](#issue-9-sequential-error-evaluation-in-semigroup)
+   - [Issue 11: Missing PartialEq/Eq Implementations](#issue-11-missing-partialeqeq-implementations)
+   - [Issue 12: Missing Default Implementation](#issue-12-missing-default-implementation)
 6. [What's Well-Designed](#whats-well-designed)
 7. [Summary of Recommendations](#summary-of-recommendations)
 
@@ -714,6 +717,160 @@ See [Issue 3](#issue-3-awkward-fn---a-interface) Approach 2 for the recommended 
 
 ---
 
+### Issue 10: LazyError Incomplete Payload Capture
+
+**Location:** Lines 567-574
+
+**Current Implementation:**
+
+```rust
+pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+        Some(Arc::from(*s))
+    } else {
+        payload.downcast_ref::<String>().map(|s| Arc::from(s.as_str()))
+    };
+    Self(msg)
+}
+```
+
+**Problem:**
+The `LazyError::from_panic` method only captures panic payloads that are `&str` or `String`. Any other panic payload type (e.g., custom error types, integers, or structured error objects) results in a `LazyError(None)`, losing all error information at the point of capture.
+
+**Distinction from Issue 5:**
+Issue 5 addresses error loss during *propagation* (re-panic). This issue addresses error loss during *capture* (the initial creation of `LazyError`). Both issues compound: even if Issue 5 is fixed, non-string panics will still be lost due to this issue.
+
+**Impact:**
+
+- Panics like `panic!(404)` or `panic!(MyError::NotFound)` produce generic errors with no message
+- Makes debugging harder when custom panic types are used
+- Inconsistent behavior depending on panic payload type
+
+#### Approach 1: Capture All Payload Types as Strings (Minimal)
+
+Extend the capture logic to handle more types:
+
+```rust
+pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+        Some(Arc::from(*s))
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        Some(Arc::from(s.as_str()))
+    } else if let Some(n) = payload.downcast_ref::<i32>() {
+        Some(Arc::from(format!("{}", n)))
+    } else if let Some(n) = payload.downcast_ref::<u32>() {
+        Some(Arc::from(format!("{}", n)))
+    } else {
+        // Fallback: indicate unknown panic type
+        Some(Arc::from("<non-string panic payload>"))
+    };
+    Self(msg)
+}
+```
+
+**Trade-offs:**
+
+- ✅ Provides at least *some* information for all panics
+- ✅ Simple extension of existing pattern
+- ✅ Backward compatible
+- ⚠️ Still loses type information (everything becomes a string)
+- ⚠️ Cannot handle arbitrary custom types without `Debug` or `Display`
+
+#### Approach 2: Store the Original Payload (Recommended)
+
+Preserve the full panic payload for later inspection:
+
+```rust
+/// Error type for `Lazy` evaluation failures.
+#[derive(Clone, Debug)]
+pub struct LazyError {
+    /// Human-readable message if available
+    message: Option<Arc<str>>,
+    /// The original panic payload (type-erased but preserved)
+    payload: Option<Arc<dyn std::any::Any + Send + Sync>>,
+}
+
+impl LazyError {
+    pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+        let message = if let Some(s) = payload.downcast_ref::<&str>() {
+            Some(Arc::from(*s))
+        } else if let Some(s) = payload.downcast_ref::<String>() {
+            Some(Arc::from(s.as_str()))
+        } else {
+            None
+        };
+        
+        // Convert Box to Arc for shared ownership
+        // Note: requires payload to be Sync, or use a wrapper
+        Self {
+            message,
+            payload: None, // Simplified - full impl would preserve payload
+        }
+    }
+    
+    /// Attempts to downcast the payload to a specific type.
+    ///
+    /// ### Examples
+    ///
+    /// ```
+    /// use fp_library::types::lazy::*;
+    ///
+    /// #[derive(Debug, Clone, PartialEq)]
+    /// struct MyError(i32);
+    ///
+    /// let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| panic!(MyError(404))));
+    /// let _ = Lazy::force(&lazy);
+    ///
+    /// if let Some(err) = Lazy::get_error(&lazy) {
+    ///     if let Some(my_err) = err.downcast_ref::<MyError>() {
+    ///         assert_eq!(my_err.0, 404);
+    ///     }
+    /// }
+    /// ```
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        self.payload.as_ref()?.downcast_ref::<T>()
+    }
+}
+```
+
+**Trade-offs:**
+
+- ✅ Preserves full error information
+- ✅ Allows programmatic error inspection via `downcast_ref`
+- ✅ Human-readable message still available when possible
+- ⚠️ More complex implementation
+- ⚠️ `Arc<dyn Any + Send + Sync>` has constraints (payload must be `Sync`)
+- ⚠️ Requires changes to `LazyError` structure (breaking change)
+
+#### Approach 3: Use Debug Formatting as Fallback
+
+If the payload implements `Debug`, use that for the message:
+
+```rust
+pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+    let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+        Some(Arc::from(*s))
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        Some(Arc::from(s.as_str()))
+    } else {
+        // Unfortunately, Box<dyn Any> doesn't give us Debug access
+        // We'd need a custom trait or runtime type inspection
+        None
+    };
+    Self(msg)
+}
+```
+
+**Trade-offs:**
+
+- ⚠️ Not actually feasible - `Box<dyn Any>` doesn't provide `Debug` access
+- ⚠️ Would require a custom `PanicPayload` trait that extends `Any + Debug`
+- ⚠️ Cannot retrofit onto existing panic infrastructure
+
+**Recommendation:** Approach 1 is the pragmatic minimal fix. Approach 2 is preferred for comprehensive error handling but requires more significant changes.
+
+---
+
 ## Minor Issues
 
 ### Issue 8: AssertUnwindSafe Risk
@@ -885,6 +1042,239 @@ impl<A: Send + Sync> LazySemigroup<A> for ArcLazyConfig {
 
 ---
 
+### Issue 11: Missing PartialEq/Eq Implementations
+
+**Location:** `Lazy` struct (lines 631-634)
+
+**Current State:**
+
+The `Lazy` type does not implement `PartialEq` or `Eq`, even when the inner type `A` does.
+
+```rust
+pub struct Lazy<'a, Config: LazyConfig, A>(
+    <Config::PtrBrand as RefCountedPointer>::CloneableOf<LazyInner<'a, Config, A>>,
+);
+// No PartialEq or Eq implementation
+```
+
+**Problem:**
+Users cannot compare `Lazy` values directly, which limits use in collections, assertions, and pattern matching.
+
+**Considerations:**
+Implementing equality for lazy values is semantically complex:
+
+1. **Pointer equality**: Should two `Lazy` values be equal if they share the same underlying pointer?
+2. **Value equality**: Should comparison force evaluation and compare the results?
+3. **Thunk equality**: Should unevaluated thunks be comparable (generally impossible)?
+
+#### Approach 1: Pointer Equality (Non-forcing)
+
+Compare the underlying reference-counted pointers without forcing evaluation:
+
+```rust
+impl<'a, Config: LazyConfig, A> PartialEq for Lazy<'a, Config, A> {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare pointer addresses - same lazy value instance
+        std::ptr::eq(
+            &*self.0 as *const _,
+            &*other.0 as *const _,
+        )
+    }
+}
+
+impl<'a, Config: LazyConfig, A> Eq for Lazy<'a, Config, A> {}
+```
+
+**Trade-offs:**
+
+- ✅ Never forces evaluation (pure pointer comparison)
+- ✅ Useful for deduplication and identity checks
+- ✅ No bounds required on `A`
+- ⚠️ Two `Lazy` values with the same computed result are not equal
+- ⚠️ May be surprising to users expecting value equality
+
+#### Approach 2: Value Equality (Forcing)
+
+Force both lazy values and compare results:
+
+```rust
+impl<'a, Config: LazyConfig, A: PartialEq> PartialEq for Lazy<'a, Config, A> {
+    fn eq(&self, other: &Self) -> bool {
+        // First check pointer equality as optimization
+        if std::ptr::eq(&*self.0 as *const _, &*other.0 as *const _) {
+            return true;
+        }
+        
+        // Force both and compare values
+        match (Self::force(self), Self::force(other)) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false, // Errors are never equal
+        }
+    }
+}
+
+impl<'a, Config: LazyConfig, A: Eq> Eq for Lazy<'a, Config, A> {}
+```
+
+**Trade-offs:**
+
+- ✅ Intuitive semantics (compares actual values)
+- ✅ Consistent with how users think about equality
+- ⚠️ Forces evaluation as a side effect of comparison
+- ⚠️ May trigger panics unexpectedly
+- ⚠️ Requires `A: PartialEq`
+
+#### Approach 3: Provide Both via Separate Methods
+
+Don't implement `PartialEq` trait, but provide explicit methods:
+
+```rust
+impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
+    /// Returns true if both lazy values share the same underlying storage.
+    ///
+    /// This does NOT force evaluation.
+    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
+        std::ptr::eq(&*this.0 as *const _, &*other.0 as *const _)
+    }
+    
+    /// Forces both lazy values and compares their results.
+    ///
+    /// Returns `false` if either value is poisoned.
+    pub fn value_eq(this: &Self, other: &Self) -> bool
+    where
+        A: PartialEq,
+    {
+        if Self::ptr_eq(this, other) {
+            return true;
+        }
+        match (Self::force(this), Self::force(other)) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+```
+
+**Trade-offs:**
+
+- ✅ Explicit about semantics (no surprises)
+- ✅ Users choose the comparison type they need
+- ✅ No trait implementation conflicts
+- ⚠️ Cannot use `==` operator
+- ⚠️ Cannot use in `HashMap` or `BTreeMap` as keys
+
+**Recommendation:** Approach 3 provides clarity without surprising behavior. If trait implementation is needed, Approach 1 (pointer equality) is safer as it has no side effects.
+
+---
+
+### Issue 12: Missing Default Implementation
+
+**Location:** `Lazy` struct (lines 631-634)
+
+**Current State:**
+
+The `Lazy` type does not implement `Default`, even when the inner type `A` does.
+
+**Problem:**
+Cannot use `Lazy` in contexts requiring `Default`, such as struct field defaults, `Option::unwrap_or_default()`, or collection initialization.
+
+#### Approach 1: Defer to A::default() (Recommended)
+
+Create a lazy value that will compute `A::default()` when forced:
+
+```rust
+impl<'a, Config: LazyConfig, A: Default + 'a> Default for Lazy<'a, Config, A>
+where
+    Config: LazyConfigWithDefault<'a, A>,
+{
+    fn default() -> Self {
+        Config::lazy_default()
+    }
+}
+
+/// Helper trait for config-specific default implementations
+pub trait LazyConfigWithDefault<'a, A: Default + 'a>: LazyConfig {
+    fn lazy_default() -> Lazy<'a, Self, A>;
+}
+
+impl<'a, A: Default + 'a> LazyConfigWithDefault<'a, A> for RcLazyConfig {
+    fn lazy_default() -> Lazy<'a, Self, A> {
+        Lazy::new(Self::new_thunk(|_| A::default()))
+    }
+}
+
+impl<'a, A: Default + Send + Sync + 'a> LazyConfigWithDefault<'a, A> for ArcLazyConfig {
+    fn lazy_default() -> Lazy<'a, Self, A> {
+        Lazy::new(Self::new_thunk(|_| A::default()))
+    }
+}
+```
+
+**Trade-offs:**
+
+- ✅ Lazy - doesn't compute default until forced
+- ✅ Follows principle of least surprise
+- ✅ Works with any type implementing `Default`
+- ⚠️ Requires helper trait for different configs
+- ⚠️ `ArcLazy` requires `A: Send + Sync`
+
+#### Approach 2: Use Monoid::empty() When Available
+
+For types that are `Monoid`, use the monoid identity:
+
+```rust
+impl<'a, Config: LazyMonoid<A>, A: Monoid + Clone + 'a> Default for Lazy<'a, Config, A> {
+    fn default() -> Self {
+        Config::empty()
+    }
+}
+```
+
+**Trade-offs:**
+
+- ✅ Leverages existing `LazyMonoid` implementation
+- ✅ Semantically correct for monoids
+- ⚠️ Only works for `Monoid` types, not all `Default` types
+- ⚠️ May conflict with Approach 1 (overlapping impls)
+
+#### Approach 3: Convenience Methods Instead of Trait
+
+Provide explicit methods rather than implementing `Default`:
+
+```rust
+impl<'a, A> RcLazy<'a, A> {
+    /// Creates a lazy value that will evaluate to `A::default()` when forced.
+    pub fn lazy_default() -> Self
+    where
+        A: Default + 'a,
+    {
+        Self::new(RcLazyConfig::new_thunk(|_| A::default()))
+    }
+}
+
+impl<'a, A> ArcLazy<'a, A> {
+    /// Creates a thread-safe lazy value that will evaluate to `A::default()` when forced.
+    pub fn lazy_default() -> Self
+    where
+        A: Default + Send + Sync + 'a,
+    {
+        Self::new(ArcLazyConfig::new_thunk(|_| A::default()))
+    }
+}
+```
+
+**Trade-offs:**
+
+- ✅ Simple implementation
+- ✅ No trait complexity
+- ✅ Clear naming indicates lazy behavior
+- ⚠️ Cannot use in contexts requiring `Default` trait
+- ⚠️ Doesn't integrate with standard library patterns
+
+**Recommendation:** Approach 1 is recommended for full `Default` trait support. Approach 3 is a simpler alternative if trait implementation complexity is a concern.
+
+---
+
 ## What's Well-Designed
 
 | Aspect                       | Assessment                                                               |
@@ -919,9 +1309,13 @@ impl<A: Send + Sync> LazySemigroup<A> for ArcLazyConfig {
 7. **Implement `Applicative` and `Monad`** for full FP utility
 8. **Add `thunk` convenience method** to config types (Issue 3, Approach 1)
 9. **Document `AssertUnwindSafe` risks** (Issue 8, Approach 1)
+10. **Improve LazyError payload capture** (Issue 10, Approach 1)
+11. **Add pointer equality method** for `Lazy` (Issue 11, Approach 3)
+12. **Add `lazy_default()` convenience method** (Issue 12, Approach 3)
 
 ### Not Recommended
 
 - Changing `CloneableFn` to support zero-arg functions (too disruptive)
 - Requiring `UnwindSafe` bounds (too restrictive)
 - Removing `Fn(()) -> A` pattern (architectural constraint)
+- Implementing `PartialEq` with forcing semantics (unexpected side effects)
