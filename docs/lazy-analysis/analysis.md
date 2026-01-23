@@ -34,10 +34,10 @@ The `Lazy` type in `fp-library` provides lazy evaluation with memoization, suppo
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         LazyConfig (trait)                       │
+│                         LazyConfig (trait)                      │
 │  - PtrBrand: RefCountedPointer + ThunkWrapper                   │
-│  - OnceBrand: Once                                               │
-│  - FnBrand: CloneableFn                                          │
+│  - OnceBrand: Once                                              │
+│  - FnBrand: CloneableFn                                         │
 │  - ThunkOf<A>: Clone + Deref<Target: Fn(()) -> A>               │
 └─────────────────────────────────────────────────────────────────┘
                     │                           │
@@ -167,6 +167,7 @@ Without these, users cannot compose lazy computations without forcing evaluation
 
 **Architectural Constraint:**
 The library's `Functor` trait is defined as:
+
 ```rust
 fn map<'a, B: 'a, A: 'a, F>(f: F, fa: Self::Of<'a, A>) -> Self::Of<'a, B>
 where
@@ -744,7 +745,7 @@ pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
 The `LazyError::from_panic` method only captures panic payloads that are `&str` or `String`. Any other panic payload type (e.g., custom error types, integers, or structured error objects) results in a `LazyError(None)`, losing all error information at the point of capture.
 
 **Distinction from Issue 5:**
-Issue 5 addresses error loss during *propagation* (re-panic). This issue addresses error loss during *capture* (the initial creation of `LazyError`). Both issues compound: even if Issue 5 is fixed, non-string panics will still be lost due to this issue.
+Issue 5 addresses error loss during _propagation_ (re-panic). This issue addresses error loss during _capture_ (the initial creation of `LazyError`). Both issues compound: even if Issue 5 is fixed, non-string panics will still be lost due to this issue.
 
 **Impact:**
 
@@ -776,7 +777,7 @@ pub fn from_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
 
 **Trade-offs:**
 
-- ✅ Provides at least *some* information for all panics
+- ✅ Provides at least _some_ information for all panics
 - ✅ Simple extension of existing pattern
 - ✅ Backward compatible
 - ⚠️ Still loses type information (everything becomes a string)
@@ -791,7 +792,7 @@ Preserve the full panic payload for later inspection.
 
 **Solution:** Use `Mutex` to provide interior mutability and make the struct `Sync`:
 
-```rust
+````rust
 use std::sync::Mutex;
 
 /// Error type for `Lazy` evaluation failures.
@@ -813,13 +814,13 @@ impl LazyError {
         } else {
             None
         };
-        
+
         Self {
             message,
             payload: Mutex::new(Some(payload)),
         }
     }
-    
+
     /// Attempts to downcast the payload to a specific type.
     /// Returns None if the payload was already taken or doesn't match the type.
     ///
@@ -845,7 +846,7 @@ impl LazyError {
     pub fn payload(&self) -> Option<std::sync::MutexGuard<'_, Option<Box<dyn std::any::Any + Send + 'static>>>> {
         self.payload.lock().ok()
     }
-    
+
     /// Takes the payload out for re-panicking. Returns None if already taken.
     pub fn take_payload(&self) -> Option<Box<dyn std::any::Any + Send + 'static>> {
         self.payload.lock().ok()?.take()
@@ -862,7 +863,7 @@ impl Clone for LazyError {
         }
     }
 }
-```
+````
 
 **Trade-offs:**
 
@@ -1112,7 +1113,7 @@ impl<'a, Config: LazyConfig, A: PartialEq> PartialEq for Lazy<'a, Config, A> {
         if std::ptr::eq(&*self.0 as *const _, &*other.0 as *const _) {
             return true;
         }
-        
+
         // Force both and compare values
         match (Self::force(self), Self::force(other)) {
             (Ok(a), Ok(b)) => a == b,
@@ -1144,7 +1145,7 @@ impl<'a, Config: LazyConfig, A> Lazy<'a, Config, A> {
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
         std::ptr::eq(&*this.0 as *const _, &*other.0 as *const _)
     }
-    
+
     /// Forces both lazy values and compares their results.
     ///
     /// Returns `false` if either value is poisoned.
