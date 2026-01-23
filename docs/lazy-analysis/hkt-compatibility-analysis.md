@@ -31,8 +31,9 @@ This document provides a comprehensive analysis of the compatibility between the
     - [Alternative C: Clone-Bounded Kind Hierarchy](#alternative-c-clone-bounded-kind-hierarchy)
     - [Alternative D: Arc-Based Value Sharing](#alternative-d-arc-based-value-sharing)
     - [Alternative E: Comonadic Operations](#alternative-e-comonadic-operations)
-12. [Final Recommendations](#final-recommendations)
-13. [Conclusion](#conclusion)
+12. [Viability Verification of Alternatives](#viability-verification-of-alternatives)
+13. [Final Recommendations](#final-recommendations)
+14. [Conclusion](#conclusion)
 
 ---
 
@@ -2189,6 +2190,44 @@ let with_metadata = extend::<LazyBrand, _, _, _>(
 | C. Clone-Bounded   | ✅        | ✅        | ❌             | ✅           | Medium     |
 | D. Arc-Based       | ✅ (Arc)  | ✅ (Arc)  | ✅             | ✅           | Medium     |
 | E. Comonadic       | N/A      | N/A      | Partial       | ✅           | Low        |
+
+---
+
+
+## Viability Verification of Alternatives
+
+A detailed technical review of the "Additional Viable Alternatives" confirms that **all proposed alternatives are viable**, with specific implementation considerations noted below.
+
+### Verification of Alternative A: RefFunctor-Only Integration
+**Status: Viable**
+
+*   **Technical Validity**: Defining a `RefFunctor` trait with `map_ref` taking `FnOnce(&A) -> B` is sound and correctly models the reference-based access pattern of `Lazy`.
+*   **Implementation Caveat**: The current implementation of `Lazy` in `fp-library` includes a bound `impl<... A: Clone> Clone for Lazy<... A>`. Since `RefFunctor`'s implementation requires capturing the `Lazy` instance in a closure (which requires the captured variable to be `Clone`), this alternative currently inherits the `A: Clone` requirement.
+    *   **Remediation**: The `A: Clone` bound on `Lazy`'s `Clone` implementation is technically unnecessary for `Rc`/`Arc` based pointers (which are cloneable regardless of the inner type). Removing this bound in `fp-library/src/types/lazy.rs` is required to fully realize the goal of supporting non-`Clone` types.
+
+### Verification of Alternative B: Dual-Type Design (Eval + Memo)
+**Status: Viable**
+
+*   **Technical Validity**: Splitting the concept into `Eval` (value-based, `FnOnce`) and `Memo` (reference-based) resolves the conflict by separating the concerns. `Eval` correctly implements standard `Functor` and `Semimonad` traits.
+*   **Implementation Caveat**: The recursive `bind` implementation for `Eval` (`f(ma.run()).run()`) is not stack-safe in Rust. A production implementation would require a trampoline mechanism to prevent stack overflows in deep recursion. This is a standard pattern in FP libraries (e.g., Cats Effect's `Eval`) and does not invalidate the design.
+
+### Verification of Alternative C: Clone-Bounded Kind Hierarchy
+**Status: Viable**
+
+*   **Technical Validity**: Enforcing `A: Clone` at the `Kind` level ensures type safety for `Clone`-requiring operations.
+*   **Implementation Caveat**: As noted, this requires updating the `impl_kind!` macro to correctly propagate bounds. This is a tooling task, not a fundamental flaw.
+
+### Verification of Alternative D: Arc-Based Value Sharing
+**Status: Viable**
+
+*   **Technical Validity**: Using `Arc<A>` as the value carrier allows for `Functor`-like operations without cloning the underlying `A`.
+*   **Trade-off**: This shifts the API to work with `Arc<A>` explicitly, which is a valid design choice for resource-heavy types.
+
+### Verification of Alternative E: Comonadic Operations
+**Status: Viable**
+
+*   **Technical Validity**: `Lazy` fits the Comonad interface (`extend` takes `&Lazy<A>`).
+*   **Implementation Caveat**: Similar to Alternative A, the `extend` operation requires cloning the `Lazy` instance. The current unnecessary `A: Clone` bound on `Lazy`'s `Clone` implementation must be removed to support non-`Clone` types as proposed.
 
 ---
 
