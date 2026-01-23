@@ -73,7 +73,7 @@ impl Canonicalizer {
 		match bound {
 			TypeParamBound::Lifetime(lt) => {
 				let idx = self.lifetime_map.get(&lt.ident.to_string()).expect("Unknown lifetime");
-				format!("l{}", idx)
+				format!("l{idx}")
 			}
 			TypeParamBound::Trait(tr) => {
 				// Full path with generic arguments
@@ -92,7 +92,7 @@ impl Canonicalizer {
 									.map(|a| self.canonicalize_generic_arg(a))
 									.collect::<Vec<_>>()
 									.join(",");
-								format!("{}<{}>", ident, args_str)
+								format!("{ident}<{args_str}>")
 							}
 							PathArguments::Parenthesized(args) => {
 								// Fn trait bounds: Fn(A) -> B
@@ -106,13 +106,13 @@ impl Canonicalizer {
 									ReturnType::Default => "()".to_string(),
 									ReturnType::Type(_, ty) => self.canonicalize_type(ty),
 								};
-								format!("{}({})->{}", ident, inputs, output)
+								format!("{ident}({inputs})->{output}")
 							}
 						}
 					})
 					.collect::<Vec<_>>()
 					.join("::");
-				format!("t{}", path)
+				format!("t{path}")
 			}
 			_ => panic!("Unsupported bound type"),
 		}
@@ -136,7 +136,7 @@ impl Canonicalizer {
 			GenericArgument::Type(ty) => self.canonicalize_type(ty),
 			GenericArgument::Lifetime(lt) => {
 				if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
-					format!("l{}", idx)
+					format!("l{idx}")
 				} else {
 					lt.ident.to_string()
 				}
@@ -159,7 +159,7 @@ impl Canonicalizer {
 				if let Some(ident) = type_path.path.get_ident()
 					&& let Some(idx) = self.type_map.get(&ident.to_string())
 				{
-					return format!("T{}", idx);
+					return format!("T{idx}");
 				}
 
 				type_path
@@ -177,7 +177,7 @@ impl Canonicalizer {
 									.map(|a| self.canonicalize_generic_arg(a))
 									.collect::<Vec<_>>()
 									.join(",");
-								format!("{}<{}>", ident, args_str)
+								format!("{ident}<{args_str}>")
 							}
 							PathArguments::Parenthesized(args) => {
 								let inputs = args
@@ -190,7 +190,7 @@ impl Canonicalizer {
 									ReturnType::Default => "()".to_string(),
 									ReturnType::Type(_, ty) => self.canonicalize_type(ty),
 								};
-								format!("{}({})->{}", ident, inputs, output)
+								format!("{ident}({inputs})->{output}")
 							}
 						}
 					})
@@ -200,7 +200,7 @@ impl Canonicalizer {
 			Type::Reference(type_ref) => {
 				let lt = if let Some(lt) = &type_ref.lifetime {
 					if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
-						format!("l{} ", idx)
+						format!("l{idx} ")
 					} else {
 						format!("{} ", lt.ident)
 					}
@@ -208,7 +208,7 @@ impl Canonicalizer {
 					"".to_string()
 				};
 				let mutability = if type_ref.mutability.is_some() { "mut " } else { "" };
-				format!("&{}{}{}", lt, mutability, self.canonicalize_type(&type_ref.elem))
+				format!("&{lt}{mutability}{}", self.canonicalize_type(&type_ref.elem))
 			}
 			Type::Tuple(tuple) => {
 				let elems = tuple
@@ -217,14 +217,14 @@ impl Canonicalizer {
 					.map(|t| self.canonicalize_type(t))
 					.collect::<Vec<_>>()
 					.join(",");
-				format!("({})", elems)
+				format!("({elems})")
 			}
 			Type::Slice(slice) => {
 				format!("[{}]", self.canonicalize_type(&slice.elem))
 			}
 			Type::Array(array) => {
 				let len = quote!(#array.len).to_string().replace(" ", "");
-				format!("[{};{}]", self.canonicalize_type(&array.elem), len)
+				format!("[{};{len}]", self.canonicalize_type(&array.elem))
 			}
 			Type::Never(_) => "!".to_string(),
 			Type::Infer(_) => "_".to_string(),

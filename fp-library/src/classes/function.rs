@@ -1,7 +1,4 @@
-//! Function wrappers.
-//!
-//! This module defines the [`Function`] trait, which provides an abstraction for wrappers over closures.
-//! This allows for generic handling of functions in higher-kinded contexts.
+//! A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
 //!
 //! ### Examples
 //!
@@ -15,7 +12,7 @@
 use super::category::Category;
 use std::ops::Deref;
 
-/// Abstraction for wrappers over closures.
+/// A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
 ///
 /// This trait is implemented by "Brand" types (like [`ArcFnBrand`][crate::brands::ArcFnBrand]
 /// and [`RcFnBrand`][crate::brands::RcFnBrand]) to provide a way to construct

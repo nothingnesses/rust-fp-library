@@ -1,6 +1,4 @@
-//! Semimonad type class.
-//!
-//! This module defines the [`Semimonad`] trait, which allows for sequencing computations where the second computation depends on the result of the first.
+//! A type class for sequencing computations where the second computation depends on the result of the first.
 //!
 //! ### Examples
 //!

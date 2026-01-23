@@ -1,6 +1,4 @@
-//! Monoid type class.
-//!
-//! This module defines the [`Monoid`] trait, which extends [`Semigroup`] with an identity element.
+//! A type class for types that have an identity element and an associative binary operation.
 //!
 //! ### Examples
 //!
@@ -14,8 +12,6 @@
 use super::semigroup::Semigroup;
 
 /// A type class for types that have an identity element and an associative binary operation.
-///
-/// `Monoid` extends [`Semigroup`] with an identity element.
 ///
 /// ### Laws
 ///

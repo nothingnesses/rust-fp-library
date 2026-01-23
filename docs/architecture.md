@@ -2,9 +2,70 @@
 
 This document records architectural decisions and design patterns used in `fp-library`.
 
-## Module Organization
+## 1. Zero-Cost Abstractions & Uncurrying
 
-### 1. Brand Structs (Centralized)
+**Decision:**
+The library adopts an **uncurried** API design using **monomorphized** functions (`impl Fn`) for the majority of operations, while reserving **dynamic dispatch** (`dyn Fn`) only for specific "functions-as-data" use cases.
+
+**Reasoning:**
+
+- **Performance (Zero-Cost):**
+  - **Monomorphization:** Uncurried functions (e.g., `map(f, fa)`) allow the compiler to monomorphize the function `f`, inlining it and removing vtable lookups.
+  - **Allocation Removal:** Curried functions (e.g., `map(f)(fa)`) required creating intermediate closures and often wrapping them in `Rc`/`Arc` to satisfy type signatures. Uncurried versions avoid this allocation entirely.
+- **Ergonomics:**
+  - Standard Rust idioms prefer uncurried functions.
+  - Type inference is significantly improved, reducing the need for complex type annotations.
+- **Granularity:**
+  - The `Lift` trait (providing `lift2`) allows for zero-cost combination of contexts without the intermediate closure allocations required by `apply`.
+
+**Hybrid Approach:**
+
+While the core API is uncurried, the library retains the ability to handle functions as data where necessary:
+
+1.  **Zero-Cost Operations (Uncurried, `impl Fn`):**
+
+    - Used for: `map`, `bind`, `fold`, `traverse`, `lift2`.
+    - Characteristics: No heap allocation, static dispatch, full inlining.
+
+2.  **Functions-as-Data (Dynamic, `dyn Fn`):**
+    - Used for: `Semiapplicative::apply` (heterogeneous collections), `Lazy` (thunks), `Endofunction` (composition).
+    - Characteristics: Requires `Rc`/`Arc` wrapping (via `FnBrand`), dynamic dispatch.
+    - Justification: These operations fundamentally require storing functions of potentially different concrete types in the same structure, or cloning functions where the concrete type is anonymous.
+
+## 2. Pointer Abstraction & Shared Semantics
+
+**Decision:**
+The library uses a unified pointer hierarchy to abstract over reference counting strategies (`Rc` vs `Arc`) and to enable shared memoization semantics for lazy evaluation.
+
+**Hierarchy:**
+
+- `Pointer`: Base trait for heap-allocated pointers (requires `Deref`).
+- `RefCountedPointer`: Extends `Pointer` with `CloneableOf` (requires `Clone + Deref`).
+- `SendRefCountedPointer`: Extends `RefCountedPointer` with `SendOf` (requires `Send + Sync`).
+
+**Patterns:**
+
+1.  **Generic Function Brands:** `FnBrand<P>` is parameterized over a `RefCountedPointer` brand `P`.
+
+    - `RcFnBrand` is a type alias for `FnBrand<RcBrand>`.
+    - `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
+    - This allows unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`.
+
+2.  **Shared Lazy Evaluation:** `Lazy` uses `RefCountedPointer` to share the memoization state (`OnceCell`) across clones.
+    - `Lazy<Config, A>` is parameterized by a `LazyConfig` which bundles the pointer brand and other configuration.
+    - `RcLazy` uses `Rc` for sharing (not thread-safe).
+    - `ArcLazy` uses `Arc` and `Mutex` for sharing (thread-safe).
+    - This ensures Haskell-like semantics where forcing one reference updates the value for all clones.
+
+**Reasoning:**
+
+- **Code Reuse:** Eliminates duplication between `Rc` and `Arc` implementations.
+- **Correctness:** Ensures `Lazy` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
+- **Extensibility:** The `Pointer` base trait allows for future support of unique pointers (`Box`) or custom allocators.
+
+## 3. Module Organization
+
+### 3.1. Brand Structs (Centralized)
 
 **Decision:**
 Brand structs (e.g., `OptionBrand`) are **centralized** in `src/brands.rs`.
@@ -14,7 +75,7 @@ Brand structs (e.g., `OptionBrand`) are **centralized** in `src/brands.rs`.
 - **Leaf Nodes:** In the dependency graph, Brand structs are **leaf nodes**; they have no outgoing edges (dependencies) to other modules in the crate.
 - **Graph Stability:** Centralizing these leaf nodes in `brands.rs` creates a stable foundation. Higher-level modules (like `types/*.rs`) can import from this common sink without creating back-edges or cycles.
 
-### 2. Free Functions (Distributed)
+### 3.2. Free Functions (Distributed)
 
 **Decision:**
 Free function wrappers (e.g., `map`, `pure`) are **defined in their trait's module** (e.g., `src/classes/functor.rs`) and re-exported in `src/functions.rs`.
@@ -25,13 +86,13 @@ Free function wrappers (e.g., `map`, `pure`) are **defined in their trait's modu
 - **Cycle Prevention:** `functions.rs` also contains generic helpers (like `compose`) which are **leaf nodes**. If we defined the downstream wrappers in `functions.rs`, the file would effectively become both upstream _and_ downstream of the trait modules. This would create **bidirectional dependencies** (cycles) if a trait module ever needed to import a helper.
 - **Facade Pattern:** `functions.rs` acts as a **facade**, re-exporting symbols to provide a unified API surface without coupling the underlying definition graph.
 
-### 3. Type Parameter Ordering
+## 4. Type Parameter Ordering
 
 **Decision:**
-Type parameters for traits and functions are ordered according to two principles, applied in sequence:
+Type parameters for traits and functions are ordered primarily by **Inference Priority**, and secondarily by **Dependency Order**:
 
-1.  **Inference Priority:** Concrete types that cannot be easily inferred by the compiler (e.g., "Brand" types or return types) are placed **before** types that can be inferred.
-2.  **Dependency Order:** Type parameters that are dependencies of other type parameters are placed **before** the dependent parameters.
+1. **Inference Priority:** Type parameters are ordered by inferability: **rarely inferable** types (e.g., "Brand" markers) are placed first, followed by **context-dependent** types (e.g., return types), and finally **usually inferable** types (e.g., input arguments).
+2. **Dependency Order:** Type parameters that are dependencies of other type parameters are placed **before** the dependent parameters.
 
 **Reasoning:**
 
@@ -41,12 +102,50 @@ Type parameters for traits and functions are ordered according to two principles
 
 #### Determining Inferability
 
-To determine which type parameters can be inferred (and thus should be placed later in the list):
+> **Note:** Inferability is fundamentally a property of the _call site_, not the function signature alone. The same type parameter may be inferable in one context and not another. The categories below are _heuristics_ for predicting typical inference behavior.
 
-- **Inferable:** Parameters that appear in the function's input arguments (e.g., `A` in `fn map<A, B>(a: A, ...)`). The compiler can determine these from the values passed at the call site.
-- **Uninferable:** Parameters that only appear in the return type (e.g., `M` in `fn empty<M>() -> M`) or act as "Brand" markers for trait selection. These require explicit specification via turbofish (`::<>`) and should be placed first for better ergonomics.
+Type parameters fall into three categories based on how reliably the compiler can infer them:
 
-### 4. Documentation & Examples
+1. **Rarely Inferable:** Parameters appearing only in `where` bounds, or "Brand" markers used for trait selection. These typically require explicit turbofish specification.
+
+   ```rust
+   // Brand only appears in where bounds for trait selection
+   fn pure<Brand, A>(value: A) -> Kind<Brand, A>
+   where
+    Brand: Pointed<A>
+   { ... }
+
+   // Brand cannot be inferred; turbofish required
+   pure::<OptionBrand, _>(42)  // ✓
+   pure(42)                    // ✗ cannot infer Brand
+   ```
+
+2. **Context-Dependent:** Parameters appearing only in the return type. These _may_ be inferred if the call-site provides type context, but often require turbofish when context is absent.
+
+   ```rust
+   fn default<T: Default>() -> T { T::default() }
+
+   let x: i32 = default();      // ✓ T inferred from annotation
+   vec.push(default());         // ✓ T inferred from vec's element type
+   let y = default();           // ✗ cannot infer T
+   let z = default::<String>(); // ✓ explicit turbofish
+   ```
+
+3. **Usually Inferable:** Parameters appearing in function input arguments. The compiler infers these from call-site values.
+
+   ```rust
+   fn map<Brand, FnBrand, A, B>(f: Kind<FnBrand, A, B>, fa: Kind<Brand, A>) -> Kind<Brand, B>
+   where
+    Brand: Functor<FnBrand, A, B>
+   { ... }
+
+   // A and B inferred from closure and input; Brand still needs turbofish
+   map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))
+   ```
+
+**Ordering:** Place type parameters in the order listed above (rarely inferable → context-dependent → usually inferable). This enables ergonomic turbofish patterns like `func::<Brand, _, _>(...)`, where users specify only the uninferable parameters and let the compiler fill in the rest.
+
+## 5. Documentation & Examples
 
 **Decision:**
 Documentation must adhere to the following standards regarding formatting, type signatures, and examples:
@@ -55,81 +154,82 @@ Documentation must adhere to the following standards regarding formatting, type 
 
    - **Functions & Methods:** (Note: functions use uncurried semantics, so the documentation should reflect this)
 
-     ````rust
-     /// Short description.
-     ///
-     /// Comprehensive explanation detailing the purpose of the function.
-     ///
-     /// ### Type Signature
-     ///
-     /// `Accurate "Hindley-Milner"/Haskell-like type signature with quantifiers if appropriate`
-     ///
-     /// ### Type Parameters
-     ///
-     /// * `TypeParameter1`: Explanation of `TypeParameter1`'s purpose.
-     /// ...other type parameters
-     ///
-     /// ### Parameters
-     ///
-     /// * `parameter1`: Explanation of `parameter1`'s purpose.
-     /// ...other parameters
-     ///
-     /// ### Returns
-     ///
-     /// Explanation of the value returned.
-     ///
-     /// ### Examples
-     ///
-     /// ```
-     /// Comprehensive examples specific to the type implementing the trait, showing the full extent of the function's capabilities
-     /// ```
-     ````
+   ````rust
+   /// Short description.
+   ///
+   /// Comprehensive explanation detailing the purpose of the function.
+   ///
+   /// ### Type Signature
+   ///
+   /// `Accurate "Hindley-Milner"/Haskell-like type signature with quantifiers if appropriate`
+   ///
+   /// ### Type Parameters
+   ///
+   /// * `TypeParameter1`: Explanation of `TypeParameter1`'s purpose.
+   /// ...other type parameters
+   ///
+   /// ### Parameters
+   ///
+   /// * `parameter1`: Explanation of `parameter1`'s purpose.
+   /// ...other parameters
+   ///
+   /// ### Returns
+   ///
+   /// Explanation of the value returned.
+   ///
+   /// ### Examples
+   ///
+   /// ```
+   /// Comprehensive examples specific to the type implementing the trait, showing the full extent of the function's capabilities
+   /// ```
+   ````
 
    - **Modules:**
 
-     ````rust
-     //! Short description of the module.
-     //!
-     //! Comprehensive explanation of the module's purpose, scope, and key components.
-     //!
-     //! ### Examples
-     //!
-     //! ```
-     //! // Module-level examples
-     //! ```
-     ````
+   ````rust
+   //! Short description of the module.
+   //!
+   //! Comprehensive explanation of the module's purpose, scope, and key components.
+   //!
+   //! ### Examples
+   //!
+   //! ```
+   //! // Module-level examples
+   //! ```
+   ````
 
    - **Structs & Enums:**
 
-     ````rust
-     /// Short description.
-     ///
-     /// Comprehensive explanation.
-     ///
-     /// ### Type Parameters
-     ///
-     /// * `T`: Explanation of `T`'s purpose.
-     ///
-     /// ### Fields
-     ///
-     /// * `field_name`: Explanation of the field (if not documented individually).
-     ///
-     /// ### Examples
-     ///
-     /// ```
-     /// // Examples
-     /// ```
-     ````
+   ````rust
+   /// Short description.
+   ///
+   /// Comprehensive explanation.
+   ///
+   /// ### Type Parameters
+   ///
+   /// * `T`: Explanation of `T`'s purpose.
+   ///
+   /// ### Fields
+   ///
+   /// * `field_name`: Explanation of the field (if not documented individually).
+   ///
+   /// ### Examples
+   ///
+   /// ```
+   /// // Examples
+   /// ```
+   ````
 
    - **Struct Fields:**
 
-     ```rust
-     /// Short description of the field's purpose and constraints.
-     ```
+   ```rust
+   /// Short description of the field's purpose and constraints.
+   ```
 
 Sections in the documentation that would be empty should be omitted.
 
 2. **Signature Accuracy:** The "Type Signature" section in documentation comments must be accurate to the code. Instances of `Brand` types in type parameters should be replaced with their corresponding concrete type in the signature, for consistency and to prevent confusion. E.g. prefer `forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e` instead of `forall fn_brand e b a. Semiapplicative (ResultWithErrBrand e) => (Result (fn_brand a b) e, Result a e) -> Result b e`.
+
 3. **Quantifier Accuracy & Ordering:** The quantifiers in the "Type Signature" section must be:
 
    3.1. Accurate and correctly ordered (matching the code).
@@ -137,6 +237,7 @@ Sections in the documentation that would be empty should be omitted.
    3.2. But omit quantifiers that aren't used in the rest of the signature, for clarity.
 
 4. **Parameter List Ordering:** The items in the "Type Parameters" section must be correctly ordered (matching the code).
+
 5. **Examples:** Where possible, all examples should:
 
    5.1. Import items using grouped wildcards instead of individually by name. Example:
@@ -149,7 +250,7 @@ Sections in the documentation that would be empty should be omitted.
 
    ```rust
    /// use fp_library::functions::apply;
-   /// use fp_library::classes::clonable_fn::ClonableFn;
+   /// use fp_library::classes::cloneable_fn::CloneableFn;
    /// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
    ```
 

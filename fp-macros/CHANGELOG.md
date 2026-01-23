@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-23
+
+### Added
+- **`generate_trait_re_exports!` Macro**: Added a new procedural macro to automatically generate `pub use` statements for public traits in a directory.
+
+### Changed
+- **`generate_reexports!` Rename (API Breaking)**:
+  - Renamed `generate_reexports!` to `generate_function_re_exports!` to distinguish it from the new trait re-export macro.
+
 ## [0.2.2] - 2026-01-19
 
 ### Added
@@ -51,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`Apply!` Macro Enhancement**:
   - Added optional `output` parameter for accessing associated types other than `Of` (e.g., `SendOf`).
-  - Example: `Apply!(brand: ArcFnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (i32, i32))`.
+  - Example: `Apply!(brand: ArcFnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (i32, i32))`.
 - **Testing**:
   - Added UI test `apply_invalid_output.rs` for invalid output parameter error messages.
   - Added unit tests for `output` parameter parsing and code generation.

@@ -1,22 +1,20 @@
-//! Semiapplicative type class.
-//!
-//! This module defines the [`Semiapplicative`] trait, which provides the ability to apply functions within a context to values within a context.
+//! A type class for applying functions within a context to values within a context.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*};
 //!
-//! let f = Some(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+//! let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = Some(5);
 //! let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
-use super::{clonable_fn::ClonableFn, functor::Functor, lift::Lift};
+use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
 
-/// A type class for types that support function application within a context.
+/// A type class for applying functions within a context to values within a context.
 ///
 /// `Semiapplicative` provides the ability to apply functions that are themselves
 /// wrapped in a context to values that are also wrapped in a context.
@@ -41,7 +39,7 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	/// * `B`: The type of the output value.
 	/// * `A`: The type of the input value.
 	///
@@ -59,13 +57,13 @@ pub trait Semiapplicative: Lift + Functor {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
-	/// let f = Some(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
 	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 }
@@ -80,7 +78,7 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the clonable function wrapper.
+/// * `FnBrand`: The brand of the cloneable function wrapper.
 /// * `Brand`: The brand of the context.
 /// * `B`: The type of the output value.
 /// * `A`: The type of the input value.
@@ -99,13 +97,13 @@ pub trait Semiapplicative: Lift + Functor {
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*};
 ///
-/// let f = Some(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// let x = Some(5);
 /// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn apply<'a, FnBrand: 'a + ClonableFn, Brand: Semiapplicative, B: 'a, A: 'a + Clone>(
-	ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+pub fn apply<'a, FnBrand: 'a + CloneableFn, Brand: Semiapplicative, B: 'a, A: 'a + Clone>(
+	ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 	Brand::apply::<FnBrand, B, A>(ff, fa)

@@ -37,11 +37,9 @@ use std::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::functions::*;
-/// use fp_library::types::endomorphism::Endomorphism;
-/// use fp_library::brands::RcFnBrand;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
 /// ```
 pub struct Endomorphism<'a, C: Category, A>(
@@ -73,11 +71,9 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
 	pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
@@ -182,12 +178,10 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// let g = Endomorphism::<RcFnBrand, _>::new(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
 	///
 	/// // f(g(x)) = (x + 1) * 2
 	/// let h = append::<_>(f, g);
@@ -217,9 +211,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::endomorphism::Endomorphism;
-	/// use fp_library::brands::RcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);
@@ -234,7 +226,7 @@ mod tests {
 	use super::*;
 	use crate::{
 		brands::RcFnBrand,
-		classes::{clonable_fn::ClonableFn, monoid::empty, semigroup::append},
+		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
 	};
 	use quickcheck_macros::quickcheck;
 
@@ -243,13 +235,13 @@ mod tests {
 	/// Tests the associativity law for Semigroup.
 	#[quickcheck]
 	fn semigroup_associativity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
-		let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let g = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_mul(2)
 		}));
-		let h = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let h = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_sub(3)
 		}));
 
@@ -264,7 +256,7 @@ mod tests {
 	/// Tests the left identity law for Monoid.
 	#[quickcheck]
 	fn monoid_left_identity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endomorphism<RcFnBrand, i32>>();
@@ -276,7 +268,7 @@ mod tests {
 	/// Tests the right identity law for Monoid.
 	#[quickcheck]
 	fn monoid_right_identity(val: i32) -> bool {
-		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as ClonableFn>::new(|x: i32| {
+		let f = Endomorphism::<RcFnBrand, _>::new(<RcFnBrand as CloneableFn>::new(|x: i32| {
 			x.wrapping_add(1)
 		}));
 		let id = empty::<Endomorphism<RcFnBrand, i32>>();

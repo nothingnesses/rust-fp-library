@@ -14,7 +14,7 @@ use impl_kind::{ImplKindInput, impl_kind_impl};
 use parse::KindInput;
 use proc_macro::TokenStream;
 use quote::quote;
-use reexport::{ReexportInput, generate_reexports_impl};
+use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
 use syn::parse_macro_input;
 
 pub(crate) mod apply;
@@ -23,7 +23,7 @@ pub(crate) mod def_kind;
 pub(crate) mod generate;
 pub(crate) mod impl_kind;
 pub(crate) mod parse;
-pub(crate) mod reexport;
+pub(crate) mod re_export;
 
 #[cfg(test)]
 mod property_tests;
@@ -202,7 +202,7 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// # Syntax
 ///
 /// ```ignore
-/// generate_reexports!("path/to/directory", {
+/// generate_function_re_exports!("path/to/directory", {
 ///     original_name: aliased_name,
 ///     ...
 /// })
@@ -214,13 +214,41 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// # Examples
 ///
 /// ```ignore
-/// generate_reexports!("src/classes", {
+/// generate_function_re_exports!("src/classes", {
 ///     identity: category_identity,
 ///     new: fn_new,
 /// });
 /// ```
 #[proc_macro]
-pub fn generate_reexports(input: TokenStream) -> TokenStream {
+pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReexportInput);
-	generate_reexports_impl(input).into()
+	generate_function_re_exports_impl(input).into()
+}
+
+/// Generates re-exports for all public traits in a directory.
+///
+/// This macro scans the specified directory for Rust files, parses them to find public traits,
+/// and generates `pub use` statements for them.
+///
+/// # Syntax
+///
+/// ```ignore
+/// generate_trait_re_exports!("path/to/directory", {
+///     original_name: aliased_name,
+///     ...
+/// })
+/// ```
+///
+/// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
+/// * `aliases`: A map of trait names to their desired aliases (optional).
+///
+/// # Examples
+///
+/// ```ignore
+/// generate_trait_re_exports!("src/classes", {});
+/// ```
+#[proc_macro]
+pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
+	let input = parse_macro_input!(input as ReexportInput);
+	generate_trait_re_exports_impl(input).into()
 }

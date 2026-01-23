@@ -13,7 +13,7 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Arrow`**                          | `Fn(A) -> B`                                        | Abstraction for computation, allowing composition and tuple manipulation.                                    |                                                                                 |
 | **`Bifunctor`**                      | `Result::map_err`, Tuple operations                 | Allows mapping over two types independently. Essential for `Result<T, E>` and `Pair<A, B>`.                  |                                                                                 |
 | **`Category`**                       | N/A                                                 | Abstraction for composition (identity and composition).                                                      | `fp-library/src/classes/category.rs`                                            |
-| **`ClonableFn`**                     | `Clone + Fn`                                        | A function trait that requires `Clone`, allowing the function itself to be cloned.                           | `fp-library/src/classes/clonable_fn.rs`                                         |
+| **`CloneableFn`**                     | `Clone + Fn`                                        | A function trait that requires `Clone`, allowing the function itself to be cloned.                           | `fp-library/src/classes/cloneable_fn.rs`                                         |
 | **`Comonad`**                        | `&` (References), `Box` (context access)            | The dual of Monad. Represents context-dependent computation where you can extract a value.                   |                                                                                 |
 | **`Contravariant`**                  | `cmp::Ordering`, Comparison functions               | Functors that map inputs rather than outputs. Crucial for composable comparison logic.                       |                                                                                 |
 | **`Defer`**                          | Lazy evaluation                                     | Abstraction for deferring execution.                                                                         | `fp-library/src/classes/defer.rs`                                               |
@@ -30,22 +30,28 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`Once`**                           | `OnceCell`, `OnceLock`                              | Abstraction for run-once semantics.                                                                          | `fp-library/src/classes/once.rs`                                                |
 | **`ParFoldable`**                    | `rayon` (parallel iterators)                        | Parallel version of `Foldable`.                                                                              | `fp-library/src/classes/par_foldable.rs`                                        |
 | **`Pointed`**                        | N/A                                                 | Pointed functor (pure/return).                                                                               | `fp-library/src/classes/pointed.rs`                                             |
+| **`Pointer`**                        | `Box`, `Rc`, `Arc`                                  | Base trait for heap-allocated pointers.                                                                      | `fp-library/src/classes/pointer.rs`                                             |
 | **`Profunctor`**                     | `Fn(A) -> B`                                        | Generalization of functions that can map over input (contravariant) and output (covariant).                  |                                                                                 |
+| **`RefCountedPointer`**              | `Rc`, `Arc`                                         | Extension for pointers that allow shared ownership (cloning).                                                | `fp-library/src/classes/pointer.rs`                                             |
 | **`Semiapplicative`**                | N/A                                                 | Applicative without `pure` (Apply).                                                                          | `fp-library/src/classes/semiapplicative.rs`                                     |
 | **`Semigroup`**                      | `Add`                                               | Associative binary operation.                                                                                | `fp-library/src/classes/semigroup.rs`                                           |
 | **`Semigroupoid`**                   | N/A                                                 | Category without identity.                                                                                   | `fp-library/src/classes/semigroupoid.rs`                                        |
 | **`Semimonad`**                      | N/A                                                 | Monad without `pure` (Bind).                                                                                 | `fp-library/src/classes/semimonad.rs`                                           |
-| **`SendClonableFn`**                 | `Clone + Fn + Send + Sync`                          | A function trait that requires `Clone + Send + Sync`.                                                        | `fp-library/src/classes/send_clonable_fn.rs`                                    |
+| **`SendCloneableFn`**                 | `Clone + Fn + Send + Sync`                          | A function trait that requires `Clone + Send + Sync`.                                                        | `fp-library/src/classes/send_cloneable_fn.rs`                                    |
+| **`SendDefer`**                      | Lazy evaluation (thread-safe)                       | Abstraction for deferring execution with `Send + Sync` bounds.                                               | `fp-library/src/classes/send_defer.rs`                                          |
+| **`SendRefCountedPointer`**          | `Arc`                                               | Extension for thread-safe reference-counted pointers.                                                        | `fp-library/src/classes/pointer.rs`                                             |
 | **`Show`**                           | `std::fmt::Display`, `std::fmt::Debug`              | Configurable string representation in FP contexts.                                                           |                                                                                 |
 | **`Traversable`**                    | `Iterator::collect`                                 | Data structures that can be traversed, turning `T<F<A>>` into `F<T<A>>`.                                     | `fp-library/src/classes/traversable.rs`                                         |
+| **`TryMonoid`**                      | N/A                                                 | Monoid with fallible combination.                                                                            | `fp-library/src/classes/try_monoid.rs`                                          |
+| **`TrySemigroup`**                   | N/A                                                 | Semigroup with fallible combination.                                                                         | `fp-library/src/classes/try_semigroup.rs`                                       |
 | **`Witherable`**                     | N/A                                                 | Effectful filtering (traversal + filtering).                                                                 | `fp-library/src/classes/witherable.rs`                                          |
 
 ## Data Types (Structs/Brands)
 
 | FP Data Type            | Rust `std` Equivalent          | Description                                              | Implementation Path                    |
 | :---------------------- | :----------------------------- | :------------------------------------------------------- | :------------------------------------- |
-| **`ArcBrand`**          | `std::sync::Arc`               | Shared ownership smart pointer.                          |                                        |
-| **`ArcFnBrand`**        | `Arc<dyn Fn>`                  | Brand for `Arc`-wrapped closures.                        | `fp-library/src/types/arc_fn.rs`       |
+| **`ArcBrand`**          | `std::sync::Arc`               | Shared ownership smart pointer.                          | `fp-library/src/types/arc_ptr.rs`      |
+| **`ArcFnBrand`**        | `Arc<dyn Fn>`                  | Brand for `Arc`-wrapped closures.                        | `fp-library/src/types/fn_brand.rs`     |
 | **`BinaryHeapBrand`**   | `std::collections::BinaryHeap` | Priority queue.                                          |                                        |
 | **`BoxBrand`**          | `std::boxed::Box`              | Fundamental smart pointer.                               |                                        |
 | **`BTreeMapBrand`**     | `std::collections::BTreeMap`   | Sorted key-value store.                                  |                                        |
@@ -69,8 +75,8 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`OsStringBrand`**     | `std::ffi::OsString`           | Owned OS string.                                         |                                        |
 | **`PairBrand`**         | `(A, B)`                       | Product type.                                            | `fp-library/src/types/pair.rs`         |
 | **`PathBufBrand`**      | `std::path::PathBuf`           | Owned path.                                              |                                        |
-| **`RcBrand`**           | `std::rc::Rc`                  | Shared ownership smart pointer.                          |                                        |
-| **`RcFnBrand`**         | `Rc<dyn Fn>`                   | Brand for `Rc`-wrapped closures.                         | `fp-library/src/types/rc_fn.rs`        |
+| **`RcBrand`**           | `std::rc::Rc`                  | Shared ownership smart pointer.                          | `fp-library/src/types/rc_ptr.rs`       |
+| **`RcFnBrand`**         | `Rc<dyn Fn>`                   | Brand for `Rc`-wrapped closures.                         | `fp-library/src/types/fn_brand.rs`     |
 | **`Reader`**            | Function arguments, `std::env` | Encapsulates dependency injection.                       |                                        |
 | **`RefCellBrand`**      | `std::cell::RefCell`           | Interior mutability container.                           |                                        |
 | **`ResultBrand`**       | `Result`                       | Success or failure.                                      | `fp-library/src/types/result.rs`       |
@@ -105,6 +111,11 @@ These are newtypes that provide specific `Semigroup` or `Monoid` implementations
 | **`constant`** | N/A                      | Returns a function that always returns the given value. | `fp-library/src/functions.rs` |
 | **`flip`**     | N/A                      | Returns a function with arguments flipped.              | `fp-library/src/functions.rs` |
 | **`identity`** | `std::convert::identity` | Returns its input.                                      | `fp-library/src/functions.rs` |
+| **`pointer_new`** | `Box::new`, `Rc::new`, `Arc::new` | Wraps a value in a pointer.                             | `fp-library/src/functions.rs` |
+| **`ref_counted_new`** | `Rc::new`, `Arc::new` | Wraps a value in a cloneable pointer.                    | `fp-library/src/functions.rs` |
+| **`send_ref_counted_new`** | `Arc::new` | Wraps a value in a thread-safe pointer.                 | `fp-library/src/functions.rs` |
+| **`try_append`** | N/A | Fallibly combines two values.                           | `fp-library/src/functions.rs` |
+| **`try_empty`** | N/A | Returns the empty value for a fallible monoid.          | `fp-library/src/functions.rs` |
 
 ## Summary of Priorities
 

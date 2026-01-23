@@ -22,14 +22,16 @@
 //!   - `Category`, `Semigroupoid`
 //!   - `Pointed`, `Lift`, `Defer`, `Once`
 //!   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-//!   - `Function`, `ClonableFn`, `SendClonableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
+//!   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
+//!   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
+//!   - `TrySemigroup`, `TryMonoid`, `SendDefer`
 //! - **Helper Functions:** Standard FP utilities:
 //!   - `compose`, `constant`, `flip`, `identity`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - `Option`, `Result`, `Vec`, `String`
 //!   - `Identity`, `Lazy`, `Pair`
 //!   - `Endofunction`, `Endomorphism`, `SendEndofunction`
-//!   - `RcFn`, `ArcFn`
+//!   - `RcBrand`, `ArcBrand`, `FnBrand`
 //!   - `OnceCell`, `OnceLock`
 //!
 //! ## How it Works
@@ -77,13 +79,13 @@
 //! - **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Lazy` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
 //! - **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
 //!
-//! For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost.
+//! For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
 //!
 //! ### Thread Safety and Parallelism
 //!
-//! The library supports thread-safe operations through the `SendClonableFn` extension trait and parallel folding via `ParFoldable`.
+//! The library supports thread-safe operations through the `SendCloneableFn` extension trait and parallel folding via `ParFoldable`.
 //!
-//! - **`SendClonableFn`**: Extends `ClonableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
+//! - **`SendCloneableFn`**: Extends `CloneableFn` to provide `Send + Sync` function wrappers. Implemented by `ArcFnBrand`.
 //! - **`ParFoldable`**: Provides `par_fold_map` and `par_fold_right` for parallel execution.
 //! - **Rayon Support**: `VecBrand` supports parallel execution using `rayon` when the `rayon` feature is enabled.
 //!
@@ -92,7 +94,7 @@
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //! // Create a thread-safe function wrapper
-//! let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+//! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 //! // Fold in parallel (if rayon feature is enabled)
 //! let result = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 //! assert_eq!(result, "12345".to_string());

@@ -1,6 +1,5 @@
-//! Category theory abstractions.
+//! A type class for categories, which are semigroupoids with an identity element.
 //!
-//! This module defines the [`Category`] trait, which extends [`Semigroupoid`] with an identity element.
 //! A category consists of objects and morphisms between them, with composition and identity.
 //!
 //! ### Examples
@@ -15,9 +14,9 @@
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
 
-/// A type class for categories.
+/// A type class for categories, which are semigroupoids with an identity element.
 ///
-/// `Category` extends [`Semigroupoid`] with an identity element.
+/// A category consists of objects and morphisms between them, with composition and identity.
 ///
 /// ### Laws
 ///

@@ -18,22 +18,33 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{category::Category, clonable_fn::ClonableFn, once::Once};
+use crate::classes::{
+	category::Category, cloneable_fn::CloneableFn, ref_counted_pointer::RefCountedPointer,
+};
 use std::marker::PhantomData;
+
+/// Brand for [`std::sync::Arc`] atomic reference-counted pointer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArcBrand;
 
 /// Brand for [atomically reference-counted][std::sync::Arc]
 /// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
-/// This struct implements [`ClonableFn`] to provide a way to construct and
-/// type-check [`std::sync::Arc`]-wrapped closures in a generic context. The lifetime `'a`
-/// ensures the closure doesn't outlive referenced data, while `A` and `B`
-/// represent input and output types.
+/// This type alias provides a way to construct and type-check [`std::sync::Arc`]-wrapped
+/// closures in a generic context.
+pub type ArcFnBrand = FnBrand<ArcBrand>;
+
+/// Brand for [`Box`] unique ownership pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArcFnBrand;
+pub struct BoxBrand;
 
 /// Brand for [`Endofunction`](crate::types::Endofunction).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndofunctionBrand<FnBrand: ClonableFn, A>(PhantomData<(FnBrand, A)>);
+pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>);
+
+/// Generic function brand parameterized by reference-counted pointer choice.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 
 /// Brand for [`Endomorphism`](crate::types::Endomorphism).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -45,7 +56,7 @@ pub struct IdentityBrand;
 
 /// Brand for [`Lazy`](crate::types::Lazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LazyBrand<OnceBrand: Once, FnBrand: ClonableFn>(PhantomData<(OnceBrand, FnBrand)>);
+pub struct LazyBrand<Config>(PhantomData<Config>);
 
 /// Brand for [`OnceCell`](std::cell::OnceCell).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,23 +74,24 @@ pub struct OptionBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairBrand;
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with [the first value][crate::types::Pair] filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the first value filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairWithFirstBrand<First>(First);
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with [the second value][crate::types::Pair] filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the second value filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairWithSecondBrand<Second>(Second);
+
+/// Brand for [`Rc`](`std::rc::Rc`) reference-counted pointer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RcBrand;
 
 /// Brand for [reference-counted][std::rc::Rc] [closures][Fn]
 /// (`Rc<dyn Fn(A) -> B>`).
 ///
-/// This struct implements [`ClonableFn`] to provide a way to construct and
-/// type-check [`std::rc::Rc`]-wrapped closures in a generic context. The lifetime `'a`
-/// ensures the closure doesn't outlive referenced data, while `A` and `B`
-/// represent input and output types.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RcFnBrand;
+/// This type alias provides a way to construct and type-check [`Rc`](`std::rc::Rc`)-wrapped
+/// closures in a generic context.
+pub type RcFnBrand = FnBrand<RcBrand>;
 
 /// Brand for [`Result`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

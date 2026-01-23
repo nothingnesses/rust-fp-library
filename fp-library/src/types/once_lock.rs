@@ -1,4 +1,4 @@
-//! OnceLock wrapper.
+//! [`OnceLock`] wrapper.
 //!
 //! This module defines the [`OnceLockBrand`] struct, which provides implementations for [`OnceLock`].
 //! It implements [`Once`].

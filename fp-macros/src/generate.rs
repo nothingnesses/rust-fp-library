@@ -52,7 +52,7 @@ pub fn generate_name(input: &KindInput) -> Ident {
 					if !ty.bounds.is_empty() {
 						let bounds_str = canon.canonicalize_bounds(&ty.bounds);
 						// Use current type index for bound association
-						type_bounds_parts.push(format!("B{}{}", t_count, bounds_str));
+						type_bounds_parts.push(format!("B{t_count}{bounds_str}"));
 					}
 					t_count += 1;
 				}
@@ -60,13 +60,12 @@ pub fn generate_name(input: &KindInput) -> Ident {
 			}
 		}
 
-		let mut parts =
-			vec![assoc.ident.to_string(), format!("L{}", l_count), format!("T{}", t_count)];
+		let mut parts = vec![assoc.ident.to_string(), format!("L{l_count}"), format!("T{t_count}")];
 		parts.extend(type_bounds_parts);
 
 		if !assoc.output_bounds.is_empty() {
 			let bounds_str = canon.canonicalize_bounds(&assoc.output_bounds);
-			parts.push(format!("O{}", bounds_str));
+			parts.push(format!("O{bounds_str}"));
 		}
 
 		canonical_parts.push(parts.join("_"));

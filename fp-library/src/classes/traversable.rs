@@ -1,6 +1,4 @@
-//! Traversable type class.
-//!
-//! This module defines the [`Traversable`] trait, which represents data structures that can be traversed, accumulating results in an applicative context.
+//! A type class for data structures that can be traversed, accumulating results in an applicative context.
 //!
 //! ### Examples
 //!
@@ -12,7 +10,7 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
-use super::{applicative::Applicative, foldable::Foldable, functor::Functor};
+use super::{Applicative, Foldable, Functor};
 use crate::{Apply, functions::identity, kinds::*};
 
 /// A type class for traversable functors.

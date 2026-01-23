@@ -1,4 +1,4 @@
-# SendClonableFn Extension Trait Implementation Plan
+# SendCloneableFn Extension Trait Implementation Plan
 
 ## 1. Executive Summary
 
@@ -6,8 +6,8 @@ This document outlines a comprehensive plan to implement **Solution 1: Pure Exte
 
 The implementation adds:
 
-1. A new `SendClonableFn` extension trait for brands that support `Send + Sync` function wrappers
-2. Implementation of `SendClonableFn` for `ArcFnBrand`
+1. A new `SendCloneableFn` extension trait for brands that support `Send + Sync` function wrappers
+2. Implementation of `SendCloneableFn` for `ArcFnBrand`
 3. A new `ParFoldable` trait for parallel folding operations
 4. Optional Rayon integration for parallel implementations
 5. **Enhancement to `Apply!` macro** with optional `output` parameter for accessing `SendOf`
@@ -28,10 +28,10 @@ The current `Foldable` trait and its default implementations (`fold_right`, `fol
 
 ### 2.2 Root Causes
 
-From [`fp-library/src/classes/clonable_fn.rs`](../../fp-library/src/classes/clonable_fn.rs):
+From [`fp-library/src/classes/cloneable_fn.rs`](../../fp-library/src/classes/cloneable_fn.rs):
 
 ```rust
-pub trait ClonableFn: Function {
+pub trait CloneableFn: Function {
     type Of<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
     fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::Of<'a, A, B>;
@@ -45,7 +45,7 @@ pub trait ClonableFn: Function {
 From [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs):
 
 ```rust
-impl ClonableFn for ArcFnBrand {
+impl CloneableFn for ArcFnBrand {
     type Of<'a, A, B> = Arc<dyn 'a + Fn(A) -> B>;  // Note: !Send
 
     fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> ... {
@@ -72,16 +72,16 @@ Solution 1 (Pure Extension Trait) is chosen over alternatives because:
 
 ### 3.1 Solution Overview
 
-Add a **pure extension trait** `SendClonableFn` that provides thread-safe capabilities without modifying the existing `Function` or `ClonableFn` traits.
+Add a **pure extension trait** `SendCloneableFn` that provides thread-safe capabilities without modifying the existing `Function` or `CloneableFn` traits.
 
-**Key insight:** The base `Function::Of` type _must_ remain compatible with non-`Send` closures because `Function::new` accepts `impl Fn`. The `SendClonableFn` extension trait introduces a completely **separate** associated type (`SendOf`), making changes to the base `Function` trait unnecessary.
+**Key insight:** The base `Function::Of` type _must_ remain compatible with non-`Send` closures because `Function::new` accepts `impl Fn`. The `SendCloneableFn` extension trait introduces a completely **separate** associated type (`SendOf`), making changes to the base `Function` trait unnecessary.
 
-### 3.2 The SendClonableFn Trait
+### 3.2 The SendCloneableFn Trait
 
 ```rust
 /// Extension trait for brands that support thread-safe function wrappers.
 /// Only implemented by brands that can provide `Send + Sync` guarantees.
-pub trait SendClonableFn: ClonableFn {
+pub trait SendCloneableFn: CloneableFn {
     /// The Send-capable wrapped function type.
     /// This is distinct from Function::Of and explicitly requires
     /// the deref target to be `Send + Sync`.
@@ -90,7 +90,7 @@ pub trait SendClonableFn: ClonableFn {
         + Sync
         + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
 
-    /// Creates a new Send-capable clonable function wrapper.
+    /// Creates a new Send-capable cloneable function wrapper.
     fn new_send<'a, A, B>(
         f: impl 'a + Fn(A) -> B + Send + Sync
     ) -> Self::SendOf<'a, A, B>;
@@ -99,15 +99,15 @@ pub trait SendClonableFn: ClonableFn {
 
 **Design decisions:**
 
-- `SendClonableFn: ClonableFn` — extends existing trait, not replaces
+- `SendCloneableFn: CloneableFn` — extends existing trait, not replaces
 - `SendOf` is separate from `Of` — allows different types
 - `new_send` requires `Send + Sync` on input — enforces thread safety at construction
-- `RcFnBrand` does **not** implement `SendClonableFn` — correct semantics
+- `RcFnBrand` does **not** implement `SendCloneableFn` — correct semantics
 
 ### 3.3 ArcFnBrand Implementation
 
 ```rust
-impl SendClonableFn for ArcFnBrand {
+impl SendCloneableFn for ArcFnBrand {
     type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
 
     fn new_send<'a, A, B>(
@@ -125,7 +125,7 @@ impl SendClonableFn for ArcFnBrand {
 ///
 /// This trait provides parallel versions of `Foldable` operations
 /// that require `Send + Sync` bounds on elements and functions.
-pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
+pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
     /// Parallel version of fold_map using the branded SendOf function type.
     fn par_fold_map<'a, A, M>(
         fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
@@ -155,7 +155,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 
 ### 4.1 Apply! Macro Enhancement (Prerequisite)
 
-The `SendClonableFn` trait introduces a new associated type `SendOf` that differs from the standard `Of` used by other Kind traits. To maintain ergonomic consistency with existing `Apply!` usage, the macro must be enhanced **first** to support an optional `output` parameter.
+The `SendCloneableFn` trait introduces a new associated type `SendOf` that differs from the standard `Of` used by other Kind traits. To maintain ergonomic consistency with existing `Apply!` usage, the macro must be enhanced **first** to support an optional `output` parameter.
 
 #### 4.1.1 Current Apply! Limitation
 
@@ -163,15 +163,15 @@ The [`Apply!`](../../fp-macros/src/apply.rs) macro currently always projects to 
 
 ```rust
 // Current expansion:
-Apply!(brand: ArcFnBrand, kind: SendClonableFn, lifetimes: ('a), types: (A, B))
-// Expands to: <ArcFnBrand as SendClonableFn>::Of<'a, A, B>  // WRONG!
-// We need: <ArcFnBrand as SendClonableFn>::SendOf<'a, A, B>
+Apply!(brand: ArcFnBrand, kind: SendCloneableFn, lifetimes: ('a), types: (A, B))
+// Expands to: <ArcFnBrand as SendCloneableFn>::Of<'a, A, B>  // WRONG!
+// We need: <ArcFnBrand as SendCloneableFn>::SendOf<'a, A, B>
 ```
 
 Without enhancement, users must use verbose direct syntax:
 
 ```rust
-<ArcFnBrand as SendClonableFn>::SendOf<'a, A, M>
+<ArcFnBrand as SendCloneableFn>::SendOf<'a, A, M>
 ```
 
 #### 4.1.2 Proposed Enhancement
@@ -184,8 +184,8 @@ Apply!(brand: B, kind: SomeKind, lifetimes: ('a), types: (T))
 // Expands to: <B as SomeKind>::Of<'a, T>
 
 // With explicit associated type:
-Apply!(brand: ArcFnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, B))
-// Expands to: <ArcFnBrand as SendClonableFn>::SendOf<'a, A, B>
+Apply!(brand: ArcFnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, B))
+// Expands to: <ArcFnBrand as SendCloneableFn>::SendOf<'a, A, B>
 
 // Using signature syntax:
 Apply!(brand: ArcFnBrand, signature: ('a, A, B), output: SendOf)
@@ -333,7 +333,7 @@ This enhancement is **fully backward compatible**:
 
 This enhancement provides extensibility for future traits that may use non-`Of` associated types:
 
-- `SendOf` for `SendClonableFn`
+- `SendOf` for `SendCloneableFn`
 - Potential `MutOf` for mutable references
 - Potential `RefOf` for borrowed references
 - Any future trait with specialized associated types
@@ -343,13 +343,13 @@ This enhancement provides extensibility for future traits that may use non-`Of` 
 ```
 fp-library/src/
 ├── classes/
-│   ├── clonable_fn.rs        # Existing (unchanged)
-│   ├── send_clonable_fn.rs   # NEW: SendClonableFn trait
+│   ├── cloneable_fn.rs        # Existing (unchanged)
+│   ├── send_cloneable_fn.rs   # NEW: SendCloneableFn trait
 │   ├── foldable.rs           # Existing (unchanged)
 │   ├── par_foldable.rs       # NEW: ParFoldable trait
 │   └── mod.rs                # Update to export new modules
 ├── types/
-│   ├── arc_fn.rs             # Update: add SendClonableFn impl
+│   ├── arc_fn.rs             # Update: add SendCloneableFn impl
 │   └── ...
 └── lib.rs                    # Update: re-export new traits
 
@@ -358,14 +358,14 @@ fp-macros/src/
 └── ...
 ```
 
-### 4.3 SendClonableFn Module
+### 4.3 SendCloneableFn Module
 
-**File:** [`fp-library/src/classes/send_clonable_fn.rs`](../../fp-library/src/classes/send_clonable_fn.rs) (new)
+**File:** [`fp-library/src/classes/send_cloneable_fn.rs`](../../fp-library/src/classes/send_cloneable_fn.rs) (new)
 
 ````rust
-//! Thread-safe extension to ClonableFn.
+//! Thread-safe extension to CloneableFn.
 
-use super::clonable_fn::ClonableFn;
+use super::cloneable_fn::CloneableFn;
 use crate::Apply;
 use std::ops::Deref;
 
@@ -390,31 +390,31 @@ use std::ops::Deref;
 /// # Examples
 ///
 /// ```
-/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+/// use fp_library::classes::send_cloneable_fn::SendCloneableFn;
 /// use fp_library::brands::ArcFnBrand;
 /// use std::thread;
 ///
-/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+/// let f = <ArcFnBrand as SendCloneableFn>::new_send(|x: i32| x * 2);
 ///
 /// // f can be sent to another thread
 /// let handle = thread::spawn(move || f(21));
 /// assert_eq!(handle.join().unwrap(), 42);
 /// ```
-pub trait SendClonableFn: ClonableFn {
+pub trait SendCloneableFn: CloneableFn {
     /// The Send-capable wrapped function type.
     ///
-    /// Unlike [`ClonableFn::Of`], this type is guaranteed to be `Send + Sync`.
+    /// Unlike [`CloneableFn::Of`], this type is guaranteed to be `Send + Sync`.
     /// The `Deref` target includes `Send + Sync` bounds on the function.
     type SendOf<'a, A, B>: Clone
         + Send
         + Sync
         + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
 
-    /// Creates a new Send-capable clonable function wrapper.
+    /// Creates a new Send-capable cloneable function wrapper.
     ///
     /// # Type Signature
     ///
-    /// `forall a b. SendClonableFn f => (a -> b where Send + Sync) -> f a b`
+    /// `forall a b. SendCloneableFn f => (a -> b where Send + Sync) -> f a b`
     ///
     /// # Parameters
     ///
@@ -427,10 +427,10 @@ pub trait SendClonableFn: ClonableFn {
     /// # Examples
     ///
     /// ```
-    /// use fp_library::classes::send_clonable_fn::SendClonableFn;
+    /// use fp_library::classes::send_cloneable_fn::SendCloneableFn;
     /// use fp_library::brands::ArcFnBrand;
     ///
-    /// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+    /// let f = <ArcFnBrand as SendCloneableFn>::new_send(|x: i32| x * 2);
     /// assert_eq!(f(5), 10);
     /// ```
     fn new_send<'a, A, B>(
@@ -438,13 +438,13 @@ pub trait SendClonableFn: ClonableFn {
     ) -> Self::SendOf<'a, A, B>;
 }
 
-/// Creates a new thread-safe clonable function wrapper.
+/// Creates a new thread-safe cloneable function wrapper.
 ///
-/// Free function version that dispatches to [the type class' associated function][`SendClonableFn::new_send`].
+/// Free function version that dispatches to [the type class' associated function][`SendCloneableFn::new_send`].
 ///
 /// # Type Signature
 ///
-/// `forall a b. SendClonableFn f => (a -> b where Send + Sync) -> f a b`
+/// `forall a b. SendCloneableFn f => (a -> b where Send + Sync) -> f a b`
 ///
 /// # Parameters
 ///
@@ -457,7 +457,7 @@ pub trait SendClonableFn: ClonableFn {
 /// # Examples
 ///
 /// ```
-/// use fp_library::classes::send_clonable_fn::new_send;
+/// use fp_library::classes::send_cloneable_fn::new_send;
 /// use fp_library::brands::ArcFnBrand;
 ///
 /// let f = new_send::<ArcFnBrand, _, _>(|x: i32| x * 2);
@@ -467,7 +467,7 @@ pub fn new_send<'a, F, A, B>(
     f: impl 'a + Fn(A) -> B + Send + Sync
 ) -> F::SendOf<'a, A, B>
 where
-    F: SendClonableFn,
+    F: SendCloneableFn,
 {
     F::new_send(f)
 }
@@ -480,7 +480,7 @@ where
 ````rust
 //! Parallel folding operations.
 
-use super::{foldable::Foldable, monoid::Monoid, send_clonable_fn::SendClonableFn};
+use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*};
 
 /// A type class for structures that can be folded in parallel.
@@ -505,13 +505,13 @@ use crate::{Apply, kinds::*};
 /// ```ignore
 /// use fp_library::classes::par_foldable::ParFoldable;
 /// use fp_library::brands::{VecBrand, ArcFnBrand};
-/// use fp_library::classes::send_clonable_fn::SendClonableFn;
+/// use fp_library::classes::send_cloneable_fn::SendCloneableFn;
 ///
 /// let v = vec![1, 2, 3, 4, 5];
-/// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x as i64);
+/// let f = <ArcFnBrand as SendCloneableFn>::new_send(|x: i32| x as i64);
 /// let sum: i64 = VecBrand::par_fold_map::<ArcFnBrand, _, _>(v, f);
 /// ```
-pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
+pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
     /// Parallel version of fold_map.
     ///
     /// Maps each element to a monoid value using `f`, then combines all values
@@ -524,7 +524,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
     ///
     /// # Type Parameters
     ///
-    /// * `FnBrand`: The brand of thread-safe function to use (must implement `SendClonableFn`)
+    /// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`)
     /// * `A`: The element type (must be `Send + Sync`)
     /// * `M`: The monoid type (must be `Send + Sync`)
     ///
@@ -538,7 +538,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
     /// The combined monoid value
     fn par_fold_map<'a, A, M>(
         fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
     ) -> M
     where
         A: 'a + Clone + Send + Sync,
@@ -569,7 +569,7 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
     ///
     /// The final accumulator value
     fn par_fold_right<'a, A, B>(
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
         init: B,
         fa: Apply!(brand: Self, signature: ('a, A: 'a) -> 'a),
     ) -> B
@@ -583,10 +583,10 @@ pub trait ParFoldable<FnBrand: SendClonableFn>: Foldable {
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_map`].
 pub fn par_fold_map<'a, FnBrand, Brand, A, M>(
     fa: Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a),
-    f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+    f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
 ) -> M
 where
-    FnBrand: SendClonableFn,
+    FnBrand: SendCloneableFn,
     Brand: ParFoldable<FnBrand>,
     A: 'a + Clone + Send + Sync,
     M: Monoid + Send + Sync + 'a,
@@ -598,12 +598,12 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_right`].
 pub fn par_fold_right<'a, FnBrand, Brand, A, B>(
-    f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+    f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
     init: B,
     fa: Apply!(brand: Brand, signature: ('a, A: 'a) -> 'a),
 ) -> B
 where
-    FnBrand: SendClonableFn,
+    FnBrand: SendCloneableFn,
     Brand: ParFoldable<FnBrand>,
     A: 'a + Clone + Send + Sync,
     B: Send + Sync + 'a,
@@ -616,19 +616,19 @@ where
 
 **File:** [`fp-library/src/types/arc_fn.rs`](../../fp-library/src/types/arc_fn.rs) (modify)
 
-Add the `SendClonableFn` implementation:
+Add the `SendCloneableFn` implementation:
 
 ````rust
-use crate::classes::send_clonable_fn::SendClonableFn;
+use crate::classes::send_cloneable_fn::SendCloneableFn;
 
-impl SendClonableFn for ArcFnBrand {
+impl SendCloneableFn for ArcFnBrand {
     type SendOf<'a, A, B> = Arc<dyn 'a + Fn(A) -> B + Send + Sync>;
 
     /// Creates a new thread-safe `Arc`-wrapped function.
     ///
     /// # Type Signature
     ///
-    /// `forall a b. SendClonableFn ArcFnBrand => (a -> b where Send + Sync) -> ArcFnBrand a b`
+    /// `forall a b. SendCloneableFn ArcFnBrand => (a -> b where Send + Sync) -> ArcFnBrand a b`
     ///
     /// # Parameters
     ///
@@ -642,10 +642,10 @@ impl SendClonableFn for ArcFnBrand {
     ///
     /// ```
     /// use fp_library::brands::ArcFnBrand;
-    /// use fp_library::classes::send_clonable_fn::SendClonableFn;
+    /// use fp_library::classes::send_cloneable_fn::SendCloneableFn;
     /// use std::thread;
     ///
-    /// let f = <ArcFnBrand as SendClonableFn>::new_send(|x: i32| x * 2);
+    /// let f = <ArcFnBrand as SendCloneableFn>::new_send(|x: i32| x * 2);
     /// let handle = thread::spawn(move || f(21));
     /// assert_eq!(handle.join().unwrap(), 42);
     /// ```
@@ -664,10 +664,10 @@ Provide `ParFoldable` implementations for common types. Note: The function param
 **For VecBrand:**
 
 ```rust
-impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
     fn par_fold_map<'a, A, M>(
         fa: Vec<A>,
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
     ) -> M
     where
         A: 'a + Clone + Send + Sync,
@@ -680,7 +680,7 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
     }
 
     fn par_fold_right<'a, A, B>(
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
         init: B,
         fa: Vec<A>,
     ) -> B
@@ -698,10 +698,10 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 **For OptionBrand:**
 
 ```rust
-impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
+impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for OptionBrand {
     fn par_fold_map<'a, A, M>(
         fa: Option<A>,
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
     ) -> M
     where
         A: 'a + Clone + Send + Sync,
@@ -714,7 +714,7 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for OptionBrand {
     }
 
     fn par_fold_right<'a, A, B>(
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: ((A, B), B)),
         init: B,
         fa: Option<A>,
     ) -> B
@@ -752,10 +752,10 @@ rayon = { version = "1.11", optional = true }
 use rayon::prelude::*;
 
 #[cfg(feature = "rayon")]
-impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
     fn par_fold_map<'a, A, M>(
         fa: Vec<A>,
-        f: Apply!(brand: FnBrand, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
+        f: Apply!(brand: FnBrand, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, M)),
     ) -> M
     where
         A: 'a + Clone + Send + Sync,
@@ -777,8 +777,8 @@ To support parallel `fold_right` (which is inherently sequential unless viewed a
 **File:** [`fp-library/src/types/send_endofunction.rs`](../../fp-library/src/types/send_endofunction.rs) (new)
 
 ```rust
-pub struct SendEndofunction<'a, CFB: SendClonableFn, A>(
-    pub Apply!(brand: CFB, kind: SendClonableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
+pub struct SendEndofunction<'a, CFB: SendCloneableFn, A>(
+    pub Apply!(brand: CFB, kind: SendCloneableFn, output: SendOf, lifetimes: ('a), types: (A, A)),
 );
 
 // Implement Semigroup (composition) and Monoid (identity)
@@ -793,7 +793,7 @@ Provide a default implementation for `par_fold_right` using `par_fold_map` and `
 
 ### 5.1 Unit Tests
 
-**SendClonableFn tests:**
+**SendCloneableFn tests:**
 
 1. `new_send` creates callable function
 2. `SendOf` type is actually `Send + Sync` (compile-time check)
@@ -810,7 +810,7 @@ Provide a default implementation for `par_fold_right` using `par_fold_map` and `
 
 ### 5.2 Integration Tests
 
-1. Thread spawn with `SendClonableFn` wrapped function
+1. Thread spawn with `SendCloneableFn` wrapped function
 2. `ParFoldable` operations complete correctly across threads
 3. Multiple threads accessing shared `SendOf` function
 4. Compatibility with existing `Foldable` implementations
@@ -827,7 +827,7 @@ Using QuickCheck:
 
 1. Cannot call `new_send` with non-`Send` closure
 2. Cannot call `new_send` with non-`Sync` closure
-3. `RcFnBrand` does not implement `SendClonableFn` (should fail type check)
+3. `RcFnBrand` does not implement `SendCloneableFn` (should fail type check)
 
 ---
 
@@ -835,7 +835,7 @@ Using QuickCheck:
 
 ### 6.1 Module Documentation
 
-- Add comprehensive module-level docs to `send_clonable_fn.rs`
+- Add comprehensive module-level docs to `send_cloneable_fn.rs`
 - Add comprehensive module-level docs to `par_foldable.rs`
 - Update `classes/mod.rs` documentation to mention new traits
 
@@ -862,9 +862,9 @@ Update the Thread Safety section to reference the implementation:
 
 Document the new feature:
 
-- New `SendClonableFn` trait
+- New `SendCloneableFn` trait
 - New `ParFoldable` trait
-- `ArcFnBrand` now implements `SendClonableFn`
+- `ArcFnBrand` now implements `SendCloneableFn`
 - Optional rayon feature flag
 
 ---
@@ -885,7 +885,7 @@ Document the new feature:
 
 1. **Compilation:** All new code compiles without errors or warnings
 2. **Thread Safety:** `ArcFnBrand::new_send` produces `Send + Sync` wrappers (verified by compile-time tests)
-3. **Non-Breaking:** Existing code using `ClonableFn` and `Foldable` continues to work unchanged
+3. **Non-Breaking:** Existing code using `CloneableFn` and `Foldable` continues to work unchanged
 4. **Tests Pass:** All unit, integration, property-based, and compile-fail tests pass
 5. **Documentation:** All public items have comprehensive documentation with examples
 6. **Parallelism Works:** Can spawn thread and pass `SendOf` function to it
@@ -907,7 +907,7 @@ This implementation provides a foundation for further thread-safe type classes:
 ## 10. References
 
 - [Limitations - Thread Safety and Parallelism](../limitations.md#thread-safety-and-parallelism)
-- [Current ClonableFn Implementation](../../fp-library/src/classes/clonable_fn.rs)
+- [Current CloneableFn Implementation](../../fp-library/src/classes/cloneable_fn.rs)
 - [Current Foldable Implementation](../../fp-library/src/classes/foldable.rs)
 - [ArcFnBrand Implementation](../../fp-library/src/types/arc_fn.rs)
 - [Rayon Crate Documentation](https://docs.rs/rayon/latest/rayon/)

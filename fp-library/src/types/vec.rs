@@ -10,10 +10,10 @@ use crate::{
 	brands::{OptionBrand, VecBrand},
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		clonable_fn::ClonableFn, compactable::Compactable, filterable::Filterable,
+		cloneable_fn::CloneableFn, compactable::Compactable, filterable::Filterable,
 		foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
 		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
-		semigroup::Semigroup, semimonad::Semimonad, send_clonable_fn::SendClonableFn,
+		semigroup::Semigroup, semimonad::Semimonad, send_cloneable_fn::SendCloneableFn,
 		traversable::Traversable, witherable::Witherable,
 	},
 	impl_kind,
@@ -260,7 +260,7 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	/// * `B`: The type of the output values.
 	/// * `A`: The type of the input values.
 	///
@@ -279,13 +279,13 @@ impl Semiapplicative for VecBrand {
 	/// use fp_library::{brands::*, classes::*, functions::*};
 	///
 	/// let funcs = vec![
-	///     clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-	///     clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
 	/// ];
 	/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
@@ -349,7 +349,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the vector.
 	/// * `Func`: The type of the folding function.
@@ -379,7 +379,7 @@ impl Foldable for VecBrand {
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 	}
@@ -394,7 +394,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the vector.
 	/// * `Func`: The type of the folding function.
@@ -424,7 +424,7 @@ impl Foldable for VecBrand {
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		fa.into_iter().fold(initial, func)
 	}
@@ -439,7 +439,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the vector.
 	/// * `Func`: The type of the mapping function.
@@ -456,9 +456,7 @@ impl Foldable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{VecBrand, RcFnBrand};
-	/// use fp_library::types::string; // Import to bring Monoid impl for String into scope
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
@@ -472,7 +470,7 @@ impl Foldable for VecBrand {
 	where
 		M: Monoid + 'a,
 		Func: Fn(A) -> M + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 	}
@@ -654,7 +652,7 @@ impl<A: Clone> Monoid for Vec<A> {
 	}
 }
 
-impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
+impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
 	/// Maps values to a monoid and combines them in parallel.
 	///
 	/// This method maps each element of the vector to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
@@ -683,14 +681,14 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let v = vec![1, 2, 3];
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 	/// ```
 	fn par_fold_map<'a, M, A>(
-		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
@@ -773,9 +771,7 @@ impl Compactable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![Ok(1), Err("error"), Ok(2)];
 	/// let Pair(oks, errs) = separate::<VecBrand, _, _>(x);
@@ -828,9 +824,7 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let Pair(oks, errs) = partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
@@ -882,9 +876,7 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::VecBrand;
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let Pair(satisfied, not_satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
@@ -1021,9 +1013,7 @@ impl Witherable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{VecBrand, OptionBrand};
-	/// use fp_library::types::Pair;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), x);
@@ -1149,7 +1139,7 @@ mod tests {
 	#[quickcheck]
 	fn applicative_identity(v: Vec<i32>) -> bool {
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -1159,7 +1149,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, VecBrand, _, _>(
-			pure::<VecBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<VecBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
 			pure::<VecBrand, _>(x),
 		) == pure::<VecBrand, _>(f(x))
 	}
@@ -1173,11 +1163,11 @@ mod tests {
 	) -> bool {
 		let u_fns: Vec<_> = u_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_add(i)))
+			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_add(i)))
 			.collect();
 		let v_fns: Vec<_> = v_seeds
 			.iter()
-			.map(|&i| <RcFnBrand as ClonableFn>::new(move |x: i32| x.wrapping_mul(i)))
+			.map(|&i| <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_mul(i)))
 			.collect();
 
 		// RHS: u <*> (v <*> w)
@@ -1193,7 +1183,7 @@ mod tests {
 				v_fns.iter().map(move |vf| {
 					let uf = uf.clone();
 					let vf = vf.clone();
-					<RcFnBrand as ClonableFn>::new(move |x| uf(vf(x)))
+					<RcFnBrand as CloneableFn>::new(move |x| uf(vf(x)))
 				})
 			})
 			.collect();
@@ -1208,11 +1198,12 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = vec![<RcFnBrand as ClonableFn>::new(f)];
+		let u = vec![<RcFnBrand as CloneableFn>::new(f)];
 
 		let lhs = apply::<RcFnBrand, VecBrand, _, _>(u.clone(), pure::<VecBrand, _>(y));
 
-		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn =
+			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, VecBrand, _, _>(pure::<VecBrand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -1367,7 +1358,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_empty() {
 		let v: Vec<i32> = vec![];
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "".to_string());
 	}
 
@@ -1375,7 +1366,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_single() {
 		let v = vec![1];
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "1".to_string());
 	}
 
@@ -1383,7 +1374,7 @@ mod tests {
 	#[test]
 	fn par_fold_map_multiple() {
 		let v = vec![1, 2, 3];
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 	}
 
@@ -1391,7 +1382,7 @@ mod tests {
 	#[test]
 	fn par_fold_right_multiple() {
 		let v = vec![1, 2, 3];
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 0, v), 6);
 	}
 

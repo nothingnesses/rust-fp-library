@@ -4,7 +4,7 @@
 //! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
 
 use crate::{
-	classes::{monoid::Monoid, semigroup::Semigroup, send_clonable_fn::SendClonableFn},
+	classes::{monoid::Monoid, semigroup::Semigroup, send_cloneable_fn::SendCloneableFn},
 	functions::identity,
 };
 use std::{
@@ -25,7 +25,7 @@ use std::{
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the thread-safe clonable function wrapper.
+/// * `FnBrand`: The brand of the thread-safe cloneable function wrapper.
 /// * `A`: The input and output type of the function.
 ///
 /// ### Fields
@@ -35,18 +35,16 @@ use std::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::functions::*;
-/// use fp_library::types::send_endofunction::SendEndofunction;
-/// use fp_library::brands::ArcFnBrand;
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
 /// assert_eq!(f.0(5), 10);
 /// ```
-pub struct SendEndofunction<'a, FnBrand: SendClonableFn, A>(
-	pub <FnBrand as SendClonableFn>::SendOf<'a, A, A>,
+pub struct SendEndofunction<'a, FnBrand: SendCloneableFn, A>(
+	pub <FnBrand as SendCloneableFn>::SendOf<'a, A, A>,
 );
 
-impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// Creates a new `SendEndofunction`.
 	///
 	/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
@@ -71,27 +69,25 @@ impl<'a, FnBrand: SendClonableFn, A> SendEndofunction<'a, FnBrand, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(f: <FnBrand as SendClonableFn>::SendOf<'a, A, A>) -> Self {
+	pub fn new(f: <FnBrand as SendCloneableFn>::SendOf<'a, A, A>) -> Self {
 		Self(f)
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
+impl<'a, FnBrand: SendCloneableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
 	fn clone(&self) -> Self {
 		Self::new(self.0.clone())
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
+impl<'a, FnBrand: SendCloneableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
 where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Debug,
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Debug,
 {
 	fn fmt(
 		&self,
@@ -101,14 +97,14 @@ where
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Eq
+impl<'a, FnBrand: SendCloneableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Eq
 {
 }
 
-impl<'a, FnBrand: SendClonableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
+impl<'a, FnBrand: SendCloneableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
 where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Hash,
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Hash,
 {
 	fn hash<H: std::hash::Hasher>(
 		&self,
@@ -118,9 +114,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
+impl<'a, FnBrand: SendCloneableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
 where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: Ord,
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Ord,
 {
 	fn cmp(
 		&self,
@@ -130,9 +126,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
+impl<'a, FnBrand: SendCloneableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
 where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: PartialEq,
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialEq,
 {
 	fn eq(
 		&self,
@@ -142,9 +138,9 @@ where
 	}
 }
 
-impl<'a, FnBrand: SendClonableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
+impl<'a, FnBrand: SendCloneableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
 where
-	<FnBrand as SendClonableFn>::SendOf<'a, A, A>: PartialOrd,
+	<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialOrd,
 {
 	fn partial_cmp(
 		&self,
@@ -154,7 +150,7 @@ where
 	}
 }
 
-impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
+impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
 	for SendEndofunction<'a, FnBrand, A>
 {
 	/// The result of combining the two values using the semigroup operation.
@@ -179,12 +175,10 @@ impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
-	/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1));
+	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+	/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1));
 	///
 	/// // f(g(x)) = (x + 1) * 2
 	/// let h = append::<_>(f, g);
@@ -197,11 +191,11 @@ impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Semigroup
 		let f = a.0;
 		let g = b.0;
 		// Compose: f . g
-		Self::new(<FnBrand as SendClonableFn>::send_clonable_fn_new(move |x| f(g(x))))
+		Self::new(<FnBrand as SendCloneableFn>::send_cloneable_fn_new(move |x| f(g(x))))
 	}
 }
 
-impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid
+impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
 	for SendEndofunction<'a, FnBrand, A>
 {
 	/// The identity element.
@@ -219,14 +213,12 @@ impl<'a, FnBrand: 'a + SendClonableFn, A: 'a + Send + Sync> Monoid
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::send_endofunction::SendEndofunction;
-	/// use fp_library::brands::ArcFnBrand;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let id = empty::<SendEndofunction<ArcFnBrand, i32>>();
 	/// assert_eq!(id.0(5), 5);
 	/// ```
 	fn empty() -> Self {
-		Self::new(<FnBrand as SendClonableFn>::send_clonable_fn_new(identity))
+		Self::new(<FnBrand as SendCloneableFn>::send_cloneable_fn_new(identity))
 	}
 }

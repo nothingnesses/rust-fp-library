@@ -42,11 +42,17 @@ impl Parse for ReexportInput {
 	}
 }
 
-pub fn generate_reexports_impl(input: ReexportInput) -> TokenStream {
+fn scan_directory_for_items<F>(
+	input: &ReexportInput,
+	mut filter_map: F,
+) -> Vec<TokenStream>
+where
+	F: FnMut(&str, &Item) -> Option<TokenStream>,
+{
 	let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
 	let base_path = Path::new(&manifest_dir).join(input.path.value());
 
-	let mut reexports = Vec::new();
+	let mut re_exports = Vec::new();
 
 	if let Ok(entries) = fs::read_dir(&base_path) {
 		for entry in entries.flatten() {
@@ -60,27 +66,8 @@ pub fn generate_reexports_impl(input: ReexportInput) -> TokenStream {
 				let content = fs::read_to_string(&path).expect("Failed to read file");
 				if let Ok(file) = parse_file(&content) {
 					for item in file.items {
-						if let Item::Fn(func) = item
-							&& let Visibility::Public(_) = func.vis
-						{
-							let fn_name = func.sig.ident;
-							let module_name = Ident::new(file_stem, fn_name.span());
-							let full_name = format!("{}::{}", file_stem, fn_name);
-
-							let use_stmt = if let Some(alias) = input
-								.aliases
-								.get(&full_name)
-								.or_else(|| input.aliases.get(&fn_name.to_string()))
-							{
-								quote! {
-									#module_name::#fn_name as #alias
-								}
-							} else {
-								quote! {
-									#module_name::#fn_name
-								}
-							};
-							reexports.push(use_stmt);
+						if let Some(tokens) = filter_map(file_stem, &item) {
+							re_exports.push(tokens);
 						}
 					}
 				}
@@ -90,12 +77,66 @@ pub fn generate_reexports_impl(input: ReexportInput) -> TokenStream {
 		panic!("Failed to read directory: {:?}", base_path);
 	}
 
-	// Sort reexports for deterministic output
-	reexports.sort_by_key(|tokens| tokens.to_string());
+	// Sort re_exports for deterministic output
+	re_exports.sort_by_key(|tokens| tokens.to_string());
+	re_exports
+}
+
+pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
+	let re_exports = scan_directory_for_items(&input, |file_stem, item| {
+		if let Item::Fn(func) = item
+			&& let Visibility::Public(_) = func.vis
+		{
+			let fn_name = &func.sig.ident;
+			let module_name = Ident::new(file_stem, fn_name.span());
+			let full_name = format!("{file_stem}::{fn_name}");
+
+			if let Some(alias) =
+				input.aliases.get(&full_name).or_else(|| input.aliases.get(&fn_name.to_string()))
+			{
+				Some(quote! {
+					#module_name::#fn_name as #alias
+				})
+			} else {
+				Some(quote! {
+					#module_name::#fn_name
+				})
+			}
+		} else {
+			None
+		}
+	});
 
 	quote! {
 		pub use crate::classes::{
-			#(#reexports),*
+			#(#re_exports),*
 		};
+	}
+}
+
+pub fn generate_trait_re_exports_impl(input: ReexportInput) -> TokenStream {
+	let re_exports = scan_directory_for_items(&input, |file_stem, item| {
+		if let Item::Trait(tr) = item
+			&& let Visibility::Public(_) = tr.vis
+		{
+			let trait_name = &tr.ident;
+			let module_name = Ident::new(file_stem, trait_name.span());
+
+			if let Some(alias) = input.aliases.get(&trait_name.to_string()) {
+				Some(quote! {
+					pub use #module_name::#trait_name as #alias;
+				})
+			} else {
+				Some(quote! {
+					pub use #module_name::#trait_name;
+				})
+			}
+		} else {
+			None
+		}
+	});
+
+	quote! {
+		#(#re_exports)*
 	}
 }

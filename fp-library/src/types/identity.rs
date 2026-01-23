@@ -7,9 +7,10 @@ use crate::{
 	brands::IdentityBrand,
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		clonable_fn::ClonableFn, foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
-		semimonad::Semimonad, send_clonable_fn::SendClonableFn, traversable::Traversable,
+		cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor, lift::Lift,
+		monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
+		semiapplicative::Semiapplicative, semimonad::Semimonad, send_cloneable_fn::SendCloneableFn,
+		traversable::Traversable,
 	},
 	impl_kind,
 	kinds::*,
@@ -31,7 +32,7 @@ use crate::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::types::Identity;
+/// use fp_library::types::*;
 ///
 /// let x = Identity(5);
 /// assert_eq!(x.0, 5);
@@ -72,9 +73,7 @@ impl Functor for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
@@ -120,9 +119,7 @@ impl Lift for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
 	/// let y = Identity(2);
@@ -168,9 +165,7 @@ impl Pointed for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = pure::<IdentityBrand, _>(5);
 	/// assert_eq!(x, Identity(5));
@@ -194,7 +189,7 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	/// * `B`: The type of the output value.
 	/// * `A`: The type of the input value.
 	///
@@ -210,15 +205,15 @@ impl Semiapplicative for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let f = Identity(clonable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = Identity(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Identity(5);
 	/// let y = apply::<RcFnBrand, IdentityBrand, _, _>(f, x);
 	/// assert_eq!(y, Identity(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + ClonableFn, B: 'a, A: 'a + Clone>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as ClonableFn>::Of<'a, A, B>>),
+	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Identity(ff.0(fa.0))
@@ -252,9 +247,7 @@ impl Semimonad for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::IdentityBrand;
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
@@ -282,7 +275,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the folding function.
@@ -300,9 +293,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
@@ -315,7 +306,7 @@ impl Foldable for IdentityBrand {
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		func(fa.0, initial)
 	}
@@ -330,7 +321,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the folding function.
@@ -348,9 +339,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
@@ -363,7 +352,7 @@ impl Foldable for IdentityBrand {
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		func(initial, fa.0)
 	}
@@ -378,7 +367,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the clonable function to use.
+	/// * `FnBrand`: The brand of the cloneable function to use.
 	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
 	/// * `Func`: The type of the mapping function.
@@ -395,9 +384,7 @@ impl Foldable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, RcFnBrand};
-	/// use fp_library::types::{Identity, string}; // Import to bring Monoid impl for String into scope
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
@@ -410,7 +397,7 @@ impl Foldable for IdentityBrand {
 	where
 		M: Monoid + 'a,
 		Func: Fn(A) -> M + 'a,
-		FnBrand: ClonableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
 		func(fa.0)
 	}
@@ -444,9 +431,7 @@ impl Traversable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, OptionBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
 	/// let y = traverse::<IdentityBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
@@ -486,9 +471,7 @@ impl Traversable for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, OptionBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(Some(5));
 	/// let y = sequence::<IdentityBrand, OptionBrand, _>(x);
@@ -505,7 +488,7 @@ impl Traversable for IdentityBrand {
 	}
 }
 
-impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
+impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// Maps the value to a monoid and returns it in parallel.
 	///
 	/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
@@ -531,17 +514,15 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, ArcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// let y = par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(f, x);
 	/// assert_eq!(y, "1".to_string());
 	/// ```
 	fn par_fold_map<'a, M, A>(
-		func: <FnBrand as SendClonableFn>::SendOf<'a, A, M>,
+		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
@@ -577,17 +558,15 @@ impl<FnBrand: SendClonableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{IdentityBrand, ArcFnBrand};
-	/// use fp_library::types::Identity;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(1);
-	/// let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 	/// let y = par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x);
 	/// assert_eq!(y, 11);
 	/// ```
 	fn par_fold_right<'a, B, A>(
-		func: <FnBrand as SendClonableFn>::SendOf<'a, (A, B), B>,
+		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
@@ -635,7 +614,7 @@ mod tests {
 	fn applicative_identity(v: i32) -> bool {
 		let v = Identity(v);
 		apply::<RcFnBrand, IdentityBrand, _, _>(
-			pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(identity)),
+			pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(identity)),
 			v,
 		) == v
 	}
@@ -645,7 +624,7 @@ mod tests {
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
 		apply::<RcFnBrand, IdentityBrand, _, _>(
-			pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(f)),
+			pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(f)),
 			pure::<IdentityBrand, _>(x),
 		) == pure::<IdentityBrand, _>(f(x))
 	}
@@ -661,8 +640,8 @@ mod tests {
 		let v_fn = move |x: i32| x.wrapping_mul(v_val);
 		let u_fn = move |x: i32| x.wrapping_add(u_val);
 
-		let v = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(v_fn));
-		let u = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(u_fn));
+		let v = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(v_fn));
+		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
 		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w.clone());
@@ -671,7 +650,7 @@ mod tests {
 		// LHS: pure(compose) <*> u <*> v <*> w
 		// equivalent to (u . v) <*> w
 		let composed = move |x| u_fn(v_fn(x));
-		let uv = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(composed));
+		let uv = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(composed));
 
 		let lhs = apply::<RcFnBrand, IdentityBrand, _, _>(uv, w);
 
@@ -683,11 +662,12 @@ mod tests {
 	fn applicative_interchange(y: i32) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = |x: i32| x.wrapping_mul(2);
-		let u = pure::<IdentityBrand, _>(<RcFnBrand as ClonableFn>::new(f));
+		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(f));
 
 		let lhs = apply::<RcFnBrand, IdentityBrand, _, _>(u.clone(), pure::<IdentityBrand, _>(y));
 
-		let rhs_fn = <RcFnBrand as ClonableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
+		let rhs_fn =
+			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
 		let rhs = apply::<RcFnBrand, IdentityBrand, _, _>(pure::<IdentityBrand, _>(rhs_fn), u);
 
 		lhs == rhs
@@ -779,7 +759,7 @@ mod tests {
 		use crate::{brands::*, functions::*};
 
 		let x = Identity(1);
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(f, x), "1".to_string());
 	}
 
@@ -789,7 +769,7 @@ mod tests {
 		use crate::{brands::*, functions::*};
 
 		let x = Identity(1);
-		let f = send_clonable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		assert_eq!(par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x), 11);
 	}
 }
