@@ -681,7 +681,9 @@ unsafe impl<A: Send + Sync> Sync for ArcLazy<A> {}
 | No config trait          | Simpler mental model         | Code duplication between `RcLazy`/`ArcLazy` |
 | Direct panic propagation | No `catch_unwind` overhead   | User must handle panics if desired          |
 | Reference-based `map`    | No `Clone` on `A` needed     | `map` takes `&A`, not `A`                   |
-| No brand types           | Simpler generics             | Cannot use library's `Functor` trait        |
+| No brand types           | Simpler generics             | Cannot use library's `Functor` trait\*      |
+
+_\*Note: The library's `Functor` trait requires `Fn(A) -> B`. Shared lazy types can only provide `&A`, making implementation impossible without `A: Clone` bounds, which the trait does not support._
 
 #### Issues Addressed
 
@@ -1346,8 +1348,8 @@ impl<A> Clone for SyncLazy<A> {
 
 ## Trade-off Analysis Matrix
 
-| Criterion               | Current     | Proposal A    | Proposal B     | Proposal C      | Proposal D        |
-| ----------------------- | ----------- | ------------- | -------------- | --------------- | ----------------- |
+| Criterion               | Current    | Proposal A   | Proposal B    | Proposal C     | Proposal D       |
+| ----------------------- | -----------| ------------ | ------------- | -------------- | ---------------- |
 | **Simplicity**          | ❌ Complex  | ✅ Simple     | ⚠️ Two types   | ✅ Thin wrapper | ⚠️ Multiple parts |
 | **Functor**             | ❌ Cannot   | ⚠️ Ref-based  | ⚠️ Ref-based   | ⚠️ Limited      | ✅ `Thunk::map`   |
 | **Error handling**      | ❌ Panics   | ⚠️ Propagates | ✅ Explicit    | ⚠️ Propagates   | ⚠️ On thunk       |
@@ -1377,14 +1379,22 @@ impl<A> Clone for SyncLazy<A> {
 
 ## Implementation Recommendations
 
-### Recommended Approach: Hybrid of A and B
+### Recommended Approach: Hybrid of A, B, and C
 
-Combine the simplicity of Proposal A with the error handling of Proposal B:
+Combine the simplicity of Proposal A, the error handling of Proposal B, and the standard library internals of Proposal C:
+
+1. **API Structure (from A & B):** Independent types (`Lazy`, `SyncLazy`) with `FnOnce` thunks and optional `Try` variants.
+2. **Internals (from C):** Use `std::cell::LazyCell` and `std::sync::LazyLock` (available in Rust 1.80+) to handle the memoization logic safely and efficiently.
 
 ```rust
-// Core types: simple, no config traits
-pub struct Lazy<A> { /* uses OnceCell */ }
-pub struct SyncLazy<A> { /* uses OnceLock */ }
+// Core types: simple, no config traits, backed by std
+pub struct Lazy<A> {
+    inner: std::cell::LazyCell<A, Box<dyn FnOnce() -> A>>
+}
+
+pub struct SyncLazy<A> {
+    inner: std::sync::LazyLock<A, Box<dyn FnOnce() -> A + Send>>
+}
 
 // Fallible variants for explicit error handling
 pub struct TryLazy<A, E> { /* Result-based */ }
@@ -1415,39 +1425,6 @@ The recommended approach is a **breaking change** from the current API:
 
 ---
 
-## Migration Strategy
-
-### Option 1: Parallel Types (Non-Breaking)
-
-Introduce new types alongside existing ones:
-
-```rust
-// New module
-pub mod lazy2 {
-    pub struct Lazy<A> { ... }
-    pub struct SyncLazy<A> { ... }
-}
-
-// Deprecate old module
-#[deprecated(since = "0.2.0", note = "Use lazy2::Lazy instead")]
-pub mod lazy { ... }
-```
-
-### Option 2: Feature Flag
-
-```toml
-[features]
-default = ["lazy-v1"]
-lazy-v1 = []
-lazy-v2 = []
-```
-
-### Option 3: Major Version Bump
-
-Release as version 2.0.0 with breaking changes documented in CHANGELOG.
-
----
-
 ## Conclusion
 
 The existing analysis document identifies valid issues but treats them as independent problems with incremental solutions. This architectural critique demonstrates that:
@@ -1455,7 +1432,7 @@ The existing analysis document identifies valid issues but treats them as indepe
 1. **12 surface issues trace to 5 root flaws**
 2. **Root flaws are interconnected** through library-wide architectural decisions
 3. **4 holistic redesign approaches** exist that would address most issues wholesale
-4. **The recommended hybrid approach** (A + B elements) scores significantly higher than the current design
+4. **The recommended hybrid approach** (A + B + C elements) scores significantly higher than the current design
 
 The choice of approach should be made explicitly, weighing:
 
