@@ -1,11 +1,6 @@
 //! Procedural macros for the [`fp-library`](https://docs.rs/fp-library/latest/fp_library/) crate.
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
-//! It includes:
-//! - `Kind!`: Generates the name of a `Kind` trait based on its signature.
-//! - `def_kind!`: Defines a new `Kind` trait.
-//! - `impl_kind!`: Implements a `Kind` trait for a brand.
-//! - `Apply!`: Applies a brand to type arguments.
 
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
@@ -32,20 +27,51 @@ mod property_tests;
 ///
 /// This macro takes a list of associated type definitions, similar to a trait definition.
 ///
-/// # Examples
+/// ### Syntax
 ///
 /// ```ignore
-/// // Simple signature
+/// Kind!(
+///     type AssocName<Params>: Bounds;
+///     // ...
+/// )
+/// ```
+///
+/// ### Parameters
+///
+/// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
+///
+/// ### Generates
+///
+/// The name of the generated `Kind` trait (e.g., `Kind_0123456789abcdef`).
+/// The name is deterministic and based on a hash of the signature.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
 /// let name = Kind!(type Of<T>;);
 ///
-/// // Signature with bounds and lifetimes
+/// // Expanded code
+/// let name = Kind_...; // e.g., Kind_a1b2c3d4e5f67890
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// let name = Kind!(type Of<'a, T: Display>: Debug;);
 ///
-/// // Multiple associated types
+/// // Expanded code
+/// let name = Kind_...; // Unique hash based on signature
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// let name = Kind!(
 ///     type Of<T>;
 ///     type SendOf<T>: Send;
 /// );
+///
+/// // Expanded code
+/// let name = Kind_...; // Unique hash based on signature
 /// ```
 ///
 /// # Limitations
@@ -68,22 +94,58 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// Defines a new `Kind` trait.
 ///
 /// This macro generates a trait definition for a Higher-Kinded Type signature.
-/// It takes a list of associated type definitions, similar to a trait definition.
 ///
-/// # Examples
+/// ### Syntax
 ///
 /// ```ignore
-/// // Simple definition
+/// def_kind!(
+///     type AssocName<Params>: Bounds;
+///     // ...
+/// )
+/// ```
+///
+/// ### Parameters
+///
+/// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
+///
+/// ### Generates
+///
+/// A public trait definition with a unique name derived from the signature (format: `Kind_{hash}`).
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
 /// def_kind!(type Of<T>;);
 ///
-/// // Definition with bounds and lifetimes
+/// // Expanded code
+/// pub trait Kind_... { // e.g., Kind_a1b2c3d4e5f67890
+///     type Of<T>;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// def_kind!(type Of<'a, T: Display>: Debug;);
 ///
-/// // Multiple associated types
+/// // Expanded code
+/// pub trait Kind_... {
+///     type Of<'a, T: Display>: Debug;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// def_kind!(
 ///     type Of<T>;
 ///     type SendOf<T>: Send;
 /// );
+///
+/// // Expanded code
+/// pub trait Kind_... {
+///     type Of<T>;
+///     type SendOf<T>: Send;
+/// }
 /// ```
 #[proc_macro]
 pub fn def_kind(input: TokenStream) -> TokenStream {
@@ -100,7 +162,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 /// The signature (names, parameters, and bounds) of the associated types must match
 /// the definition used in [`def_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
 ///
-/// # Syntax
+/// ### Syntax
 ///
 /// ```ignore
 /// impl_kind! {
@@ -115,24 +177,49 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// # Examples
+/// ### Parameters
+///
+/// * `Generics`: Optional generic parameters for the implementation.
+/// * `BrandType`: The brand type to implement the Kind for.
+/// * `Bounds`: Optional where clause bounds.
+/// * `Associated Types`: The associated type assignments (e.g., `type Of<A> = Option<A>;`).
+///
+/// ### Generates
+///
+/// An implementation of the appropriate `Kind` trait for the brand.
+///
+/// ### Examples
 ///
 /// ```ignore
-/// // Simple implementation
+/// // Invocation
 /// impl_kind! {
 ///     for OptionBrand {
 ///         type Of<A> = Option<A>;
 ///     }
 /// }
 ///
-/// // Implementation with generics
+/// // Expanded code
+/// impl Kind_... for OptionBrand { // e.g., Kind_a1b2c3d4e5f67890
+///     type Of<A> = Option<A>;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// impl_kind! {
 ///     impl<E> for ResultBrand<E> {
 ///         type Of<A> = Result<A, E>;
 ///     }
 /// }
 ///
-/// // Implementation with where clause and multiple types
+/// // Expanded code
+/// impl<E> Kind_... for ResultBrand<E> {
+///     type Of<A> = Result<A, E>;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// impl_kind! {
 ///     impl<E> for MyBrand<E> where E: Clone {
 ///         type Of<A> = MyType<A, E>;
@@ -140,13 +227,26 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// // Implementation matching a `Kind` with bounds
+/// // Expanded code
+/// impl<E> Kind_... for MyBrand<E> where E: Clone {
+///     type Of<A> = MyType<A, E>;
+///     type SendOf<A> = MySendType<A, E>;
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// // Corresponds to: def_kind!(type Of<T: Display>;);
 /// impl_kind! {
 ///     for DisplayBrand {
 ///         // Bounds here are used to infer the correct `Kind` trait name
 ///         type Of<T: Display> = DisplayType<T>;
 ///     }
+/// }
+///
+/// // Expanded code
+/// impl Kind_... for DisplayBrand {
+///     type Of<T: Display> = DisplayType<T>;
 /// }
 /// ```
 #[proc_macro]
@@ -161,31 +261,59 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// `Kind` trait. It uses a syntax that mimics a fully qualified path, where the
 /// `Kind` trait is specified by its signature.
 ///
-/// # Syntax
+/// ### Syntax
 ///
 /// ```ignore
 /// Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)
 /// ```
+///
+/// ### Parameters
 ///
 /// * `Brand`: The brand type (e.g., `OptionBrand`).
 /// * `KindSignature`: A list of associated type definitions defining the `Kind` trait schema.
 /// * `AssocType`: The associated type to project (e.g., `Of`).
 /// * `Args`: The concrete arguments to apply.
 ///
-/// # Examples
+/// ### Generates
+///
+/// The concrete type resulting from applying the brand to the arguments.
+///
+/// ### Examples
 ///
 /// ```ignore
+/// // Invocation
 /// // Applies MyBrand to lifetime 'static and type String.
 /// type Concrete = Apply!(<MyBrand as Kind!( type Of<'a, T>; )>::Of<'static, String>);
 ///
+/// // Expanded code
+/// type Concrete = <MyBrand as Kind_...>::Of<'static, String>;
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// // Applies MyBrand to a generic type T with bounds.
 /// type Concrete = Apply!(<MyBrand as Kind!( type Of<T: Clone>; )>::Of<T>);
 ///
+/// // Expanded code
+/// type Concrete = <MyBrand as Kind_...>::Of<T>;
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// // Complex example with lifetimes, types, and output bounds.
 /// type Concrete = Apply!(<MyBrand as Kind!( type Of<'a, T: Clone + Debug>: Display; )>::Of<'a, T>);
 ///
+/// // Expanded code
+/// type Concrete = <MyBrand as Kind_...>::Of<'a, T>;
+/// ```
+///
+/// ```ignore
+/// // Invocation
 /// // Use a custom associated type for projection.
 /// type Concrete = Apply!(<MyBrand as Kind!( type Of<T>; type SendOf<T>; )>::SendOf<T>);
+///
+/// // Expanded code
+/// type Concrete = <MyBrand as Kind_...>::SendOf<T>;
 /// ```
 #[proc_macro]
 #[allow(non_snake_case)]
@@ -199,7 +327,7 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// This macro scans the specified directory for Rust files, parses them to find public free functions,
 /// and generates `pub use` statements for them. It supports aliasing to resolve name conflicts.
 ///
-/// # Syntax
+/// ### Syntax
 ///
 /// ```ignore
 /// generate_function_re_exports!("path/to/directory", {
@@ -208,16 +336,28 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// })
 /// ```
 ///
+/// ### Parameters
+///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of function names to their desired aliases.
 ///
-/// # Examples
+/// ### Generates
+///
+/// `pub use` statements for each public function found in the directory.
+///
+/// ### Examples
 ///
 /// ```ignore
+/// // Invocation
 /// generate_function_re_exports!("src/classes", {
 ///     identity: category_identity,
 ///     new: fn_new,
 /// });
+///
+/// // Expanded code
+/// pub use src::classes::category::identity as category_identity;
+/// pub use src::classes::function::new as fn_new;
+/// // ... other re-exports
 /// ```
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
@@ -230,7 +370,7 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 /// This macro scans the specified directory for Rust files, parses them to find public traits,
 /// and generates `pub use` statements for them.
 ///
-/// # Syntax
+/// ### Syntax
 ///
 /// ```ignore
 /// generate_trait_re_exports!("path/to/directory", {
@@ -239,13 +379,25 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 /// })
 /// ```
 ///
+/// ### Parameters
+///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of trait names to their desired aliases (optional).
 ///
-/// # Examples
+/// ### Generates
+///
+/// `pub use` statements for each public trait found in the directory.
+///
+/// ### Examples
 ///
 /// ```ignore
+/// // Invocation
 /// generate_trait_re_exports!("src/classes", {});
+///
+/// // Expanded code
+/// pub use src::classes::functor::Functor;
+/// pub use src::classes::monad::Monad;
+/// // ... other re-exports
 /// ```
 #[proc_macro]
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {

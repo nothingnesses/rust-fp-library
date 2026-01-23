@@ -120,7 +120,7 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the cloneable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
@@ -140,11 +140,11 @@ pub trait LazyDefer<'a, A>: LazyConfig {
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
-	fn defer<FnBrand_>(
-		f: <FnBrand_ as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
+	fn defer<FnBrand>(
+		f: <FnBrand as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
 	) -> Lazy<'a, Self, A>
 	where
-		FnBrand_: CloneableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 		A: Clone + 'a;
 }
 
@@ -307,7 +307,7 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the cloneable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
@@ -327,11 +327,11 @@ impl<'a, A> LazyDefer<'a, A> for RcLazyConfig {
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
-	fn defer<FnBrand_>(
-		f: <FnBrand_ as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
+	fn defer<FnBrand>(
+		f: <FnBrand as CloneableFn>::Of<'a, (), Lazy<'a, Self, A>>
 	) -> Lazy<'a, Self, A>
 	where
-		FnBrand_: CloneableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 		A: Clone + 'a,
 	{
 		let thunk = Self::new_thunk(move |_| {
@@ -512,7 +512,7 @@ impl<A: Send + Sync> LazyMonoid<A> for ArcLazyConfig {
 }
 
 // Note: LazyDefer is NOT implemented for ArcLazyConfig because the Defer trait
-// allows any FnBrand_, but ArcLazy requires Send + Sync closures. Users should
+// allows any FnBrand, but ArcLazy requires Send + Sync closures. Users should
 // use SendDefer instead for thread-safe deferred lazy evaluation.
 
 // =============================================================================
@@ -971,7 +971,7 @@ impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config,
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand_`: The brand of the cloneable function wrapper.
+	/// * `FnBrand`: The brand of the cloneable function wrapper.
 	///
 	/// ### Parameters
 	///
@@ -991,12 +991,12 @@ impl<'a, Config: LazyDefer<'a, A>, A: Clone + 'a> Defer<'a> for Lazy<'a, Config,
 	/// );
 	/// assert_eq!(Lazy::force_or_panic(&lazy), 42);
 	/// ```
-	fn defer<FnBrand_>(f: <FnBrand_ as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<FnBrand>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
-		FnBrand_: CloneableFn + 'a,
+		FnBrand: CloneableFn + 'a,
 	{
-		Config::defer::<FnBrand_>(f)
+		Config::defer::<FnBrand>(f)
 	}
 }
 
