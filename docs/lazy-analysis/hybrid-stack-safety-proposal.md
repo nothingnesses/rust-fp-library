@@ -127,7 +127,7 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 | Approach | Bind Complexity | Stack Safety | API Ergonomics | Type Safety |
 |----------|-----------------|--------------|----------------|-------------|
 | Direct closures | O(1) | ❌ Overflow | ✅ Simple | ✅ Full |
-| Cats Eval (Vec stack) | O(n²) worst | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
+| Previous proposal's version of Cats Eval (Vec stack) | O(n²) worst | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
 | **This proposal (CatList)** | **O(1) amortized** | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
 | Continuation monad | O(1) | ✅ Safe | ⚠️ Complex | ✅ Full |
 
@@ -2547,7 +2547,7 @@ pub trait MonadRec: Monad {
         a: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a;
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a;
 }
 
 /// Free function version of tail_rec_m.
@@ -2557,7 +2557,7 @@ pub fn tail_rec_m<'a, Brand, A: 'a, B: 'a, F>(
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
     Brand: MonadRec,
-    F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
+    F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
 {
     Brand::tail_rec_m(f, a)
 }
@@ -2572,7 +2572,7 @@ impl MonadRec for OptionBrand {
         mut a: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
     {
         loop {
             match f(a)? {
@@ -2593,7 +2593,7 @@ impl MonadRec for EvalBrand {
         initial: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
         A: Send,
         B: Send,
     {
