@@ -51,6 +51,7 @@ eval.run()
 ```
 
 Each `flat_map` creates a new `FlatMap` node. When `run()` executes:
+
 1. It pushes all continuations onto the stack: O(n) operations
 2. It pops and executes each continuation: O(n) operations
 3. **But**: Each `flat_map` call during construction traverses the existing structure
@@ -59,41 +60,41 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 
 ### 1.2 Design Goals
 
-| Goal | Description | Approach |
-|------|-------------|----------|
-| **Stack Safety** | No stack overflow regardless of recursion depth | Trampoline-style iterative evaluation |
-| **O(1) Bind** | Left-associated binds should not degrade | CatList-based continuation queue |
-| **Ergonomic API** | Clean user-facing combinators | Eval type with `pure`, `defer`, `flat_map` |
-| **Type Class Interface** | Generic stack-safe recursion | `MonadRec` trait with `tail_rec_m` |
-| **HKT Integration** | Works with existing type class system | Brand types implementing `Kind_*` |
-| **Dual-Type Compatibility** | Computation/caching separation | Eval as computation layer, Memo as cache |
-| **Minimal Dependencies** | Use std types where possible | Custom CatList/CatQueue using std `Vec` |
+| Goal                        | Description                                     | Approach                                   |
+| --------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| **Stack Safety**            | No stack overflow regardless of recursion depth | Trampoline-style iterative evaluation      |
+| **O(1) Bind**               | Left-associated binds should not degrade        | CatList-based continuation queue           |
+| **Ergonomic API**           | Clean user-facing combinators                   | Eval type with `pure`, `defer`, `flat_map` |
+| **Type Class Interface**    | Generic stack-safe recursion                    | `MonadRec` trait with `tail_rec_m`         |
+| **HKT Integration**         | Works with existing type class system           | Brand types implementing `Kind_*`          |
+| **Dual-Type Compatibility** | Computation/caching separation                  | Eval as computation layer, Memo as cache   |
+| **Minimal Dependencies**    | Use std types where possible                    | Custom CatList/CatQueue using std `Vec`    |
 
 ### 1.3 Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      User-Facing API                            │
-│  Eval::pure(a)  |  Eval::defer(f)  |  eval.flat_map(g)         │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                     User-Facing API                       │
+│ Eval::pure(a)  |  Eval::defer(f)  |  eval.flat_map(g)     │
+└───────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Internal Representation                      │
-│  Free<ThunkF, A> with CatList<Continuation> for bind stack     │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                   Internal Representation                 │
+│ Free<ThunkF, A> with CatList<Continuation> for bind stack │
+└───────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Evaluation Engine                            │
-│  tailRecM-style loop consuming CatList continuations           │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                   Evaluation Engine                       │
+│ tailRecM-style loop consuming CatList continuations       │
+└───────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Caching Layer (Optional)                     │
-│  Memo<A, Config> wrapping Eval::run() result                   │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                   Caching Layer (Optional)                │
+│ Memo<A, Config> wrapping Eval::run() result               │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### 1.4 Key Design Decisions
@@ -124,12 +125,12 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 
 ### 1.5 Comparison with Alternatives
 
-| Approach | Bind Complexity | Stack Safety | API Ergonomics | Type Safety |
-|----------|-----------------|--------------|----------------|-------------|
-| Direct closures | O(1) | ❌ Overflow | ✅ Simple | ✅ Full |
-| Previous proposal's version of Cats Eval (Vec stack) | O(n²) worst | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
-| **This proposal (CatList)** | **O(1) amortized** | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
-| Continuation monad | O(1) | ✅ Safe | ⚠️ Complex | ✅ Full |
+| Approach                                             | Bind Complexity    | Stack Safety | API Ergonomics | Type Safety    |
+| ---------------------------------------------------- | ------------------ | ------------ | -------------- | -------------- |
+| Direct closures                                      | O(1)               | ❌ Overflow  | ✅ Simple      | ✅ Full        |
+| Previous proposal's version of Cats Eval (Vec stack) | O(n²) worst        | ✅ Safe      | ✅ Simple      | ⚠️ Type erasure |
+| **This proposal (CatList)**                          | **O(1) amortized** | ✅ Safe      | ✅ Simple      | ⚠️ Type erasure |
+| Continuation monad                                   | O(1)               | ✅ Safe      | ⚠️ Complex      | ✅ Full        |
 
 ### 1.6 References
 
@@ -147,6 +148,7 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 CatQueue is the foundation of CatList. It provides a double-ended queue with O(1) amortized operations using the "two-list queue" technique from Okasaki's work.
 
 **Key insight**: A queue can be implemented with two stacks (or in our case, two Vecs):
+
 - `front`: Elements ready to be dequeued (in order)
 - `back`: Elements recently enqueued (in reverse order)
 
@@ -170,7 +172,7 @@ snoc (CatQueue l r) a = CatQueue l (Cons a r)
 
 ### 2.3 Rust Implementation
 
-```rust
+````rust
 use std::collections::VecDeque;
 
 /// A double-ended queue with O(1) amortized operations.
@@ -295,7 +297,7 @@ impl<A> CatQueue<A> {
             self.back.reverse();
             std::mem::swap(&mut self.front, &mut self.back);
         }
-        
+
         // Pop from the end of front (which is the "head" in our representation)
         let a = self.front.pop()?;
         Some((a, self))
@@ -316,7 +318,7 @@ impl<A> CatQueue<A> {
             self.front.reverse();
             std::mem::swap(&mut self.front, &mut self.back);
         }
-        
+
         let a = self.back.pop()?;
         Some((a, self))
     }
@@ -353,13 +355,14 @@ impl<A> Iterator for CatQueueIter<A> {
 }
 
 impl<A> ExactSizeIterator for CatQueueIter<A> {}
-```
+````
 
 ### 2.4 Design Decisions for Rust
 
 #### Decision: Use `Vec` Instead of Linked List
 
 **Rationale**: PureScript uses linked lists (`List a`), but Rust's `Vec` offers:
+
 - Better cache locality
 - Amortized O(1) `push` and `pop`
 - No allocation per element
@@ -369,6 +372,7 @@ The trade-off is that `Vec` requires elements to be contiguous, but since we onl
 #### Decision: Store Front in Reverse Order
 
 **Rationale**: We store `front` so that `pop()` removes the logical "head". This means:
+
 - `cons(a)` → `front.push(a)` — O(1)
 - `uncons()` → `front.pop()` — O(1)
 - When `front` is empty, `reverse(back)` gives us the correct order
@@ -384,6 +388,7 @@ This matches PureScript's behavior but uses Vec's natural operations.
 **Invariant**: Elements in `front` (read from end) followed by elements in `back` (read from start after reversal) form the logical queue order.
 
 **Amortized Analysis**: Each element is:
+
 1. Pushed to `back`: O(1)
 2. Moved to `front` (via reversal): O(1) amortized (happens once per element)
 3. Popped from `front`: O(1)
@@ -427,7 +432,7 @@ The `uncons` operation is subtle: when we've exhausted the head, we need to comb
 
 ### 3.3 Rust Implementation
 
-```rust
+````rust
 /// A catenable list with O(1) append and O(1) amortized uncons.
 ///
 /// This is the "Reflection without Remorse" data structure that enables
@@ -583,7 +588,7 @@ impl<A> CatList<A> {
     fn flatten_queue(queue: CatQueue<CatList<A>>) -> Self {
         // Collect all sublists
         let sublists: Vec<CatList<A>> = queue.into_iter().collect();
-        
+
         // Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
         // We process from right to left
         sublists.into_iter().rev().fold(CatList::Nil, |acc, list| {
@@ -640,13 +645,14 @@ impl<A> FromIterator<A> for CatList<A> {
         iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
     }
 }
-```
+````
 
 ### 3.4 Design Decisions for Rust
 
 #### Decision: Enum Representation
 
 **Rationale**: We use a Rust enum directly mirroring PureScript's algebraic data type. This gives us:
+
 - Pattern matching for clean code
 - Zero-cost abstraction (no boxing for the enum discriminant)
 - Clear structural representation
@@ -654,6 +660,7 @@ impl<A> FromIterator<A> for CatList<A> {
 #### Decision: Consuming vs Borrowing `uncons`
 
 **Rationale**: We chose consuming `uncons(self) -> Option<(A, Self)>` because:
+
 1. CatList is typically used linearly (process once, discard)
 2. Avoids lifetime complexity
 3. Matches PureScript's functional style
@@ -663,6 +670,7 @@ If shared access is needed, wrap in `Rc<RefCell<CatList<A>>>`.
 #### Decision: Iterative `flatten_queue`
 
 **Rationale**: PureScript's `foldr link CatNil q` is recursive. In Rust, we must be careful about stack depth. Our implementation:
+
 1. Collects sublists into a Vec (iterative)
 2. Right-folds using `.rev().fold()` (iterative)
 
@@ -673,6 +681,7 @@ This ensures stack safety even for deeply nested CatLists.
 **Claim**: A sequence of n `snoc` operations followed by n `uncons` operations takes O(n) total time.
 
 **Proof sketch**:
+
 1. Each `snoc` is O(1) — just appends to queue
 2. Each element is involved in at most one `link` during `flatten_queue`
 3. Using the "banker's method": each element pays for its own flattening
@@ -688,11 +697,11 @@ One might ask: why not just use `std::collections::VecDeque`?
 
 **Answer**: VecDeque has O(n) concatenation, which defeats the purpose. The key feature of CatList is O(1) concatenation, which requires the nested structure with deferred flattening.
 
-| Operation | CatList | VecDeque |
-|-----------|---------|----------|
-| push_back | O(1)    | O(1) amortized |
-| pop_front | O(1) amortized | O(1) |
-| **concat** | **O(1)** | **O(n)** |
+| Operation  | CatList        | VecDeque       |
+| ---------- | -------------- | -------------- |
+| push_back  | O(1)           | O(1) amortized |
+| pop_front  | O(1) amortized | O(1)           |
+| **concat** | **O(1)**       | **O(n)**       |
 
 For the Free monad's bind stack, we need O(1) concat to avoid O(n²) left-bind degradation.
 
@@ -717,7 +726,7 @@ The `tailRecM` function repeatedly applies `f` until it returns `Done`. The key 
 
 ### 4.2 Step Type
 
-```rust
+````rust
 /// Represents the result of a single step in a tail-recursive computation.
 ///
 /// This type is fundamental to stack-safe recursion via `MonadRec`.
@@ -788,11 +797,11 @@ impl<A, B> Step<A, B> {
         }
     }
 }
-```
+````
 
 ### 4.3 MonadRec Trait
 
-```rust
+````rust
 use crate::{Apply, kinds::*};
 
 /// A type class for monads that support stack-safe tail recursion.
@@ -922,19 +931,19 @@ where
     M::Brand: Kind_cdc7cd43dac7585f,
 {
     use std::sync::Arc;
-    
+
     // Wrap f in Arc to make it Clone
     let f = Arc::new(f);
-    
+
     // Create a Clone wrapper that delegates to the Arc
     let wrapper = move |a: A| {
         let f = Arc::clone(&f);
         f(a)
     };
-    
+
     M::tail_rec_m(wrapper, a)
 }
-```
+````
 
 ### 4.4 Standard Implementations
 
@@ -1020,7 +1029,7 @@ fn countdown(n: u64) -> Eval<u64> {
 }
 ```
 
-The key difference: instead of building a chain of deferred computations, we express the loop *structure* explicitly with `Step`, and let `tail_rec_m` handle it iteratively.
+The key difference: instead of building a chain of deferred computations, we express the loop _structure_ explicitly with `Step`, and let `tail_rec_m` handle it iteratively.
 
 ### 4.6 Relationship to Trampoline
 
@@ -1050,6 +1059,7 @@ data Free f a = Pure a | Free (f (Free f a)) | Bind (Free f Val) (CatList (Val -
 ```
 
 The `Bind` constructor stores:
+
 1. A suspended computation producing some value (type-erased as `Val`)
 2. A CatList of continuations to apply (also type-erased)
 
@@ -1072,7 +1082,7 @@ pub type ErasedCont<F> = Box<dyn FnOnce(Val) -> Free<F, Val> + Send>;
 
 ### 5.3 Free Monad Implementation
 
-```rust
+````rust
 use std::any::Any;
 use std::marker::PhantomData;
 
@@ -1114,10 +1124,10 @@ where
 {
     /// A pure value, computation finished.
     Pure(A),
-    
+
     /// A suspended effect containing a continuation.
     Roll(Apply!(F::Brand, Free<F, A>)),
-    
+
     /// A computation with a CatList of continuations.
     /// Uses type erasure internally for heterogeneous continuation chains.
     Bind {
@@ -1211,7 +1221,7 @@ impl<F: Functor, A: 'static + Send> Free<F, A> {
         Box::new(self.erase_type())
     }
 }
-```
+````
 
 ### 5.4 The Run Loop (Interpreter)
 
@@ -1338,36 +1348,44 @@ Free::pure(0)
 ```
 
 **Traditional nested structure** (O(n²)):
+
 ```
 FlatMap(FlatMap(FlatMap(Pure(0), f1), f2), f3)
 ```
+
 Concatenating requires traversing to the innermost `Pure`.
 
 **CatList structure** (O(1)):
+
 ```
 Bind {
     head: Pure(0),
     conts: CatList[f1, f2, f3]
 }
 ```
+
 Each `flat_map` just does `conts.snoc(f)` — O(1)!
 
 ### 5.7 Memory and Performance Considerations
 
 **Allocation**:
+
 - Each continuation is boxed: `Box<dyn FnOnce(Val) -> Free<F, Val>>`
 - Each value is boxed for type erasure: `Box<dyn Any>`
 
 **Downcasting**:
+
 - `downcast` is a simple discriminant check + pointer cast
 - Extremely cheap, but adds a small constant factor
 
 **CatList overhead**:
+
 - The nested CatList structure adds indirection
 - But this is amortized across all operations
 
 **When to use**:
-- Use `Free`/`Eval` for *deep* recursion or *long* chains (1000+ binds)
+
+- Use `Free`/`Eval` for _deep_ recursion or _long_ chains (1000+ binds)
 - For shallow chains (<100 binds), direct closures may be faster
 - The crossover point depends on the specific use case
 
@@ -1408,11 +1426,11 @@ impl<A: 'static + Send> Eval<A> {
 
 This means:
 
-| Works | Does Not Work |
-|-------|---------------|
-| `Eval<String>` | `Eval<&str>` (borrowed) |
-| `Eval<Vec<i32>>` | `Eval<&[i32]>` (borrowed) |
-| `Eval<Arc<Data>>` | `Eval<&Data>` (borrowed) |
+| Works                | Does Not Work                                       |
+| -------------------- | --------------------------------------------------- |
+| `Eval<String>`       | `Eval<&str>` (borrowed)                             |
+| `Eval<Vec<i32>>`     | `Eval<&[i32]>` (borrowed)                           |
+| `Eval<Arc<Data>>`    | `Eval<&Data>` (borrowed)                            |
 | `Eval<Result<T, E>>` | `Eval<T>` where `T: 'a` for some non-`'static` `'a` |
 
 ### 6.3 Why This is Generally NOT a Significant Limitation
@@ -1422,6 +1440,7 @@ Despite the `'static` requirement, this constraint is **acceptable for a functio
 #### Reason 1: FP Emphasizes Owned Data
 
 Functional programming inherently favors:
+
 - **Immutable values** — typically owned, not borrowed
 - **Pure transformations** — `A -> B` where both are concrete types
 - **Composition** — chaining operations on owned data
@@ -1450,12 +1469,12 @@ Eval::later(move || expensive_computation(&data))
 
 #### Reason 3: Established Libraries Have Similar Constraints
 
-| Library | Constraint | Reason |
-|---------|------------|--------|
-| Tokio | `Future`s are `'static` for `spawn` | Task storage |
-| Rayon | Work items are `'static` | Thread pool transfer |
-| Cats (Scala) | No issue (JVM GC handles lifetimes) | N/A |
-| PureScript | No issue (runtime manages memory) | N/A |
+| Library      | Constraint                          | Reason               |
+| ------------ | ----------------------------------- | -------------------- |
+| Tokio        | `Future`s are `'static` for `spawn` | Task storage         |
+| Rayon        | Work items are `'static`            | Thread pool transfer |
+| Cats (Scala) | No issue (JVM GC handles lifetimes) | N/A                  |
+| PureScript   | No issue (runtime manages memory)   | N/A                  |
 
 Rust libraries dealing with deferred execution universally require `'static` for similar reasons.
 
@@ -1499,7 +1518,7 @@ impl<A: Send + 'static> Eval<A> {
     {
         Eval(Box::pin(async move { f().await }))
     }
-    
+
     pub fn flat_map<B, F, Fut>(self, f: F) -> Eval<B>
     where
         B: Send + 'static,
@@ -1516,13 +1535,13 @@ impl<A: Send + 'static> Eval<A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **No** — `Box<dyn Future>` still requires `'static` |
-| Stack safety | ✅ Yes — async desugars to state machine |
-| O(1) bind | ⚠️ Depends — may still build nested futures |
-| Semantic match | ❌ No — Futures imply async I/O, not pure lazy computation |
-| Complexity | Higher — requires async runtime understanding |
+| Aspect                | Assessment                                                 |
+| --------------------- | ---------------------------------------------------------- |
+| Eliminates `'static`? | **No** — `Box<dyn Future>` still requires `'static`        |
+| Stack safety          | ✅ Yes — async desugars to state machine                   |
+| O(1) bind             | ⚠️ Depends — may still build nested futures                 |
+| Semantic match        | ❌ No — Futures imply async I/O, not pure lazy computation |
+| Complexity            | Higher — requires async runtime understanding              |
 
 **Verdict**: Does not eliminate `'static` and introduces semantic mismatch. Not recommended.
 
@@ -1544,13 +1563,13 @@ fn eval_generator<A>(token: GeneratorToken<(), A>) {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **No** — still needs `Box<dyn ...>` for type erasure |
-| Stack safety | ✅ Yes — generators are stackless |
-| O(1) bind | ⚠️ Depends on implementation |
-| API clarity | ❌ Poor — generator API doesn't map to monad operations |
-| Stability | ⚠️ External dependency |
+| Aspect                | Assessment                                              |
+| --------------------- | ------------------------------------------------------- |
+| Eliminates `'static`? | **No** — still needs `Box<dyn ...>` for type erasure    |
+| Stack safety          | ✅ Yes — generators are stackless                       |
+| O(1) bind             | ⚠️ Depends on implementation                             |
+| API clarity           | ❌ Poor — generator API doesn't map to monad operations |
+| Stability             | ⚠️ External dependency                                   |
 
 **Verdict**: Does not solve the core issue and introduces API complexity. Not recommended.
 
@@ -1568,12 +1587,12 @@ enum EvalOp<A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
+| Aspect                | Assessment                                             |
+| --------------------- | ------------------------------------------------------ |
 | Eliminates `'static`? | **Partially** — can parameterize by lifetime with care |
-| Ergonomics | ❌ Poor — loses closure convenience |
-| Type safety | ❌ Poor — everything becomes `fn(Box<dyn Any>) -> ...` |
-| Complexity | ❌ High — manual dispatch tables |
+| Ergonomics            | ❌ Poor — loses closure convenience                    |
+| Type safety           | ❌ Poor — everything becomes `fn(Box<dyn Any>) -> ...` |
+| Complexity            | ❌ High — manual dispatch tables                       |
 
 **Verdict**: Trades type safety and ergonomics for marginal lifetime flexibility. Not recommended.
 
@@ -1590,13 +1609,13 @@ pub struct Eval<'a, A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **Yes** — can allocate `'a` data |
-| Complexity | ❌ High — arena management, lifetime threading |
-| Composability | ❌ Poor — arenas don't compose cleanly |
-| Ergonomics | ❌ Poor — explicit arena parameter everywhere |
-| Performance | ⚠️ Mixed — fast allocation, but complex deallocation |
+| Aspect                | Assessment                                          |
+| --------------------- | --------------------------------------------------- |
+| Eliminates `'static`? | **Yes** — can allocate `'a` data                    |
+| Complexity            | ❌ High — arena management, lifetime threading      |
+| Composability         | ❌ Poor — arenas don't compose cleanly              |
+| Ergonomics            | ❌ Poor — explicit arena parameter everywhere       |
+| Performance           | ⚠️ Mixed — fast allocation, but complex deallocation |
 
 **Verdict**: Adds significant complexity for limited benefit. Not recommended for general use.
 
@@ -1614,25 +1633,25 @@ struct ErasedVal {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **Theoretically** yes, but extremely dangerous |
-| Safety | ❌ Extremely Poor — lifetime violations, UB risk |
-| Maintenance | ❌ Poor — complex unsafe reasoning |
-| Auditability | ❌ Poor — hard to verify correctness |
+| Aspect                | Assessment                                       |
+| --------------------- | ------------------------------------------------ |
+| Eliminates `'static`? | **Theoretically** yes, but extremely dangerous   |
+| Safety                | ❌ Extremely Poor — lifetime violations, UB risk |
+| Maintenance           | ❌ Poor — complex unsafe reasoning               |
+| Auditability          | ❌ Poor — hard to verify correctness             |
 
 **Verdict**: Unacceptably dangerous. Never recommended.
 
 ### 6.5 Comparison Summary
 
-| Approach | Eliminates `'static` | Stack Safe | O(1) Bind | Ergonomics | Safety | Recommendation |
-|----------|---------------------|------------|-----------|------------|--------|----------------|
-| **CatList proposal** | ❌ No | ✅ Yes | ✅ Yes | ✅ Good | ✅ Safe | ✅ **Recommended** |
-| async/Future | ❌ No | ✅ Yes | ⚠️ Maybe | ⚠️ Semantic mismatch | ✅ Safe | ❌ Not recommended |
-| fauxgen generators | ❌ No | ✅ Yes | ⚠️ Maybe | ⚠️ Poor API fit | ✅ Safe | ❌ Not recommended |
-| Defunctionalization | ⚠️ Partial | ✅ Yes | ✅ Yes | ❌ Poor | ⚠️ Reduced | ❌ Not recommended |
-| Arena allocation | ✅ Yes | ✅ Yes | ✅ Yes | ❌ Poor | ⚠️ Complex | ❌ Not recommended |
-| Unsafe erasure | ✅ Yes | ✅ Yes | ✅ Yes | ⚠️ Ok | ❌ Dangerous | ❌ Never |
+| Approach             | Eliminates `'static` | Stack Safe | O(1) Bind | Ergonomics          | Safety       | Recommendation     |
+| -------------------- | -------------------- | ---------- | --------- | ------------------- | ------------ | ------------------ |
+| **CatList proposal** | ❌ No                | ✅ Yes     | ✅ Yes    | ✅ Good             | ✅ Safe      | ✅ **Recommended** |
+| async/Future         | ❌ No                | ✅ Yes     | ⚠️ Maybe   | ⚠️ Semantic mismatch | ✅ Safe      | ❌ Not recommended |
+| fauxgen generators   | ❌ No                | ✅ Yes     | ⚠️ Maybe   | ⚠️ Poor API fit      | ✅ Safe      | ❌ Not recommended |
+| Defunctionalization  | ⚠️ Partial            | ✅ Yes     | ✅ Yes    | ❌ Poor             | ⚠️ Reduced    | ❌ Not recommended |
+| Arena allocation     | ✅ Yes               | ✅ Yes     | ✅ Yes    | ❌ Poor             | ⚠️ Complex    | ❌ Not recommended |
+| Unsafe erasure       | ✅ Yes               | ✅ Yes     | ✅ Yes    | ⚠️ Ok                | ❌ Dangerous | ❌ Never           |
 
 ### 6.6 Recommendations
 
@@ -1656,7 +1675,7 @@ Based on this analysis, the hybrid CatList-based approach with `Box<dyn Any + Se
 
 Public API documentation should include:
 
-```rust
+````rust
 /// Creates a lazy computation that produces `A`.
 ///
 /// # Type Requirements
@@ -1687,7 +1706,7 @@ pub fn later<F>(f: F) -> Self
 where
     F: FnOnce() -> A + Send + 'static,
 { /* ... */ }
-```
+````
 
 ### 6.8 Constraint Marker System for HKT Compatibility
 
@@ -1705,20 +1724,20 @@ The system consists of:
 4. **Propagated Bounds** — Type class methods include `ToConstraint` bounds
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Constraint Marker System                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────┐    implements    ┌──────────────────────┐  │
-│  │ Type T          │ ───────────────► │ ToConstraint<Marker> │  │
-│  └─────────────────┘                  └──────────────────────┘  │
-│                                                │                 │
-│                                                ▼                 │
-│  ┌─────────────────┐    declares     ┌──────────────────────┐   │
-│  │ Brand           │ ───────────────►│ Constraint = Marker  │   │
-│  └─────────────────┘                 └──────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│               Constraint Marker System               │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│ ┌────────┐   implements     ┌──────────────────────┐ │
+│ │ Type T │ ───────────────► │ ToConstraint<Marker> │ │
+│ └────────┘                  └──────────────────────┘ │
+│                                      │               │
+│                                      ▼               │
+│ ┌────────┐    declares      ┌──────────────────────┐ │
+│ │ Brand  │ ───────────────► │ Constraint = Marker  │ │
+│ └────────┘                  └──────────────────────┘ │
+│                                                      │
+└──────────────────────────────────────────────────────┘
 ```
 
 #### 6.8.2 Constraint Markers
@@ -1800,7 +1819,7 @@ def_kind! {
     /// The constraint marker for types that can be used with this brand.
     /// Defaults to `dyn NoConstraint` (no restrictions) if not overridden.
     type Constraint: ?Sized = dyn NoConstraint;
-    
+
     /// The type constructor application.
     type Of<'a, A: 'a>: 'a
     where
@@ -1944,21 +1963,21 @@ Adopting this system is a **breaking change** that affects:
 
 While the Free monad provides the core mechanism, users should not interact with it directly. Instead, we provide `Eval<A>` — a clean API modeled after Cats' Eval:
 
-| Cats Eval | Our Eval | Purpose |
-|-----------|----------|---------|
-| `Eval.now(a)` | `Eval::now(a)` | Already computed value |
-| `Eval.later { a }` | `Eval::later(\|\| a)` | Lazy, memoized |
-| `Eval.always { a }` | `Eval::always(\|\| a)` | Lazy, NOT memoized |
+| Cats Eval           | Our Eval               | Purpose                    |
+| ------------------- | ---------------------- | -------------------------- |
+| `Eval.now(a)`       | `Eval::now(a)`         | Already computed value     |
+| `Eval.later { a }`  | `Eval::later(\|\| a)`  | Lazy, memoized             |
+| `Eval.always { a }` | `Eval::always(\|\| a)` | Lazy, NOT memoized         |
 | `Eval.defer { ea }` | `Eval::defer(\|\| ea)` | Deferred Eval construction |
-| `ea.flatMap(f)` | `ea.flat_map(f)` | Monadic bind |
-| `ea.map(f)` | `ea.map(f)` | Functor map |
-| `ea.value` | `ea.run()` | Force evaluation |
+| `ea.flatMap(f)`     | `ea.flat_map(f)`       | Monadic bind               |
+| `ea.map(f)`         | `ea.map(f)`            | Functor map                |
+| `ea.value`          | `ea.run()`             | Force evaluation           |
 
-**Key difference from Cats**: In this proposal, `Eval` handles only *computation*. Memoization is handled by the separate `Memo` type from the [dual-type design](dual-type-design-proposal.md). This separation yields cleaner semantics.
+**Key difference from Cats**: In this proposal, `Eval` handles only _computation_. Memoization is handled by the separate `Memo` type from the [dual-type design](dual-type-design-proposal.md). This separation yields cleaner semantics.
 
 ### 7.2 Eval Type Definition
 
-```rust
+````rust
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
 /// `Eval` is the primary user-facing type for deferred computations.
@@ -2170,11 +2189,11 @@ impl<A: 'static + Send> Eval<A> {
         Eval::now(value)
     }
 }
-```
+````
 
 ### 7.3 MonadRec Implementation for Eval
 
-```rust
+````rust
 impl MonadRec for EvalInstance {
     fn tail_rec_m<'a, A: 'a + Send, B: 'a + Send, F>(
         f: F,
@@ -2200,7 +2219,7 @@ impl MonadRec for EvalInstance {
                 })
             })
         }
-        
+
         go(f, initial)
     }
 }
@@ -2243,7 +2262,7 @@ impl<A: 'static + Send> Eval<A> {
     {
         EvalInstance::tail_rec_m(f, initial)
     }
-    
+
     /// Arc-wrapped version for non-Clone closures.
     ///
     /// Use this when your closure captures non-Clone state.
@@ -2278,7 +2297,7 @@ impl<A: 'static + Send> Eval<A> {
         EvalInstance::tail_rec_m(wrapper, initial)
     }
 }
-```
+````
 
 ### 7.4 TryEval: Fallible Computations
 
@@ -2372,23 +2391,25 @@ impl<A: 'static + Send, E: 'static + Send> TryEval<A, E> {
 
 ### 7.5 API Comparison with Cats
 
-| Feature | Cats Eval | This Proposal |
-|---------|-----------|---------------|
-| Immediate value | `Eval.now(a)` | `Eval::now(a)` |
-| Lazy + memoized | `Eval.later { a }` | `Memo::new(Eval::later(\|\| a))` |
-| Lazy + no memo | `Eval.always { a }` | `Eval::later(\|\| a)` |
-| Defer construction | `Eval.defer { ea }` | `Eval::defer(\|\| ea)` |
-| Map | `ea.map(f)` | `ea.map(f)` |
-| FlatMap | `ea.flatMap(f)` | `ea.flat_map(f)` |
-| Force | `ea.value` | `ea.run()` |
-| Memoize | Built-in | Use `Memo` wrapper |
-| Tail recursion | Via trampolining | `Eval::tail_rec_m` |
+| Feature            | Cats Eval           | This Proposal                    |
+| ------------------ | ------------------- | -------------------------------- |
+| Immediate value    | `Eval.now(a)`       | `Eval::now(a)`                   |
+| Lazy + memoized    | `Eval.later { a }`  | `Memo::new(Eval::later(\|\| a))` |
+| Lazy + no memo     | `Eval.always { a }` | `Eval::later(\|\| a)`            |
+| Defer construction | `Eval.defer { ea }` | `Eval::defer(\|\| ea)`           |
+| Map                | `ea.map(f)`         | `ea.map(f)`                      |
+| FlatMap            | `ea.flatMap(f)`     | `ea.flat_map(f)`                 |
+| Force              | `ea.value`          | `ea.run()`                       |
+| Memoize            | Built-in            | Use `Memo` wrapper               |
+| Tail recursion     | Via trampolining    | `Eval::tail_rec_m`               |
 
 **Key semantic difference**:
+
 - Cats Eval: `later` memoizes, `always` doesn't
 - Our Eval: Never memoizes; use `Memo` for caching
 
 This separation is cleaner because:
+
 1. Pure computations have predictable semantics
 2. Caching is explicit and controllable
 3. Thread-safety is handled by `Memo/MemoSync`, not embedded in `Eval`
@@ -2499,22 +2520,22 @@ This section describes how the stack-safe `Eval` integrates with the [dual-type 
 The dual-type design defines:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Computation Layer                             │
-│                         Eval<A>                                  │
-│  - Deferred computation                                          │
-│  - Stack-safe via Free + CatList                                 │
-│  - NO memoization                                                │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼ .run()
-┌─────────────────────────────────────────────────────────────────┐
-│                    Memoization Layer                             │
-│               Memo<A> / MemoSync<A>                              │
-│  - Lazy initialization via LazyCell/LazyLock                     │
-│  - Thread-local or thread-safe                                   │
-│  - Caches result of Eval::run                                    │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              Computation Layer              │
+│                   Eval<A>                   │
+│ - Deferred computation                      │
+│ - Stack-safe via Free + CatList             │
+│ - NO memoization                            │
+└─────────────────────────────────────────────┘
+                       │
+                       ▼ .run()
+┌─────────────────────────────────────────────┐
+│               Memoization Layer             │
+│             Memo<A> / MemoSync<A>           │
+│ - Lazy initialization via LazyCell/LazyLock │
+│ - Thread-local or thread-safe               │
+│ - Caches result of Eval::run                │
+└─────────────────────────────────────────────┘
 ```
 
 ### 8.2 Memo Types (From Dual-Type Proposal)
@@ -2588,13 +2609,13 @@ impl<A: Send + Sync> MemoSync<A> {
 
 The key insight is that `Eval` and `Memo` are complementary:
 
-| Concern | Eval | Memo |
-|---------|------|------|
-| Deferred computation | ✅ Yes | ❌ No (runs on first `.get()`) |
-| Composable chains | ✅ `flat_map`, `map` | ❌ Just caches |
-| Stack safety | ✅ Trampolined | N/A |
-| Memoization | ❌ No | ✅ Yes |
-| Thread safety | ❌ (use MemoSync) | ✅ (MemoSync) |
+| Concern              | Eval                 | Memo                           |
+| -------------------- | -------------------- | ------------------------------ |
+| Deferred computation | ✅ Yes               | ❌ No (runs on first `.get()`) |
+| Composable chains    | ✅ `flat_map`, `map` | ❌ Just caches                 |
+| Stack safety         | ✅ Trampolined       | N/A                            |
+| Memoization          | ❌ No                | ✅ Yes                         |
+| Thread safety        | ❌ (use MemoSync)    | ✅ (MemoSync)                  |
 
 **Pattern: Build with Eval, cache with Memo**
 
@@ -2659,7 +2680,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
     pub fn take(self, n: usize) -> Vec<A> {
         let mut result = Vec::with_capacity(n);
         let mut current = Some(self);
-        
+
         for _ in 0..n {
             match current {
                 Some(stream) => {
@@ -2669,7 +2690,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
                 None => break,
             }
         }
-        
+
         result
     }
 }
@@ -2684,7 +2705,7 @@ The dual-type proposal introduces `MemoConfig` to abstract over `Rc`/`Arc`:
 pub trait MemoConfig {
     /// The reference-counted pointer type (Rc or Arc).
     type Ptr<T>: Pointer<T>;
-    
+
     /// The lazy cell type (LazyCell or LazyLock).
     type Lazy<T, F: FnOnce() -> T>: LazyInit<T, F>;
 }
@@ -2734,12 +2755,12 @@ type SharedMemo<A> = GenericMemo<A, SyncConfig>;
 
 The current [`types/lazy.rs`](../../fp-library/src/types/lazy.rs) provides a `Lazy<A>` type. With this proposal:
 
-| Current | Proposed Replacement |
-|---------|---------------------|
+| Current             | Proposed Replacement                  |
+| ------------------- | ------------------------------------- |
 | `Lazy::new(\|\| a)` | `Eval::later(\|\| a)` for computation |
-| `Lazy::new(\|\| a)` | `Memo::new(\|\| a)` for memoization |
-| `lazy.force()` | `eval.run()` or `memo.get()` |
-| `lazy.map(f)` | `eval.map(f)` (before memoizing) |
+| `Lazy::new(\|\| a)` | `Memo::new(\|\| a)` for memoization   |
+| `lazy.force()`      | `eval.run()` or `memo.get()`          |
+| `lazy.map(f)`       | `eval.map(f)` (before memoizing)      |
 
 **Migration strategy**:
 
@@ -2980,7 +3001,7 @@ impl MonadRec for EvalBrand {
                 })
             })
         }
-        
+
         go(f, initial)
     }
 }
@@ -3166,17 +3187,17 @@ assert_eq!(result, Some(15));
 
 ### 10.1 Complexity Summary
 
-| Operation | CatQueue | CatList | Free | Eval |
-|-----------|----------|---------|------|------|
-| `empty`/`pure` | O(1) | O(1) | O(1) | O(1) |
-| `snoc`/`cons` | O(1) | O(1) | N/A | N/A |
-| `uncons` | O(1)* | O(1)* | N/A | N/A |
-| `append` | N/A | O(1) | N/A | N/A |
-| `flat_map`/`bind` | N/A | N/A | O(1) | O(1) |
-| `map` | N/A | N/A | O(1) | O(1) |
-| `run` | N/A | N/A | O(n) | O(n) |
+| Operation         | CatQueue | CatList | Free | Eval |
+| ----------------- | -------- | ------- | ---- | ---- |
+| `empty`/`pure`    | O(1)     | O(1)    | O(1) | O(1) |
+| `snoc`/`cons`     | O(1)     | O(1)    | N/A  | N/A  |
+| `uncons`          | O(1)\*   | O(1)\*  | N/A  | N/A  |
+| `append`          | N/A      | O(1)    | N/A  | N/A  |
+| `flat_map`/`bind` | N/A      | N/A     | O(1) | O(1) |
+| `map`             | N/A      | N/A     | O(1) | O(1) |
+| `run`             | N/A      | N/A     | O(n) | O(n) |
 
-*Amortized, O(n) worst case
+\*Amortized, O(n) worst case
 
 ### 10.2 Left-Associated Bind Analysis
 
@@ -3191,11 +3212,13 @@ eval.run()
 ```
 
 **Vec-based approach** (current proposal in stack-safe-evaluation-proposal.md):
+
 - Each `flat_map`: O(1) — creates new FlatMap node
 - But `run()` traverses nested structure: O(n) per continuation
 - Total: O(n²) for heavily left-associated chains
 
 **CatList-based approach** (this proposal):
+
 - Each `flat_map`: O(1) — `snoc` onto CatList
 - `run()`: O(n) — linear in number of continuations
 - Total: O(n)
@@ -3203,12 +3226,14 @@ eval.run()
 ### 10.3 Memory Overhead
 
 **Per continuation**:
+
 ```rust
 type Cont<F> = Box<dyn FnOnce(Val) -> Free<F, Val> + Send>;
 // Size: 2 words (fat pointer) + closure capture
 ```
 
 **Per CatList node**:
+
 ```rust
 enum CatList<A> {
     Nil,                              // 0 bytes payload
@@ -3217,12 +3242,14 @@ enum CatList<A> {
 ```
 
 **Estimated overhead per element**:
+
 - Vec entry: 0 (amortized, stored inline)
 - Box for continuation: 16 bytes (2 words)
 - Box for type erasure: 16 bytes (2 words)
 - Total: ~32-48 bytes per continuation
 
 **Comparison**:
+
 - Direct closure chain: 16-24 bytes per closure
 - Vec-based: 16-24 bytes per entry + Vec overhead
 - CatList-based: 32-48 bytes per entry but O(1) ops
@@ -3272,42 +3299,45 @@ fn bench_right_bind_catlist(b: &mut Bencher) {
 ```
 
 **Expected results**:
+
 - Left-bind: CatList should be ~10-100x faster for n=10000
 - Right-bind: Both should be similar
 - Small chains (<100): Vec might be faster due to lower constant factors
 
 ### 10.5 When to Use Eval vs Direct Code
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Shallow recursion (<100 levels) | Direct code or closures |
-| Deep recursion (>1000 levels) | Eval with tail_rec_m |
-| Long bind chains | Eval (O(1) bind) |
-| Performance-critical inner loops | Direct code |
-| Compositional pipelines | Eval for structure |
-| Memoization needed | Memo wrapping Eval |
+| Use Case                         | Recommendation          |
+| -------------------------------- | ----------------------- |
+| Shallow recursion (<100 levels)  | Direct code or closures |
+| Deep recursion (>1000 levels)    | Eval with tail_rec_m    |
+| Long bind chains                 | Eval (O(1) bind)        |
+| Performance-critical inner loops | Direct code             |
+| Compositional pipelines          | Eval for structure      |
+| Memoization needed               | Memo wrapping Eval      |
 
 ### 10.6 Stack Depth Guarantees
 
 **Guaranteed stack-safe operations**:
+
 - `Eval::flat_map` — O(1) stack depth
 - `Eval::defer` — Defers to trampoline
 - `Eval::tail_rec_m` — Iterative loop
 - `Eval::run` — Bounded stack regardless of depth
 
 **Potentially stack-consuming**:
+
 - `CatList::flatten_queue` — Uses iterative fold, safe
 - `Free::erase_type` — Bounded by structure depth, not chain length
 
 ### 10.7 Comparison with Other Approaches
 
-| Approach | Bind Complexity | Stack Safety | Type Safety | Ergonomics |
-|----------|-----------------|--------------|-------------|------------|
-| async/await | O(1) | ✅ | ✅ | ✅ |
-| Generator (nightly) | O(1) | ✅ | ✅ | ⚠️ |
-| Continuation monad | O(1) | ✅ | ✅ | ⚠️ |
-| Vec-based Eval | O(n²) worst | ✅ | ⚠️ | ✅ |
-| **CatList Eval** | **O(1)** | ✅ | ⚠️ | ✅ |
+| Approach            | Bind Complexity | Stack Safety | Type Safety | Ergonomics |
+| ------------------- | --------------- | ------------ | ----------- | ---------- |
+| async/await         | O(1)            | ✅           | ✅          | ✅         |
+| Generator (nightly) | O(1)            | ✅           | ✅          | ⚠️          |
+| Continuation monad  | O(1)            | ✅           | ✅          | ⚠️          |
+| Vec-based Eval      | O(n²) worst     | ✅           | ⚠️           | ✅         |
+| **CatList Eval**    | **O(1)**        | ✅           | ⚠️           | ✅         |
 
 The CatList approach offers the best balance for a pure FP library: good ergonomics, stable Rust, and optimal asymptotic performance.
 
@@ -3318,6 +3348,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.1 Core Data Structures
 
 - [ ] **CatQueue** — `fp-library/src/types/cat_queue.rs`
+
   - [ ] `CatQueue<A>` struct with `front: Vec<A>`, `back: Vec<A>`
   - [ ] `empty`, `singleton`, `is_empty`, `len` methods
   - [ ] `cons`, `snoc` methods
@@ -3338,6 +3369,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.2 Core Types
 
 - [ ] **Step** — `fp-library/src/types/step.rs`
+
   - [ ] `Step<A, B>` enum with `Loop` and `Done` variants
   - [ ] `is_loop`, `is_done` methods
   - [ ] `map_loop`, `map_done`, `bimap` methods
@@ -3345,6 +3377,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Bifunctor implementation
 
 - [ ] **Thunk** — `fp-library/src/types/thunk.rs`
+
   - [ ] `Thunk<A>` struct wrapping `Box<dyn FnOnce() -> A + Send>`
   - [ ] `new`, `force` methods
   - [ ] `ThunkFBrand` and HKT integration
@@ -3361,6 +3394,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.3 User-Facing API
 
 - [ ] **Eval** — `fp-library/src/types/eval.rs`
+
   - [ ] `Eval<A>` struct wrapping `Free<ThunkFBrand, A>`
   - [ ] `now`, `pure`, `later`, `always`, `defer` constructors
   - [ ] `flat_map`, `map`, `map2`, `and_then` combinators
@@ -3379,6 +3413,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.4 Type Class Extensions
 
 - [ ] **MonadRec trait** — `fp-library/src/classes/monad_rec.rs`
+
   - [ ] `MonadRec` trait definition with `tail_rec_m`
   - [ ] Clone bound on `F` parameter (see Section 4.3)
   - [ ] Free function `tail_rec_m` with Clone bound
@@ -3395,6 +3430,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.5 Constraint Marker System (HKT Compatibility)
 
 - [ ] **Constraint Markers** — `fp-library/src/kinds/constraints.rs`
+
   - [ ] `NoConstraint` marker trait (default, all types satisfy)
   - [ ] `StaticConstraint` marker trait ('static types only)
   - [ ] `SendConstraint` marker trait (Send types only)
@@ -3404,6 +3440,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Documentation explaining the constraint marker pattern
 
 - [ ] **ToConstraint Bridge Trait** — `fp-library/src/kinds/constraints.rs`
+
   - [ ] `ToConstraint<C>` trait definition
   - [ ] Blanket impl `ToConstraint<dyn NoConstraint>` for all types
   - [ ] Blanket impl `ToConstraint<dyn StaticConstraint>` for `T: 'static`
@@ -3413,12 +3450,14 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Blanket impl `ToConstraint<dyn ThreadSafeConstraint>` for `T: Send + Sync + 'static`
 
 - [ ] **Kind Trait Extension** — `fp-library/src/kinds.rs`
+
   - [ ] Add `Constraint` associated type to Kind trait
   - [ ] Default to `dyn NoConstraint` where possible
   - [ ] Update `def_kind!` macro to support Constraint
   - [ ] Update `impl_kind!` macro to support Constraint declaration
 
 - [ ] **Brand Constraint Declarations**
+
   - [ ] `EvalBrand`: `Constraint = dyn SendStaticConstraint`
   - [ ] `OptionBrand`: `Constraint = dyn NoConstraint`
   - [ ] `ResultBrand`: `Constraint = dyn NoConstraint`
@@ -3437,6 +3476,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.6 Memoization Integration
 
 - [ ] **Memo updates** — `fp-library/src/types/memo.rs`
+
   - [ ] `from_eval` constructor
   - [ ] `map_eval` method for transforming before memoizing
   - [ ] Ensure compatibility with Eval API
@@ -3448,6 +3488,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.7 Module Organization
 
 - [ ] **Update `types.rs`**
+
   - [ ] Add `mod cat_queue;`
   - [ ] Add `mod cat_list;`
   - [ ] Add `mod step;`
@@ -3457,10 +3498,12 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Add re-exports
 
 - [ ] **Update `classes.rs`**
+
   - [ ] Add `mod monad_rec;`
   - [ ] Add re-exports
 
 - [ ] **Update `kinds.rs`**
+
   - [ ] Add `mod constraints;`
   - [ ] Add constraint marker re-exports
 
@@ -3472,18 +3515,21 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.8 Testing
 
 - [ ] **Unit tests** for each module
+
   - [ ] CatQueue: push/pop sequences, edge cases
   - [ ] CatList: append chains, uncons sequences
   - [ ] Free: bind chains, run correctness
   - [ ] Eval: API completeness, stack safety
 
 - [ ] **Property tests** — `fp-library/tests/property_tests.rs`
+
   - [ ] CatQueue behaves like a queue
   - [ ] CatList preserves elements through operations
   - [ ] Eval respects monad laws
   - [ ] MonadRec produces correct results
 
 - [ ] **Stack safety tests** — `fp-library/tests/stack_safety.rs`
+
   - [ ] Deep recursion with `tail_rec_m` (1M+ iterations)
   - [ ] Long left-associated bind chains
   - [ ] Nested defer chains
@@ -3496,11 +3542,13 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.9 Documentation
 
 - [ ] **API documentation**
+
   - [ ] Doc comments on all public items
   - [ ] Examples in doc comments
   - [ ] Links to related types/methods
 
 - [ ] **Module documentation**
+
   - [ ] Overview of design decisions
   - [ ] Performance characteristics
   - [ ] Migration guide from existing Lazy
@@ -3512,6 +3560,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.10 Migration
 
 - [ ] **Deprecate existing Lazy** (in future version)
+
   - [ ] Add deprecation warnings with migration hints
   - [ ] Provide adapter methods if needed
 
@@ -3525,4 +3574,3 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 - [ ] **Resource-safe Eval** — Integration with RAII patterns
 - [ ] **Async interop** — `Eval::into_future` for async/await
 - [ ] **Trampolined IO** — Extension point for effectful trampolines
-

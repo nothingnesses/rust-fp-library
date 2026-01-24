@@ -56,13 +56,14 @@ impl<T: ?Sized> ToConstraint<dyn NoMarker> for T {}
 /// Extended Kind trait with constraint declaration
 pub trait Kind {
     type Constraint: ?Sized;
-    type Of<'a, A: 'a>: 'a 
-    where 
+    type Of<'a, A: 'a>: 'a
+    where
         A: ToConstraint<Self::Constraint>;
 }
 ```
 
 **How it works:**
+
 - Each brand declares its `Constraint` associated type
 - Type class traits propagate `ToConstraint` bounds
 - When `EvalBrand` sets `Constraint = dyn StaticMarker`, only `'static` types satisfy the bound
@@ -70,17 +71,18 @@ pub trait Kind {
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **Unification** | Single trait hierarchy for all types | All traits must carry ToConstraint bounds |
-| **Type Safety** | Compile-time enforcement | More complex trait bounds |
-| **Ergonomics** | Brands self-declare constraints | Developers must understand marker system |
-| **Migration** | Existing types use `NoMarker` | Requires updating all type class traits |
-| **Macro Changes** | Can be automated | Macros need modification |
+| Aspect            | Pro                                  | Con                                       |
+| ----------------- | ------------------------------------ | ----------------------------------------- |
+| **Unification**   | Single trait hierarchy for all types | All traits must carry ToConstraint bounds |
+| **Type Safety**   | Compile-time enforcement             | More complex trait bounds                 |
+| **Ergonomics**    | Brands self-declare constraints      | Developers must understand marker system  |
+| **Migration**     | Existing types use `NoMarker`        | Requires updating all type class traits   |
+| **Macro Changes** | Can be automated                     | Macros need modification                  |
 
 **Compatibility with existing system:**
 
 The current [`def_kind!`](../../fp-macros/src/def_kind.rs) macro would need modification to:
+
 1. Add `Constraint` associated type to generated Kind traits
 2. Add `where A: ToConstraint<Self::Constraint>` to GAT bounds
 
@@ -122,11 +124,11 @@ pub trait StaticSemimonad: Kind_cdc7cd43dac7585f {
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **Simplicity** | No changes to existing traits | Duplicates entire hierarchy |
-| **Separation** | Clean boundary | Cannot use Eval in generic Monad code |
-| **Maintenance** | Each hierarchy is simpler | Two hierarchies to maintain |
+| Aspect          | Pro                           | Con                                   |
+| --------------- | ----------------------------- | ------------------------------------- |
+| **Simplicity**  | No changes to existing traits | Duplicates entire hierarchy           |
+| **Separation**  | Clean boundary                | Cannot use Eval in generic Monad code |
+| **Maintenance** | Each hierarchy is simpler     | Two hierarchies to maintain           |
 
 **Verdict**: ⚠️ **Acceptable** - Use only if Approach A proves too complex. Loses composability.
 
@@ -148,10 +150,10 @@ impl<A: 'static + Send> Eval<A> {
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
+| Aspect         | Pro                   | Con                           |
+| -------------- | --------------------- | ----------------------------- |
 | **Simplicity** | No HKT system changes | Eval unusable in generic code |
-| **Pragmatism** | Works immediately | Defeats purpose of HKT system |
+| **Pragmatism** | Works immediately     | Defeats purpose of HKT system |
 
 **Verdict**: ❌ **Not recommended** - Undermines the FP library's goal of unified abstractions.
 
@@ -179,11 +181,11 @@ This is conceptually similar to Haskell's operational monad approach but require
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **Type Safety** | Full static typing | Extremely complex implementation |
-| **Lifetimes** | Could support `'a` | May not be expressible in Rust |
-| **Performance** | No runtime downcasting | Compile-time explosion |
+| Aspect          | Pro                    | Con                              |
+| --------------- | ---------------------- | -------------------------------- |
+| **Type Safety** | Full static typing     | Extremely complex implementation |
+| **Lifetimes**   | Could support `'a`     | May not be expressible in Rust   |
+| **Performance** | No runtime downcasting | Compile-time explosion           |
 
 **Verdict**: ❌ **Not recommended** - Likely not feasible in Rust without GADTs.
 
@@ -204,11 +206,11 @@ trait AnyLifetime<'a>: 'a {
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
+| Aspect          | Pro                     | Con                  |
+| --------------- | ----------------------- | -------------------- |
 | **Flexibility** | Works with any lifetime | Unsafe code required |
-| **Soundness** | Possible | Easy to cause UB |
-| **Maintenance** | N/A | Security nightmare |
+| **Soundness**   | Possible                | Easy to cause UB     |
+| **Maintenance** | N/A                     | Security nightmare   |
 
 **Verdict**: ❌ **Never recommended** - Too dangerous for a library.
 
@@ -257,6 +259,7 @@ fn go<A, B>(
 ```
 
 The function `f`:
+
 1. Is moved into the `defer` closure
 2. Is called as `f(a)`
 3. Must be moved again into `flat_map`'s closure for `go(f, next)`
@@ -292,21 +295,23 @@ where
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **Simplicity** | Clear, idiomatic Rust | Requires Clone on F |
-| **Ergonomics** | Most closures are Clone | Some closures are not Clone |
-| **Performance** | Clone is typically cheap | One clone per iteration |
+| Aspect          | Pro                      | Con                         |
+| --------------- | ------------------------ | --------------------------- |
+| **Simplicity**  | Clear, idiomatic Rust    | Requires Clone on F         |
+| **Ergonomics**  | Most closures are Clone  | Some closures are not Clone |
+| **Performance** | Clone is typically cheap | One clone per iteration     |
 
 **When closures are Clone:**
 
 Closures implement `Clone` if all their captures implement `Clone`. This includes:
+
 - All primitives
 - `String`, `Vec<T>` where T: Clone
 - `Arc<T>`, `Rc<T>`
 - References `&T`
 
 **When closures are NOT Clone:**
+
 - Captures `Box<T>`
 - Captures `Mutex<T>` by value
 - Captures any non-Clone type
@@ -327,7 +332,7 @@ where
     F: Fn(A) -> Eval<Step<A, B>> + Send + 'static,  // No Clone!
 {
     let f = Arc::new(f);
-    
+
     fn go<A: 'static, B: 'static, F>(f: Arc<F>, a: A) -> Eval<B>
     where
         F: Fn(A) -> Eval<Step<A, B>> + Send + 'static,
@@ -346,10 +351,10 @@ where
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **API** | No Clone bound required | Hidden allocation |
-| **Flexibility** | Works with any closure | Arc overhead per call |
+| Aspect          | Pro                      | Con                        |
+| --------------- | ------------------------ | -------------------------- |
+| **API**         | No Clone bound required  | Hidden allocation          |
+| **Flexibility** | Works with any closure   | Arc overhead per call      |
 | **Performance** | Arc::clone is atomic inc | Slightly slower than Clone |
 
 **Verdict**: ✅ **Alternative** - Good option if Clone bound is too restrictive.
@@ -376,10 +381,10 @@ where
 
 **Trade-offs:**
 
-| Aspect | Pro | Con |
-|--------|-----|-----|
-| **Choice** | User picks based on needs | API surface grows |
-| **Documentation** | Clear trade-offs | Users must understand both |
+| Aspect            | Pro                       | Con                        |
+| ----------------- | ------------------------- | -------------------------- |
+| **Choice**        | User picks based on needs | API surface grows          |
+| **Documentation** | Clear trade-offs          | Users must understand both |
 
 **Verdict**: ⚠️ **Consider** - Useful if both patterns are common.
 
