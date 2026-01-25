@@ -1708,255 +1708,6 @@ where
 { /* ... */ }
 ````
 
-### 6.8 Constraint Marker System for HKT Compatibility
-
-The `'static` constraint on `Eval<A>` creates a fundamental incompatibility with the existing HKT system: type class traits like `Semimonad` are generic over lifetimes (`'a`), but `Eval::flat_map` requires `A: 'static`. Rust will reject an `impl Semimonad for EvalBrand` because the implementation has stricter requirements than the trait definition.
-
-To resolve this, we introduce a **Constraint Marker System** that allows brands to declare their required type parameter constraints within the HKT framework.
-
-#### 6.8.1 Design Overview
-
-The system consists of:
-
-1. **Constraint Markers** — Empty traits representing different constraint requirements
-2. **Bridge Trait** — `ToConstraint<C>` connects types to the constraints they satisfy
-3. **Kind Extension** — `Constraint` associated type on Kind traits
-4. **Propagated Bounds** — Type class methods include `ToConstraint` bounds
-
-```
-┌──────────────────────────────────────────────────────┐
-│               Constraint Marker System               │
-├──────────────────────────────────────────────────────┤
-│                                                      │
-│ ┌────────┐   implements     ┌──────────────────────┐ │
-│ │ Type T │ ───────────────► │ ToConstraint<Marker> │ │
-│ └────────┘                  └──────────────────────┘ │
-│                                      │               │
-│                                      ▼               │
-│ ┌────────┐    declares      ┌──────────────────────┐ │
-│ │ Brand  │ ───────────────► │ Constraint = Marker  │ │
-│ └────────┘                  └──────────────────────┘ │
-│                                                      │
-└──────────────────────────────────────────────────────┘
-```
-
-#### 6.8.2 Constraint Markers
-
-We pre-define markers for all common constraints:
-
-```rust
-/// Marker trait for types with no extra requirements.
-/// This is the default constraint for most brands.
-pub trait NoConstraint {}
-
-/// Blanket implementation: all types satisfy NoConstraint
-impl<T: ?Sized> ToConstraint<dyn NoConstraint> for T {}
-
-/// Marker trait for 'static types.
-/// Required by Eval and other types using Box<dyn Any>.
-pub trait StaticConstraint {}
-
-/// Only 'static types satisfy StaticConstraint
-impl<T: 'static> ToConstraint<dyn StaticConstraint> for T {}
-
-/// Marker trait for Send types.
-pub trait SendConstraint {}
-
-/// Only Send types satisfy SendConstraint
-impl<T: Send> ToConstraint<dyn SendConstraint> for T {}
-
-/// Marker trait for Sync types.
-pub trait SyncConstraint {}
-
-/// Only Sync types satisfy SyncConstraint
-impl<T: Sync> ToConstraint<dyn SyncConstraint> for T {}
-
-/// Marker trait for Send + 'static types.
-/// Common requirement for async/concurrent contexts.
-pub trait SendStaticConstraint {}
-
-/// Only Send + 'static types satisfy SendStaticConstraint
-impl<T: Send + 'static> ToConstraint<dyn SendStaticConstraint> for T {}
-
-/// Marker trait for Send + Sync + 'static types.
-/// Required for thread-safe shared state.
-pub trait ThreadSafeConstraint {}
-
-/// Only Send + Sync + 'static types satisfy ThreadSafeConstraint
-impl<T: Send + Sync + 'static> ToConstraint<dyn ThreadSafeConstraint> for T {}
-```
-
-#### 6.8.3 The Bridge Trait
-
-The `ToConstraint` trait connects types to the constraint markers they satisfy:
-
-```rust
-/// Bridge trait that connects types to constraint markers.
-///
-/// A type `T` satisfies constraint `C` if `T: ToConstraint<C>` is implemented.
-/// This allows Kind traits to declare their constraints and have them
-/// automatically enforced at the type class method level.
-///
-/// # Design
-///
-/// We use `dyn TraitMarker` as the constraint type parameter because:
-/// 1. It allows blanket implementations via trait bounds
-/// 2. It avoids coherence issues with multiple marker implementations
-/// 3. It's zero-sized at runtime (just a compile-time check)
-pub trait ToConstraint<C: ?Sized> {}
-```
-
-#### 6.8.4 Extended Kind Trait
-
-The Kind traits gain a `Constraint` associated type that defaults to `dyn NoConstraint`:
-
-```rust
-/// Extended Kind trait with constraint declaration.
-///
-/// Each brand declares its constraint via the `Constraint` associated type.
-/// Type class methods propagate this constraint through `ToConstraint` bounds.
-def_kind! {
-    /// The constraint marker for types that can be used with this brand.
-    /// Defaults to `dyn NoConstraint` (no restrictions) if not overridden.
-    type Constraint: ?Sized = dyn NoConstraint;
-
-    /// The type constructor application.
-    type Of<'a, A: 'a>: 'a
-    where
-        A: ToConstraint<Self::Constraint>;
-}
-```
-
-> **Note**: Rust doesn't support default associated types directly. The `def_kind!` macro would need to generate separate traits or use a different encoding. See Section 11 for implementation details.
-
-#### 6.8.5 Brand Implementations
-
-Brands declare their constraints when implementing Kind:
-
-```rust
-/// EvalBrand requires 'static because of Box<dyn Any> type erasure.
-pub struct EvalBrand;
-
-impl_kind! {
-    for EvalBrand {
-        type Constraint = dyn SendStaticConstraint;
-        type Of<'a, A: 'a>: 'a = Eval<A>
-        where
-            A: Send + 'static;
-    }
-}
-
-/// OptionBrand has no constraints - works with any type.
-pub struct OptionBrand;
-
-impl_kind! {
-    for OptionBrand {
-        type Constraint = dyn NoConstraint;  // Or omit for default
-        type Of<'a, A: 'a>: 'a = Option<A>;
-    }
-}
-
-/// VecBrand has no constraints - works with any type.
-pub struct VecBrand;
-
-impl_kind! {
-    for VecBrand {
-        type Constraint = dyn NoConstraint;
-        type Of<'a, A: 'a>: 'a = Vec<A>;
-    }
-}
-```
-
-#### 6.8.6 Updated Type Class Signatures
-
-Type class traits propagate constraints through `ToConstraint` bounds:
-
-```rust
-/// Semimonad with constraint propagation.
-pub trait Semimonad: Kind_cdc7cd43dac7585f {
-    fn bind<'a, B: 'a, A: 'a, F>(
-        ma: Apply!(<Self as Kind!(...)>::Of<'a, A>),
-        f: F,
-    ) -> Apply!(<Self as Kind!(...)>::Of<'a, B>)
-    where
-        // Constraint propagation
-        A: ToConstraint<Self::Constraint>,
-        B: ToConstraint<Self::Constraint>,
-        F: Fn(A) -> Apply!(<Self as Kind!(...)>::Of<'a, B>) + 'a;
-}
-
-/// Functor with constraint propagation.
-pub trait Functor: Kind_cdc7cd43dac7585f {
-    fn map<'a, B: 'a, A: 'a, F>(
-        f: F,
-        fa: Apply!(<Self as Kind!(...)>::Of<'a, A>),
-    ) -> Apply!(<Self as Kind!(...)>::Of<'a, B>)
-    where
-        A: ToConstraint<Self::Constraint>,
-        B: ToConstraint<Self::Constraint>,
-        F: Fn(A) -> B + 'a;
-}
-
-/// Pointed with constraint propagation.
-pub trait Pointed: Kind_cdc7cd43dac7585f {
-    fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!(...)>::Of<'a, A>)
-    where
-        A: ToConstraint<Self::Constraint>;
-}
-```
-
-#### 6.8.7 How It Works
-
-When instantiating a type class method for `EvalBrand`:
-
-1. The method signature requires `A: ToConstraint<Self::Constraint>`
-2. For `EvalBrand`, `Self::Constraint = dyn SendStaticConstraint`
-3. `ToConstraint<dyn SendStaticConstraint>` is only implemented for `T: Send + 'static`
-4. Therefore, the compiler enforces `A: Send + 'static` at the call site
-
-```rust
-// This compiles: String is Send + 'static
-let result: Eval<String> = Semimonad::bind(
-    Eval::now("hello".to_string()),
-    |s| Eval::now(s.len().to_string())
-);
-
-// This fails to compile: &str is not 'static
-// let result: Eval<&str> = Semimonad::bind(...);
-// Error: `&str` does not satisfy `ToConstraint<dyn SendStaticConstraint>`
-```
-
-#### 6.8.8 Default Constraint Handling
-
-For brands that don't need constraints, `dyn NoConstraint` is used:
-
-```rust
-// Option works with any type, including references
-let result: Option<&str> = Semimonad::bind(
-    Some("hello"),
-    |s| Some(&s[0..2])
-);
-// Compiles: &str satisfies ToConstraint<dyn NoConstraint>
-```
-
-#### 6.8.9 Breaking Change Considerations
-
-Adopting this system is a **breaking change** that affects:
-
-1. **All Kind traits** — Need `Constraint` associated type
-2. **All type class traits** — Need `ToConstraint` bounds
-3. **All brand implementations** — Need explicit `Constraint` declaration
-4. **The macro system** — `def_kind!` and `impl_kind!` need updates
-
-**Migration strategy**:
-
-1. Add `Constraint = dyn NoConstraint` to all existing brands (preserves behavior)
-2. Add `ToConstraint<Self::Constraint>` bounds to all type class methods
-3. Update `EvalBrand` to use `dyn SendStaticConstraint`
-4. Provide clear migration documentation
-
----
-
 ## 7. Eval API: User-Facing Combinators
 
 ### 7.1 Design Philosophy
@@ -3427,53 +3178,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] `EvalBrand` implementation with Clone + cloning pattern (see Section 9.8)
   - [ ] `VecBrand` implementation (if applicable)
 
-### 11.5 Constraint Marker System (HKT Compatibility)
-
-- [ ] **Constraint Markers** — `fp-library/src/kinds/constraints.rs`
-
-  - [ ] `NoConstraint` marker trait (default, all types satisfy)
-  - [ ] `StaticConstraint` marker trait ('static types only)
-  - [ ] `SendConstraint` marker trait (Send types only)
-  - [ ] `SyncConstraint` marker trait (Sync types only)
-  - [ ] `SendStaticConstraint` marker trait (Send + 'static)
-  - [ ] `ThreadSafeConstraint` marker trait (Send + Sync + 'static)
-  - [ ] Documentation explaining the constraint marker pattern
-
-- [ ] **ToConstraint Bridge Trait** — `fp-library/src/kinds/constraints.rs`
-
-  - [ ] `ToConstraint<C>` trait definition
-  - [ ] Blanket impl `ToConstraint<dyn NoConstraint>` for all types
-  - [ ] Blanket impl `ToConstraint<dyn StaticConstraint>` for `T: 'static`
-  - [ ] Blanket impl `ToConstraint<dyn SendConstraint>` for `T: Send`
-  - [ ] Blanket impl `ToConstraint<dyn SyncConstraint>` for `T: Sync`
-  - [ ] Blanket impl `ToConstraint<dyn SendStaticConstraint>` for `T: Send + 'static`
-  - [ ] Blanket impl `ToConstraint<dyn ThreadSafeConstraint>` for `T: Send + Sync + 'static`
-
-- [ ] **Kind Trait Extension** — `fp-library/src/kinds.rs`
-
-  - [ ] Add `Constraint` associated type to Kind trait
-  - [ ] Default to `dyn NoConstraint` where possible
-  - [ ] Update `def_kind!` macro to support Constraint
-  - [ ] Update `impl_kind!` macro to support Constraint declaration
-
-- [ ] **Brand Constraint Declarations**
-
-  - [ ] `EvalBrand`: `Constraint = dyn SendStaticConstraint`
-  - [ ] `OptionBrand`: `Constraint = dyn NoConstraint`
-  - [ ] `ResultBrand`: `Constraint = dyn NoConstraint`
-  - [ ] `VecBrand`: `Constraint = dyn NoConstraint`
-  - [ ] `IdentityBrand`: `Constraint = dyn NoConstraint`
-  - [ ] All other existing brands: `Constraint = dyn NoConstraint`
-
-- [ ] **Type Class Trait Updates** (breaking change)
-  - [ ] `Functor::map` — add `ToConstraint<Self::Constraint>` bounds on A, B
-  - [ ] `Pointed::pure` — add `ToConstraint<Self::Constraint>` bound on A
-  - [ ] `Semimonad::bind` — add `ToConstraint<Self::Constraint>` bounds on A, B
-  - [ ] `Applicative::ap` — add appropriate ToConstraint bounds
-  - [ ] `MonadRec::tail_rec_m` — add ToConstraint bounds + Clone on F
-  - [ ] All other type class methods with type parameters
-
-### 11.6 Memoization Integration
+### 11.5 Memoization Integration
 
 - [ ] **Memo updates** — `fp-library/src/types/memo.rs`
 
@@ -3485,7 +3190,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] `from_eval` constructor
   - [ ] Thread-safe integration with Eval
 
-### 11.7 Module Organization
+### 11.6 Module Organization
 
 - [ ] **Update `types.rs`**
 
@@ -3502,17 +3207,12 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Add `mod monad_rec;`
   - [ ] Add re-exports
 
-- [ ] **Update `kinds.rs`**
-
-  - [ ] Add `mod constraints;`
-  - [ ] Add constraint marker re-exports
-
 - [ ] **Update `brands.rs`**
   - [ ] Add `EvalBrand`
   - [ ] Add `ThunkFBrand`
   - [ ] Add `FreeBrand`
 
-### 11.8 Testing
+### 11.7 Testing
 
 - [ ] **Unit tests** for each module
 
@@ -3539,7 +3239,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Comparison with baseline Vec approach
   - [ ] Memory usage measurements
 
-### 11.9 Documentation
+### 11.8 Documentation
 
 - [ ] **API documentation**
 
@@ -3557,7 +3257,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Update `docs/architecture.md` with Eval design
   - [ ] Add Mermaid diagrams for data flow
 
-### 11.10 Migration
+### 11.9 Migration
 
 - [ ] **Deprecate existing Lazy** (in future version)
 
@@ -3568,7 +3268,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Identify usages of current Lazy
   - [ ] Plan migration to Eval/Memo
 
-### 11.11 Future Enhancements (Not in initial scope)
+### 11.10 Future Enhancements (Not in initial scope)
 
 - [ ] **Parallel Eval** — `Eval::par_map2` for parallel combination
 - [ ] **Resource-safe Eval** — Integration with RAII patterns
