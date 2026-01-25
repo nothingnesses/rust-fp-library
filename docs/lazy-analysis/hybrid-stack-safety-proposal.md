@@ -1317,6 +1317,45 @@ pub trait Runnable: Functor {
     /// Runs the effect, producing the inner value.
     fn run_effect<A>(fa: Apply!(Self::Brand, A)) -> A;
 }
+
+impl<F: Functor, A> Drop for Free<F, A> {
+    fn drop(&mut self) {
+        // Only `Bind` variants can cause deep recursion
+        if let Free::Bind { head, .. } = self {
+            // Create a dummy value to swap out the head
+            let dummy: Val = Box::new(());
+            // We need to cast this to `Free<F, Val>`.
+            let dummy_free: Free<F, Val> = Free::Pure(dummy);
+
+            let mut current_box = std::mem::replace(head, Box::new(dummy_free));
+
+            loop {
+                // `current_box` is now owned by the loop.
+                // When it goes out of scope at end of iteration, it drops.
+                // If it contains a `Bind`, that `Bind`'s head will drop recursively.
+                // So we must extract the NEXT head before dropping `current_box`.
+
+                if let Free::Bind { head: next_head, .. } = &mut *current_box {
+                    // Create another dummy to swap
+                    let dummy: Val = Box::new(());
+                    let dummy_free: Free<F, Val> = Free::Pure(dummy);
+
+                    // Swap next_head out, putting dummy in.
+                    // Now `current_box` (the old head) has a dummy head.
+                    // When `current_box` drops, it drops the dummy head (safe).
+                    // We take ownership of the REAL next head.
+                    let next_box = std::mem::replace(next_head, Box::new(dummy_free));
+
+                    // Move to next
+                    current_box = next_box;
+                } else {
+                    // Not a Bind, no recursion risk from head.
+                    break;
+                }
+            }
+        }
+    }
+}
 ```
 
 ### 5.5 ThunkF: The Thunk Functor
@@ -1350,7 +1389,7 @@ impl Kind_cdc7cd43dac7585f for ThunkFBrand {
     type Of<'a, A: 'a> = Thunk<A>;
 }
 
-impl Functor for ThunkFInstance {
+impl Functor for ThunkF {
     type Brand = ThunkFBrand;
 
     fn map<A, B>(f: impl FnOnce(A) -> B, fa: Thunk<A>) -> Thunk<B> {
@@ -1358,7 +1397,7 @@ impl Functor for ThunkFInstance {
     }
 }
 
-impl Runnable for ThunkFInstance {
+impl Runnable for ThunkF {
     fn run_effect<A>(fa: Thunk<A>) -> A {
         fa.force()
     }
@@ -1806,7 +1845,7 @@ This section describes `Task<A>`, the **stack-safe** monadic type built on the F
 /// assert_eq!(task.run(), 14);
 /// ```
 pub struct Task<A> {
-    inner: Free<ThunkFInstance, A>,
+    inner: Free<ThunkF, A>,
 }
 
 impl<A: 'static + Send> Task<A> {
