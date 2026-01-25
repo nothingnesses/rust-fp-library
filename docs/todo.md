@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Implement [stack safety](lazy-analysis/hybrid-stack-safety-proposal.md), then [updated lazy type](./lazy-analysis/dual-type-design-proposal.md).
 * Add trait methods for type classes and methods for brand/type structs.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
