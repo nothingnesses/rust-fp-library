@@ -2263,6 +2263,14 @@ impl<'a, A> Eval<'a, A> {
         Eval::new(move || a)
     }
 
+    /// Defers a computation that returns an Eval.
+    pub fn defer<F>(f: F) -> Self
+    where
+        F: FnOnce() -> Eval<'a, A> + 'a,
+    {
+        Eval::new(move || f().run())
+    }
+
     /// Monadic bind: chains computations.
     ///
     /// Note: Each `flat_map` adds to the call stack. For deep recursion
@@ -3108,23 +3116,23 @@ impl MonadRec for EvalBrand {
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
         F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + Clone + 'a,
-        A: Send + ToConstraint<Self::Constraint>,
-        B: Send + ToConstraint<Self::Constraint>,
     {
         // Use defer for trampolining.
         // The Clone bound allows us to clone `f` for each recursive step.
-        fn go<A: Send + 'static, B: Send + 'static, F>(
+        fn go<'a, A, B, F>(
             f: F,
             a: A,
-        ) -> Eval<B>
+        ) -> Eval<'a, B>
         where
-            F: Fn(A) -> Eval<Step<A, B>> + Clone + Send + 'static,
+            F: Fn(A) -> Eval<'a, Step<A, B>> + Clone + 'a,
+            A: 'a,
+            B: 'a,
         {
             let f_clone = f.clone();  // Clone for the recursive call
             Eval::defer(move || {
                 f(a).flat_map(move |step| match step {
                     Step::Loop(next) => go(f_clone.clone(), next),
-                    Step::Done(b) => Eval::now(b),
+                    Step::Done(b) => Eval::pure(b),
                 })
             })
         }
