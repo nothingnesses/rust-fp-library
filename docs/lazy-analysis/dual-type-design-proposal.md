@@ -112,7 +112,7 @@ This means `Memo` and `TryMemo` can be implemented as thin wrappers around `Lazy
        │ Eval<'a, A> │               │TryEval<'a,A,E>│
        │ (infallible)│               │   (fallible)  │
        └──────┬──────┘               └───────┬───────┘
-              │ .memoize()                   │ .memoize()
+              │ Memo::from_eval()            │ TryMemo::from_eval()
               ▼                              ▼
        ┌──────┴──────┐               ┌───────┴──────┐
        │ Memo<A,Cfg> │               │ TryMemo<A,E> │
@@ -432,43 +432,30 @@ pub type ArcTryMemo<A, E> = TryMemo<A, E, ArcMemoConfig>;
 
 ## Conversions Between Types
 
+To avoid circular dependencies between computation types (`Eval`, `Task`) and caching types (`Memo`), conversions are implemented as factory methods on the `Memo` types.
+
 ```rust
-impl<'a, A> Eval<'a, A> {
-    /// Converts this computation to a memoized value.
-    ///
-    /// The resulting Memo will execute this computation at most once.
+impl<A, Config: MemoConfig> Memo<A, Config> {
+    /// Creates a Memo from an Eval (HKT-compatible computation).
     ///
     /// # Requirements
     ///
     /// The Eval must be `'static` because `Memo` stores the thunk in a
     /// `LazyCell`/`LazyLock` which typically requires `'static` data.
-    pub fn memoize<Config: MemoConfig>(self) -> Memo<A, Config>
+    pub fn from_eval(eval: Eval<'static, A>) -> Self {
+        Memo::new(move || eval.run())
+    }
+
+    /// Creates a Memo from a Task (stack-safe computation).
+    ///
+    /// Note: Task is introduced in the Hybrid Stack-Safety proposal.
+    pub fn from_task(task: Task<A>) -> Self
     where
-        A: 'static,
-        Self: 'static,
+        A: 'static + Send,
     {
-        Memo::new(move || self.run())
+        Memo::new(move || task.run())
     }
 
-    /// Converts to a TryEval that always succeeds.
-    pub fn into_try<E>(self) -> TryEval<'a, A, E> {
-        TryEval::new(move || Ok(self.run()))
-    }
-}
-
-impl<'a, A, E> TryEval<'a, A, E> {
-    /// Converts this fallible computation to a memoized value.
-    pub fn memoize<Config: MemoConfig>(self) -> TryMemo<A, E, Config>
-    where
-        A: 'static,
-        E: 'static,
-        Self: 'static,
-    {
-        TryMemo::new(move || self.run())
-    }
-}
-
-impl<A, Config: MemoConfig> Memo<A, Config> {
     /// Converts to a TryMemo that always succeeds.
     pub fn into_try<E>(self) -> TryMemo<A, E, Config>
     where
@@ -476,6 +463,29 @@ impl<A, Config: MemoConfig> Memo<A, Config> {
         E: 'static,
     {
         TryMemo::new(move || Ok(self.force().clone()))
+    }
+}
+
+impl<A, E, Config: MemoConfig> TryMemo<A, E, Config> {
+    /// Creates a TryMemo from a TryEval.
+    pub fn from_try_eval(eval: TryEval<'static, A, E>) -> Self {
+        TryMemo::new(move || eval.run())
+    }
+
+    /// Creates a TryMemo from a TryTask.
+    pub fn from_try_task(task: TryTask<A, E>) -> Self
+    where
+        A: 'static + Send,
+        E: 'static + Send,
+    {
+        TryMemo::new(move || task.run())
+    }
+}
+
+impl<'a, A> Eval<'a, A> {
+    /// Converts to a TryEval that always succeeds.
+    pub fn into_try<E>(self) -> TryEval<'a, A, E> {
+        TryEval::new(move || Ok(self.run()))
     }
 }
 ```
