@@ -7,7 +7,22 @@ This document proposes a hybrid stack-safety design for `fp-library` that combin
 1. **Cats-style Eval** — Ergonomic user-facing API with `pure`, `defer`, `flatMap` combinators
 2. **PureScript MonadRec/Trampoline** — Type class interface (`MonadRec`) and O(1) left-associated bind performance via CatList
 
-The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) while maintaining full compatibility with the [dual-type design proposal](dual-type-design-proposal.md) and the existing HKT system.
+The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) while maintaining compatibility with the [dual-type design proposal](dual-type-design-proposal.md).
+
+### Two-Type Architecture
+
+To resolve the fundamental tension between **HKT lifetime requirements** and **stack-safe type erasure**, this proposal separates concerns into two distinct monadic types:
+
+| Type              | Implementation       | HKT Compatible | Stack-Safe | `'static` Required |
+| ----------------- | -------------------- | -------------- | ---------- | ------------------ |
+| **`Eval<'a, A>`** | Closure wrapper      | ✅ Yes         | ❌ No      | ❌ No              |
+| **`Task<A>`**     | Free monad + CatList | ❌ No          | ✅ Yes     | ✅ Yes             |
+
+- **`Eval<'a, A>`**: A lightweight closure-based monad for HKT abstractions, local glue code, and composing logic with borrowed references. **Not stack-safe** for deep recursion.
+
+- **`Task<A>`**: The "heavy-duty" runtime monad using `Free<ThunkF, A>` with CatList-based bind stack. **Stack-safe** for unlimited recursion, but requires `A: 'static` due to type erasure via `Box<dyn Any>`.
+
+This split acknowledges that no single type can satisfy all constraints simultaneously in Rust.
 
 ## Table of Contents
 
@@ -17,7 +32,7 @@ The design addresses the O(n²) worst-case bind performance of the current [stac
 4. [Step Type and MonadRec Trait](#4-step-type-and-monadrec-trait)
 5. [Free Monad with CatList-Based Bind Stack](#5-free-monad-with-catlist-based-bind-stack)
 6. [The `'static` Constraint: Analysis and Alternatives](#6-the-static-constraint-analysis-and-alternatives)
-7. [Eval API: User-Facing Combinators](#7-eval-api-user-facing-combinators)
+7. [Task and Eval APIs: Two-Type Architecture](#7-task-api-stack-safe-evaluation-requires-static)
 8. [Integration with Dual-Type Design](#8-integration-with-dual-type-design)
 9. [Integration with HKT System](#9-integration-with-hkt-system)
 10. [Performance Characteristics](#10-performance-characteristics)
@@ -51,6 +66,7 @@ eval.run()
 ```
 
 Each `flat_map` creates a new `FlatMap` node. When `run()` executes:
+
 1. It pushes all continuations onto the stack: O(n) operations
 2. It pops and executes each continuation: O(n) operations
 3. **But**: Each `flat_map` call during construction traverses the existing structure
@@ -59,41 +75,50 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 
 ### 1.2 Design Goals
 
-| Goal | Description | Approach |
-|------|-------------|----------|
-| **Stack Safety** | No stack overflow regardless of recursion depth | Trampoline-style iterative evaluation |
-| **O(1) Bind** | Left-associated binds should not degrade | CatList-based continuation queue |
-| **Ergonomic API** | Clean user-facing combinators | Eval type with `pure`, `defer`, `flat_map` |
-| **Type Class Interface** | Generic stack-safe recursion | `MonadRec` trait with `tail_rec_m` |
-| **HKT Integration** | Works with existing type class system | Brand types implementing `Kind_*` |
-| **Dual-Type Compatibility** | Computation/caching separation | Eval as computation layer, Memo as cache |
-| **Minimal Dependencies** | Use std types where possible | Custom CatList/CatQueue using std `Vec` |
+| Goal                     | Description                                     | Approach                                    |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------- |
+| **Stack Safety**         | No stack overflow regardless of recursion depth | Trampoline-style iterative evaluation       |
+| **O(1) Bind**            | Left-associated binds should not degrade        | CatList-based continuation queue            |
+| **Ergonomic API**        | Clean user-facing combinators                   | Task type with `pure`, `defer`, `flat_map`  |
+| **Type Class Interface** | Generic recursion via HKT                       | `MonadRec` trait (Eval only, not Task)      |
+| **HKT Integration**      | Works with existing type class system           | Eval implements HKT traits; Task does not   |
+| **Three-Layer Design**   | Computation/HKT/caching separation              | Task + Eval for computation, Memo for cache |
+| **Minimal Dependencies** | Use std types where possible                    | Custom CatList/CatQueue using std `Vec`     |
 
 ### 1.3 Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      User-Facing API                            │
-│  Eval::pure(a)  |  Eval::defer(f)  |  eval.flat_map(g)         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Internal Representation                      │
-│  Free<ThunkF, A> with CatList<Continuation> for bind stack     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Evaluation Engine                            │
-│  tailRecM-style loop consuming CatList continuations           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Caching Layer (Optional)                     │
-│  Memo<A, Config> wrapping Eval::run() result                   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           User-Facing API                                   │
+│                                                                             │
+│  Task (Stack-Safe)                    │  Eval (HKT-Compatible)              │
+│  Task::pure(a)                        │  Eval::new(|| a)                    │
+│  Task::defer(|| ta)                   │  Eval::pure(a)                      │
+│  task.flat_map(g)                     │  eval.flat_map(g)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │                          │
+                              ▼                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Internal Representation                              │
+│                                                                             │
+│  Task: Free<ThunkF, A> + CatList      │  Eval: Box<dyn FnOnce() -> A>       │
+│        Trampolined, unlimited depth   │        Nested closures, ~8000 limit │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │                          │
+                              ▼                          ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Evaluation Engine                                   │
+│                                                                             │
+│  Task: iterative loop consuming        │  Eval: direct closure execution    │
+│        CatList continuations           │        grows call stack            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │                          │
+                              └────────────┬─────────────┘
+                                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       Caching Layer (Optional)                              │
+│              Memo<A> wrapping Task::run() or Eval::run() result             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.4 Key Design Decisions
@@ -124,12 +149,13 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 
 ### 1.5 Comparison with Alternatives
 
-| Approach | Bind Complexity | Stack Safety | API Ergonomics | Type Safety |
-|----------|-----------------|--------------|----------------|-------------|
-| Direct closures | O(1) | ❌ Overflow | ✅ Simple | ✅ Full |
-| Cats Eval (Vec stack) | O(n²) worst | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
-| **This proposal (CatList)** | **O(1) amortized** | ✅ Safe | ✅ Simple | ⚠️ Type erasure |
-| Continuation monad | O(1) | ✅ Safe | ⚠️ Complex | ✅ Full |
+| Approach                                             | Bind Complexity    | Stack Safety | API Ergonomics | Type Safety     | HKT Compat |
+| ---------------------------------------------------- | ------------------ | ------------ | -------------- | --------------- | ---------- |
+| Direct closures                                      | O(1)               | ❌ Overflow  | ✅ Simple      | ✅ Full         | ❌ No      |
+| Previous proposal's version of Cats Eval (Vec stack) | O(n²) worst        | ✅ Safe      | ✅ Simple      | ⚠️ Type erasure | ❌ No      |
+| **Task (this proposal, CatList)**                    | **O(1) amortized** | ✅ Safe      | ✅ Simple      | ⚠️ Type erasure | ❌ No      |
+| **Eval (this proposal, closures)**                   | O(1)               | ❌ ~8000     | ✅ Simple      | ✅ Full         | ✅ Yes     |
+| Continuation monad                                   | O(1)               | ✅ Safe      | ⚠️ Complex     | ✅ Full         | ⚠️ Complex |
 
 ### 1.6 References
 
@@ -147,6 +173,7 @@ The PureScript Free monad solves this with "Reflection without Remorse" — usin
 CatQueue is the foundation of CatList. It provides a double-ended queue with O(1) amortized operations using the "two-list queue" technique from Okasaki's work.
 
 **Key insight**: A queue can be implemented with two stacks (or in our case, two Vecs):
+
 - `front`: Elements ready to be dequeued (in order)
 - `back`: Elements recently enqueued (in reverse order)
 
@@ -170,7 +197,7 @@ snoc (CatQueue l r) a = CatQueue l (Cons a r)
 
 ### 2.3 Rust Implementation
 
-```rust
+````rust
 use std::collections::VecDeque;
 
 /// A double-ended queue with O(1) amortized operations.
@@ -295,7 +322,7 @@ impl<A> CatQueue<A> {
             self.back.reverse();
             std::mem::swap(&mut self.front, &mut self.back);
         }
-        
+
         // Pop from the end of front (which is the "head" in our representation)
         let a = self.front.pop()?;
         Some((a, self))
@@ -316,7 +343,7 @@ impl<A> CatQueue<A> {
             self.front.reverse();
             std::mem::swap(&mut self.front, &mut self.back);
         }
-        
+
         let a = self.back.pop()?;
         Some((a, self))
     }
@@ -353,13 +380,14 @@ impl<A> Iterator for CatQueueIter<A> {
 }
 
 impl<A> ExactSizeIterator for CatQueueIter<A> {}
-```
+````
 
 ### 2.4 Design Decisions for Rust
 
 #### Decision: Use `Vec` Instead of Linked List
 
 **Rationale**: PureScript uses linked lists (`List a`), but Rust's `Vec` offers:
+
 - Better cache locality
 - Amortized O(1) `push` and `pop`
 - No allocation per element
@@ -369,6 +397,7 @@ The trade-off is that `Vec` requires elements to be contiguous, but since we onl
 #### Decision: Store Front in Reverse Order
 
 **Rationale**: We store `front` so that `pop()` removes the logical "head". This means:
+
 - `cons(a)` → `front.push(a)` — O(1)
 - `uncons()` → `front.pop()` — O(1)
 - When `front` is empty, `reverse(back)` gives us the correct order
@@ -384,6 +413,7 @@ This matches PureScript's behavior but uses Vec's natural operations.
 **Invariant**: Elements in `front` (read from end) followed by elements in `back` (read from start after reversal) form the logical queue order.
 
 **Amortized Analysis**: Each element is:
+
 1. Pushed to `back`: O(1)
 2. Moved to `front` (via reversal): O(1) amortized (happens once per element)
 3. Popped from `front`: O(1)
@@ -427,7 +457,7 @@ The `uncons` operation is subtle: when we've exhausted the head, we need to comb
 
 ### 3.3 Rust Implementation
 
-```rust
+````rust
 /// A catenable list with O(1) append and O(1) amortized uncons.
 ///
 /// This is the "Reflection without Remorse" data structure that enables
@@ -583,7 +613,7 @@ impl<A> CatList<A> {
     fn flatten_queue(queue: CatQueue<CatList<A>>) -> Self {
         // Collect all sublists
         let sublists: Vec<CatList<A>> = queue.into_iter().collect();
-        
+
         // Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
         // We process from right to left
         sublists.into_iter().rev().fold(CatList::Nil, |acc, list| {
@@ -640,13 +670,14 @@ impl<A> FromIterator<A> for CatList<A> {
         iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
     }
 }
-```
+````
 
 ### 3.4 Design Decisions for Rust
 
 #### Decision: Enum Representation
 
 **Rationale**: We use a Rust enum directly mirroring PureScript's algebraic data type. This gives us:
+
 - Pattern matching for clean code
 - Zero-cost abstraction (no boxing for the enum discriminant)
 - Clear structural representation
@@ -654,6 +685,7 @@ impl<A> FromIterator<A> for CatList<A> {
 #### Decision: Consuming vs Borrowing `uncons`
 
 **Rationale**: We chose consuming `uncons(self) -> Option<(A, Self)>` because:
+
 1. CatList is typically used linearly (process once, discard)
 2. Avoids lifetime complexity
 3. Matches PureScript's functional style
@@ -663,6 +695,7 @@ If shared access is needed, wrap in `Rc<RefCell<CatList<A>>>`.
 #### Decision: Iterative `flatten_queue`
 
 **Rationale**: PureScript's `foldr link CatNil q` is recursive. In Rust, we must be careful about stack depth. Our implementation:
+
 1. Collects sublists into a Vec (iterative)
 2. Right-folds using `.rev().fold()` (iterative)
 
@@ -673,6 +706,7 @@ This ensures stack safety even for deeply nested CatLists.
 **Claim**: A sequence of n `snoc` operations followed by n `uncons` operations takes O(n) total time.
 
 **Proof sketch**:
+
 1. Each `snoc` is O(1) — just appends to queue
 2. Each element is involved in at most one `link` during `flatten_queue`
 3. Using the "banker's method": each element pays for its own flattening
@@ -688,11 +722,11 @@ One might ask: why not just use `std::collections::VecDeque`?
 
 **Answer**: VecDeque has O(n) concatenation, which defeats the purpose. The key feature of CatList is O(1) concatenation, which requires the nested structure with deferred flattening.
 
-| Operation | CatList | VecDeque |
-|-----------|---------|----------|
-| push_back | O(1)    | O(1) amortized |
-| pop_front | O(1) amortized | O(1) |
-| **concat** | **O(1)** | **O(n)** |
+| Operation  | CatList        | VecDeque       |
+| ---------- | -------------- | -------------- |
+| push_back  | O(1)           | O(1) amortized |
+| pop_front  | O(1) amortized | O(1)           |
+| **concat** | **O(1)**       | **O(n)**       |
 
 For the Free monad's bind stack, we need O(1) concat to avoid O(n²) left-bind degradation.
 
@@ -717,7 +751,7 @@ The `tailRecM` function repeatedly applies `f` until it returns `Done`. The key 
 
 ### 4.2 Step Type
 
-```rust
+````rust
 /// Represents the result of a single step in a tail-recursive computation.
 ///
 /// This type is fundamental to stack-safe recursion via `MonadRec`.
@@ -788,11 +822,11 @@ impl<A, B> Step<A, B> {
         }
     }
 }
-```
+````
 
 ### 4.3 MonadRec Trait
 
-```rust
+````rust
 use crate::{Apply, kinds::*};
 
 /// A type class for monads that support stack-safe tail recursion.
@@ -844,32 +878,97 @@ pub trait MonadRec: Monad {
     /// # Parameters
     ///
     /// - `f`: A function that takes the current state and returns a monadic
-    ///        `Step`, either continuing with `Loop(a)` or finishing with `Done(b)`
+    ///        `Step`, either continuing with `Loop(a)` or finishing with `Done(b)`.
+    ///        **Must be `Clone`** because the function is called multiple times
+    ///        across recursive iterations, with each iteration potentially
+    ///        needing its own owned copy of the closure.
     /// - `a`: The initial state
     ///
     /// # Returns
     ///
     /// A monadic value containing the final result `B`
-    fn tail_rec_m<'a, A: 'a, B: 'a>(
-        f: impl Fn(A) -> Apply!(Self::Brand, Step<A, B>) + 'a,
+    ///
+    /// # Clone Bound Rationale
+    ///
+    /// The `Clone` bound on `F` is necessary because:
+    /// 1. Each recursive step needs to pass `f` to the next iteration
+    /// 2. In trampolined implementations, `f` must be moved into closures
+    ///    multiple times (once per `defer` or continuation)
+    /// 3. Most closures naturally implement `Clone` when their captures do
+    ///
+    /// For closures that cannot implement `Clone`, use `tail_rec_m_shared`
+    /// which wraps `f` in `Arc` internally (with a small performance cost).
+    fn tail_rec_m<'a, A: 'a, B: 'a, F>(
+        f: F,
         a: A,
     ) -> Apply!(Self::Brand, B)
     where
+        F: Fn(A) -> Apply!(Self::Brand, Step<A, B>) + Clone + 'a,
         Self::Brand: Kind_cdc7cd43dac7585f;  // type Of<'a, T: 'a>: 'a
 }
 
 /// Free function version of `tail_rec_m`.
-pub fn tail_rec_m<'a, M, A: 'a, B: 'a>(
-    f: impl Fn(A) -> Apply!(M::Brand, Step<A, B>) + 'a,
+pub fn tail_rec_m<'a, M, A: 'a, B: 'a, F>(
+    f: F,
     a: A,
 ) -> Apply!(M::Brand, B)
 where
     M: MonadRec,
+    F: Fn(A) -> Apply!(M::Brand, Step<A, B>) + Clone + 'a,
     M::Brand: Kind_cdc7cd43dac7585f,
 {
     M::tail_rec_m(f, a)
 }
-```
+
+/// Arc-wrapped version of `tail_rec_m` for non-Clone closures.
+///
+/// This function wraps the provided closure in `Arc` internally, allowing
+/// closures that don't implement `Clone` to be used with `tail_rec_m`.
+///
+/// # Trade-offs
+///
+/// - **Pro**: Works with any `Fn` closure, not just `Clone` ones
+/// - **Con**: Small overhead from Arc allocation and atomic reference counting
+///
+/// # When to Use
+///
+/// Use this when your closure captures non-Clone state:
+///
+/// ```rust
+/// // This closure captures a non-Clone Sender
+/// let sender: Sender<i32> = /* ... */;
+/// tail_rec_m_shared::<EvalBrand, _, _, _>(
+///     |n| {
+///         sender.send(n).ok();
+///         if n == 0 { Eval::now(Step::Done(())) }
+///         else { Eval::now(Step::Loop(n - 1)) }
+///     },
+///     100
+/// )
+/// ```
+pub fn tail_rec_m_shared<'a, M, A: 'a, B: 'a, F>(
+    f: F,
+    a: A,
+) -> Apply!(M::Brand, B)
+where
+    M: MonadRec,
+    F: Fn(A) -> Apply!(M::Brand, Step<A, B>) + 'a,
+    M::Brand: Kind_cdc7cd43dac7585f,
+{
+    use std::sync::Arc;
+
+    // Wrap f in Arc to make it Clone
+    let f = Arc::new(f);
+
+    // Create a Clone wrapper that delegates to the Arc
+    let wrapper = move |a: A| {
+        let f = Arc::clone(&f);
+        f(a)
+    };
+
+    M::tail_rec_m(wrapper, a)
+}
+````
 
 ### 4.4 Standard Implementations
 
@@ -929,33 +1028,35 @@ impl<E> MonadRec for ResultInstance<E> {
 
 ### 4.5 Why MonadRec Matters
 
-Without `MonadRec`, this recursive function overflows:
+Without stack-safe recursion, this function overflows:
 
 ```rust
-fn countdown(n: u64) -> Eval<u64> {
+// Using Eval (NOT stack-safe) - this will overflow for large n!
+fn countdown_eval(n: u64) -> Eval<'static, u64> {
     if n == 0 {
         Eval::pure(0)
     } else {
-        Eval::defer(move || countdown(n - 1))  // Stack overflow for large n!
+        Eval::new(move || countdown_eval(n - 1).run())  // Stack overflow!
     }
 }
 ```
 
-With `MonadRec`, we rewrite it safely:
+With `Task::tail_rec_m`, we achieve guaranteed stack safety:
 
 ```rust
-fn countdown(n: u64) -> Eval<u64> {
-    Eval::tail_rec_m(|n| {
+// Using Task (stack-safe) - works for any n
+fn countdown(n: u64) -> Task<u64> {
+    Task::tail_rec_m(|n| {
         if n == 0 {
-            Eval::pure(Step::Done(0))
+            Task::now(Step::Done(0))
         } else {
-            Eval::pure(Step::Loop(n - 1))
+            Task::now(Step::Loop(n - 1))
         }
     }, n)
 }
 ```
 
-The key difference: instead of building a chain of deferred computations, we express the loop *structure* explicitly with `Step`, and let `tail_rec_m` handle it iteratively.
+The key difference: instead of building a chain of deferred computations, we express the loop _structure_ explicitly with `Step`, and let `tail_rec_m` handle it iteratively.
 
 ### 4.6 Relationship to Trampoline
 
@@ -968,7 +1069,9 @@ type Trampoline<A> = Free<ThunkF, A>;
 // Trampoline::suspend(f) ≈ Free::Roll(ThunkF(f))
 ```
 
-In this proposal, `Eval` serves as our `Trampoline`, and it will implement `MonadRec` via its internal Free structure.
+In this proposal, **`Task`** serves as our `Trampoline`, using the Free monad with CatList-based bind stack for guaranteed stack safety. Note that `Task` does NOT implement the HKT-based `MonadRec` trait (due to `'static` constraint conflicts), but provides equivalent standalone `tail_rec_m` methods.
+
+The separate **`Eval<'a, A>`** type (closure-based) CAN implement HKT traits including `MonadRec`, but is NOT stack-safe for deep recursion.
 
 ---
 
@@ -985,6 +1088,7 @@ data Free f a = Pure a | Free (f (Free f a)) | Bind (Free f Val) (CatList (Val -
 ```
 
 The `Bind` constructor stores:
+
 1. A suspended computation producing some value (type-erased as `Val`)
 2. A CatList of continuations to apply (also type-erased)
 
@@ -1007,7 +1111,7 @@ pub type ErasedCont<F> = Box<dyn FnOnce(Val) -> Free<F, Val> + Send>;
 
 ### 5.3 Free Monad Implementation
 
-```rust
+````rust
 use std::any::Any;
 use std::marker::PhantomData;
 
@@ -1049,10 +1153,10 @@ where
 {
     /// A pure value, computation finished.
     Pure(A),
-    
+
     /// A suspended effect containing a continuation.
     Roll(Apply!(F::Brand, Free<F, A>)),
-    
+
     /// A computation with a CatList of continuations.
     /// Uses type erasure internally for heterogeneous continuation chains.
     Bind {
@@ -1146,7 +1250,7 @@ impl<F: Functor, A: 'static + Send> Free<F, A> {
         Box::new(self.erase_type())
     }
 }
-```
+````
 
 ### 5.4 The Run Loop (Interpreter)
 
@@ -1273,36 +1377,44 @@ Free::pure(0)
 ```
 
 **Traditional nested structure** (O(n²)):
+
 ```
 FlatMap(FlatMap(FlatMap(Pure(0), f1), f2), f3)
 ```
+
 Concatenating requires traversing to the innermost `Pure`.
 
 **CatList structure** (O(1)):
+
 ```
 Bind {
     head: Pure(0),
     conts: CatList[f1, f2, f3]
 }
 ```
+
 Each `flat_map` just does `conts.snoc(f)` — O(1)!
 
 ### 5.7 Memory and Performance Considerations
 
 **Allocation**:
+
 - Each continuation is boxed: `Box<dyn FnOnce(Val) -> Free<F, Val>>`
 - Each value is boxed for type erasure: `Box<dyn Any>`
 
 **Downcasting**:
+
 - `downcast` is a simple discriminant check + pointer cast
 - Extremely cheap, but adds a small constant factor
 
 **CatList overhead**:
+
 - The nested CatList structure adds indirection
 - But this is amortized across all operations
 
 **When to use**:
-- Use `Free`/`Eval` for *deep* recursion or *long* chains (1000+ binds)
+
+- Use `Free`/`Eval` for _deep_ recursion or _long_ chains (1000+ binds)
 - For shallow chains (<100 binds), direct closures may be faster
 - The crossover point depends on the specific use case
 
@@ -1343,11 +1455,11 @@ impl<A: 'static + Send> Eval<A> {
 
 This means:
 
-| Works | Does Not Work |
-|-------|---------------|
-| `Eval<String>` | `Eval<&str>` (borrowed) |
-| `Eval<Vec<i32>>` | `Eval<&[i32]>` (borrowed) |
-| `Eval<Arc<Data>>` | `Eval<&Data>` (borrowed) |
+| Works                | Does Not Work                                       |
+| -------------------- | --------------------------------------------------- |
+| `Eval<String>`       | `Eval<&str>` (borrowed)                             |
+| `Eval<Vec<i32>>`     | `Eval<&[i32]>` (borrowed)                           |
+| `Eval<Arc<Data>>`    | `Eval<&Data>` (borrowed)                            |
 | `Eval<Result<T, E>>` | `Eval<T>` where `T: 'a` for some non-`'static` `'a` |
 
 ### 6.3 Why This is Generally NOT a Significant Limitation
@@ -1357,6 +1469,7 @@ Despite the `'static` requirement, this constraint is **acceptable for a functio
 #### Reason 1: FP Emphasizes Owned Data
 
 Functional programming inherently favors:
+
 - **Immutable values** — typically owned, not borrowed
 - **Pure transformations** — `A -> B` where both are concrete types
 - **Composition** — chaining operations on owned data
@@ -1385,12 +1498,12 @@ Eval::later(move || expensive_computation(&data))
 
 #### Reason 3: Established Libraries Have Similar Constraints
 
-| Library | Constraint | Reason |
-|---------|------------|--------|
-| Tokio | `Future`s are `'static` for `spawn` | Task storage |
-| Rayon | Work items are `'static` | Thread pool transfer |
-| Cats (Scala) | No issue (JVM GC handles lifetimes) | N/A |
-| PureScript | No issue (runtime manages memory) | N/A |
+| Library      | Constraint                          | Reason               |
+| ------------ | ----------------------------------- | -------------------- |
+| Tokio        | `Future`s are `'static` for `spawn` | Task storage         |
+| Rayon        | Work items are `'static`            | Thread pool transfer |
+| Cats (Scala) | No issue (JVM GC handles lifetimes) | N/A                  |
+| PureScript   | No issue (runtime manages memory)   | N/A                  |
 
 Rust libraries dealing with deferred execution universally require `'static` for similar reasons.
 
@@ -1434,7 +1547,7 @@ impl<A: Send + 'static> Eval<A> {
     {
         Eval(Box::pin(async move { f().await }))
     }
-    
+
     pub fn flat_map<B, F, Fut>(self, f: F) -> Eval<B>
     where
         B: Send + 'static,
@@ -1451,13 +1564,13 @@ impl<A: Send + 'static> Eval<A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **No** — `Box<dyn Future>` still requires `'static` |
-| Stack safety | ✅ Yes — async desugars to state machine |
-| O(1) bind | ⚠️ Depends — may still build nested futures |
-| Semantic match | ❌ No — Futures imply async I/O, not pure lazy computation |
-| Complexity | Higher — requires async runtime understanding |
+| Aspect                | Assessment                                                 |
+| --------------------- | ---------------------------------------------------------- |
+| Eliminates `'static`? | **No** — `Box<dyn Future>` still requires `'static`        |
+| Stack safety          | ✅ Yes — async desugars to state machine                   |
+| O(1) bind             | ⚠️ Depends — may still build nested futures                |
+| Semantic match        | ❌ No — Futures imply async I/O, not pure lazy computation |
+| Complexity            | Higher — requires async runtime understanding              |
 
 **Verdict**: Does not eliminate `'static` and introduces semantic mismatch. Not recommended.
 
@@ -1479,13 +1592,13 @@ fn eval_generator<A>(token: GeneratorToken<(), A>) {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **No** — still needs `Box<dyn ...>` for type erasure |
-| Stack safety | ✅ Yes — generators are stackless |
-| O(1) bind | ⚠️ Depends on implementation |
-| API clarity | ❌ Poor — generator API doesn't map to monad operations |
-| Stability | ⚠️ External dependency |
+| Aspect                | Assessment                                              |
+| --------------------- | ------------------------------------------------------- |
+| Eliminates `'static`? | **No** — still needs `Box<dyn ...>` for type erasure    |
+| Stack safety          | ✅ Yes — generators are stackless                       |
+| O(1) bind             | ⚠️ Depends on implementation                            |
+| API clarity           | ❌ Poor — generator API doesn't map to monad operations |
+| Stability             | ⚠️ External dependency                                  |
 
 **Verdict**: Does not solve the core issue and introduces API complexity. Not recommended.
 
@@ -1503,12 +1616,12 @@ enum EvalOp<A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
+| Aspect                | Assessment                                             |
+| --------------------- | ------------------------------------------------------ |
 | Eliminates `'static`? | **Partially** — can parameterize by lifetime with care |
-| Ergonomics | ❌ Poor — loses closure convenience |
-| Type safety | ❌ Poor — everything becomes `fn(Box<dyn Any>) -> ...` |
-| Complexity | ❌ High — manual dispatch tables |
+| Ergonomics            | ❌ Poor — loses closure convenience                    |
+| Type safety           | ❌ Poor — everything becomes `fn(Box<dyn Any>) -> ...` |
+| Complexity            | ❌ High — manual dispatch tables                       |
 
 **Verdict**: Trades type safety and ergonomics for marginal lifetime flexibility. Not recommended.
 
@@ -1525,13 +1638,13 @@ pub struct Eval<'a, A> {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **Yes** — can allocate `'a` data |
-| Complexity | ❌ High — arena management, lifetime threading |
-| Composability | ❌ Poor — arenas don't compose cleanly |
-| Ergonomics | ❌ Poor — explicit arena parameter everywhere |
-| Performance | ⚠️ Mixed — fast allocation, but complex deallocation |
+| Aspect                | Assessment                                           |
+| --------------------- | ---------------------------------------------------- |
+| Eliminates `'static`? | **Yes** — can allocate `'a` data                     |
+| Complexity            | ❌ High — arena management, lifetime threading       |
+| Composability         | ❌ Poor — arenas don't compose cleanly               |
+| Ergonomics            | ❌ Poor — explicit arena parameter everywhere        |
+| Performance           | ⚠️ Mixed — fast allocation, but complex deallocation |
 
 **Verdict**: Adds significant complexity for limited benefit. Not recommended for general use.
 
@@ -1549,25 +1662,25 @@ struct ErasedVal {
 
 **Evaluation**:
 
-| Aspect | Assessment |
-|--------|------------|
-| Eliminates `'static`? | **Theoretically** yes, but extremely dangerous |
-| Safety | ❌ Extremely Poor — lifetime violations, UB risk |
-| Maintenance | ❌ Poor — complex unsafe reasoning |
-| Auditability | ❌ Poor — hard to verify correctness |
+| Aspect                | Assessment                                       |
+| --------------------- | ------------------------------------------------ |
+| Eliminates `'static`? | **Theoretically** yes, but extremely dangerous   |
+| Safety                | ❌ Extremely Poor — lifetime violations, UB risk |
+| Maintenance           | ❌ Poor — complex unsafe reasoning               |
+| Auditability          | ❌ Poor — hard to verify correctness             |
 
 **Verdict**: Unacceptably dangerous. Never recommended.
 
 ### 6.5 Comparison Summary
 
-| Approach | Eliminates `'static` | Stack Safe | O(1) Bind | Ergonomics | Safety | Recommendation |
-|----------|---------------------|------------|-----------|------------|--------|----------------|
-| **CatList proposal** | ❌ No | ✅ Yes | ✅ Yes | ✅ Good | ✅ Safe | ✅ **Recommended** |
-| async/Future | ❌ No | ✅ Yes | ⚠️ Maybe | ⚠️ Semantic mismatch | ✅ Safe | ❌ Not recommended |
-| fauxgen generators | ❌ No | ✅ Yes | ⚠️ Maybe | ⚠️ Poor API fit | ✅ Safe | ❌ Not recommended |
-| Defunctionalization | ⚠️ Partial | ✅ Yes | ✅ Yes | ❌ Poor | ⚠️ Reduced | ❌ Not recommended |
-| Arena allocation | ✅ Yes | ✅ Yes | ✅ Yes | ❌ Poor | ⚠️ Complex | ❌ Not recommended |
-| Unsafe erasure | ✅ Yes | ✅ Yes | ✅ Yes | ⚠️ Ok | ❌ Dangerous | ❌ Never |
+| Approach             | Eliminates `'static` | Stack Safe | O(1) Bind | Ergonomics           | Safety       | Recommendation     |
+| -------------------- | -------------------- | ---------- | --------- | -------------------- | ------------ | ------------------ |
+| **CatList proposal** | ❌ No                | ✅ Yes     | ✅ Yes    | ✅ Good              | ✅ Safe      | ✅ **Recommended** |
+| async/Future         | ❌ No                | ✅ Yes     | ⚠️ Maybe  | ⚠️ Semantic mismatch | ✅ Safe      | ❌ Not recommended |
+| fauxgen generators   | ❌ No                | ✅ Yes     | ⚠️ Maybe  | ⚠️ Poor API fit      | ✅ Safe      | ❌ Not recommended |
+| Defunctionalization  | ⚠️ Partial           | ✅ Yes     | ✅ Yes    | ❌ Poor              | ⚠️ Reduced   | ❌ Not recommended |
+| Arena allocation     | ✅ Yes               | ✅ Yes     | ✅ Yes    | ❌ Poor              | ⚠️ Complex   | ❌ Not recommended |
+| Unsafe erasure       | ✅ Yes               | ✅ Yes     | ✅ Yes    | ⚠️ Ok                | ❌ Dangerous | ❌ Never           |
 
 ### 6.6 Recommendations
 
@@ -1591,7 +1704,7 @@ Based on this analysis, the hybrid CatList-based approach with `Box<dyn Any + Se
 
 Public API documentation should include:
 
-```rust
+````rust
 /// Creates a lazy computation that produces `A`.
 ///
 /// # Type Requirements
@@ -1622,36 +1735,44 @@ pub fn later<F>(f: F) -> Self
 where
     F: FnOnce() -> A + Send + 'static,
 { /* ... */ }
-```
+````
 
----
-
-## 7. Eval API: User-Facing Combinators
+## 7. Task API: Stack-Safe Evaluation (requires `'static`)
 
 ### 7.1 Design Philosophy
 
-While the Free monad provides the core mechanism, users should not interact with it directly. Instead, we provide `Eval<A>` — a clean API modeled after Cats' Eval:
+This section describes `Task<A>`, the **stack-safe** monadic type built on the Free monad with CatList-based bind stack. `Task` requires `A: 'static` due to type erasure via `Box<dyn Any>`.
 
-| Cats Eval | Our Eval | Purpose |
-|-----------|----------|---------|
-| `Eval.now(a)` | `Eval::now(a)` | Already computed value |
-| `Eval.later { a }` | `Eval::later(\|\| a)` | Lazy, memoized |
-| `Eval.always { a }` | `Eval::always(\|\| a)` | Lazy, NOT memoized |
-| `Eval.defer { ea }` | `Eval::defer(\|\| ea)` | Deferred Eval construction |
-| `ea.flatMap(f)` | `ea.flat_map(f)` | Monadic bind |
-| `ea.map(f)` | `ea.map(f)` | Functor map |
-| `ea.value` | `ea.run()` | Force evaluation |
+**Key distinction**: `Task` is separate from `Eval<'a, A>` (the closure-based, HKT-compatible type described in Section 7.5). Use:
 
-**Key difference from Cats**: In this proposal, `Eval` handles only *computation*. Memoization is handled by the separate `Memo` type from the [dual-type design](dual-type-design-proposal.md). This separation yields cleaner semantics.
+- **`Eval<'a, A>`** when you need HKT integration or non-`'static` lifetimes
+- **`Task<A>`** when you need guaranteed stack safety for deep recursion
 
-### 7.2 Eval Type Definition
+| Cats Eval           | Our Task               | Purpose                    |
+| ------------------- | ---------------------- | -------------------------- |
+| `Eval.now(a)`       | `Task::now(a)`         | Already computed value     |
+| `Eval.later { a }`  | `Task::later(\|\| a)`  | Lazy, memoized             |
+| `Eval.always { a }` | `Task::always(\|\| a)` | Lazy, NOT memoized         |
+| `Eval.defer { ea }` | `Task::defer(\|\| ea)` | Deferred Task construction |
+| `ea.flatMap(f)`     | `ta.flat_map(f)`       | Monadic bind               |
+| `ea.map(f)`         | `ta.map(f)`            | Functor map                |
+| `ea.value`          | `ta.run()`             | Force evaluation           |
 
-```rust
+**Key difference from Cats**: In this proposal, `Task` handles only _computation_. Memoization is handled by the separate `Memo` type from the [dual-type design](dual-type-design-proposal.md). This separation yields cleaner semantics.
+
+### 7.2 Task Type Definition
+
+````rust
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
-/// `Eval` is the primary user-facing type for deferred computations.
-/// It is built on top of `Free<ThunkF, A>` with CatList-based bind
-/// stack, ensuring O(1) bind operations and stack safety.
+/// `Task` is the "heavy-duty" monadic type for deferred computations that
+/// require **guaranteed stack safety**. It is built on `Free<ThunkF, A>` with
+/// CatList-based bind stack, ensuring O(1) bind operations and unlimited recursion
+/// depth without stack overflow.
+///
+/// # Requirements
+///
+/// - `A: 'static + Send` — Required due to type erasure via `Box<dyn Any>`
 ///
 /// # Guarantees
 ///
@@ -1659,13 +1780,18 @@ While the Free monad provides the core mechanism, users should not interact with
 /// - **O(1) bind**: Left-associated `flat_map` chains don't degrade
 /// - **Lazy**: Computation is deferred until `run()` is called
 ///
+/// # When to Use Task vs Eval
+///
+/// - Use **`Task<A>`** for deep recursion (1000+ levels), heavy monadic pipelines
+/// - Use **`Eval<'a, A>`** for HKT integration, borrowed references, glue code
+///
 /// # Memoization
 ///
-/// `Eval` does NOT memoize. Each call to `run()` re-evaluates.
+/// `Task` does NOT memoize. Each call to `run()` re-evaluates.
 /// For memoization, wrap in `Memo`:
 ///
 /// ```rust
-/// let memo: Memo<i32> = Memo::new(Eval::later(|| expensive()));
+/// let memo: Memo<i32> = Memo::new(|| Task::later(|| expensive()).run());
 /// memo.get(); // Computes
 /// memo.get(); // Returns cached
 /// ```
@@ -1673,18 +1799,18 @@ While the Free monad provides the core mechanism, users should not interact with
 /// # Example
 ///
 /// ```rust
-/// let eval = Eval::later(|| 1 + 1)
-///     .flat_map(|x| Eval::later(move || x * 2))
-///     .flat_map(|x| Eval::later(move || x + 10));
+/// let task = Task::later(|| 1 + 1)
+///     .flat_map(|x| Task::later(move || x * 2))
+///     .flat_map(|x| Task::later(move || x + 10));
 ///
-/// assert_eq!(eval.run(), 14);
+/// assert_eq!(task.run(), 14);
 /// ```
-pub struct Eval<A> {
+pub struct Task<A> {
     inner: Free<ThunkFInstance, A>,
 }
 
-impl<A: 'static + Send> Eval<A> {
-    /// Creates an `Eval` from an already-computed value.
+impl<A: 'static + Send> Task<A> {
+    /// Creates a `Task` from an already-computed value.
     ///
     /// Equivalent to Cats' `Eval.now`.
     ///
@@ -1694,12 +1820,12 @@ impl<A: 'static + Send> Eval<A> {
     /// # Example
     ///
     /// ```rust
-    /// let eval = Eval::now(42);
-    /// assert_eq!(eval.run(), 42);
+    /// let task = Task::now(42);
+    /// assert_eq!(task.run(), 42);
     /// ```
     #[inline]
     pub fn now(a: A) -> Self {
-        Eval {
+        Task {
             inner: Free::pure(a),
         }
     }
@@ -1710,11 +1836,11 @@ impl<A: 'static + Send> Eval<A> {
         Self::now(a)
     }
 
-    /// Creates a lazy `Eval` that computes `f` on first `run()`.
+    /// Creates a lazy `Task` that computes `f` on first `run()`.
     ///
     /// This is equivalent to Cats' `Eval.later`, but note that
-    /// in our design, `Eval` does NOT memoize — each `run()`
-    /// re-evaluates. Use `Memo::new(Eval::later(...))` for caching.
+    /// in our design, `Task` does NOT memoize — each `run()`
+    /// re-evaluates. Use `Memo` for caching.
     ///
     /// # Complexity
     /// O(1) creation
@@ -1722,20 +1848,20 @@ impl<A: 'static + Send> Eval<A> {
     /// # Example
     ///
     /// ```rust
-    /// let eval = Eval::later(|| {
+    /// let task = Task::later(|| {
     ///     println!("Computing!");
     ///     expensive_computation()
     /// });
     ///
     /// // Nothing printed yet
-    /// let result = eval.run(); // Prints "Computing!"
+    /// let result = task.run(); // Prints "Computing!"
     /// ```
     #[inline]
     pub fn later<F>(f: F) -> Self
     where
         F: FnOnce() -> A + Send + 'static,
     {
-        Eval {
+        Task {
             inner: Free::roll(Thunk::new(move || Free::pure(f()))),
         }
     }
@@ -1743,7 +1869,7 @@ impl<A: 'static + Send> Eval<A> {
     /// Alias for `later` - semantically same since we don't memoize.
     ///
     /// In Cats, `always` differs from `later` in that it re-evaluates.
-    /// Since our `Eval` always re-evaluates, this is just an alias.
+    /// Since our `Task` always re-evaluates, this is just an alias.
     #[inline]
     pub fn always<F>(f: F) -> Self
     where
@@ -1752,21 +1878,21 @@ impl<A: 'static + Send> Eval<A> {
         Self::later(f)
     }
 
-    /// Defers the construction of an `Eval` itself.
+    /// Defers the construction of a `Task` itself.
     ///
     /// This is critical for stack-safe recursion: instead of
-    /// building a chain of `Eval`s directly (which grows the stack),
+    /// building a chain of `Task`s directly (which grows the stack),
     /// we defer the construction.
     ///
     /// # Example
     ///
     /// ```rust
-    /// fn recursive_sum(n: u64, acc: u64) -> Eval<u64> {
+    /// fn recursive_sum(n: u64, acc: u64) -> Task<u64> {
     ///     if n == 0 {
-    ///         Eval::now(acc)
+    ///         Task::now(acc)
     ///     } else {
     ///         // Defer construction to avoid stack growth
-    ///         Eval::defer(move || recursive_sum(n - 1, acc + n))
+    ///         Task::defer(move || recursive_sum(n - 1, acc + n))
     ///     }
     /// }
     ///
@@ -1776,9 +1902,9 @@ impl<A: 'static + Send> Eval<A> {
     #[inline]
     pub fn defer<F>(f: F) -> Self
     where
-        F: FnOnce() -> Eval<A> + Send + 'static,
+        F: FnOnce() -> Task<A> + Send + 'static,
     {
-        Eval {
+        Task {
             inner: Free::roll(Thunk::new(move || f().inner)),
         }
     }
@@ -1790,28 +1916,28 @@ impl<A: 'static + Send> Eval<A> {
     ///
     /// ```rust
     /// // This is O(n), not O(n²)
-    /// let mut eval = Eval::now(0);
+    /// let mut task = Task::now(0);
     /// for i in 0..10000 {
-    ///     eval = eval.flat_map(move |x| Eval::now(x + i));
+    ///     task = task.flat_map(move |x| Task::now(x + i));
     /// }
     /// ```
     #[inline]
-    pub fn flat_map<B: 'static + Send, F>(self, f: F) -> Eval<B>
+    pub fn flat_map<B: 'static + Send, F>(self, f: F) -> Task<B>
     where
-        F: FnOnce(A) -> Eval<B> + Send + 'static,
+        F: FnOnce(A) -> Task<B> + Send + 'static,
     {
-        Eval {
+        Task {
             inner: self.inner.flat_map(move |a| f(a).inner),
         }
     }
 
     /// Functor map: transforms the result without changing structure.
     #[inline]
-    pub fn map<B: 'static + Send, F>(self, f: F) -> Eval<B>
+    pub fn map<B: 'static + Send, F>(self, f: F) -> Task<B>
     where
         F: FnOnce(A) -> B + Send + 'static,
     {
-        self.flat_map(move |a| Eval::now(f(a)))
+        self.flat_map(move |a| Task::now(f(a)))
     }
 
     /// Forces evaluation and returns the result.
@@ -1822,164 +1948,207 @@ impl<A: 'static + Send> Eval<A> {
     /// # Example
     ///
     /// ```rust
-    /// let eval = Eval::later(|| 1 + 1);
-    /// assert_eq!(eval.run(), 2);
+    /// let task = Task::later(|| 1 + 1);
+    /// assert_eq!(task.run(), 2);
     /// ```
     pub fn run(self) -> A {
         self.inner.run()
     }
 
-    /// Combines two `Eval`s, running both and combining results.
+    /// Combines two `Task`s, running both and combining results.
     pub fn map2<B: 'static + Send, C: 'static + Send, F>(
         self,
-        other: Eval<B>,
+        other: Task<B>,
         f: F,
-    ) -> Eval<C>
+    ) -> Task<C>
     where
         F: FnOnce(A, B) -> C + Send + 'static,
     {
         self.flat_map(move |a| other.map(move |b| f(a, b)))
     }
 
-    /// Sequences two `Eval`s, discarding the first result.
-    pub fn and_then<B: 'static + Send>(self, other: Eval<B>) -> Eval<B> {
+    /// Sequences two `Task`s, discarding the first result.
+    pub fn and_then<B: 'static + Send>(self, other: Task<B>) -> Task<B> {
         self.flat_map(move |_| other)
     }
 
-    /// Creates an `Eval` from a memoized value (via Memo).
+    /// Creates a `Task` from a memoized value (via Memo).
     ///
     /// This is a convenience for integrating with the dual-type design.
-    /// The Memo provides caching; Eval provides computation structure.
+    /// The Memo provides caching; Task provides computation structure.
     pub fn from_memo(memo: &Memo<A>) -> Self
     where
         A: Clone,
     {
         let value = memo.get().clone();
-        Eval::now(value)
+        Task::now(value)
     }
 }
-```
+````
 
-### 7.3 MonadRec Implementation for Eval
+### 7.3 MonadRec Implementation for Task
 
-```rust
-impl MonadRec for EvalInstance {
-    fn tail_rec_m<'a, A: 'a + Send, B: 'a + Send>(
-        f: impl Fn(A) -> Eval<Step<A, B>> + 'a + Send,
-        initial: A,
-    ) -> Eval<B> {
-        // Use defer to ensure each step is trampolined
-        fn go<A: 'static + Send, B: 'static + Send>(
-            f: impl Fn(A) -> Eval<Step<A, B>> + Send + 'static,
-            a: A,
-        ) -> Eval<B> {
-            Eval::defer(move || {
-                f(a).flat_map(|step| match step {
-                    Step::Loop(next) => go(f, next),
-                    Step::Done(b) => Eval::now(b),
-                })
-            })
-        }
-        
-        go(f, initial)
-    }
-}
+Note: `Task` does **not** implement the HKT-based `MonadRec` trait due to its `'static` requirement conflicting with HKT's `for<'a>` bounds. Instead, `Task` provides standalone `tail_rec_m` methods:
 
-// Free function version
-impl<A: 'static + Send> Eval<A> {
-    /// Stack-safe tail recursion within Eval.
+````rust
+// Task provides its own tail_rec_m, not the trait-based MonadRec
+impl<A: 'static + Send> Task<A> {
+    /// Stack-safe tail recursion within Task.
+    ///
+    /// # Clone Bound
+    ///
+    /// The function `f` must implement `Clone` because each iteration
+    /// of the recursion may need its own copy. Most closures naturally
+    /// implement `Clone` when all their captures implement `Clone`.
+    ///
+    /// For closures that don't implement `Clone`, use `tail_rec_m_shared`
+    /// which wraps the closure in `Arc` internally.
     ///
     /// # Example
     ///
     /// ```rust
     /// // Fibonacci using tail recursion
-    /// fn fib(n: u64) -> Eval<u64> {
-    ///     Eval::tail_rec_m(|(n, a, b)| {
+    /// fn fib(n: u64) -> Task<u64> {
+    ///     Task::tail_rec_m(|(n, a, b)| {
     ///         if n == 0 {
-    ///             Eval::now(Step::Done(a))
+    ///             Task::now(Step::Done(a))
     ///         } else {
-    ///             Eval::now(Step::Loop((n - 1, b, a + b)))
+    ///             Task::now(Step::Loop((n - 1, b, a + b)))
     ///         }
     ///     }, (n, 0u64, 1u64))
     /// }
     ///
     /// assert_eq!(fib(50).run(), 12586269025);
     /// ```
-    pub fn tail_rec_m<S: 'static + Send>(
-        f: impl Fn(S) -> Eval<Step<S, A>> + Send + 'static,
+    pub fn tail_rec_m<S: 'static + Send, F>(
+        f: F,
         initial: S,
-    ) -> Self {
-        EvalInstance::tail_rec_m(f, initial)
+    ) -> Self
+    where
+        F: Fn(S) -> Task<Step<S, A>> + Clone + Send + 'static,
+    {
+        // Use defer to ensure each step is trampolined.
+        fn go<A: 'static + Send, B: 'static + Send, F>(
+            f: F,
+            a: A,
+        ) -> Task<B>
+        where
+            F: Fn(A) -> Task<Step<A, B>> + Clone + Send + 'static,
+        {
+            let f_clone = f.clone();
+            Task::defer(move || {
+                f(a).flat_map(move |step| match step {
+                    Step::Loop(next) => go(f_clone.clone(), next),
+                    Step::Done(b) => Task::now(b),
+                })
+            })
+        }
+
+        go(f, initial)
+    }
+
+    /// Arc-wrapped version for non-Clone closures.
+    ///
+    /// Use this when your closure captures non-Clone state.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// // Closure captures non-Clone state
+    /// let counter = SomeNonCloneCounter::new();
+    /// Task::tail_rec_m_shared(|n| {
+    ///     counter.increment();
+    ///     if n == 0 {
+    ///         Task::now(Step::Done(counter.get()))
+    ///     } else {
+    ///         Task::now(Step::Loop(n - 1))
+    ///     }
+    /// }, 100)
+    /// ```
+    pub fn tail_rec_m_shared<S: 'static + Send, F>(
+        f: F,
+        initial: S,
+    ) -> Self
+    where
+        F: Fn(S) -> Task<Step<S, A>> + Send + 'static,
+    {
+        use std::sync::Arc;
+        let f = Arc::new(f);
+        let wrapper = move |s: S| {
+            let f = Arc::clone(&f);
+            f(s)
+        };
+        Self::tail_rec_m(wrapper, initial)
     }
 }
-```
+````
 
-### 7.4 TryEval: Fallible Computations
+### 7.4 TryTask: Fallible Stack-Safe Computations
 
-For computations that might fail, we provide `TryEval`:
+For computations that might fail, we provide `TryTask`:
 
 ```rust
-/// A lazy computation that may fail with an error.
+/// A lazy, stack-safe computation that may fail with an error.
 ///
-/// This is `Eval<Result<A, E>>` with ergonomic combinators.
-pub struct TryEval<A, E> {
-    inner: Eval<Result<A, E>>,
+/// This is `Task<Result<A, E>>` with ergonomic combinators.
+pub struct TryTask<A, E> {
+    inner: Task<Result<A, E>>,
 }
 
-impl<A: 'static + Send, E: 'static + Send> TryEval<A, E> {
-    /// Creates a successful `TryEval`.
+impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
+    /// Creates a successful `TryTask`.
     pub fn ok(a: A) -> Self {
-        TryEval {
-            inner: Eval::now(Ok(a)),
+        TryTask {
+            inner: Task::now(Ok(a)),
         }
     }
 
-    /// Creates a failed `TryEval`.
+    /// Creates a failed `TryTask`.
     pub fn err(e: E) -> Self {
-        TryEval {
-            inner: Eval::now(Err(e)),
+        TryTask {
+            inner: Task::now(Err(e)),
         }
     }
 
-    /// Creates a lazy `TryEval` that may fail.
+    /// Creates a lazy `TryTask` that may fail.
     pub fn try_later<F>(f: F) -> Self
     where
         F: FnOnce() -> Result<A, E> + Send + 'static,
     {
-        TryEval {
-            inner: Eval::later(f),
+        TryTask {
+            inner: Task::later(f),
         }
     }
 
     /// Maps over the success value.
-    pub fn map<B: 'static + Send, F>(self, f: F) -> TryEval<B, E>
+    pub fn map<B: 'static + Send, F>(self, f: F) -> TryTask<B, E>
     where
         F: FnOnce(A) -> B + Send + 'static,
     {
-        TryEval {
+        TryTask {
             inner: self.inner.map(|result| result.map(f)),
         }
     }
 
     /// Maps over the error value.
-    pub fn map_err<E2: 'static + Send, F>(self, f: F) -> TryEval<A, E2>
+    pub fn map_err<E2: 'static + Send, F>(self, f: F) -> TryTask<A, E2>
     where
         F: FnOnce(E) -> E2 + Send + 'static,
     {
-        TryEval {
+        TryTask {
             inner: self.inner.map(|result| result.map_err(f)),
         }
     }
 
     /// Chains fallible computations.
-    pub fn and_then<B: 'static + Send, F>(self, f: F) -> TryEval<B, E>
+    pub fn and_then<B: 'static + Send, F>(self, f: F) -> TryTask<B, E>
     where
-        F: FnOnce(A) -> TryEval<B, E> + Send + 'static,
+        F: FnOnce(A) -> TryTask<B, E> + Send + 'static,
     {
-        TryEval {
+        TryTask {
             inner: self.inner.flat_map(|result| match result {
                 Ok(a) => f(a).inner,
-                Err(e) => Eval::now(Err(e)),
+                Err(e) => Task::now(Err(e)),
             }),
         }
     }
@@ -1987,11 +2156,11 @@ impl<A: 'static + Send, E: 'static + Send> TryEval<A, E> {
     /// Recovers from an error.
     pub fn or_else<F>(self, f: F) -> Self
     where
-        F: FnOnce(E) -> TryEval<A, E> + Send + 'static,
+        F: FnOnce(E) -> TryTask<A, E> + Send + 'static,
     {
-        TryEval {
+        TryTask {
             inner: self.inner.flat_map(|result| match result {
-                Ok(a) => Eval::now(Ok(a)),
+                Ok(a) => Task::now(Ok(a)),
                 Err(e) => f(e).inner,
             }),
         }
@@ -2004,41 +2173,125 @@ impl<A: 'static + Send, E: 'static + Send> TryEval<A, E> {
 }
 ```
 
-### 7.5 API Comparison with Cats
+### 7.5 Eval<'a, A>: The Closure-Based HKT-Compatible Type
 
-| Feature | Cats Eval | This Proposal |
-|---------|-----------|---------------|
-| Immediate value | `Eval.now(a)` | `Eval::now(a)` |
-| Lazy + memoized | `Eval.later { a }` | `Memo::new(Eval::later(\|\| a))` |
-| Lazy + no memo | `Eval.always { a }` | `Eval::later(\|\| a)` |
-| Defer construction | `Eval.defer { ea }` | `Eval::defer(\|\| ea)` |
-| Map | `ea.map(f)` | `ea.map(f)` |
-| FlatMap | `ea.flatMap(f)` | `ea.flat_map(f)` |
-| Force | `ea.value` | `ea.run()` |
-| Memoize | Built-in | Use `Memo` wrapper |
-| Tail recursion | Via trampolining | `Eval::tail_rec_m` |
+Before showing Task usage examples, we introduce `Eval<'a, A>` — the lightweight closure-based type that IS compatible with the HKT system:
 
-**Key semantic difference**:
+````rust
+/// A closure-based lazy computation that supports HKT integration.
+///
+/// Unlike `Task<A>`, `Eval` does NOT require `'static` and CAN implement
+/// HKT traits like `Functor`, `Semimonad`, etc.
+///
+/// # Trade-offs vs Task
+///
+/// | Aspect         | Eval<'a, A>               | Task<A>                    |
+/// |----------------|---------------------------|----------------------------|
+/// | HKT compatible | ✅ Yes                    | ❌ No (requires `'static`) |
+/// | Stack-safe     | ❌ No (~8000 calls limit) | ✅ Yes (unlimited)         |
+/// | Lifetime       | `'a` (can borrow)         | `'static` only             |
+/// | Use case       | Glue code, composition    | Deep recursion, pipelines  |
+///
+/// # Example
+///
+/// ```rust
+/// let eval = Eval::new(|| 42)
+///     .flat_map(|x| Eval::new(move || x * 2))
+///     .map(|x| x + 1);
+///
+/// assert_eq!(eval.run(), 85);
+/// ```
+pub struct Eval<'a, A>(Box<dyn FnOnce() -> A + 'a>);
+
+impl<'a, A> Eval<'a, A> {
+    /// Creates a new Eval from a thunk.
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> A + 'a,
+    {
+        Eval(Box::new(f))
+    }
+
+    /// Returns a pure value (already computed).
+    pub fn pure(a: A) -> Self
+    where
+        A: 'a,
+    {
+        Eval::new(move || a)
+    }
+
+    /// Monadic bind: chains computations.
+    ///
+    /// Note: Each `flat_map` adds to the call stack. For deep recursion
+    /// (>1000 levels), use `Task` instead.
+    pub fn flat_map<B, F>(self, f: F) -> Eval<'a, B>
+    where
+        F: FnOnce(A) -> Eval<'a, B> + 'a,
+    {
+        Eval::new(move || {
+            let a = (self.0)();
+            let eval_b = f(a);
+            (eval_b.0)()
+        })
+    }
+
+    /// Functor map: transforms the result.
+    pub fn map<B, F>(self, f: F) -> Eval<'a, B>
+    where
+        F: FnOnce(A) -> B + 'a,
+    {
+        Eval::new(move || f((self.0)()))
+    }
+
+    /// Forces evaluation and returns the result.
+    pub fn run(self) -> A {
+        (self.0)()
+    }
+}
+````
+
+The key insight is that intermediate types in `flat_map` chains exist only **inside the closure body**, avoiding the need for type erasure:
+
+```rust
+// This works because B and C are hidden inside closures, not exposed in the type
+let pipeline: Eval<'_, i32> = Eval::new(|| "hello")      // Eval<'_, &str>
+    .flat_map(|s| Eval::new(move || s.len()))             // Eval<'_, usize> (hidden)
+    .flat_map(|n| Eval::new(move || (n * 2) as i32));     // Eval<'_, i32>
+```
+
+### 7.6 API Comparison with Cats
+
+| Feature            | Cats Eval           | Our Task               | Our Eval               |
+| ------------------ | ------------------- | ---------------------- | ---------------------- |
+| Immediate value    | `Eval.now(a)`       | `Task::now(a)`         | `Eval::pure(a)`        |
+| Lazy execution     | `Eval.later { a }`  | `Task::later(\|\| a)`  | `Eval::new(\|\| a)`    |
+| Defer construction | `Eval.defer { ea }` | `Task::defer(\|\| ta)` | N/A                    |
+| Map                | `ea.map(f)`         | `ta.map(f)`            | `ea.map(f)`            |
+| FlatMap            | `ea.flatMap(f)`     | `ta.flat_map(f)`       | `ea.flat_map(f)`       |
+| Force              | `ea.value`          | `ta.run()`             | `ea.run()`             |
+| Memoize            | Built-in            | Use `Memo` wrapper     | Use `Memo` wrapper     |
+| Tail recursion     | Via trampolining    | `Task::tail_rec_m`     | Via `Task` (if needed) |
+| HKT compatible     | Yes (Scala)         | ❌ No                  | ✅ Yes                 |
+| Stack safety       | Yes                 | ✅ Yes                 | ❌ No (~8000 calls)    |
+
+**Key semantic differences**:
+
 - Cats Eval: `later` memoizes, `always` doesn't
-- Our Eval: Never memoizes; use `Memo` for caching
+- Our Task/Eval: Never memoizes; use `Memo` for caching
+- Task vs Eval: Choose based on stack safety needs vs HKT requirements
 
-This separation is cleaner because:
-1. Pure computations have predictable semantics
-2. Caching is explicit and controllable
-3. Thread-safety is handled by `Memo/MemoSync`, not embedded in `Eval`
+### 7.7 Usage Examples
 
-### 7.6 Usage Examples
-
-#### Example 1: Deep Recursion
+#### Example 1: Deep Recursion with Task
 
 ```rust
 /// Computes factorial using stack-safe recursion.
-fn factorial(n: u64) -> Eval<u64> {
-    Eval::tail_rec_m(|(n, acc)| {
+fn factorial(n: u64) -> Task<u64> {
+    Task::tail_rec_m(|(n, acc)| {
         if n <= 1 {
-            Eval::now(Step::Done(acc))
+            Task::now(Step::Done(acc))
         } else {
-            Eval::now(Step::Loop((n - 1, n * acc)))
+            Task::now(Step::Loop((n - 1, n * acc)))
         }
     }, (n, 1u64))
 }
@@ -2047,7 +2300,7 @@ fn factorial(n: u64) -> Eval<u64> {
 assert_eq!(factorial(100_000).run(), /* very large number */);
 ```
 
-#### Example 2: Lazy Tree Traversal
+#### Example 2: Lazy Tree Traversal with Task
 
 ```rust
 enum Tree<A> {
@@ -2055,12 +2308,12 @@ enum Tree<A> {
     Branch(Box<Tree<A>>, Box<Tree<A>>),
 }
 
-fn sum_tree(tree: Tree<i64>) -> Eval<i64> {
+fn sum_tree(tree: Tree<i64>) -> Task<i64> {
     match tree {
-        Tree::Leaf(x) => Eval::now(x),
+        Tree::Leaf(x) => Task::now(x),
         Tree::Branch(left, right) => {
             // Defer to avoid stack growth on deep trees
-            Eval::defer(move || {
+            Task::defer(move || {
                 sum_tree(*left).flat_map(move |l| {
                     sum_tree(*right).map(move |r| l + r)
                 })
@@ -2070,22 +2323,39 @@ fn sum_tree(tree: Tree<i64>) -> Eval<i64> {
 }
 ```
 
-#### Example 3: Composed Lazy Pipelines
+#### Example 3: HKT Composition with Eval
 
 ```rust
-fn parse_config(path: &Path) -> TryEval<Config, ConfigError> {
+/// Using Eval with generic Functor operations
+fn double_in_context<F: Functor>(fa: Apply!(F, i32)) -> Apply!(F, i32)
+where
+    F::Brand: Kind_cdc7cd43dac7585f,
+{
+    F::map(|x| x * 2, fa)
+}
+
+// Works with Eval because Eval implements Functor
+let eval = Eval::new(|| 21);
+let doubled: Eval<'_, i32> = double_in_context::<EvalBrand>(eval);
+assert_eq!(doubled.run(), 42);
+```
+
+#### Example 4: Stack-Safe Pipeline with TryTask
+
+```rust
+fn parse_config(path: &Path) -> TryTask<Config, ConfigError> {
     let path = path.to_owned();
-    TryEval::try_later(move || {
+    TryTask::try_later(move || {
         let content = std::fs::read_to_string(&path)?;
         parse_toml(&content)
     })
 }
 
-fn validate_config(config: Config) -> TryEval<ValidConfig, ConfigError> {
-    TryEval::try_later(move || config.validate())
+fn validate_config(config: Config) -> TryTask<ValidConfig, ConfigError> {
+    TryTask::try_later(move || config.validate())
 }
 
-fn load_config(path: &Path) -> TryEval<ValidConfig, ConfigError> {
+fn load_config(path: &Path) -> TryTask<ValidConfig, ConfigError> {
     parse_config(path)
         .and_then(validate_config)
         .map(|c| c.normalize())
@@ -2095,27 +2365,33 @@ fn load_config(path: &Path) -> TryEval<ValidConfig, ConfigError> {
 let result = load_config(Path::new("app.toml")).run();
 ```
 
-#### Example 4: With Memoization
+#### Example 5: With Memoization
 
 ```rust
 use std::sync::Arc;
 
-// Expensive computation
+// Expensive computation via Task
 let counter = Arc::new(AtomicUsize::new(0));
 let counter_clone = Arc::clone(&counter);
 
-let expensive = Eval::later(move || {
-    counter_clone.fetch_add(1, Ordering::SeqCst);
-    heavy_computation()
-});
-
 // Without Memo: runs every time
-let result1 = expensive.clone().run();
-let result2 = expensive.clone().run();
+let task1 = Task::later({
+    let c = Arc::clone(&counter);
+    move || { c.fetch_add(1, Ordering::SeqCst); heavy_computation() }
+});
+let task2 = Task::later({
+    let c = Arc::clone(&counter);
+    move || { c.fetch_add(1, Ordering::SeqCst); heavy_computation() }
+});
+let result1 = task1.run();
+let result2 = task2.run();
 assert_eq!(counter.load(Ordering::SeqCst), 2); // Ran twice
 
 // With Memo: memoized
-let memoized = Memo::new(expensive);
+let memoized = Memo::new({
+    let c = Arc::clone(&counter);
+    move || { c.fetch_add(1, Ordering::SeqCst); heavy_computation() }
+});
 let result3 = memoized.get();
 let result4 = memoized.get();
 assert_eq!(counter.load(Ordering::SeqCst), 3); // Only ran once more
@@ -2126,34 +2402,50 @@ assert_eq!(result3, result4);
 
 ## 8. Integration with Dual-Type Design
 
-This section describes how the stack-safe `Eval` integrates with the [dual-type design proposal](dual-type-design-proposal.md), which separates computation from memoization through `Eval` and `Memo` types.
+This section describes how the **two-type architecture** (`Task` and `Eval`) integrates with the [dual-type design proposal](dual-type-design-proposal.md), which separates computation from memoization through computation types and `Memo` types.
 
 ### 8.1 Architecture Recap
 
-The dual-type design defines:
+The full architecture now includes **three layers**:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Computation Layer                             │
-│                         Eval<A>                                  │
-│  - Deferred computation                                          │
-│  - Stack-safe via Free + CatList                                 │
-│  - NO memoization                                                │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼ .run()
-┌─────────────────────────────────────────────────────────────────┐
-│                    Memoization Layer                             │
-│               Memo<A> / MemoSync<A>                              │
-│  - Lazy initialization via LazyCell/LazyLock                     │
-│  - Thread-local or thread-safe                                   │
-│  - Caches result of Eval::run                                    │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         Computation Layer                                 │
+│                                                                           │
+│  ┌─────────────────────────────┐    ┌───────────────────────────────────┐ │
+│  │      Task<A>                │    │      Eval<'a, A>                  │ │
+│  │ - Free monad + CatList      │    │ - Closure wrapper                 │ │
+│  │ - Stack-safe, unlimited     │    │ - NOT stack-safe, ~8000 calls     │ │
+│  │ - Requires A: 'static       │    │ - Works with any lifetime 'a      │ │
+│  │ - NO HKT traits             │    │ - HKT-compatible: Functor, Monad  │ │
+│  │ - Use for: deep recursion   │    │ - Use for: composition, glue code │ │
+│  └─────────────────────────────┘    └───────────────────────────────────┘ │
+│                    │                              │                       │
+└────────────────────┼──────────────────────────────┼───────────────────────┘
+                     │ .run()                       │ .run()
+                     ▼                              ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        Memoization Layer                                  │
+│                      Memo<A> / MemoSync<A>                                │
+│ - Lazy initialization via LazyCell/LazyLock                               │
+│ - Thread-local or thread-safe                                             │
+│ - Caches result of Task::run or Eval::run                                 │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Choosing between Task and Eval**:
+
+| Scenario                        | Use Type      | Reason                          |
+| ------------------------------- | ------------- | ------------------------------- |
+| Deep recursion (>1000 calls)    | `Task<A>`     | Stack-safe via trampolining     |
+| Long `flat_map` chains          | `Task<A>`     | O(1) bind via CatList           |
+| Generic HKT code                | `Eval<'a, A>` | Implements Functor, Monad, etc. |
+| Borrowed references in closures | `Eval<'a, A>` | No `'static` constraint         |
+| Quick glue code                 | `Eval<'a, A>` | Simpler, lighter weight         |
 
 ### 8.2 Memo Types (From Dual-Type Proposal)
 
-The dual-type proposal defines two memoization types:
+The dual-type proposal defines two memoization types. These work with **both** `Task<A>` and `Eval<'a, A>`:
 
 ```rust
 use std::cell::LazyCell;
@@ -2167,18 +2459,24 @@ pub struct Memo<A> {
 }
 
 impl<A> Memo<A> {
-    /// Creates a new Memo that will run `eval` on first access.
+    /// Creates a new Memo that will run `f` on first access.
     pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
         Memo {
             cell: LazyCell::new(Box::new(f)),
         }
     }
 
-    /// Creates a Memo from an Eval.
-    pub fn from_eval(eval: Eval<A>) -> Self
+    /// Creates a Memo from a Task (stack-safe computation).
+    pub fn from_task(task: Task<A>) -> Self
     where
         A: 'static + Send,
     {
+        Memo::new(move || task.run())
+    }
+
+    /// Creates a Memo from an Eval (HKT-compatible computation).
+    /// Note: Eval<'static, A> required because Memo stores the thunk.
+    pub fn from_eval(eval: Eval<'static, A>) -> Self {
         Memo::new(move || eval.run())
     }
 
@@ -2196,15 +2494,24 @@ pub struct MemoSync<A> {
 }
 
 impl<A: Send + Sync> MemoSync<A> {
-    /// Creates a new MemoSync that will run `eval` on first access.
+    /// Creates a new MemoSync that will run `f` on first access.
     pub fn new<F: FnOnce() -> A + Send + 'static>(f: F) -> Self {
         MemoSync {
             lock: LazyLock::new(Box::new(f)),
         }
     }
 
+    /// Creates a MemoSync from a Task.
+    pub fn from_task(task: Task<A>) -> Self
+    where
+        A: 'static,
+    {
+        MemoSync::new(move || task.run())
+    }
+
     /// Creates a MemoSync from an Eval.
-    pub fn from_eval(eval: Eval<A>) -> Self
+    /// Note: Eval<'static, A> required because MemoSync stores the thunk.
+    pub fn from_eval(eval: Eval<'static, A>) -> Self
     where
         A: 'static,
     {
@@ -2218,43 +2525,59 @@ impl<A: Send + Sync> MemoSync<A> {
 }
 ```
 
-### 8.3 Combining Eval with Memo
+### 8.3 Combining Task/Eval with Memo
 
-The key insight is that `Eval` and `Memo` are complementary:
+The key insight is that computation types (`Task` and `Eval`) are complementary with `Memo`:
 
-| Concern | Eval | Memo |
-|---------|------|------|
-| Deferred computation | ✅ Yes | ❌ No (runs on first `.get()`) |
-| Composable chains | ✅ `flat_map`, `map` | ❌ Just caches |
-| Stack safety | ✅ Trampolined | N/A |
-| Memoization | ❌ No | ✅ Yes |
-| Thread safety | ❌ (use MemoSync) | ✅ (MemoSync) |
+| Concern              | Task<A>              | Eval<'a, A>          | Memo                           |
+| -------------------- | -------------------- | -------------------- | ------------------------------ |
+| Deferred computation | ✅ Yes               | ✅ Yes               | ❌ No (runs on first `.get()`) |
+| Composable chains    | ✅ `flat_map`, `map` | ✅ `flat_map`, `map` | ❌ Just caches                 |
+| Stack safety         | ✅ Unlimited         | ❌ ~8000 calls       | N/A                            |
+| HKT compatible       | ❌ No                | ✅ Yes               | N/A                            |
+| Memoization          | ❌ No                | ❌ No                | ✅ Yes                         |
+| Thread safety        | ✅ (requires Send)   | ⚠️ Depends on 'a     | ✅ (MemoSync)                  |
 
-**Pattern: Build with Eval, cache with Memo**
+**Pattern 1: Build with Task for deep recursion, cache with Memo**
 
 ```rust
-// Build a complex computation with Eval
-fn expensive_pipeline(input: &str) -> Eval<Result<Data, Error>> {
-    Eval::later(move || parse(input))
-        .flat_map(validate)
-        .flat_map(transform)
-        .flat_map(optimize)
+// Stack-safe deep computation with Task
+fn traverse_deep_tree(tree: Tree<i64>) -> Task<i64> {
+    Task::tail_rec_m(|state| {
+        // ... stack-safe recursive traversal
+    }, initial_state)
 }
 
 // Cache the result for repeated access
-let cached: Memo<Result<Data, Error>> = Memo::from_eval(expensive_pipeline("..."));
+let cached: Memo<i64> = Memo::from_task(traverse_deep_tree(big_tree));
 
 // First call computes; subsequent calls return cached
 let result1 = cached.get();
 let result2 = cached.get(); // Same reference, no recomputation
 ```
 
+**Pattern 2: Build with Eval for HKT code, cache with Memo**
+
+```rust
+// Build computation using generic HKT functions
+fn apply_transforms<F: Functor>(fa: Apply!(F, Data)) -> Apply!(F, Data) {
+    F::map(|d| d.transform(), fa)
+}
+
+let eval = Eval::new(|| load_data());
+let transformed = apply_transforms::<EvalBrand>(eval);
+
+// Cache the Eval result (note: Eval must be 'static for Memo)
+let cached: Memo<Data> = Memo::new(move || transformed.run());
+```
+
 ### 8.4 Lazy Recursive Structures
 
-One powerful pattern is lazy recursive data structures:
+One powerful pattern is lazy recursive data structures. For potentially deep structures, use `Task` to ensure stack safety:
 
 ```rust
 /// A lazy stream that computes elements on demand.
+/// Uses Task for stack-safe recursive construction.
 pub struct Stream<A> {
     head: A,
     tail: MemoSync<Option<Stream<A>>>,
@@ -2262,11 +2585,15 @@ pub struct Stream<A> {
 
 impl<A: Clone + Send + Sync + 'static> Stream<A> {
     /// Creates a finite stream from an iterator.
-    pub fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Option<Self> {
+    /// Uses Task::defer for stack-safe lazy construction.
+    pub fn from_iter<I: IntoIterator<Item = A> + Send + 'static>(iter: I) -> Option<Self> {
         let mut iter = iter.into_iter();
         iter.next().map(|head| {
-            let tail = MemoSync::from_eval(
-                Eval::later(move || Self::from_iter(iter))
+            // Use Task for stack-safe deferred construction
+            let tail = MemoSync::from_task(
+                Task::defer(move || {
+                    Task::now(Self::from_iter(iter))
+                })
             );
             Stream { head, tail }
         })
@@ -2281,19 +2608,20 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
         let f_clone = f.clone();
         Stream {
             head: f(self.head),
-            tail: MemoSync::from_eval(
-                Eval::later(move || {
-                    self.tail.get().clone().map(|t| t.map(f_clone))
+            tail: MemoSync::from_task(
+                Task::defer(move || {
+                    Task::now(self.tail.get().clone().map(|t| t.map(f_clone)))
                 })
             ),
         }
     }
 
     /// Takes the first n elements.
+    /// Iterative, so no stack concerns.
     pub fn take(self, n: usize) -> Vec<A> {
         let mut result = Vec::with_capacity(n);
         let mut current = Some(self);
-        
+
         for _ in 0..n {
             match current {
                 Some(stream) => {
@@ -2303,9 +2631,14 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
                 None => break,
             }
         }
-        
+
         result
     }
+}
+
+// For shallow recursive structures, Eval is simpler:
+fn shallow_lazy_value<'a>() -> Eval<'a, String> {
+    Eval::new(|| format!("computed at: {:?}", std::time::Instant::now()))
 }
 ```
 
@@ -2318,7 +2651,7 @@ The dual-type proposal introduces `MemoConfig` to abstract over `Rc`/`Arc`:
 pub trait MemoConfig {
     /// The reference-counted pointer type (Rc or Arc).
     type Ptr<T>: Pointer<T>;
-    
+
     /// The lazy cell type (LazyCell or LazyLock).
     type Lazy<T, F: FnOnce() -> T>: LazyInit<T, F>;
 }
@@ -2368,37 +2701,69 @@ type SharedMemo<A> = GenericMemo<A, SyncConfig>;
 
 The current [`types/lazy.rs`](../../fp-library/src/types/lazy.rs) provides a `Lazy<A>` type. With this proposal:
 
-| Current | Proposed Replacement |
-|---------|---------------------|
-| `Lazy::new(\|\| a)` | `Eval::later(\|\| a)` for computation |
-| `Lazy::new(\|\| a)` | `Memo::new(\|\| a)` for memoization |
-| `lazy.force()` | `eval.run()` or `memo.get()` |
-| `lazy.map(f)` | `eval.map(f)` (before memoizing) |
+| Current             | Proposed Replacement                       |
+| ------------------- | ------------------------------------------ |
+| `Lazy::new(\|\| a)` | `Eval::new(\|\| a)` for HKT composition    |
+| `Lazy::new(\|\| a)` | `Task::later(\|\| a)` for stack safety     |
+| `Lazy::new(\|\| a)` | `Memo::new(\|\| a)` for memoization        |
+| `lazy.force()`      | `eval.run()`, `task.run()` or `memo.get()` |
+| `lazy.map(f)`       | `eval.map(f)` or `task.map(f)`             |
 
 **Migration strategy**:
 
-1. **Phase 1**: Introduce `Eval` and `Memo` as new types alongside existing `Lazy`
-2. **Phase 2**: Deprecate `Lazy` with migration guidance
+1. **Phase 1**: Introduce `Task`, `Eval`, and `Memo` as new types alongside existing `Lazy`
+2. **Phase 2**: Deprecate `Lazy` with migration guidance (with clear guidance on when to use Task vs Eval)
 3. **Phase 3**: Remove `Lazy` in next major version
 
-### 8.7 Benefits of Separation
+### 8.7 Benefits of the Three-Layer Architecture
 
-The dual-type design with stack-safe `Eval` provides:
+The separation into Task (stack-safe), Eval (HKT), and Memo (caching) provides:
 
-1. **Clarity**: Computation vs caching is explicit
-2. **Composability**: `Eval` chains with `flat_map`; `Memo` just caches
-3. **Predictability**: Each `run()` produces a fresh computation; caching is explicit
-4. **Flexibility**: Choose single-threaded or thread-safe memoization
-5. **Stack Safety**: Deep computations don't overflow
-6. **Performance**: O(1) bind via CatList; efficient caching via `LazyCell`/`LazyLock`
+1. **Clarity**: Stack safety vs HKT compatibility vs caching is explicit in the type
+2. **Composability**: Both `Task` and `Eval` chain with `flat_map`; `Memo` just caches
+3. **Predictability**: Each `run()` produces a fresh computation; caching is explicit via `Memo`
+4. **Flexibility**: Choose computation type based on needs, then optionally memoize
+5. **Stack Safety**: `Task` guarantees unlimited recursion; `Eval` is lightweight for shallow chains
+6. **HKT Integration**: `Eval` implements Functor, Semimonad, etc. for generic programming
+7. **Performance**: `Task` has O(1) bind via CatList; `Eval` has minimal overhead for simple cases
 
 ---
 
 ## 9. Integration with HKT System
 
-This section describes how `Eval`, `Free`, and related types integrate with the existing HKT (higher-kinded types) system in `fp-library`.
+This section describes how the **closure-based `Eval<'a, A>`** integrates with the existing HKT (higher-kinded types) system in `fp-library`.
 
-### 9.1 Overview of Project HKT System
+**Critical distinction**: Only `Eval<'a, A>` (the closure-based type) can implement HKT traits. `Task<A>` (the Free monad type) **cannot** implement HKT traits due to its `'static` requirement conflicting with the `for<'a>` bounds in HKT method signatures.
+
+### 9.1 Why Task Cannot Implement HKT Traits
+
+The fundamental conflict:
+
+```rust
+// HKT trait methods require working for ANY lifetime 'a
+trait Semimonad {
+    fn bind<'a, A: 'a, B: 'a, F>(
+        ma: Apply!(Self::Of<'a, A>),
+        f: F,
+    ) -> Apply!(Self::Of<'a, B>)
+    where
+        F: Fn(A) -> Apply!(Self::Of<'a, B>) + 'a;
+}
+
+// But Task requires 'static due to Box<dyn Any>
+impl Task<A> where A: 'static + Send {
+    // ...
+}
+```
+
+These constraints are **mutually exclusive**:
+
+- HKT: "must work for any `'a`"
+- Task: "requires `'static`" (which is a specific lifetime, not any `'a`)
+
+**Solution**: The closure-based `Eval<'a, A>` has no `'static` constraint and CAN implement HKT traits.
+
+### 9.2 Overview of Project HKT System
 
 The project uses a macro-based HKT encoding via [`def_kind!`](../../fp-library/src/kinds.rs) and [`impl_kind!`](../../fp-library/src/kinds.rs) macros:
 
@@ -2440,22 +2805,26 @@ impl Functor for OptionBrand {
 }
 ```
 
-### 9.2 EvalBrand and HKT Integration
+### 9.3 EvalBrand and HKT Integration
 
-We define `EvalBrand` to integrate with the HKT system:
+We define `EvalBrand` for the **closure-based** `Eval<'a, A>`:
 
 ```rust
-/// Brand type for Eval in the HKT system.
+/// Brand type for the closure-based Eval in the HKT system.
+///
+/// Note: This is for Eval<'a, A>, NOT for Task<A>.
+/// Task cannot implement HKT traits due to its 'static requirement.
 pub struct EvalBrand;
 
 impl_kind! {
     for EvalBrand {
-        type Of<'a, A: 'a>: 'a = Eval<A> where A: Send;
+        // The lifetime 'a flows through to Eval<'a, A>
+        type Of<'a, A: 'a>: 'a = Eval<'a, A>;
     }
 }
 ```
 
-### 9.3 Functor Implementation for Eval
+### 9.4 Functor Implementation for Eval
 
 ```rust
 impl Functor for EvalBrand {
@@ -2470,15 +2839,13 @@ impl Functor for EvalBrand {
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
         F: Fn(A) -> B + 'a,
-        A: Send,
-        B: Send,
     {
-        fa.map(f)
+        fa.map(f)  // No Send bound needed - Eval<'a, A> is flexible
     }
 }
 ```
 
-### 9.4 Pointed Implementation for Eval
+### 9.5 Pointed Implementation for Eval
 
 ```rust
 impl Pointed for EvalBrand {
@@ -2490,15 +2857,13 @@ impl Pointed for EvalBrand {
     fn pure<'a, A: 'a>(
         a: A
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-    where
-        A: Send,
     {
-        Eval::now(a)
+        Eval::pure(a)  // No Send bound needed
     }
 }
 ```
 
-### 9.5 Semimonad Implementation for Eval
+### 9.6 Semimonad Implementation for Eval
 
 ```rust
 impl Semimonad for EvalBrand {
@@ -2513,41 +2878,46 @@ impl Semimonad for EvalBrand {
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
         F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-        A: Send,
-        B: Send,
     {
-        ma.flat_map(f)
+        // Closure-based flat_map works for any 'a, not just 'static
+        ma.flat_map(move |a| f(a))
     }
 }
 ```
 
-### 9.6 MonadRec Trait Definition
+### 9.7 MonadRec Trait Definition
 
-The `MonadRec` trait follows the project's HKT patterns:
+The `MonadRec` trait follows the project's HKT patterns. **Note**: `Eval` can implement this trait for HKT polymorphism, but for truly stack-safe deep recursion, use `Task::tail_rec_m` directly:
 
 ```rust
 use crate::{Apply, kinds::*, classes::Monad};
 
 /// A type class for monads that support stack-safe tail recursion.
 ///
+/// ### Important Design Note
+///
+/// `Eval<'a, A>` CAN implement this trait (HKT-compatible).
+/// `Task<A>` CANNOT implement this trait (requires `'static`).
+///
+/// For deep recursion (10,000+ calls), prefer `Task::tail_rec_m` which is
+/// guaranteed stack-safe. `Eval`'s trait-based `tail_rec_m` will overflow
+/// the stack at ~8000 recursive calls.
+///
 /// ### Laws
 ///
 /// 1. **Equivalence**: `tail_rec_m(f, a)` produces the same result as the
-///    recursive definition, but without stack overflow.
+///    recursive definition.
 ///
-/// 2. **Stack safety**: Must not overflow for any terminating `f`.
+/// 2. **Safety varies**: Eval is NOT stack-safe for deep recursion.
+///    Use Task for guaranteed stack safety.
 pub trait MonadRec: Monad {
     /// Performs tail-recursive monadic computation.
-    ///
-    /// ### Type Signature
-    ///
-    /// `forall a b. MonadRec m => (a -> m (Step a b), a) -> m b`
     fn tail_rec_m<'a, A: 'a, B: 'a, F>(
         f: F,
         a: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a;
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a;
 }
 
 /// Free function version of tail_rec_m.
@@ -2557,7 +2927,7 @@ pub fn tail_rec_m<'a, Brand, A: 'a, B: 'a, F>(
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
     Brand: MonadRec,
-    F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
+    F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
 {
     Brand::tail_rec_m(f, a)
 }
@@ -2572,7 +2942,7 @@ impl MonadRec for OptionBrand {
         mut a: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + 'a,
     {
         loop {
             match f(a)? {
@@ -2593,23 +2963,28 @@ impl MonadRec for EvalBrand {
         initial: A,
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
-        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>> + 'a,
-        A: Send,
-        B: Send,
+        F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + Clone + 'a,
+        A: Send + ToConstraint<Self::Constraint>,
+        B: Send + ToConstraint<Self::Constraint>,
     {
-        // Use defer for trampolining
-        fn go<A: Send + 'static, B: Send + 'static>(
-            f: impl Fn(A) -> Eval<Step<A, B>> + Send + 'static,
+        // Use defer for trampolining.
+        // The Clone bound allows us to clone `f` for each recursive step.
+        fn go<A: Send + 'static, B: Send + 'static, F>(
+            f: F,
             a: A,
-        ) -> Eval<B> {
+        ) -> Eval<B>
+        where
+            F: Fn(A) -> Eval<Step<A, B>> + Clone + Send + 'static,
+        {
+            let f_clone = f.clone();  // Clone for the recursive call
             Eval::defer(move || {
-                f(a).flat_map(|step| match step {
-                    Step::Loop(next) => go(f, next),
+                f(a).flat_map(move |step| match step {
+                    Step::Loop(next) => go(f_clone.clone(), next),
                     Step::Done(b) => Eval::now(b),
                 })
             })
         }
-        
+
         go(f, initial)
     }
 }
@@ -2795,49 +3170,78 @@ assert_eq!(result, Some(15));
 
 ### 10.1 Complexity Summary
 
-| Operation | CatQueue | CatList | Free | Eval |
-|-----------|----------|---------|------|------|
-| `empty`/`pure` | O(1) | O(1) | O(1) | O(1) |
-| `snoc`/`cons` | O(1) | O(1) | N/A | N/A |
-| `uncons` | O(1)* | O(1)* | N/A | N/A |
-| `append` | N/A | O(1) | N/A | N/A |
-| `flat_map`/`bind` | N/A | N/A | O(1) | O(1) |
-| `map` | N/A | N/A | O(1) | O(1) |
-| `run` | N/A | N/A | O(n) | O(n) |
+| Operation         | CatQueue | CatList | Free | Task | Eval |
+| ----------------- | -------- | ------- | ---- | ---- | ---- |
+| `empty`/`pure`    | O(1)     | O(1)    | O(1) | O(1) | O(1) |
+| `snoc`/`cons`     | O(1)     | O(1)    | N/A  | N/A  | N/A  |
+| `uncons`          | O(1)\*   | O(1)\*  | N/A  | N/A  | N/A  |
+| `append`          | N/A      | O(1)    | N/A  | N/A  | N/A  |
+| `flat_map`/`bind` | N/A      | N/A     | O(1) | O(1) | O(1) |
+| `map`             | N/A      | N/A     | O(1) | O(1) | O(1) |
+| `run`             | N/A      | N/A     | O(n) | O(n) | O(n) |
+| Stack growth      | N/A      | N/A     | O(1) | O(1) | O(n) |
 
-*Amortized, O(n) worst case
+\*Amortized, O(n) worst case
+
+**Key difference**: `Task` maintains O(1) stack depth via trampolining. `Eval` grows the stack with each nested `flat_map` call.
 
 ### 10.2 Left-Associated Bind Analysis
 
 **Scenario**: Build a chain of n binds, then run.
+
+For **Task** (stack-safe, uses CatList):
+
+```rust
+let mut task = Task::pure(0);
+for i in 0..n {
+    task = task.flat_map(move |x| Task::pure(x + 1));
+}
+task.run()
+```
+
+For **Eval** (closure-based, simple nesting):
 
 ```rust
 let mut eval = Eval::pure(0);
 for i in 0..n {
     eval = eval.flat_map(move |x| Eval::pure(x + 1));
 }
-eval.run()
+eval.run()  // ⚠️ Stack overflow for large n!
 ```
 
-**Vec-based approach** (current proposal in stack-safe-evaluation-proposal.md):
-- Each `flat_map`: O(1) — creates new FlatMap node
-- But `run()` traverses nested structure: O(n) per continuation
-- Total: O(n²) for heavily left-associated chains
+**Comparison**:
 
-**CatList-based approach** (this proposal):
+| Approach        | Build Time | Run Time | Stack Growth | Max Safe n |
+| --------------- | ---------- | -------- | ------------ | ---------- |
+| Task (CatList)  | O(n)       | O(n)     | O(1)         | Unlimited  |
+| Eval (closures) | O(n)       | O(n)     | O(n)         | ~8000      |
+| Vec-based (old) | O(n)       | O(n²)    | O(1)         | Unlimited  |
+
+**Task's CatList advantage**:
+
 - Each `flat_map`: O(1) — `snoc` onto CatList
 - `run()`: O(n) — linear in number of continuations
-- Total: O(n)
+- Stack: O(1) — trampolined execution
+- Total: O(n) time, O(1) stack
+
+**Eval's simplicity trade-off**:
+
+- Each `flat_map`: O(1) — creates nested closure
+- `run()`: O(n) — linear execution
+- Stack: O(n) — each closure call adds a frame
+- Suitable for n < 1000, use Task for larger
 
 ### 10.3 Memory Overhead
 
 **Per continuation**:
+
 ```rust
 type Cont<F> = Box<dyn FnOnce(Val) -> Free<F, Val> + Send>;
 // Size: 2 words (fat pointer) + closure capture
 ```
 
 **Per CatList node**:
+
 ```rust
 enum CatList<A> {
     Nil,                              // 0 bytes payload
@@ -2846,12 +3250,14 @@ enum CatList<A> {
 ```
 
 **Estimated overhead per element**:
+
 - Vec entry: 0 (amortized, stored inline)
 - Box for continuation: 16 bytes (2 words)
 - Box for type erasure: 16 bytes (2 words)
 - Total: ~32-48 bytes per continuation
 
 **Comparison**:
+
 - Direct closure chain: 16-24 bytes per closure
 - Vec-based: 16-24 bytes per entry + Vec overhead
 - CatList-based: 32-48 bytes per entry but O(1) ops
@@ -2860,25 +3266,26 @@ The ~2x memory overhead is acceptable for the asymptotic improvement.
 
 ### 10.4 Benchmarking Recommendations
 
-Implement benchmarks comparing:
+Implement benchmarks comparing Task and Eval:
 
 ```rust
 #[bench]
-fn bench_left_bind_vec(b: &mut Bencher) {
+fn bench_left_bind_task(b: &mut Bencher) {
     b.iter(|| {
-        let mut eval = EvalVec::pure(0);
+        let mut task = Task::pure(0);
         for _ in 0..10000 {
-            eval = eval.flat_map(|x| EvalVec::pure(x + 1));
+            task = task.flat_map(|x| Task::pure(x + 1));
         }
-        eval.run()
+        task.run()
     });
 }
 
 #[bench]
-fn bench_left_bind_catlist(b: &mut Bencher) {
+fn bench_left_bind_eval_shallow(b: &mut Bencher) {
+    // Eval is fine for shallow chains
     b.iter(|| {
         let mut eval = Eval::pure(0);
-        for _ in 0..10000 {
+        for _ in 0..100 {  // Keep under stack limit
             eval = eval.flat_map(|x| Eval::pure(x + 1));
         }
         eval.run()
@@ -2886,59 +3293,91 @@ fn bench_left_bind_catlist(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_right_bind_catlist(b: &mut Bencher) {
+fn bench_deep_recursion_task(b: &mut Bencher) {
     b.iter(|| {
-        fn go(n: i32) -> Eval<i32> {
+        Task::tail_rec_m(|n: i32| {
             if n == 0 {
-                Eval::pure(0)
+                Task::now(Step::Done(0))
             } else {
-                Eval::defer(move || go(n - 1).map(|x| x + 1))
+                Task::now(Step::Loop(n - 1))
             }
-        }
-        go(10000).run()
+        }, 100000).run()
+    });
+}
+
+#[bench]
+fn bench_hkt_generic_eval(b: &mut Bencher) {
+    // Eval's strength: HKT polymorphism
+    fn double<F: Functor>(fa: Apply!(F, i32)) -> Apply!(F, i32) {
+        F::map(|x| x * 2, fa)
+    }
+
+    b.iter(|| {
+        let eval = Eval::pure(21);
+        double::<EvalBrand>(eval).run()
     });
 }
 ```
 
 **Expected results**:
-- Left-bind: CatList should be ~10-100x faster for n=10000
-- Right-bind: Both should be similar
-- Small chains (<100): Vec might be faster due to lower constant factors
 
-### 10.5 When to Use Eval vs Direct Code
+- Deep recursion: Task handles any depth, Eval overflows at ~8000
+- Left-bind: Task maintains O(n), Eval is O(n) but stack-limited
+- HKT code: Eval is simpler, Task cannot be used for HKT
+- Small chains (<100): Eval has lower overhead, prefer Eval
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Shallow recursion (<100 levels) | Direct code or closures |
-| Deep recursion (>1000 levels) | Eval with tail_rec_m |
-| Long bind chains | Eval (O(1) bind) |
-| Performance-critical inner loops | Direct code |
-| Compositional pipelines | Eval for structure |
-| Memoization needed | Memo wrapping Eval |
+### 10.5 When to Use Task vs Eval vs Direct Code
+
+| Use Case                          | Recommendation             |
+| --------------------------------- | -------------------------- |
+| Shallow chains (<100 levels)      | `Eval` or direct closures  |
+| Deep recursion (>1000 levels)     | `Task::tail_rec_m`         |
+| Long bind chains (>1000)          | `Task` (stack-safe)        |
+| HKT polymorphic code              | `Eval` (implements traits) |
+| Borrowed references in closures   | `Eval<'a, A>` (no 'static) |
+| Performance-critical inner loops  | Direct code                |
+| Compositional pipelines (deep)    | `Task` for structure       |
+| Compositional pipelines (shallow) | `Eval` for HKT             |
+| Memoization needed                | `Memo` wrapping either     |
 
 ### 10.6 Stack Depth Guarantees
 
-**Guaranteed stack-safe operations**:
-- `Eval::flat_map` — O(1) stack depth
-- `Eval::defer` — Defers to trampoline
-- `Eval::tail_rec_m` — Iterative loop
-- `Eval::run` — Bounded stack regardless of depth
+**Task — Guaranteed stack-safe**:
 
-**Potentially stack-consuming**:
+- `Task::flat_map` — O(1) stack depth
+- `Task::defer` — Defers to trampoline
+- `Task::tail_rec_m` — Iterative loop
+- `Task::run` — Bounded stack regardless of depth
+
+**Eval — NOT stack-safe**:
+
+- `Eval::flat_map` — Adds stack frame per call
+- `Eval::run` — Stack depth = nesting depth
+- Safe for ~8000 nested calls (OS-dependent)
+- Use for HKT code and shallow chains only
+
+**Internal operations**:
+
 - `CatList::flatten_queue` — Uses iterative fold, safe
 - `Free::erase_type` — Bounded by structure depth, not chain length
 
 ### 10.7 Comparison with Other Approaches
 
-| Approach | Bind Complexity | Stack Safety | Type Safety | Ergonomics |
-|----------|-----------------|--------------|-------------|------------|
-| async/await | O(1) | ✅ | ✅ | ✅ |
-| Generator (nightly) | O(1) | ✅ | ✅ | ⚠️ |
-| Continuation monad | O(1) | ✅ | ✅ | ⚠️ |
-| Vec-based Eval | O(n²) worst | ✅ | ⚠️ | ✅ |
-| **CatList Eval** | **O(1)** | ✅ | ⚠️ | ✅ |
+| Approach            | Bind Complexity | Stack Safety | Type Safety | HKT Compat | Ergonomics |
+| ------------------- | --------------- | ------------ | ----------- | ---------- | ---------- |
+| async/await         | O(1)            | ✅           | ✅          | ❌         | ✅         |
+| Generator (nightly) | O(1)            | ✅           | ✅          | ❌         | ⚠️         |
+| Continuation monad  | O(1)            | ✅           | ✅          | ⚠️         | ⚠️         |
+| Vec-based (old)     | O(n²) worst     | ✅           | ⚠️          | ❌         | ✅         |
+| **Task (CatList)**  | **O(1)**        | ✅           | ⚠️          | ❌         | ✅         |
+| **Eval (closure)**  | O(1)            | ❌ (~8000)   | ✅          | ✅         | ✅         |
 
-The CatList approach offers the best balance for a pure FP library: good ergonomics, stable Rust, and optimal asymptotic performance.
+**The two-type architecture** offers the best balance for a pure FP library:
+
+- **Task**: Stack-safe with O(1) bind for deep recursion and long pipelines
+- **Eval**: HKT-compatible with simple implementation for composition and glue code
+
+This split acknowledges that no single Rust type can satisfy all constraints (stack safety + HKT + non-`'static` lifetimes) simultaneously.
 
 ---
 
@@ -2947,6 +3386,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.1 Core Data Structures
 
 - [ ] **CatQueue** — `fp-library/src/types/cat_queue.rs`
+
   - [ ] `CatQueue<A>` struct with `front: Vec<A>`, `back: Vec<A>`
   - [ ] `empty`, `singleton`, `is_empty`, `len` methods
   - [ ] `cons`, `snoc` methods
@@ -2967,6 +3407,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
 ### 11.2 Core Types
 
 - [ ] **Step** — `fp-library/src/types/step.rs`
+
   - [ ] `Step<A, B>` enum with `Loop` and `Done` variants
   - [ ] `is_loop`, `is_done` methods
   - [ ] `map_loop`, `map_done`, `bimap` methods
@@ -2974,6 +3415,7 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] Bifunctor implementation
 
 - [ ] **Thunk** — `fp-library/src/types/thunk.rs`
+
   - [ ] `Thunk<A>` struct wrapping `Box<dyn FnOnce() -> A + Send>`
   - [ ] `new`, `force` methods
   - [ ] `ThunkFBrand` and HKT integration
@@ -2987,123 +3429,169 @@ The CatList approach offers the best balance for a pure FP library: good ergonom
   - [ ] `FreeBrand` parameterized by functor brand
   - [ ] Functor, Pointed, Semimonad implementations
 
-### 11.3 User-Facing API
+### 11.3 User-Facing API — Two-Type Architecture
 
-- [ ] **Eval** — `fp-library/src/types/eval.rs`
-  - [ ] `Eval<A>` struct wrapping `Free<ThunkFBrand, A>`
+#### 11.3.1 Task — Stack-Safe Computation (requires `'static`)
+
+- [ ] **Task** — `fp-library/src/types/task.rs`
+
+  - [ ] `Task<A>` struct wrapping `Free<ThunkFBrand, A>`
   - [ ] `now`, `pure`, `later`, `always`, `defer` constructors
   - [ ] `flat_map`, `map`, `map2`, `and_then` combinators
   - [ ] `run` method
-  - [ ] `tail_rec_m` method
-  - [ ] `EvalBrand` and HKT integration
-  - [ ] Functor, Pointed, Semimonad, MonadRec implementations
-  - [ ] Foldable implementation
+  - [ ] `tail_rec_m` standalone method (NOT trait-based)
+  - [ ] `tail_rec_m_shared` for non-Clone closures
+  - [ ] Unit tests for stack safety (1M+ iterations)
+  - [ ] Property tests for monad laws (where testable)
 
-- [ ] **TryEval** — `fp-library/src/types/try_eval.rs` (optional)
-  - [ ] `TryEval<A, E>` for fallible computations
+- [ ] **TryTask** — `fp-library/src/types/try_task.rs`
+  - [ ] `TryTask<A, E>` for fallible computations
   - [ ] `ok`, `err`, `try_later` constructors
   - [ ] `map`, `map_err`, `and_then`, `or_else` combinators
   - [ ] `run` method returning `Result<A, E>`
 
+#### 11.3.2 Eval — HKT-Compatible Computation (no `'static` required)
+
+- [ ] **Eval** — `fp-library/src/types/eval.rs`
+
+  - [ ] `Eval<'a, A>` struct wrapping `Box<dyn FnOnce() -> A + 'a>`
+  - [ ] `new`, `pure` constructors
+  - [ ] `flat_map`, `map` combinators
+  - [ ] `run` method
+  - [ ] `EvalBrand` and HKT integration
+  - [ ] Functor, Pointed, Semimonad implementations
+  - [ ] MonadRec implementation (note: NOT stack-safe for deep calls)
+  - [ ] Documentation warning about ~8000 call stack limit
+
 ### 11.4 Type Class Extensions
 
 - [ ] **MonadRec trait** — `fp-library/src/classes/monad_rec.rs`
-  - [ ] `MonadRec` trait definition with `tail_rec_m`
-  - [ ] Free function `tail_rec_m`
-  - [ ] Documentation with laws and examples
 
-- [ ] **MonadRec implementations**
+  - [ ] `MonadRec` trait definition with `tail_rec_m`
+  - [ ] Clone bound on `F` parameter (see Section 4.3)
+  - [ ] Free function `tail_rec_m` with Clone bound
+  - [ ] Free function `tail_rec_m_shared` with Arc wrapper for non-Clone closures
+  - [ ] Documentation with laws and examples
+  - [ ] Note: Task CANNOT implement this trait (requires `'static`)
+
+- [ ] **MonadRec implementations** (for HKT-compatible types only)
   - [ ] `OptionBrand` implementation
   - [ ] `ResultBrand<E>` implementation
   - [ ] `IdentityBrand` implementation
-  - [ ] `EvalBrand` implementation
+  - [ ] `EvalBrand` implementation (note: not stack-safe for deep calls)
   - [ ] `VecBrand` implementation (if applicable)
+  - [ ] Documentation warning that Eval's MonadRec is NOT stack-safe
 
 ### 11.5 Memoization Integration
 
 - [ ] **Memo updates** — `fp-library/src/types/memo.rs`
-  - [ ] `from_eval` constructor
-  - [ ] `map_eval` method for transforming before memoizing
-  - [ ] Ensure compatibility with Eval API
+
+  - [ ] `from_task` constructor for Task<A>
+  - [ ] `from_eval` constructor for Eval<'static, A>
+  - [ ] `map_task` method for transforming Task before memoizing
+  - [ ] Ensure compatibility with both Task and Eval APIs
 
 - [ ] **MemoSync updates** — `fp-library/src/types/memo_sync.rs`
-  - [ ] `from_eval` constructor
-  - [ ] Thread-safe integration with Eval
+  - [ ] `from_task` constructor for Task<A>
+  - [ ] `from_eval` constructor for Eval<'static, A>
+  - [ ] Thread-safe integration with Task
 
 ### 11.6 Module Organization
 
 - [ ] **Update `types.rs`**
+
   - [ ] Add `mod cat_queue;`
   - [ ] Add `mod cat_list;`
   - [ ] Add `mod step;`
   - [ ] Add `mod thunk;`
   - [ ] Add `mod free;`
-  - [ ] Add `mod eval;`
+  - [ ] Add `mod task;` (stack-safe, Free-based)
+  - [ ] Add `mod eval;` (HKT-compatible, closure-based)
+  - [ ] Add `mod try_task;`
   - [ ] Add re-exports
 
 - [ ] **Update `classes.rs`**
+
   - [ ] Add `mod monad_rec;`
   - [ ] Add re-exports
 
 - [ ] **Update `brands.rs`**
-  - [ ] Add `EvalBrand`
+  - [ ] Add `EvalBrand` (for closure-based Eval)
   - [ ] Add `ThunkFBrand`
   - [ ] Add `FreeBrand`
+  - [ ] Note: NO TaskBrand (Task cannot implement HKT traits)
 
 ### 11.7 Testing
 
 - [ ] **Unit tests** for each module
+
   - [ ] CatQueue: push/pop sequences, edge cases
   - [ ] CatList: append chains, uncons sequences
   - [ ] Free: bind chains, run correctness
-  - [ ] Eval: API completeness, stack safety
+  - [ ] Task: stack safety, API completeness
+  - [ ] Eval: HKT compliance, shallow chain behavior
 
 - [ ] **Property tests** — `fp-library/tests/property_tests.rs`
+
   - [ ] CatQueue behaves like a queue
   - [ ] CatList preserves elements through operations
-  - [ ] Eval respects monad laws
+  - [ ] Task respects monad laws (manual tests, not trait-based)
+  - [ ] Eval respects monad laws (trait-based via EvalBrand)
   - [ ] MonadRec produces correct results
 
 - [ ] **Stack safety tests** — `fp-library/tests/stack_safety.rs`
-  - [ ] Deep recursion with `tail_rec_m` (1M+ iterations)
-  - [ ] Long left-associated bind chains
-  - [ ] Nested defer chains
+
+  - [ ] Task: Deep recursion with `tail_rec_m` (1M+ iterations)
+  - [ ] Task: Long left-associated bind chains (10K+)
+  - [ ] Task: Nested defer chains
+  - [ ] Eval: Verify ~8000 call limit and document
+  - [ ] Eval: Confirm HKT operations work at shallow depth
 
 - [ ] **Benchmark tests** — `fp-library/benches/`
-  - [ ] Left vs right associated binds
+  - [ ] Task: Left vs right associated binds
+  - [ ] Task vs Eval: Overhead comparison for shallow chains
   - [ ] Comparison with baseline Vec approach
-  - [ ] Memory usage measurements
+  - [ ] Memory usage measurements for both types
 
 ### 11.8 Documentation
 
 - [ ] **API documentation**
-  - [ ] Doc comments on all public items
-  - [ ] Examples in doc comments
+
+  - [ ] Doc comments on all public items (Task and Eval)
+  - [ ] Examples in doc comments showing appropriate use cases
   - [ ] Links to related types/methods
+  - [ ] Clear guidance on when to use Task vs Eval
 
 - [ ] **Module documentation**
-  - [ ] Overview of design decisions
-  - [ ] Performance characteristics
+
+  - [ ] Overview of two-type architecture design decisions
+  - [ ] Performance characteristics for both types
   - [ ] Migration guide from existing Lazy
+  - [ ] HKT compatibility notes (Eval only)
+  - [ ] Stack safety warnings for Eval
 
 - [ ] **Architecture documentation**
-  - [ ] Update `docs/architecture.md` with Eval design
+  - [ ] Update `docs/architecture.md` with Task/Eval dual design
   - [ ] Add Mermaid diagrams for data flow
+  - [ ] Document the HKT vs `'static` trade-off
 
 ### 11.9 Migration
 
 - [ ] **Deprecate existing Lazy** (in future version)
+
   - [ ] Add deprecation warnings with migration hints
+  - [ ] Guide users to Task (for stack safety) or Eval (for HKT)
   - [ ] Provide adapter methods if needed
 
 - [ ] **Update dependent code**
   - [ ] Identify usages of current Lazy
-  - [ ] Plan migration to Eval/Memo
+  - [ ] Plan migration to Task/Eval/Memo based on use case
 
 ### 11.10 Future Enhancements (Not in initial scope)
 
-- [ ] **Parallel Eval** — `Eval::par_map2` for parallel combination
-- [ ] **Resource-safe Eval** — Integration with RAII patterns
-- [ ] **Async interop** — `Eval::into_future` for async/await
+- [ ] **Parallel Task** — `Task::par_map2` for parallel combination
+- [ ] **Resource-safe Task** — Integration with RAII patterns
+- [ ] **Async interop** — `Task::into_future` for async/await
 - [ ] **Trampolined IO** — Extension point for effectful trampolines
-
+- [ ] **Eval optimization** — Investigate TCO hints for deeper Eval chains
+- [ ] **Task-to-Eval bridge** — Utilities for converting between types when safe
