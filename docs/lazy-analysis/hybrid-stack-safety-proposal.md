@@ -2445,24 +2445,37 @@ The full architecture now includes **three layers**:
 
 ### 8.2 Memo Types (From Dual-Type Proposal)
 
-The dual-type proposal defines two memoization types. These work with **both** `Task<A>` and `Eval<'a, A>`:
+The dual-type proposal defines a single generic `Memo` type parameterized by a configuration trait. This works with **both** `Task<A>` and `Eval<'a, A>`:
 
 ```rust
 use std::cell::LazyCell;
 use std::sync::LazyLock;
 
-/// Single-threaded memoization wrapper.
+/// A lazily-computed, memoized value with shared semantics.
 ///
-/// Uses `LazyCell` for interior mutability without synchronization overhead.
-pub struct Memo<A> {
-    cell: LazyCell<A, Box<dyn FnOnce() -> A>>,
+/// The computation runs at most once; subsequent accesses return the cached value.
+/// Cloning a `Memo` shares the underlying cache - all clones see the same value.
+///
+/// # Type Parameters
+///
+/// - `A`: The type of the computed value
+/// - `Config`: The memoization configuration (determines Rc vs Arc)
+pub struct Memo<A, Config: MemoConfig = RcMemoConfig> {
+    inner: Config::Lazy<A>,
 }
 
-impl<A> Memo<A> {
+// Type aliases for convenience
+pub type RcMemo<A> = Memo<A, RcMemoConfig>;
+pub type ArcMemo<A> = Memo<A, ArcMemoConfig>;
+
+impl<A, Config: MemoConfig> Memo<A, Config> {
     /// Creates a new Memo that will run `f` on first access.
-    pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> A + Send + 'static, // Send bound depends on Config, simplified here
+    {
         Memo {
-            cell: LazyCell::new(Box::new(f)),
+            inner: Config::new_lazy(f),
         }
     }
 
@@ -2482,45 +2495,7 @@ impl<A> Memo<A> {
 
     /// Gets the memoized value, computing on first access.
     pub fn get(&self) -> &A {
-        &*self.cell
-    }
-}
-
-/// Thread-safe memoization wrapper.
-///
-/// Uses `LazyLock` for safe concurrent initialization.
-pub struct MemoSync<A> {
-    lock: LazyLock<A, Box<dyn FnOnce() -> A + Send>>,
-}
-
-impl<A: Send + Sync> MemoSync<A> {
-    /// Creates a new MemoSync that will run `f` on first access.
-    pub fn new<F: FnOnce() -> A + Send + 'static>(f: F) -> Self {
-        MemoSync {
-            lock: LazyLock::new(Box::new(f)),
-        }
-    }
-
-    /// Creates a MemoSync from a Task.
-    pub fn from_task(task: Task<A>) -> Self
-    where
-        A: 'static,
-    {
-        MemoSync::new(move || task.run())
-    }
-
-    /// Creates a MemoSync from an Eval.
-    /// Note: Eval<'static, A> required because MemoSync stores the thunk.
-    pub fn from_eval(eval: Eval<'static, A>) -> Self
-    where
-        A: 'static,
-    {
-        MemoSync::new(move || eval.run())
-    }
-
-    /// Gets the memoized value, computing on first access.
-    pub fn get(&self) -> &A {
-        &*self.lock
+        Config::force(&self.inner)
     }
 }
 ```
@@ -2536,7 +2511,7 @@ The key insight is that computation types (`Task` and `Eval`) are complementary 
 | Stack safety         | ✅ Unlimited         | ❌ ~8000 calls       | N/A                            |
 | HKT compatible       | ❌ No                | ✅ Yes               | N/A                            |
 | Memoization          | ❌ No                | ❌ No                | ✅ Yes                         |
-| Thread safety        | ✅ (requires Send)   | ⚠️ Depends on 'a     | ✅ (MemoSync)                  |
+| Thread safety        | ✅ (requires Send)   | ⚠️ Depends on 'a     | ✅ (ArcMemo)                   |
 
 **Pattern 1: Build with Task for deep recursion, cache with Memo**
 
@@ -2580,7 +2555,7 @@ One powerful pattern is lazy recursive data structures. For potentially deep str
 /// Uses Task for stack-safe recursive construction.
 pub struct Stream<A> {
     head: A,
-    tail: MemoSync<Option<Stream<A>>>,
+    tail: ArcMemo<Option<Stream<A>>>,
 }
 
 impl<A: Clone + Send + Sync + 'static> Stream<A> {
@@ -2590,7 +2565,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
         let mut iter = iter.into_iter();
         iter.next().map(|head| {
             // Use Task for stack-safe deferred construction
-            let tail = MemoSync::from_task(
+            let tail = ArcMemo::from_task(
                 Task::defer(move || {
                     Task::now(Self::from_iter(iter))
                 })
@@ -2608,7 +2583,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
         let f_clone = f.clone();
         Stream {
             head: f(self.head),
-            tail: MemoSync::from_task(
+            tail: ArcMemo::from_task(
                 Task::defer(move || {
                     Task::now(self.tail.get().clone().map(|t| t.map(f_clone)))
                 })
@@ -3463,6 +3438,12 @@ This split acknowledges that no single Rust type can satisfy all constraints (st
   - [ ] MonadRec implementation (note: NOT stack-safe for deep calls)
   - [ ] Documentation warning about ~8000 call stack limit
 
+- [ ] **TryEval** — `fp-library/src/types/try_eval.rs`
+  - [ ] `TryEval<'a, A, E>` for fallible computations
+  - [ ] `new`, `pure` constructors
+  - [ ] `flat_map`, `map`, `map_err` combinators
+  - [ ] `run` method returning `Result<A, E>`
+
 ### 11.4 Type Class Extensions
 
 - [ ] **MonadRec trait** — `fp-library/src/classes/monad_rec.rs`
@@ -3492,9 +3473,8 @@ This split acknowledges that no single Rust type can satisfy all constraints (st
   - [ ] Ensure compatibility with both Task and Eval APIs
 
 - [ ] **MemoSync updates** — `fp-library/src/types/memo_sync.rs`
-  - [ ] `from_task` constructor for Task<A>
-  - [ ] `from_eval` constructor for Eval<'static, A>
-  - [ ] Thread-safe integration with Task
+  - [ ] Remove `MemoSync` struct (replaced by `ArcMemo` alias)
+  - [ ] Ensure `ArcMemo` (via `Memo<A, ArcMemoConfig>`) supports `from_task` and `from_eval`
 
 ### 11.6 Module Organization
 
