@@ -7,7 +7,7 @@ This document proposes a hybrid stack-safety design for `fp-library` that combin
 1. **Cats-style Eval** — Ergonomic user-facing API with `pure`, `defer`, `flatMap` combinators
 2. **PureScript MonadRec/Trampoline** — Type class interface (`MonadRec`) and O(1) left-associated bind performance via CatList
 
-The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) while maintaining compatibility with the [dual-type design proposal](dual-type-design-proposal.md).
+The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](extra/stack-safe-evaluation-proposal.md) while maintaining compatibility with the [dual-type design proposal](dual-type-design-proposal.md).
 
 ### Two-Type Architecture
 
@@ -44,7 +44,7 @@ This split acknowledges that no single type can satisfy all constraints simultan
 
 ### 1.1 Problem Statement
 
-The [current stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) uses a `Vec`-based continuation stack:
+The [current stack-safe evaluation proposal](extra/stack-safe-evaluation-proposal.md) uses a `Vec`-based continuation stack:
 
 ```rust
 pub fn run(self) -> A {
