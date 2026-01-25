@@ -2201,7 +2201,9 @@ Before showing Task usage examples, we introduce `Eval<'a, A>` — the lightweig
 ///
 /// assert_eq!(eval.run(), 85);
 /// ```
-pub struct Eval<'a, A>(Box<dyn FnOnce() -> A + 'a>);
+pub struct Eval<'a, A> {
+    thunk: Box<dyn FnOnce() -> A + 'a>,
+}
 
 impl<'a, A> Eval<'a, A> {
     /// Creates a new Eval from a thunk.
@@ -2209,7 +2211,9 @@ impl<'a, A> Eval<'a, A> {
     where
         F: FnOnce() -> A + 'a,
     {
-        Eval(Box::new(f))
+        Eval {
+            thunk: Box::new(f),
+        }
     }
 
     /// Returns a pure value (already computed).
@@ -2229,9 +2233,9 @@ impl<'a, A> Eval<'a, A> {
         F: FnOnce(A) -> Eval<'a, B> + 'a,
     {
         Eval::new(move || {
-            let a = (self.0)();
+            let a = (self.thunk)();
             let eval_b = f(a);
-            (eval_b.0)()
+            (eval_b.thunk)()
         })
     }
 
@@ -2240,12 +2244,12 @@ impl<'a, A> Eval<'a, A> {
     where
         F: FnOnce(A) -> B + 'a,
     {
-        Eval::new(move || f((self.0)()))
+        Eval::new(move || f((self.thunk)()))
     }
 
     /// Forces evaluation and returns the result.
     pub fn run(self) -> A {
-        (self.0)()
+        (self.thunk)()
     }
 }
 ````
@@ -2498,6 +2502,44 @@ impl<A, Config: MemoConfig> Memo<A, Config> {
         Config::force(&self.inner)
     }
 }
+
+/// A lazily-computed, memoized value that may fail.
+///
+/// The computation runs at most once. If it succeeds, the value is cached.
+/// If it fails, the error is cached. Subsequent accesses return the cached result.
+pub struct TryMemo<A, E, Config: MemoConfig = RcMemoConfig> {
+    inner: Config::TryLazy<A, E>,
+}
+
+// Type aliases for convenience
+pub type RcTryMemo<A, E> = TryMemo<A, E, RcMemoConfig>;
+pub type ArcTryMemo<A, E> = TryMemo<A, E, ArcMemoConfig>;
+
+impl<A, E, Config: MemoConfig> TryMemo<A, E, Config> {
+    /// Creates a new TryMemo that will run `f` on first access.
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> Result<A, E> + Send + 'static,
+    {
+        TryMemo {
+            inner: Config::new_try_lazy(f),
+        }
+    }
+
+    /// Creates a TryMemo from a TryTask.
+    pub fn from_try_task(task: TryTask<A, E>) -> Self
+    where
+        A: 'static + Send,
+        E: 'static + Send,
+    {
+        TryMemo::new(move || task.run())
+    }
+
+    /// Gets the memoized result, computing on first access.
+    pub fn get(&self) -> Result<&A, &E> {
+        Config::force_try(&self.inner)
+    }
+}
 ```
 
 ### 8.3 Combining Task/Eval with Memo
@@ -2617,34 +2659,122 @@ fn shallow_lazy_value<'a>() -> Eval<'a, String> {
 }
 ```
 
-### 8.5 The MemoConfig Trait
+### 8.5 Fallible Memoization with TryMemo
+
+Just as `Memo` complements `Task` and `Eval`, `TryMemo` complements `TryTask` and `TryEval` for fallible computations.
+
+| Concern              | TryTask<A, E>      | TryEval<'a, A, E>  | TryMemo<A, E>                  |
+| -------------------- | ------------------ | ------------------ | ------------------------------ |
+| Deferred computation | ✅ Yes             | ✅ Yes             | ❌ No (runs on first `.get()`) |
+| Error handling       | ✅ Explicit Result | ✅ Explicit Result | ✅ Explicit Result             |
+| Stack safety         | ✅ Unlimited       | ❌ ~8000 calls     | N/A                            |
+| Memoization          | ❌ No              | ❌ No              | ✅ Yes (caches Result)         |
+
+**Pattern: Build with TryTask, cache with TryMemo**
+
+```rust
+// Stack-safe fallible computation
+fn load_config() -> TryTask<Config, ConfigError> {
+    TryTask::try_later(|| {
+        // ... complex loading logic
+        Ok(Config::default())
+    })
+}
+
+// Cache the result (success or failure)
+let cached_config: TryMemo<Config, ConfigError> = TryMemo::from_try_task(load_config());
+
+// First call computes
+match cached_config.get() {
+    Ok(cfg) => println!("Loaded: {:?}", cfg),
+    Err(e) => println!("Failed: {:?}", e),
+}
+
+// Second call returns cached result immediately
+```
+
+### 8.6 The MemoConfig Trait
 
 The dual-type proposal introduces `MemoConfig` to abstract over `Rc`/`Arc`:
 
 ```rust
-/// Configuration trait for memoization wrapper types.
-pub trait MemoConfig {
-    /// The reference-counted pointer type (Rc or Arc).
-    type Ptr<T>: Pointer<T>;
+/// Configuration for memoization strategy.
+///
+/// This trait bundles together the choices for:
+/// - Pointer type (Rc vs Arc)
+/// - Lazy cell type (LazyCell vs LazyLock)
+pub trait MemoConfig: 'static {
+    /// The lazy cell type for infallible memoization
+    type Lazy<A: 'static>: Clone;
 
-    /// The lazy cell type (LazyCell or LazyLock).
-    type Lazy<T, F: FnOnce() -> T>: LazyInit<T, F>;
+    /// The lazy cell type for fallible memoization
+    type TryLazy<A: 'static, E: 'static>: Clone;
+
+    /// Creates a new lazy cell from an initializer
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + 'static) -> Self::Lazy<A>;
+
+    /// Creates a new fallible lazy cell from an initializer
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + 'static
+    ) -> Self::TryLazy<A, E>;
+
+    /// Forces evaluation and returns a reference
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A;
+
+    /// Forces evaluation and returns a reference to the result
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E>;
 }
 
-/// Single-threaded configuration.
-pub struct LocalConfig;
+/// Single-threaded memoization using Rc<LazyCell>.
+pub struct RcMemoConfig;
 
-impl MemoConfig for LocalConfig {
-    type Ptr<T> = Rc<T>;
-    type Lazy<T, F: FnOnce() -> T> = LazyCell<T, F>;
+impl MemoConfig for RcMemoConfig {
+    type Lazy<A: 'static> = Rc<LazyCell<A, Box<dyn FnOnce() -> A>>>;
+    type TryLazy<A: 'static, E: 'static> = Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E>>>>;
+
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + 'static) -> Self::Lazy<A> {
+        Rc::new(LazyCell::new(Box::new(f)))
+    }
+
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + 'static
+    ) -> Self::TryLazy<A, E> {
+        Rc::new(LazyCell::new(Box::new(f)))
+    }
+
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A {
+        LazyCell::force(lazy)
+    }
+
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E> {
+        LazyCell::force(lazy).as_ref()
+    }
 }
 
-/// Thread-safe configuration.
-pub struct SyncConfig;
+/// Thread-safe memoization using Arc<LazyLock>.
+pub struct ArcMemoConfig;
 
-impl MemoConfig for SyncConfig {
-    type Ptr<T> = Arc<T>;
-    type Lazy<T, F: FnOnce() -> T> = LazyLock<T, F>;
+impl MemoConfig for ArcMemoConfig {
+    type Lazy<A: 'static> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send>>>;
+    type TryLazy<A: 'static, E: 'static> = Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send>>>;
+
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + Send + 'static) -> Self::Lazy<A> {
+        Arc::new(LazyLock::new(Box::new(f)))
+    }
+
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + Send + 'static
+    ) -> Self::TryLazy<A, E> {
+        Arc::new(LazyLock::new(Box::new(f)))
+    }
+
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A {
+        LazyLock::force(lazy)
+    }
+
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E> {
+        LazyLock::force(lazy).as_ref()
+    }
 }
 ```
 
@@ -2653,7 +2783,7 @@ This enables generic code over thread-safety:
 ```rust
 /// A memoized computation parameterized by configuration.
 pub struct GenericMemo<A, C: MemoConfig> {
-    cell: C::Lazy<A, Box<dyn FnOnce() -> A>>,
+    cell: C::Lazy<A>,
 }
 
 impl<A, C: MemoConfig> GenericMemo<A, C> {
@@ -2662,17 +2792,17 @@ impl<A, C: MemoConfig> GenericMemo<A, C> {
         A: 'static + Send,
     {
         GenericMemo {
-            cell: C::Lazy::new(Box::new(move || eval.run())),
+            cell: C::new_lazy(move || eval.run()),
         }
     }
 }
 
 // Use as:
-type LocalMemo<A> = GenericMemo<A, LocalConfig>;
-type SharedMemo<A> = GenericMemo<A, SyncConfig>;
+type LocalMemo<A> = GenericMemo<A, RcMemoConfig>;
+type SharedMemo<A> = GenericMemo<A, ArcMemoConfig>;
 ```
 
-### 8.6 Migration Path from Existing Lazy
+### 8.7 Migration Path from Existing Lazy
 
 The current [`types/lazy.rs`](../../fp-library/src/types/lazy.rs) provides a `Lazy<A>` type. With this proposal:
 
@@ -3471,6 +3601,14 @@ This split acknowledges that no single Rust type can satisfy all constraints (st
   - [ ] `from_eval` constructor for Eval<'static, A>
   - [ ] `map_task` method for transforming Task before memoizing
   - [ ] Ensure compatibility with both Task and Eval APIs
+
+- [ ] **TryMemo implementation** — `fp-library/src/types/try_memo.rs`
+
+  - [ ] `TryMemo<A, E, Config>` struct
+  - [ ] `new` constructor
+  - [ ] `from_try_task` constructor
+  - [ ] `get` method returning `Result<&A, &E>`
+  - [ ] Type aliases `RcTryMemo` and `ArcTryMemo`
 
 - [ ] **MemoSync updates** — `fp-library/src/types/memo_sync.rs`
   - [ ] Remove `MemoSync` struct (replaced by `ArcMemo` alias)
