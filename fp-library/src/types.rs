@@ -31,7 +31,9 @@ pub mod result;
 pub mod send_endofunction;
 pub mod step;
 pub mod string;
+pub mod task;
 pub mod thunk;
+pub mod try_task;
 pub mod vec;
 
 pub use cat_list::CatList;
@@ -44,4 +46,6 @@ pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyConfig, LazyError, RcLazy, RcLa
 pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;
 pub use step::Step;
-pub use thunk::Thunk;
+pub use task::Task;
+pub use thunk::{Runnable, Thunk};
+pub use try_task::TryTask;

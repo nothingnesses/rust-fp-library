@@ -66,6 +66,8 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Free Static**     | `Free` is strictly `'static` (`F: 'static`, `A: 'static`) to allow type erasure using `Box<dyn Any>`.                                        |
 | **Free Struct**     | `Free` is implemented as a struct wrapping `Option<FreeInner>` to safely handle `Drop` recursion and destructuring without `unsafe` code, at the cost of small runtime overhead. |
 | **Safe Free**       | Refactored `Free` to remove all `unsafe` code, prioritizing safety and auditability over the zero-cost abstraction of `ManuallyDrop`. |
+| **Task Not Send**   | `Task` is not `Send` because `Thunk` is not `Send`. Consequently, `Send` bounds were removed from closures in `Task` and `TryTask` combinators (`flat_map`, `map`, etc.) to allow capturing `Task` instances (e.g., in `map2`). `A` still requires `Send` as per original plan (though strictly `Free` only requires `'static`). |
+| **Commented from_memo** | `Task::from_memo` is implemented but commented out because `Memo` (Step 5) is not yet available. |
 
 ### Blockers
 
