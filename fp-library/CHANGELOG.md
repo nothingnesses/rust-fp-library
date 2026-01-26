@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-01-26
+
+### Added
+- **Lazy Evaluation Revamp**:
+  - **`Memo` / `TryMemo`**: Added `Memo` and `TryMemo` types for shared memoization, replacing the old `Lazy` type. Supports `Rc` and `Arc` backing via `MemoConfig`.
+  - **`Task` / `TryTask`**: Added `Task` and `TryTask` for stack-safe, non-memoized computations using `Free` monad and `Thunk`.
+  - **`Eval` / `TryEval`**: Added `Eval` and `TryEval` for HKT-compatible deferred computations.
+  - **`Free` Monad**: Added `Free` monad implementation with `CatList`-based O(1) bind for stack safety.
+  - **Data Structures**: Added `CatList` (concatenation list) and `CatQueue` (functional queue) with O(1) operations.
+  - **Traits**:
+    - Added `MonadRec` trait for stack-safe tail recursion.
+    - Added `RefFunctor` trait for mapping over types that yield references.
+- **Benchmarks**: Added benchmarks for `CatList`, `CatQueue`, and missing trait methods.
+
+### Changed
+- **Lazy Evaluation Revamp (API Breaking)**:
+  - **`Memo` Lifetimes**: Refactored `Memo` to support lifetimes, removing the strict `'static` requirement.
+- **Documentation**:
+  - Updated `docs/architecture.md` and `README.md` to reflect the new distinction between `Memo` (shared caching), `Task` (stack-safe computation), and `Eval` (HKT-compatible).
+
+### Removed
+- **Lazy Evaluation Revamp (API Breaking)**:
+  - Removed `Lazy`, `OnceCell`, `OnceLock` types and their associated brands.
+  - Removed `TrySemigroup` and `TryMonoid` traits.
+
 ## [0.6.1] - 2026-01-23
 
 ### Added
