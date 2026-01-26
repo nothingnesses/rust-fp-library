@@ -1,13 +1,16 @@
 # Step 05: Memoization
 
 ## Goal
+
 Implement `Memo` and `TryMemo`, the memoization layer that caches results using `std::cell::LazyCell` and `std::sync::LazyLock`.
 
 ## Files to Create
+
 - `fp-library/src/types/memo.rs`
 - `fp-library/src/types/try_memo.rs`
 
 ## Files to Modify
+
 - `fp-library/src/types.rs`
 
 ## Implementation Details
@@ -15,6 +18,7 @@ Implement `Memo` and `TryMemo`, the memoization layer that caches results using 
 ### MemoConfig Trait
 
 A trait abstracting over `Rc`/`Arc` and `LazyCell`/`LazyLock`.
+
 - **RcMemoConfig**: Uses `Rc<LazyCell<...>>`.
 - **ArcMemoConfig**: Uses `Arc<LazyLock<...>>`.
 
@@ -117,11 +121,12 @@ impl MemoConfig for ArcMemoConfig {
 ### Memo<A, Config> - Memoized Value
 
 A memoized value.
+
 - **Constructors**: `new`, `from_task`, `from_eval`.
 - **Access**: `get(&self) -> &A`.
 - **Conversions**: `into_try<E>` (converts to `TryMemo` that always succeeds).
 
-```rust
+````rust
 use std::cell::LazyCell;
 use std::sync::LazyLock;
 
@@ -159,16 +164,17 @@ pub struct Memo<A, Config: MemoConfig = RcMemoConfig> {
 
 // For RcMemoConfig: uses Rc<LazyCell<A, Box<dyn FnOnce() -> A>>>
 // For ArcMemoConfig: uses Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send>>>
-```
+````
 
 ### TryMemo<A, E, Config> - Memoized Fallible Value
 
 A memoized fallible value.
+
 - **Constructors**: `new`, `from_try_task`, `from_try_eval`, `catch_unwind`.
 - **Access**: `get(&self) -> Result<&A, &E>`.
 - **`catch_unwind`**: Static factory method that wraps a potentially-panicking thunk and converts panics to errors (opt-in panic catching).
 
-```rust
+````rust
 /// A lazily-computed, memoized value that may fail.
 ///
 /// The computation runs at most once. If it succeeds, the value is cached.
@@ -201,7 +207,7 @@ pub struct TryMemo<A, E, Config: MemoConfig = RcMemoConfig> {
 
 // For RcMemoConfig: uses Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E>>>>
 // For ArcMemoConfig: uses Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send>>>
-```
+````
 
 ### Type Aliases for Ergonomics
 
@@ -408,30 +414,33 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
 ## Tests
 
 ### Memo Tests
+
 1.  **Caching**: Verify computation runs only once.
 2.  **Sharing**: Verify clones share the cache.
 3.  **Thread Safety**: Verify `ArcMemo` works across threads (compile check + runtime test).
 4.  **Conversion**: Verify `from_task` and `from_eval` work.
 
 ### TryMemo Tests
+
 1.  **Caching**: Verify result (success or error) is cached.
 2.  **Sharing**: Verify clones share the result.
 
 ## Checklist
+
 - [ ] Create `fp-library/src/types/memo.rs`
-    - [ ] Implement `MemoConfig` trait
-    - [ ] Implement `RcMemoConfig` and `ArcMemoConfig`
-    - [ ] Implement `Memo` struct
-    - [ ] Implement `new`, `get`
-    - [ ] Implement `from_task` and `from_eval`
-    - [ ] Implement `into_try<E>` conversion to `TryMemo`
-    - [ ] Add type aliases `RcMemo`, `ArcMemo`
-    - [ ] Add unit tests
+  - [ ] Implement `MemoConfig` trait
+  - [ ] Implement `RcMemoConfig` and `ArcMemoConfig`
+  - [ ] Implement `Memo` struct
+  - [ ] Implement `new`, `get`
+  - [ ] Implement `from_task` and `from_eval`
+  - [ ] Implement `into_try<E>` conversion to `TryMemo`
+  - [ ] Add type aliases `RcMemo`, `ArcMemo`
+  - [ ] Add unit tests
 - [ ] Create `fp-library/src/types/try_memo.rs`
-    - [ ] Implement `TryMemo` struct
-    - [ ] Implement `new`, `get`
-    - [ ] Implement `from_try_task` and `from_try_eval`
-    - [ ] Implement `catch_unwind` static factory method
-    - [ ] Add type aliases `RcTryMemo`, `ArcTryMemo`
-    - [ ] Add unit tests
+  - [ ] Implement `TryMemo` struct
+  - [ ] Implement `new`, `get`
+  - [ ] Implement `from_try_task` and `from_try_eval`
+  - [ ] Implement `catch_unwind` static factory method
+  - [ ] Add type aliases `RcTryMemo`, `ArcTryMemo`
+  - [ ] Add unit tests
 - [ ] Update `fp-library/src/types.rs`

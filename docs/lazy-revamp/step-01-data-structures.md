@@ -1,13 +1,16 @@
 # Step 01: Data Structures
 
 ## Goal
+
 Implement the foundational data structures `CatQueue` and `CatList` required for the "Reflection without Remorse" optimization in the Free monad. These structures provide O(1) amortized append and uncons operations, enabling stack-safe left-associated binds.
 
 ## Files to Create
+
 - `fp-library/src/types/cat_queue.rs`
 - `fp-library/src/types/cat_list.rs`
 
 ## Files to Modify
+
 - `fp-library/src/types.rs` (to expose the new modules)
 
 ## Implementation Details
@@ -31,7 +34,7 @@ When `front` is empty and we need to dequeue, we reverse `back` and swap it into
 
 #### Rust Implementation
 
-```rust
+````rust
 use std::collections::VecDeque;
 
 /// A double-ended queue with O(1) amortized operations.
@@ -214,23 +217,25 @@ impl<A> Iterator for CatQueueIter<A> {
 }
 
 impl<A> ExactSizeIterator for CatQueueIter<A> {}
-```
+````
 
 #### Design Decisions for Rust
 
 **Decision: Use `Vec` Instead of Linked List**
 **Rationale**: PureScript uses linked lists (`List a`), but Rust's `Vec` offers:
+
 - Better cache locality
 - Amortized O(1) `push` and `pop`
 - No allocation per element
-The trade-off is that `Vec` requires elements to be contiguous, but since we only access from the ends, this works perfectly.
+  The trade-off is that `Vec` requires elements to be contiguous, but since we only access from the ends, this works perfectly.
 
 **Decision: Store Front in Reverse Order**
 **Rationale**: We store `front` so that `pop()` removes the logical "head". This means:
+
 - `cons(a)` → `front.push(a)` — O(1)
 - `uncons()` → `front.pop()` — O(1)
 - When `front` is empty, `reverse(back)` gives us the correct order
-This matches PureScript's behavior but uses Vec's natural operations.
+  This matches PureScript's behavior but uses Vec's natural operations.
 
 **Decision: Consuming Methods**
 **Rationale**: `uncons` and `unsnoc` consume `self` and return the modified queue. This matches the functional style and avoids interior mutability. For iteration, we provide `IntoIterator`.
@@ -240,6 +245,7 @@ This matches PureScript's behavior but uses Vec's natural operations.
 **Invariant**: Elements in `front` (read from end) followed by elements in `back` (read from start after reversal) form the logical queue order.
 
 **Amortized Analysis**: Each element is:
+
 1. Pushed to `back`: O(1)
 2. Moved to `front` (via reversal): O(1) amortized (happens once per element)
 3. Popped from `front`: O(1)
@@ -249,6 +255,7 @@ Total cost per element: O(1) amortized.
 ### CatList: O(1) Catenable List
 
 A catenable list supporting O(1) concatenation.
+
 - **Nil**: Empty list.
 - **Cons**: Head element + Queue of sublists.
 
@@ -264,7 +271,7 @@ CatList a = CatNil | CatCons a (CatQueue (CatList a))
 
 #### Rust Implementation
 
-```rust
+````rust
 /// A catenable list with O(1) append and O(1) amortized uncons.
 ///
 /// This is the "Reflection without Remorse" data structure that enables
@@ -477,39 +484,44 @@ impl<A> FromIterator<A> for CatList<A> {
         iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
     }
 }
-```
+````
 
 #### Design Decisions for Rust
 
 **Decision: Enum Representation**
 **Rationale**: We use a Rust enum directly mirroring PureScript's algebraic data type. This gives us:
+
 - Pattern matching for clean code
 - Zero-cost abstraction (no boxing for the enum discriminant)
 - Clear structural representation
 
 **Decision: Consuming vs Borrowing `uncons`**
 **Rationale**: We chose consuming `uncons(self) -> Option<(A, Self)>` because:
+
 1. CatList is typically used linearly (process once, discard)
 2. Avoids lifetime complexity
 3. Matches PureScript's functional style
-If shared access is needed, wrap in `Rc<RefCell<CatList<A>>>`.
+   If shared access is needed, wrap in `Rc<RefCell<CatList<A>>>`.
 
 **Decision: Iterative `flatten_queue`**
 **Rationale**: PureScript's `foldr link CatNil q` is recursive. In Rust, we must be careful about stack depth. Our implementation:
+
 1. Collects sublists into a Vec (iterative)
 2. Right-folds using `.rev().fold()` (iterative)
-This ensures stack safety even for deeply nested CatLists.
+   This ensures stack safety even for deeply nested CatLists.
 
 #### Amortized Analysis
 
 **Claim**: A sequence of n `snoc` operations followed by n `uncons` operations takes O(n) total time.
 
 **Proof sketch**:
+
 1. Each `snoc` is O(1) — just appends to queue
 2. Each element is involved in at most one `link` during `flatten_queue`
 3. Using the "banker's method": each element pays for its own flattening
 
 **Potential function**: Φ(CatList) = number of sublists in all queues.
+
 - `snoc`: increases Φ by 1, actual cost O(1), amortized cost O(1)
 - `uncons`: decreases Φ by k (number of sublists flattened), actual cost O(k), amortized cost O(1)
 
@@ -530,29 +542,32 @@ For the Free monad's bind stack, we need O(1) concat to avoid O(n²) left-bind d
 ## Tests
 
 ### CatQueue Tests
+
 1.  **Basic Operations**: `empty`, `is_empty`, `len`, `singleton`.
 2.  **FIFO Behavior**: `snoc` multiple items, `uncons` them, verify order.
 3.  **Amortization Logic**: `snoc` many items, `uncons` all. Verify `front` is refilled from `back`.
 4.  **Double-Ended**: `cons` (push front) and `unsnoc` (pop back) behavior.
 
 ### CatList Tests
+
 1.  **Basic Operations**: `empty`, `singleton`, `cons`, `snoc`.
 2.  **Concatenation**: `append` two lists, verify order.
 3.  **Flattening**: Create a nested structure via multiple appends, `uncons` all elements to verify `flatten_queue` logic works correctly and iteratively.
 4.  **Iteration**: Verify `IntoIterator` works correctly.
 
 ## Checklist
+
 - [ ] Create `fp-library/src/types/cat_queue.rs`
-    - [ ] Implement struct and `new`/`empty`
-    - [ ] Implement `snoc`, `cons`
-    - [ ] Implement `uncons`, `unsnoc` (with reversal logic)
-    - [ ] Implement `IntoIterator`
-    - [ ] Add unit tests
+  - [ ] Implement struct and `new`/`empty`
+  - [ ] Implement `snoc`, `cons`
+  - [ ] Implement `uncons`, `unsnoc` (with reversal logic)
+  - [ ] Implement `IntoIterator`
+  - [ ] Add unit tests
 - [ ] Create `fp-library/src/types/cat_list.rs`
-    - [ ] Implement enum `CatList`
-    - [ ] Implement `link` helper
-    - [ ] Implement `append`
-    - [ ] Implement `uncons` with iterative `flatten_queue`
-    - [ ] Implement `IntoIterator`
-    - [ ] Add unit tests
+  - [ ] Implement enum `CatList`
+  - [ ] Implement `link` helper
+  - [ ] Implement `append`
+  - [ ] Implement `uncons` with iterative `flatten_queue`
+  - [ ] Implement `IntoIterator`
+  - [ ] Add unit tests
 - [ ] Update `fp-library/src/types.rs` to export `cat_queue` and `cat_list`

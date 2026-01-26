@@ -1,13 +1,16 @@
 # Step 04: Eval (HKT-Compatible Computation)
 
 ## Goal
+
 Implement `Eval` and `TryEval`, the closure-based computation types. These types support Higher-Kinded Types (HKT) and borrowed references but are NOT stack-safe for deep recursion.
 
 ## Files to Create
+
 - `fp-library/src/types/eval.rs`
 - `fp-library/src/types/try_eval.rs`
 
 ## Files to Modify
+
 - `fp-library/src/types.rs`
 
 ## Implementation Details
@@ -15,13 +18,14 @@ Implement `Eval` and `TryEval`, the closure-based computation types. These types
 ### Eval<'a, A> - Pure Deferred Computation
 
 A wrapper around a boxed closure `Box<dyn FnOnce() -> A + 'a>`.
+
 - **Lifetime**: `'a` (allows borrowing).
 - **No 'static**: Unlike `Task`, `Eval` works with non-static data.
 - **Constructors**: `new`, `pure`, `defer`.
 - **Combinators**: `flat_map`, `map`.
 - **Conversions**: `into_try` (converts to `TryEval` that always succeeds).
 
-```rust
+````rust
 /// A deferred computation that produces a value of type `A`.
 ///
 /// `Eval` is NOT memoized - each call to `run()` re-executes the computation.
@@ -121,7 +125,7 @@ impl<'a, A> Eval<'a, A> {
         TryEval::new(move || Ok(self.run()))
     }
 }
-```
+````
 
 **Design Decisions:**
 
@@ -136,10 +140,11 @@ impl<'a, A> Eval<'a, A> {
 ### TryEval<'a, A, E> - Fallible Deferred Computation
 
 A wrapper around `Box<dyn FnOnce() -> Result<A, E> + 'a>`.
+
 - **Constructors**: `new`, `pure`, `ok`, `err`.
 - **Combinators**: `flat_map`, `map`, `map_err`.
 
-```rust
+````rust
 /// A deferred computation that may fail with error type `E`.
 ///
 /// Like `Eval`, this is NOT memoized. Each `run()` re-executes.
@@ -223,7 +228,7 @@ impl<'a, A, E> TryEval<'a, A, E> {
         (self.thunk)()
     }
 }
-```
+````
 
 **Design Decisions:**
 
@@ -238,27 +243,30 @@ impl<'a, A, E> TryEval<'a, A, E> {
 ## Tests
 
 ### Eval Tests
+
 1.  **Basic Execution**: `new`, `pure`, `run`.
 2.  **Borrowing**: Verify `Eval` can capture references (e.g., `&str`).
 3.  **Composition**: Chain `map` and `flat_map`.
 4.  **Defer**: Verify `defer` works.
 
 ### TryEval Tests
+
 1.  **Success/Failure**: Verify `ok` and `err` paths.
 2.  **Combinators**: Verify `map` and `map_err`.
 3.  **Borrowing**: Verify capturing references works.
 
 ## Checklist
+
 - [ ] Create `fp-library/src/types/eval.rs`
-    - [ ] Implement `Eval` struct
-    - [ ] Implement constructors (`new`, `pure`, `defer`)
-    - [ ] Implement combinators (`flat_map`, `map`)
-    - [ ] Implement `into_try<E>` conversion to `TryEval`
-    - [ ] Implement `run`
-    - [ ] Add unit tests (including borrowing tests)
+  - [ ] Implement `Eval` struct
+  - [ ] Implement constructors (`new`, `pure`, `defer`)
+  - [ ] Implement combinators (`flat_map`, `map`)
+  - [ ] Implement `into_try<E>` conversion to `TryEval`
+  - [ ] Implement `run`
+  - [ ] Add unit tests (including borrowing tests)
 - [ ] Create `fp-library/src/types/try_eval.rs`
-    - [ ] Implement `TryEval` struct
-    - [ ] Implement constructors and combinators
-    - [ ] Implement `run`
-    - [ ] Add unit tests
+  - [ ] Implement `TryEval` struct
+  - [ ] Implement constructors and combinators
+  - [ ] Implement `run`
+  - [ ] Add unit tests
 - [ ] Update `fp-library/src/types.rs`
