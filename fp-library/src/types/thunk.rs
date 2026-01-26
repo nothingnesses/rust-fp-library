@@ -30,7 +30,7 @@ use crate::{Apply, brands::ThunkFBrand, classes::functor::Functor, impl_kind, ki
 /// ### Examples
 ///
 /// ```
-/// use fp_library::types::Thunk;
+/// use fp_library::types::*;
 ///
 /// let thunk = Thunk::new(|| 1 + 1);
 /// assert_eq!(thunk.force(), 2);
@@ -55,7 +55,7 @@ impl<'a, A> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::Thunk;
+	/// use fp_library::types::*;
 	///
 	/// let thunk = Thunk::new(|| 42);
 	/// ```
@@ -76,7 +76,7 @@ impl<'a, A> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::Thunk;
+	/// use fp_library::types::*;
 	///
 	/// let thunk = Thunk::new(|| 42);
 	/// assert_eq!(thunk.force(), 42);

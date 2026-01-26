@@ -46,7 +46,7 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::types::{Free, ThunkFBrand};
+//! use fp_library::{brands::*, types::*};
 //!
 //! // ✅ CAN DO: Stack-safe recursion
 //! let free = Free::<ThunkFBrand, _>::pure(42)
@@ -91,7 +91,7 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::types::{Free, ThunkFBrand};
+/// use fp_library::{brands::*, types::*};
 ///
 /// let free = Free::<ThunkFBrand, _>::pure(42);
 /// ```
@@ -122,7 +122,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::{Free, ThunkFBrand};
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let free = Free::<ThunkFBrand, _>::pure(42);
 	/// ```
@@ -148,7 +148,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::{Free, Thunk, ThunkFBrand};
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let thunk = Thunk::new(|| Free::pure(42));
 	/// let free = Free::<ThunkFBrand, _>::roll(thunk);
@@ -180,7 +180,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::{Free, ThunkFBrand};
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let free = Free::<ThunkFBrand, _>::pure(42)
 	///     .flat_map(|x| Free::pure(x + 1));
@@ -267,7 +267,7 @@ where
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::{Free, ThunkFBrand};
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let free = Free::<ThunkFBrand, _>::pure(42);
 	/// assert_eq!(free.run(), 42);
