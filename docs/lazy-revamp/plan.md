@@ -62,6 +62,10 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Std Lazy Types**  | Using `std::cell::LazyCell` and `std::sync::LazyLock` (Rust 1.80+) for memoization to leverage standard library correctness and performance. |
 | **Two-Type Split**  | Separating `Task` (stack-safe, `'static`) and `Eval` (HKT, borrowed) to resolve the conflict between stack safety and HKT requirements.      |
 | **O(1) List Len**   | `CatList` tracks its length in O(1) to support efficient size checks, adding a small memory overhead per node but improving performance.     |
+| **Thunk Not Send**  | `Thunk` (and thus `Task`) is NOT `Send`. This resolves a conflict where `Functor::map` cannot enforce `Send` on the closure, but `Thunk` required it. |
+| **Free Static**     | `Free` is strictly `'static` (`F: 'static`, `A: 'static`) to allow type erasure using `Box<dyn Any>`.                                        |
+| **Free Struct**     | `Free` is implemented as a struct wrapping `Option<FreeInner>` to safely handle `Drop` recursion and destructuring without `unsafe` code, at the cost of small runtime overhead. |
+| **Safe Free**       | Refactored `Free` to remove all `unsafe` code, prioritizing safety and auditability over the zero-cost abstraction of `ManuallyDrop`. |
 
 ### Blockers
 

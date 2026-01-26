@@ -46,6 +46,10 @@ pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>)
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
 
+/// Brand for [`Free`](crate::types::Free).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FreeBrand<F>(PhantomData<F>);
+
 /// Brand for [`Endomorphism`](crate::types::Endomorphism).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
@@ -104,6 +108,10 @@ pub struct ResultWithErrBrand<E>(E);
 /// Brand for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultWithOkBrand<T>(T);
+
+/// Brand for [`Thunk`](crate::types::Thunk), allowing it to be used with the [`Free`](crate::types::Free) monad.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ThunkFBrand;
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
