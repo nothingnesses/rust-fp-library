@@ -14,6 +14,8 @@
 //! ```
 
 pub mod arc_ptr;
+pub mod cat_list;
+pub mod cat_queue;
 pub mod endofunction;
 pub mod endomorphism;
 pub mod fn_brand;
@@ -29,6 +31,8 @@ pub mod send_endofunction;
 pub mod string;
 pub mod vec;
 
+pub use cat_list::CatList;
+pub use cat_queue::CatQueue;
 pub use endofunction::Endofunction;
 pub use endomorphism::Endomorphism;
 pub use identity::Identity;

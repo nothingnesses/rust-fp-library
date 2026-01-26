@@ -61,6 +61,7 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Breaking Change** | Backwards compatibility is explicitly NOT a goal. The old `Lazy` type is being removed to allow for a cleaner, more correct design.          |
 | **Std Lazy Types**  | Using `std::cell::LazyCell` and `std::sync::LazyLock` (Rust 1.80+) for memoization to leverage standard library correctness and performance. |
 | **Two-Type Split**  | Separating `Task` (stack-safe, `'static`) and `Eval` (HKT, borrowed) to resolve the conflict between stack safety and HKT requirements.      |
+| **O(1) List Len**   | `CatList` tracks its length in O(1) to support efficient size checks, adding a small memory overhead per node but improving performance.     |
 
 ### Blockers
 
