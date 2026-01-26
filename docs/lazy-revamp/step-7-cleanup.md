@@ -1,4 +1,4 @@
-# Step 07: Cleanup & Integration
+# Step 7: Cleanup & Integration
 
 ## Goal
 

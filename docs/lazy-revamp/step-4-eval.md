@@ -1,4 +1,4 @@
-# Step 04: Eval (HKT-Compatible Computation)
+# Step 4: Eval (HKT-Compatible Computation)
 
 ## Goal
 

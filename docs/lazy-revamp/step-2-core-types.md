@@ -1,4 +1,4 @@
-# Step 02: Core Types
+# Step 2: Core Types
 
 ## Goal
 

@@ -1,4 +1,4 @@
-# Step 06: HKT Integration
+# Step 6: HKT Integration
 
 ## Goal
 

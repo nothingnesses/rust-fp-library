@@ -1,4 +1,4 @@
-# Step 01: Data Structures
+# Step 1: Data Structures
 
 ## Goal
 

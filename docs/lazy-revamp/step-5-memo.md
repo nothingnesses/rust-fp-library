@@ -1,4 +1,4 @@
-# Step 05: Memoization
+# Step 5: Memoization
 
 ## Goal
 

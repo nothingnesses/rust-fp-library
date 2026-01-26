@@ -1,4 +1,4 @@
-# Step 03: Task (Stack-Safe Computation)
+# Step 3: Task (Stack-Safe Computation)
 
 ## Goal
 

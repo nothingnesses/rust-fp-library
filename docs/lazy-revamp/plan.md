@@ -4,15 +4,15 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 
 ## Implementation Steps
 
-| Step | Description                                                                          | Link                                    |
-| :--- | :----------------------------------------------------------------------------------- | :-------------------------------------- |
-| 01   | **Data Structures**<br>Implement `CatQueue` and `CatList` for O(1) operations.       | [Step 01](./step-01-data-structures.md) |
-| 02   | **Core Types**<br>Implement `Step`, `Thunk`, and `Free` monad.                       | [Step 02](./step-02-core-types.md)      |
-| 03   | **Task (Stack-Safe)**<br>Implement `Task` and `TryTask` for deep recursion.          | [Step 03](./step-03-task.md)            |
-| 04   | **Eval (HKT-Compatible)**<br>Implement `Eval` and `TryEval` for generic composition. | [Step 04](./step-04-eval.md)            |
-| 05   | **Memoization**<br>Implement `Memo` and `TryMemo` using `LazyCell`/`LazyLock`.       | [Step 05](./step-05-memo.md)            |
-| 06   | **HKT Integration**<br>Implement brands, `MonadRec`, and type class instances.       | [Step 06](./step-06-hkt-integration.md) |
-| 07   | **Cleanup & Integration**<br>Remove old `Lazy` types and finalize integration.       | [Step 07](./step-07-cleanup.md)         |
+| Step | Description                                                                          | Link                                  |
+| :--- | :----------------------------------------------------------------------------------- | :------------------------------------ |
+| 1    | **Data Structures**<br>Implement `CatQueue` and `CatList` for O(1) operations.       | [Step 1](./step-1-data-structures.md) |
+| 2    | **Core Types**<br>Implement `Step`, `Thunk`, and `Free` monad.                       | [Step 2](./step-2-core-types.md)      |
+| 3    | **Task (Stack-Safe)**<br>Implement `Task` and `TryTask` for deep recursion.          | [Step 3](./step-3-task.md)            |
+| 4    | **Eval (HKT-Compatible)**<br>Implement `Eval` and `TryEval` for generic composition. | [Step 4](./step-4-eval.md)            |
+| 5    | **Memoization**<br>Implement `Memo` and `TryMemo` using `LazyCell`/`LazyLock`.       | [Step 5](./step-5-memo.md)            |
+| 6    | **HKT Integration**<br>Implement brands, `MonadRec`, and type class instances.       | [Step 6](./step-6-hkt-integration.md) |
+| 7    | **Cleanup & Integration**<br>Remove old `Lazy` types and finalize integration.       | [Step 7](./step-7-cleanup.md)         |
 
 ## File Operations
 
@@ -51,6 +51,8 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | `fp-library/src/types/lazy.rs` | Old implementation (replaced by `Memo`/`Eval`/`Task`) |
 
 ## Implementation Log
+
+**Update these sections as implementation progresses**
 
 ### Decisions & Rationale
 
