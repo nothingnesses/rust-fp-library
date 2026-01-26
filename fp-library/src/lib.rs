@@ -114,6 +114,24 @@
 //! ## Crate Features
 //!
 //! - **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+//!
+//! ## Benchmarking
+//!
+//! This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
+//!
+//! To run all benchmarks:
+//!
+//! ```sh
+//! cargo bench -p fp-library
+//! ```
+//!
+//! To run a specific benchmark (e.g., `vec`):
+//!
+//! ```sh
+//! cargo bench -p fp-library --bench benchmarks -- vec
+//! ```
+//!
+//! Benchmark reports are generated in `target/criterion/report/index.html`.
 
 extern crate fp_macros;
 

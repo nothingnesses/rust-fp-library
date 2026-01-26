@@ -183,6 +183,24 @@ This will provide a shell with the correct Rust version and dependencies.
 
 For maintainers, the release process is documented in [docs/release-process.md](docs/release-process.md).
 
+### Benchmarking
+
+This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
+
+To run all benchmarks:
+
+```sh
+cargo bench -p fp-library
+```
+
+To run a specific benchmark (e.g., `vec`):
+
+```sh
+cargo bench -p fp-library --bench benchmarks -- vec
+```
+
+Benchmark reports are generated in `target/criterion/report/index.html`.
+
 ## License
 
 This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
