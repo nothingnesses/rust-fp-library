@@ -12,6 +12,8 @@ mod once_cell;
 mod once_lock;
 #[path = "benchmarks/option.rs"]
 mod option;
+#[path = "benchmarks/pair.rs"]
+mod pair;
 #[path = "benchmarks/result.rs"]
 mod result;
 #[path = "benchmarks/string.rs"]
@@ -25,6 +27,7 @@ use functions::bench_functions;
 use once_cell::bench_once_cell;
 use once_lock::bench_once_lock;
 use option::bench_option;
+use pair::bench_pair;
 use result::bench_result;
 use string::bench_string;
 use vec::bench_vec;
@@ -34,6 +37,7 @@ criterion_group!(
 	bench_vec,
 	bench_option,
 	bench_result,
+	bench_pair,
 	bench_string,
 	bench_functions,
 	bench_once_cell,
