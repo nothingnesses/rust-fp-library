@@ -67,8 +67,11 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Free Struct**     | `Free` is implemented as a struct wrapping `Option<FreeInner>` to safely handle `Drop` recursion and destructuring without `unsafe` code, at the cost of small runtime overhead. |
 | **Safe Free**       | Refactored `Free` to remove all `unsafe` code, prioritizing safety and auditability over the zero-cost abstraction of `ManuallyDrop`. |
 | **Task Not Send**   | `Task` is not `Send` because `Thunk` is not `Send`. Consequently, `Send` bounds were removed from closures in `Task` and `TryTask` combinators (`flat_map`, `map`, etc.) to allow capturing `Task` instances (e.g., in `map2`). `A` still requires `Send` as per original plan (though strictly `Free` only requires `'static`). |
-| **Commented from_memo** | `Task::from_memo` is implemented but commented out because `Memo` (Step 5) is not yet available. |
 | **Eval Lifetime Bounds** | `Eval` and `TryEval` require explicit lifetime bounds on type parameters (e.g., `A: 'a`) in `impl` blocks to satisfy Rust's borrow checker when using `Box<dyn FnOnce() -> A + 'a>`. |
+| **MemoConfig Associated Types** | `MemoConfig` uses associated types `Init` and `TryInit` instead of generic `F` in `new_lazy` to support different bounds (`Send` vs `!Send`) for `RcMemoConfig` and `ArcMemoConfig` while keeping the trait object safe. |
+| **Memo Static Bounds** | `Memo` and `TryMemo` structs require explicit `A: 'static` bounds because the inner `Config::Lazy<A>` requires it. |
+| **Memo Send Bounds** | `Memo::from_task` and `TryMemo::from_try_task` require `A: Send` because `Task` implementation requires `Send` for its operations. |
+| **ArcMemo Send+Sync** | `Memo::into_try` for `ArcMemoConfig` requires `A: Send + Sync` because `Arc<LazyLock<...>>` requires the inner value to be `Send + Sync` to be `Send`. |
 
 ### Blockers
 

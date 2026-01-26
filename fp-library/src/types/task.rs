@@ -17,7 +17,7 @@
 
 use crate::{
 	brands::ThunkFBrand,
-	types::{free::Free, step::Step, thunk::Thunk},
+	types::{Memo, MemoConfig, free::Free, step::Step, thunk::Thunk},
 };
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
@@ -49,11 +49,10 @@ use crate::{
 ///
 /// ```rust
 /// use fp_library::types::*;
-/// // use fp_library::types::Memo; // Memo not yet implemented
 ///
-/// // let memo: Memo<i32> = Memo::new(|| Task::later(|| 1 + 1).run());
-/// // memo.get(); // Computes
-/// // memo.get(); // Returns cached
+/// let memo: Memo<i32> = Memo::<_>::new(|| Task::later(|| 1 + 1).run());
+/// memo.get(); // Computes
+/// memo.get(); // Returns cached
 /// ```
 ///
 /// ### Type Parameters
@@ -464,43 +463,44 @@ impl<A: 'static + Send> Task<A> {
 		self.flat_map(move |_| other)
 	}
 
-	// /// Creates a `Task` from a memoized value (via Memo).
-	// ///
-	// /// This is a convenience for integrating with the dual-type design.
-	// /// The Memo provides caching; Task provides computation structure.
-	// ///
-	// /// ### Type Signature
-	// ///
-	// /// `forall a. Memo a -> Task a`
-	// ///
-	// /// ### Type Parameters
-	// ///
-	// /// * `A`: The type of the value.
-	// ///
-	// /// ### Parameters
-	// ///
-	// /// * `memo`: The memoized value.
-	// ///
-	// /// ### Returns
-	// ///
-	// /// A `Task` that retrieves the memoized value.
-	// ///
-	// /// ### Examples
-	// ///
-	// /// ```
-	// /// use fp_library::types::{Memo, Task};
-	// ///
-	// /// let memo = Memo::new(|| 42);
-	// /// let task = Task::from_memo(&memo);
-	// /// assert_eq!(task.run(), 42);
-	// /// ```
-	// pub fn from_memo(memo: &crate::types::memo::Memo<A>) -> Self
-	// where
-	// 	A: Clone,
-	// {
-	// 	let value = memo.get().clone();
-	// 	Task::now(value)
-	// }
+	/// Creates a `Task` from a memoized value (via Memo).
+	///
+	/// This is a convenience for integrating with the dual-type design.
+	/// The Memo provides caching; Task provides computation structure.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Memo a -> Task a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value.
+	/// * `Config`: The memoization configuration.
+	///
+	/// ### Parameters
+	///
+	/// * `memo`: The memoized value.
+	///
+	/// ### Returns
+	///
+	/// A `Task` that retrieves the memoized value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let memo = Memo::<_, RcMemoConfig>::new(|| 42);
+	/// let task = Task::from_memo(&memo);
+	/// assert_eq!(task.run(), 42);
+	/// ```
+	pub fn from_memo<Config: MemoConfig>(memo: &Memo<A, Config>) -> Self
+	where
+		A: Clone,
+	{
+		let memo = memo.clone();
+		Task::later(move || memo.get().clone())
+	}
 
 	/// Stack-safe tail recursion within Task.
 	///
@@ -748,5 +748,35 @@ mod tests {
 
 		assert_eq!(task.run(), 0);
 		assert_eq!(counter.load(Ordering::SeqCst), 11);
+	}
+
+	/// Tests `Task::from_memo`.
+	///
+	/// Verifies that `from_memo` creates a task that retrieves the memoized value lazily.
+	#[test]
+	fn test_task_from_memo() {
+		use crate::types::{Memo, RcMemoConfig};
+		use std::cell::RefCell;
+		use std::rc::Rc;
+
+		let counter = Rc::new(RefCell::new(0));
+		let counter_clone = counter.clone();
+		let memo = Memo::<_, RcMemoConfig>::new(move || {
+			*counter_clone.borrow_mut() += 1;
+			42
+		});
+
+		let task = Task::from_memo(&memo);
+
+		// Should not have computed yet (lazy creation)
+		assert_eq!(*counter.borrow(), 0);
+
+		assert_eq!(task.run(), 42);
+		assert_eq!(*counter.borrow(), 1);
+
+		// Run again, should use cached value
+		let task2 = Task::from_memo(&memo);
+		assert_eq!(task2.run(), 42);
+		assert_eq!(*counter.borrow(), 1);
 	}
 }

@@ -66,6 +66,10 @@ pub struct IdentityBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LazyBrand<Config>(PhantomData<Config>);
 
+/// Brand for [`Memo`](crate::types::Memo).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MemoBrand<Config>(PhantomData<Config>);
+
 /// Brand for [`OnceCell`](std::cell::OnceCell).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OnceCellBrand;
