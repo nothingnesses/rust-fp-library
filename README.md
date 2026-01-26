@@ -16,12 +16,12 @@ A functional programming library for Rust featuring your favourite higher-kinded
   - `Foldable`, `Traversable`
   - `Compactable`, `Filterable`, `Witherable`
   - `Category`, `Semigroupoid`
-  - `Pointed`, `Lift`, `Defer`
+  - `Pointed`, `Lift`
   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
   - `MonadRec`, `RefFunctor`
   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
-  - `TrySemigroup`, `TryMonoid`, `SendDefer`
+  - `Defer`, `SendDefer`
 - **Helper Functions:** Standard FP utilities:
   - `compose`, `constant`, `flip`, `identity`
 - **Data Types:** Implementations for standard and custom types:
@@ -122,6 +122,14 @@ While the library strives for zero-cost abstractions, some operations inherently
 - **Lazy Evaluation:** The `Memo` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
 
 For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
+
+### Lazy Evaluation
+
+The library provides a comprehensive suite of types for lazy evaluation, each serving a specific purpose:
+
+1.  **`Task`**: A stack-safe, trampolined computation that supports deep recursion. Ideal for long-running or recursive operations where stack overflow is a concern.
+2.  **`Eval`**: A higher-kinded type (HKT) compatible wrapper for lazy evaluation. Supports `Functor`, `Applicative`, and `Monad` traits, making it suitable for generic programming.
+3.  **`Memo`**: A shared, memoized value. Unlike `Task` and `Eval` which re-execute their computation, `Memo` caches the result upon first access and shares it across all clones. It uses `std::cell::LazyCell` (via `RcMemo`) or `std::sync::LazyLock` (via `ArcMemo`) for efficient, correct-by-construction memoization.
 
 ### Thread Safety and Parallelism
 

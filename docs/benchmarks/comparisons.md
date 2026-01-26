@@ -57,26 +57,6 @@ We will compare the performance of the following `fp-library` abstractions again
 | :------ | :----------- | :--------- | :----------------------- | --- |
 |         | **Identity** | `identity` | `std::convert::identity` | [x] |
 
-### OnceCell
-
-| Feature | `fp-library`    | `std`               | Status                  | [ ] |
-| :------ | :-------------- | :------------------ | :---------------------- | --- |
-|         | **New**         | `Once::new`         | `OnceCell::new`         | [x] |
-|         | **Get**         | `Once::get`         | `OnceCell::get`         | [x] |
-|         | **Set**         | `Once::set`         | `OnceCell::set`         | [x] |
-|         | **Get Or Init** | `Once::get_or_init` | `OnceCell::get_or_init` | [x] |
-|         | **Take**        | `Once::take`        | `OnceCell::take`        | [x] |
-
-### OnceLock
-
-| Feature | `fp-library`    | `std`               | Status                  | [ ] |
-| :------ | :-------------- | :------------------ | :---------------------- | --- |
-|         | **New**         | `Once::new`         | `OnceLock::new`         | [x] |
-|         | **Get**         | `Once::get`         | `OnceLock::get`         | [x] |
-|         | **Set**         | `Once::set`         | `OnceLock::set`         | [x] |
-|         | **Get Or Init** | `Once::get_or_init` | `OnceLock::get_or_init` | [x] |
-|         | **Take**        | `Once::take`        | `OnceLock::take`        | [x] |
-
 ## Checklist
 
 - [x] Create `fp-library/benches/benchmarks.rs`
@@ -85,5 +65,3 @@ We will compare the performance of the following `fp-library` abstractions again
 - [x] Implement `Result` benchmarks
 - [x] Implement `String` benchmarks
 - [x] Implement `Functions` benchmarks
-- [x] Implement `OnceCell` benchmarks
-- [x] Implement `OnceLock` benchmarks

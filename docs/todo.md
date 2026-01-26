@@ -1,15 +1,5 @@
 ### Tasks to do & ideas to look into
 
-* Implement [stack safety](lazy-analysis/hybrid-stack-safety-proposal.md), then [updated lazy type](./lazy-analysis/dual-type-design-proposal.md):
-	1. Implement `CatQueue` and `CatList`.
-	2. Implement `ThunkF`, `Free`, `Step`.
-	3. Implement `Task` and `TryTask`.
-	4. Implement `Eval` and `TryEval`.
-	5. Implement `MemoConfig` trait.
-	6. Implement `Memo` and `TryMemo`.
-	7. Define brands `EvalBrand`, `ThunkFBrand`, etc.
-	8. Integrate with HKT system. Implement `MonadRec` traits. Implement `Functor`, `Monad` for `Eval`. Implement `RefFunctor`
-
 	At each stage, ensure implementations are extensively tested with tests.
 * Add trait methods for type classes and methods for brand/type structs.
 * Property-based tests for type class laws.

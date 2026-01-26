@@ -54,18 +54,18 @@ The library uses a unified pointer hierarchy to abstract over reference counting
    - `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
    - This allows unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`.
 
-2. **Shared Lazy Evaluation:** `Lazy` uses `RefCountedPointer` to share the memoization state (`OnceCell`) across clones.
+2. **Shared Memoization:** `Memo` uses a configuration trait (`MemoConfig`) to abstract over the underlying storage and synchronization primitives, ensuring shared memoization semantics across clones.
 
-   - `Lazy<Config, A>` is parameterized by a `LazyConfig` which bundles the pointer brand and other configuration.
-   - `RcLazy` uses `Rc` for sharing (not thread-safe).
-   - `ArcLazy` uses `Arc` and `Mutex` for sharing (thread-safe).
+   - `Memo<'a, A, Config>` is parameterized by a `MemoConfig` which defines the storage type.
+   - `RcMemo` uses `Rc<LazyCell>` for single-threaded, shared memoization.
+   - `ArcMemo` uses `Arc<LazyLock>` for thread-safe, shared memoization.
    - This ensures Haskell-like semantics where forcing one reference updates the value for all clones.
 
 **Reasoning:**
 
-- **Code Reuse:** Eliminates duplication between `Rc` and `Arc` implementations.
-- **Correctness:** Ensures `Lazy` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
-- **Extensibility:** The `Pointer` base trait allows for future support of unique pointers (`Box`) or custom allocators.
+- **Correctness:** Ensures `Memo` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
+- **Performance:** Leverages standard library types (`LazyCell`, `LazyLock`) for efficient, correct-by-construction memoization.
+- **Flexibility:** Separates the concern of *memoization* (`Memo`) from *computation* (`Task`/`Eval`), allowing users to choose the right tool for the job (e.g., `Task` for stack-safe recursion, `Memo` for caching).
 
 ## 3. Module Organization
 
