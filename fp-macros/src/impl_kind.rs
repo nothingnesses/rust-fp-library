@@ -10,7 +10,7 @@ use crate::{
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	Generics, Ident, Token, Type, TypeParamBound, braced,
+	Generics, Ident, Token, Type, TypeParamBound, WhereClause, braced,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
@@ -57,6 +57,8 @@ pub struct KindAssocTypeImpl {
 	pub eq_token: Token![=],
 	/// The concrete type being assigned (e.g., `MyType<A>`).
 	pub target_type: Type,
+	/// Optional where clause.
+	pub where_clause: Option<WhereClause>,
 	/// The semicolon.
 	pub semi_token: Token![;],
 }
@@ -116,6 +118,10 @@ impl Parse for KindAssocTypeImpl {
 
 		let eq_token: Token![=] = input.parse()?;
 		let target_type: Type = input.parse()?;
+
+		let where_clause: Option<WhereClause> =
+			if input.peek(Token![where]) { Some(input.parse()?) } else { None };
+
 		let semi_token: Token![;] = input.parse()?;
 
 		Ok(KindAssocTypeImpl {
@@ -126,6 +132,7 @@ impl Parse for KindAssocTypeImpl {
 			bounds,
 			eq_token,
 			target_type,
+			where_clause,
 			semi_token,
 		})
 	}
@@ -160,9 +167,10 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		let ident = &def.ident;
 		let generics = &def.generics;
 		let target = &def.target_type;
+		let where_clause = &def.where_clause;
 
 		quote! {
-			type #ident #generics = #target;
+			type #ident #generics = #target #where_clause;
 		}
 	});
 

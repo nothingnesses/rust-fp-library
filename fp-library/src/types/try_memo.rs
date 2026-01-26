@@ -12,28 +12,28 @@ use crate::types::{ArcMemoConfig, MemoConfig, RcMemoConfig, TryEval, TryTask};
 /// * `A`: The type of the computed value.
 /// * `E`: The type of the error.
 /// * `Config`: The memoization configuration.
-pub struct TryMemo<A, E, Config: MemoConfig = RcMemoConfig>
+pub struct TryMemo<'a, A, E, Config: MemoConfig = RcMemoConfig>
 where
-	A: 'static,
-	E: 'static,
+	A: 'a,
+	E: 'a,
 {
-	pub(crate) inner: Config::TryLazy<A, E>,
+	pub(crate) inner: Config::TryLazy<'a, A, E>,
 }
 
-impl<A, E, Config: MemoConfig> Clone for TryMemo<A, E, Config>
+impl<'a, A, E, Config: MemoConfig> Clone for TryMemo<'a, A, E, Config>
 where
-	A: 'static,
-	E: 'static,
+	A: 'a,
+	E: 'a,
 {
 	fn clone(&self) -> Self {
 		Self { inner: self.inner.clone() }
 	}
 }
 
-impl<A, E, Config: MemoConfig> TryMemo<A, E, Config>
+impl<'a, A, E, Config: MemoConfig> TryMemo<'a, A, E, Config>
 where
-	A: 'static,
-	E: 'static,
+	A: 'a,
+	E: 'a,
 {
 	/// Gets the memoized result, computing on first access.
 	///
@@ -58,10 +58,10 @@ where
 	}
 }
 
-impl<A, E> TryMemo<A, E, RcMemoConfig>
+impl<'a, A, E> TryMemo<'a, A, E, RcMemoConfig>
 where
-	A: 'static,
-	E: 'static,
+	A: 'a,
+	E: 'a,
 {
 	/// Creates a new TryMemo that will run `f` on first access.
 	///
@@ -91,7 +91,7 @@ where
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
-		F: FnOnce() -> Result<A, E> + 'static,
+		F: FnOnce() -> Result<A, E> + 'a,
 	{
 		TryMemo { inner: RcMemoConfig::new_try_lazy(Box::new(f)) }
 	}
@@ -119,7 +119,7 @@ where
 	/// let memo = TryMemo::<_, _, RcMemoConfig>::from_try_eval(eval);
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
-	pub fn from_try_eval(eval: TryEval<'static, A, E>) -> Self {
+	pub fn from_try_eval(eval: TryEval<'a, A, E>) -> Self {
 		Self::new(move || eval.run())
 	}
 
@@ -155,9 +155,9 @@ where
 	}
 }
 
-impl<A> TryMemo<A, String, RcMemoConfig>
+impl<'a, A> TryMemo<'a, A, String, RcMemoConfig>
 where
-	A: 'static,
+	A: 'a,
 {
 	/// Creates a TryMemo that catches unwinds (panics).
 	///
@@ -190,7 +190,7 @@ where
 	/// ```
 	pub fn catch_unwind<F>(f: F) -> Self
 	where
-		F: FnOnce() -> A + std::panic::UnwindSafe + 'static,
+		F: FnOnce() -> A + std::panic::UnwindSafe + 'a,
 	{
 		Self::new(move || {
 			std::panic::catch_unwind(f).map_err(|e| {
@@ -206,10 +206,10 @@ where
 	}
 }
 
-impl<A, E> TryMemo<A, E, ArcMemoConfig>
+impl<'a, A, E> TryMemo<'a, A, E, ArcMemoConfig>
 where
-	A: 'static,
-	E: 'static,
+	A: 'a,
+	E: 'a,
 {
 	/// Creates a new TryMemo that will run `f` on first access.
 	///
@@ -239,17 +239,17 @@ where
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
-		F: FnOnce() -> Result<A, E> + Send + 'static,
+		F: FnOnce() -> Result<A, E> + Send + 'a,
 	{
 		TryMemo { inner: ArcMemoConfig::new_try_lazy(Box::new(f)) }
 	}
 }
 
 /// Single-threaded fallible memoization alias.
-pub type RcTryMemo<A, E> = TryMemo<A, E, RcMemoConfig>;
+pub type RcTryMemo<'a, A, E> = TryMemo<'a, A, E, RcMemoConfig>;
 
 /// Thread-safe fallible memoization alias.
-pub type ArcTryMemo<A, E> = TryMemo<A, E, ArcMemoConfig>;
+pub type ArcTryMemo<'a, A, E> = TryMemo<'a, A, E, ArcMemoConfig>;
 
 #[cfg(test)]
 mod tests {

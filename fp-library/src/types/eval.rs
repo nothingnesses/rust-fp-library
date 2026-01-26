@@ -3,7 +3,18 @@
 //! This module provides the [`Eval`] type, which represents a deferred computation that produces a value.
 //! Unlike [`Task`](crate::types::Task), `Eval` is not stack-safe for deep recursion but supports higher-kinded types and borrowing.
 
-use crate::types::TryEval;
+use crate::{
+	Apply,
+	brands::EvalBrand,
+	classes::{
+		apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
+		foldable::Foldable, functor::Functor, lift::Lift, monad_rec::MonadRec, monoid::Monoid,
+		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
+	},
+	impl_kind,
+	kinds::*,
+	types::{TryEval, step::Step},
+};
 
 /// A deferred computation that produces a value of type `A`.
 ///
@@ -279,6 +290,428 @@ impl<'a, A: 'a> Eval<'a, A> {
 	/// ```
 	pub fn into_try<E: 'a>(self) -> TryEval<'a, A, E> {
 		TryEval::new(move || Ok(self.run()))
+	}
+}
+
+impl_kind! {
+	for EvalBrand {
+		type Of<'a, A: 'a>: 'a = Eval<'a, A>;
+	}
+}
+
+impl Functor for EvalBrand {
+	/// Maps a function over the result of an Eval computation.
+	///
+	/// ### Type Signature
+	///
+	/// `forall b a. Functor Eval => (a -> b, Eval a) -> Eval b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of the transformation.
+	/// * `A`: The type of the value inside the Eval.
+	/// * `F`: The type of the transformation function.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The function to apply to the result of the computation.
+	/// * `fa`: The Eval instance.
+	///
+	/// ### Returns
+	///
+	/// A new Eval instance with the transformed result.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval = Eval::pure(10);
+	/// let mapped = EvalBrand::map(|x| x * 2, eval);
+	/// assert_eq!(mapped.run(), 20);
+	/// ```
+	fn map<'a, B: 'a, A: 'a, F>(
+		f: F,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	where
+		F: Fn(A) -> B + 'a,
+	{
+		fa.map(f)
+	}
+}
+
+impl Pointed for EvalBrand {
+	/// Wraps a value in an Eval context.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Pointed Eval => a -> Eval a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value to wrap.
+	///
+	/// ### Parameters
+	///
+	/// * `a`: The value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new Eval instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval: Eval<i32> = EvalBrand::pure(42);
+	/// assert_eq!(eval.run(), 42);
+	/// ```
+	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		Eval::pure(a)
+	}
+}
+
+impl Lift for EvalBrand {
+	/// Lifts a binary function into the Eval context.
+	///
+	/// ### Type Signature
+	///
+	/// `forall c a b. Lift Eval => ((a, b) -> c, Eval a, Eval b) -> Eval c`
+	///
+	/// ### Type Parameters
+	///
+	/// * `C`: The type of the result.
+	/// * `A`: The type of the first value.
+	/// * `B`: The type of the second value.
+	/// * `F`: The type of the binary function.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The binary function to apply.
+	/// * `fa`: The first Eval.
+	/// * `fb`: The second Eval.
+	///
+	/// ### Returns
+	///
+	/// A new Eval instance containing the result of applying the function.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval1 = Eval::pure(10);
+	/// let eval2 = Eval::pure(20);
+	/// let result = EvalBrand::lift2(|a, b| a + b, eval1, eval2);
+	/// assert_eq!(result.run(), 30);
+	/// ```
+	fn lift2<'a, C, A, B, F>(
+		f: F,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+	where
+		F: Fn(A, B) -> C + 'a,
+		A: Clone + 'a,
+		B: Clone + 'a,
+		C: 'a,
+	{
+		fa.flat_map(move |a| fb.map(move |b| f(a, b)))
+	}
+}
+
+impl ApplyFirst for EvalBrand {}
+impl ApplySecond for EvalBrand {}
+
+impl Semiapplicative for EvalBrand {
+	/// Applies a function wrapped in Eval to a value wrapped in Eval.
+	///
+	/// ### Type Signature
+	///
+	/// `forall fn_brand b a. Semiapplicative Eval => (Eval (fn_brand a b), Eval a) -> Eval b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the function wrapper.
+	/// * `B`: The type of the result.
+	/// * `A`: The type of the input.
+	///
+	/// ### Parameters
+	///
+	/// * `ff`: The Eval containing the function.
+	/// * `fa`: The Eval containing the value.
+	///
+	/// ### Returns
+	///
+	/// A new Eval instance containing the result of applying the function.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+	///
+	/// let func = Eval::pure(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let val = Eval::pure(21);
+	/// let result = EvalBrand::apply::<RcFnBrand, _, _>(func, val);
+	/// assert_eq!(result.run(), 42);
+	/// ```
+	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		ff.flat_map(move |f| {
+			fa.map(
+				#[allow(clippy::redundant_closure)]
+				move |a| f(a),
+			)
+		})
+	}
+}
+
+impl Semimonad for EvalBrand {
+	/// Chains Eval computations.
+	///
+	/// ### Type Signature
+	///
+	/// `forall b a. Semimonad Eval => (Eval a, a -> Eval b) -> Eval b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of the new computation.
+	/// * `A`: The type of the result of the first computation.
+	/// * `F`: The type of the function to apply.
+	///
+	/// ### Parameters
+	///
+	/// * `ma`: The first Eval.
+	/// * `f`: The function to apply to the result of the computation.
+	///
+	/// ### Returns
+	///
+	/// A new Eval instance representing the chained computation.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{
+	///     brands::*,
+	///     classes::*,
+	///     types::*,
+	/// };
+	///
+	/// let eval = Eval::pure(10);
+	/// let result = EvalBrand::bind(eval, |x| Eval::pure(x * 2));
+	/// assert_eq!(result.run(), 20);
+	/// ```
+	fn bind<'a, B: 'a, A: 'a, F>(
+		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		f: F,
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	where
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+	{
+		ma.flat_map(f)
+	}
+}
+
+impl MonadRec for EvalBrand {
+	/// Performs tail-recursive monadic computation.
+	///
+	/// ### Type Signature
+	///
+	/// `forall m b a. MonadRec Eval => (a -> Eval (Step a b), a) -> Eval b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result.
+	/// * `A`: The type of the initial value and loop state.
+	/// * `F`: The type of the step function.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The step function.
+	/// * `initial`: The initial value.
+	///
+	/// ### Returns
+	///
+	/// The result of the computation.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let result = EvalBrand::tail_rec_m(
+	///     |x| Eval::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+	///     0,
+	/// );
+	/// assert_eq!(result.run(), 1000);
+	/// ```
+	fn tail_rec_m<'a, A: 'a, B: 'a, F>(
+		f: F,
+		initial: A,
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	where
+		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
+	{
+		// Use defer for trampolining.
+		// The Clone bound allows us to clone `f` for each recursive step.
+		fn go<'a, A, B, F>(
+			f: F,
+			a: A,
+		) -> Eval<'a, B>
+		where
+			F: Fn(A) -> Eval<'a, Step<A, B>> + Clone + 'a,
+			A: 'a,
+			B: 'a,
+		{
+			let f_clone = f.clone(); // Clone for the recursive call
+			Eval::defer(move || {
+				f(a).flat_map(move |step| match step {
+					Step::Loop(next) => go(f_clone.clone(), next),
+					Step::Done(b) => Eval::pure(b),
+				})
+			})
+		}
+
+		go(f, initial)
+	}
+}
+
+impl Foldable for EvalBrand {
+	/// Folds the Eval from the right.
+	///
+	/// ### Type Signature
+	///
+	/// `forall fn_brand b a. Foldable Eval => ((a, b) -> b, b, Eval a) -> b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the cloneable function to use.
+	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to each element and the accumulator.
+	/// * `initial`: The initial value of the accumulator.
+	/// * `fa`: The Eval to fold.
+	///
+	/// ### Returns
+	///
+	/// The final accumulator value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval = Eval::pure(10);
+	/// let result = EvalBrand::fold_right::<RcFnBrand, _, _, _>(|a, b| a + b, 5, eval);
+	/// assert_eq!(result, 15);
+	/// ```
+	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
+		func: Func,
+		initial: B,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> B
+	where
+		Func: Fn(A, B) -> B + 'a,
+		FnBrand: CloneableFn + 'a,
+	{
+		func(fa.run(), initial)
+	}
+
+	/// Folds the Eval from the left.
+	///
+	/// ### Type Signature
+	///
+	/// `forall fn_brand b a. Foldable Eval => ((b, a) -> b, b, Eval a) -> b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the cloneable function to use.
+	/// * `B`: The type of the accumulator.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the folding function.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The function to apply to the accumulator and each element.
+	/// * `initial`: The initial value of the accumulator.
+	/// * `fa`: The Eval to fold.
+	///
+	/// ### Returns
+	///
+	/// The final accumulator value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval = Eval::pure(10);
+	/// let result = EvalBrand::fold_left::<RcFnBrand, _, _, _>(|b, a| b + a, 5, eval);
+	/// assert_eq!(result, 15);
+	/// ```
+	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
+		func: Func,
+		initial: B,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> B
+	where
+		Func: Fn(B, A) -> B + 'a,
+		FnBrand: CloneableFn + 'a,
+	{
+		func(initial, fa.run())
+	}
+
+	/// Maps the value to a monoid and returns it.
+	///
+	/// ### Type Signature
+	///
+	/// `forall fn_brand m a. (Foldable Eval, Monoid m) => ((a) -> m, Eval a) -> m`
+	///
+	/// ### Type Parameters
+	///
+	/// * `FnBrand`: The brand of the cloneable function to use.
+	/// * `M`: The type of the monoid.
+	/// * `A`: The type of the elements in the structure.
+	/// * `Func`: The type of the mapping function.
+	///
+	/// ### Parameters
+	///
+	/// * `func`: The mapping function.
+	/// * `fa`: The Eval to fold.
+	///
+	/// ### Returns
+	///
+	/// The monoid value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval = Eval::pure(10);
+	/// let result = EvalBrand::fold_map::<RcFnBrand, String, _, _>(|a| a.to_string(), eval);
+	/// assert_eq!(result, "10");
+	/// ```
+	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+		func: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> M
+	where
+		M: Monoid + 'a,
+		Func: Fn(A) -> M + 'a,
+		FnBrand: CloneableFn + 'a,
+	{
+		func(fa.run())
 	}
 }
 

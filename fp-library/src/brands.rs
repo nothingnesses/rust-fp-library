@@ -55,6 +55,9 @@ pub struct FreeBrand<F>(PhantomData<F>);
 pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
 
 /// Brand for [`Eval`](crate::types::Eval).
+///
+/// Note: This is for `Eval<'a, A>`, NOT for `Task<A>`.
+/// `Task` cannot implement HKT traits due to its `'static` requirement.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EvalBrand;
 

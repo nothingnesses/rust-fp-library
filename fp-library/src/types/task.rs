@@ -50,7 +50,7 @@ use crate::{
 /// ```rust
 /// use fp_library::types::*;
 ///
-/// let memo: Memo<i32> = Memo::<_>::new(|| Task::later(|| 1 + 1).run());
+/// let memo: Memo<i32> = Memo::<_, RcMemoConfig>::new(|| Task::later(|| 1 + 1).run());
 /// memo.get(); // Computes
 /// memo.get(); // Returns cached
 /// ```
@@ -494,7 +494,7 @@ impl<A: 'static + Send> Task<A> {
 	/// let task = Task::from_memo(&memo);
 	/// assert_eq!(task.run(), 42);
 	/// ```
-	pub fn from_memo<Config: MemoConfig>(memo: &Memo<A, Config>) -> Self
+	pub fn from_memo<Config: MemoConfig>(memo: &Memo<'static, A, Config>) -> Self
 	where
 		A: Clone,
 	{

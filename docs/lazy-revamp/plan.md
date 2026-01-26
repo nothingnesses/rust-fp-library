@@ -69,7 +69,9 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Task Not Send**   | `Task` is not `Send` because `Thunk` is not `Send`. Consequently, `Send` bounds were removed from closures in `Task` and `TryTask` combinators (`flat_map`, `map`, etc.) to allow capturing `Task` instances (e.g., in `map2`). `A` still requires `Send` as per original plan (though strictly `Free` only requires `'static`). |
 | **Eval Lifetime Bounds** | `Eval` and `TryEval` require explicit lifetime bounds on type parameters (e.g., `A: 'a`) in `impl` blocks to satisfy Rust's borrow checker when using `Box<dyn FnOnce() -> A + 'a>`. |
 | **MemoConfig Associated Types** | `MemoConfig` uses associated types `Init` and `TryInit` instead of generic `F` in `new_lazy` to support different bounds (`Send` vs `!Send`) for `RcMemoConfig` and `ArcMemoConfig` while keeping the trait object safe. |
-| **Memo Static Bounds** | `Memo` and `TryMemo` structs require explicit `A: 'static` bounds because the inner `Config::Lazy<A>` requires it. |
+| **Memo Lifetimes**  | `Memo` and `TryMemo` now take a lifetime parameter `'a` (e.g., `Memo<'a, A>`) instead of requiring `A: 'static`. This allows `Memo` to be used with `Eval` (which supports borrowing) and to implement `RefFunctor` correctly. |
+| **MemoConfig Lifetimes** | `MemoConfig` associated types (`Lazy`, `TryLazy`, `Init`, `TryInit`) now take a lifetime parameter `'a` to support non-static memoized values. |
+| **Free No HKT**     | `Free` does not implement HKT traits (`Functor`, `Monad`, etc.) because it requires `A: 'static` for type erasure, which conflicts with the HKT `Kind` trait requiring support for any lifetime `'a`. |
 | **Memo Send Bounds** | `Memo::from_task` and `TryMemo::from_try_task` require `A: Send` because `Task` implementation requires `Send` for its operations. |
 | **ArcMemo Send+Sync** | `Memo::into_try` for `ArcMemoConfig` requires `A: Send + Sync` because `Arc<LazyLock<...>>` requires the inner value to be `Send + Sync` to be `Send`. |
 

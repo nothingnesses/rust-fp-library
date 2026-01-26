@@ -83,6 +83,12 @@ where
 /// This implementation follows "Reflection without Remorse" to ensure
 /// that left-associated binds do not degrade performance.
 ///
+/// # HKT Note
+///
+/// `Free` does not implement HKT traits (like `Functor`, `Monad`) because it requires
+/// `A: 'static` due to type erasure using `Box<dyn Any>`. The `Kind` trait requires
+/// support for any lifetime `'a`, which conflicts with the `'static` bound.
+///
 /// ### Type Parameters
 ///
 /// * `F`: The base functor (must implement [`Functor`]).
