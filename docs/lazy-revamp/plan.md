@@ -68,6 +68,7 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Safe Free**       | Refactored `Free` to remove all `unsafe` code, prioritizing safety and auditability over the zero-cost abstraction of `ManuallyDrop`. |
 | **Task Not Send**   | `Task` is not `Send` because `Thunk` is not `Send`. Consequently, `Send` bounds were removed from closures in `Task` and `TryTask` combinators (`flat_map`, `map`, etc.) to allow capturing `Task` instances (e.g., in `map2`). `A` still requires `Send` as per original plan (though strictly `Free` only requires `'static`). |
 | **Commented from_memo** | `Task::from_memo` is implemented but commented out because `Memo` (Step 5) is not yet available. |
+| **Eval Lifetime Bounds** | `Eval` and `TryEval` require explicit lifetime bounds on type parameters (e.g., `A: 'a`) in `impl` blocks to satisfy Rust's borrow checker when using `Box<dyn FnOnce() -> A + 'a>`. |
 
 ### Blockers
 
