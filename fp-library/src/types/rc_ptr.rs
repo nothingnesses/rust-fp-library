@@ -16,11 +16,11 @@
 use crate::{
 	brands::RcBrand,
 	classes::{
-		pointer::Pointer, ref_counted_pointer::RefCountedPointer, thunk_wrapper::ThunkWrapper,
+		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
 		unsized_coercible::UnsizedCoercible,
 	},
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 impl Pointer for RcBrand {
 	type Of<T: ?Sized> = Rc<T>;
@@ -150,71 +150,6 @@ impl UnsizedCoercible for RcBrand {
 	/// ```
 	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 		Rc::new(f)
-	}
-}
-
-impl ThunkWrapper for RcBrand {
-	type Cell<T> = RefCell<Option<T>>;
-
-	/// Creates a new cell containing the value.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. Option a -> RefCell (Option a)`
-	///
-	/// ### Type Parameters
-	///
-	/// * `T`: The type of the value.
-	///
-	/// ### Parameters
-	///
-	/// * `value`: The value to wrap.
-	///
-	/// ### Returns
-	///
-	/// A new cell containing the value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*};
-	///
-	/// let cell = thunk_wrapper_new::<RcBrand, _>(Some(42));
-	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), Some(42));
-	/// ```
-	fn new<T>(value: Option<T>) -> Self::Cell<T> {
-		RefCell::new(value)
-	}
-
-	/// Takes the value out of the cell.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. RefCell (Option a) -> Option a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `T`: The type of the value.
-	///
-	/// ### Parameters
-	///
-	/// * `cell`: The cell to take the value from.
-	///
-	/// ### Returns
-	///
-	/// The value if it was present, or `None`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*};
-	///
-	/// let cell = thunk_wrapper_new::<RcBrand, _>(Some(42));
-	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), Some(42));
-	/// assert_eq!(thunk_wrapper_take::<RcBrand, _>(&cell), None);
-	/// ```
-	fn take<T>(cell: &Self::Cell<T>) -> Option<T> {
-		cell.borrow_mut().take()
 	}
 }
 

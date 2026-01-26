@@ -74,6 +74,9 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Free No HKT**     | `Free` does not implement HKT traits (`Functor`, `Monad`, etc.) because it requires `A: 'static` for type erasure, which conflicts with the HKT `Kind` trait requiring support for any lifetime `'a`. |
 | **Memo Send Bounds** | `Memo::from_task` and `TryMemo::from_try_task` require `A: Send` because `Task` implementation requires `Send` for its operations. |
 | **ArcMemo Send+Sync** | `Memo::into_try` for `ArcMemoConfig` requires `A: Send + Sync` because `Arc<LazyLock<...>>` requires the inner value to be `Send + Sync` to be `Send`. |
+| **Loom Removal**    | Removed `loom` dependency and associated tests. Since `Memo` uses `std::sync::LazyLock` (standard library), we rely on its correctness rather than verifying synchronization primitives with `loom`. Basic thread-safety is verified with `std::thread` tests. |
+| **Once/Cell Removal** | Removed `Once`, `OnceCell`, and `OnceLock` wrappers and brands. These were largely superseded by `Memo` and the move to standard library types, simplifying the API surface. |
+| **TryClass Removal** | Removed `TrySemigroup` and `TryMonoid` traits as they were underutilized and added unnecessary complexity. |
 
 ### Blockers
 

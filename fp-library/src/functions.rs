@@ -22,20 +22,11 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
 	"cloneable_fn::new": cloneable_fn_new,
 	"function::new": fn_new,
-	"once::new": once_new,
-	"once::get": once_get,
-	"once::get_mut": once_get_mut,
-	"once::set": once_set,
-	"once::get_or_init": once_get_or_init,
-	"once::into_inner": once_into_inner,
-	"once::take": once_take,
 	"pointer::new": pointer_new,
 	"ref_counted_pointer::cloneable_new": ref_counted_pointer_new,
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
-	"thunk_wrapper::new": thunk_wrapper_new,
-	"thunk_wrapper::take": thunk_wrapper_take,
 });
 
 /// Composes two functions.

@@ -1,7 +1,7 @@
 //! Concrete data types, their corresponding implementations and type aliases.
 //!
 //! This module provides implementations of various functional programming
-//! data structures and wrappers, including `Identity`, `Lazy`, and extensions
+//! data structures and wrappers, including `Identity`, `Memo`, and extensions
 //! for standard library types like `Option` and `Result`.
 //!
 //! ### Examples
@@ -22,10 +22,7 @@ pub mod eval;
 pub mod fn_brand;
 pub mod free;
 pub mod identity;
-pub mod lazy;
 pub mod memo;
-pub mod once_cell;
-pub mod once_lock;
 pub mod option;
 pub mod pair;
 pub mod rc_ptr;
@@ -47,7 +44,6 @@ pub use endomorphism::Endomorphism;
 pub use eval::Eval;
 pub use free::Free;
 pub use identity::Identity;
-pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyConfig, LazyError, RcLazy, RcLazyConfig};
 pub use memo::{ArcMemo, ArcMemoConfig, Memo, MemoConfig, RcMemo, RcMemoConfig};
 pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;

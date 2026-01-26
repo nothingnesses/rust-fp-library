@@ -701,6 +701,34 @@ impl_kind! {
 	}
 }
 
+impl<'a, A> crate::classes::defer::Defer<'a> for Memo<'a, A, RcMemoConfig>
+where
+	A: Clone + 'a,
+{
+	fn defer<FnBrand: 'a + crate::classes::cloneable_fn::CloneableFn>(
+		f: <FnBrand as crate::classes::cloneable_fn::CloneableFn>::Of<'a, (), Self>
+	) -> Self
+	where
+		Self: Sized,
+	{
+		RcMemo::new(move || f(()).get().clone())
+	}
+}
+
+impl crate::classes::send_defer::SendDefer for MemoBrand<ArcMemoConfig> {
+	fn send_defer<'a, A>(
+		thunk: impl 'a
+		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		+ Send
+		+ Sync
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		A: Clone + Send + Sync + 'a,
+	{
+		ArcMemo::new(move || thunk().get().clone())
+	}
+}
+
 impl RefFunctor for MemoBrand<RcMemoConfig> {
 	/// Maps a function over the memoized value, where the function takes a reference.
 	///
@@ -853,5 +881,30 @@ mod tests {
 		let memo = RcMemo::new(|| 42);
 		let try_memo: crate::types::RcTryMemo<i32, ()> = memo.into_try();
 		assert_eq!(try_memo.get(), Ok(&42));
+	}
+
+	/// Tests Defer implementation.
+	#[test]
+	fn test_defer() {
+		use crate::brands::RcFnBrand;
+		use crate::classes::defer::defer;
+		use crate::functions::cloneable_fn_new;
+
+		let memo: RcMemo<i32> =
+			defer::<RcMemo<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
+				RcMemo::new(|| 42)
+			}));
+		assert_eq!(*memo.get(), 42);
+	}
+
+	/// Tests SendDefer implementation.
+	#[test]
+	fn test_send_defer() {
+		use crate::brands::MemoBrand;
+		use crate::classes::send_defer::send_defer;
+
+		let memo: ArcMemo<i32> =
+			send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+		assert_eq!(*memo.get(), 42);
 	}
 }

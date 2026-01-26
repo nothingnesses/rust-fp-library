@@ -22,11 +22,11 @@ use crate::{
 /// This type exists to build computation chains without allocation overhead.
 ///
 /// Unlike [`Task`](crate::types::Task), `Eval` does NOT require `'static` and CAN implement
-/// HKT traits like [`Functor`](crate::classes::Functor), [`Semimonad`](crate::classes::Semimonad), etc.
+/// HKT traits like [`Functor`], [`Semimonad`], etc.
 ///
 /// ### Trade-offs vs Task
 ///
-/// | Aspect         | Eval<'a, A>               | Task<A>                    |
+/// | Aspect         | `Eval<'a, A>`               | `Task<A>`                    |
 /// |----------------|---------------------------|----------------------------|
 /// | HKT compatible | ✅ Yes                    | ❌ No (requires `'static`) |
 /// | Stack-safe     | ❌ No (~8000 calls limit) | ✅ Yes (unlimited)         |
@@ -296,6 +296,15 @@ impl<'a, A: 'a> Eval<'a, A> {
 impl_kind! {
 	for EvalBrand {
 		type Of<'a, A: 'a>: 'a = Eval<'a, A>;
+	}
+}
+
+impl<'a, A: 'a> crate::classes::defer::Defer<'a> for Eval<'a, A> {
+	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	where
+		Self: Sized,
+	{
+		Eval::defer(move || f(()))
 	}
 }
 

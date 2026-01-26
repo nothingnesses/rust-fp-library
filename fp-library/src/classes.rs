@@ -32,7 +32,6 @@ pub mod lift;
 pub mod monad;
 pub mod monad_rec;
 pub mod monoid;
-pub mod once;
 pub mod par_foldable;
 pub mod pointed;
 pub mod pointer;
@@ -46,10 +45,7 @@ pub mod send_cloneable_fn;
 pub mod send_defer;
 pub mod send_ref_counted_pointer;
 pub mod send_unsized_coercible;
-pub mod thunk_wrapper;
 pub mod traversable;
-pub mod try_monoid;
-pub mod try_semigroup;
 pub mod unsized_coercible;
 pub mod witherable;
 

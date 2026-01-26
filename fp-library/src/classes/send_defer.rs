@@ -6,10 +6,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*, types::lazy::*};
+//! use fp_library::{brands::*, functions::*, types::*};
 //!
-//! let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
-//! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+//! let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+//! assert_eq!(*memo.get(), 42);
 //! ```
 
 use crate::{Apply, kinds::*};
@@ -41,8 +41,8 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
-	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+	/// let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	fn send_defer<'a, A>(
 		thunk: impl 'a
@@ -81,8 +81,8 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 /// ```
 /// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let lazy = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42)));
-/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+/// let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+/// assert_eq!(*memo.get(), 42);
 /// ```
 pub fn send_defer<'a, Brand, A, F>(
 	thunk: F

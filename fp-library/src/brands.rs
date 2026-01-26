@@ -65,21 +65,9 @@ pub struct EvalBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IdentityBrand;
 
-/// Brand for [`Lazy`](crate::types::Lazy).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LazyBrand<Config>(PhantomData<Config>);
-
 /// Brand for [`Memo`](crate::types::Memo).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MemoBrand<Config>(PhantomData<Config>);
-
-/// Brand for [`OnceCell`](std::cell::OnceCell).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OnceCellBrand;
-
-/// Brand for [`OnceLock`](std::sync::OnceLock).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct OnceLockBrand;
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -123,6 +111,14 @@ pub struct ResultWithOkBrand<T>(T);
 /// Brand for [`Thunk`](crate::types::Thunk), allowing it to be used with the [`Free`](crate::types::Free) monad.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ThunkFBrand;
+
+/// Brand for [`TryEval`](crate::types::TryEval).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryEvalBrand<E>(PhantomData<E>);
+
+/// Brand for [`TryMemo`](crate::types::TryMemo).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryMemoBrand<E, Config>(PhantomData<(E, Config)>);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

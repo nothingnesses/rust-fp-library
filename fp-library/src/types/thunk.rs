@@ -92,6 +92,17 @@ impl_kind! {
 	}
 }
 
+impl<'a, A: 'a> crate::classes::defer::Defer<'a> for Thunk<'a, A> {
+	fn defer<FnBrand: 'a + crate::classes::cloneable_fn::CloneableFn>(
+		f: <FnBrand as crate::classes::cloneable_fn::CloneableFn>::Of<'a, (), Self>
+	) -> Self
+	where
+		Self: Sized,
+	{
+		Thunk::new(move || f(()).force())
+	}
+}
+
 impl Functor for ThunkFBrand {
 	/// Maps a function over the value in the thunk.
 	///
@@ -226,5 +237,19 @@ mod tests {
 	fn test_thunk_runnable() {
 		let thunk = Thunk::new(|| 42);
 		assert_eq!(ThunkFBrand::run_effect(thunk), 42);
+	}
+
+	/// Tests Defer implementation.
+	#[test]
+	fn test_defer() {
+		use crate::brands::RcFnBrand;
+		use crate::classes::defer::defer;
+		use crate::functions::cloneable_fn_new;
+
+		let thunk: Thunk<i32> =
+			defer::<Thunk<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
+				Thunk::new(|| 42)
+			}));
+		assert_eq!(thunk.force(), 42);
 	}
 }

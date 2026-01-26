@@ -1,6 +1,6 @@
 //! Integration tests for the pointer abstraction.
 
-use fp_library::{brands::*, functions::*, types::lazy::*};
+use fp_library::{brands::*, functions::*, types::*};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -44,103 +44,101 @@ fn test_arc_fn_thread_safety() {
 	assert_eq!(handle.join().unwrap(), 11);
 }
 
-/// Tests basic functionality of `ArcLazy`.
+/// Tests basic functionality of `ArcMemo`.
 ///
 /// Verifies that:
-/// 1. `ArcLazy` can be created with a thread-safe thunk.
-/// 2. `Lazy::force_or_panic` correctly evaluates the thunk and returns the value.
+/// 1. `ArcMemo` can be created with a thread-safe thunk.
+/// 2. `Memo::get` correctly evaluates the thunk and returns the value.
 #[test]
-fn test_arc_lazy_basic() {
-	// ArcLazyConfig::new_thunk now requires Send + Sync closures
-	let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42));
-	assert_eq!(Lazy::force_or_panic(&lazy), 42);
+fn test_arc_memo_basic() {
+	let memo = ArcMemo::new(|| 42);
+	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests shared memoization semantics of `ArcLazy`.
+/// Tests shared memoization semantics of `ArcMemo`.
 ///
 /// Verifies that:
-/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Lazy` value.
+/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
 /// 2. The result is cached and shared across clones.
 ///
-/// This ensures that `ArcLazy` implements "call-by-need" semantics with shared state.
+/// This ensures that `ArcMemo` implements "call-by-need" semantics with shared state.
 #[test]
-fn test_arc_lazy_shared_memoization() {
+fn test_arc_memo_shared_memoization() {
 	let counter = Arc::new(Mutex::new(0));
 	let counter_clone = counter.clone();
 
-	let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(move |_| {
+	let memo = ArcMemo::new(move || {
 		let mut guard = counter_clone.lock().unwrap();
 		*guard += 1;
 		42
-	}));
+	});
 
-	let lazy_clone = lazy.clone();
+	let memo_clone = memo.clone();
 
 	assert_eq!(*counter.lock().unwrap(), 0);
-	assert_eq!(Lazy::force_or_panic(&lazy), 42);
+	assert_eq!(*memo.get(), 42);
 	assert_eq!(*counter.lock().unwrap(), 1);
 
 	// Should use cached value
-	assert_eq!(Lazy::force_or_panic(&lazy_clone), 42);
+	assert_eq!(*memo_clone.get(), 42);
 	assert_eq!(*counter.lock().unwrap(), 1);
 }
 
-/// Tests thread safety of `ArcLazy`.
+/// Tests thread safety of `ArcMemo`.
 ///
 /// Verifies that:
-/// 1. `ArcLazy` is `Send` and `Sync` (when T is Send + Sync).
+/// 1. `ArcMemo` is `Send` and `Sync` (when T is Send + Sync).
 /// 2. It can be cloned and sent to another thread.
 /// 3. It can be forced in a separate thread.
 #[test]
-fn test_arc_lazy_thread_safety() {
-	// With the simplified API, new_thunk is always thread-safe for ArcLazyConfig
-	let lazy = ArcLazy::new(ArcLazyConfig::new_thunk(|_| 42));
-	let lazy_clone = lazy.clone();
+fn test_arc_memo_thread_safety() {
+	let memo = ArcMemo::new(|| 42);
+	let memo_clone = memo.clone();
 
-	let handle = thread::spawn(move || Lazy::force_or_panic(&lazy_clone));
+	let handle = thread::spawn(move || *memo_clone.get());
 
 	assert_eq!(handle.join().unwrap(), 42);
-	assert_eq!(Lazy::force_or_panic(&lazy), 42);
+	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests basic functionality of `RcLazy`.
+/// Tests basic functionality of `RcMemo`.
 ///
 /// Verifies that:
-/// 1. `RcLazy` can be created with a thunk.
-/// 2. `Lazy::force_or_panic` correctly evaluates the thunk and returns the value.
+/// 1. `RcMemo` can be created with a thunk.
+/// 2. `Memo::get` correctly evaluates the thunk and returns the value.
 #[test]
-fn test_rc_lazy_basic() {
-	let lazy = RcLazy::new(RcLazyConfig::new_thunk(|_| 42));
-	assert_eq!(Lazy::force_or_panic(&lazy), 42);
+fn test_rc_memo_basic() {
+	let memo = RcMemo::new(|| 42);
+	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests shared memoization semantics of `RcLazy`.
+/// Tests shared memoization semantics of `RcMemo`.
 ///
 /// Verifies that:
-/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Lazy` value.
+/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
 /// 2. The result is cached and shared across clones.
 ///
-/// This ensures that `RcLazy` implements "call-by-need" semantics with shared state.
+/// This ensures that `RcMemo` implements "call-by-need" semantics with shared state.
 #[test]
-fn test_rc_lazy_shared_memoization() {
+fn test_rc_memo_shared_memoization() {
 	use std::cell::RefCell;
 	use std::rc::Rc;
 
 	let counter = Rc::new(RefCell::new(0));
 	let counter_clone = counter.clone();
 
-	let lazy = RcLazy::new(RcLazyConfig::new_thunk(move |_| {
+	let memo = RcMemo::new(move || {
 		*counter_clone.borrow_mut() += 1;
 		42
-	}));
+	});
 
-	let lazy_clone = lazy.clone();
+	let memo_clone = memo.clone();
 
 	assert_eq!(*counter.borrow(), 0);
-	assert_eq!(Lazy::force_or_panic(&lazy), 42);
+	assert_eq!(*memo.get(), 42);
 	assert_eq!(*counter.borrow(), 1);
 
 	// Should use cached value (shared memoization)
-	assert_eq!(Lazy::force_or_panic(&lazy_clone), 42);
+	assert_eq!(*memo_clone.get(), 42);
 	assert_eq!(*counter.borrow(), 1);
 }

@@ -6,10 +6,6 @@ mod cat_list;
 mod cat_queue;
 #[path = "benchmarks/functions.rs"]
 mod functions;
-#[path = "benchmarks/once_cell.rs"]
-mod once_cell;
-#[path = "benchmarks/once_lock.rs"]
-mod once_lock;
 #[path = "benchmarks/option.rs"]
 mod option;
 #[path = "benchmarks/pair.rs"]
@@ -24,8 +20,6 @@ mod vec;
 use cat_list::bench_cat_list;
 use cat_queue::bench_cat_queue;
 use functions::bench_functions;
-use once_cell::bench_once_cell;
-use once_lock::bench_once_lock;
 use option::bench_option;
 use pair::bench_pair;
 use result::bench_result;
@@ -40,8 +34,6 @@ criterion_group!(
 	bench_pair,
 	bench_string,
 	bench_functions,
-	bench_once_cell,
-	bench_once_lock,
 	bench_cat_list,
 	bench_cat_queue
 );
