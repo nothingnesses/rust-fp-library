@@ -52,9 +52,9 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 
 ## Implementation Log
 
-**Update these sections as implementation progresses**
+**Update these sections as implementation progresses, including information about any deviations from the original plans, blockers and open questions**
 
-### Decisions & Rationale
+### Decisions & Rationale for Plan Deviations
 
 | Decision            | Rationale                                                                                                                                    |
 | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------- |
