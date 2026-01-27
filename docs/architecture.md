@@ -67,9 +67,65 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 - **Performance:** Leverages standard library types (`LazyCell`, `LazyLock`) for efficient, correct-by-construction memoization.
 - **Flexibility:** Separates the concern of *memoization* (`Memo`) from *computation* (`Task`/`Eval`), allowing users to choose the right tool for the job (e.g., `Task` for stack-safe recursion, `Memo` for caching).
 
-## 3. Module Organization
+## 3. Granular Lazy Evaluation Types
 
-### 3.1. Brand Structs (Centralized)
+**Decision:**
+
+The library provides three distinct types for lazy evaluation: `Eval`, `Task`, and `Memo`. This granular approach is a deliberate architectural choice to address the specific challenges of functional programming in an eager, systems language like Rust.
+
+**Reasoning:**
+
+In lazy languages like Haskell, the runtime manages evaluation strategies automatically. In Rust, we must be explicit about these concerns to maintain performance and safety guarantees. This design allows users to pay only for the features they need.
+
+### 3.1. The `Eval<'a, A>` Type: Lightweight & HKT-Compatible
+
+**Purpose:** `Eval` is a minimal deferred computation designed for "glue code" and scenarios requiring borrowing.
+
+**Design Rationale:**
+- **HKT Compatibility:** `Eval` is designed to be a first-class citizen in the library's Higher-Kinded Type (HKT) system. It implements `Functor`, `Semimonad`, and other traits directly, allowing it to be used generically where other `Functor`s or `Monad`s are expected.
+- **Borrowing Support:** By using lifetime parameters (`'a`), `Eval` can capture and return references to data on the stack. This is impossible with `'static`-only types.
+- **Zero-Overhead Computation:** `Eval` is essentially a wrapper around a `Box<dyn FnOnce() -> A + 'a>`. It adds minimal overhead, making it ideal for short chains of operations.
+
+**Trade-offs:**
+- **Not Stack-Safe:** The primary limitation of `Eval` is that it is not stack-safe. Each call to `.bind()` adds a frame to the call stack. Deep recursion (>1000 calls) will cause a stack overflow. This is an acceptable trade-off for its speed and flexibility.
+
+### 3.2. The `Task<A>` Type: Stack-Safe Recursion
+
+**Purpose:** `Task` is a "heavy-duty" monadic type for deferred computations that require guaranteed stack safety, such as deep recursion or long pipelines.
+
+**Design Rationale:**
+- **Stack Safety via Trampolining:** `Task` is built on the `Free<Thunk, A>` monad. This construction implements a trampoline, which iteratively processes a list of continuations instead of making recursive calls on the call stack. This allows for unlimited recursion depth without stack overflow.
+- **`'static` Requirement:** The trampoline mechanism and the `Free` monad's internal structure require that the contained value `A` be `'static`. This is because the trampoline may need to store the value or intermediate states across multiple iterations, and the Rust borrow checker cannot easily prove lifetime safety for these complex, recursive patterns.
+- **Performance:** While `Task` guarantees safety, it comes with a performance cost compared to `Eval` due to the indirection and allocation within the `Free` monad structure.
+
+**Trade-offs:**
+- **Loss of Borrowing:** The `'static` constraint means `Task` cannot work with borrowed data. This is a significant limitation when integrating with code that uses references extensively.
+- **Higher Overhead:** The trampoline mechanism is more complex and slower than a direct function call.
+
+### 3.3. The `Memo<'a, A, Config>` Type: Caching & Shared Semantics
+
+**Purpose:** `Memo` is not a computation type itself, but a wrapper around a computation that ensures it runs at most once, with the result shared across all clones.
+
+**Design Rationale:**
+- **Separation of Concerns:** `Memo` decouples the *act of computation* from the *act of caching*. This allows any `Eval` or `Task` to be memoized by simply wrapping it in a `Memo`.
+- **Shared, Lazy Initialization:** `Memo` uses Rust's `std::cell::LazyCell` (for `RcMemo`) or `std::sync::LazyLock` (for `ArcMemo`). These types provide "initialization-once" guarantees, ensuring the computation runs exactly one time, no matter how many times `.get()` is called on any clone.
+- **Configuration via `MemoConfig`:** The `MemoConfig` trait abstracts over the choice of pointer (`Rc` vs `Arc`) and lazy cell type, allowing users to select single-threaded (`RcMemo`) or thread-safe (`ArcMemo`) memoization.
+
+**Trade-offs:**
+- **Allocation and Synchronization:** Caching requires memory allocation for the thunk and, in the case of `ArcMemo`, synchronization primitives. This overhead is justified only for expensive computations.
+- **Not a Control Flow Structure:** `Memo` is primarily a data container. While it has some monadic properties, it's not the right tool for building complex computational pipelines.
+
+### 3.4. The Granular Approach in Rust
+
+This three-type system is a direct response to Rust's characteristics as an eagerly-evaluated, systems language:
+
+1.  **Explicit Trade-offs:** In Rust, you cannot have it all. You must choose between performance (`Eval`), safety (`Task`), and caching (`Memo`). This design makes those choices explicit and manageable.
+2.  **Zero-Cost Abstractions:** The system allows users to compose these types. For example, you can use a `Task` for a recursive algorithm, wrap it in a `Memo` to cache the result, and then use an `Eval` to borrow that result for a final transformation. The user only pays for the `Memo`'s allocation and the `Task`'s trampoline, not for features they aren't using.
+3.  **Integration with Ownership:** The lifetime system of Rust is respected. `Eval` can play nicely with the borrow checker, while `Task` and `Memo` provide clear pathways (`'static`, `Arc`) for sharing data across contexts where borrowing is not possible.
+
+## 4. Module Organization
+
+### 4.1. Brand Structs (Centralized)
 
 **Decision:**
 
@@ -80,7 +136,7 @@ Brand structs (e.g., `OptionBrand`) are **centralized** in `src/brands.rs`.
 - **Leaf Nodes:** In the dependency graph, Brand structs are **leaf nodes**; they have no outgoing edges (dependencies) to other modules in the crate.
 - **Graph Stability:** Centralizing these leaf nodes in `brands.rs` creates a stable foundation. Higher-level modules (like `types/*.rs`) can import from this common sink without creating back-edges or cycles.
 
-### 3.2. Free Functions (Distributed)
+### 4.2. Free Functions (Distributed)
 
 **Decision:**
 
@@ -92,7 +148,7 @@ Free function wrappers (e.g., `map`, `pure`) are **defined in their trait's modu
 - **Cycle Prevention:** `functions.rs` also contains generic helpers (like `compose`) which are **leaf nodes**. If we defined the downstream wrappers in `functions.rs`, the file would effectively become both upstream _and_ downstream of the trait modules. This would create **bidirectional dependencies** (cycles) if a trait module ever needed to import a helper.
 - **Facade Pattern:** `functions.rs` acts as a **facade**, re-exporting symbols to provide a unified API surface without coupling the underlying definition graph.
 
-## 4. Type Parameter Ordering
+## 5. Type Parameter Ordering
 
 **Decision:**
 
@@ -152,15 +208,17 @@ map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))
 
 **Ordering:** Place type parameters in the order listed above (rarely inferable → context-dependent → usually inferable). This enables ergonomic turbofish patterns like `func::<Brand, _, _>(...)`, where users specify only the uninferable parameters and let the compiler fill in the rest.
 
-## 5. Documentation & Examples
+## 6. Documentation & Examples
 
 **Decision:**
 
 Documentation must adhere to the following standards regarding formatting, type signatures, and examples:
 
-1. **Documentation Templates:** Documentation comments should use the following formats.
+### 6.1. **Documentation Templates**
 
-   - **Functions & Methods:** (Note: functions use uncurried semantics, so the documentation should reflect this)
+Documentation comments should use the following formats.
+
+- **Functions & Methods:** (Note: functions use uncurried semantics, so the documentation should reflect this)
 
 ````rust
 /// Short description.
@@ -228,10 +286,10 @@ Documentation must adhere to the following standards regarding formatting, type 
 /// ```
 ````
 
-- **Struct Fields:**
+- **Struct Fields and Enum Variants:**
 
 ```rust
-/// Short description of the field's purpose and constraints.
+/// Short description of the field/variants's purpose and constraints.
 ```
 
 - **Unit Tests:**
@@ -244,19 +302,40 @@ Documentation must adhere to the following standards regarding formatting, type 
 
 Sections in the documentation that would be empty should be omitted.
 
-2. **Signature Accuracy:** The "Type Signature" section in documentation comments must be accurate to the code. Instances of `Brand` types in type parameters should be replaced with their corresponding concrete type in the signature, for consistency and to prevent confusion. E.g. prefer `forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e` instead of `forall fn_brand e b a. Semiapplicative (ResultWithErrBrand e) => (Result (fn_brand a b) e, Result a e) -> Result b e`.
+### 6.2. **Signature Accuracy**
 
-3. **Quantifier Accuracy & Ordering:** The quantifiers in the "Type Signature" section must be:
+The "Type Signature" section in documentation comments must be accurate to the code. They should correctly indicate if a function uses uncurried or curried semantics. Instances of `Brand` types in type parameters should be replaced with their corresponding concrete type in the signature, for consistency and to prevent confusion.
 
-   3.1. Accurate and correctly ordered (matching the code).
+Example:
 
-   3.2. But omit quantifiers that aren't used in the rest of the signature, for clarity.
+```haskell
+forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e
+```
 
-4. **Parameter List Ordering:** The items in the "Type Parameters" section must be correctly ordered (matching the code).
+Instead of:
 
-5. **Examples:** Where possible, all examples should:
+```haskell
+forall fn_brand e b a. Semiapplicative (ResultWithErrBrand e) => (Result (fn_brand a b) e) -> (Result a e) -> Result b e
+```
 
-   5.1. Import items using grouped wildcards instead of individually by name. Example:
+### 6.3. **Quantifier Accuracy & Ordering**
+
+The quantifiers in the "Type Signature" section must be:
+
+- 6.3.1. Accurate and correctly ordered (matching the code).
+- 6.3.2. But omit quantifiers that aren't used in the rest of the signature, for clarity.
+
+### 6.4. **Parameter List Ordering**
+
+The items in the "Type Parameters" section must be correctly ordered (matching the code).
+
+### 6.5. **Examples**
+
+Where possible, all examples should:
+
+- 6.5.1. Import items using grouped wildcards instead of individually by name.
+
+Example:
 
 ```rust
 /// use fp_library::{brands::*, classes::*, functions::*};
@@ -270,9 +349,19 @@ Instead of:
 /// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
 ```
 
-5.2. Use the free-function versions of trait methods, imported with `fp_library::functions::*`, with as many holes as possible, instead of importing the trait methods directly and instead of showing the holes filled in.
+- 6.5.2. Use the free-function versions of trait methods, imported with `fp_library::functions::*`, with as many holes as possible, instead of importing the trait methods directly and instead of showing the holes filled in.
 
-- Example: `map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))` instead of `OptionBrand::map(|i| i * 2, Some(5))`.
+Example:
+
+```rust
+map::<OptionBrand, _, _, _>(|x| x * 2, Some(5))
+```
+
+Instead of:
+
+```rust
+OptionBrand::map(|i| i * 2, Some(5))
+```
 
 **Reasoning:**
 

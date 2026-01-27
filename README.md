@@ -123,13 +123,44 @@ While the library strives for zero-cost abstractions, some operations inherently
 
 For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
 
-### Lazy Evaluation
+### Lazy Evaluation & Effect System
 
-The library provides a comprehensive suite of types for lazy evaluation, each serving a specific purpose:
+Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 
-1.  **`Task`**: A stack-safe, trampolined computation that supports deep recursion. Ideal for long-running or recursive operations where stack overflow is a concern.
-2.  **`Eval`**: A higher-kinded type (HKT) compatible wrapper for lazy evaluation. Supports `Functor`, `Applicative`, and `Monad` traits, making it suitable for generic programming.
-3.  **`Memo`**: A shared, memoized value. Unlike `Task` and `Eval` which re-execute their computation, `Memo` caches the result upon first access and shares it across all clones. It uses `std::cell::LazyCell` (via `RcMemo`) or `std::sync::LazyLock` (via `ArcMemo`) for efficient, correct-by-construction memoization.
+| Type              | Primary Use Case                                                                                                            | Stack Safe? | Memoized? | Lifetimes?   | HKT Traits                           |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------------------- | :---------- | :-------- | :----------- | :----------------------------------- |
+| **`Eval<'a, A>`** | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ❌ No       | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
+| **`Task<A>`**     | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes      | ❌ No     | ❌ `'static` | ❌ No                                |
+| **`Memo<'a, A>`** | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A         | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
+
+#### The "Why" of Three Types
+
+Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
+
+1.  **`Eval` vs `Task`**: `Eval` is faster and supports borrowing (`&'a T`), but will overflow the stack if you recurse too deeply. `Task` guarantees stack safety via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Eval` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Task` does not.
+2.  **Computation vs Caching**: `Eval` and `Task` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Memo` to cache the result.
+
+#### Workflow Example
+
+A common pattern is to use `Task` for the heavy lifting (recursion), `Memo` to freeze the result, and `Eval` to borrow it later.
+
+```rust
+use fp_library::types::*;
+
+// 1. Use Task for stack-safe recursion
+let heavy_computation = Task::tail_rec_m(|n| {
+    if n < 1_000 { Task::pure(Step::Loop(n + 1)) } else { Task::pure(Step::Done(n)) }
+}, 0);
+
+// 2. Convert to Memo to cache the result (runs once)
+let cached = Memo::<_, RcMemoConfig>::from(heavy_computation);
+
+// 3. Use Eval to borrow the cached value without re-running
+let view = Eval::new(|| {
+    let val = cached.get();
+    format!("Result: {}", val)
+});
+```
 
 ### Thread Safety and Parallelism
 
