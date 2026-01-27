@@ -13,13 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`Task` / `TryTask`**: Added `Task` and `TryTask` for stack-safe, non-memoized computations using `Free` monad and `Thunk`.
   - **`Eval` / `TryEval`**: Added `Eval` and `TryEval` for HKT-compatible deferred computations.
   - **`Free` Monad**: Added `Free` monad implementation with `CatList`-based O(1) bind for stack safety.
-  - **Data Structures**: Added `CatList` (concatenation list) and `CatQueue` (functional queue) with O(1) operations.
+  - **Data Structure**: Added `CatList` (concatenation list) with O(1) operations.
   - **Traits**:
     - Added `MonadRec` trait for stack-safe tail recursion.
     - Added `RefFunctor` trait for mapping over types that yield references.
     - Added `Bifunctor` trait for mapping over two type arguments.
     - Added `Runnable` trait for types that can be executed to produce a value.
-- **Benchmarks**: Added benchmarks for `CatList`, `CatQueue`, and missing trait methods.
+- **Benchmarks**: Added benchmarks for `CatList` and missing trait methods.
 
 ### Changed
 - **Lazy Evaluation Revamp (API Breaking)**:

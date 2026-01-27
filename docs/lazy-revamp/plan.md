@@ -82,6 +82,7 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Conversions**     | Replaced specific conversion methods (e.g., `from_memo`, `into_try`) with standard `From` trait implementations for better ergonomics and idiomatic Rust. |
 | **Step Typeclasses**| Implemented `Functor`, `Bifunctor`, `Foldable`, `Traversable`, etc., for `Step` to make it a first-class citizen in the ecosystem. |
 | **Runnable Trait**  | Added `Runnable` trait to abstract over types that can be executed (like `Thunk`, `Task`, `Eval`), replacing ad-hoc `run` or `force` methods. |
+| **Use VecDeque for CatList**  | Benchmarks showed better performance using VecDeque over CatQueue, so Catlist has been refactored to use VecDeque and CatQueue has been removed. |
 
 ### Blockers
 
