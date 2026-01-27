@@ -398,6 +398,14 @@ impl<A> Iterator for CatQueueIter<A> {
 	}
 }
 
+impl<A> DoubleEndedIterator for CatQueueIter<A> {
+	fn next_back(&mut self) -> Option<Self::Item> {
+		let (a, rest) = std::mem::take(&mut self.queue).unsnoc()?;
+		self.queue = rest;
+		Some(a)
+	}
+}
+
 impl<A> ExactSizeIterator for CatQueueIter<A> {}
 
 #[cfg(test)]

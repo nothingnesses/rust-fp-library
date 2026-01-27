@@ -202,10 +202,16 @@ To run all benchmarks:
 cargo bench -p fp-library
 ```
 
-To run a specific benchmark (e.g., `vec`):
+To list available benchmarks:
 
 ```sh
-cargo bench -p fp-library --bench benchmarks -- vec
+cargo bench -p fp-library --bench benchmarks -- --list
+```
+
+To run a specific benchmark (e.g., `Vec`):
+
+```sh
+cargo bench -p fp-library --bench benchmarks -- Vec
 ```
 
 Benchmark reports are generated in `target/criterion/report/index.html`.

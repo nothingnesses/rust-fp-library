@@ -314,12 +314,9 @@ impl<A> CatList<A> {
 	/// We use an iterative approach with an explicit stack to avoid
 	/// stack overflow on deeply nested structures.
 	fn flatten_queue(queue: CatQueue<CatList<A>>) -> Self {
-		// Collect all sublists
-		let sublists: Vec<CatList<A>> = queue.into_iter().collect();
-
 		// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
-		// We process from right to left
-		sublists.into_iter().rev().fold(CatList::Nil, |acc, list| Self::link(list, acc))
+		// We process from right to left using DoubleEndedIterator
+		queue.into_iter().rfold(CatList::Nil, |acc, list| Self::link(list, acc))
 	}
 
 	/// Returns the number of elements.
