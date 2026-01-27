@@ -7,7 +7,7 @@ This document proposes a hybrid stack-safety design for `fp-library` that combin
 1. **Cats-style Eval** — Ergonomic user-facing API with `pure`, `defer`, `flatMap` combinators
 2. **PureScript MonadRec/Trampoline** — Type class interface (`MonadRec`) and O(1) left-associated bind performance via CatList
 
-The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) while maintaining compatibility with the [dual-type design proposal](dual-type-design-proposal.md).
+The design addresses the O(n²) worst-case bind performance of the current [stack-safe evaluation proposal](extra/stack-safe-evaluation-proposal.md) while maintaining compatibility with the [dual-type design proposal](dual-type-design-proposal.md).
 
 ### Two-Type Architecture
 
@@ -44,7 +44,7 @@ This split acknowledges that no single type can satisfy all constraints simultan
 
 ### 1.1 Problem Statement
 
-The [current stack-safe evaluation proposal](stack-safe-evaluation-proposal.md) uses a `Vec`-based continuation stack:
+The [current stack-safe evaluation proposal](extra/stack-safe-evaluation-proposal.md) uses a `Vec`-based continuation stack:
 
 ```rust
 pub fn run(self) -> A {
@@ -1317,6 +1317,45 @@ pub trait Runnable: Functor {
     /// Runs the effect, producing the inner value.
     fn run_effect<A>(fa: Apply!(Self::Brand, A)) -> A;
 }
+
+impl<F: Functor, A> Drop for Free<F, A> {
+    fn drop(&mut self) {
+        // Only `Bind` variants can cause deep recursion
+        if let Free::Bind { head, .. } = self {
+            // Create a dummy value to swap out the head
+            let dummy: Val = Box::new(());
+            // We need to cast this to `Free<F, Val>`.
+            let dummy_free: Free<F, Val> = Free::Pure(dummy);
+
+            let mut current_box = std::mem::replace(head, Box::new(dummy_free));
+
+            loop {
+                // `current_box` is now owned by the loop.
+                // When it goes out of scope at end of iteration, it drops.
+                // If it contains a `Bind`, that `Bind`'s head will drop recursively.
+                // So we must extract the NEXT head before dropping `current_box`.
+
+                if let Free::Bind { head: next_head, .. } = &mut *current_box {
+                    // Create another dummy to swap
+                    let dummy: Val = Box::new(());
+                    let dummy_free: Free<F, Val> = Free::Pure(dummy);
+
+                    // Swap next_head out, putting dummy in.
+                    // Now `current_box` (the old head) has a dummy head.
+                    // When `current_box` drops, it drops the dummy head (safe).
+                    // We take ownership of the REAL next head.
+                    let next_box = std::mem::replace(next_head, Box::new(dummy_free));
+
+                    // Move to next
+                    current_box = next_box;
+                } else {
+                    // Not a Bind, no recursion risk from head.
+                    break;
+                }
+            }
+        }
+    }
+}
 ```
 
 ### 5.5 ThunkF: The Thunk Functor
@@ -1350,7 +1389,7 @@ impl Kind_cdc7cd43dac7585f for ThunkFBrand {
     type Of<'a, A: 'a> = Thunk<A>;
 }
 
-impl Functor for ThunkFInstance {
+impl Functor for ThunkF {
     type Brand = ThunkFBrand;
 
     fn map<A, B>(f: impl FnOnce(A) -> B, fa: Thunk<A>) -> Thunk<B> {
@@ -1358,7 +1397,7 @@ impl Functor for ThunkFInstance {
     }
 }
 
-impl Runnable for ThunkFInstance {
+impl Runnable for ThunkF {
     fn run_effect<A>(fa: Thunk<A>) -> A {
         fa.force()
     }
@@ -1806,7 +1845,7 @@ This section describes `Task<A>`, the **stack-safe** monadic type built on the F
 /// assert_eq!(task.run(), 14);
 /// ```
 pub struct Task<A> {
-    inner: Free<ThunkFInstance, A>,
+    inner: Free<ThunkF, A>,
 }
 
 impl<A: 'static + Send> Task<A> {
@@ -2201,7 +2240,9 @@ Before showing Task usage examples, we introduce `Eval<'a, A>` — the lightweig
 ///
 /// assert_eq!(eval.run(), 85);
 /// ```
-pub struct Eval<'a, A>(Box<dyn FnOnce() -> A + 'a>);
+pub struct Eval<'a, A> {
+    thunk: Box<dyn FnOnce() -> A + 'a>,
+}
 
 impl<'a, A> Eval<'a, A> {
     /// Creates a new Eval from a thunk.
@@ -2209,7 +2250,9 @@ impl<'a, A> Eval<'a, A> {
     where
         F: FnOnce() -> A + 'a,
     {
-        Eval(Box::new(f))
+        Eval {
+            thunk: Box::new(f),
+        }
     }
 
     /// Returns a pure value (already computed).
@@ -2218,6 +2261,14 @@ impl<'a, A> Eval<'a, A> {
         A: 'a,
     {
         Eval::new(move || a)
+    }
+
+    /// Defers a computation that returns an Eval.
+    pub fn defer<F>(f: F) -> Self
+    where
+        F: FnOnce() -> Eval<'a, A> + 'a,
+    {
+        Eval::new(move || f().run())
     }
 
     /// Monadic bind: chains computations.
@@ -2229,9 +2280,9 @@ impl<'a, A> Eval<'a, A> {
         F: FnOnce(A) -> Eval<'a, B> + 'a,
     {
         Eval::new(move || {
-            let a = (self.0)();
+            let a = (self.thunk)();
             let eval_b = f(a);
-            (eval_b.0)()
+            (eval_b.thunk)()
         })
     }
 
@@ -2240,12 +2291,12 @@ impl<'a, A> Eval<'a, A> {
     where
         F: FnOnce(A) -> B + 'a,
     {
-        Eval::new(move || f((self.0)()))
+        Eval::new(move || f((self.thunk)()))
     }
 
     /// Forces evaluation and returns the result.
     pub fn run(self) -> A {
-        (self.0)()
+        (self.thunk)()
     }
 }
 ````
@@ -2445,24 +2496,37 @@ The full architecture now includes **three layers**:
 
 ### 8.2 Memo Types (From Dual-Type Proposal)
 
-The dual-type proposal defines two memoization types. These work with **both** `Task<A>` and `Eval<'a, A>`:
+The dual-type proposal defines a single generic `Memo` type parameterized by a configuration trait. This works with **both** `Task<A>` and `Eval<'a, A>`:
 
 ```rust
 use std::cell::LazyCell;
 use std::sync::LazyLock;
 
-/// Single-threaded memoization wrapper.
+/// A lazily-computed, memoized value with shared semantics.
 ///
-/// Uses `LazyCell` for interior mutability without synchronization overhead.
-pub struct Memo<A> {
-    cell: LazyCell<A, Box<dyn FnOnce() -> A>>,
+/// The computation runs at most once; subsequent accesses return the cached value.
+/// Cloning a `Memo` shares the underlying cache - all clones see the same value.
+///
+/// # Type Parameters
+///
+/// - `A`: The type of the computed value
+/// - `Config`: The memoization configuration (determines Rc vs Arc)
+pub struct Memo<A, Config: MemoConfig = RcMemoConfig> {
+    inner: Config::Lazy<A>,
 }
 
-impl<A> Memo<A> {
+// Type aliases for convenience
+pub type RcMemo<A> = Memo<A, RcMemoConfig>;
+pub type ArcMemo<A> = Memo<A, ArcMemoConfig>;
+
+impl<A, Config: MemoConfig> Memo<A, Config> {
     /// Creates a new Memo that will run `f` on first access.
-    pub fn new<F: FnOnce() -> A + 'static>(f: F) -> Self {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> A + Send + 'static, // Send bound depends on Config, simplified here
+    {
         Memo {
-            cell: LazyCell::new(Box::new(f)),
+            inner: Config::new_lazy(f),
         }
     }
 
@@ -2482,45 +2546,45 @@ impl<A> Memo<A> {
 
     /// Gets the memoized value, computing on first access.
     pub fn get(&self) -> &A {
-        &*self.cell
+        Config::force(&self.inner)
     }
 }
 
-/// Thread-safe memoization wrapper.
+/// A lazily-computed, memoized value that may fail.
 ///
-/// Uses `LazyLock` for safe concurrent initialization.
-pub struct MemoSync<A> {
-    lock: LazyLock<A, Box<dyn FnOnce() -> A + Send>>,
+/// The computation runs at most once. If it succeeds, the value is cached.
+/// If it fails, the error is cached. Subsequent accesses return the cached result.
+pub struct TryMemo<A, E, Config: MemoConfig = RcMemoConfig> {
+    inner: Config::TryLazy<A, E>,
 }
 
-impl<A: Send + Sync> MemoSync<A> {
-    /// Creates a new MemoSync that will run `f` on first access.
-    pub fn new<F: FnOnce() -> A + Send + 'static>(f: F) -> Self {
-        MemoSync {
-            lock: LazyLock::new(Box::new(f)),
+// Type aliases for convenience
+pub type RcTryMemo<A, E> = TryMemo<A, E, RcMemoConfig>;
+pub type ArcTryMemo<A, E> = TryMemo<A, E, ArcMemoConfig>;
+
+impl<A, E, Config: MemoConfig> TryMemo<A, E, Config> {
+    /// Creates a new TryMemo that will run `f` on first access.
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce() -> Result<A, E> + Send + 'static,
+    {
+        TryMemo {
+            inner: Config::new_try_lazy(f),
         }
     }
 
-    /// Creates a MemoSync from a Task.
-    pub fn from_task(task: Task<A>) -> Self
+    /// Creates a TryMemo from a TryTask.
+    pub fn from_try_task(task: TryTask<A, E>) -> Self
     where
-        A: 'static,
+        A: 'static + Send,
+        E: 'static + Send,
     {
-        MemoSync::new(move || task.run())
+        TryMemo::new(move || task.run())
     }
 
-    /// Creates a MemoSync from an Eval.
-    /// Note: Eval<'static, A> required because MemoSync stores the thunk.
-    pub fn from_eval(eval: Eval<'static, A>) -> Self
-    where
-        A: 'static,
-    {
-        MemoSync::new(move || eval.run())
-    }
-
-    /// Gets the memoized value, computing on first access.
-    pub fn get(&self) -> &A {
-        &*self.lock
+    /// Gets the memoized result, computing on first access.
+    pub fn get(&self) -> Result<&A, &E> {
+        Config::force_try(&self.inner)
     }
 }
 ```
@@ -2536,7 +2600,7 @@ The key insight is that computation types (`Task` and `Eval`) are complementary 
 | Stack safety         | ✅ Unlimited         | ❌ ~8000 calls       | N/A                            |
 | HKT compatible       | ❌ No                | ✅ Yes               | N/A                            |
 | Memoization          | ❌ No                | ❌ No                | ✅ Yes                         |
-| Thread safety        | ✅ (requires Send)   | ⚠️ Depends on 'a     | ✅ (MemoSync)                  |
+| Thread safety        | ✅ (requires Send)   | ⚠️ Depends on 'a     | ✅ (ArcMemo)                   |
 
 **Pattern 1: Build with Task for deep recursion, cache with Memo**
 
@@ -2580,7 +2644,7 @@ One powerful pattern is lazy recursive data structures. For potentially deep str
 /// Uses Task for stack-safe recursive construction.
 pub struct Stream<A> {
     head: A,
-    tail: MemoSync<Option<Stream<A>>>,
+    tail: ArcMemo<Option<Stream<A>>>,
 }
 
 impl<A: Clone + Send + Sync + 'static> Stream<A> {
@@ -2590,7 +2654,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
         let mut iter = iter.into_iter();
         iter.next().map(|head| {
             // Use Task for stack-safe deferred construction
-            let tail = MemoSync::from_task(
+            let tail = ArcMemo::from_task(
                 Task::defer(move || {
                     Task::now(Self::from_iter(iter))
                 })
@@ -2608,7 +2672,7 @@ impl<A: Clone + Send + Sync + 'static> Stream<A> {
         let f_clone = f.clone();
         Stream {
             head: f(self.head),
-            tail: MemoSync::from_task(
+            tail: ArcMemo::from_task(
                 Task::defer(move || {
                     Task::now(self.tail.get().clone().map(|t| t.map(f_clone)))
                 })
@@ -2642,34 +2706,122 @@ fn shallow_lazy_value<'a>() -> Eval<'a, String> {
 }
 ```
 
-### 8.5 The MemoConfig Trait
+### 8.5 Fallible Memoization with TryMemo
+
+Just as `Memo` complements `Task` and `Eval`, `TryMemo` complements `TryTask` and `TryEval` for fallible computations.
+
+| Concern              | TryTask<A, E>      | TryEval<'a, A, E>  | TryMemo<A, E>                  |
+| -------------------- | ------------------ | ------------------ | ------------------------------ |
+| Deferred computation | ✅ Yes             | ✅ Yes             | ❌ No (runs on first `.get()`) |
+| Error handling       | ✅ Explicit Result | ✅ Explicit Result | ✅ Explicit Result             |
+| Stack safety         | ✅ Unlimited       | ❌ ~8000 calls     | N/A                            |
+| Memoization          | ❌ No              | ❌ No              | ✅ Yes (caches Result)         |
+
+**Pattern: Build with TryTask, cache with TryMemo**
+
+```rust
+// Stack-safe fallible computation
+fn load_config() -> TryTask<Config, ConfigError> {
+    TryTask::try_later(|| {
+        // ... complex loading logic
+        Ok(Config::default())
+    })
+}
+
+// Cache the result (success or failure)
+let cached_config: TryMemo<Config, ConfigError> = TryMemo::from_try_task(load_config());
+
+// First call computes
+match cached_config.get() {
+    Ok(cfg) => println!("Loaded: {:?}", cfg),
+    Err(e) => println!("Failed: {:?}", e),
+}
+
+// Second call returns cached result immediately
+```
+
+### 8.6 The MemoConfig Trait
 
 The dual-type proposal introduces `MemoConfig` to abstract over `Rc`/`Arc`:
 
 ```rust
-/// Configuration trait for memoization wrapper types.
-pub trait MemoConfig {
-    /// The reference-counted pointer type (Rc or Arc).
-    type Ptr<T>: Pointer<T>;
+/// Configuration for memoization strategy.
+///
+/// This trait bundles together the choices for:
+/// - Pointer type (Rc vs Arc)
+/// - Lazy cell type (LazyCell vs LazyLock)
+pub trait MemoConfig: 'static {
+    /// The lazy cell type for infallible memoization
+    type Lazy<A: 'static>: Clone;
 
-    /// The lazy cell type (LazyCell or LazyLock).
-    type Lazy<T, F: FnOnce() -> T>: LazyInit<T, F>;
+    /// The lazy cell type for fallible memoization
+    type TryLazy<A: 'static, E: 'static>: Clone;
+
+    /// Creates a new lazy cell from an initializer
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + 'static) -> Self::Lazy<A>;
+
+    /// Creates a new fallible lazy cell from an initializer
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + 'static
+    ) -> Self::TryLazy<A, E>;
+
+    /// Forces evaluation and returns a reference
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A;
+
+    /// Forces evaluation and returns a reference to the result
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E>;
 }
 
-/// Single-threaded configuration.
-pub struct LocalConfig;
+/// Single-threaded memoization using Rc<LazyCell>.
+pub struct RcMemoConfig;
 
-impl MemoConfig for LocalConfig {
-    type Ptr<T> = Rc<T>;
-    type Lazy<T, F: FnOnce() -> T> = LazyCell<T, F>;
+impl MemoConfig for RcMemoConfig {
+    type Lazy<A: 'static> = Rc<LazyCell<A, Box<dyn FnOnce() -> A>>>;
+    type TryLazy<A: 'static, E: 'static> = Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E>>>>;
+
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + 'static) -> Self::Lazy<A> {
+        Rc::new(LazyCell::new(Box::new(f)))
+    }
+
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + 'static
+    ) -> Self::TryLazy<A, E> {
+        Rc::new(LazyCell::new(Box::new(f)))
+    }
+
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A {
+        LazyCell::force(lazy)
+    }
+
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E> {
+        LazyCell::force(lazy).as_ref()
+    }
 }
 
-/// Thread-safe configuration.
-pub struct SyncConfig;
+/// Thread-safe memoization using Arc<LazyLock>.
+pub struct ArcMemoConfig;
 
-impl MemoConfig for SyncConfig {
-    type Ptr<T> = Arc<T>;
-    type Lazy<T, F: FnOnce() -> T> = LazyLock<T, F>;
+impl MemoConfig for ArcMemoConfig {
+    type Lazy<A: 'static> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send>>>;
+    type TryLazy<A: 'static, E: 'static> = Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send>>>;
+
+    fn new_lazy<A: 'static>(f: impl FnOnce() -> A + Send + 'static) -> Self::Lazy<A> {
+        Arc::new(LazyLock::new(Box::new(f)))
+    }
+
+    fn new_try_lazy<A: 'static, E: 'static>(
+        f: impl FnOnce() -> Result<A, E> + Send + 'static
+    ) -> Self::TryLazy<A, E> {
+        Arc::new(LazyLock::new(Box::new(f)))
+    }
+
+    fn force<A>(lazy: &Self::Lazy<A>) -> &A {
+        LazyLock::force(lazy)
+    }
+
+    fn force_try<A, E>(lazy: &Self::TryLazy<A, E>) -> Result<&A, &E> {
+        LazyLock::force(lazy).as_ref()
+    }
 }
 ```
 
@@ -2678,7 +2830,7 @@ This enables generic code over thread-safety:
 ```rust
 /// A memoized computation parameterized by configuration.
 pub struct GenericMemo<A, C: MemoConfig> {
-    cell: C::Lazy<A, Box<dyn FnOnce() -> A>>,
+    cell: C::Lazy<A>,
 }
 
 impl<A, C: MemoConfig> GenericMemo<A, C> {
@@ -2687,17 +2839,17 @@ impl<A, C: MemoConfig> GenericMemo<A, C> {
         A: 'static + Send,
     {
         GenericMemo {
-            cell: C::Lazy::new(Box::new(move || eval.run())),
+            cell: C::new_lazy(move || eval.run()),
         }
     }
 }
 
 // Use as:
-type LocalMemo<A> = GenericMemo<A, LocalConfig>;
-type SharedMemo<A> = GenericMemo<A, SyncConfig>;
+type LocalMemo<A> = GenericMemo<A, RcMemoConfig>;
+type SharedMemo<A> = GenericMemo<A, ArcMemoConfig>;
 ```
 
-### 8.6 Migration Path from Existing Lazy
+### 8.7 Migration Path from Existing Lazy
 
 The current [`types/lazy.rs`](../../fp-library/src/types/lazy.rs) provides a `Lazy<A>` type. With this proposal:
 
@@ -2964,23 +3116,23 @@ impl MonadRec for EvalBrand {
     ) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
     where
         F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>) + Clone + 'a,
-        A: Send + ToConstraint<Self::Constraint>,
-        B: Send + ToConstraint<Self::Constraint>,
     {
         // Use defer for trampolining.
         // The Clone bound allows us to clone `f` for each recursive step.
-        fn go<A: Send + 'static, B: Send + 'static, F>(
+        fn go<'a, A, B, F>(
             f: F,
             a: A,
-        ) -> Eval<B>
+        ) -> Eval<'a, B>
         where
-            F: Fn(A) -> Eval<Step<A, B>> + Clone + Send + 'static,
+            F: Fn(A) -> Eval<'a, Step<A, B>> + Clone + 'a,
+            A: 'a,
+            B: 'a,
         {
             let f_clone = f.clone();  // Clone for the recursive call
             Eval::defer(move || {
                 f(a).flat_map(move |step| match step {
                     Step::Loop(next) => go(f_clone.clone(), next),
-                    Step::Done(b) => Eval::now(b),
+                    Step::Done(b) => Eval::pure(b),
                 })
             })
         }
@@ -3463,6 +3615,12 @@ This split acknowledges that no single Rust type can satisfy all constraints (st
   - [ ] MonadRec implementation (note: NOT stack-safe for deep calls)
   - [ ] Documentation warning about ~8000 call stack limit
 
+- [ ] **TryEval** — `fp-library/src/types/try_eval.rs`
+  - [ ] `TryEval<'a, A, E>` for fallible computations
+  - [ ] `new`, `pure` constructors
+  - [ ] `flat_map`, `map`, `map_err` combinators
+  - [ ] `run` method returning `Result<A, E>`
+
 ### 11.4 Type Class Extensions
 
 - [ ] **MonadRec trait** — `fp-library/src/classes/monad_rec.rs`
@@ -3491,10 +3649,17 @@ This split acknowledges that no single Rust type can satisfy all constraints (st
   - [ ] `map_task` method for transforming Task before memoizing
   - [ ] Ensure compatibility with both Task and Eval APIs
 
+- [ ] **TryMemo implementation** — `fp-library/src/types/try_memo.rs`
+
+  - [ ] `TryMemo<A, E, Config>` struct
+  - [ ] `new` constructor
+  - [ ] `from_try_task` constructor
+  - [ ] `get` method returning `Result<&A, &E>`
+  - [ ] Type aliases `RcTryMemo` and `ArcTryMemo`
+
 - [ ] **MemoSync updates** — `fp-library/src/types/memo_sync.rs`
-  - [ ] `from_task` constructor for Task<A>
-  - [ ] `from_eval` constructor for Eval<'static, A>
-  - [ ] Thread-safe integration with Task
+  - [ ] Remove `MemoSync` struct (replaced by `ArcMemo` alias)
+  - [ ] Ensure `ArcMemo` (via `Memo<A, ArcMemoConfig>`) supports `from_task` and `from_eval`
 
 ### 11.6 Module Organization
 

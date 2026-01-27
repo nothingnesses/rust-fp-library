@@ -8,8 +8,8 @@ The proposed design splits lazy evaluation into **four complementary types**:
 
 | Type                    | Memoized? | Fallible? | Primary Use Case              |
 | ----------------------- | --------- | --------- | ----------------------------- |
-| `Eval<A>`               | No        | No        | Building computation chains   |
-| `TryEval<A, E>`         | No        | Yes       | Fallible computation chains   |
+| `Eval<'a, A>`           | No        | No        | Building computation chains   |
+| `TryEval<'a, A, E>`     | No        | Yes       | Fallible computation chains   |
 | `Memo<A, Config>`       | Yes       | No        | Caching computed values       |
 | `TryMemo<A, E, Config>` | Yes       | Yes       | Caching fallible computations |
 
@@ -53,7 +53,7 @@ The current design catches panics and caches them as errors, which:
 
 **Insight**: A computation that _can_ be cached is different from a computation that _is_ cached.
 
-- `Eval<A>`: Represents "what to compute" - a pure, deferred computation
+- `Eval<'a, A>`: Represents "what to compute" - a pure, deferred computation
 - `Memo<A>`: Represents "compute once, remember forever" - adds caching semantics
 
 This separation allows:
@@ -106,23 +106,23 @@ This means `Memo` and `TryMemo` can be implemented as thin wrappers around `Lazy
                     │    (no cache)   │
                     └────────┬────────┘
                              │
-              ┌──────────────┴──────────────┐
-              │                             │
-       ┌──────┴──────┐               ┌──────┴──────┐
-       │   Eval<A>   │               │TryEval<A,E> │
-       │ (infallible)│               │ (fallible)  │
-       └──────┬──────┘               └──────┬──────┘
-              │ .memoize()                  │ .memoize()
-              ▼                             ▼
-       ┌──────┴──────┐               ┌──────┴──────┐
-       │ Memo<A,Cfg> │               │TryMemo<A,E> │
-       │ (infallible)│               │ (fallible)  │
-       └─────────────┘               └─────────────┘
+              ┌──────────────┴───────────────┐
+              │                              │
+       ┌──────┴──────┐               ┌───────┴───────┐
+       │ Eval<'a, A> │               │TryEval<'a,A,E>│
+       │ (infallible)│               │   (fallible)  │
+       └──────┬──────┘               └───────┬───────┘
+              │ Memo::from_eval()            │ TryMemo::from_eval()
+              ▼                              ▼
+       ┌──────┴──────┐               ┌───────┴──────┐
+       │ Memo<A,Cfg> │               │ TryMemo<A,E> │
+       │ (infallible)│               │  (fallible)  │
+       └─────────────┘               └──────────────┘
 ```
 
 ## Detailed Type Specifications
 
-### Eval<A> - Pure Deferred Computation
+### Eval<'a, A> - Pure Deferred Computation
 
 ````rust
 /// A deferred computation that produces a value of type `A`.
@@ -148,14 +148,14 @@ This means `Memo` and `TryMemo` can be implemented as thin wrappers around `Lazy
 /// // Only when we call run() does it execute:
 /// let result = computation.run();
 /// ```
-pub struct Eval<A> {
-    thunk: Box<dyn FnOnce() -> A>,
+pub struct Eval<'a, A> {
+    thunk: Box<dyn FnOnce() -> A + 'a>,
 }
 ````
 
 **Design Decisions:**
 
-1. **`Box<dyn FnOnce() -> A>`**: Uses `FnOnce` because computations are typically consumed once. This allows move captures and avoids `Clone` bounds.
+1. **`Box<dyn FnOnce() -> A + 'a>`**: Uses `FnOnce` because computations are typically consumed once. The lifetime `'a` allows capturing borrowed data.
 
 2. **`run(self) -> A`**: Consumes `self` and returns owned `A`. This is crucial for Monad compatibility - we can chain without requiring `Clone`.
 
@@ -163,7 +163,7 @@ pub struct Eval<A> {
 
 4. **Implements `Functor` and `Monad`**: Because `run()` returns owned values, we can implement the standard typeclasses properly.
 
-### TryEval<A, E> - Fallible Deferred Computation
+### TryEval<'a, A, E> - Fallible Deferred Computation
 
 ````rust
 /// A deferred computation that may fail with error type `E`.
@@ -184,8 +184,8 @@ pub struct Eval<A> {
 ///     Err(e) => handle_error(e),
 /// }
 /// ```
-pub struct TryEval<A, E> {
-    thunk: Box<dyn FnOnce() -> Result<A, E>>,
+pub struct TryEval<'a, A, E> {
+    thunk: Box<dyn FnOnce() -> Result<A, E> + 'a>,
 }
 ````
 
@@ -432,39 +432,30 @@ pub type ArcTryMemo<A, E> = TryMemo<A, E, ArcMemoConfig>;
 
 ## Conversions Between Types
 
+To avoid circular dependencies between computation types (`Eval`, `Task`) and caching types (`Memo`), conversions are implemented as factory methods on the `Memo` types.
+
 ```rust
-impl<A> Eval<A> {
-    /// Converts this computation to a memoized value.
-    ///
-    /// The resulting Memo will execute this computation at most once.
-    pub fn memoize<Config: MemoConfig>(self) -> Memo<A, Config>
-    where
-        A: 'static,
-    {
-        Memo::new(move || self.run())
-    }
-
-    /// Converts to a TryEval that always succeeds.
-    pub fn into_try<E>(self) -> TryEval<A, E>
-    where
-        A: 'static,
-    {
-        TryEval::new(move || Ok(self.run()))
-    }
-}
-
-impl<A, E> TryEval<A, E> {
-    /// Converts this fallible computation to a memoized value.
-    pub fn memoize<Config: MemoConfig>(self) -> TryMemo<A, E, Config>
-    where
-        A: 'static,
-        E: 'static,
-    {
-        TryMemo::new(move || self.run())
-    }
-}
-
 impl<A, Config: MemoConfig> Memo<A, Config> {
+    /// Creates a Memo from an Eval (HKT-compatible computation).
+    ///
+    /// # Requirements
+    ///
+    /// The Eval must be `'static` because `Memo` stores the thunk in a
+    /// `LazyCell`/`LazyLock` which typically requires `'static` data.
+    pub fn from_eval(eval: Eval<'static, A>) -> Self {
+        Memo::new(move || eval.run())
+    }
+
+    /// Creates a Memo from a Task (stack-safe computation).
+    ///
+    /// Note: Task is introduced in the Hybrid Stack-Safety proposal.
+    pub fn from_task(task: Task<A>) -> Self
+    where
+        A: 'static + Send,
+    {
+        Memo::new(move || task.run())
+    }
+
     /// Converts to a TryMemo that always succeeds.
     pub fn into_try<E>(self) -> TryMemo<A, E, Config>
     where
@@ -472,6 +463,29 @@ impl<A, Config: MemoConfig> Memo<A, Config> {
         E: 'static,
     {
         TryMemo::new(move || Ok(self.force().clone()))
+    }
+}
+
+impl<A, E, Config: MemoConfig> TryMemo<A, E, Config> {
+    /// Creates a TryMemo from a TryEval.
+    pub fn from_try_eval(eval: TryEval<'static, A, E>) -> Self {
+        TryMemo::new(move || eval.run())
+    }
+
+    /// Creates a TryMemo from a TryTask.
+    pub fn from_try_task(task: TryTask<A, E>) -> Self
+    where
+        A: 'static + Send,
+        E: 'static + Send,
+    {
+        TryMemo::new(move || task.run())
+    }
+}
+
+impl<'a, A> Eval<'a, A> {
+    /// Converts to a TryEval that always succeeds.
+    pub fn into_try<E>(self) -> TryEval<'a, A, E> {
+        TryEval::new(move || Ok(self.run()))
     }
 }
 ```
@@ -526,12 +540,12 @@ pub struct EvalBrand;
 
 impl_kind! {
     for EvalBrand {
-        type Of<'a, A: 'a>: 'a = Eval<A>;
+        type Of<'a, A: 'a>: 'a = Eval<'a, A>;
     }
 }
 
 impl Functor for EvalBrand {
-    fn map<'a, B: 'a, A: 'a, F>(f: F, fa: Eval<A>) -> Eval<B>
+    fn map<'a, B: 'a, A: 'a, F>(f: F, fa: Eval<'a, A>) -> Eval<'a, B>
     where
         F: Fn(A) -> B + 'a,
     {
@@ -540,16 +554,16 @@ impl Functor for EvalBrand {
 }
 
 impl Semimonad for EvalBrand {
-    fn bind<'a, B: 'a, A: 'a, F>(ma: Eval<A>, f: F) -> Eval<B>
+    fn bind<'a, B: 'a, A: 'a, F>(ma: Eval<'a, A>, f: F) -> Eval<'a, B>
     where
-        F: Fn(A) -> Eval<B> + 'a,
+        F: Fn(A) -> Eval<'a, B> + 'a,
     {
         Eval::new(move || f(ma.run()).run())
     }
 }
 
 impl Pointed for EvalBrand {
-    fn of<'a, A: 'a>(a: A) -> Eval<A> {
+    fn of<'a, A: 'a>(a: A) -> Eval<'a, A> {
         Eval::new(move || a)
     }
 }

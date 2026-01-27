@@ -1,7 +1,3 @@
-//! Implementations for [`Option`].
-//!
-//! This module provides implementations of functional programming traits for the standard library [`Option`] type.
-
 use crate::{
 	Apply,
 	brands::OptionBrand,

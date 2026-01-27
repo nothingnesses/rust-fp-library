@@ -16,19 +16,20 @@ A functional programming library for Rust featuring your favourite higher-kinded
   - `Foldable`, `Traversable`
   - `Compactable`, `Filterable`, `Witherable`
   - `Category`, `Semigroupoid`
-  - `Pointed`, `Lift`, `Defer`, `Once`
+  - `Pointed`, `Lift`
   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
+  - `MonadRec`, `RefFunctor`
   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
-  - `TrySemigroup`, `TryMonoid`, `SendDefer`
+  - `Defer`, `SendDefer`
 - **Helper Functions:** Standard FP utilities:
   - `compose`, `constant`, `flip`, `identity`
 - **Data Types:** Implementations for standard and custom types:
   - `Option`, `Result`, `Vec`, `String`
   - `Identity`, `Lazy`, `Pair`
+  - `Trampoline`, `Thunk`, `Free`
   - `Endofunction`, `Endomorphism`, `SendEndofunction`
   - `RcBrand`, `ArcBrand`, `FnBrand`
-  - `OnceCell`, `OnceLock`
 
 ## Motivation
 
@@ -46,7 +47,7 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.6"
+fp-library = "0.7"
 ```
 
 ### Crate Features
@@ -59,7 +60,7 @@ To enable this feature:
 
 ```toml
 [dependencies]
-fp-library = { version = "0.6", features = ["rayon"] }
+fp-library = { version = "0.7", features = ["rayon"] }
 ```
 
 ### Example: Using `Functor` with `Option`
@@ -122,6 +123,45 @@ While the library strives for zero-cost abstractions, some operations inherently
 
 For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
 
+### Lazy Evaluation & Effect System
+
+Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
+
+| Type                | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                           |
+| :------------------ | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :----------------------------------- |
+| **`Thunk<'a, A>`**  | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
+| **`Trampoline<A>`** | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
+| **`Lazy<'a, A>`**   | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
+
+#### The "Why" of Three Types
+
+Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
+
+1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
+2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
+
+#### Workflow Example
+
+A common pattern is to use `Trampoline` for the heavy lifting (recursion), `Lazy` to freeze the result, and `Thunk` to borrow it later.
+
+```rust
+use fp_library::types::*;
+
+// 1. Use Trampoline for stack-safe recursion
+let heavy_computation = Trampoline::tail_rec_m(|n| {
+    if n < 1_000 { Trampoline::pure(Step::Loop(n + 1)) } else { Trampoline::pure(Step::Done(n)) }
+}, 0);
+
+// 2. Convert to Lazy to cache the result (runs once)
+let cached = Lazy::<_, RcLazyConfig>::from(heavy_computation);
+
+// 3. Use Thunk to borrow the cached value without re-running
+let view = Thunk::new(|| {
+    let val = cached.get();
+    format!("Result: {}", val)
+});
+```
+
 ### Thread Safety and Parallelism
 
 The library supports thread-safe operations through the `SendCloneableFn` extension trait and parallel folding via `ParFoldable`.
@@ -183,6 +223,30 @@ This will provide a shell with the correct Rust version and dependencies.
 
 For maintainers, the release process is documented in [docs/release-process.md](docs/release-process.md).
 
+### Benchmarking
+
+This project uses [Criterion.rs](https://github.com/criterion-rs/criterion.rs) for benchmarking to ensure zero-cost abstractions and detect performance regressions.
+
+To run all benchmarks:
+
+```sh
+cargo bench -p fp-library
+```
+
+To list available benchmarks:
+
+```sh
+cargo bench -p fp-library --bench benchmarks -- --list
+```
+
+To run a specific benchmark (e.g., `Vec`):
+
+```sh
+cargo bench -p fp-library --bench benchmarks -- Vec
+```
+
+Benchmark reports are generated in `target/criterion/report/index.html`.
+
 ## License
 
 This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
@@ -201,3 +265,4 @@ This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
   - [Class names](https://github.com/ekmett/semigroupoids/issues/26)
 - [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
 - [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
+- [Scala Cats](https://typelevel.org/cats/)

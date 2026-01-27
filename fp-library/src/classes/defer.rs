@@ -5,10 +5,10 @@
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*, types::*};
 //!
-//! let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+//! let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 //! );
-//! assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+//! assert_eq!(eval.run(), 42);
 //! ```
 
 use super::CloneableFn;
@@ -40,10 +40,10 @@ pub trait Defer<'a> {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+	/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 	/// );
-	/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+	/// assert_eq!(eval.run(), 42);
 	/// ```
 	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
@@ -76,10 +76,10 @@ pub trait Defer<'a> {
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*, types::*};
 ///
-/// let lazy = defer::<RcLazy<'_, i32>, RcFnBrand>(
-///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(RcLazyConfig::new_thunk(|_| 42)))
+/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 /// );
-/// assert_eq!(Lazy::force(&lazy).unwrap(), &42);
+/// assert_eq!(eval.run(), 42);
 /// ```
 pub fn defer<'a, D, FnBrand>(f: <FnBrand as CloneableFn>::Of<'a, (), D>) -> D
 where

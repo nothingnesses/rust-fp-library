@@ -1,13 +1,8 @@
-//! Function wrappers.
-//!
-//! This module defines the [`FnBrand`] struct, which provides generic implementations for reference-counted closures (e.g., `Rc<dyn Fn(A) -> B>`, `Arc<dyn Fn(A) -> B>`).
-//! It implements [`Function`], [`CloneableFn`], [`Semigroupoid`], and [`Category`].
-
 use crate::{
 	Apply,
 	brands::FnBrand,
 	classes::{
-		category::Category, cloneable_fn::CloneableFn, function::Function,
+		RefCountedPointer, category::Category, cloneable_fn::CloneableFn, function::Function,
 		semigroupoid::Semigroupoid, send_cloneable_fn::SendCloneableFn,
 		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
 	},
@@ -17,7 +12,7 @@ use crate::{
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {
-		type Of<'a, A, B> = <P as crate::classes::ref_counted_pointer::RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
+		type Of<'a, A, B> = <P as RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
 	}
 }
 

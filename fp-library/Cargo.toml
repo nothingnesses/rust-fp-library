@@ -1,6 +1,6 @@
 [package]
 name = "fp-library"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2024"
 description = "A functional programming library for Rust featuring your favourite higher-kinded types and type classes."
 readme = "../README.md"
@@ -28,13 +28,8 @@ quickcheck = "1.0"
 quickcheck_macros = "1.1"
 trybuild = "1.0"
 
-[target.'cfg(loom)'.dependencies]
-loom = "0.7"
-
 [features]
 default = []
 # Enable parallel folding operations using Rayon
 rayon = ["dep:rayon"]
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }

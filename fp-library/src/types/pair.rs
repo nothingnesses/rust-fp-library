@@ -1,17 +1,10 @@
-//! Implementations for [`Pair`], a type that wraps two values.
-//!
-//! This module provides implementations of various type classes for the `Pair` type.
-//! `Pair` can be treated as a functor/monad in two ways:
-//! 1.  `PairWithFirstBrand<First>`: Functor over the second value (fixing `First`).
-//! 2.  `PairWithSecondBrand<Second>`: Functor over the first value (fixing `Second`).
-
 use crate::{
 	Apply,
 	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor, lift::Lift,
-		monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
+		bifunctor::Bifunctor, cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor,
+		lift::Lift, monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
 		semiapplicative::Semiapplicative, semigroup::Semigroup, semimonad::Semimonad,
 		send_cloneable_fn::SendCloneableFn, traversable::Traversable,
 	},
@@ -48,6 +41,62 @@ pub struct Pair<First, Second>(pub First, pub Second);
 impl_kind! {
 	for PairBrand {
 		type Of<A, B> = Pair<A, B>;
+	}
+}
+
+impl_kind! {
+	for PairBrand {
+		type Of<'a, A: 'a, B: 'a>: 'a = Pair<A, B>;
+	}
+}
+
+impl Bifunctor for PairBrand {
+	/// Maps functions over the values in the pair.
+	///
+	/// This method applies one function to the first value and another to the second value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a b c d. Bifunctor Pair => (a -> b, c -> d, Pair a c) -> Pair b d`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the first value.
+	/// * `B`: The type of the mapped first value.
+	/// * `C`: The type of the second value.
+	/// * `D`: The type of the mapped second value.
+	/// * `F`: The type of the function to apply to the first value.
+	/// * `G`: The type of the function to apply to the second value.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The function to apply to the first value.
+	/// * `g`: The function to apply to the second value.
+	/// * `p`: The pair to map over.
+	///
+	/// ### Returns
+	///
+	/// A new pair containing the mapped values.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::bifunctor::*, functions::*, types::*};
+	///
+	/// let x = Pair(1, 5);
+	/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+	/// ```
+	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+		f: F,
+		g: G,
+		p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+	where
+		F: Fn(A) -> B + 'a,
+		G: Fn(C) -> D + 'a,
+	{
+		let Pair(a, c) = p;
+		Pair(f(a), g(c))
 	}
 }
 
@@ -1160,8 +1209,49 @@ impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{brands::*, functions::*};
+	use crate::{brands::*, classes::bifunctor::*, functions::*};
 	use quickcheck_macros::quickcheck;
+
+	// Bifunctor Tests
+
+	/// Tests `bimap` on `Pair`.
+	#[test]
+	fn test_bimap() {
+		let x = Pair(1, 5);
+		assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+	}
+
+	// Bifunctor Laws
+
+	/// Tests the identity law for Bifunctor.
+	#[quickcheck]
+	fn bifunctor_identity(
+		first: String,
+		second: i32,
+	) -> bool {
+		let x = Pair(first, second);
+		bimap::<PairBrand, _, _, _, _, _, _>(identity, identity, x.clone()) == x
+	}
+
+	/// Tests the composition law for Bifunctor.
+	#[quickcheck]
+	fn bifunctor_composition(
+		first: i32,
+		second: i32,
+	) -> bool {
+		let x = Pair(first, second);
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		let h = |x: i32| x.wrapping_sub(1);
+		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
+
+		bimap::<PairBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x.clone())
+			== bimap::<PairBrand, _, _, _, _, _, _>(
+				f,
+				h,
+				bimap::<PairBrand, _, _, _, _, _, _>(g, i, x),
+			)
+	}
 
 	// Functor Laws
 

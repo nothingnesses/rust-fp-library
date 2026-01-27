@@ -29,14 +29,14 @@ use crate::{
 ///
 /// A minimal implementation of `Filterable` requires no specific method implementations, as all methods have default implementations based on [`Compactable`] and [`Functor`].
 ///
-/// However, it is recommended to implement [`Filterable::partition_map`] and [`Filterable::filter_map`] to avoid the intermediate structure created by the default implementations (which use [`Functor::map`] followed by [`Compactable::separate`] or [`Compactable::compact`]).
+/// However, it is recommended to implement [`Filterable::partition_map`] and [`Filterable::filter_map`] to avoid the intermediate structure created by the default implementations (which use [`map`](crate::functions::map) followed by [`separate`](crate::functions::separate) or [`compact`](crate::functions::compact)).
 ///
 /// *   If [`Filterable::partition_map`] is implemented, [`Filterable::partition`] is derived from it.
 /// *   If [`Filterable::filter_map`] is implemented, [`Filterable::filter`] is derived from it.
 pub trait Filterable: Compactable + Functor {
-	/// Partitions a data structure based on a function that returns a `Result`.
+	/// Partitions a data structure based on a function that returns a [`Result`].
 	///
-	/// The default implementation uses [`Functor::map`] and [`Compactable::separate`].
+	/// The default implementation uses [`map`](crate::functions::map) and [`separate`](crate::functions::separate).
 	///
 	/// ### Type Signature
 	///
@@ -51,12 +51,12 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a `Result`.
+	/// * `func`: The function to apply to each element, returning a [`Result`].
 	/// * `fa`: The data structure to partition.
 	///
 	/// ### Returns
 	///
-	/// A pair of data structures: the first containing the `Ok` values, and the second containing the `Err` values.
+	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
 	///
 	/// ### Examples
 	///
@@ -85,8 +85,8 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// The default implementation uses [`partition_map`].
 	///
-	/// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's `Iterator::partition`.
-	/// This is achieved by mapping satisfied elements to `Ok` and unsatisfied elements to `Err` internally,
+	/// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's [`Iterator::partition`].
+	/// This is achieved by mapping satisfied elements to [`Ok`] and unsatisfied elements to [`Err`] internally,
 	/// as `separate` returns `(Oks, Errs)`.
 	///
 	/// ### Type Signature
@@ -130,9 +130,9 @@ pub trait Filterable: Compactable + Functor {
 		Self::partition_map(move |a| if func(a.clone()) { Ok(a) } else { Err(a) }, fa)
 	}
 
-	/// Maps a function over a data structure and filters out `None` results.
+	/// Maps a function over a data structure and filters out [`None`] results.
 	///
-	/// The default implementation uses [`Functor::map`] and [`Compactable::compact`].
+	/// The default implementation uses [`map`](crate::functions::map) and [`compact`](crate::functions::compact).
 	///
 	/// ### Type Signature
 	/// ### Type Signature
@@ -146,12 +146,12 @@ pub trait Filterable: Compactable + Functor {
 	/// * `Func`: The type of the function to apply.
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option`.
+	/// * `func`: The function to apply to each element, returning an [`Option`].
 	/// * `fa`: The data structure to filter and map.
 	///
 	/// ### Returns
 	///
-	/// A new data structure containing only the values where the function returned `Some`.
+	/// A new data structure containing only the values where the function returned [`Some`].
 	///
 	/// ### Examples
 	///
@@ -214,7 +214,7 @@ pub trait Filterable: Compactable + Functor {
 	}
 }
 
-/// Partitions a data structure based on a function that returns a `Result`.
+/// Partitions a data structure based on a function that returns a [`Result`].
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::partition_map`].
 ///
@@ -232,12 +232,12 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning a `Result`.
+/// * `func`: The function to apply to each element, returning a [`Result`].
 /// * `fa`: The data structure to partition.
 ///
 /// ### Returns
 ///
-/// A pair of data structures: the first containing the `Ok` values, and the second containing the `Err` values.
+/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
 ///
 /// ### Examples
 ///
@@ -266,7 +266,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::partition`].
 ///
-/// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's `Iterator::partition`.
+/// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's [`Iterator::partition`].
 ///
 /// ### Type Signature
 ///
@@ -310,7 +310,7 @@ where
 	Brand::partition(func, fa)
 }
 
-/// Maps a function over a data structure and filters out `None` results.
+/// Maps a function over a data structure and filters out [`None`] results.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::filter_map`].
 ///
@@ -327,12 +327,12 @@ where
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning an `Option`.
+/// * `func`: The function to apply to each element, returning an [`Option`].
 /// * `fa`: The data structure to filter and map.
 ///
 /// ### Returns
 ///
-/// A new data structure containing only the values where the function returned `Some`.
+/// A new data structure containing only the values where the function returned [`Some`].
 ///
 /// ### Examples
 ///

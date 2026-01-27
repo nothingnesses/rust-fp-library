@@ -1,4 +1,4 @@
-//! A type class for data structures that can be compacted (filtering out `None` values) and separated (splitting `Result` values).
+//! A type class for data structures that can be compacted (filtering out [`None`] values) and separated (splitting [`Result`] values).
 //!
 //! ### Examples
 //!
@@ -15,10 +15,10 @@ use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
 /// A type class for data structures that can be compacted and separated.
 ///
 /// `Compactable` allows for:
-/// *   `compact`: Filtering out `None` values and unwrapping `Some` values from a structure of `Option`s.
-/// *   `separate`: Splitting a structure of `Result`s into a pair of structures, one containing the `Err` values and the other containing the `Ok` values.
+/// *   `compact`: Filtering out [`None`] values and unwrapping [`Some`] values from a structure of [`Option`]s.
+/// *   `separate`: Splitting a structure of [`Result`]s into a pair of structures, one containing the [`Err`] values and the other containing the [`Ok`] values.
 pub trait Compactable: Kind_cdc7cd43dac7585f {
-	/// Compacts a data structure of `Option`s, discarding `None` values and keeping `Some` values.
+	/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 	///
 	/// ### Type Signature
 	///
@@ -26,15 +26,15 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the `Option`.
+	/// * `A`: The type of the elements in the [`Option`].
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing `Option` values.
+	/// * `fa`: The data structure containing [`Option`] values.
 	///
 	/// ### Returns
 	///
-	/// A new data structure containing only the values from the `Some` variants.
+	/// A new data structure containing only the values from the [`Some`] variants.
 	///
 	/// ### Examples
 	///
@@ -56,7 +56,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 		>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 
-	/// Separates a data structure of `Result`s into two data structures: one containing the `Ok` values and one containing the `Err` values.
+	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Ok`] values and one containing the [`Err`] values.
 	///
 	/// ### Type Signature
 	///
@@ -69,11 +69,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing `Result` values.
+	/// * `fa`: The data structure containing [`Result`] values.
 	///
 	/// ### Returns
 	///
-	/// A pair of data structures: the first containing the `Ok` values, and the second containing the `Err` values.
+	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
 	///
 	/// ### Examples
 	///
@@ -98,7 +98,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	>;
 }
 
-/// Compacts a data structure of `Option`s, discarding `None` values and keeping `Some` values.
+/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::compact`].
 ///
@@ -109,15 +109,15 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the compactable structure.
-/// * `A`: The type of the elements in the `Option`.
+/// * `A`: The type of the elements in the [`Option`].
 ///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing `Option` values.
+/// * `fa`: The data structure containing [`Option`] values.
 ///
 /// ### Returns
 ///
-/// A new data structure containing only the values from the `Some` variants.
+/// A new data structure containing only the values from the [`Some`] variants.
 ///
 /// ### Examples
 ///
@@ -137,7 +137,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 	Brand::compact(fa)
 }
 
-/// Separates a data structure of `Result`s into two data structures: one containing the `Ok` values and one containing the `Err` values.
+/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Ok`] values and one containing the [`Err`] values.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::separate`].
 ///
@@ -153,11 +153,11 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing `Result` values.
+/// * `fa`: The data structure containing [`Result`] values.
 ///
 /// ### Returns
 ///
-/// A pair of data structures: the first containing the `Ok` values, and the second containing the `Err` values.
+/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
 ///
 /// ### Examples
 ///

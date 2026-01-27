@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-01-27
+
+### Added
+- **Lazy Evaluation Revamp**:
+  - **`Lazy` / `TryLazy`**: Added `Lazy` and `TryLazy` types for shared memoization (renamed from `Memo`/`TryMemo`). Supports `Rc` and `Arc` backing via `LazyConfig`.
+  - **`Trampoline` / `TryTrampoline`**: Added `Trampoline` and `TryTrampoline` for stack-safe, non-memoized computations using `Free` monad (renamed from `Task`/`TryTask`).
+  - **`Thunk` / `TryThunk`**: Added `Thunk` and `TryThunk` for HKT-compatible deferred computations (renamed from `Eval`/`TryEval`).
+  - **`Free` Monad**: Added `Free` monad implementation with `CatList`-based O(1) bind for stack safety.
+  - **Data Structure**: Added `CatList` (concatenation list) with O(1) operations.
+  - **Traits**:
+    - Added `MonadRec` trait for stack-safe tail recursion.
+    - Added `RefFunctor` trait for mapping over types that yield references.
+    - Added `Bifunctor` trait for mapping over two type arguments.
+    - Added `Runnable` trait for types that can be executed to produce a value.
+- **Benchmarks**: Added benchmarks for `CatList` and missing trait methods.
+
+### Changed
+- **Lazy Evaluation Revamp (API Breaking)**:
+  - **Renaming**:
+    - Renamed `Memo`/`TryMemo` to `Lazy`/`TryLazy` to align with industry-standard terminology for memoized lazy values.
+    - Renamed `Eval`/`TryEval` to `Thunk`/`TryThunk` for more precise terminology (non-memoized deferred computations).
+    - Renamed `Task`/`TryTask` to `Trampoline`/`TryTrampoline` to avoid confusion with async tasks and highlight stack-safety mechanism.
+    - Renamed `MemoConfig` to `LazyConfig`, `RcMemoConfig` to `RcLazyConfig`, `ArcMemoConfig` to `ArcLazyConfig`.
+    - Renamed `RcMemo`/`ArcMemo` to `RcLazy`/`ArcLazy`, `RcTryMemo`/`ArcTryMemo` to `RcTryLazy`/`ArcTryLazy`.
+    - Renamed `EvalBrand` to `ThunkBrand`, `MemoBrand` to `LazyBrand`.
+    - Renamed `Trampoline::now` to `Trampoline::pure`, `Trampoline::later` to `Trampoline::new`.
+    - Renamed `TryTrampoline::try_later` to `TryTrampoline::new`.
+    - Renamed `Thunk::force` to `Thunk::run`.
+    - Renamed `flat_map` to `bind` in `Trampoline`, `Thunk`, `Free` and their "Try" variants.
+  - **Conversions**: Replaced ad-hoc conversion methods (`from_memo`, `into_try`, etc.) with standard `From` trait implementations.
+  - **Step**: Added comprehensive typeclass implementations (`Functor`, `Bifunctor`, `Foldable`, etc.) for `Step`.
+  - **`Lazy` Lifetimes**: Refactored `Lazy` to support lifetimes, removing the strict `'static` requirement.
+- **Documentation**:
+  - Updated `docs/architecture.md` and `README.md` to reflect the new distinction between `Lazy` (shared caching), `Trampoline` (stack-safe computation), and `Thunk` (HKT-compatible).
+
+### Removed
+- **Lazy Evaluation Revamp (API Breaking)**:
+  - Removed old `Lazy`, `OnceCell`, `OnceLock` types and their associated brands (replaced by new `Lazy` type).
+  - Removed `TrySemigroup` and `TryMonoid` traits.
+
 ## [0.6.1] - 2026-01-23
 
 ### Added

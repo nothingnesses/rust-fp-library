@@ -1,8 +1,3 @@
-//! Endofunction wrapper.
-//!
-//! This module defines the [`Endofunction`] struct, which wraps a function from a type to itself (an endofunction)
-//! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
-
 use crate::{
 	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,

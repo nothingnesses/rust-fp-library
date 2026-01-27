@@ -42,8 +42,6 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`SendRefCountedPointer`**          | `Arc`                                               | Extension for thread-safe reference-counted pointers.                                                        | `fp-library/src/classes/pointer.rs`                                             |
 | **`Show`**                           | `std::fmt::Display`, `std::fmt::Debug`              | Configurable string representation in FP contexts.                                                           |                                                                                 |
 | **`Traversable`**                    | `Iterator::collect`                                 | Data structures that can be traversed, turning `T<F<A>>` into `F<T<A>>`.                                     | `fp-library/src/classes/traversable.rs`                                         |
-| **`TryMonoid`**                      | N/A                                                 | Monoid with fallible combination.                                                                            | `fp-library/src/classes/try_monoid.rs`                                          |
-| **`TrySemigroup`**                   | N/A                                                 | Semigroup with fallible combination.                                                                         | `fp-library/src/classes/try_semigroup.rs`                                       |
 | **`Witherable`**                     | N/A                                                 | Effectful filtering (traversal + filtering).                                                                 | `fp-library/src/classes/witherable.rs`                                          |
 
 ## Data Types (Structs/Brands)
@@ -61,15 +59,15 @@ This document tracks the coverage of `fp-library` against functionality provided
 | **`CowBrand`**          | `std::borrow::Cow`             | "Clone on write".                                        |                                        |
 | **`EndofunctionBrand`** | N/A                            | Brand for functions with the same input and output type. | `fp-library/src/types/endofunction.rs` |
 | **`EndomorphismBrand`** | N/A                            | Brand for endomorphisms in a category.                   | `fp-library/src/types/endomorphism.rs` |
+| **`EvalBrand`**         | N/A                            | HKT-compatible lazy evaluation wrapper.                  | `fp-library/src/types/eval.rs`         |
+| **`FreeBrand`**         | N/A                            | Free monad.                                              | `fp-library/src/types/free.rs`         |
 | **`FutureBrand`**       | `std::future::Future`          | Represents asynchronous values.                          |                                        |
 | **`HashMapBrand`**      | `std::collections::HashMap`    | Key-value store.                                         |                                        |
 | **`HashSetBrand`**      | `std::collections::HashSet`    | Set of unique values.                                    |                                        |
 | **`IdentityBrand`**     | `convert::identity`            | Identity container.                                      | `fp-library/src/types/identity.rs`     |
 | **`IO`**                | `main`, `std::fs`, `std::net`  | Encapsulates side effects.                               |                                        |
-| **`LazyBrand`**         | `LazyLock` (unstable/std)      | Lazy evaluation wrapper.                                 | `fp-library/src/types/lazy.rs`         |
 | **`LinkedListBrand`**   | `std::collections::LinkedList` | Doubly-linked list.                                      |                                        |
-| **`OnceCellBrand`**     | `std::cell::OnceCell`          | Single assignment cell.                                  | `fp-library/src/types/once_cell.rs`    |
-| **`OnceLockBrand`**     | `std::sync::OnceLock`          | Thread-safe single assignment.                           | `fp-library/src/types/once_lock.rs`    |
+| **`MemoBrand`**         | `LazyCell`, `LazyLock`         | Shared, memoized value.                                  | `fp-library/src/types/memo.rs`         |
 | **`OptionBrand`**       | `Option`                       | Optional value.                                          | `fp-library/src/types/option.rs`       |
 | **`Ordering`** (impls)  | `std::cmp::Ordering`           | Semigroup/Monoid for Ordering.                           |                                        |
 | **`OsStringBrand`**     | `std::ffi::OsString`           | Owned OS string.                                         |                                        |
