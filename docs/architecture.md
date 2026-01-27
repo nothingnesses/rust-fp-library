@@ -57,8 +57,8 @@ The library uses a unified pointer hierarchy to abstract over reference counting
 2. **Shared Memoization:** `Lazy` uses a configuration trait (`LazyConfig`) to abstract over the underlying storage and synchronization primitives, ensuring shared memoization semantics across clones.
 
    - `Lazy<'a, A, Config>` is parameterized by a `LazyConfig` which defines the storage type.
-   - `RcMemo` uses `Rc<LazyCell>` for single-threaded, shared memoization.
-   - `ArcMemo` uses `Arc<LazyLock>` for thread-safe, shared memoization.
+   - `RcLazy` uses `Rc<LazyCell>` for single-threaded, shared memoization.
+   - `ArcLazy` uses `Arc<LazyLock>` for thread-safe, shared memoization.
    - This ensures Haskell-like semantics where forcing one reference updates the value for all clones.
 
 **Reasoning:**
@@ -108,11 +108,11 @@ In lazy languages like Haskell, the runtime manages evaluation strategies automa
 
 **Design Rationale:**
 - **Separation of Concerns:** `Lazy` decouples the *act of computation* from the *act of caching*. This allows any `Thunk` or `Trampoline` to be memoized by simply wrapping it in a `Lazy`.
-- **Shared, Lazy Initialization:** `Lazy` uses Rust's `std::cell::LazyCell` (for `RcMemo`) or `std::sync::LazyLock` (for `ArcMemo`). These types provide "initialization-once" guarantees, ensuring the computation runs exactly one time, no matter how many times `.get()` is called on any clone.
-- **Configuration via `LazyConfig`:** The `LazyConfig` trait abstracts over the choice of pointer (`Rc` vs `Arc`) and lazy cell type, allowing users to select single-threaded (`RcMemo`) or thread-safe (`ArcMemo`) memoization.
+- **Shared, Lazy Initialization:** `Lazy` uses Rust's `std::cell::LazyCell` (for `RcLazy`) or `std::sync::LazyLock` (for `ArcLazy`). These types provide "initialization-once" guarantees, ensuring the computation runs exactly one time, no matter how many times `.get()` is called on any clone.
+- **Configuration via `LazyConfig`:** The `LazyConfig` trait abstracts over the choice of pointer (`Rc` vs `Arc`) and lazy cell type, allowing users to select single-threaded (`RcLazy`) or thread-safe (`ArcLazy`) memoization.
 
 **Trade-offs:**
-- **Allocation and Synchronization:** Caching requires memory allocation for the thunk and, in the case of `ArcMemo`, synchronization primitives. This overhead is justified only for expensive computations.
+- **Allocation and Synchronization:** Caching requires memory allocation for the thunk and, in the case of `ArcLazy`, synchronization primitives. This overhead is justified only for expensive computations.
 - **Not a Control Flow Structure:** `Lazy` is primarily a data container. While it has some monadic properties, it's not the right tool for building complex computational pipelines.
 
 ### 3.4. The Granular Approach in Rust
