@@ -1,7 +1,7 @@
 //! A functor whose effects can be "run" to produce the inner value.
 //!
 //! This trait is used by [`Free::run`](crate::types::Free::run) to execute the effects
-//! in a `Free` monad.
+//! in a [`Free`](crate::types::Free) monad.
 //!
 //! ### Examples
 //!
@@ -17,7 +17,7 @@ use crate::{Apply, classes::functor::Functor, kinds::*};
 /// A functor whose effects can be "run" to produce the inner value.
 ///
 /// This trait is used by [`Free::run`](crate::types::Free::run) to execute the effects
-/// in a `Free` monad.
+/// in a [`Free`](crate::types::Free) monad.
 pub trait Runnable: Functor {
 	/// Runs the effect, producing the inner value.
 	///

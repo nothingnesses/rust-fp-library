@@ -19,7 +19,7 @@ use crate::{Apply, functions::identity, kinds::*};
 pub trait Traversable: Functor + Foldable {
 	/// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
 	///
-	/// The default implementation is defined in terms of [`sequence`] and [`Functor::map`].
+	/// The default implementation is defined in terms of [`sequence`] and [`map`](crate::functions::map).
 	///
 	/// **Note**: This default implementation may be less efficient than a direct implementation because it performs two passes:
 	/// first mapping the function to create an intermediate structure of computations, and then sequencing that structure.

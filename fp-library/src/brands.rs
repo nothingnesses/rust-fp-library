@@ -23,14 +23,14 @@ use crate::classes::{
 };
 use std::marker::PhantomData;
 
-/// Brand for [`std::sync::Arc`] atomic reference-counted pointer.
+/// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcBrand;
 
 /// Brand for [atomically reference-counted][std::sync::Arc]
 /// [closures][Fn] (`Arc<dyn Fn(A) -> B>`).
 ///
-/// This type alias provides a way to construct and type-check [`std::sync::Arc`]-wrapped
+/// This type alias provides a way to construct and type-check [`Arc`](std::sync::Arc)-wrapped
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
 
@@ -112,11 +112,11 @@ pub struct ResultWithOkBrand<T>(T);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepBrand;
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the `Loop` type filled in.
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Loop`](crate::types::Step::Loop) type filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithLoopBrand<A>(PhantomData<A>);
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the `Done` type filled in.
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Done`](crate::types::Step::Done) type filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 

@@ -27,11 +27,11 @@ use crate::{
 ///
 /// A minimal implementation of `Witherable` requires no specific method implementations, as all methods have default implementations based on [`Traversable`] and [`Compactable`](crate::classes::compactable::Compactable).
 ///
-/// However, it is recommended to implement [`Witherable::wilt`] and [`Witherable::wither`] to avoid the intermediate structure created by the default implementations (which use [`Traversable::traverse`] followed by [`Compactable::separate`](crate::classes::compactable::Compactable::separate) or [`Compactable::compact`](crate::classes::compactable::Compactable::compact)).
+/// However, it is recommended to implement [`Witherable::wilt`] and [`Witherable::wither`] to avoid the intermediate structure created by the default implementations (which use [`traverse`](crate::functions::traverse) followed by [`separate`](crate::functions::separate) or [`compact`](crate::functions::compact)).
 pub trait Witherable: Filterable + Traversable {
-	/// Partitions a data structure based on a function that returns a `Result` in an applicative context.
+	/// Partitions a data structure based on a function that returns a [`Result`] in an applicative context.
 	///
-	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::separate`](crate::classes::compactable::Compactable::separate).
+	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`separate`](crate::functions::separate).
 	///
 	/// ### Type Signature
 	///
@@ -47,7 +47,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
+	/// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
 	/// * `ta`: The data structure to partition.
 	///
 	/// ### Returns
@@ -81,9 +81,9 @@ pub trait Witherable: Filterable + Traversable {
 		M::map(|res| Self::separate(res), Self::traverse::<M, Result<O, E>, A, Func>(func, ta))
 	}
 
-	/// Maps a function over a data structure and filters out `None` results in an applicative context.
+	/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
 	///
-	/// The default implementation uses [`Traversable::traverse`] and [`Compactable::compact`](crate::classes::compactable::Compactable::compact).
+	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`compact`](crate::functions::compact).
 	///
 	/// ### Type Signature
 	///
@@ -98,7 +98,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
+	/// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.
 	/// * `ta`: The data structure to filter and map.
 	///
 	/// ### Returns
@@ -130,7 +130,7 @@ pub trait Witherable: Filterable + Traversable {
 	}
 }
 
-/// Partitions a data structure based on a function that returns a `Result` in an applicative context.
+/// Partitions a data structure based on a function that returns a [`Result`] in an applicative context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wilt`].
 ///
@@ -149,7 +149,7 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
+/// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
 /// * `ta`: The data structure to partition.
 ///
 /// ### Returns
@@ -191,7 +191,7 @@ where
 	Brand::wilt::<M, O, E, A, Func>(func, ta)
 }
 
-/// Maps a function over a data structure and filters out `None` results in an applicative context.
+/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wither`].
 ///
@@ -209,7 +209,7 @@ where
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
+/// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.
 /// * `ta`: The data structure to filter and map.
 ///
 /// ### Returns

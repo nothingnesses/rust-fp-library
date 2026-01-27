@@ -265,3 +265,4 @@ This project is licensed under the [Blue Oak Model License 1.0.0](LICENSE).
   - [Class names](https://github.com/ekmett/semigroupoids/issues/26)
 - [Why not Pointed?](https://wiki.haskell.org/Why_not_Pointed%3F)
 - [Pluggable lifetimes](https://docs.rs/generic-std/latest/generic_std/plug/trait.PlugLifetime.html)
+- [Scala Cats](https://typelevel.org/cats/)
