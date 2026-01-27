@@ -22,12 +22,21 @@
 //! assert_eq!(result, vec![1, 2, 3, 4]);
 //! ```
 
-use crate::types::cat_queue::CatQueue;
+use std::collections::VecDeque;
 
 /// A catenable list with O(1) append and O(1) amortized uncons.
 ///
 /// This is the "Reflection without Remorse" data structure that enables
 /// O(1) left-associated bind operations in the Free monad.
+///
+/// ### Performance Notes
+///
+/// This implementation uses a [`VecDeque`] to store sublists, providing:
+///
+/// * **O(1) append**: Sublists are pushed to the back of the deque.
+/// * **O(1) amortized uncons**: Elements are extracted by flattening the deque.
+/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
+///   provides true O(1) operations on both ends without periodic reversal.
 ///
 /// ### Type Parameters
 ///
@@ -45,8 +54,8 @@ pub enum CatList<A> {
 	/// Empty list
 	#[default]
 	Nil,
-	/// Head element plus queue of sublists and total length
-	Cons(A, CatQueue<CatList<A>>, usize),
+	/// Head element plus deque of sublists and total length
+	Cons(A, VecDeque<CatList<A>>, usize),
 }
 
 impl<A> CatList<A> {
@@ -136,7 +145,7 @@ impl<A> CatList<A> {
 	/// ```
 	#[inline]
 	pub fn singleton(a: A) -> Self {
-		CatList::Cons(a, CatQueue::empty(), 1)
+		CatList::Cons(a, VecDeque::new(), 1)
 	}
 
 	/// Appends an element to the front of the list.
@@ -247,7 +256,7 @@ impl<A> CatList<A> {
 
 	/// Internal linking operation.
 	///
-	/// Links two CatLists by enqueueing the second onto the first's sublist queue.
+	/// Links two CatLists by pushing the second onto the first's sublist deque.
 	fn link(
 		left: Self,
 		right: Self,
@@ -255,9 +264,10 @@ impl<A> CatList<A> {
 		match (left, right) {
 			(CatList::Nil, cat) => cat,
 			(cat, CatList::Nil) => cat,
-			(CatList::Cons(a, q, len), cat) => {
+			(CatList::Cons(a, mut q, len), cat) => {
 				let new_len = len + cat.len();
-				CatList::Cons(a, q.snoc(cat), new_len)
+				q.push_back(cat);
+				CatList::Cons(a, q, new_len)
 			}
 		}
 	}
@@ -299,24 +309,23 @@ impl<A> CatList<A> {
 				if q.is_empty() {
 					Some((a, CatList::Nil))
 				} else {
-					// Flatten the queue of sublists into a single CatList
-					let tail = Self::flatten_queue(q);
+					// Flatten the deque of sublists into a single CatList
+					let tail = Self::flatten_deque(q);
 					Some((a, tail))
 				}
 			}
 		}
 	}
 
-	/// Flattens a queue of CatLists into a single CatList.
+	/// Flattens a deque of CatLists into a single CatList.
 	///
-	/// This is equivalent to `foldr link CatNil queue` in PureScript.
+	/// This is equivalent to `foldr link CatNil deque` in PureScript.
 	///
-	/// We use an iterative approach with an explicit stack to avoid
-	/// stack overflow on deeply nested structures.
-	fn flatten_queue(queue: CatQueue<CatList<A>>) -> Self {
+	/// We use an iterative approach to avoid stack overflow on deeply nested structures.
+	fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 		// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 		// We process from right to left using DoubleEndedIterator
-		queue.into_iter().rfold(CatList::Nil, |acc, list| Self::link(list, acc))
+		deque.into_iter().rfold(CatList::Nil, |acc, list| Self::link(list, acc))
 	}
 
 	/// Returns the number of elements.
@@ -426,7 +435,7 @@ mod tests {
 
 	/// Tests the flattening of nested lists.
 	/// We create a nested structure by appending multiple lists: ((1 ++ 2) ++ (3 ++ 4)).
-	/// This exercises the `flatten_queue` logic in `uncons`.
+	/// This exercises the `flatten_deque` logic in `uncons`.
 	/// We verify that the list is flattened correctly and elements are retrieved in order.
 	#[test]
 	fn test_flattening() {

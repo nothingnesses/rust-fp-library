@@ -2,8 +2,6 @@ use criterion::{criterion_group, criterion_main};
 
 #[path = "benchmarks/cat_list.rs"]
 mod cat_list;
-#[path = "benchmarks/cat_queue.rs"]
-mod cat_queue;
 #[path = "benchmarks/functions.rs"]
 mod functions;
 #[path = "benchmarks/option.rs"]
@@ -18,7 +16,6 @@ mod string;
 mod vec;
 
 use cat_list::bench_cat_list;
-use cat_queue::bench_cat_queue;
 use functions::bench_functions;
 use option::bench_option;
 use pair::bench_pair;
@@ -34,7 +31,6 @@ criterion_group!(
 	bench_pair,
 	bench_string,
 	bench_functions,
-	bench_cat_list,
-	bench_cat_queue
+	bench_cat_list
 );
 criterion_main!(benches);

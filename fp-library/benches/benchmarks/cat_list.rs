@@ -1,7 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion};
-use std::hint::black_box;
 use fp_library::types::cat_list::CatList;
 use std::collections::LinkedList;
+use std::hint::black_box;
 
 /// Benchmarks for CatList operations.
 ///
@@ -269,11 +269,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 	{
 		// Build a deeply nested CatList via left-associated appends
 		let nested_cat_list: CatList<i32> = (0..size).fold(CatList::empty(), |acc, i| {
-			if acc.is_empty() {
-				CatList::singleton(i)
-			} else {
-				acc.append(CatList::singleton(i))
-			}
+			if acc.is_empty() { CatList::singleton(i) } else { acc.append(CatList::singleton(i)) }
 		});
 
 		let mut group = c.benchmark_group("CatList Nested Uncons");
@@ -294,21 +290,17 @@ pub fn bench_cat_list(c: &mut Criterion) {
 		);
 		// Compare with a flat CatList built via snoc (simpler structure)
 		let flat_cat_list: CatList<i32> = (0..size).collect();
-		group.bench_with_input(
-			BenchmarkId::new("CatList (flat)", &input_desc),
-			&size,
-			|b, &_| {
-				b.iter_batched(
-					|| flat_cat_list.clone(),
-					|mut l| {
-						while let Some((_, tail)) = l.uncons() {
-							l = tail;
-						}
-					},
-					BatchSize::SmallInput,
-				)
-			},
-		);
+		group.bench_with_input(BenchmarkId::new("CatList (flat)", &input_desc), &size, |b, &_| {
+			b.iter_batched(
+				|| flat_cat_list.clone(),
+				|mut l| {
+					while let Some((_, tail)) = l.uncons() {
+						l = tail;
+					}
+				},
+				BatchSize::SmallInput,
+			)
+		});
 		group.finish();
 	}
 }
