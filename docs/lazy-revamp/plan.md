@@ -77,6 +77,11 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Loom Removal**    | Removed `loom` dependency and associated tests. Since `Memo` uses `std::sync::LazyLock` (standard library), we rely on its correctness rather than verifying synchronization primitives with `loom`. Basic thread-safety is verified with `std::thread` tests. |
 | **Once/Cell Removal** | Removed `Once`, `OnceCell`, and `OnceLock` wrappers and brands. These were largely superseded by `Memo` and the move to standard library types, simplifying the API surface. |
 | **TryClass Removal** | Removed `TrySemigroup` and `TryMonoid` traits as they were underutilized and added unnecessary complexity. |
+| **Thunk Brand**     | Renamed `ThunkFBrand` to `ThunkBrand` for simplicity, as it's the primary brand for `Thunk`. |
+| **Method Names**    | Renamed `flat_map` to `bind`, `now` to `pure`, `later` to `new`, and `force` to `run` to align with the library's standard naming conventions and `Runnable` trait. |
+| **Conversions**     | Replaced specific conversion methods (e.g., `from_memo`, `into_try`) with standard `From` trait implementations for better ergonomics and idiomatic Rust. |
+| **Step Typeclasses**| Implemented `Functor`, `Bifunctor`, `Foldable`, `Traversable`, etc., for `Step` to make it a first-class citizen in the ecosystem. |
+| **Runnable Trait**  | Added `Runnable` trait to abstract over types that can be executed (like `Thunk`, `Task`, `Eval`), replacing ad-hoc `run` or `force` methods. |
 
 ### Blockers
 

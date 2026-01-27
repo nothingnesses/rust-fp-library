@@ -13,7 +13,7 @@ use crate::{
 	},
 	impl_kind,
 	kinds::*,
-	types::{TryEval, step::Step},
+	types::{Memo, MemoConfig, step::Step},
 };
 
 /// A deferred computation that produces a value of type `A`.
@@ -164,7 +164,7 @@ impl<'a, A: 'a> Eval<'a, A> {
 
 	/// Monadic bind: chains computations.
 	///
-	/// Note: Each `flat_map` adds to the call stack. For deep recursion
+	/// Note: Each `bind` adds to the call stack. For deep recursion
 	/// (>1000 levels), use [`Task`](crate::types::Task) instead.
 	///
 	/// ### Type Signature
@@ -189,10 +189,10 @@ impl<'a, A: 'a> Eval<'a, A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let eval = Eval::pure(21).flat_map(|x| Eval::pure(x * 2));
+	/// let eval = Eval::pure(21).bind(|x| Eval::pure(x * 2));
 	/// assert_eq!(eval.run(), 42);
 	/// ```
-	pub fn flat_map<B: 'a, F>(
+	pub fn bind<B: 'a, F>(
 		self,
 		f: F,
 	) -> Eval<'a, B>
@@ -264,32 +264,15 @@ impl<'a, A: 'a> Eval<'a, A> {
 	pub fn run(self) -> A {
 		(self.thunk)()
 	}
+}
 
-	/// Converts to a TryEval that always succeeds.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e a. Eval a -> TryEval a e`
-	///
-	/// ### Type Parameters
-	///
-	/// * `E`: The error type of the resulting `TryEval`.
-	///
-	/// ### Returns
-	///
-	/// A `TryEval` that produces `Ok(value)`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let eval = Eval::pure(42);
-	/// let try_eval: TryEval<i32, ()> = eval.into_try();
-	/// assert_eq!(try_eval.run(), Ok(42));
-	/// ```
-	pub fn into_try<E: 'a>(self) -> TryEval<'a, A, E> {
-		TryEval::new(move || Ok(self.run()))
+impl<'a, A, Config> From<Memo<'a, A, Config>> for Eval<'a, A>
+where
+	A: Clone + 'a,
+	Config: MemoConfig,
+{
+	fn from(memo: Memo<'a, A, Config>) -> Self {
+		Eval::new(move || memo.get().clone())
 	}
 }
 
@@ -427,7 +410,7 @@ impl Lift for EvalBrand {
 		B: Clone + 'a,
 		C: 'a,
 	{
-		fa.flat_map(move |a| fb.map(move |b| f(a, b)))
+		fa.bind(move |a| fb.map(move |b| f(a, b)))
 	}
 }
 
@@ -470,7 +453,7 @@ impl Semiapplicative for EvalBrand {
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		ff.flat_map(move |f| {
+		ff.bind(move |f| {
 			fa.map(
 				#[allow(clippy::redundant_closure)]
 				move |a| f(a),
@@ -521,7 +504,7 @@ impl Semimonad for EvalBrand {
 	where
 		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.flat_map(f)
+		ma.bind(f)
 	}
 }
 
@@ -580,7 +563,7 @@ impl MonadRec for EvalBrand {
 		{
 			let f_clone = f.clone(); // Clone for the recursive call
 			Eval::defer(move || {
-				f(a).flat_map(move |step| match step {
+				f(a).bind(move |step| match step {
 					Step::Loop(next) => go(f_clone.clone(), next),
 					Step::Done(b) => Eval::pure(b),
 				})
@@ -765,12 +748,12 @@ mod tests {
 		assert_eq!(eval.run(), 42);
 	}
 
-	/// Tests `Eval::flat_map`.
+	/// Tests `Eval::bind`.
 	///
-	/// Verifies that `flat_map` chains computations correctly.
+	/// Verifies that `bind` chains computations correctly.
 	#[test]
-	fn test_flat_map() {
-		let eval = Eval::pure(21).flat_map(|x| Eval::pure(x * 2));
+	fn test_bind() {
+		let eval = Eval::pure(21).bind(|x| Eval::pure(x * 2));
 		assert_eq!(eval.run(), 42);
 	}
 
@@ -783,13 +766,12 @@ mod tests {
 		assert_eq!(eval.run(), 42);
 	}
 
-	/// Tests `Eval::into_try`.
-	///
-	/// Verifies that `into_try` converts an `Eval` into a `TryEval` that succeeds.
+	/// Tests `From<Memo>`.
 	#[test]
-	fn test_into_try() {
-		let eval = Eval::pure(42);
-		let try_eval: TryEval<i32, ()> = eval.into_try();
-		assert_eq!(try_eval.run(), Ok(42));
+	fn test_eval_from_memo() {
+		use crate::types::RcMemo;
+		let memo = RcMemo::new(|| 42);
+		let eval = Eval::from(memo);
+		assert_eq!(eval.run(), 42);
 	}
 }

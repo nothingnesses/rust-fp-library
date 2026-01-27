@@ -3,6 +3,8 @@
 //! This module provides the [`TryEval`] type, which represents a deferred computation that may fail.
 //! It is the fallible counterpart to [`Eval`](crate::types::Eval).
 
+use crate::types::{Eval, Memo, MemoConfig, TryMemo};
+
 /// A deferred computation that may fail with error type `E`.
 ///
 /// Like [`Eval`](crate::types::Eval), this is NOT memoized. Each `run()` re-executes.
@@ -98,6 +100,37 @@ impl<'a, A: 'a, E: 'a> TryEval<'a, A, E> {
 		TryEval::new(move || Ok(a))
 	}
 
+	/// Alias for [`pure`](Self::pure).
+	///
+	/// Creates a successful computation.
+	///
+	/// ### Type Signature
+	///
+	/// `forall e a. a -> TryEval a e`
+	///
+	/// ### Parameters
+	///
+	/// * `a`: The value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new `TryEval` instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let try_eval: TryEval<i32, ()> = TryEval::ok(42);
+	/// assert_eq!(try_eval.run(), Ok(42));
+	/// ```
+	pub fn ok(a: A) -> Self
+	where
+		A: 'a,
+	{
+		Self::pure(a)
+	}
+
 	/// Returns a pure error.
 	///
 	/// ### Type Signature
@@ -151,10 +184,10 @@ impl<'a, A: 'a, E: 'a> TryEval<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryEval<i32, ()> = TryEval::pure(21).flat_map(|x| TryEval::pure(x * 2));
+	/// let try_eval: TryEval<i32, ()> = TryEval::pure(21).bind(|x| TryEval::pure(x * 2));
 	/// assert_eq!(try_eval.run(), Ok(42));
 	/// ```
-	pub fn flat_map<B: 'a, F>(
+	pub fn bind<B: 'a, F>(
 		self,
 		f: F,
 	) -> TryEval<'a, B, E>
@@ -165,6 +198,45 @@ impl<'a, A: 'a, E: 'a> TryEval<'a, A, E> {
 			Ok(a) => (f(a).thunk)(),
 			Err(e) => Err(e),
 		})
+	}
+
+	/// Alias for [`bind`](Self::bind).
+	///
+	/// Chains computations.
+	///
+	/// ### Type Signature
+	///
+	/// `forall e b a. (a -> TryEval b e, TryEval a e) -> TryEval b e`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the result of the new computation.
+	/// * `F`: The type of the function to apply.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The function to apply to the result of the computation.
+	///
+	/// ### Returns
+	///
+	/// A new `TryEval` instance representing the chained computation.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let try_eval: TryEval<i32, ()> = TryEval::ok(21).and_then(|x| TryEval::ok(x * 2));
+	/// assert_eq!(try_eval.run(), Ok(42));
+	/// ```
+	pub fn and_then<B: 'a, F>(
+		self,
+		f: F,
+	) -> TryEval<'a, B, E>
+	where
+		F: FnOnce(A) -> TryEval<'a, B, E> + 'a,
+	{
+		self.bind(f)
 	}
 
 	/// Functor map: transforms the result.
@@ -264,6 +336,34 @@ impl<'a, A: 'a, E: 'a> TryEval<'a, A, E> {
 	}
 }
 
+impl<'a, A, E, Config> From<Memo<'a, A, Config>> for TryEval<'a, A, E>
+where
+	A: Clone + 'a,
+	E: 'a,
+	Config: MemoConfig,
+{
+	fn from(memo: Memo<'a, A, Config>) -> Self {
+		TryEval::new(move || Ok(memo.get().clone()))
+	}
+}
+
+impl<'a, A, E, Config> From<TryMemo<'a, A, E, Config>> for TryEval<'a, A, E>
+where
+	A: Clone + 'a,
+	E: Clone + 'a,
+	Config: MemoConfig,
+{
+	fn from(memo: TryMemo<'a, A, E, Config>) -> Self {
+		TryEval::new(move || memo.get().cloned().map_err(Clone::clone))
+	}
+}
+
+impl<'a, A: 'a, E: 'a> From<Eval<'a, A>> for TryEval<'a, A, E> {
+	fn from(eval: Eval<'a, A>) -> Self {
+		TryEval::new(move || Ok(eval.run()))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -304,12 +404,12 @@ mod tests {
 		assert_eq!(try_eval.run(), Err(42));
 	}
 
-	/// Tests `TryEval::flat_map`.
+	/// Tests `TryEval::bind`.
 	///
-	/// Verifies that `flat_map` chains computations.
+	/// Verifies that `bind` chains computations.
 	#[test]
-	fn test_flat_map() {
-		let try_eval: TryEval<i32, ()> = TryEval::pure(21).flat_map(|x| TryEval::pure(x * 2));
+	fn test_bind() {
+		let try_eval: TryEval<i32, ()> = TryEval::pure(21).bind(|x| TryEval::pure(x * 2));
 		assert_eq!(try_eval.run(), Ok(42));
 	}
 
@@ -323,12 +423,12 @@ mod tests {
 		assert_eq!(try_eval.run(), Ok(&42));
 	}
 
-	/// Tests `TryEval::flat_map` failure propagation.
+	/// Tests `TryEval::bind` failure propagation.
 	///
 	/// Verifies that if the first computation fails, the second one is not executed.
 	#[test]
-	fn test_flat_map_failure() {
-		let try_eval = TryEval::<i32, &str>::err("error").flat_map(|x| TryEval::pure(x * 2));
+	fn test_bind_failure() {
+		let try_eval = TryEval::<i32, &str>::err("error").bind(|x| TryEval::pure(x * 2));
 		assert_eq!(try_eval.run(), Err("error"));
 	}
 
@@ -347,6 +447,34 @@ mod tests {
 	#[test]
 	fn test_map_err_success() {
 		let try_eval = TryEval::<i32, &str>::pure(42).map_err(|_| "new error");
+		assert_eq!(try_eval.run(), Ok(42));
+	}
+
+	/// Tests `From<Memo>`.
+	#[test]
+	fn test_try_eval_from_memo() {
+		use crate::types::RcMemo;
+		let memo = RcMemo::new(|| 42);
+		let try_eval: TryEval<i32, ()> = TryEval::from(memo);
+		assert_eq!(try_eval.run(), Ok(42));
+	}
+
+	/// Tests `From<TryMemo>`.
+	#[test]
+	fn test_try_eval_from_try_memo() {
+		use crate::types::RcTryMemo;
+		let memo = RcTryMemo::new(|| Ok(42));
+		let try_eval: TryEval<i32, ()> = TryEval::from(memo);
+		assert_eq!(try_eval.run(), Ok(42));
+	}
+
+	/// Tests `Eval::into_try`.
+	///
+	/// Verifies that `From<Eval>` converts an `Eval` into a `TryEval` that succeeds.
+	#[test]
+	fn test_try_eval_from_eval() {
+		let eval = Eval::pure(42);
+		let try_eval: TryEval<i32, ()> = TryEval::from(eval);
 		assert_eq!(try_eval.run(), Ok(42));
 	}
 }

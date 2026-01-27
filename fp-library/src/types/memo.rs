@@ -2,17 +2,18 @@
 //!
 //! This module provides the [`Memo`] type and its configuration trait [`MemoConfig`].
 
-use std::cell::LazyCell;
-use std::rc::Rc;
-use std::sync::{Arc, LazyLock};
-
 use crate::{
 	Apply,
 	brands::MemoBrand,
-	classes::ref_functor::RefFunctor,
+	classes::{CloneableFn, Defer, RefFunctor, SendDefer},
 	impl_kind,
 	kinds::*,
-	types::{Eval, Task, TryMemo},
+	types::{Eval, Task},
+};
+use std::{
+	cell::LazyCell,
+	rc::Rc,
+	sync::{Arc, LazyLock},
 };
 
 /// Configuration for memoization strategy.
@@ -530,93 +531,20 @@ where
 	{
 		Memo { inner: RcMemoConfig::new_lazy(Box::new(f)) }
 	}
+}
 
-	/// Creates a Memo from an Eval.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. Eval a -> Memo a`
-	///
-	/// ### Parameters
-	///
-	/// * `eval`: The `Eval` computation to memoize.
-	///
-	/// ### Returns
-	///
-	/// A new `Memo` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let eval = Eval::new(|| 42);
-	/// let memo = Memo::<_, RcMemoConfig>::from_eval(eval);
-	/// assert_eq!(*memo.get(), 42);
-	/// ```
-	pub fn from_eval(eval: Eval<'a, A>) -> Self {
+impl<'a, A> From<Eval<'a, A>> for Memo<'a, A, RcMemoConfig> {
+	fn from(eval: Eval<'a, A>) -> Self {
 		Self::new(move || eval.run())
 	}
+}
 
-	/// Creates a Memo from a Task.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. Task a -> Memo a`
-	///
-	/// ### Parameters
-	///
-	/// * `task`: The `Task` computation to memoize.
-	///
-	/// ### Returns
-	///
-	/// A new `Memo` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task = Task::now(42);
-	/// let memo = Memo::<_, RcMemoConfig>::from_task(task);
-	/// assert_eq!(*memo.get(), 42);
-	/// ```
-	pub fn from_task(task: Task<A>) -> Self
-	where
-		A: Send,
-	{
+impl<'a, A> From<Task<A>> for Memo<'a, A, RcMemoConfig>
+where
+	A: Send,
+{
+	fn from(task: Task<A>) -> Self {
 		Self::new(move || task.run())
-	}
-
-	/// Converts to a TryMemo that always succeeds.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e a. Memo a -> TryMemo a e`
-	///
-	/// ### Type Parameters
-	///
-	/// * `E`: The error type (which will never occur).
-	///
-	/// ### Returns
-	///
-	/// A `TryMemo` that always returns `Ok`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 42);
-	/// let try_memo: TryMemo<i32, (), RcMemoConfig> = memo.into_try();
-	/// assert_eq!(try_memo.get(), Ok(&42));
-	/// ```
-	pub fn into_try<E>(self) -> TryMemo<'a, A, E, RcMemoConfig>
-	where
-		A: Clone,
-		E: 'a,
-	{
-		TryMemo::<'a, A, E, RcMemoConfig>::new(move || Ok(self.get().clone()))
 	}
 }
 
@@ -656,37 +584,6 @@ where
 	{
 		Memo { inner: ArcMemoConfig::new_lazy(Box::new(f)) }
 	}
-
-	/// Converts to a TryMemo that always succeeds.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e a. Memo a -> TryMemo a e`
-	///
-	/// ### Type Parameters
-	///
-	/// * `E`: The error type (which will never occur).
-	///
-	/// ### Returns
-	///
-	/// A `TryMemo` that always returns `Ok`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = Memo::<_, ArcMemoConfig>::new(|| 42);
-	/// let try_memo: TryMemo<i32, (), ArcMemoConfig> = memo.into_try();
-	/// assert_eq!(try_memo.get(), Ok(&42));
-	/// ```
-	pub fn into_try<E>(self) -> TryMemo<'a, A, E, ArcMemoConfig>
-	where
-		A: Clone + Send + Sync,
-		E: 'a + Send + Sync,
-	{
-		TryMemo::<'a, A, E, ArcMemoConfig>::new(move || Ok(self.get().clone()))
-	}
 }
 
 /// Single-threaded memoization alias.
@@ -701,13 +598,11 @@ impl_kind! {
 	}
 }
 
-impl<'a, A> crate::classes::defer::Defer<'a> for Memo<'a, A, RcMemoConfig>
+impl<'a, A> Defer<'a> for Memo<'a, A, RcMemoConfig>
 where
 	A: Clone + 'a,
 {
-	fn defer<FnBrand: 'a + crate::classes::cloneable_fn::CloneableFn>(
-		f: <FnBrand as crate::classes::cloneable_fn::CloneableFn>::Of<'a, (), Self>
-	) -> Self
+	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
 	{
@@ -715,7 +610,7 @@ where
 	}
 }
 
-impl crate::classes::send_defer::SendDefer for MemoBrand<ArcMemoConfig> {
+impl SendDefer for MemoBrand<ArcMemoConfig> {
 	fn send_defer<'a, A>(
 		thunk: impl 'a
 		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -856,31 +751,23 @@ mod tests {
 
 	/// Tests creation from `Eval`.
 	///
-	/// Verifies `from_eval` works correctly.
+	/// Verifies `From<Eval>` works correctly.
 	#[test]
-	fn test_from_eval() {
+	fn test_memo_from_eval() {
 		let eval = Eval::new(|| 42);
-		let memo = RcMemo::from_eval(eval);
+		let memo = RcMemo::from(eval);
 		assert_eq!(*memo.get(), 42);
 	}
 
 	/// Tests creation from `Task`.
 	///
-	/// Verifies `from_task` works correctly.
+	/// Verifies `From<Task>` works correctly.
 	#[test]
-	fn test_from_task() {
+	fn test_memo_from_task() {
 		// Task requires Send, so we use a Send-compatible value
-		let task = Task::now(42);
-		let memo = RcMemo::from_task(task);
+		let task = Task::pure(42);
+		let memo = RcMemo::from(task);
 		assert_eq!(*memo.get(), 42);
-	}
-
-	/// Tests conversion to TryMemo.
-	#[test]
-	fn test_into_try() {
-		let memo = RcMemo::new(|| 42);
-		let try_memo: crate::types::RcTryMemo<i32, ()> = memo.into_try();
-		assert_eq!(try_memo.get(), Ok(&42));
 	}
 
 	/// Tests Defer implementation.

@@ -10,8 +10,8 @@ use crate::{
 	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	classes::{
 		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor, lift::Lift,
-		monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
+		bifunctor::Bifunctor, cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor,
+		lift::Lift, monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
 		semiapplicative::Semiapplicative, semimonad::Semimonad, send_cloneable_fn::SendCloneableFn,
 		traversable::Traversable,
 	},
@@ -22,6 +22,67 @@ use crate::{
 impl_kind! {
 	for ResultBrand {
 		type Of<A, B> = Result<B, A>;
+	}
+}
+
+impl_kind! {
+	for ResultBrand {
+		type Of<'a, A: 'a, B: 'a>: 'a = Result<B, A>;
+	}
+}
+
+impl Bifunctor for ResultBrand {
+	/// Maps functions over the values in the result.
+	///
+	/// This method applies one function to the error value and another to the success value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a b c d. Bifunctor Result => (a -> b, c -> d, Result c a) -> Result d b`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the error value.
+	/// * `B`: The type of the mapped error value.
+	/// * `C`: The type of the success value.
+	/// * `D`: The type of the mapped success value.
+	/// * `F`: The type of the function to apply to the error.
+	/// * `G`: The type of the function to apply to the success.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The function to apply to the error.
+	/// * `g`: The function to apply to the success.
+	/// * `p`: The result to map over.
+	///
+	/// ### Returns
+	///
+	/// A new result containing the mapped values.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::bifunctor::*, functions::*};
+	///
+	/// let x: Result<i32, i32> = Ok(5);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+	///
+	/// let y: Result<i32, i32> = Err(5);
+	/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+	/// ```
+	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+		f: F,
+		g: G,
+		p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+	where
+		F: Fn(A) -> B + 'a,
+		G: Fn(C) -> D + 'a,
+	{
+		match p {
+			Ok(c) => Ok(g(c)),
+			Err(a) => Err(f(a)),
+		}
 	}
 }
 
@@ -1288,8 +1349,44 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{brands::*, functions::*};
+	use crate::{brands::*, classes::bifunctor::*, functions::*};
 	use quickcheck_macros::quickcheck;
+
+	// Bifunctor Tests
+
+	/// Tests `bimap` on `Ok` and `Err`.
+	#[test]
+	fn test_bimap() {
+		let x: Result<i32, i32> = Ok(5);
+		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+
+		let y: Result<i32, i32> = Err(5);
+		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+	}
+
+	// Bifunctor Laws
+
+	/// Tests the identity law for Bifunctor.
+	#[quickcheck]
+	fn bifunctor_identity(x: Result<i32, i32>) -> bool {
+		bimap::<ResultBrand, _, _, _, _, _, _>(identity, identity, x) == x
+	}
+
+	/// Tests the composition law for Bifunctor.
+	#[quickcheck]
+	fn bifunctor_composition(x: Result<i32, i32>) -> bool {
+		let f = |x: i32| x.wrapping_add(1);
+		let g = |x: i32| x.wrapping_mul(2);
+		let h = |x: i32| x.wrapping_sub(1);
+		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
+
+		bimap::<ResultBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x)
+			== bimap::<ResultBrand, _, _, _, _, _, _>(
+				f,
+				h,
+				bimap::<ResultBrand, _, _, _, _, _, _>(g, i, x),
+			)
+	}
 
 	// Functor Laws
 

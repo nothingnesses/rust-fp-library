@@ -1,6 +1,5 @@
 ### Tasks to do & ideas to look into
 
-	At each stage, ensure implementations are extensively tested with tests.
 * Add trait methods for type classes and methods for brand/type structs.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).

@@ -10,12 +10,12 @@
 //!
 //! let task: TryTask<i32, String> = TryTask::ok(10)
 //!     .map(|x| x * 2)
-//!     .and_then(|x| TryTask::ok(x + 5));
+//!     .bind(|x| TryTask::ok(x + 5));
 //!
 //! assert_eq!(task.run(), Ok(25));
 //! ```
 
-use crate::types::task::Task;
+use crate::types::{Memo, MemoConfig, TryMemo, task::Task};
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///
@@ -71,7 +71,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn ok(a: A) -> Self {
-		TryTask { inner: Task::now(Ok(a)) }
+		TryTask { inner: Task::pure(Ok(a)) }
 	}
 
 	/// Creates a failed `TryTask`.
@@ -102,7 +102,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// assert_eq!(task.run(), Err("error".to_string()));
 	/// ```
 	pub fn err(e: E) -> Self {
-		TryTask { inner: Task::now(Err(e)) }
+		TryTask { inner: Task::pure(Err(e)) }
 	}
 
 	/// Creates a lazy `TryTask` that may fail.
@@ -130,14 +130,14 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::try_later(|| Ok(42));
+	/// let task: TryTask<i32, String> = TryTask::new(|| Ok(42));
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
-	pub fn try_later<F>(f: F) -> Self
+	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Result<A, E> + 'static,
 	{
-		TryTask { inner: Task::later(f) }
+		TryTask { inner: Task::new(f) }
 	}
 
 	/// Maps over the success value.
@@ -239,6 +239,50 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
+	/// let task: TryTask<i32, String> = TryTask::ok(10).bind(|x| TryTask::ok(x * 2));
+	/// assert_eq!(task.run(), Ok(20));
+	/// ```
+	pub fn bind<B: 'static + Send, F>(
+		self,
+		f: F,
+	) -> TryTask<B, E>
+	where
+		F: FnOnce(A) -> TryTask<B, E> + 'static,
+	{
+		TryTask {
+			inner: self.inner.bind(|result| match result {
+				Ok(a) => f(a).inner,
+				Err(e) => Task::pure(Err(e)),
+			}),
+		}
+	}
+
+	/// Alias for [`bind`](Self::bind).
+	///
+	/// Chains fallible computations.
+	///
+	/// ### Type Signature
+	///
+	/// `forall e b a. (a -> TryTask b e, TryTask a e) -> TryTask b e`
+	///
+	/// ### Type Parameters
+	///
+	/// * `B`: The type of the new success value.
+	/// * `F`: The type of the binding function.
+	///
+	/// ### Parameters
+	///
+	/// * `f`: The function to apply to the success value.
+	///
+	/// ### Returns
+	///
+	/// A new `TryTask` that chains `f` after this task.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
 	/// let task: TryTask<i32, String> = TryTask::ok(10).and_then(|x| TryTask::ok(x * 2));
 	/// assert_eq!(task.run(), Ok(20));
 	/// ```
@@ -249,12 +293,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	where
 		F: FnOnce(A) -> TryTask<B, E> + 'static,
 	{
-		TryTask {
-			inner: self.inner.flat_map(|result| match result {
-				Ok(a) => f(a).inner,
-				Err(e) => Task::now(Err(e)),
-			}),
-		}
+		self.bind(f)
 	}
 
 	/// Recovers from an error.
@@ -292,8 +331,8 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 		F: FnOnce(E) -> TryTask<A, E> + 'static,
 	{
 		TryTask {
-			inner: self.inner.flat_map(|result| match result {
-				Ok(a) => Task::now(Ok(a)),
+			inner: self.inner.bind(|result| match result {
+				Ok(a) => Task::pure(Ok(a)),
 				Err(e) => f(e).inner,
 			}),
 		}
@@ -319,6 +358,38 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// ```
 	pub fn run(self) -> Result<A, E> {
 		self.inner.run()
+	}
+}
+
+impl<A, E> From<Task<A>> for TryTask<A, E>
+where
+	A: Send + 'static,
+	E: Send + 'static,
+{
+	fn from(task: Task<A>) -> Self {
+		TryTask::new(move || Ok(task.run()))
+	}
+}
+
+impl<A, E, Config> From<Memo<'static, A, Config>> for TryTask<A, E>
+where
+	A: Clone + Send + 'static,
+	E: Send + 'static,
+	Config: MemoConfig,
+{
+	fn from(memo: Memo<'static, A, Config>) -> Self {
+		TryTask::new(move || Ok(memo.get().clone()))
+	}
+}
+
+impl<A, E, Config> From<TryMemo<'static, A, E, Config>> for TryTask<A, E>
+where
+	A: Clone + Send + 'static,
+	E: Clone + Send + 'static,
+	Config: MemoConfig,
+{
+	fn from(memo: TryMemo<'static, A, E, Config>) -> Self {
+		TryTask::new(move || memo.get().cloned().map_err(Clone::clone))
 	}
 }
 
@@ -363,12 +434,12 @@ mod tests {
 		assert_eq!(task.run(), Err("ERROR".to_string()));
 	}
 
-	/// Tests `TryTask::and_then`.
+	/// Tests `TryTask::bind`.
 	///
-	/// Verifies that `and_then` chains computations.
+	/// Verifies that `bind` chains computations.
 	#[test]
-	fn test_try_task_and_then() {
-		let task: TryTask<i32, String> = TryTask::ok(10).and_then(|x| TryTask::ok(x * 2));
+	fn test_try_task_bind() {
+		let task: TryTask<i32, String> = TryTask::ok(10).bind(|x| TryTask::ok(x * 2));
 		assert_eq!(task.run(), Ok(20));
 	}
 
@@ -382,12 +453,38 @@ mod tests {
 		assert_eq!(task.run(), Ok(42));
 	}
 
-	/// Tests `TryTask::try_later`.
+	/// Tests `TryTask::new`.
 	///
-	/// Verifies that `try_later` creates a lazy task.
+	/// Verifies that `new` creates a lazy task.
 	#[test]
-	fn test_try_task_try_later() {
-		let task: TryTask<i32, String> = TryTask::try_later(|| Ok(42));
+	fn test_try_task_new() {
+		let task: TryTask<i32, String> = TryTask::new(|| Ok(42));
 		assert_eq!(task.run(), Ok(42));
+	}
+
+	/// Tests `From<Task>`.
+	#[test]
+	fn test_try_task_from_task() {
+		let task = Task::pure(42);
+		let try_task: TryTask<i32, String> = TryTask::from(task);
+		assert_eq!(try_task.run(), Ok(42));
+	}
+
+	/// Tests `From<Memo>`.
+	#[test]
+	fn test_try_task_from_memo() {
+		use crate::types::ArcMemo;
+		let memo = ArcMemo::new(|| 42);
+		let try_task: TryTask<i32, String> = TryTask::from(memo);
+		assert_eq!(try_task.run(), Ok(42));
+	}
+
+	/// Tests `From<TryMemo>`.
+	#[test]
+	fn test_try_task_from_try_memo() {
+		use crate::types::ArcTryMemo;
+		let memo = ArcTryMemo::new(|| Ok(42));
+		let try_task: TryTask<i32, String> = TryTask::from(memo);
+		assert_eq!(try_task.run(), Ok(42));
 	}
 }

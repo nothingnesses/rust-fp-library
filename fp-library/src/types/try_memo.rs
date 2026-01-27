@@ -1,6 +1,6 @@
 //! Implementations for [`TryMemo`], a lazily-computed, memoized fallible value.
 
-use crate::types::{ArcMemoConfig, MemoConfig, RcMemoConfig, TryEval, TryTask};
+use crate::types::{ArcMemoConfig, Memo, MemoConfig, RcMemoConfig, TryEval, TryTask};
 
 /// A lazily-computed, memoized value that may fail.
 ///
@@ -95,63 +95,41 @@ where
 	{
 		TryMemo { inner: RcMemoConfig::new_try_lazy(Box::new(f)) }
 	}
+}
 
-	/// Creates a TryMemo from a TryEval.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e a. TryEval a e -> TryMemo a e`
-	///
-	/// ### Parameters
-	///
-	/// * `eval`: The `TryEval` computation to memoize.
-	///
-	/// ### Returns
-	///
-	/// A new `TryMemo` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let eval = TryEval::new(|| Ok::<i32, ()>(42));
-	/// let memo = TryMemo::<_, _, RcMemoConfig>::from_try_eval(eval);
-	/// assert_eq!(memo.get(), Ok(&42));
-	/// ```
-	pub fn from_try_eval(eval: TryEval<'a, A, E>) -> Self {
+impl<'a, A, E> From<TryEval<'a, A, E>> for TryMemo<'a, A, E, RcMemoConfig> {
+	fn from(eval: TryEval<'a, A, E>) -> Self {
 		Self::new(move || eval.run())
 	}
+}
 
-	/// Creates a TryMemo from a TryTask.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e a. TryTask a e -> TryMemo a e`
-	///
-	/// ### Parameters
-	///
-	/// * `task`: The `TryTask` computation to memoize.
-	///
-	/// ### Returns
-	///
-	/// A new `TryMemo` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task = TryTask::<i32, ()>::ok(42);
-	/// let memo = TryMemo::<_, _, RcMemoConfig>::from_try_task(task);
-	/// assert_eq!(memo.get(), Ok(&42));
-	/// ```
-	pub fn from_try_task(task: TryTask<A, E>) -> Self
-	where
-		A: Send,
-		E: Send,
-	{
+impl<'a, A, E> From<TryTask<A, E>> for TryMemo<'a, A, E, RcMemoConfig>
+where
+	A: Send,
+	E: Send,
+{
+	fn from(task: TryTask<A, E>) -> Self {
 		Self::new(move || task.run())
+	}
+}
+
+impl<'a, A, E> From<Memo<'a, A, ArcMemoConfig>> for TryMemo<'a, A, E, ArcMemoConfig>
+where
+	A: Clone + Send + Sync + 'a,
+	E: Send + Sync + 'a,
+{
+	fn from(memo: Memo<'a, A, ArcMemoConfig>) -> Self {
+		Self::new(move || Ok(memo.get().clone()))
+	}
+}
+
+impl<'a, A, E> From<Memo<'a, A, RcMemoConfig>> for TryMemo<'a, A, E, RcMemoConfig>
+where
+	A: Clone + 'a,
+	E: 'a,
+{
+	fn from(memo: Memo<'a, A, RcMemoConfig>) -> Self {
+		Self::new(move || Ok(memo.get().clone()))
 	}
 }
 
@@ -253,6 +231,8 @@ pub type ArcTryMemo<'a, A, E> = TryMemo<'a, A, E, ArcMemoConfig>;
 
 #[cfg(test)]
 mod tests {
+	use crate::types::RcMemo;
+
 	use super::*;
 	use std::cell::RefCell;
 	use std::rc::Rc;
@@ -334,17 +314,34 @@ mod tests {
 
 	/// Tests creation from `TryEval`.
 	#[test]
-	fn test_from_try_eval() {
+	fn test_try_memo_from_try_eval() {
 		let eval = TryEval::new(|| Ok::<i32, ()>(42));
-		let memo = RcTryMemo::from_try_eval(eval);
+		let memo = RcTryMemo::from(eval);
 		assert_eq!(memo.get(), Ok(&42));
 	}
 
 	/// Tests creation from `TryTask`.
 	#[test]
-	fn test_from_try_task() {
+	fn test_try_memo_from_try_task() {
 		let task = TryTask::<i32, ()>::ok(42);
-		let memo = RcTryMemo::from_try_task(task);
+		let memo = RcTryMemo::from(task);
 		assert_eq!(memo.get(), Ok(&42));
+	}
+
+	/// Tests conversion to TryMemo.
+	#[test]
+	fn test_try_memo_from_rc_memo() {
+		let memo = RcMemo::new(|| 42);
+		let try_memo: crate::types::RcTryMemo<i32, ()> = crate::types::RcTryMemo::from(memo);
+		assert_eq!(try_memo.get(), Ok(&42));
+	}
+
+	/// Tests conversion to ArcTryMemo.
+	#[test]
+	fn test_try_memo_from_arc_memo() {
+		use crate::types::ArcMemo;
+		let memo = ArcMemo::new(|| 42);
+		let try_memo: crate::types::ArcTryMemo<i32, ()> = crate::types::ArcTryMemo::from(memo);
+		assert_eq!(try_memo.get(), Ok(&42));
 	}
 }

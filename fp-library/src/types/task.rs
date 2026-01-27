@@ -8,22 +8,22 @@
 //! ```
 //! use fp_library::types::*;
 //!
-//! let task = Task::later(|| 1 + 1)
-//!     .flat_map(|x| Task::later(move || x * 2))
-//!     .flat_map(|x| Task::later(move || x + 10));
+//! let task = Task::new(|| 1 + 1)
+//!     .bind(|x| Task::new(move || x * 2))
+//!     .bind(|x| Task::new(move || x + 10));
 //!
 //! assert_eq!(task.run(), 14);
 //! ```
 
 use crate::{
-	brands::ThunkFBrand,
+	brands::ThunkBrand,
 	types::{Memo, MemoConfig, free::Free, step::Step, thunk::Thunk},
 };
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
 /// `Task` is the "heavy-duty" monadic type for deferred computations that
-/// require **guaranteed stack safety**. It is built on `Free<ThunkF, A>` with
+/// require **guaranteed stack safety**. It is built on `Free<Thunk, A>` with
 /// CatList-based bind stack, ensuring O(1) bind operations and unlimited recursion
 /// depth without stack overflow.
 ///
@@ -34,7 +34,7 @@ use crate::{
 /// # Guarantees
 ///
 /// - **Stack safe**: Will not overflow regardless of recursion depth
-/// - **O(1) bind**: Left-associated `flat_map` chains don't degrade
+/// - **O(1) bind**: Left-associated `bind` chains don't degrade
 /// - **Lazy**: Computation is deferred until `run()` is called
 ///
 /// # When to Use Task vs Eval
@@ -50,7 +50,7 @@ use crate::{
 /// ```rust
 /// use fp_library::types::*;
 ///
-/// let memo: Memo<i32> = Memo::<_, RcMemoConfig>::new(|| Task::later(|| 1 + 1).run());
+/// let memo: Memo<i32> = Memo::<_, RcMemoConfig>::new(|| Task::new(|| 1 + 1).run());
 /// memo.get(); // Computes
 /// memo.get(); // Returns cached
 /// ```
@@ -68,14 +68,14 @@ use crate::{
 /// ```
 /// use fp_library::types::*;
 ///
-/// let task = Task::later(|| 1 + 1)
-///     .flat_map(|x| Task::later(move || x * 2))
-///     .flat_map(|x| Task::later(move || x + 10));
+/// let task = Task::new(|| 1 + 1)
+///     .bind(|x| Task::new(move || x * 2))
+///     .bind(|x| Task::new(move || x + 10));
 ///
 /// assert_eq!(task.run(), 14);
 /// ```
 pub struct Task<A: 'static> {
-	inner: Free<ThunkFBrand, A>,
+	inner: Free<ThunkBrand, A>,
 }
 
 impl<A: 'static + Send> Task<A> {
@@ -107,43 +107,12 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task = Task::now(42);
-	/// assert_eq!(task.run(), 42);
-	/// ```
-	#[inline]
-	pub fn now(a: A) -> Self {
-		Task { inner: Free::pure(a) }
-	}
-
-	/// Alias for `now` - PureScript style.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. a -> Task a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the value.
-	///
-	/// ### Parameters
-	///
-	/// * `a`: The value to wrap.
-	///
-	/// ### Returns
-	///
-	/// A `Task` that produces the value `a`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
 	/// let task = Task::pure(42);
 	/// assert_eq!(task.run(), 42);
 	/// ```
 	#[inline]
 	pub fn pure(a: A) -> Self {
-		Self::now(a)
+		Task { inner: Free::pure(a) }
 	}
 
 	/// Creates a lazy `Task` that computes `f` on first `run()`.
@@ -177,7 +146,7 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task = Task::later(|| {
+	/// let task = Task::new(|| {
 	///     // println!("Computing!");
 	///     1 + 1
 	/// });
@@ -186,49 +155,11 @@ impl<A: 'static + Send> Task<A> {
 	/// let result = task.run(); // Prints "Computing!"
 	/// ```
 	#[inline]
-	pub fn later<F>(f: F) -> Self
+	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + 'static,
 	{
 		Task { inner: Free::roll(Thunk::new(move || Free::pure(f()))) }
-	}
-
-	/// Alias for `later` - semantically same since we don't memoize.
-	///
-	/// In Cats, `always` differs from `later` in that it re-evaluates.
-	/// Since our `Task` always re-evaluates, this is just an alias.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. (Unit -> a) -> Task a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the value produced by the closure.
-	/// * `F`: The type of the closure.
-	///
-	/// ### Parameters
-	///
-	/// * `f`: The closure to execute.
-	///
-	/// ### Returns
-	///
-	/// A `Task` that executes `f` when run.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task = Task::always(|| 42);
-	/// assert_eq!(task.run(), 42);
-	/// ```
-	#[inline]
-	pub fn always<F>(f: F) -> Self
-	where
-		F: FnOnce() -> A + 'static,
-	{
-		Self::later(f)
 	}
 
 	/// Defers the construction of a `Task` itself.
@@ -261,7 +192,7 @@ impl<A: 'static + Send> Task<A> {
 	///
 	/// fn recursive_sum(n: u64, acc: u64) -> Task<u64> {
 	///     if n == 0 {
-	///         Task::now(acc)
+	///         Task::pure(acc)
 	///     } else {
 	///         // Defer construction to avoid stack growth
 	///         Task::defer(move || recursive_sum(n - 1, acc + n))
@@ -279,7 +210,7 @@ impl<A: 'static + Send> Task<A> {
 		Task { inner: Free::roll(Thunk::new(move || f().inner)) }
 	}
 
-	/// Monadic bind (flatMap) with O(1) complexity.
+	/// Monadic bind with O(1) complexity.
 	///
 	/// Chains computations together. The key property is that
 	/// left-associated chains don't degrade to O(n²).
@@ -307,20 +238,20 @@ impl<A: 'static + Send> Task<A> {
 	/// use fp_library::types::*;
 	///
 	/// // This is O(n), not O(n²)
-	/// let mut task = Task::now(0);
+	/// let mut task = Task::pure(0);
 	/// for i in 0..100 {
-	///     task = task.flat_map(move |x| Task::now(x + i));
+	///     task = task.bind(move |x| Task::pure(x + i));
 	/// }
 	/// ```
 	#[inline]
-	pub fn flat_map<B: 'static + Send, F>(
+	pub fn bind<B: 'static + Send, F>(
 		self,
 		f: F,
 	) -> Task<B>
 	where
 		F: FnOnce(A) -> Task<B> + 'static,
 	{
-		Task { inner: self.inner.flat_map(move |a| f(a).inner) }
+		Task { inner: self.inner.bind(move |a| f(a).inner) }
 	}
 
 	/// Functor map: transforms the result without changing structure.
@@ -347,7 +278,7 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task = Task::now(10).map(|x| x * 2);
+	/// let task = Task::pure(10).map(|x| x * 2);
 	/// assert_eq!(task.run(), 20);
 	/// ```
 	#[inline]
@@ -358,7 +289,7 @@ impl<A: 'static + Send> Task<A> {
 	where
 		F: FnOnce(A) -> B + 'static,
 	{
-		self.flat_map(move |a| Task::now(f(a)))
+		self.bind(move |a| Task::pure(f(a)))
 	}
 
 	/// Forces evaluation and returns the result.
@@ -379,7 +310,7 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task = Task::later(|| 1 + 1);
+	/// let task = Task::new(|| 1 + 1);
 	/// assert_eq!(task.run(), 2);
 	/// ```
 	pub fn run(self) -> A {
@@ -412,8 +343,8 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let t1 = Task::now(10);
-	/// let t2 = Task::now(20);
+	/// let t1 = Task::pure(10);
+	/// let t2 = Task::pure(20);
 	/// let t3 = t1.map2(t2, |a, b| a + b);
 	/// assert_eq!(t3.run(), 30);
 	/// ```
@@ -425,7 +356,7 @@ impl<A: 'static + Send> Task<A> {
 	where
 		F: FnOnce(A, B) -> C + 'static,
 	{
-		self.flat_map(move |a| other.map(move |b| f(a, b)))
+		self.bind(move |a| other.map(move |b| f(a, b)))
 	}
 
 	/// Sequences two `Task`s, discarding the first result.
@@ -451,8 +382,8 @@ impl<A: 'static + Send> Task<A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let t1 = Task::now(10);
-	/// let t2 = Task::now(20);
+	/// let t1 = Task::pure(10);
+	/// let t2 = Task::pure(20);
 	/// let t3 = t1.and_then(t2);
 	/// assert_eq!(t3.run(), 20);
 	/// ```
@@ -460,46 +391,7 @@ impl<A: 'static + Send> Task<A> {
 		self,
 		other: Task<B>,
 	) -> Task<B> {
-		self.flat_map(move |_| other)
-	}
-
-	/// Creates a `Task` from a memoized value (via Memo).
-	///
-	/// This is a convenience for integrating with the dual-type design.
-	/// The Memo provides caching; Task provides computation structure.
-	///
-	/// ### Type Signature
-	///
-	/// `forall a. Memo a -> Task a`
-	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the value.
-	/// * `Config`: The memoization configuration.
-	///
-	/// ### Parameters
-	///
-	/// * `memo`: The memoized value.
-	///
-	/// ### Returns
-	///
-	/// A `Task` that retrieves the memoized value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 42);
-	/// let task = Task::from_memo(&memo);
-	/// assert_eq!(task.run(), 42);
-	/// ```
-	pub fn from_memo<Config: MemoConfig>(memo: &Memo<'static, A, Config>) -> Self
-	where
-		A: Clone,
-	{
-		let memo = memo.clone();
-		Task::later(move || memo.get().clone())
+		self.bind(move |_| other)
 	}
 
 	/// Stack-safe tail recursion within Task.
@@ -540,9 +432,9 @@ impl<A: 'static + Send> Task<A> {
 	/// fn fib(n: u64) -> Task<u64> {
 	///     Task::tail_rec_m(|(n, a, b)| {
 	///         if n == 0 {
-	///             Task::now(Step::Done(a))
+	///             Task::pure(Step::Done(a))
 	///         } else {
-	///             Task::now(Step::Loop((n - 1, b, a + b)))
+	///             Task::pure(Step::Loop((n - 1, b, a + b)))
 	///         }
 	///     }, (n, 0u64, 1u64))
 	/// }
@@ -566,9 +458,9 @@ impl<A: 'static + Send> Task<A> {
 		{
 			let f_clone = f.clone();
 			Task::defer(move || {
-				f(a).flat_map(move |step| match step {
+				f(a).bind(move |step| match step {
 					Step::Loop(next) => go(f_clone.clone(), next),
-					Step::Done(b) => Task::now(b),
+					Step::Done(b) => Task::pure(b),
 				})
 			})
 		}
@@ -609,9 +501,9 @@ impl<A: 'static + Send> Task<A> {
 	/// Task::tail_rec_m_shared(move |n| {
 	///     counter.fetch_add(1, Ordering::SeqCst);
 	///     if n == 0 {
-	///         Task::now(Step::Done(0))
+	///         Task::pure(Step::Done(0))
 	///     } else {
-	///         Task::now(Step::Loop(n - 1))
+	///         Task::pure(Step::Loop(n - 1))
 	///     }
 	/// }, 100);
 	/// ```
@@ -632,35 +524,41 @@ impl<A: 'static + Send> Task<A> {
 	}
 }
 
+impl<A: 'static + Send + Clone, Config: MemoConfig> From<Memo<'static, A, Config>> for Task<A> {
+	fn from(memo: Memo<'static, A, Config>) -> Self {
+		Task::new(move || memo.get().clone())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::types::step::Step;
 
-	/// Tests `Task::now`.
+	/// Tests `Task::pure`.
 	///
-	/// Verifies that `now` creates a task that returns the value immediately.
+	/// Verifies that `pure` creates a task that returns the value immediately.
 	#[test]
-	fn test_task_now() {
-		let task = Task::now(42);
+	fn test_task_pure() {
+		let task = Task::pure(42);
 		assert_eq!(task.run(), 42);
 	}
 
-	/// Tests `Task::later`.
+	/// Tests `Task::new`.
 	///
-	/// Verifies that `later` creates a task that computes the value when run.
+	/// Verifies that `new` creates a task that computes the value when run.
 	#[test]
-	fn test_task_later() {
-		let task = Task::later(|| 42);
+	fn test_task_new() {
+		let task = Task::new(|| 42);
 		assert_eq!(task.run(), 42);
 	}
 
-	/// Tests `Task::flat_map`.
+	/// Tests `Task::bind`.
 	///
-	/// Verifies that `flat_map` chains computations correctly.
+	/// Verifies that `bind` chains computations correctly.
 	#[test]
-	fn test_task_flat_map() {
-		let task = Task::now(10).flat_map(|x| Task::now(x * 2));
+	fn test_task_bind() {
+		let task = Task::pure(10).bind(|x| Task::pure(x * 2));
 		assert_eq!(task.run(), 20);
 	}
 
@@ -669,7 +567,7 @@ mod tests {
 	/// Verifies that `map` transforms the result.
 	#[test]
 	fn test_task_map() {
-		let task = Task::now(10).map(|x| x * 2);
+		let task = Task::pure(10).map(|x| x * 2);
 		assert_eq!(task.run(), 20);
 	}
 
@@ -678,7 +576,7 @@ mod tests {
 	/// Verifies that `defer` delays the creation of the task.
 	#[test]
 	fn test_task_defer() {
-		let task = Task::defer(|| Task::now(42));
+		let task = Task::defer(|| Task::pure(42));
 		assert_eq!(task.run(), 42);
 	}
 
@@ -691,9 +589,9 @@ mod tests {
 			Task::tail_rec_m(
 				|(n, acc)| {
 					if n <= 1 {
-						Task::now(Step::Done(acc))
+						Task::pure(Step::Done(acc))
 					} else {
-						Task::now(Step::Loop((n - 1, n * acc)))
+						Task::pure(Step::Loop((n - 1, n * acc)))
 					}
 				},
 				(n, 1u64),
@@ -708,8 +606,8 @@ mod tests {
 	/// Verifies that `map2` combines two tasks.
 	#[test]
 	fn test_task_map2() {
-		let t1 = Task::now(10);
-		let t2 = Task::now(20);
+		let t1 = Task::pure(10);
+		let t2 = Task::pure(20);
 		let t3 = t1.map2(t2, |a, b| a + b);
 		assert_eq!(t3.run(), 30);
 	}
@@ -719,8 +617,8 @@ mod tests {
 	/// Verifies that `and_then` sequences two tasks.
 	#[test]
 	fn test_task_and_then() {
-		let t1 = Task::now(10);
-		let t2 = Task::now(20);
+		let t1 = Task::pure(10);
+		let t2 = Task::pure(20);
 		let t3 = t1.and_then(t2);
 		assert_eq!(t3.run(), 20);
 	}
@@ -741,7 +639,7 @@ mod tests {
 		let task = Task::tail_rec_m_shared(
 			move |n| {
 				counter_clone.fetch_add(1, Ordering::SeqCst);
-				if n == 0 { Task::now(Step::Done(0)) } else { Task::now(Step::Loop(n - 1)) }
+				if n == 0 { Task::pure(Step::Done(0)) } else { Task::pure(Step::Loop(n - 1)) }
 			},
 			10,
 		);
@@ -752,7 +650,7 @@ mod tests {
 
 	/// Tests `Task::from_memo`.
 	///
-	/// Verifies that `from_memo` creates a task that retrieves the memoized value lazily.
+	/// Verifies that `From<Memo>` creates a task that retrieves the memoized value lazily.
 	#[test]
 	fn test_task_from_memo() {
 		use crate::types::{Memo, RcMemoConfig};
@@ -766,7 +664,7 @@ mod tests {
 			42
 		});
 
-		let task = Task::from_memo(&memo);
+		let task = Task::from(memo.clone());
 
 		// Should not have computed yet (lazy creation)
 		assert_eq!(*counter.borrow(), 0);
@@ -775,8 +673,35 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 
 		// Run again, should use cached value
-		let task2 = Task::from_memo(&memo);
+		let task2 = Task::from(memo);
 		assert_eq!(task2.run(), 42);
 		assert_eq!(*counter.borrow(), 1);
+	}
+
+	/// Tests `Task::from` with `ArcMemo`.
+	#[test]
+	fn test_task_from_arc_memo() {
+		use crate::types::{ArcMemoConfig, Memo};
+		use std::sync::{Arc, Mutex};
+
+		let counter = Arc::new(Mutex::new(0));
+		let counter_clone = counter.clone();
+		let memo = Memo::<_, ArcMemoConfig>::new(move || {
+			*counter_clone.lock().unwrap() += 1;
+			42
+		});
+
+		let task = Task::from(memo.clone());
+
+		// Should not have computed yet (lazy creation)
+		assert_eq!(*counter.lock().unwrap(), 0);
+
+		assert_eq!(task.run(), 42);
+		assert_eq!(*counter.lock().unwrap(), 1);
+
+		// Run again, should use cached value
+		let task2 = Task::from(memo);
+		assert_eq!(task2.run(), 42);
+		assert_eq!(*counter.lock().unwrap(), 1);
 	}
 }

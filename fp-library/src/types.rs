@@ -49,7 +49,7 @@ pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;
 pub use step::Step;
 pub use task::Task;
-pub use thunk::{Runnable, Thunk};
+pub use thunk::Thunk;
 pub use try_eval::TryEval;
 pub use try_memo::{ArcTryMemo, RcTryMemo, TryMemo};
 pub use try_task::TryTask;

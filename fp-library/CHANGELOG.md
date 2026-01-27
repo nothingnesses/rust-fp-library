@@ -17,10 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Traits**:
     - Added `MonadRec` trait for stack-safe tail recursion.
     - Added `RefFunctor` trait for mapping over types that yield references.
+    - Added `Bifunctor` trait for mapping over two type arguments.
+    - Added `Runnable` trait for types that can be executed to produce a value.
 - **Benchmarks**: Added benchmarks for `CatList`, `CatQueue`, and missing trait methods.
 
 ### Changed
 - **Lazy Evaluation Revamp (API Breaking)**:
+  - **Renaming**:
+    - Renamed `ThunkFBrand` to `ThunkBrand`.
+    - Renamed `Task::now` to `Task::pure`, `Task::later` to `Task::new`.
+    - Renamed `TryTask::try_later` to `TryTask::new`.
+    - Renamed `Thunk::force` to `Thunk::run`.
+    - Renamed `flat_map` to `bind` in `Task`, `Eval`, `Free` and their "Try" variants.
+  - **Conversions**: Replaced ad-hoc conversion methods (`from_memo`, `into_try`, etc.) with standard `From` trait implementations.
+  - **Step**: Added comprehensive typeclass implementations (`Functor`, `Bifunctor`, `Foldable`, etc.) for `Step`.
   - **`Memo` Lifetimes**: Refactored `Memo` to support lifetimes, removing the strict `'static` requirement.
 - **Documentation**:
   - Updated `docs/architecture.md` and `README.md` to reflect the new distinction between `Memo` (shared caching), `Task` (stack-safe computation), and `Eval` (HKT-compatible).

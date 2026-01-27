@@ -42,14 +42,6 @@ pub struct BoxBrand;
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>);
 
-/// Generic function brand parameterized by reference-counted pointer choice.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
-
-/// Brand for [`Free`](crate::types::Free).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FreeBrand<F>(PhantomData<F>);
-
 /// Brand for [`Endomorphism`](crate::types::Endomorphism).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
@@ -60,6 +52,14 @@ pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBr
 /// `Task` cannot implement HKT traits due to its `'static` requirement.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EvalBrand;
+
+/// Generic function brand parameterized by reference-counted pointer choice.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
+
+/// Brand for [`Free`](crate::types::Free).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FreeBrand<F>(PhantomData<F>);
 
 /// Brand for [`Identity`](crate::types::Identity).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -108,9 +108,21 @@ pub struct ResultWithErrBrand<E>(E);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultWithOkBrand<T>(T);
 
+/// Brand for [`Step`](crate::types::Step).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StepBrand;
+
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the `Loop` type filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StepWithLoopBrand<A>(PhantomData<A>);
+
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the `Done` type filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StepWithDoneBrand<B>(PhantomData<B>);
+
 /// Brand for [`Thunk`](crate::types::Thunk), allowing it to be used with the [`Free`](crate::types::Free) monad.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ThunkFBrand;
+pub struct ThunkBrand;
 
 /// Brand for [`TryEval`](crate::types::TryEval).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

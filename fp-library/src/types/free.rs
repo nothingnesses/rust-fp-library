@@ -6,9 +6,9 @@
 //!
 //! ## Comparison with PureScript
 //!
-//! This implementation is based on the PureScript [`Control.Monad.Free`](https://github.com/purescript/purescript-free/blob/master/src/Control/Monad/Free.purs) module and the "Reflection without Remorse"
-//! technique. It shares the same core algorithmic properties (O(1) bind, stack safety) but differs significantly
-//! in its intended use case and API surface.
+//! This implementation is based on the PureScript [`Control.Monad.Free`](https://github.com/purescript/purescript-free/blob/master/src/Control/Monad/Free.purs) module
+//! and the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) technique. It shares the same core algorithmic properties (O(1) bind, stack safety)
+//! but differs significantly in its intended use case and API surface.
 //!
 //! ### Key Differences
 //!
@@ -21,7 +21,7 @@
 //!
 //! 2. **API Surface**:
 //!    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
-//!    * **Rust**: Minimal API focused on construction (`pure`, `roll`, `flat_map`) and execution (`run`).
+//!    * **Rust**: Minimal API focused on construction (`pure`, `roll`, `bind`) and execution (`run`).
 //!      * `liftF` is missing (use `roll` + `map`).
 //!      * `resume` is missing (cannot inspect the computation step-by-step).
 //!      * `hoistFree` is missing.
@@ -33,7 +33,7 @@
 //!
 //! **What it CAN do:**
 //! * Provide stack-safe recursion for monadic computations (trampolining).
-//! * Prevent stack overflows when chaining many `flat_map` operations.
+//! * Prevent stack overflows when chaining many `bind` operations.
 //! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
 //!
 //! **What it CANNOT do (easily):**
@@ -43,38 +43,86 @@
 //!     `DatabaseOp` must implement a single `Runnable` trait.
 //! * Inspect the structure of the computation (introspection) via `resume`.
 //!
+//! ### Lifetimes and Memory Management
+//!
+//! * **PureScript**: Relies on a garbage collector and `unsafeCoerce`. This allows it to ignore
+//!   lifetimes and ownership, enabling a simpler implementation that supports all types.
+//! * **Rust**: Relies on ownership and `Box<dyn Any>` for type erasure. `Any` requires `'static`
+//!   to ensure memory safety (preventing use-after-free of references). This forces `Free` to
+//!   only work with `'static` types, preventing it from implementing the library's HKT traits
+//!   which require lifetime polymorphism.
+//!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::{brands::*, types::*};
 //!
 //! // ✅ CAN DO: Stack-safe recursion
-//! let free = Free::<ThunkFBrand, _>::pure(42)
-//!     .flat_map(|x| Free::pure(x + 1));
+//! let free = Free::<ThunkBrand, _>::pure(42)
+//!     .bind(|x| Free::pure(x + 1));
 //! ```
 
 use crate::{
 	Apply,
-	classes::functor::Functor,
+	classes::{Functor, Runnable},
 	kinds::*,
-	types::{cat_list::CatList, thunk::Runnable},
+	types::cat_list::CatList,
 };
 use std::{any::Any, marker::PhantomData};
 
 /// A type-erased value for internal use.
+///
+/// This type alias represents a value whose type has been erased to `Box<dyn Any>`.
+/// It is used within the internal implementation of `Free` to allow for
+/// heterogeneous chains of computations in the [`CatList`].
 type Val = Box<dyn Any>;
 
 /// A type-erased continuation.
+///
+/// This type alias represents a function that takes a type-erased value [`Val`]
+/// and returns a new `Free` computation (also type-erased).
+///
+/// ### Type Parameters
+///
+/// * `F`: The base functor.
 type Cont<F> = Box<dyn FnOnce(Val) -> Free<F, Val>>;
 
-/// The internal enum for Free.
+/// The internal representation of the `Free` monad.
+///
+/// This enum encodes the structure of the free monad, supporting
+/// pure values, suspended computations, and efficient concatenation of binds.
+///
+/// ### Type Parameters
+///
+/// * `F`: The base functor (must implement [`Functor`]).
+/// * `A`: The result type.
+///
 enum FreeInner<F, A>
 where
 	F: Functor + 'static,
 	A: 'static,
 {
+	/// A pure value.
+	///
+	/// This variant represents a computation that has finished and produced a value.
 	Pure(A),
+
+	/// A suspended computation.
+	///
+	/// This variant represents a computation that is suspended in the functor `F`.
+	/// The functor contains the next step of the computation.
 	Roll(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+
+	/// A bind operation.
+	///
+	/// This variant represents a computation followed by a sequence of continuations.
+	/// It uses a [`CatList`] to store continuations, ensuring O(1) append complexity
+	/// for left-associated binds.
+	///
+	/// ### Fields
+	///
+	/// * `head`: The initial computation.
+	/// * `conts`: The list of continuations to apply to the result of `head`.
 	Bind { head: Box<Free<F, Val>>, conts: CatList<Cont<F>>, _marker: PhantomData<A> },
 }
 
@@ -83,11 +131,27 @@ where
 /// This implementation follows "Reflection without Remorse" to ensure
 /// that left-associated binds do not degrade performance.
 ///
-/// # HKT Note
+/// # HKT and Lifetime Limitations
 ///
-/// `Free` does not implement HKT traits (like `Functor`, `Monad`) because it requires
-/// `A: 'static` due to type erasure using `Box<dyn Any>`. The `Kind` trait requires
-/// support for any lifetime `'a`, which conflicts with the `'static` bound.
+/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.
+///
+/// ## The Conflict
+/// * **The Traits**: The `Kind` trait implemented by the `Functor` hierarchy requires the type
+///   constructor to accept *any* lifetime `'a` (e.g., `type Of<'a, A> = Free<F, A>`).
+/// * **The Implementation**: This implementation uses `Box<dyn Any>` to type-erase continuations
+///   for the "Reflection without Remorse" optimization. `dyn Any` strictly requires `A: 'static`.
+///
+/// This creates an unresolvable conflict: `Free` cannot support non-static references (like `&'a str`),
+/// so it cannot satisfy the `Kind` signature.
+///
+/// ## Why not use the "Naive" Recursive Definition?
+///
+/// A naive definition (`enum Free { Pure(A), Roll(F<Box<Free<F, A>>>) }`) would support lifetimes
+/// and HKT traits. However, it was rejected because:
+/// 1.  **Stack Safety**: `run` would not be stack-safe for deep computations.
+/// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
+///
+/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
 ///
 /// ### Type Parameters
 ///
@@ -99,7 +163,7 @@ where
 /// ```
 /// use fp_library::{brands::*, types::*};
 ///
-/// let free = Free::<ThunkFBrand, _>::pure(42);
+/// let free = Free::<ThunkBrand, _>::pure(42);
 /// ```
 pub struct Free<F, A>(Option<FreeInner<F, A>>)
 where
@@ -130,7 +194,7 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkFBrand, _>::pure(42);
+	/// let free = Free::<ThunkBrand, _>::pure(42);
 	/// ```
 	#[inline]
 	pub fn pure(a: A) -> Self {
@@ -157,7 +221,7 @@ where
 	/// use fp_library::{brands::*, types::*};
 	///
 	/// let thunk = Thunk::new(|| Free::pure(42));
-	/// let free = Free::<ThunkFBrand, _>::roll(thunk);
+	/// let free = Free::<ThunkBrand, _>::roll(thunk);
 	/// ```
 	pub fn roll(
 		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
@@ -188,16 +252,16 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkFBrand, _>::pure(42)
-	///     .flat_map(|x| Free::pure(x + 1));
+	/// let free = Free::<ThunkBrand, _>::pure(42)
+	///     .bind(|x| Free::pure(x + 1));
 	/// ```
-	pub fn flat_map<B: 'static>(
+	pub fn bind<B: 'static>(
 		mut self,
 		f: impl FnOnce(A) -> Free<F, B> + 'static,
 	) -> Free<F, B> {
 		// Type-erase the continuation
 		let erased_f: Cont<F> = Box::new(move |val: Val| {
-			let a: A = *val.downcast().expect("Type mismatch in Free::flat_map");
+			let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 			let free_b: Free<F, B> = f(a);
 			free_b.erase_type()
 		});
@@ -275,7 +339,7 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkFBrand, _>::pure(42);
+	/// let free = Free::<ThunkBrand, _>::pure(42);
 	/// assert_eq!(free.run(), 42);
 	/// ```
 	pub fn run(self) -> A
@@ -308,7 +372,7 @@ where
 
 				FreeInner::Roll(fa) => {
 					// Run the effect to get the inner Free
-					current = <F as Runnable>::run_effect(fa);
+					current = <F as Runnable>::run(fa);
 				}
 
 				FreeInner::Bind { head, conts: inner_conts, .. } => {
@@ -348,7 +412,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{brands::ThunkFBrand, types::thunk::Thunk};
+	use crate::{brands::ThunkBrand, types::thunk::Thunk};
 
 	/// Tests `Free::pure`.
 	///
@@ -356,7 +420,7 @@ mod tests {
 	/// **How it tests:** Constructs a `Free::pure(42)` and runs it, asserting the result is 42.
 	#[test]
 	fn test_free_pure() {
-		let free = Free::<ThunkFBrand, _>::pure(42);
+		let free = Free::<ThunkBrand, _>::pure(42);
 		assert_eq!(free.run(), 42);
 	}
 
@@ -367,31 +431,30 @@ mod tests {
 	#[test]
 	fn test_free_roll() {
 		let thunk = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkFBrand, _>::roll(thunk);
+		let free = Free::<ThunkBrand, _>::roll(thunk);
 		assert_eq!(free.run(), 42);
 	}
 
-	/// Tests `Free::flat_map`.
+	/// Tests `Free::bind`.
 	///
-	/// **What it tests:** Verifies that `flat_map` correctly chains computations and passes values between them.
-	/// **How it tests:** Chains `pure(42) -> flat_map(+1) -> flat_map(*2)` and asserts the result is (42+1)*2 = 86.
+	/// **What it tests:** Verifies that `bind` correctly chains computations and passes values between them.
+	/// **How it tests:** Chains `pure(42) -> bind(+1) -> bind(*2)` and asserts the result is (42+1)*2 = 86.
 	#[test]
-	fn test_free_flat_map() {
-		let free = Free::<ThunkFBrand, _>::pure(42)
-			.flat_map(|x| Free::pure(x + 1))
-			.flat_map(|x| Free::pure(x * 2));
+	fn test_free_bind() {
+		let free =
+			Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1)).bind(|x| Free::pure(x * 2));
 		assert_eq!(free.run(), 86);
 	}
 
 	/// Tests stack safety of `Free::run`.
 	///
 	/// **What it tests:** Verifies that `run` can handle deep recursion without stack overflow (trampolining).
-	/// **How it tests:** Creates a recursive `count_down` function that builds a chain of 100,000 `flat_map` calls.
+	/// **How it tests:** Creates a recursive `count_down` function that builds a chain of 100,000 `bind` calls.
 	/// If the implementation were not stack-safe, this would crash with a stack overflow.
 	#[test]
 	fn test_free_stack_safety() {
-		fn count_down(n: i32) -> Free<ThunkFBrand, i32> {
-			if n == 0 { Free::pure(0) } else { Free::pure(n).flat_map(|n| count_down(n - 1)) }
+		fn count_down(n: i32) -> Free<ThunkBrand, i32> {
+			if n == 0 { Free::pure(0) } else { Free::pure(n).bind(|n| count_down(n - 1)) }
 		}
 
 		// 100,000 iterations should overflow stack if not safe
@@ -405,8 +468,8 @@ mod tests {
 	/// **How it tests:** Constructs a deep `Free` chain (similar to `test_free_stack_safety`) and lets it go out of scope.
 	#[test]
 	fn test_free_drop_safety() {
-		fn count_down(n: i32) -> Free<ThunkFBrand, i32> {
-			if n == 0 { Free::pure(0) } else { Free::pure(n).flat_map(|n| count_down(n - 1)) }
+		fn count_down(n: i32) -> Free<ThunkBrand, i32> {
+			if n == 0 { Free::pure(0) } else { Free::pure(n).bind(|n| count_down(n - 1)) }
 		}
 
 		// Construct a deep chain but DO NOT run it.
@@ -414,14 +477,14 @@ mod tests {
 		let _free = count_down(100_000);
 	}
 
-	/// Tests `Free::flat_map` on a `Roll` variant.
+	/// Tests `Free::bind` on a `Roll` variant.
 	///
-	/// **What it tests:** Verifies that `flat_map` works correctly when applied to a suspended computation (`Roll`).
-	/// **How it tests:** Creates a `Roll` (via `roll`) and `flat_map`s it.
+	/// **What it tests:** Verifies that `bind` works correctly when applied to a suspended computation (`Roll`).
+	/// **How it tests:** Creates a `Roll` (via `roll`) and `bind`s it.
 	#[test]
-	fn test_free_flat_map_on_roll() {
+	fn test_free_bind_on_roll() {
 		let thunk = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkFBrand, _>::roll(thunk).flat_map(|x| Free::pure(x + 1));
+		let free = Free::<ThunkBrand, _>::roll(thunk).bind(|x| Free::pure(x + 1));
 		assert_eq!(free.run(), 43);
 	}
 }

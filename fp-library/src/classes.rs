@@ -20,6 +20,7 @@
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
+pub mod bifunctor;
 pub mod category;
 pub mod cloneable_fn;
 pub mod compactable;
@@ -37,6 +38,7 @@ pub mod pointed;
 pub mod pointer;
 pub mod ref_counted_pointer;
 pub mod ref_functor;
+pub mod runnable;
 pub mod semiapplicative;
 pub mod semigroup;
 pub mod semigroupoid;
