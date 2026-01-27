@@ -127,18 +127,18 @@ For these specific cases, the library provides `Brand` types (like `RcFnBrand` a
 
 Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 
-| Type              | Primary Use Case                                                                                                            | Stack Safe? | Memoized? | Lifetimes?   | HKT Traits                           |
-| :---------------- | :-------------------------------------------------------------------------------------------------------------------------- | :---------- | :-------- | :----------- | :----------------------------------- |
-| **`Eval<'a, A>`** | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ❌ No       | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
-| **`Task<A>`**     | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes      | ❌ No     | ❌ `'static` | ❌ No                                |
-| **`Memo<'a, A>`** | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A         | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
+| Type              | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                           |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :----------------------------------- |
+| **`Eval<'a, A>`** | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
+| **`Task<A>`**     | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
+| **`Memo<'a, A>`** | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
 
 #### The "Why" of Three Types
 
 Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 
-1.  **`Eval` vs `Task`**: `Eval` is faster and supports borrowing (`&'a T`), but will overflow the stack if you recurse too deeply. `Task` guarantees stack safety via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Eval` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Task` does not.
-2.  **Computation vs Caching**: `Eval` and `Task` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Memo` to cache the result.
+1. **`Eval` vs `Task`**: `Eval` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Task` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Eval` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Task` does not.
+2. **Computation vs Caching**: `Eval` and `Task` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Memo` to cache the result.
 
 #### Workflow Example
 

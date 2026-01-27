@@ -120,10 +120,6 @@ pub struct StepWithLoopBrand<A>(PhantomData<A>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 
-/// Brand for [`Thunk`](crate::types::Thunk), allowing it to be used with the [`Free`](crate::types::Free) monad.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ThunkBrand;
-
 /// Brand for [`TryEval`](crate::types::TryEval).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryEvalBrand<E>(PhantomData<E>);

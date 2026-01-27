@@ -83,6 +83,7 @@ This document serves as the entry point for the complete overhaul of the lazy ev
 | **Step Typeclasses**| Implemented `Functor`, `Bifunctor`, `Foldable`, `Traversable`, etc., for `Step` to make it a first-class citizen in the ecosystem. |
 | **Runnable Trait**  | Added `Runnable` trait to abstract over types that can be executed (like `Thunk`, `Task`, `Eval`), replacing ad-hoc `run` or `force` methods. |
 | **Use VecDeque for CatList**  | Benchmarks showed better performance using VecDeque over CatQueue, so Catlist has been refactored to use VecDeque and CatQueue has been removed. |
+| **Replace Thunk with Eval**  | They basically do the same thing. |
 
 ### Blockers
 

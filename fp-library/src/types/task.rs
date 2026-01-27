@@ -16,14 +16,14 @@
 //! ```
 
 use crate::{
-	brands::ThunkBrand,
-	types::{Memo, MemoConfig, free::Free, step::Step, thunk::Thunk},
+	brands::EvalBrand,
+	types::{Eval, Memo, MemoConfig, free::Free, step::Step},
 };
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
 /// `Task` is the "heavy-duty" monadic type for deferred computations that
-/// require **guaranteed stack safety**. It is built on `Free<Thunk, A>` with
+/// require **guaranteed stack safety**. It is built on `Free<Eval, A>` with
 /// CatList-based bind stack, ensuring O(1) bind operations and unlimited recursion
 /// depth without stack overflow.
 ///
@@ -75,7 +75,7 @@ use crate::{
 /// assert_eq!(task.run(), 14);
 /// ```
 pub struct Task<A: 'static> {
-	inner: Free<ThunkBrand, A>,
+	inner: Free<EvalBrand, A>,
 }
 
 impl<A: 'static + Send> Task<A> {
@@ -159,7 +159,7 @@ impl<A: 'static + Send> Task<A> {
 	where
 		F: FnOnce() -> A + 'static,
 	{
-		Task { inner: Free::roll(Thunk::new(move || Free::pure(f()))) }
+		Task { inner: Free::roll(Eval::new(move || Free::pure(f()))) }
 	}
 
 	/// Defers the construction of a `Task` itself.
@@ -207,7 +207,7 @@ impl<A: 'static + Send> Task<A> {
 	where
 		F: FnOnce() -> Task<A> + 'static,
 	{
-		Task { inner: Free::roll(Thunk::new(move || f().inner)) }
+		Task { inner: Free::roll(Eval::new(move || f().inner)) }
 	}
 
 	/// Monadic bind with O(1) complexity.

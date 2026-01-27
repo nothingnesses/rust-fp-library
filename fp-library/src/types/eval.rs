@@ -7,9 +7,10 @@ use crate::{
 	Apply,
 	brands::EvalBrand,
 	classes::{
-		apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
+		Defer, apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
 		foldable::Foldable, functor::Functor, lift::Lift, monad_rec::MonadRec, monoid::Monoid,
-		pointed::Pointed, semiapplicative::Semiapplicative, semimonad::Semimonad,
+		pointed::Pointed, runnable::Runnable, semiapplicative::Semiapplicative,
+		semigroup::Semigroup, semimonad::Semimonad,
 	},
 	impl_kind,
 	kinds::*,
@@ -29,7 +30,7 @@ use crate::{
 /// | Aspect         | `Eval<'a, A>`               | `Task<A>`                    |
 /// |----------------|---------------------------|----------------------------|
 /// | HKT compatible | ✅ Yes                    | ❌ No (requires `'static`) |
-/// | Stack-safe     | ❌ No (~8000 calls limit) | ✅ Yes (unlimited)         |
+/// | Stack-safe     | ⚠️ Partial (tail_rec_m only) | ✅ Yes (unlimited)         |
 /// | Lifetime       | `'a` (can borrow)         | `'static` only             |
 /// | Use case       | Glue code, composition    | Deep recursion, pipelines  |
 ///
@@ -282,7 +283,7 @@ impl_kind! {
 	}
 }
 
-impl<'a, A: 'a> crate::classes::defer::Defer<'a> for Eval<'a, A> {
+impl<'a, A: 'a> Defer<'a> for Eval<'a, A> {
 	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
@@ -543,34 +544,54 @@ impl MonadRec for EvalBrand {
 	/// ```
 	fn tail_rec_m<'a, A: 'a, B: 'a, F>(
 		f: F,
-		initial: A,
+		a: A,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 			+ Clone
 			+ 'a,
 	{
-		// Use defer for trampolining.
-		// The Clone bound allows us to clone `f` for each recursive step.
-		fn go<'a, A, B, F>(
-			f: F,
-			a: A,
-		) -> Eval<'a, B>
-		where
-			F: Fn(A) -> Eval<'a, Step<A, B>> + Clone + 'a,
-			A: 'a,
-			B: 'a,
-		{
-			let f_clone = f.clone(); // Clone for the recursive call
-			Eval::defer(move || {
-				f(a).bind(move |step| match step {
-					Step::Loop(next) => go(f_clone.clone(), next),
-					Step::Done(b) => Eval::pure(b),
-				})
-			})
-		}
+		Eval::new(move || {
+			let mut current = a;
+			loop {
+				match f(current).run() {
+					Step::Loop(next) => current = next,
+					Step::Done(res) => break res,
+				}
+			}
+		})
+	}
+}
 
-		go(f, initial)
+impl Runnable for EvalBrand {
+	/// Runs the eval, producing the inner value.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Runnable Eval => Eval a -> a`
+	///
+	/// ### Type Parameters
+	///
+	/// * `A`: The type of the value inside the eval.
+	///
+	/// ### Parameters
+	///
+	/// * `fa`: The eval to run.
+	///
+	/// ### Returns
+	///
+	/// The result of running the eval.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let eval = Eval::new(|| 42);
+	/// assert_eq!(EvalBrand::run(eval), 42);
+	/// ```
+	fn run<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
+		fa.run()
 	}
 }
 
@@ -707,6 +728,64 @@ impl Foldable for EvalBrand {
 	}
 }
 
+impl<'a, A: Semigroup + 'a> Semigroup for Eval<'a, A> {
+	/// Combines two `Eval`s by combining their results.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Semigroup a => (Eval a, Eval a) -> Eval a`
+	///
+	/// ### Parameters
+	///
+	/// * `a`: The first eval.
+	/// * `b`: The second eval.
+	///
+	/// ### Returns
+	///
+	/// A new `Eval` containing the combined result.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, functions::*};
+	///
+	/// let t1 = pure::<EvalBrand, _>("Hello".to_string());
+	/// let t2 = pure::<EvalBrand, _>(" World".to_string());
+	/// let t3 = Semigroup::append(t1, t2);
+	/// assert_eq!(t3.run(), "Hello World");
+	/// ```
+	fn append(
+		a: Self,
+		b: Self,
+	) -> Self {
+		Eval::new(move || Semigroup::append(a.run(), b.run()))
+	}
+}
+
+impl<'a, A: Monoid + 'a> Monoid for Eval<'a, A> {
+	/// Returns the identity `Eval`.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. Monoid a => () -> Eval a`
+	///
+	/// ### Returns
+	///
+	/// A `Eval` producing the identity value of `A`.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{classes::*, types::*};
+	///
+	/// let t: Eval<String> = Monoid::empty();
+	/// assert_eq!(t.run(), "");
+	/// ```
+	fn empty() -> Self {
+		Eval::new(|| Monoid::empty())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -773,5 +852,28 @@ mod tests {
 		let memo = RcMemo::new(|| 42);
 		let eval = Eval::from(memo);
 		assert_eq!(eval.run(), 42);
+	}
+
+	/// Tests the `Semigroup` implementation for `Eval`.
+	///
+	/// Verifies that `append` correctly combines two evals.
+	#[test]
+	fn test_eval_semigroup() {
+		use crate::classes::semigroup::append;
+		use crate::{brands::*, functions::*};
+		let t1 = pure::<EvalBrand, _>("Hello".to_string());
+		let t2 = pure::<EvalBrand, _>(" World".to_string());
+		let t3 = append(t1, t2);
+		assert_eq!(t3.run(), "Hello World");
+	}
+
+	/// Tests the `Monoid` implementation for `Eval`.
+	///
+	/// Verifies that `empty` returns the identity element.
+	#[test]
+	fn test_eval_monoid() {
+		use crate::classes::monoid::empty;
+		let t: Eval<String> = empty();
+		assert_eq!(t.run(), "");
 	}
 }

@@ -36,17 +36,17 @@ use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 /// `Eval<'a, A>` CAN implement this trait (HKT-compatible).
 /// `Task<A>` CANNOT implement this trait (requires `'static`).
 ///
-/// For deep recursion (10,000+ calls), prefer `Task::tail_rec_m` which is
-/// guaranteed stack-safe. `Eval`'s trait-based `tail_rec_m` will overflow
-/// the stack at ~8000 recursive calls.
+/// `Eval`'s `tail_rec_m` implementation uses a loop and is stack-safe.
+/// However, `Eval`'s `bind` chains are NOT stack-safe.
+/// `Task` is stack-safe for both `tail_rec_m` and `bind` chains.
 ///
 /// ### Laws
 ///
 /// 1. **Equivalence**: `tail_rec_m(f, a)` produces the same result as the
 ///    recursive definition.
 ///
-/// 2. **Safety varies**: Eval is NOT stack-safe for deep recursion.
-///    Use Task for guaranteed stack safety.
+/// 2. **Safety varies**: `Eval` is stack-safe for `tail_rec_m` but not for deep `bind` chains.
+///    `Task` is guaranteed stack-safe for all operations.
 pub trait MonadRec: Monad {
 	/// Performs tail-recursive monadic computation.
 	///

@@ -34,7 +34,7 @@
 //! **What it CAN do:**
 //! * Provide stack-safe recursion for monadic computations (trampolining).
 //! * Prevent stack overflows when chaining many `bind` operations.
-//! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
+//! * Execute self-describing effects (like [`Eval`](crate::types::Eval)).
 //!
 //! **What it CANNOT do (easily):**
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.
@@ -58,7 +58,7 @@
 //! use fp_library::{brands::*, types::*};
 //!
 //! // ✅ CAN DO: Stack-safe recursion
-//! let free = Free::<ThunkBrand, _>::pure(42)
+//! let free = Free::<EvalBrand, _>::pure(42)
 //!     .bind(|x| Free::pure(x + 1));
 //! ```
 
@@ -163,7 +163,7 @@ where
 /// ```
 /// use fp_library::{brands::*, types::*};
 ///
-/// let free = Free::<ThunkBrand, _>::pure(42);
+/// let free = Free::<EvalBrand, _>::pure(42);
 /// ```
 pub struct Free<F, A>(Option<FreeInner<F, A>>)
 where
@@ -194,7 +194,7 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkBrand, _>::pure(42);
+	/// let free = Free::<EvalBrand, _>::pure(42);
 	/// ```
 	#[inline]
 	pub fn pure(a: A) -> Self {
@@ -220,8 +220,8 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let thunk = Thunk::new(|| Free::pure(42));
-	/// let free = Free::<ThunkBrand, _>::roll(thunk);
+	/// let eval = Eval::new(|| Free::pure(42));
+	/// let free = Free::<EvalBrand, _>::roll(eval);
 	/// ```
 	pub fn roll(
 		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
@@ -252,7 +252,7 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkBrand, _>::pure(42)
+	/// let free = Free::<EvalBrand, _>::pure(42)
 	///     .bind(|x| Free::pure(x + 1));
 	/// ```
 	pub fn bind<B: 'static>(
@@ -339,7 +339,7 @@ where
 	/// ```
 	/// use fp_library::{brands::*, types::*};
 	///
-	/// let free = Free::<ThunkBrand, _>::pure(42);
+	/// let free = Free::<EvalBrand, _>::pure(42);
 	/// assert_eq!(free.run(), 42);
 	/// ```
 	pub fn run(self) -> A
@@ -412,7 +412,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{brands::ThunkBrand, types::thunk::Thunk};
+	use crate::{brands::EvalBrand, types::eval::Eval};
 
 	/// Tests `Free::pure`.
 	///
@@ -420,18 +420,18 @@ mod tests {
 	/// **How it tests:** Constructs a `Free::pure(42)` and runs it, asserting the result is 42.
 	#[test]
 	fn test_free_pure() {
-		let free = Free::<ThunkBrand, _>::pure(42);
+		let free = Free::<EvalBrand, _>::pure(42);
 		assert_eq!(free.run(), 42);
 	}
 
 	/// Tests `Free::roll`.
 	///
 	/// **What it tests:** Verifies that `roll` creates a computation from a suspended effect.
-	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Thunk`, rolls it into a `Free`, and runs it to ensure it unwraps correctly.
+	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Eval`, rolls it into a `Free`, and runs it to ensure it unwraps correctly.
 	#[test]
 	fn test_free_roll() {
-		let thunk = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::roll(thunk);
+		let eval = Eval::new(|| Free::pure(42));
+		let free = Free::<EvalBrand, _>::roll(eval);
 		assert_eq!(free.run(), 42);
 	}
 
@@ -442,7 +442,7 @@ mod tests {
 	#[test]
 	fn test_free_bind() {
 		let free =
-			Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1)).bind(|x| Free::pure(x * 2));
+			Free::<EvalBrand, _>::pure(42).bind(|x| Free::pure(x + 1)).bind(|x| Free::pure(x * 2));
 		assert_eq!(free.run(), 86);
 	}
 
@@ -453,7 +453,7 @@ mod tests {
 	/// If the implementation were not stack-safe, this would crash with a stack overflow.
 	#[test]
 	fn test_free_stack_safety() {
-		fn count_down(n: i32) -> Free<ThunkBrand, i32> {
+		fn count_down(n: i32) -> Free<EvalBrand, i32> {
 			if n == 0 { Free::pure(0) } else { Free::pure(n).bind(|n| count_down(n - 1)) }
 		}
 
@@ -468,7 +468,7 @@ mod tests {
 	/// **How it tests:** Constructs a deep `Free` chain (similar to `test_free_stack_safety`) and lets it go out of scope.
 	#[test]
 	fn test_free_drop_safety() {
-		fn count_down(n: i32) -> Free<ThunkBrand, i32> {
+		fn count_down(n: i32) -> Free<EvalBrand, i32> {
 			if n == 0 { Free::pure(0) } else { Free::pure(n).bind(|n| count_down(n - 1)) }
 		}
 
@@ -483,8 +483,8 @@ mod tests {
 	/// **How it tests:** Creates a `Roll` (via `roll`) and `bind`s it.
 	#[test]
 	fn test_free_bind_on_roll() {
-		let thunk = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::roll(thunk).bind(|x| Free::pure(x + 1));
+		let eval = Eval::new(|| Free::pure(42));
+		let free = Free::<EvalBrand, _>::roll(eval).bind(|x| Free::pure(x + 1));
 		assert_eq!(free.run(), 43);
 	}
 }
