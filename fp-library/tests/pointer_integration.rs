@@ -44,30 +44,30 @@ fn test_arc_fn_thread_safety() {
 	assert_eq!(handle.join().unwrap(), 11);
 }
 
-/// Tests basic functionality of `ArcMemo`.
+/// Tests basic functionality of `ArcLazy`.
 ///
 /// Verifies that:
-/// 1. `ArcMemo` can be created with a thread-safe thunk.
+/// 1. `ArcLazy` can be created with a thread-safe thunk.
 /// 2. `Memo::get` correctly evaluates the thunk and returns the value.
 #[test]
 fn test_arc_memo_basic() {
-	let memo = ArcMemo::new(|| 42);
+	let memo = ArcLazy::new(|| 42);
 	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests shared memoization semantics of `ArcMemo`.
+/// Tests shared memoization semantics of `ArcLazy`.
 ///
 /// Verifies that:
 /// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
 /// 2. The result is cached and shared across clones.
 ///
-/// This ensures that `ArcMemo` implements "call-by-need" semantics with shared state.
+/// This ensures that `ArcLazy` implements "call-by-need" semantics with shared state.
 #[test]
 fn test_arc_memo_shared_memoization() {
 	let counter = Arc::new(Mutex::new(0));
 	let counter_clone = counter.clone();
 
-	let memo = ArcMemo::new(move || {
+	let memo = ArcLazy::new(move || {
 		let mut guard = counter_clone.lock().unwrap();
 		*guard += 1;
 		42
@@ -84,15 +84,15 @@ fn test_arc_memo_shared_memoization() {
 	assert_eq!(*counter.lock().unwrap(), 1);
 }
 
-/// Tests thread safety of `ArcMemo`.
+/// Tests thread safety of `ArcLazy`.
 ///
 /// Verifies that:
-/// 1. `ArcMemo` is `Send` and `Sync` (when T is Send + Sync).
+/// 1. `ArcLazy` is `Send` and `Sync` (when T is Send + Sync).
 /// 2. It can be cloned and sent to another thread.
 /// 3. It can be forced in a separate thread.
 #[test]
 fn test_arc_memo_thread_safety() {
-	let memo = ArcMemo::new(|| 42);
+	let memo = ArcLazy::new(|| 42);
 	let memo_clone = memo.clone();
 
 	let handle = thread::spawn(move || *memo_clone.get());
@@ -101,24 +101,24 @@ fn test_arc_memo_thread_safety() {
 	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests basic functionality of `RcMemo`.
+/// Tests basic functionality of `RcLazy`.
 ///
 /// Verifies that:
-/// 1. `RcMemo` can be created with a thunk.
+/// 1. `RcLazy` can be created with a thunk.
 /// 2. `Memo::get` correctly evaluates the thunk and returns the value.
 #[test]
 fn test_rc_memo_basic() {
-	let memo = RcMemo::new(|| 42);
+	let memo = RcLazy::new(|| 42);
 	assert_eq!(*memo.get(), 42);
 }
 
-/// Tests shared memoization semantics of `RcMemo`.
+/// Tests shared memoization semantics of `RcLazy`.
 ///
 /// Verifies that:
 /// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
 /// 2. The result is cached and shared across clones.
 ///
-/// This ensures that `RcMemo` implements "call-by-need" semantics with shared state.
+/// This ensures that `RcLazy` implements "call-by-need" semantics with shared state.
 #[test]
 fn test_rc_memo_shared_memoization() {
 	use std::cell::RefCell;
@@ -127,7 +127,7 @@ fn test_rc_memo_shared_memoization() {
 	let counter = Rc::new(RefCell::new(0));
 	let counter_clone = counter.clone();
 
-	let memo = RcMemo::new(move || {
+	let memo = RcLazy::new(move || {
 		*counter_clone.borrow_mut() += 1;
 		42
 	});

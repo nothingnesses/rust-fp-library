@@ -11,13 +11,13 @@
 //! };
 //!
 //! // A tail-recursive function to calculate factorial
-//! fn factorial(n: u64) -> Eval<'static, u64> {
-//!     tail_rec_m::<EvalBrand, _, _, _>(
+//! fn factorial(n: u64) -> Thunk<'static, u64> {
+//!     tail_rec_m::<ThunkBrand, _, _, _>(
 //!         |(n, acc)| {
 //!             if n == 0 {
-//!                 Eval::pure(Step::Done(acc))
+//!                 Thunk::pure(Step::Done(acc))
 //!             } else {
-//!                 Eval::pure(Step::Loop((n - 1, n * acc)))
+//!                 Thunk::pure(Step::Loop((n - 1, n * acc)))
 //!             }
 //!         },
 //!         (n, 1),
@@ -33,11 +33,11 @@ use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 ///
 /// ### Important Design Note
 ///
-/// `Eval<'a, A>` CAN implement this trait (HKT-compatible).
+/// `Thunk<'a, A>` CAN implement this trait (HKT-compatible).
 /// `Task<A>` CANNOT implement this trait (requires `'static`).
 ///
-/// `Eval`'s `tail_rec_m` implementation uses a loop and is stack-safe.
-/// However, `Eval`'s `bind` chains are NOT stack-safe.
+/// `Thunk`'s `tail_rec_m` implementation uses a loop and is stack-safe.
+/// However, `Thunk`'s `bind` chains are NOT stack-safe.
 /// `Task` is stack-safe for both `tail_rec_m` and `bind` chains.
 ///
 /// ### Laws
@@ -45,7 +45,7 @@ use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 /// 1. **Equivalence**: `tail_rec_m(f, a)` produces the same result as the
 ///    recursive definition.
 ///
-/// 2. **Safety varies**: `Eval` is stack-safe for `tail_rec_m` but not for deep `bind` chains.
+/// 2. **Safety varies**: `Thunk` is stack-safe for `tail_rec_m` but not for deep `bind` chains.
 ///    `Task` is guaranteed stack-safe for all operations.
 pub trait MonadRec: Monad {
 	/// Performs tail-recursive monadic computation.
@@ -78,12 +78,12 @@ pub trait MonadRec: Monad {
 	///     types::*,
 	/// };
 	///
-	/// let result = EvalBrand::tail_rec_m(
+	/// let result = ThunkBrand::tail_rec_m(
 	///     |n| {
 	///         if n < 10 {
-	///             Eval::pure(Step::Loop(n + 1))
+	///             Thunk::pure(Step::Loop(n + 1))
 	///         } else {
-	///             Eval::pure(Step::Done(n))
+	///             Thunk::pure(Step::Done(n))
 	///         }
 	///     },
 	///     0,
@@ -135,12 +135,12 @@ pub trait MonadRec: Monad {
 ///     functions::tail_rec_m,
 /// };
 ///
-/// let result = tail_rec_m::<EvalBrand, _, _, _>(
+/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
 ///     |n| {
 ///         if n < 10 {
-///             Eval::pure(Step::Loop(n + 1))
+///             Thunk::pure(Step::Loop(n + 1))
 ///         } else {
-///             Eval::pure(Step::Done(n))
+///             Thunk::pure(Step::Done(n))
 ///         }
 ///     },
 ///     0,

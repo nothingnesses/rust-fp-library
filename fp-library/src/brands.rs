@@ -46,12 +46,12 @@ pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>)
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
 
-/// Brand for [`Eval`](crate::types::Eval).
+/// Brand for [`Thunk`](crate::types::Thunk).
 ///
-/// Note: This is for `Eval<'a, A>`, NOT for `Task<A>`.
-/// `Task` cannot implement HKT traits due to its `'static` requirement.
+/// Note: This is for `Thunk<'a, A>`, NOT for `Trampoline<A>`.
+/// `Trampoline` cannot implement HKT traits due to its `'static` requirement.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EvalBrand;
+pub struct ThunkBrand;
 
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -65,9 +65,9 @@ pub struct FreeBrand<F>(PhantomData<F>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IdentityBrand;
 
-/// Brand for [`Memo`](crate::types::Memo).
+/// Brand for [`Lazy`](crate::types::Lazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MemoBrand<Config>(PhantomData<Config>);
+pub struct LazyBrand<Config>(PhantomData<Config>);
 
 /// Brand for [`Option`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -120,13 +120,13 @@ pub struct StepWithLoopBrand<A>(PhantomData<A>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 
-/// Brand for [`TryEval`](crate::types::TryEval).
+/// Brand for [`TryThunk`](crate::types::TryThunk).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryEvalBrand<E>(PhantomData<E>);
+pub struct TryThunkBrand<E>(PhantomData<E>);
 
-/// Brand for [`TryMemo`](crate::types::TryMemo).
+/// Brand for [`TryLazy`](crate::types::TryLazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryMemoBrand<E, Config>(PhantomData<(E, Config)>);
+pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

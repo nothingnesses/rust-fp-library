@@ -30,8 +30,8 @@
 //!   - `compose`, `constant`, `flip`, `identity`
 //! - **Data Types:** Implementations for standard and custom types:
 //!   - `Option`, `Result`, `Vec`, `String`
-//!   - `Identity`, `Memo`, `Pair`
-//!   - `Task`, `Eval`, `Free`
+//!   - `Identity`, `Lazy`, `Pair`
+//!   - `Trampoline`, `Thunk`, `Free`
 //!   - `Endofunction`, `Endomorphism`, `SendEndofunction`
 //!   - `RcBrand`, `ArcBrand`, `FnBrand`
 //!
@@ -77,8 +77,8 @@
 //! **Exceptions:**
 //! While the library strives for zero-cost abstractions, some operations inherently require dynamic dispatch or heap allocation due to Rust's type system:
 //!
-//! - **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Memo` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
-//! - **Lazy Evaluation:** The `Memo` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
+//! - **Functions as Data:** When functions are stored in data structures (e.g., inside a `Vec` for `Semiapplicative::apply`, or in `Lazy` thunks), they must often be "type-erased" (wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`). This is because every closure in Rust has a unique, anonymous type. To store multiple different closures in the same container, or to compose functions dynamically (like in `Endofunction`), they must be coerced to a common trait object.
+//! - **Lazy Evaluation:** The `Lazy` type relies on storing a thunk that can be cloned and evaluated later, which typically requires reference counting and dynamic dispatch.
 //!
 //! For these specific cases, the library provides `Brand` types (like `RcFnBrand` and `ArcFnBrand`) to let you choose the appropriate wrapper (single-threaded vs. thread-safe) while keeping the rest of your code zero-cost. The library uses a unified `Pointer` hierarchy to abstract over these choices.
 //!
@@ -86,36 +86,36 @@
 //!
 //! Rust is an eagerly evaluated language. To enable functional patterns like deferred execution and safe recursion, `fp-library` provides a granular set of types that let you opt-in to specific behaviors without paying for unnecessary overhead.
 //!
-//! | Type              | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                           |
-//! | :---------------- | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :----------------------------------- |
-//! | **`Eval<'a, A>`** | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
-//! | **`Task<A>`**     | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
-//! | **`Memo<'a, A>`** | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
+//! | Type                | Primary Use Case                                                                                                            | Stack Safe?                    | Memoized? | Lifetimes?   | HKT Traits                           |
+//! | :------------------ | :-------------------------------------------------------------------------------------------------------------------------- | :----------------------------- | :-------- | :----------- | :----------------------------------- |
+//! | **`Thunk<'a, A>`**  | **Glue Code & Borrowing.** Lightweight deferred computation. Best for short chains and working with references.             | ⚠️ Partial (`tail_rec_m` only) | ❌ No     | ✅ `'a`      | ✅ `Functor`, `Applicative`, `Monad` |
+//! | **`Trampoline<A>`** | **Deep Recursion & Pipelines.** Heavy-duty computation. Uses a trampoline to guarantee stack safety for infinite recursion. | ✅ Yes                         | ❌ No     | ❌ `'static` | ❌ No                                |
+//! | **`Lazy<'a, A>`**   | **Caching.** Wraps a computation to ensure it runs at most once.                                                            | N/A                            | ✅ Yes    | ✅ `'a`      | ✅ `RefFunctor`                      |
 //!
 //! #### The "Why" of Three Types
 //!
 //! Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 //!
-//! 1. **`Eval` vs `Task`**: `Eval` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Task` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Eval` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Task` does not.
-//! 2. **Computation vs Caching**: `Eval` and `Task` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Memo` to cache the result.
+//! 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
+//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
 //!
 //! #### Workflow Example
 //!
-//! A common pattern is to use `Task` for the heavy lifting (recursion), `Memo` to freeze the result, and `Eval` to borrow it later.
+//! A common pattern is to use `Trampoline` for the heavy lifting (recursion), `Lazy` to freeze the result, and `Thunk` to borrow it later.
 //!
 //! ```rust
 //! use fp_library::types::*;
 //!
-//! // 1. Use Task for stack-safe recursion
-//! let heavy_computation = Task::tail_rec_m(|n| {
-//!     if n < 1_000 { Task::pure(Step::Loop(n + 1)) } else { Task::pure(Step::Done(n)) }
+//! // 1. Use Trampoline for stack-safe recursion
+//! let heavy_computation = Trampoline::tail_rec_m(|n| {
+//!     if n < 1_000 { Trampoline::pure(Step::Loop(n + 1)) } else { Trampoline::pure(Step::Done(n)) }
 //! }, 0);
 //!
-//! // 2. Convert to Memo to cache the result (runs once)
-//! let cached = Memo::<_, RcMemoConfig>::from(heavy_computation);
+//! // 2. Convert to Lazy to cache the result (runs once)
+//! let cached = Lazy::<_, RcLazyConfig>::from(heavy_computation);
 //!
-//! // 3. Use Eval to borrow the cached value without re-running
-//! let view = Eval::new(|| {
+//! // 3. Use Thunk to borrow the cached value without re-running
+//! let view = Thunk::new(|| {
 //!     let val = cached.get();
 //!     format!("Result: {}", val)
 //! });

@@ -8,7 +8,7 @@
 //! ```
 //! use fp_library::{brands::*, functions::*, types::*};
 //!
-//! let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+//! let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
 //! assert_eq!(*memo.get(), 42);
 //! ```
 
@@ -41,7 +41,7 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+	/// let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
 	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	fn send_defer<'a, A>(
@@ -81,7 +81,7 @@ pub trait SendDefer: Kind_cdc7cd43dac7585f {
 /// ```
 /// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let memo: ArcMemo<i32> = send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+/// let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
 /// assert_eq!(*memo.get(), 42);
 /// ```
 pub fn send_defer<'a, Brand, A, F>(

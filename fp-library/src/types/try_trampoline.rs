@@ -1,25 +1,25 @@
-//! Implementation of the `TryTask` type.
+//! Implementation of the `TryTrampoline` type.
 //!
-//! This module provides the [`TryTask`] type, which represents a lazy, stack-safe computation that may fail.
-//! It is a wrapper around `Task<Result<A, E>>`.
+//! This module provides the [`TryTrampoline`] type, which represents a lazy, stack-safe computation that may fail.
+//! It is a wrapper around `Trampoline<Result<A, E>>`.
 //!
 //! ### Examples
 //!
 //! ```
 //! use fp_library::types::*;
 //!
-//! let task: TryTask<i32, String> = TryTask::ok(10)
+//! let task: TryTrampoline<i32, String> = TryTrampoline::ok(10)
 //!     .map(|x| x * 2)
-//!     .bind(|x| TryTask::ok(x + 5));
+//!     .bind(|x| TryTrampoline::ok(x + 5));
 //!
 //! assert_eq!(task.run(), Ok(25));
 //! ```
 
-use crate::types::{Memo, MemoConfig, TryMemo, task::Task};
+use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///
-/// This is `Task<Result<A, E>>` with ergonomic combinators.
+/// This is `Trampoline<Result<A, E>>` with ergonomic combinators.
 ///
 /// ### Type Parameters
 ///
@@ -28,26 +28,26 @@ use crate::types::{Memo, MemoConfig, TryMemo, task::Task};
 ///
 /// ### Fields
 ///
-/// * `inner`: The internal `Task` wrapping a `Result`.
+/// * `inner`: The internal `Trampoline` wrapping a `Result`.
 ///
 /// ### Examples
 ///
 /// ```
 /// use fp_library::types::*;
 ///
-/// let task: TryTask<i32, String> = TryTask::ok(10);
+/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
 /// assert_eq!(task.run(), Ok(10));
 /// ```
-pub struct TryTask<A: 'static, E: 'static> {
-	inner: Task<Result<A, E>>,
+pub struct TryTrampoline<A: 'static, E: 'static> {
+	inner: Trampoline<Result<A, E>>,
 }
 
-impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
-	/// Creates a successful `TryTask`.
+impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
+	/// Creates a successful `TryTrampoline`.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. a -> TryTask a e`
+	/// `forall e a. a -> TryTrampoline a e`
 	///
 	/// ### Type Parameters
 	///
@@ -60,25 +60,25 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A `TryTask` representing success.
+	/// A `TryTrampoline` representing success.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::ok(42);
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn ok(a: A) -> Self {
-		TryTask { inner: Task::pure(Ok(a)) }
+		TryTrampoline { inner: Trampoline::pure(Ok(a)) }
 	}
 
-	/// Creates a failed `TryTask`.
+	/// Creates a failed `TryTrampoline`.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. e -> TryTask a e`
+	/// `forall e a. e -> TryTrampoline a e`
 	///
 	/// ### Type Parameters
 	///
@@ -91,25 +91,25 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A `TryTask` representing failure.
+	/// A `TryTrampoline` representing failure.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::err("error".to_string());
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
 	/// assert_eq!(task.run(), Err("error".to_string()));
 	/// ```
 	pub fn err(e: E) -> Self {
-		TryTask { inner: Task::pure(Err(e)) }
+		TryTrampoline { inner: Trampoline::pure(Err(e)) }
 	}
 
-	/// Creates a lazy `TryTask` that may fail.
+	/// Creates a lazy `TryTrampoline` that may fail.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryTask a e`
+	/// `forall e a. (Unit -> Result a e) -> TryTrampoline a e`
 	///
 	/// ### Type Parameters
 	///
@@ -123,28 +123,28 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A `TryTask` that executes `f` when run.
+	/// A `TryTrampoline` that executes `f` when run.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::new(|| Ok(42));
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Result<A, E> + 'static,
 	{
-		TryTask { inner: Task::new(f) }
+		TryTrampoline { inner: Trampoline::new(f) }
 	}
 
 	/// Maps over the success value.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> b, TryTask a e) -> TryTask b e`
+	/// `forall e b a. (a -> b, TryTrampoline a e) -> TryTrampoline b e`
 	///
 	/// ### Type Parameters
 	///
@@ -157,31 +157,31 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A new `TryTask` with the transformed success value.
+	/// A new `TryTrampoline` with the transformed success value.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::ok(10).map(|x| x * 2);
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
 	/// assert_eq!(task.run(), Ok(20));
 	/// ```
 	pub fn map<B: 'static + Send, F>(
 		self,
 		f: F,
-	) -> TryTask<B, E>
+	) -> TryTrampoline<B, E>
 	where
 		F: FnOnce(A) -> B + 'static,
 	{
-		TryTask { inner: self.inner.map(|result| result.map(f)) }
+		TryTrampoline { inner: self.inner.map(|result| result.map(f)) }
 	}
 
 	/// Maps over the error value.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e2 e a. (e -> e2, TryTask a e) -> TryTask a e2`
+	/// `forall e2 e a. (e -> e2, TryTrampoline a e) -> TryTrampoline a e2`
 	///
 	/// ### Type Parameters
 	///
@@ -194,32 +194,32 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A new `TryTask` with the transformed error value.
+	/// A new `TryTrampoline` with the transformed error value.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::err("error".to_string())
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
 	///     .map_err(|e| e.to_uppercase());
 	/// assert_eq!(task.run(), Err("ERROR".to_string()));
 	/// ```
 	pub fn map_err<E2: 'static + Send, F>(
 		self,
 		f: F,
-	) -> TryTask<A, E2>
+	) -> TryTrampoline<A, E2>
 	where
 		F: FnOnce(E) -> E2 + 'static,
 	{
-		TryTask { inner: self.inner.map(|result| result.map_err(f)) }
+		TryTrampoline { inner: self.inner.map(|result| result.map_err(f)) }
 	}
 
 	/// Chains fallible computations.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> TryTask b e, TryTask a e) -> TryTask b e`
+	/// `forall e b a. (a -> TryTrampoline b e, TryTrampoline a e) -> TryTrampoline b e`
 	///
 	/// ### Type Parameters
 	///
@@ -232,27 +232,27 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A new `TryTask` that chains `f` after this task.
+	/// A new `TryTrampoline` that chains `f` after this task.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::ok(10).bind(|x| TryTask::ok(x * 2));
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
 	/// assert_eq!(task.run(), Ok(20));
 	/// ```
 	pub fn bind<B: 'static + Send, F>(
 		self,
 		f: F,
-	) -> TryTask<B, E>
+	) -> TryTrampoline<B, E>
 	where
-		F: FnOnce(A) -> TryTask<B, E> + 'static,
+		F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
 	{
-		TryTask {
+		TryTrampoline {
 			inner: self.inner.bind(|result| match result {
 				Ok(a) => f(a).inner,
-				Err(e) => Task::pure(Err(e)),
+				Err(e) => Trampoline::pure(Err(e)),
 			}),
 		}
 	}
@@ -263,7 +263,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> TryTask b e, TryTask a e) -> TryTask b e`
+	/// `forall e b a. (a -> TryTrampoline b e, TryTrampoline a e) -> TryTrampoline b e`
 	///
 	/// ### Type Parameters
 	///
@@ -276,22 +276,22 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A new `TryTask` that chains `f` after this task.
+	/// A new `TryTrampoline` that chains `f` after this task.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::ok(10).and_then(|x| TryTask::ok(x * 2));
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).and_then(|x| TryTrampoline::ok(x * 2));
 	/// assert_eq!(task.run(), Ok(20));
 	/// ```
 	pub fn and_then<B: 'static + Send, F>(
 		self,
 		f: F,
-	) -> TryTask<B, E>
+	) -> TryTrampoline<B, E>
 	where
-		F: FnOnce(A) -> TryTask<B, E> + 'static,
+		F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
 	{
 		self.bind(f)
 	}
@@ -300,7 +300,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (e -> TryTask a e, TryTask a e) -> TryTask a e`
+	/// `forall e a. (e -> TryTrampoline a e, TryTrampoline a e) -> TryTrampoline a e`
 	///
 	/// ### Type Parameters
 	///
@@ -312,15 +312,15 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Returns
 	///
-	/// A new `TryTask` that attempts to recover from failure.
+	/// A new `TryTrampoline` that attempts to recover from failure.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::err("error".to_string())
-	///     .or_else(|_| TryTask::ok(42));
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
+	///     .or_else(|_| TryTrampoline::ok(42));
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn or_else<F>(
@@ -328,11 +328,11 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 		f: F,
 	) -> Self
 	where
-		F: FnOnce(E) -> TryTask<A, E> + 'static,
+		F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
 	{
-		TryTask {
+		TryTrampoline {
 			inner: self.inner.bind(|result| match result {
-				Ok(a) => Task::pure(Ok(a)),
+				Ok(a) => Trampoline::pure(Ok(a)),
 				Err(e) => f(e).inner,
 			}),
 		}
@@ -342,7 +342,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryTask a e -> Result a e`
+	/// `forall e a. TryTrampoline a e -> Result a e`
 	///
 	/// ### Returns
 	///
@@ -353,7 +353,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTask<i32, String> = TryTask::ok(42);
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn run(self) -> Result<A, E> {
@@ -361,35 +361,35 @@ impl<A: 'static + Send, E: 'static + Send> TryTask<A, E> {
 	}
 }
 
-impl<A, E> From<Task<A>> for TryTask<A, E>
+impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 where
 	A: Send + 'static,
 	E: Send + 'static,
 {
-	fn from(task: Task<A>) -> Self {
-		TryTask::new(move || Ok(task.run()))
+	fn from(task: Trampoline<A>) -> Self {
+		TryTrampoline::new(move || Ok(task.run()))
 	}
 }
 
-impl<A, E, Config> From<Memo<'static, A, Config>> for TryTask<A, E>
+impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
 where
 	A: Clone + Send + 'static,
 	E: Send + 'static,
-	Config: MemoConfig,
+	Config: LazyConfig,
 {
-	fn from(memo: Memo<'static, A, Config>) -> Self {
-		TryTask::new(move || Ok(memo.get().clone()))
+	fn from(memo: Lazy<'static, A, Config>) -> Self {
+		TryTrampoline::new(move || Ok(memo.get().clone()))
 	}
 }
 
-impl<A, E, Config> From<TryMemo<'static, A, E, Config>> for TryTask<A, E>
+impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
 where
 	A: Clone + Send + 'static,
 	E: Clone + Send + 'static,
-	Config: MemoConfig,
+	Config: LazyConfig,
 {
-	fn from(memo: TryMemo<'static, A, E, Config>) -> Self {
-		TryTask::new(move || memo.get().cloned().map_err(Clone::clone))
+	fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
+		TryTrampoline::new(move || memo.get().cloned().map_err(Clone::clone))
 	}
 }
 
@@ -397,94 +397,95 @@ where
 mod tests {
 	use super::*;
 
-	/// Tests `TryTask::ok`.
+	/// Tests `TryTrampoline::ok`.
 	///
 	/// Verifies that `ok` creates a successful task.
 	#[test]
 	fn test_try_task_ok() {
-		let task: TryTask<i32, String> = TryTask::ok(42);
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
 		assert_eq!(task.run(), Ok(42));
 	}
 
-	/// Tests `TryTask::err`.
+	/// Tests `TryTrampoline::err`.
 	///
 	/// Verifies that `err` creates a failed task.
 	#[test]
 	fn test_try_task_err() {
-		let task: TryTask<i32, String> = TryTask::err("error".to_string());
+		let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
 		assert_eq!(task.run(), Err("error".to_string()));
 	}
 
-	/// Tests `TryTask::map`.
+	/// Tests `TryTrampoline::map`.
 	///
 	/// Verifies that `map` transforms the success value.
 	#[test]
 	fn test_try_task_map() {
-		let task: TryTask<i32, String> = TryTask::ok(10).map(|x| x * 2);
+		let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
 		assert_eq!(task.run(), Ok(20));
 	}
 
-	/// Tests `TryTask::map_err`.
+	/// Tests `TryTrampoline::map_err`.
 	///
 	/// Verifies that `map_err` transforms the error value.
 	#[test]
 	fn test_try_task_map_err() {
-		let task: TryTask<i32, String> =
-			TryTask::err("error".to_string()).map_err(|e| e.to_uppercase());
+		let task: TryTrampoline<i32, String> =
+			TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
 		assert_eq!(task.run(), Err("ERROR".to_string()));
 	}
 
-	/// Tests `TryTask::bind`.
+	/// Tests `TryTrampoline::bind`.
 	///
 	/// Verifies that `bind` chains computations.
 	#[test]
 	fn test_try_task_bind() {
-		let task: TryTask<i32, String> = TryTask::ok(10).bind(|x| TryTask::ok(x * 2));
+		let task: TryTrampoline<i32, String> =
+			TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
 		assert_eq!(task.run(), Ok(20));
 	}
 
-	/// Tests `TryTask::or_else`.
+	/// Tests `TryTrampoline::or_else`.
 	///
 	/// Verifies that `or_else` recovers from failure.
 	#[test]
 	fn test_try_task_or_else() {
-		let task: TryTask<i32, String> =
-			TryTask::err("error".to_string()).or_else(|_| TryTask::ok(42));
+		let task: TryTrampoline<i32, String> =
+			TryTrampoline::err("error".to_string()).or_else(|_| TryTrampoline::ok(42));
 		assert_eq!(task.run(), Ok(42));
 	}
 
-	/// Tests `TryTask::new`.
+	/// Tests `TryTrampoline::new`.
 	///
 	/// Verifies that `new` creates a lazy task.
 	#[test]
 	fn test_try_task_new() {
-		let task: TryTask<i32, String> = TryTask::new(|| Ok(42));
+		let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
 		assert_eq!(task.run(), Ok(42));
 	}
 
-	/// Tests `From<Task>`.
+	/// Tests `From<Trampoline>`.
 	#[test]
 	fn test_try_task_from_task() {
-		let task = Task::pure(42);
-		let try_task: TryTask<i32, String> = TryTask::from(task);
+		let task = Trampoline::pure(42);
+		let try_task: TryTrampoline<i32, String> = TryTrampoline::from(task);
 		assert_eq!(try_task.run(), Ok(42));
 	}
 
-	/// Tests `From<Memo>`.
+	/// Tests `From<Lazy>`.
 	#[test]
 	fn test_try_task_from_memo() {
-		use crate::types::ArcMemo;
-		let memo = ArcMemo::new(|| 42);
-		let try_task: TryTask<i32, String> = TryTask::from(memo);
+		use crate::types::ArcLazy;
+		let memo = ArcLazy::new(|| 42);
+		let try_task: TryTrampoline<i32, String> = TryTrampoline::from(memo);
 		assert_eq!(try_task.run(), Ok(42));
 	}
 
-	/// Tests `From<TryMemo>`.
+	/// Tests `From<TryLazy>`.
 	#[test]
 	fn test_try_task_from_try_memo() {
-		use crate::types::ArcTryMemo;
-		let memo = ArcTryMemo::new(|| Ok(42));
-		let try_task: TryTask<i32, String> = TryTask::from(memo);
+		use crate::types::ArcTryLazy;
+		let memo = ArcTryLazy::new(|| Ok(42));
+		let try_task: TryTrampoline<i32, String> = TryTrampoline::from(memo);
 		assert_eq!(try_task.run(), Ok(42));
 	}
 }

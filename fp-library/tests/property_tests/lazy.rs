@@ -1,8 +1,8 @@
-use fp_library::types::{ArcMemo, RcMemo};
+use fp_library::types::{ArcLazy, RcLazy};
 use quickcheck_macros::quickcheck;
 
 // =========================================================================
-// Memo Property Tests
+// Lazy Property Tests
 // =========================================================================
 
 // -------------------------------------------------------------------------
@@ -10,20 +10,20 @@ use quickcheck_macros::quickcheck;
 // -------------------------------------------------------------------------
 
 /// Property: Getting a memoized value twice returns the same result
-/// Verifies that `RcMemo` memoizes its result; getting it twice returns the same value without re-executing the thunk.
+/// Verifies that `RcLazy` memoizes its result; getting it twice returns the same value without re-executing the thunk.
 #[quickcheck]
 fn prop_rc_memo_get_memoization(x: i32) -> bool {
-	let memo = RcMemo::new(move || x.wrapping_mul(2));
+	let memo = RcLazy::new(move || x.wrapping_mul(2));
 	let result1 = *memo.get();
 	let result2 = *memo.get();
 	result1 == result2
 }
 
 /// Property: Getting a memoized value twice returns the same result (Arc version)
-/// Verifies that `ArcMemo` memoizes its result; getting it twice returns the same value.
+/// Verifies that `ArcLazy` memoizes its result; getting it twice returns the same value.
 #[quickcheck]
 fn prop_arc_memo_get_memoization(x: i32) -> bool {
-	let memo = ArcMemo::new(move || x.wrapping_mul(2));
+	let memo = ArcLazy::new(move || x.wrapping_mul(2));
 	let result1 = *memo.get();
 	let result2 = *memo.get();
 	result1 == result2
@@ -34,10 +34,10 @@ fn prop_arc_memo_get_memoization(x: i32) -> bool {
 // -------------------------------------------------------------------------
 
 /// Property: Cloning a memoized value shares state - getting clone gives same result
-/// Verifies that cloning an `RcMemo` shares the underlying state; getting the clone yields the same result as the original.
+/// Verifies that cloning an `RcLazy` shares the underlying state; getting the clone yields the same result as the original.
 #[quickcheck]
 fn prop_rc_memo_clone_shares_state(x: i32) -> bool {
-	let memo1 = RcMemo::new(move || x);
+	let memo1 = RcLazy::new(move || x);
 	let memo2 = memo1.clone();
 
 	let result1 = *memo1.get();
@@ -45,11 +45,11 @@ fn prop_rc_memo_clone_shares_state(x: i32) -> bool {
 	result1 == result2
 }
 
-/// Property: Cloning an ArcMemo shares state
-/// Verifies that cloning an `ArcMemo` shares the underlying state.
+/// Property: Cloning an ArcLazy shares state
+/// Verifies that cloning an `ArcLazy` shares the underlying state.
 #[quickcheck]
 fn prop_arc_memo_clone_shares_state(x: i32) -> bool {
-	let memo1 = ArcMemo::new(move || x);
+	let memo1 = ArcLazy::new(move || x);
 	let memo2 = memo1.clone();
 
 	let result1 = *memo1.get();
@@ -62,7 +62,7 @@ fn prop_arc_memo_clone_shares_state(x: i32) -> bool {
 #[quickcheck]
 fn prop_memo_get_original_then_clone(x: String) -> bool {
 	let value = x.clone();
-	let memo = RcMemo::new(move || value.clone());
+	let memo = RcLazy::new(move || value.clone());
 	let memo_clone = memo.clone();
 
 	// Get original first
@@ -77,25 +77,25 @@ fn prop_memo_get_original_then_clone(x: String) -> bool {
 // Determinism Properties
 // -------------------------------------------------------------------------
 
-/// Property: Memo computation is deterministic
+/// Property: Lazy computation is deterministic
 /// Verifies that two independent memo values with the same logic produce the same result.
 #[quickcheck]
 fn prop_memo_deterministic(
 	x: i32,
 	y: i32,
 ) -> bool {
-	let memo1 = RcMemo::new(move || x.wrapping_add(y));
-	let memo2 = RcMemo::new(move || x.wrapping_add(y));
+	let memo1 = RcLazy::new(move || x.wrapping_add(y));
+	let memo2 = RcLazy::new(move || x.wrapping_add(y));
 
 	*memo1.get() == *memo2.get()
 }
 
 // -------------------------------------------------------------------------
-// Thread Safety Properties (ArcMemo)
+// Thread Safety Properties (ArcLazy)
 // -------------------------------------------------------------------------
 
-/// Property: ArcMemo is thread-safe and memoizes across threads
-/// Verifies that `ArcMemo` computes only once even when accessed from multiple threads.
+/// Property: ArcLazy is thread-safe and memoizes across threads
+/// Verifies that `ArcLazy` computes only once even when accessed from multiple threads.
 #[test]
 fn prop_arc_memo_thread_safety() {
 	use std::sync::Arc;
@@ -106,7 +106,7 @@ fn prop_arc_memo_thread_safety() {
 	let counter_clone = counter.clone();
 
 	// We use a fixed value for the test, but the property is about the side effect (counter)
-	let memo = ArcMemo::new(move || {
+	let memo = ArcLazy::new(move || {
 		counter_clone.fetch_add(1, Ordering::SeqCst);
 		42
 	});

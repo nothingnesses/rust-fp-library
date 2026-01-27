@@ -5,8 +5,8 @@
 //! ```
 //! use fp_library::{brands::*, classes::*, functions::*, types::*};
 //!
-//! let eval: Eval<i32> = defer::<Eval<i32>, RcFnBrand>(
-//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| Eval::new(|| 42))
+//! let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 //! );
 //! assert_eq!(eval.run(), 42);
 //! ```
@@ -40,8 +40,8 @@ pub trait Defer<'a> {
 	/// ```
 	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let eval: Eval<i32> = defer::<Eval<i32>, RcFnBrand>(
-	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Eval::new(|| 42))
+	/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 	/// );
 	/// assert_eq!(eval.run(), 42);
 	/// ```
@@ -76,8 +76,8 @@ pub trait Defer<'a> {
 /// ```
 /// use fp_library::{brands::*, classes::*, functions::*, types::*};
 ///
-/// let eval: Eval<i32> = defer::<Eval<i32>, RcFnBrand>(
-///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Eval::new(|| 42))
+/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
+///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
 /// );
 /// assert_eq!(eval.run(), 42);
 /// ```

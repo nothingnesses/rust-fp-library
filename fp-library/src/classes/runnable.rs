@@ -8,8 +8,8 @@
 //! ```
 //! use fp_library::{brands::*, functions::*, types::*};
 //!
-//! let eval = Eval::new(|| 42);
-//! assert_eq!(runnable_run::<EvalBrand, _>(eval), 42);
+//! let eval = Thunk::new(|| 42);
+//! assert_eq!(runnable_run::<ThunkBrand, _>(eval), 42);
 //! ```
 
 use crate::{Apply, classes::functor::Functor, kinds::*};
@@ -42,8 +42,8 @@ pub trait Runnable: Functor {
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let eval = Eval::new(|| 42);
-	/// assert_eq!(runnable_run::<EvalBrand, _>(eval), 42);
+	/// let eval = Thunk::new(|| 42);
+	/// assert_eq!(runnable_run::<ThunkBrand, _>(eval), 42);
 	/// ```
 	fn run<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A;
 }
@@ -74,8 +74,8 @@ pub trait Runnable: Functor {
 /// ```
 /// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let eval = Eval::new(|| 42);
-/// assert_eq!(runnable_run::<EvalBrand, _>(eval), 42);
+/// let eval = Thunk::new(|| 42);
+/// assert_eq!(runnable_run::<ThunkBrand, _>(eval), 42);
 /// ```
 pub fn run<'a, F, A>(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A
 where

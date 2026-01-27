@@ -54,74 +54,74 @@ The library uses a unified pointer hierarchy to abstract over reference counting
    - `ArcFnBrand` is a type alias for `FnBrand<ArcBrand>`.
    - This allows unified implementation of `CloneableFn` while `SendCloneableFn` is only implemented when `P: SendRefCountedPointer`.
 
-2. **Shared Memoization:** `Memo` uses a configuration trait (`MemoConfig`) to abstract over the underlying storage and synchronization primitives, ensuring shared memoization semantics across clones.
+2. **Shared Memoization:** `Lazy` uses a configuration trait (`LazyConfig`) to abstract over the underlying storage and synchronization primitives, ensuring shared memoization semantics across clones.
 
-   - `Memo<'a, A, Config>` is parameterized by a `MemoConfig` which defines the storage type.
+   - `Lazy<'a, A, Config>` is parameterized by a `LazyConfig` which defines the storage type.
    - `RcMemo` uses `Rc<LazyCell>` for single-threaded, shared memoization.
    - `ArcMemo` uses `Arc<LazyLock>` for thread-safe, shared memoization.
    - This ensures Haskell-like semantics where forcing one reference updates the value for all clones.
 
 **Reasoning:**
 
-- **Correctness:** Ensures `Memo` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
+- **Correctness:** Ensures `Lazy` behaves correctly as a shared thunk rather than a value that is re-evaluated per clone.
 - **Performance:** Leverages standard library types (`LazyCell`, `LazyLock`) for efficient, correct-by-construction memoization.
-- **Flexibility:** Separates the concern of *memoization* (`Memo`) from *computation* (`Task`/`Eval`), allowing users to choose the right tool for the job (e.g., `Task` for stack-safe recursion, `Memo` for caching).
+- **Flexibility:** Separates the concern of *memoization* (`Lazy`) from *computation* (`Trampoline`/`Thunk`), allowing users to choose the right tool for the job (e.g., `Trampoline` for stack-safe recursion, `Lazy` for caching).
 
 ## 3. Granular Lazy Evaluation Types
 
 **Decision:**
 
-The library provides three distinct types for lazy evaluation: `Eval`, `Task`, and `Memo`. This granular approach is a deliberate architectural choice to address the specific challenges of functional programming in an eager, systems language like Rust.
+The library provides three distinct types for lazy evaluation: `Thunk`, `Trampoline`, and `Lazy`. This granular approach is a deliberate architectural choice to address the specific challenges of functional programming in an eager, systems language like Rust.
 
 **Reasoning:**
 
 In lazy languages like Haskell, the runtime manages evaluation strategies automatically. In Rust, we must be explicit about these concerns to maintain performance and safety guarantees. This design allows users to pay only for the features they need.
 
-### 3.1. The `Eval<'a, A>` Type: Lightweight & HKT-Compatible
+### 3.1. The `Thunk<'a, A>` Type: Lightweight & HKT-Compatible
 
-**Purpose:** `Eval` is a minimal deferred computation designed for "glue code" and scenarios requiring borrowing.
+**Purpose:** `Thunk` is a minimal deferred computation designed for "glue code" and scenarios requiring borrowing.
 
 **Design Rationale:**
-- **HKT Compatibility:** `Eval` is designed to be a first-class citizen in the library's Higher-Kinded Type (HKT) system. It implements `Functor`, `Semimonad`, and other traits directly, allowing it to be used generically where other `Functor`s or `Monad`s are expected.
-- **Borrowing Support:** By using lifetime parameters (`'a`), `Eval` can capture and return references to data on the stack. This is impossible with `'static`-only types.
-- **Zero-Overhead Computation:** `Eval` is essentially a wrapper around a `Box<dyn FnOnce() -> A + 'a>`. It adds minimal overhead, making it ideal for short chains of operations.
+- **HKT Compatibility:** `Thunk` is designed to be a first-class citizen in the library's Higher-Kinded Type (HKT) system. It implements `Functor`, `Semimonad`, and other traits directly, allowing it to be used generically where other `Functor`s or `Monad`s are expected.
+- **Borrowing Support:** By using lifetime parameters (`'a`), `Thunk` can capture and return references to data on the stack. This is impossible with `'static`-only types.
+- **Zero-Overhead Computation:** `Thunk` is essentially a wrapper around a `Box<dyn FnOnce() -> A + 'a>`. It adds minimal overhead, making it ideal for short chains of operations.
 
 **Trade-offs:**
-- **Not Stack-Safe:** The primary limitation of `Eval` is that it is not stack-safe. Each call to `.bind()` adds a frame to the call stack. Deep recursion (>1000 calls) will cause a stack overflow. This is an acceptable trade-off for its speed and flexibility.
+- **Not Stack-Safe:** The primary limitation of `Thunk` is that it is not stack-safe. Each call to `.bind()` adds a frame to the call stack. Deep recursion (>1000 calls) will cause a stack overflow. This is an acceptable trade-off for its speed and flexibility.
 
-### 3.2. The `Task<A>` Type: Stack-Safe Recursion
+### 3.2. The `Trampoline<A>` Type: Stack-Safe Recursion
 
-**Purpose:** `Task` is a "heavy-duty" monadic type for deferred computations that require guaranteed stack safety, such as deep recursion or long pipelines.
+**Purpose:** `Trampoline` is a "heavy-duty" monadic type for deferred computations that require guaranteed stack safety, such as deep recursion or long pipelines.
 
 **Design Rationale:**
-- **Stack Safety via Trampolining:** `Task` is built on the `Free<Thunk, A>` monad. This construction implements a trampoline, which iteratively processes a list of continuations instead of making recursive calls on the call stack. This allows for unlimited recursion depth without stack overflow.
+- **Stack Safety via Trampolining:** `Trampoline` is built on the `Free<Thunk, A>` monad. This construction implements a trampoline, which iteratively processes a list of continuations instead of making recursive calls on the call stack. This allows for unlimited recursion depth without stack overflow.
 - **`'static` Requirement:** The trampoline mechanism and the `Free` monad's internal structure require that the contained value `A` be `'static`. This is because the trampoline may need to store the value or intermediate states across multiple iterations, and the Rust borrow checker cannot easily prove lifetime safety for these complex, recursive patterns.
-- **Performance:** While `Task` guarantees safety, it comes with a performance cost compared to `Eval` due to the indirection and allocation within the `Free` monad structure.
+- **Performance:** While `Trampoline` guarantees safety, it comes with a performance cost compared to `Thunk` due to the indirection and allocation within the `Free` monad structure.
 
 **Trade-offs:**
-- **Loss of Borrowing:** The `'static` constraint means `Task` cannot work with borrowed data. This is a significant limitation when integrating with code that uses references extensively.
+- **Loss of Borrowing:** The `'static` constraint means `Trampoline` cannot work with borrowed data. This is a significant limitation when integrating with code that uses references extensively.
 - **Higher Overhead:** The trampoline mechanism is more complex and slower than a direct function call.
 
-### 3.3. The `Memo<'a, A, Config>` Type: Caching & Shared Semantics
+### 3.3. The `Lazy<'a, A, Config>` Type: Caching & Shared Semantics
 
-**Purpose:** `Memo` is not a computation type itself, but a wrapper around a computation that ensures it runs at most once, with the result shared across all clones.
+**Purpose:** `Lazy` is not a computation type itself, but a wrapper around a computation that ensures it runs at most once, with the result shared across all clones.
 
 **Design Rationale:**
-- **Separation of Concerns:** `Memo` decouples the *act of computation* from the *act of caching*. This allows any `Eval` or `Task` to be memoized by simply wrapping it in a `Memo`.
-- **Shared, Lazy Initialization:** `Memo` uses Rust's `std::cell::LazyCell` (for `RcMemo`) or `std::sync::LazyLock` (for `ArcMemo`). These types provide "initialization-once" guarantees, ensuring the computation runs exactly one time, no matter how many times `.get()` is called on any clone.
-- **Configuration via `MemoConfig`:** The `MemoConfig` trait abstracts over the choice of pointer (`Rc` vs `Arc`) and lazy cell type, allowing users to select single-threaded (`RcMemo`) or thread-safe (`ArcMemo`) memoization.
+- **Separation of Concerns:** `Lazy` decouples the *act of computation* from the *act of caching*. This allows any `Thunk` or `Trampoline` to be memoized by simply wrapping it in a `Lazy`.
+- **Shared, Lazy Initialization:** `Lazy` uses Rust's `std::cell::LazyCell` (for `RcMemo`) or `std::sync::LazyLock` (for `ArcMemo`). These types provide "initialization-once" guarantees, ensuring the computation runs exactly one time, no matter how many times `.get()` is called on any clone.
+- **Configuration via `LazyConfig`:** The `LazyConfig` trait abstracts over the choice of pointer (`Rc` vs `Arc`) and lazy cell type, allowing users to select single-threaded (`RcMemo`) or thread-safe (`ArcMemo`) memoization.
 
 **Trade-offs:**
 - **Allocation and Synchronization:** Caching requires memory allocation for the thunk and, in the case of `ArcMemo`, synchronization primitives. This overhead is justified only for expensive computations.
-- **Not a Control Flow Structure:** `Memo` is primarily a data container. While it has some monadic properties, it's not the right tool for building complex computational pipelines.
+- **Not a Control Flow Structure:** `Lazy` is primarily a data container. While it has some monadic properties, it's not the right tool for building complex computational pipelines.
 
 ### 3.4. The Granular Approach in Rust
 
 This three-type system is a direct response to Rust's characteristics as an eagerly-evaluated, systems language:
 
-1.  **Explicit Trade-offs:** In Rust, you cannot have it all. You must choose between performance (`Eval`), safety (`Task`), and caching (`Memo`). This design makes those choices explicit and manageable.
-2.  **Zero-Cost Abstractions:** The system allows users to compose these types. For example, you can use a `Task` for a recursive algorithm, wrap it in a `Memo` to cache the result, and then use an `Eval` to borrow that result for a final transformation. The user only pays for the `Memo`'s allocation and the `Task`'s trampoline, not for features they aren't using.
-3.  **Integration with Ownership:** The lifetime system of Rust is respected. `Eval` can play nicely with the borrow checker, while `Task` and `Memo` provide clear pathways (`'static`, `Arc`) for sharing data across contexts where borrowing is not possible.
+1.  **Explicit Trade-offs:** In Rust, you cannot have it all. You must choose between performance (`Thunk`), safety (`Trampoline`), and caching (`Lazy`). This design makes those choices explicit and manageable.
+2.  **Zero-Cost Abstractions:** The system allows users to compose these types. For example, you can use a `Trampoline` for a recursive algorithm, wrap it in a `Lazy` to cache the result, and then use an `Thunk` to borrow that result for a final transformation. The user only pays for the `Lazy`'s allocation and the `Trampoline`'s trampoline, not for features they aren't using.
+3.  **Integration with Ownership:** The lifetime system of Rust is respected. `Thunk` can play nicely with the borrow checker, while `Trampoline` and `Lazy` provide clear pathways (`'static`, `Arc`) for sharing data across contexts where borrowing is not possible.
 
 ## 4. Module Organization
 

@@ -1,7 +1,7 @@
 //! Concrete data types, their corresponding implementations and type aliases.
 //!
 //! This module provides implementations of various functional programming
-//! data structures and wrappers, including `Identity`, `Memo`, and extensions
+//! data structures and wrappers, including `Identity`, `Lazy`, and extensions
 //! for standard library types like `Option` and `Result`.
 //!
 //! ### Examples
@@ -17,11 +17,10 @@ pub mod arc_ptr;
 pub mod cat_list;
 pub mod endofunction;
 pub mod endomorphism;
-pub mod eval;
 pub mod fn_brand;
 pub mod free;
 pub mod identity;
-pub mod memo;
+pub mod lazy;
 pub mod option;
 pub mod pair;
 pub mod rc_ptr;
@@ -29,23 +28,24 @@ pub mod result;
 pub mod send_endofunction;
 pub mod step;
 pub mod string;
-pub mod task;
-pub mod try_eval;
-pub mod try_memo;
-pub mod try_task;
+pub mod thunk;
+pub mod trampoline;
+pub mod try_lazy;
+pub mod try_thunk;
+pub mod try_trampoline;
 pub mod vec;
 
 pub use cat_list::CatList;
 pub use endofunction::Endofunction;
 pub use endomorphism::Endomorphism;
-pub use eval::Eval;
 pub use free::Free;
 pub use identity::Identity;
-pub use memo::{ArcMemo, ArcMemoConfig, Memo, MemoConfig, RcMemo, RcMemoConfig};
+pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyConfig, RcLazy, RcLazyConfig};
 pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;
 pub use step::Step;
-pub use task::Task;
-pub use try_eval::TryEval;
-pub use try_memo::{ArcTryMemo, RcTryMemo, TryMemo};
-pub use try_task::TryTask;
+pub use thunk::Thunk;
+pub use trampoline::Trampoline;
+pub use try_lazy::{ArcTryLazy, RcTryLazy, TryLazy};
+pub use try_thunk::TryThunk;
+pub use try_trampoline::TryTrampoline;

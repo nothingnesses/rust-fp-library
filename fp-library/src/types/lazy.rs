@@ -1,14 +1,14 @@
-//! Implementations for [`Memo`], a lazily-computed, memoized value.
+//! Implementations for [`Lazy`], a lazily-computed, memoized value.
 //!
-//! This module provides the [`Memo`] type and its configuration trait [`MemoConfig`].
+//! This module provides the [`Lazy`] type and its configuration trait [`LazyConfig`].
 
 use crate::{
 	Apply,
-	brands::MemoBrand,
+	brands::LazyBrand,
 	classes::{CloneableFn, Defer, RefFunctor, SendDefer},
 	impl_kind,
 	kinds::*,
-	types::{Eval, Task},
+	types::{Thunk, Trampoline},
 };
 use std::{
 	cell::LazyCell,
@@ -26,7 +26,7 @@ use std::{
 ///
 /// This design leverages Rust 1.80's `LazyCell` and `LazyLock` types,
 /// which encapsulate the initialization-once logic.
-pub trait MemoConfig: 'static {
+pub trait LazyConfig: 'static {
 	/// The lazy cell type for infallible memoization.
 	type Lazy<'a, A: 'a>: Clone;
 
@@ -62,8 +62,8 @@ pub trait MemoConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcMemoConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A>;
 
@@ -91,8 +91,8 @@ pub trait MemoConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E>;
 
@@ -119,8 +119,8 @@ pub trait MemoConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcMemoConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
 
@@ -148,18 +148,18 @@ pub trait MemoConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E>;
 }
 
 /// Single-threaded memoization using `Rc<LazyCell>`.
 ///
-/// Not thread-safe. Use [`ArcMemoConfig`] for multi-threaded contexts.
-pub struct RcMemoConfig;
+/// Not thread-safe. Use [`ArcLazyConfig`] for multi-threaded contexts.
+pub struct RcLazyConfig;
 
-impl MemoConfig for RcMemoConfig {
+impl LazyConfig for RcLazyConfig {
 	type Lazy<'a, A: 'a> = Rc<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>;
 	type TryLazy<'a, A: 'a, E: 'a> =
 		Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
@@ -189,8 +189,8 @@ impl MemoConfig for RcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcMemoConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A> {
 		Rc::new(LazyCell::new(f))
@@ -220,8 +220,8 @@ impl MemoConfig for RcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
 		Rc::new(LazyCell::new(f))
@@ -250,8 +250,8 @@ impl MemoConfig for RcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcMemoConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 		LazyCell::force(lazy)
@@ -281,8 +281,8 @@ impl MemoConfig for RcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E> {
 		LazyCell::force(lazy).as_ref()
@@ -292,9 +292,9 @@ impl MemoConfig for RcMemoConfig {
 /// Thread-safe memoization using `Arc<LazyLock>`.
 ///
 /// Requires `A: Send + Sync` for the value type.
-pub struct ArcMemoConfig;
+pub struct ArcLazyConfig;
 
-impl MemoConfig for ArcMemoConfig {
+impl LazyConfig for ArcLazyConfig {
 	type Lazy<'a, A: 'a> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>;
 	type TryLazy<'a, A: 'a, E: 'a> =
 		Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
@@ -324,8 +324,8 @@ impl MemoConfig for ArcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*ArcMemoConfig::force(&lazy), 42);
+	/// let lazy = ArcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*ArcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A> {
 		Arc::new(LazyLock::new(f))
@@ -355,8 +355,8 @@ impl MemoConfig for ArcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(ArcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = ArcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(ArcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
 		Arc::new(LazyLock::new(f))
@@ -385,8 +385,8 @@ impl MemoConfig for ArcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcMemoConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*ArcMemoConfig::force(&lazy), 42);
+	/// let lazy = ArcLazyConfig::new_lazy(Box::new(|| 42));
+	/// assert_eq!(*ArcLazyConfig::force(&lazy), 42);
 	/// ```
 	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 		LazyLock::force(lazy)
@@ -416,8 +416,8 @@ impl MemoConfig for ArcMemoConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcMemoConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(ArcMemoConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = ArcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(ArcLazyConfig::force_try(&lazy), Ok(&42));
 	/// ```
 	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E> {
 		LazyLock::force(lazy).as_ref()
@@ -427,7 +427,7 @@ impl MemoConfig for ArcMemoConfig {
 /// A lazily-computed, memoized value with shared semantics.
 ///
 /// The computation runs at most once; subsequent accesses return the cached value.
-/// Cloning a `Memo` shares the underlying cache - all clones see the same value.
+/// Cloning a `Lazy` shares the underlying cache - all clones see the same value.
 ///
 /// ### Type Parameters
 ///
@@ -443,7 +443,7 @@ impl MemoConfig for ArcMemoConfig {
 /// ```
 /// use fp_library::types::*;
 ///
-/// let memo = Memo::<_, RcMemoConfig>::new(|| 5);
+/// let memo = Lazy::<_, RcLazyConfig>::new(|| 5);
 /// let shared = memo.clone();
 ///
 /// // First force computes and caches:
@@ -452,14 +452,14 @@ impl MemoConfig for ArcMemoConfig {
 /// // Second force returns cached value (shared sees same result):
 /// assert_eq!(shared.get(), value);
 /// ```
-pub struct Memo<'a, A, Config: MemoConfig = RcMemoConfig>
+pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>
 where
 	A: 'a,
 {
 	pub(crate) inner: Config::Lazy<'a, A>,
 }
 
-impl<'a, A, Config: MemoConfig> Clone for Memo<'a, A, Config>
+impl<'a, A, Config: LazyConfig> Clone for Lazy<'a, A, Config>
 where
 	A: 'a,
 {
@@ -468,7 +468,7 @@ where
 	}
 }
 
-impl<'a, A, Config: MemoConfig> Memo<'a, A, Config>
+impl<'a, A, Config: LazyConfig> Lazy<'a, A, Config>
 where
 	A: 'a,
 {
@@ -476,7 +476,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Memo a -> a`
+	/// `forall a. Lazy a -> a`
 	///
 	/// ### Returns
 	///
@@ -487,7 +487,7 @@ where
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 42);
+	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	pub fn get(&self) -> &A {
@@ -495,15 +495,15 @@ where
 	}
 }
 
-impl<'a, A> Memo<'a, A, RcMemoConfig>
+impl<'a, A> Lazy<'a, A, RcLazyConfig>
 where
 	A: 'a,
 {
-	/// Creates a new Memo that will run `f` on first access.
+	/// Creates a new Lazy that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Memo a`
+	/// `forall a. (Unit -> a) -> Lazy a`
 	///
 	/// ### Type Parameters
 	///
@@ -515,48 +515,48 @@ where
 	///
 	/// ### Returns
 	///
-	/// A new `Memo` instance.
+	/// A new `Lazy` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 42);
+	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + 'a,
 	{
-		Memo { inner: RcMemoConfig::new_lazy(Box::new(f)) }
+		Lazy { inner: RcLazyConfig::new_lazy(Box::new(f)) }
 	}
 }
 
-impl<'a, A> From<Eval<'a, A>> for Memo<'a, A, RcMemoConfig> {
-	fn from(eval: Eval<'a, A>) -> Self {
+impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
+	fn from(eval: Thunk<'a, A>) -> Self {
 		Self::new(move || eval.run())
 	}
 }
 
-impl<'a, A> From<Task<A>> for Memo<'a, A, RcMemoConfig>
+impl<'a, A> From<Trampoline<A>> for Lazy<'a, A, RcLazyConfig>
 where
 	A: Send,
 {
-	fn from(task: Task<A>) -> Self {
+	fn from(task: Trampoline<A>) -> Self {
 		Self::new(move || task.run())
 	}
 }
 
-impl<'a, A> Memo<'a, A, ArcMemoConfig>
+impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 where
 	A: 'a,
 {
-	/// Creates a new Memo that will run `f` on first access.
+	/// Creates a new Lazy that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Memo a`
+	/// `forall a. (Unit -> a) -> Lazy a`
 	///
 	/// ### Type Parameters
 	///
@@ -568,37 +568,37 @@ where
 	///
 	/// ### Returns
 	///
-	/// A new `Memo` instance.
+	/// A new `Lazy` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = Memo::<_, ArcMemoConfig>::new(|| 42);
+	/// let memo = Lazy::<_, ArcLazyConfig>::new(|| 42);
 	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + Send + 'a,
 	{
-		Memo { inner: ArcMemoConfig::new_lazy(Box::new(f)) }
+		Lazy { inner: ArcLazyConfig::new_lazy(Box::new(f)) }
 	}
 }
 
 /// Single-threaded memoization alias.
-pub type RcMemo<'a, A> = Memo<'a, A, RcMemoConfig>;
+pub type RcLazy<'a, A> = Lazy<'a, A, RcLazyConfig>;
 
 /// Thread-safe memoization alias.
-pub type ArcMemo<'a, A> = Memo<'a, A, ArcMemoConfig>;
+pub type ArcLazy<'a, A> = Lazy<'a, A, ArcLazyConfig>;
 
 impl_kind! {
-	impl<Config: MemoConfig> for MemoBrand<Config> {
-		type Of<'a, A: 'a>: 'a = Memo<'a, A, Config>;
+	impl<Config: LazyConfig> for LazyBrand<Config> {
+		type Of<'a, A: 'a>: 'a = Lazy<'a, A, Config>;
 	}
 }
 
-impl<'a, A> Defer<'a> for Memo<'a, A, RcMemoConfig>
+impl<'a, A> Defer<'a> for Lazy<'a, A, RcLazyConfig>
 where
 	A: Clone + 'a,
 {
@@ -606,11 +606,11 @@ where
 	where
 		Self: Sized,
 	{
-		RcMemo::new(move || f(()).get().clone())
+		RcLazy::new(move || f(()).get().clone())
 	}
 }
 
-impl SendDefer for MemoBrand<ArcMemoConfig> {
+impl SendDefer for LazyBrand<ArcLazyConfig> {
 	fn send_defer<'a, A>(
 		thunk: impl 'a
 		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -620,16 +620,16 @@ impl SendDefer for MemoBrand<ArcMemoConfig> {
 	where
 		A: Clone + Send + Sync + 'a,
 	{
-		ArcMemo::new(move || thunk().get().clone())
+		ArcLazy::new(move || thunk().get().clone())
 	}
 }
 
-impl RefFunctor for MemoBrand<RcMemoConfig> {
+impl RefFunctor for LazyBrand<RcLazyConfig> {
 	/// Maps a function over the memoized value, where the function takes a reference.
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. RefFunctor (Memo RcMemoConfig) => (a -> b, Memo a RcMemoConfig) -> Memo b RcMemoConfig`
+	/// `forall b a. RefFunctor (Lazy RcLazyConfig) => (a -> b, Lazy a RcLazyConfig) -> Lazy b RcLazyConfig`
 	///
 	/// ### Type Parameters
 	///
@@ -655,8 +655,8 @@ impl RefFunctor for MemoBrand<RcMemoConfig> {
 	///     types::*,
 	/// };
 	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 10);
-	/// let mapped = MemoBrand::<RcMemoConfig>::map_ref(
+	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+	/// let mapped = LazyBrand::<RcLazyConfig>::map_ref(
 	///     |x: &i32| *x * 2,
 	///     memo,
 	/// );
@@ -671,7 +671,7 @@ impl RefFunctor for MemoBrand<RcMemoConfig> {
 	{
 		let fa = fa.clone();
 		let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.get()));
-		Memo { inner: RcMemoConfig::new_lazy(init) }
+		Lazy { inner: RcLazyConfig::new_lazy(init) }
 	}
 }
 
@@ -681,14 +681,14 @@ mod tests {
 	use std::cell::RefCell;
 	use std::rc::Rc;
 
-	/// Tests that `Memo` caches the result of the computation.
+	/// Tests that `Lazy` caches the result of the computation.
 	///
 	/// Verifies that the initializer is called only once.
 	#[test]
 	fn test_memo_caching() {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
-		let memo = RcMemo::new(move || {
+		let memo = RcLazy::new(move || {
 			*counter_clone.borrow_mut() += 1;
 			42
 		});
@@ -700,14 +700,14 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests that `Memo` shares the cache across clones.
+	/// Tests that `Lazy` shares the cache across clones.
 	///
 	/// Verifies that clones see the same value and don't recompute.
 	#[test]
 	fn test_memo_sharing() {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
-		let memo = RcMemo::new(move || {
+		let memo = RcLazy::new(move || {
 			*counter_clone.borrow_mut() += 1;
 			42
 		});
@@ -719,9 +719,9 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests thread safety of `ArcMemo`.
+	/// Tests thread safety of `ArcLazy`.
 	///
-	/// Verifies that `ArcMemo` can be shared across threads and computes only once.
+	/// Verifies that `ArcLazy` can be shared across threads and computes only once.
 	#[test]
 	fn test_arc_memo_thread_safety() {
 		use std::sync::atomic::{AtomicUsize, Ordering};
@@ -729,7 +729,7 @@ mod tests {
 
 		let counter = Arc::new(AtomicUsize::new(0));
 		let counter_clone = counter.clone();
-		let memo = ArcMemo::new(move || {
+		let memo = ArcLazy::new(move || {
 			counter_clone.fetch_add(1, Ordering::SeqCst);
 			42
 		});
@@ -751,22 +751,22 @@ mod tests {
 
 	/// Tests creation from `Eval`.
 	///
-	/// Verifies `From<Eval>` works correctly.
+	/// Verifies `From<Thunk>` works correctly.
 	#[test]
 	fn test_memo_from_eval() {
-		let eval = Eval::new(|| 42);
-		let memo = RcMemo::from(eval);
+		let eval = Thunk::new(|| 42);
+		let memo = RcLazy::from(eval);
 		assert_eq!(*memo.get(), 42);
 	}
 
 	/// Tests creation from `Task`.
 	///
-	/// Verifies `From<Task>` works correctly.
+	/// Verifies `From<Trampoline>` works correctly.
 	#[test]
 	fn test_memo_from_task() {
 		// Task requires Send, so we use a Send-compatible value
-		let task = Task::pure(42);
-		let memo = RcMemo::from(task);
+		let task = Trampoline::pure(42);
+		let memo = RcLazy::from(task);
 		assert_eq!(*memo.get(), 42);
 	}
 
@@ -777,9 +777,9 @@ mod tests {
 		use crate::classes::defer::defer;
 		use crate::functions::cloneable_fn_new;
 
-		let memo: RcMemo<i32> =
-			defer::<RcMemo<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
-				RcMemo::new(|| 42)
+		let memo: RcLazy<i32> =
+			defer::<RcLazy<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
+				RcLazy::new(|| 42)
 			}));
 		assert_eq!(*memo.get(), 42);
 	}
@@ -787,11 +787,11 @@ mod tests {
 	/// Tests SendDefer implementation.
 	#[test]
 	fn test_send_defer() {
-		use crate::brands::MemoBrand;
+		use crate::brands::LazyBrand;
 		use crate::classes::send_defer::send_defer;
 
-		let memo: ArcMemo<i32> =
-			send_defer::<MemoBrand<ArcMemoConfig>, _, _>(|| ArcMemo::new(|| 42));
+		let memo: ArcLazy<i32> =
+			send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
 		assert_eq!(*memo.get(), 42);
 	}
 }

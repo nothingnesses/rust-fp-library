@@ -1,19 +1,23 @@
-//! Stack safety tests for `Task`.
+//! Stack safety tests for `Trampoline`.
 //!
-//! This module contains tests to verify that `Task` is stack-safe for deep recursion,
+//! This module contains tests to verify that `Trampoline` is stack-safe for deep recursion,
 //! deep bind chains, and deep defer chains.
 
-use fp_library::types::{Step, Task};
+use fp_library::types::{Step, Trampoline};
 
 /// Tests deep recursion using `tail_rec_m`.
 ///
 /// Verifies that `tail_rec_m` can handle 1,000,000 iterations without stack overflow.
 #[test]
 fn test_deep_recursion() {
-	fn count_down(n: u64) -> Task<u64> {
-		Task::tail_rec_m(
+	fn count_down(n: u64) -> Trampoline<u64> {
+		Trampoline::tail_rec_m(
 			|n| {
-				if n == 0 { Task::pure(Step::Done(0)) } else { Task::pure(Step::Loop(n - 1)) }
+				if n == 0 {
+					Trampoline::pure(Step::Done(0))
+				} else {
+					Trampoline::pure(Step::Loop(n - 1))
+				}
 			},
 			n,
 		)
@@ -28,9 +32,9 @@ fn test_deep_recursion() {
 /// Verifies that a chain of 100,000 `bind` calls does not cause stack overflow.
 #[test]
 fn test_deep_bind_chain() {
-	let mut task = Task::pure(0);
+	let mut task = Trampoline::pure(0);
 	for _ in 0..100_000 {
-		task = task.bind(|x| Task::pure(x + 1));
+		task = task.bind(|x| Trampoline::pure(x + 1));
 	}
 	assert_eq!(task.run(), 100_000);
 }
@@ -40,11 +44,11 @@ fn test_deep_bind_chain() {
 /// Verifies that a chain of 100,000 `defer` calls does not cause stack overflow.
 #[test]
 fn test_deep_defer_chain() {
-	fn recursive_defer(n: u64) -> Task<u64> {
+	fn recursive_defer(n: u64) -> Trampoline<u64> {
 		if n == 0 {
-			Task::pure(0)
+			Trampoline::pure(0)
 		} else {
-			Task::defer(move || recursive_defer(n - 1).map(|x| x + 1))
+			Trampoline::defer(move || recursive_defer(n - 1).map(|x| x + 1))
 		}
 	}
 

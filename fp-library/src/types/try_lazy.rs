@@ -1,6 +1,6 @@
-//! Implementations for [`TryMemo`], a lazily-computed, memoized fallible value.
+//! Implementations for [`TryLazy`], a lazily-computed, memoized fallible value.
 
-use crate::types::{ArcMemoConfig, Memo, MemoConfig, RcMemoConfig, TryEval, TryTask};
+use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 
 /// A lazily-computed, memoized value that may fail.
 ///
@@ -12,7 +12,7 @@ use crate::types::{ArcMemoConfig, Memo, MemoConfig, RcMemoConfig, TryEval, TryTa
 /// * `A`: The type of the computed value.
 /// * `E`: The type of the error.
 /// * `Config`: The memoization configuration.
-pub struct TryMemo<'a, A, E, Config: MemoConfig = RcMemoConfig>
+pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>
 where
 	A: 'a,
 	E: 'a,
@@ -20,7 +20,7 @@ where
 	pub(crate) inner: Config::TryLazy<'a, A, E>,
 }
 
-impl<'a, A, E, Config: MemoConfig> Clone for TryMemo<'a, A, E, Config>
+impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
 where
 	A: 'a,
 	E: 'a,
@@ -30,7 +30,7 @@ where
 	}
 }
 
-impl<'a, A, E, Config: MemoConfig> TryMemo<'a, A, E, Config>
+impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
 where
 	A: 'a,
 	E: 'a,
@@ -39,7 +39,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryMemo a e -> Result a e`
+	/// `forall e a. TryLazy a e -> Result a e`
 	///
 	/// ### Returns
 	///
@@ -50,7 +50,7 @@ where
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = TryMemo::<_, _, RcMemoConfig>::new(|| Ok::<i32, ()>(42));
+	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
 	pub fn get(&self) -> Result<&A, &E> {
@@ -58,16 +58,16 @@ where
 	}
 }
 
-impl<'a, A, E> TryMemo<'a, A, E, RcMemoConfig>
+impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
 where
 	A: 'a,
 	E: 'a,
 {
-	/// Creates a new TryMemo that will run `f` on first access.
+	/// Creates a new TryLazy that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryMemo a e`
+	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
 	///
 	/// ### Type Parameters
 	///
@@ -79,69 +79,69 @@ where
 	///
 	/// ### Returns
 	///
-	/// A new `TryMemo` instance.
+	/// A new `TryLazy` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = TryMemo::<_, _, RcMemoConfig>::new(|| Ok::<i32, ()>(42));
+	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Result<A, E> + 'a,
 	{
-		TryMemo { inner: RcMemoConfig::new_try_lazy(Box::new(f)) }
+		TryLazy { inner: RcLazyConfig::new_try_lazy(Box::new(f)) }
 	}
 }
 
-impl<'a, A, E> From<TryEval<'a, A, E>> for TryMemo<'a, A, E, RcMemoConfig> {
-	fn from(eval: TryEval<'a, A, E>) -> Self {
+impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+	fn from(eval: TryThunk<'a, A, E>) -> Self {
 		Self::new(move || eval.run())
 	}
 }
 
-impl<'a, A, E> From<TryTask<A, E>> for TryMemo<'a, A, E, RcMemoConfig>
+impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
 where
 	A: Send,
 	E: Send,
 {
-	fn from(task: TryTask<A, E>) -> Self {
+	fn from(task: TryTrampoline<A, E>) -> Self {
 		Self::new(move || task.run())
 	}
 }
 
-impl<'a, A, E> From<Memo<'a, A, ArcMemoConfig>> for TryMemo<'a, A, E, ArcMemoConfig>
+impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
 where
 	A: Clone + Send + Sync + 'a,
 	E: Send + Sync + 'a,
 {
-	fn from(memo: Memo<'a, A, ArcMemoConfig>) -> Self {
+	fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 		Self::new(move || Ok(memo.get().clone()))
 	}
 }
 
-impl<'a, A, E> From<Memo<'a, A, RcMemoConfig>> for TryMemo<'a, A, E, RcMemoConfig>
+impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
 where
 	A: Clone + 'a,
 	E: 'a,
 {
-	fn from(memo: Memo<'a, A, RcMemoConfig>) -> Self {
+	fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
 		Self::new(move || Ok(memo.get().clone()))
 	}
 }
 
-impl<'a, A> TryMemo<'a, A, String, RcMemoConfig>
+impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
 where
 	A: 'a,
 {
-	/// Creates a TryMemo that catches unwinds (panics).
+	/// Creates a TryLazy that catches unwinds (panics).
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> TryMemo a String`
+	/// `forall a. (Unit -> a) -> TryLazy a String`
 	///
 	/// ### Type Parameters
 	///
@@ -153,14 +153,14 @@ where
 	///
 	/// ### Returns
 	///
-	/// A new `TryMemo` instance where panics are converted to `Err(String)`.
+	/// A new `TryLazy` instance where panics are converted to `Err(String)`.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = TryMemo::<_, String, RcMemoConfig>::catch_unwind(|| {
+	/// let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
 	///     if true { panic!("oops") }
 	///     42
 	/// });
@@ -184,16 +184,16 @@ where
 	}
 }
 
-impl<'a, A, E> TryMemo<'a, A, E, ArcMemoConfig>
+impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
 where
 	A: 'a,
 	E: 'a,
 {
-	/// Creates a new TryMemo that will run `f` on first access.
+	/// Creates a new TryLazy that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryMemo a e`
+	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
 	///
 	/// ### Type Parameters
 	///
@@ -205,46 +205,46 @@ where
 	///
 	/// ### Returns
 	///
-	/// A new `TryMemo` instance.
+	/// A new `TryLazy` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = TryMemo::<_, _, ArcMemoConfig>::new(|| Ok::<i32, ()>(42));
+	/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Result<A, E> + Send + 'a,
 	{
-		TryMemo { inner: ArcMemoConfig::new_try_lazy(Box::new(f)) }
+		TryLazy { inner: ArcLazyConfig::new_try_lazy(Box::new(f)) }
 	}
 }
 
 /// Single-threaded fallible memoization alias.
-pub type RcTryMemo<'a, A, E> = TryMemo<'a, A, E, RcMemoConfig>;
+pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
 
 /// Thread-safe fallible memoization alias.
-pub type ArcTryMemo<'a, A, E> = TryMemo<'a, A, E, ArcMemoConfig>;
+pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
 
 #[cfg(test)]
 mod tests {
-	use crate::types::RcMemo;
+	use crate::types::RcLazy;
 
 	use super::*;
 	use std::cell::RefCell;
 	use std::rc::Rc;
 
-	/// Tests that `TryMemo` caches successful results.
+	/// Tests that `TryLazy` caches successful results.
 	///
 	/// Verifies that the initializer is called only once for success.
 	#[test]
 	fn test_try_memo_caching_ok() {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
-		let memo: RcTryMemo<i32, ()> = RcTryMemo::new(move || {
+		let memo: RcTryLazy<i32, ()> = RcTryLazy::new(move || {
 			*counter_clone.borrow_mut() += 1;
 			Ok(42)
 		});
@@ -256,14 +256,14 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests that `TryMemo` caches error results.
+	/// Tests that `TryLazy` caches error results.
 	///
 	/// Verifies that the initializer is called only once for error.
 	#[test]
 	fn test_try_memo_caching_err() {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
-		let memo: RcTryMemo<i32, i32> = RcTryMemo::new(move || {
+		let memo: RcTryLazy<i32, i32> = RcTryLazy::new(move || {
 			*counter_clone.borrow_mut() += 1;
 			Err(0)
 		});
@@ -275,14 +275,14 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests that `TryMemo` shares the cache across clones.
+	/// Tests that `TryLazy` shares the cache across clones.
 	///
 	/// Verifies that clones see the same result.
 	#[test]
 	fn test_try_memo_sharing() {
 		let counter = Rc::new(RefCell::new(0));
 		let counter_clone = counter.clone();
-		let memo: RcTryMemo<i32, ()> = RcTryMemo::new(move || {
+		let memo: RcTryLazy<i32, ()> = RcTryLazy::new(move || {
 			*counter_clone.borrow_mut() += 1;
 			Ok(42)
 		});
@@ -299,7 +299,7 @@ mod tests {
 	/// Verifies that panics are caught and converted to errors.
 	#[test]
 	fn test_catch_unwind() {
-		let memo = RcTryMemo::catch_unwind(|| {
+		let memo = RcTryLazy::catch_unwind(|| {
 			if true {
 				panic!("oops")
 			}
@@ -312,36 +312,36 @@ mod tests {
 		}
 	}
 
-	/// Tests creation from `TryEval`.
+	/// Tests creation from `TryThunk`.
 	#[test]
 	fn test_try_memo_from_try_eval() {
-		let eval = TryEval::new(|| Ok::<i32, ()>(42));
-		let memo = RcTryMemo::from(eval);
+		let eval = TryThunk::new(|| Ok::<i32, ()>(42));
+		let memo = RcTryLazy::from(eval);
 		assert_eq!(memo.get(), Ok(&42));
 	}
 
-	/// Tests creation from `TryTask`.
+	/// Tests creation from `TryTrampoline`.
 	#[test]
 	fn test_try_memo_from_try_task() {
-		let task = TryTask::<i32, ()>::ok(42);
-		let memo = RcTryMemo::from(task);
+		let task = TryTrampoline::<i32, ()>::ok(42);
+		let memo = RcTryLazy::from(task);
 		assert_eq!(memo.get(), Ok(&42));
 	}
 
-	/// Tests conversion to TryMemo.
+	/// Tests conversion to TryLazy.
 	#[test]
 	fn test_try_memo_from_rc_memo() {
-		let memo = RcMemo::new(|| 42);
-		let try_memo: crate::types::RcTryMemo<i32, ()> = crate::types::RcTryMemo::from(memo);
+		let memo = RcLazy::new(|| 42);
+		let try_memo: crate::types::RcTryLazy<i32, ()> = crate::types::RcTryLazy::from(memo);
 		assert_eq!(try_memo.get(), Ok(&42));
 	}
 
-	/// Tests conversion to ArcTryMemo.
+	/// Tests conversion to ArcTryLazy.
 	#[test]
 	fn test_try_memo_from_arc_memo() {
-		use crate::types::ArcMemo;
-		let memo = ArcMemo::new(|| 42);
-		let try_memo: crate::types::ArcTryMemo<i32, ()> = crate::types::ArcTryMemo::from(memo);
+		use crate::types::ArcLazy;
+		let memo = ArcLazy::new(|| 42);
+		let try_memo: crate::types::ArcTryLazy<i32, ()> = crate::types::ArcTryLazy::from(memo);
 		assert_eq!(try_memo.get(), Ok(&42));
 	}
 }

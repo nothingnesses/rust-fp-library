@@ -10,8 +10,8 @@
 //!     functions::map_ref,
 //! };
 //!
-//! let memo = Memo::<_, RcMemoConfig>::new(|| 10);
-//! let mapped = map_ref::<MemoBrand<RcMemoConfig>, _, _, _>(
+//! let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+//! let mapped = map_ref::<LazyBrand<RcLazyConfig>, _, _, _>(
 //!     |x: &i32| *x * 2,
 //!     memo
 //! );
@@ -23,7 +23,7 @@ use crate::{Apply, kinds::*};
 /// A type class for types that can be mapped over, returning references.
 ///
 /// This is a variant of `Functor` for types where `map` receives/returns references.
-/// This is required for types like `Memo` where `get()` returns `&A`, not `A`.
+/// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
 pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context, where the function takes a reference.
 	///
@@ -56,8 +56,8 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///     functions::map_ref,
 	/// };
 	///
-	/// let memo = Memo::<_, RcMemoConfig>::new(|| 10);
-	/// let mapped = MemoBrand::<RcMemoConfig>::map_ref(
+	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+	/// let mapped = LazyBrand::<RcLazyConfig>::map_ref(
 	///     |x: &i32| *x * 2,
 	///     memo
 	/// );
@@ -105,8 +105,8 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///     functions::map_ref,
 /// };
 ///
-/// let memo = Memo::<_, RcMemoConfig>::new(|| 10);
-/// let mapped = map_ref::<MemoBrand<RcMemoConfig>, _, _, _>(
+/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+/// let mapped = map_ref::<LazyBrand<RcLazyConfig>, _, _, _>(
 ///     |x: &i32| *x * 2,
 ///     memo
 /// );
