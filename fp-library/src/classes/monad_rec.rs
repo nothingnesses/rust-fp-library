@@ -33,12 +33,12 @@ use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 ///
 /// ### Important Design Note
 ///
-/// `Thunk<'a, A>` CAN implement this trait (HKT-compatible).
-/// `Task<A>` CANNOT implement this trait (requires `'static`).
+/// [`Thunk<'a, A>`](crate::types::Thunk) CAN implement this trait (HKT-compatible).
+/// [`Trampoline<A>`](crate::types::Trampoline) CANNOT implement this trait (requires `'static`).
 ///
 /// `Thunk`'s `tail_rec_m` implementation uses a loop and is stack-safe.
 /// However, `Thunk`'s `bind` chains are NOT stack-safe.
-/// `Task` is stack-safe for both `tail_rec_m` and `bind` chains.
+/// `Trampoline` is stack-safe for both `tail_rec_m` and `bind` chains.
 ///
 /// ### Laws
 ///
@@ -46,7 +46,7 @@ use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 ///    recursive definition.
 ///
 /// 2. **Safety varies**: `Thunk` is stack-safe for `tail_rec_m` but not for deep `bind` chains.
-///    `Task` is guaranteed stack-safe for all operations.
+///    `Trampoline` is guaranteed stack-safe for all operations.
 pub trait MonadRec: Monad {
 	/// Performs tail-recursive monadic computation.
 	///

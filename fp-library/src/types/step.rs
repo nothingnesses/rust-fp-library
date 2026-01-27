@@ -1,23 +1,3 @@
-//! Implementation of the `Step` type for tail-recursive computations.
-//!
-//! This module provides the [`Step`] enum, which represents a single step in a tail-recursive computation.
-//! It is used by the [`MonadRec`](crate::classes::monad_rec::MonadRec) trait to ensure stack safety.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::types::*;
-//!
-//! // Count down from n to 0, accumulating the sum
-//! fn sum_to_zero(n: i32, acc: i32) -> Step<(i32, i32), i32> {
-//!     if n <= 0 {
-//!         Step::Done(acc)
-//!     } else {
-//!         Step::Loop((n - 1, acc + n))
-//!     }
-//! }
-//! ```
-
 use crate::{
 	Apply,
 	brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},

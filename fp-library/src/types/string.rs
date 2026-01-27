@@ -1,7 +1,3 @@
-//! Implementations for [`String`].
-//!
-//! This module provides implementations of functional programming traits for the standard library [`String`] type.
-
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
 	impl_kind,

@@ -1,8 +1,3 @@
-//! Endomorphism wrapper.
-//!
-//! This module defines the [`Endomorphism`] struct, which wraps a morphism from an object to itself (an endomorphism)
-//! and provides [`Semigroup`] and [`Monoid`] instances based on composition and identity.
-
 use crate::{
 	Apply,
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},

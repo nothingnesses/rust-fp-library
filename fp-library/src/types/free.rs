@@ -1,67 +1,3 @@
-//! Implementation of the `Free` monad.
-//!
-//! This module provides the [`Free`] struct, which represents a free monad over a functor `F`.
-//! It uses a [`CatList`] to ensure O(1) bind operations, preventing stack overflow
-//! during construction of deep computations.
-//!
-//! ## Comparison with PureScript
-//!
-//! This implementation is based on the PureScript [`Control.Monad.Free`](https://github.com/purescript/purescript-free/blob/master/src/Control/Monad/Free.purs) module
-//! and the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) technique. It shares the same core algorithmic properties (O(1) bind, stack safety)
-//! but differs significantly in its intended use case and API surface.
-//!
-//! ### Key Differences
-//!
-//! 1. **Interpretation Strategy**:
-//!    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
-//!      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
-//!    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
-//!      baked into the [`Runnable`] trait implemented by the functor `F`.
-//!      The [`Free::run`] method relies on `F` knowing how to "run" itself.
-//!
-//! 2. **API Surface**:
-//!    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
-//!    * **Rust**: Minimal API focused on construction (`pure`, `roll`, `bind`) and execution (`run`).
-//!      * `liftF` is missing (use `roll` + `map`).
-//!      * `resume` is missing (cannot inspect the computation step-by-step).
-//!      * `hoistFree` is missing.
-//!
-//! 3. **Terminology**:
-//!    * Rust's `Free::roll` corresponds to PureScript's `wrap`.
-//!
-//! ### Capabilities and Limitations
-//!
-//! **What it CAN do:**
-//! * Provide stack-safe recursion for monadic computations (trampolining).
-//! * Prevent stack overflows when chaining many `bind` operations.
-//! * Execute self-describing effects (like [`Eval`](crate::types::Thunk)).
-//!
-//! **What it CANNOT do (easily):**
-//! * Act as a generic DSL where the interpretation is decoupled from the operation type.
-//!   * *Example*: You cannot easily define a `DatabaseOp` enum and interpret it differently for
-//!     production (SQL) and testing (InMemory) using this `Free` implementation, because
-//!     `DatabaseOp` must implement a single `Runnable` trait.
-//! * Inspect the structure of the computation (introspection) via `resume`.
-//!
-//! ### Lifetimes and Memory Management
-//!
-//! * **PureScript**: Relies on a garbage collector and `unsafeCoerce`. This allows it to ignore
-//!   lifetimes and ownership, enabling a simpler implementation that supports all types.
-//! * **Rust**: Relies on ownership and `Box<dyn Any>` for type erasure. `Any` requires `'static`
-//!   to ensure memory safety (preventing use-after-free of references). This forces `Free` to
-//!   only work with `'static` types, preventing it from implementing the library's HKT traits
-//!   which require lifetime polymorphism.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::{brands::*, types::*};
-//!
-//! // ✅ CAN DO: Stack-safe recursion
-//! let free = Free::<ThunkBrand, _>::pure(42)
-//!     .bind(|x| Free::pure(x + 1));
-//! ```
-
 use crate::{
 	Apply,
 	classes::{Functor, Runnable},
@@ -427,7 +363,7 @@ mod tests {
 	/// Tests `Free::roll`.
 	///
 	/// **What it tests:** Verifies that `roll` creates a computation from a suspended effect.
-	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Eval`, rolls it into a `Free`, and runs it to ensure it unwraps correctly.
+	/// **How it tests:** Wraps a `Free::pure(42)` inside a `Thunk`, rolls it into a `Free`, and runs it to ensure it unwraps correctly.
 	#[test]
 	fn test_free_roll() {
 		let eval = Thunk::new(|| Free::pure(42));

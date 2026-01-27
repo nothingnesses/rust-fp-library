@@ -1,8 +1,3 @@
-//! SendEndofunction wrapper.
-//!
-//! This module defines the [`SendEndofunction`] struct, which wraps a thread-safe function from a type to itself (an endofunction)
-//! and provides [`Semigroup`] and [`Monoid`] instances based on function composition and identity.
-
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup, send_cloneable_fn::SendCloneableFn},
 	functions::identity,

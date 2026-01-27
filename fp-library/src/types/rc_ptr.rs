@@ -1,18 +1,3 @@
-//! [`RcBrand`] pointer implementation.
-//!
-//! This module provides implementations of the pointer traits for [`RcBrand`],
-//! enabling the use of `Rc` as a reference-counted pointer in the library's
-//! abstraction hierarchy.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::{brands::*, functions::*};
-//!
-//! let ptr = pointer_new::<RcBrand, _>(42);
-//! assert_eq!(*ptr, 42);
-//! ```
-
 use crate::{
 	brands::RcBrand,
 	classes::{

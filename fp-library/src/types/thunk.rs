@@ -1,8 +1,3 @@
-//! Implementations for [`Thunk`], a deferred computation type.
-//!
-//! This module provides the [`Thunk`] type, which represents a deferred computation that produces a value.
-//! Unlike [`Task`](crate::types::Trampoline), `Thunk` is not stack-safe for deep recursion but supports higher-kinded types and borrowing.
-
 use crate::{
 	Apply,
 	brands::ThunkBrand,
@@ -19,27 +14,27 @@ use crate::{
 
 /// A deferred computation that produces a value of type `A`.
 ///
-/// `Thunk` is NOT memoized - each call to `run()` re-executes the computation.
+/// `Thunk` is NOT memoized - each call to [`Thunk::run`] re-executes the computation.
 /// This type exists to build computation chains without allocation overhead.
 ///
-/// Unlike [`Task`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
+/// Unlike [`Trampoline`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
 /// HKT traits like [`Functor`], [`Semimonad`], etc.
 ///
-/// ### Trade-offs vs Task
+/// ### Trade-offs vs `Trampoline`
 ///
-/// | Aspect         | `Thunk<'a, A>`               | `Task<A>`                    |
-/// |----------------|---------------------------|----------------------------|
-/// | HKT compatible | ✅ Yes                    | ❌ No (requires `'static`) |
+/// | Aspect         | `Thunk<'a, A>`              | `Trampoline<A>`            |
+/// |----------------|-----------------------------|----------------------------|
+/// | HKT compatible | ✅ Yes                      | ❌ No (requires `'static`) |
 /// | Stack-safe     | ⚠️ Partial (tail_rec_m only) | ✅ Yes (unlimited)         |
-/// | Lifetime       | `'a` (can borrow)         | `'static` only             |
-/// | Use case       | Glue code, composition    | Deep recursion, pipelines  |
+/// | Lifetime       | `'a` (can borrow)           | `'static` only             |
+/// | Use case       | Glue code, composition      | Deep recursion, pipelines  |
 ///
 /// ### Algebraic Properties
 ///
 /// `Thunk` is a proper Monad:
-/// - `pure(a).run() == a` (left identity)
-/// - `eval.bind(pure) == eval` (right identity)
-/// - `eval.bind(f).bind(g) == eval.bind(|a| f(a).bind(g))` (associativity)
+/// - `pure(a).run() == a` (left identity).
+/// - `eval.bind(pure) == eval` (right identity).
+/// - `eval.bind(f).bind(g) == eval.bind(|a| f(a).bind(g))` (associativity).
 ///
 /// ### Type Parameters
 ///
@@ -47,7 +42,7 @@ use crate::{
 ///
 /// ### Fields
 ///
-/// * `thunk`: The closure that performs the computation.
+/// * `0`: The closure that performs the computation.
 ///
 /// ### Examples
 ///
@@ -63,9 +58,7 @@ use crate::{
 /// let result = computation.run();
 /// assert_eq!(result, 11);
 /// ```
-pub struct Thunk<'a, A> {
-	thunk: Box<dyn FnOnce() -> A + 'a>,
-}
+pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
 
 impl<'a, A: 'a> Thunk<'a, A> {
 	/// Creates a new Thunk from a thunk.
@@ -98,7 +91,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	where
 		F: FnOnce() -> A + 'a,
 	{
-		Thunk { thunk: Box::new(f) }
+		Thunk(Box::new(f))
 	}
 
 	/// Returns a pure value (already computed).
@@ -166,7 +159,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// Monadic bind: chains computations.
 	///
 	/// Note: Each `bind` adds to the call stack. For deep recursion
-	/// (>1000 levels), use [`Task`](crate::types::Trampoline) instead.
+	/// (>1000 levels), use [`Trampoline`](crate::types::Trampoline) instead.
 	///
 	/// ### Type Signature
 	///
@@ -201,9 +194,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 		F: FnOnce(A) -> Thunk<'a, B> + 'a,
 	{
 		Thunk::new(move || {
-			let a = (self.thunk)();
+			let a = (self.0)();
 			let eval_b = f(a);
-			(eval_b.thunk)()
+			(eval_b.0)()
 		})
 	}
 
@@ -241,7 +234,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	where
 		F: FnOnce(A) -> B + 'a,
 	{
-		Thunk::new(move || f((self.thunk)()))
+		Thunk::new(move || f((self.0)()))
 	}
 
 	/// Forces evaluation and returns the result.
@@ -263,7 +256,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// assert_eq!(eval.run(), 42);
 	/// ```
 	pub fn run(self) -> A {
-		(self.thunk)()
+		(self.0)()
 	}
 }
 
@@ -845,7 +838,7 @@ mod tests {
 		assert_eq!(eval.run(), 42);
 	}
 
-	/// Tests `From<Memo>`.
+	/// Tests `From<Lazy>`.
 	#[test]
 	fn test_eval_from_memo() {
 		use crate::types::RcLazy;

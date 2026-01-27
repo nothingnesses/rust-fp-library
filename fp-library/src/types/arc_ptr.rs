@@ -1,18 +1,3 @@
-//! [`ArcBrand`] pointer implementation.
-//!
-//! This module provides implementations of the pointer traits for [`ArcBrand`],
-//! enabling the use of [`Arc`] as a thread-safe reference-counted pointer in the library's
-//! abstraction hierarchy.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::{brands::*, functions::*};
-//!
-//! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
-//! assert_eq!(*ptr, 42);
-//! ```
-
 use crate::{
 	brands::ArcBrand,
 	classes::{

@@ -1,5 +1,3 @@
-//! Implementations for [`TryLazy`], a lazily-computed, memoized fallible value.
-
 use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 
 /// A lazily-computed, memoized value that may fail.
@@ -12,13 +10,16 @@ use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryT
 /// * `A`: The type of the computed value.
 /// * `E`: The type of the error.
 /// * `Config`: The memoization configuration.
-pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>
+///
+/// ### Fields
+///
+/// * `0`: The internal lazy cell.
+pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
+	pub(crate) Config::TryLazy<'a, A, E>,
+)
 where
 	A: 'a,
-	E: 'a,
-{
-	pub(crate) inner: Config::TryLazy<'a, A, E>,
-}
+	E: 'a;
 
 impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
 where
@@ -26,7 +27,7 @@ where
 	E: 'a,
 {
 	fn clone(&self) -> Self {
-		Self { inner: self.inner.clone() }
+		Self(self.0.clone())
 	}
 }
 
@@ -54,7 +55,7 @@ where
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
 	pub fn get(&self) -> Result<&A, &E> {
-		Config::force_try(&self.inner)
+		Config::force_try(&self.0)
 	}
 }
 
@@ -93,7 +94,7 @@ where
 	where
 		F: FnOnce() -> Result<A, E> + 'a,
 	{
-		TryLazy { inner: RcLazyConfig::new_try_lazy(Box::new(f)) }
+		TryLazy(RcLazyConfig::new_try_lazy(Box::new(f)))
 	}
 }
 
@@ -219,7 +220,7 @@ where
 	where
 		F: FnOnce() -> Result<A, E> + Send + 'a,
 	{
-		TryLazy { inner: ArcLazyConfig::new_try_lazy(Box::new(f)) }
+		TryLazy(ArcLazyConfig::new_try_lazy(Box::new(f)))
 	}
 }
 

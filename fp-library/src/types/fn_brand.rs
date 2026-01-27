@@ -1,8 +1,3 @@
-//! Function wrappers.
-//!
-//! This module defines the [`FnBrand`] struct, which provides generic implementations for reference-counted closures (e.g., `Rc<dyn Fn(A) -> B>`, `Arc<dyn Fn(A) -> B>`).
-//! It implements [`Function`], [`CloneableFn`], [`Semigroupoid`], and [`Category`].
-
 use crate::{
 	Apply,
 	brands::FnBrand,

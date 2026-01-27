@@ -1,10 +1,3 @@
-//! Implementations for [`Pair`], a type that wraps two values.
-//!
-//! This module provides implementations of various type classes for the `Pair` type.
-//! `Pair` can be treated as a functor/monad in two ways:
-//! 1.  `PairWithFirstBrand<First>`: Functor over the second value (fixing `First`).
-//! 2.  `PairWithSecondBrand<Second>`: Functor over the first value (fixing `Second`).
-
 use crate::{
 	Apply,
 	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},

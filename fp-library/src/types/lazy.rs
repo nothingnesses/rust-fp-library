@@ -1,7 +1,3 @@
-//! Implementations for [`Lazy`], a lazily-computed, memoized value.
-//!
-//! This module provides the [`Lazy`] type and its configuration trait [`LazyConfig`].
-
 use crate::{
 	Apply,
 	brands::LazyBrand,
@@ -19,8 +15,8 @@ use std::{
 /// Configuration for memoization strategy.
 ///
 /// This trait bundles together the choices for:
-/// - Pointer type (Rc vs Arc)
-/// - Lazy cell type (LazyCell vs LazyLock)
+/// - Pointer type ([`Rc`] vs [`Arc`]).
+/// - Lazy cell type ([`LazyCell`] vs [`LazyLock`]).
 ///
 /// # Note on Standard Library Usage
 ///
@@ -436,7 +432,7 @@ impl LazyConfig for ArcLazyConfig {
 ///
 /// ### Fields
 ///
-/// * `inner`: The internal lazy cell.
+/// * `0`: The internal lazy cell.
 ///
 /// ### Examples
 ///
@@ -452,19 +448,16 @@ impl LazyConfig for ArcLazyConfig {
 /// // Second force returns cached value (shared sees same result):
 /// assert_eq!(shared.get(), value);
 /// ```
-pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>
+pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(pub(crate) Config::Lazy<'a, A>)
 where
-	A: 'a,
-{
-	pub(crate) inner: Config::Lazy<'a, A>,
-}
+	A: 'a;
 
 impl<'a, A, Config: LazyConfig> Clone for Lazy<'a, A, Config>
 where
 	A: 'a,
 {
 	fn clone(&self) -> Self {
-		Self { inner: self.inner.clone() }
+		Self(self.0.clone())
 	}
 }
 
@@ -491,7 +484,7 @@ where
 	/// assert_eq!(*memo.get(), 42);
 	/// ```
 	pub fn get(&self) -> &A {
-		Config::force(&self.inner)
+		Config::force(&self.0)
 	}
 }
 
@@ -529,7 +522,7 @@ where
 	where
 		F: FnOnce() -> A + 'a,
 	{
-		Lazy { inner: RcLazyConfig::new_lazy(Box::new(f)) }
+		Lazy(RcLazyConfig::new_lazy(Box::new(f)))
 	}
 }
 
@@ -582,7 +575,7 @@ where
 	where
 		F: FnOnce() -> A + Send + 'a,
 	{
-		Lazy { inner: ArcLazyConfig::new_lazy(Box::new(f)) }
+		Lazy(ArcLazyConfig::new_lazy(Box::new(f)))
 	}
 }
 
@@ -671,7 +664,7 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	{
 		let fa = fa.clone();
 		let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.get()));
-		Lazy { inner: RcLazyConfig::new_lazy(init) }
+		Lazy(RcLazyConfig::new_lazy(init))
 	}
 }
 
@@ -749,7 +742,7 @@ mod tests {
 		assert_eq!(counter.load(Ordering::SeqCst), 1);
 	}
 
-	/// Tests creation from `Eval`.
+	/// Tests creation from `Thunk`.
 	///
 	/// Verifies `From<Thunk>` works correctly.
 	#[test]
@@ -759,12 +752,12 @@ mod tests {
 		assert_eq!(*memo.get(), 42);
 	}
 
-	/// Tests creation from `Task`.
+	/// Tests creation from `Trampoline`.
 	///
 	/// Verifies `From<Trampoline>` works correctly.
 	#[test]
 	fn test_memo_from_task() {
-		// Task requires Send, so we use a Send-compatible value
+		// Trampoline requires Send, so we use a Send-compatible value
 		let task = Trampoline::pure(42);
 		let memo = RcLazy::from(task);
 		assert_eq!(*memo.get(), 42);

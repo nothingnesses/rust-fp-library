@@ -1,20 +1,3 @@
-//! Implementation of the `Trampoline` type.
-//!
-//! This module provides the [`Trampoline`] type, which represents a lazy, stack-safe computation.
-//! It is built on the [`Free`] monad and guarantees stack safety for deep recursion and long bind chains.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::types::*;
-//!
-//! let task = Trampoline::new(|| 1 + 1)
-//!     .bind(|x| Trampoline::new(move || x * 2))
-//!     .bind(|x| Trampoline::new(move || x + 10));
-//!
-//! assert_eq!(task.run(), 14);
-//! ```
-
 use crate::{
 	brands::ThunkBrand,
 	types::{Lazy, LazyConfig, Thunk, free::Free, step::Step},
@@ -23,29 +6,29 @@ use crate::{
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
 /// `Trampoline` is the "heavy-duty" monadic type for deferred computations that
-/// require **guaranteed stack safety**. It is built on `Free<Eval, A>` with
-/// CatList-based bind stack, ensuring O(1) bind operations and unlimited recursion
+/// require **guaranteed stack safety**. It is built on [`Free<Thunk, A>`] with
+/// [`CatList`](crate::types::CatList)-based bind stack, ensuring O(1) [`bind`](crate::functions::bind) operations and unlimited recursion
 /// depth without stack overflow.
 ///
 /// # Requirements
 ///
-/// - `A: 'static + Send` — Required due to type erasure via `Box<dyn Any>`
+/// - `A: 'static + Send` — Required due to type erasure via [`Box<dyn Any>`].
 ///
 /// # Guarantees
 ///
-/// - **Stack safe**: Will not overflow regardless of recursion depth
-/// - **O(1) bind**: Left-associated `bind` chains don't degrade
-/// - **Lazy**: Computation is deferred until `run()` is called
+/// - **Stack safe**: Will not overflow regardless of recursion depth.
+/// - **O(1) bind**: Left-associated `bind` chains don't degrade.
+/// - **Lazy**: Computation is deferred until [`Trampoline::run`] is called.
 ///
-/// # When to Use Trampoline vs Eval
+/// # When to Use `Trampoline` vs [`Thunk`]
 ///
-/// - Use **`Trampoline<A>`** for deep recursion (1000+ levels), heavy monadic pipelines
-/// - Use **`Eval<'a, A>`** for HKT integration, borrowed references, glue code
+/// - Use **`Trampoline<A>`** for deep recursion (1000+ levels), heavy monadic pipelines.
+/// - Use **`Thunk<'a, A>`** for HKT integration, borrowed references, glue code.
 ///
 /// # Memoization
 ///
-/// `Trampoline` does NOT memoize. Each call to `run()` re-evaluates.
-/// For memoization, wrap in `Memo`:
+/// `Trampoline` does NOT memoize. Each call to `run` re-evaluates.
+/// For memoization, wrap in [`Lazy`]:
 ///
 /// ```rust
 /// use fp_library::types::*;
@@ -61,7 +44,7 @@ use crate::{
 ///
 /// ### Fields
 ///
-/// * `inner`: The internal `Free` monad representation.
+/// * `0`: The internal `Free` monad representation.
 ///
 /// ### Examples
 ///
@@ -74,9 +57,7 @@ use crate::{
 ///
 /// assert_eq!(task.run(), 14);
 /// ```
-pub struct Trampoline<A: 'static> {
-	inner: Free<ThunkBrand, A>,
-}
+pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
 
 impl<A: 'static + Send> Trampoline<A> {
 	/// Creates a `Trampoline` from an already-computed value.
@@ -112,14 +93,14 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// ```
 	#[inline]
 	pub fn pure(a: A) -> Self {
-		Trampoline { inner: Free::pure(a) }
+		Trampoline(Free::pure(a))
 	}
 
 	/// Creates a lazy `Trampoline` that computes `f` on first `run()`.
 	///
 	/// This is equivalent to Cats' `Eval.later`, but note that
 	/// in our design, `Trampoline` does NOT memoize — each `run()`
-	/// re-evaluates. Use `Memo` for caching.
+	/// re-evaluates. Use [`Lazy`] for caching.
 	///
 	/// # Complexity
 	/// O(1) creation
@@ -159,7 +140,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	where
 		F: FnOnce() -> A + 'static,
 	{
-		Trampoline { inner: Free::roll(Thunk::new(move || Free::pure(f()))) }
+		Trampoline(Free::roll(Thunk::new(move || Free::pure(f()))))
 	}
 
 	/// Defers the construction of a `Trampoline` itself.
@@ -207,7 +188,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	where
 		F: FnOnce() -> Trampoline<A> + 'static,
 	{
-		Trampoline { inner: Free::roll(Thunk::new(move || f().inner)) }
+		Trampoline(Free::roll(Thunk::new(move || f().0)))
 	}
 
 	/// Monadic bind with O(1) complexity.
@@ -251,7 +232,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	where
 		F: FnOnce(A) -> Trampoline<B> + 'static,
 	{
-		Trampoline { inner: self.inner.bind(move |a| f(a).inner) }
+		Trampoline(self.0.bind(move |a| f(a).0))
 	}
 
 	/// Functor map: transforms the result without changing structure.
@@ -314,7 +295,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// assert_eq!(task.run(), 2);
 	/// ```
 	pub fn run(self) -> A {
-		self.inner.run()
+		self.0.run()
 	}
 
 	/// Combines two `Trampoline`s, running both and combining results.
@@ -684,7 +665,7 @@ mod tests {
 		assert_eq!(*counter.borrow(), 1);
 	}
 
-	/// Tests `Trampoline::from` with `ArcMemo`.
+	/// Tests `Trampoline::from` with `ArcLazy`.
 	#[test]
 	fn test_task_from_arc_memo() {
 		use crate::types::{ArcLazyConfig, Lazy};

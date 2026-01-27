@@ -1,10 +1,3 @@
-//! Implementations for [`Result`].
-//!
-//! This module provides implementations of various type classes for the `Result` type.
-//! `Result` can be treated as a functor/monad in two ways:
-//! 1.  `ResultWithErrBrand<E>`: Functor over the success value `T` (fixing `E`). This is the standard `Result` monad.
-//! 2.  `ResultWithOkBrand<T>`: Functor over the error value `E` (fixing `T`).
-
 use crate::{
 	Apply,
 	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},

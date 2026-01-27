@@ -1,25 +1,8 @@
-//! Implementation of the `TryTrampoline` type.
-//!
-//! This module provides the [`TryTrampoline`] type, which represents a lazy, stack-safe computation that may fail.
-//! It is a wrapper around `Trampoline<Result<A, E>>`.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::types::*;
-//!
-//! let task: TryTrampoline<i32, String> = TryTrampoline::ok(10)
-//!     .map(|x| x * 2)
-//!     .bind(|x| TryTrampoline::ok(x + 5));
-//!
-//! assert_eq!(task.run(), Ok(25));
-//! ```
-
 use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///
-/// This is `Trampoline<Result<A, E>>` with ergonomic combinators.
+/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
 ///
 /// ### Type Parameters
 ///
@@ -28,7 +11,7 @@ use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 ///
 /// ### Fields
 ///
-/// * `inner`: The internal `Trampoline` wrapping a `Result`.
+/// * `0`: The internal `Trampoline` wrapping a `Result`.
 ///
 /// ### Examples
 ///
@@ -38,9 +21,7 @@ use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 /// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
 /// assert_eq!(task.run(), Ok(10));
 /// ```
-pub struct TryTrampoline<A: 'static, E: 'static> {
-	inner: Trampoline<Result<A, E>>,
-}
+pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
 
 impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	/// Creates a successful `TryTrampoline`.
@@ -71,7 +52,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn ok(a: A) -> Self {
-		TryTrampoline { inner: Trampoline::pure(Ok(a)) }
+		TryTrampoline(Trampoline::pure(Ok(a)))
 	}
 
 	/// Creates a failed `TryTrampoline`.
@@ -102,7 +83,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	/// assert_eq!(task.run(), Err("error".to_string()));
 	/// ```
 	pub fn err(e: E) -> Self {
-		TryTrampoline { inner: Trampoline::pure(Err(e)) }
+		TryTrampoline(Trampoline::pure(Err(e)))
 	}
 
 	/// Creates a lazy `TryTrampoline` that may fail.
@@ -137,7 +118,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	where
 		F: FnOnce() -> Result<A, E> + 'static,
 	{
-		TryTrampoline { inner: Trampoline::new(f) }
+		TryTrampoline(Trampoline::new(f))
 	}
 
 	/// Maps over the success value.
@@ -174,7 +155,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	where
 		F: FnOnce(A) -> B + 'static,
 	{
-		TryTrampoline { inner: self.inner.map(|result| result.map(f)) }
+		TryTrampoline(self.0.map(|result| result.map(f)))
 	}
 
 	/// Maps over the error value.
@@ -212,7 +193,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	where
 		F: FnOnce(E) -> E2 + 'static,
 	{
-		TryTrampoline { inner: self.inner.map(|result| result.map_err(f)) }
+		TryTrampoline(self.0.map(|result| result.map_err(f)))
 	}
 
 	/// Chains fallible computations.
@@ -249,12 +230,10 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	where
 		F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
 	{
-		TryTrampoline {
-			inner: self.inner.bind(|result| match result {
-				Ok(a) => f(a).inner,
-				Err(e) => Trampoline::pure(Err(e)),
-			}),
-		}
+		TryTrampoline(self.0.bind(|result| match result {
+			Ok(a) => f(a).0,
+			Err(e) => Trampoline::pure(Err(e)),
+		}))
 	}
 
 	/// Alias for [`bind`](Self::bind).
@@ -330,12 +309,10 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	where
 		F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
 	{
-		TryTrampoline {
-			inner: self.inner.bind(|result| match result {
-				Ok(a) => Trampoline::pure(Ok(a)),
-				Err(e) => f(e).inner,
-			}),
-		}
+		TryTrampoline(self.0.bind(|result| match result {
+			Ok(a) => Trampoline::pure(Ok(a)),
+			Err(e) => f(e).0,
+		}))
 	}
 
 	/// Runs the computation, returning the result.
@@ -357,7 +334,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	/// assert_eq!(task.run(), Ok(42));
 	/// ```
 	pub fn run(self) -> Result<A, E> {
-		self.inner.run()
+		self.0.run()
 	}
 }
 

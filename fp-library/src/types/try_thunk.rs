@@ -1,14 +1,9 @@
-//! Implementations for [`TryThunk`], a fallible deferred computation type.
-//!
-//! This module provides the [`TryThunk`] type, which represents a deferred computation that may fail.
-//! It is the fallible counterpart to [`Thunk`].
-
 use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 
 /// A deferred computation that may fail with error type `E`.
 ///
-/// Like [`Thunk`], this is NOT memoized. Each `run()` re-executes.
-/// Unlike [`Thunk`], the result is `Result<A, E>`.
+/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::run`] re-executes.
+/// Unlike [`Thunk`], the result is [`Result<A, E>`].
 ///
 /// ### Type Parameters
 ///
@@ -17,7 +12,7 @@ use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 ///
 /// ### Fields
 ///
-/// * `thunk`: The closure that performs the computation.
+/// * `0`: The closure that performs the computation.
 ///
 /// ### Examples
 ///
@@ -33,9 +28,7 @@ use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 ///     Err(_) => panic!("Should not fail"),
 /// }
 /// ```
-pub struct TryThunk<'a, A, E> {
-	thunk: Box<dyn FnOnce() -> Result<A, E> + 'a>,
-}
+pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
 
 impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// Creates a new TryThunk from a thunk.
@@ -68,7 +61,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	where
 		F: FnOnce() -> Result<A, E> + 'a,
 	{
-		TryThunk { thunk: Box::new(f) }
+		TryThunk(Box::new(f))
 	}
 
 	/// Returns a pure value (already computed).
@@ -194,8 +187,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	where
 		F: FnOnce(A) -> TryThunk<'a, B, E> + 'a,
 	{
-		TryThunk::new(move || match (self.thunk)() {
-			Ok(a) => (f(a).thunk)(),
+		TryThunk::new(move || match (self.0)() {
+			Ok(a) => (f(a).0)(),
 			Err(e) => Err(e),
 		})
 	}
@@ -273,7 +266,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	where
 		F: FnOnce(A) -> B + 'a,
 	{
-		TryThunk::new(move || (self.thunk)().map(f))
+		TryThunk::new(move || (self.0)().map(f))
 	}
 
 	/// Map error: transforms the error.
@@ -310,7 +303,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	where
 		F: FnOnce(E) -> E2 + 'a,
 	{
-		TryThunk::new(move || (self.thunk)().map_err(f))
+		TryThunk::new(move || (self.0)().map_err(f))
 	}
 
 	/// Forces evaluation and returns the result.
@@ -332,7 +325,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// assert_eq!(try_eval.run(), Ok(42));
 	/// ```
 	pub fn run(self) -> Result<A, E> {
-		(self.thunk)()
+		(self.0)()
 	}
 }
 

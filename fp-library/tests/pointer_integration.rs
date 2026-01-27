@@ -48,7 +48,7 @@ fn test_arc_fn_thread_safety() {
 ///
 /// Verifies that:
 /// 1. `ArcLazy` can be created with a thread-safe thunk.
-/// 2. `Memo::get` correctly evaluates the thunk and returns the value.
+/// 2. `Lazy::get` correctly evaluates the thunk and returns the value.
 #[test]
 fn test_arc_memo_basic() {
 	let memo = ArcLazy::new(|| 42);
@@ -58,7 +58,7 @@ fn test_arc_memo_basic() {
 /// Tests shared memoization semantics of `ArcLazy`.
 ///
 /// Verifies that:
-/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
+/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Lazy` value.
 /// 2. The result is cached and shared across clones.
 ///
 /// This ensures that `ArcLazy` implements "call-by-need" semantics with shared state.
@@ -105,7 +105,7 @@ fn test_arc_memo_thread_safety() {
 ///
 /// Verifies that:
 /// 1. `RcLazy` can be created with a thunk.
-/// 2. `Memo::get` correctly evaluates the thunk and returns the value.
+/// 2. `Lazy::get` correctly evaluates the thunk and returns the value.
 #[test]
 fn test_rc_memo_basic() {
 	let memo = RcLazy::new(|| 42);
@@ -115,7 +115,7 @@ fn test_rc_memo_basic() {
 /// Tests shared memoization semantics of `RcLazy`.
 ///
 /// Verifies that:
-/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Memo` value.
+/// 1. The thunk is executed only once, even when accessed via multiple clones of the `Lazy` value.
 /// 2. The result is cached and shared across clones.
 ///
 /// This ensures that `RcLazy` implements "call-by-need" semantics with shared state.

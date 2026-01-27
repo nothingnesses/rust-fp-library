@@ -1,7 +1,3 @@
-//! Implementations for [`Identity`], a type that wraps a value.
-//!
-//! This module provides implementations of functional programming traits for the [`Identity`] type.
-
 use crate::{
 	Apply,
 	brands::IdentityBrand,
