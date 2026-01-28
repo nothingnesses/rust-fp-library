@@ -38,6 +38,10 @@ pub type ArcFnBrand = FnBrand<ArcBrand>;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BoxBrand;
 
+/// Brand for [`CatList`](crate::types::CatList).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CatListBrand;
+
 /// Brand for [`Endofunction`](crate::types::Endofunction).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>);

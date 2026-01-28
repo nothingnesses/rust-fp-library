@@ -1,7 +1,3 @@
-//! Implementations for [`Vec`].
-//!
-//! This module provides implementations of various type classes for the `Vec` type.
-
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
