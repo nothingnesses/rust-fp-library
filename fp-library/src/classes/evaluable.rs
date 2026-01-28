@@ -18,7 +18,7 @@ use crate::{Apply, classes::functor::Functor, kinds::*};
 ///
 /// This trait is used by [`Free::run`](crate::types::Free::run) to execute the effects
 /// in a [`Free`](crate::types::Free) monad.
-pub trait Runnable: Functor {
+pub trait Evaluable: Functor {
 	/// Runs the effect, producing the inner value.
 	///
 	/// ### Type Signature
@@ -45,7 +45,7 @@ pub trait Runnable: Functor {
 	/// let eval = Thunk::new(|| 42);
 	/// assert_eq!(runnable_run::<ThunkBrand, _>(eval), 42);
 	/// ```
-	fn run<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A;
+	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A;
 }
 
 /// Runs the effect, producing the inner value.
@@ -79,8 +79,8 @@ pub trait Runnable: Functor {
 /// ```
 pub fn run<'a, F, A>(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A
 where
-	F: Runnable,
+	F: Evaluable,
 	A: 'a,
 {
-	F::run(fa)
+	F::evaluate(fa)
 }

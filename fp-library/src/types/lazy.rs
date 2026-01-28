@@ -1,7 +1,7 @@
 use crate::{
 	Apply,
 	brands::LazyBrand,
-	classes::{CloneableFn, Defer, RefFunctor, SendDefer},
+	classes::{CloneableFn, Deferrable, RefFunctor, SendDeferrable},
 	impl_kind,
 	kinds::*,
 	types::{Thunk, Trampoline},
@@ -591,7 +591,7 @@ impl_kind! {
 	}
 }
 
-impl<'a, A> Defer<'a> for Lazy<'a, A, RcLazyConfig>
+impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
 where
 	A: Clone + 'a,
 {
@@ -603,7 +603,7 @@ where
 	}
 }
 
-impl SendDefer for LazyBrand<ArcLazyConfig> {
+impl SendDeferrable for LazyBrand<ArcLazyConfig> {
 	fn send_defer<'a, A>(
 		thunk: impl 'a
 		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
@@ -767,7 +767,7 @@ mod tests {
 	#[test]
 	fn test_defer() {
 		use crate::brands::RcFnBrand;
-		use crate::classes::defer::defer;
+		use crate::classes::deferrable::defer;
 		use crate::functions::cloneable_fn_new;
 
 		let memo: RcLazy<i32> =
@@ -781,7 +781,7 @@ mod tests {
 	#[test]
 	fn test_send_defer() {
 		use crate::brands::LazyBrand;
-		use crate::classes::send_defer::send_defer;
+		use crate::classes::send_deferrable::send_defer;
 
 		let memo: ArcLazy<i32> =
 			send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));

@@ -17,7 +17,7 @@ use crate::{Apply, kinds::*};
 /// A trait for deferred lazy evaluation with thread-safe thunks.
 ///
 /// This is similar to `Defer`, but the thunk must be `Send + Sync`.
-pub trait SendDefer: Kind_cdc7cd43dac7585f {
+pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	/// Creates a deferred value from a thread-safe thunk.
 	///
 	/// ### Type Signature
@@ -88,7 +88,7 @@ pub fn send_defer<'a, Brand, A, F>(
 	thunk: F
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
-	Brand: SendDefer,
+	Brand: SendDeferrable,
 	A: Clone + Send + Sync + 'a,
 	F: 'a + Fn() -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) + Send + Sync,
 {

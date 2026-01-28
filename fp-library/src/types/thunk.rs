@@ -2,9 +2,9 @@ use crate::{
 	Apply,
 	brands::ThunkBrand,
 	classes::{
-		Defer, apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
+		Deferrable, apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
 		foldable::Foldable, functor::Functor, lift::Lift, monad_rec::MonadRec, monoid::Monoid,
-		pointed::Pointed, runnable::Runnable, semiapplicative::Semiapplicative,
+		pointed::Pointed, evaluable::Evaluable, semiapplicative::Semiapplicative,
 		semigroup::Semigroup, semimonad::Semimonad,
 	},
 	impl_kind,
@@ -276,7 +276,7 @@ impl_kind! {
 	}
 }
 
-impl<'a, A: 'a> Defer<'a> for Thunk<'a, A> {
+impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
 	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
@@ -556,7 +556,7 @@ impl MonadRec for ThunkBrand {
 	}
 }
 
-impl Runnable for ThunkBrand {
+impl Evaluable for ThunkBrand {
 	/// Runs the eval, producing the inner value.
 	///
 	/// ### Type Signature
@@ -583,7 +583,7 @@ impl Runnable for ThunkBrand {
 	/// let eval = Thunk::new(|| 42);
 	/// assert_eq!(ThunkBrand::run(eval), 42);
 	/// ```
-	fn run<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
+	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
 		fa.run()
 	}
 }

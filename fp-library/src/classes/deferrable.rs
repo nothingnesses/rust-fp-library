@@ -14,7 +14,7 @@
 use super::CloneableFn;
 
 /// A type class for types that can be constructed lazily.
-pub trait Defer<'a> {
+pub trait Deferrable<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
 	/// This function takes a thunk (wrapped in a cloneable function) and creates a deferred value that will be computed using the thunk.
@@ -83,7 +83,7 @@ pub trait Defer<'a> {
 /// ```
 pub fn defer<'a, D, FnBrand>(f: <FnBrand as CloneableFn>::Of<'a, (), D>) -> D
 where
-	D: Defer<'a>,
+	D: Deferrable<'a>,
 	FnBrand: 'a + CloneableFn,
 {
 	D::defer::<FnBrand>(f)

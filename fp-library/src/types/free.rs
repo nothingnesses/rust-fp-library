@@ -1,6 +1,6 @@
 use crate::{
 	Apply,
-	classes::{Functor, Runnable},
+	classes::{Functor, Evaluable},
 	kinds::*,
 	types::cat_list::CatList,
 };
@@ -280,7 +280,7 @@ where
 	/// ```
 	pub fn run(self) -> A
 	where
-		F: Runnable,
+		F: Evaluable,
 	{
 		// Start with a type-erased version
 		let mut current: Free<F, Val> = self.erase_type();
@@ -308,7 +308,7 @@ where
 
 				FreeInner::Roll(fa) => {
 					// Run the effect to get the inner Free
-					current = <F as Runnable>::run(fa);
+					current = <F as Evaluable>::evaluate(fa);
 				}
 
 				FreeInner::Bind { head, conts: inner_conts, .. } => {
