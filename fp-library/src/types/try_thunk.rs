@@ -463,7 +463,7 @@ mod tests {
 
 	/// Tests `Thunk::into_try`.
 	///
-	/// Verifies that `From<Thunk>` converts an `Thunk` into a `TryThunk` that succeeds.
+	/// Verifies that `From<Thunk>` converts a `Thunk` into a `TryThunk` that succeeds.
 	#[test]
 	fn test_try_eval_from_eval() {
 		let eval = Thunk::pure(42);

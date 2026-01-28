@@ -123,7 +123,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 		Thunk::new(move || a)
 	}
 
-	/// Defers a computation that returns an Thunk.
+	/// Defers a computation that returns a Thunk.
 	///
 	/// ### Type Signature
 	///
@@ -135,7 +135,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk that returns an `Thunk`.
+	/// * `f`: The thunk that returns a `Thunk`.
 	///
 	/// ### Returns
 	///
@@ -286,7 +286,7 @@ impl<'a, A: 'a> Defer<'a> for Thunk<'a, A> {
 }
 
 impl Functor for ThunkBrand {
-	/// Maps a function over the result of an Thunk computation.
+	/// Maps a function over the result of a Thunk computation.
 	///
 	/// ### Type Signature
 	///
@@ -328,7 +328,7 @@ impl Functor for ThunkBrand {
 }
 
 impl Pointed for ThunkBrand {
-	/// Wraps a value in an Thunk context.
+	/// Wraps a value in a Thunk context.
 	///
 	/// ### Type Signature
 	///
