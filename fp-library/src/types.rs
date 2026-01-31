@@ -83,17 +83,16 @@ pub mod fn_brand;
 ///      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
 ///    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
 ///      baked into the [`Evaluable`](crate::classes::Evaluable) trait implemented by the functor `F`.
-///      The [`Free::defer`] method relies on `F` knowing how to "run" itself.
+///      The [`Free::wrap`] method wraps a functor layer containing a Free computation.
 ///
 /// 2. **API Surface**:
 ///    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
-///    * **Rust**: Minimal API focused on construction (`pure`, `defer`, `bind`) and execution (`evaluate`).
-///      * `liftF` is missing (use `defer` + `map`).
+///    * **Rust**: Focused API with construction (`pure`, `wrap`, `lift_f`, `bind`) and execution (`evaluate`).
 ///      * `resume` is missing (cannot inspect the computation step-by-step).
 ///      * `hoistFree` is missing.
 ///
 /// 3. **Terminology**:
-///    * Rust's `Free::defer` corresponds to PureScript's `wrap`.
+///    * Rust's `Free::wrap` corresponds to PureScript's `wrap`.
 ///
 /// ### Capabilities and Limitations
 ///

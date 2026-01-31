@@ -52,7 +52,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.get(), Ok(&42));
+	/// assert_eq!(memo.evaluate(), Ok(&42));
 	/// ```
 	pub fn evaluate(&self) -> Result<&A, &E> {
 		Config::try_evaluate(&self.0)
@@ -88,7 +88,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.get(), Ok(&42));
+	/// assert_eq!(memo.evaluate(), Ok(&42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
@@ -100,7 +100,7 @@ where
 
 impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
 	fn from(eval: TryThunk<'a, A, E>) -> Self {
-		Self::new(move || eval.evalute())
+		Self::new(move || eval.evaluate())
 	}
 }
 
@@ -165,7 +165,7 @@ where
 	///     if true { panic!("oops") }
 	///     42
 	/// });
-	/// assert_eq!(memo.get(), Err(&"oops".to_string()));
+	/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
 	/// ```
 	pub fn catch_unwind<F>(f: F) -> Self
 	where
@@ -214,7 +214,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.get(), Ok(&42));
+	/// assert_eq!(memo.evaluate(), Ok(&42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where

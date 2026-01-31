@@ -278,7 +278,7 @@ where
 	/// let f = Pair("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -323,15 +323,15 @@ where
 	///     Pair("ab".to_string(), 10)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		let Pair(first, second) = ma;
-		let Pair(next_first, next_second) = f(second);
+		let Pair(next_first, next_second) = func(second);
 		Pair(Semigroup::append(first, next_first), next_second)
 	}
 }
@@ -503,11 +503,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     traverse::<PairWithFirstBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Pair((), 5)),
+	///     traverse::<PairWithFirstBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair((), 5)),
 	///     Some(Pair((), 10))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -545,11 +545,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     sequence::<PairWithFirstBrand<()>, OptionBrand, _>(Pair((), Some(5))),
+	///     sequence::<PairWithFirstBrand<()>, _, OptionBrand>(Pair((), Some(5))),
 	///     Some(Pair((), 5))
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -640,12 +640,13 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -830,7 +831,7 @@ where
 	/// let f = Pair(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
 	/// assert_eq!(apply::<RcFnBrand, PairWithSecondBrand<String>, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -875,15 +876,15 @@ where
 	///     Pair(10, "ab".to_string())
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		let Pair(first, second) = ma;
-		let Pair(next_first, next_second) = f(first);
+		let Pair(next_first, next_second) = func(first);
 		Pair(next_first, Semigroup::append(second, next_second))
 	}
 }
@@ -1055,11 +1056,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     traverse::<PairWithSecondBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Pair(5, ())),
+	///     traverse::<PairWithSecondBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair(5, ())),
 	///     Some(Pair(10, ()))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -1098,11 +1099,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     sequence::<PairWithSecondBrand<()>, OptionBrand, _>(Pair(Some(5), ())),
+	///     sequence::<PairWithSecondBrand<()>, _, OptionBrand>(Pair(Some(5), ())),
 	///     Some(Pair(5, ()))
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -1114,9 +1115,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
-	for PairWithSecondBrand<Second>
-{
+impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	/// Maps the value to a monoid and returns it in parallel (over first).
 	///
 	/// This method maps the element of the pair to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
@@ -1151,11 +1150,12 @@ impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	///     "1".to_string()
 	/// );
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1194,12 +1194,13 @@ impl<Second: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{

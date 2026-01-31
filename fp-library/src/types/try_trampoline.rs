@@ -260,7 +260,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	/// use fp_library::types::*;
 	///
 	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
-	///     .or_else(|_| TryTrampoline::ok(42));
+	///     .catch(|_| TryTrampoline::ok(42));
 	/// assert_eq!(task.evaluate(), Ok(42));
 	/// ```
 	pub fn catch<F>(

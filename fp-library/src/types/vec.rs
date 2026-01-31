@@ -278,7 +278,7 @@ impl Semiapplicative for VecBrand {
 	/// ];
 	/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -321,14 +321,14 @@ impl Semimonad for VecBrand {
 	///     vec![1, 2, 2, 4]
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.into_iter().flat_map(f).collect()
+		ma.into_iter().flat_map(func).collect()
 	}
 }
 
@@ -500,11 +500,11 @@ impl Traversable for VecBrand {
 	/// use fp_library::brands::{OptionBrand, VecBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<VecBrand, OptionBrand, _, _, _>(|x| Some(x * 2), vec![1, 2, 3]),
+	///     traverse::<VecBrand, _, _, OptionBrand, _>(|x| Some(x * 2), vec![1, 2, 3]),
 	///     Some(vec![2, 4, 6])
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -553,11 +553,11 @@ impl Traversable for VecBrand {
 	/// use fp_library::brands::{OptionBrand, VecBrand};
 	///
 	/// assert_eq!(
-	///     sequence::<VecBrand, OptionBrand, _>(vec![Some(1), Some(2)]),
+	///     sequence::<VecBrand, _, OptionBrand>(vec![Some(1), Some(2)]),
 	///     Some(vec![1, 2])
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -644,7 +644,7 @@ impl<A: Clone> Monoid for Vec<A> {
 	}
 }
 
-impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
+impl ParFoldable for VecBrand {
 	/// Maps values to a monoid and combines them in parallel.
 	///
 	/// This method maps each element of the vector to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
@@ -679,11 +679,12 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for VecBrand {
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1011,7 +1012,7 @@ impl Witherable for VecBrand {
 	/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), x);
 	/// assert_eq!(y, Some(Pair(vec![2, 4], vec![1, 3])));
 	/// ```
-	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1075,7 +1076,7 @@ impl Witherable for VecBrand {
 	/// let y = wither::<VecBrand, OptionBrand, _, _, _>(|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }), x);
 	/// assert_eq!(y, Some(vec![4, 8]));
 	/// ```
-	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1311,7 +1312,7 @@ mod tests {
 	fn traverse_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<VecBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				vec![]
 			),
@@ -1324,7 +1325,7 @@ mod tests {
 	fn traverse_returning_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<VecBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand, _>(
 				|_: i32| None::<i32>,
 				vec![1, 2, 3]
 			),
@@ -1397,7 +1398,7 @@ mod tests {
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
-		let composed = |i| r(i).and_then(l);
+		let composed = |i| bind::<OptionBrand, _, _, _>(r(i), l);
 
 		filter_map::<VecBrand, _, _, _>(composed, x.clone())
 			== filter_map::<VecBrand, _, _, _>(l, filter_map::<VecBrand, _, _, _>(r, x))
@@ -1460,7 +1461,7 @@ mod tests {
 		let lhs = wilt::<VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
 			|res| separate::<VecBrand, _, _>(res),
-			traverse::<VecBrand, OptionBrand, _, _, _>(p, x),
+			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs
@@ -1474,7 +1475,7 @@ mod tests {
 		let lhs = wither::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
 		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
 			|opt| compact::<VecBrand, _>(opt),
-			traverse::<VecBrand, OptionBrand, _, _, _>(p, x),
+			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs

@@ -449,10 +449,10 @@ impl LazyConfig for ArcLazyConfig {
 /// let shared = memo.clone();
 ///
 /// // First force computes and caches:
-/// let value = memo.get();
+/// let value = memo.evaluate();
 ///
 /// // Second force returns cached value (shared sees same result):
-/// assert_eq!(shared.get(), value);
+/// assert_eq!(shared.evaluate(), value);
 /// ```
 pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(pub(crate) Config::Lazy<'a, A>)
 where
@@ -487,7 +487,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn evaluate(&self) -> &A {
 		Config::evaluate(&self.0)
@@ -522,13 +522,41 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + 'a,
 	{
 		Lazy(RcLazyConfig::lazy_new(Box::new(f)))
+	}
+
+	/// Creates a `Lazy` from an already-computed value.
+	///
+	/// The value is immediately available without any computation.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. a -> Lazy a`
+	///
+	/// ### Parameters
+	///
+	/// * `a`: The pre-computed value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn pure(a: A) -> Self {
+		Lazy(RcLazyConfig::lazy_new(Box::new(move || a)))
 	}
 }
 
@@ -574,14 +602,46 @@ where
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = Lazy::<_, ArcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
+	/// assert_eq!(*lazy.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + Send + 'a,
 	{
 		Lazy(ArcLazyConfig::lazy_new(Box::new(f)))
+	}
+
+	/// Creates a `Lazy` from an already-computed value.
+	///
+	/// The value is immediately available without any computation.
+	/// Requires `Send` since `ArcLazy` is thread-safe.
+	///
+	/// ### Type Signature
+	///
+	/// `forall a. a -> Lazy a`
+	///
+	/// ### Parameters
+	///
+	/// * `a`: The pre-computed value to wrap.
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn pure(a: A) -> Self
+	where
+		A: Send,
+	{
+		Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
 	}
 }
 
@@ -651,13 +711,13 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	/// use fp_library::{brands::*, classes::*, types::*};
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-	/// let mapped = LazyBrand::<RcLazyConfig>::map_ref(
+	/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(
 	///     |x: &i32| *x * 2,
 	///     memo,
 	/// );
-	/// assert_eq!(*mapped.get(), 20);
+	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
-	fn ref_map<'a, B: 'a, A: 'a, F>(
+	fn ref_map<'a, A: 'a, B: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -788,5 +848,53 @@ mod tests {
 		let memo: ArcLazy<i32> =
 			send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
 		assert_eq!(*memo.evaluate(), 42);
+	}
+
+	/// Tests `RcLazy::pure`.
+	///
+	/// Verifies that `pure` creates a lazy value from a pre-computed value.
+	#[test]
+	fn test_rc_lazy_pure() {
+		let lazy = RcLazy::pure(42);
+		assert_eq!(*lazy.evaluate(), 42);
+
+		// Verify it's still lazy (shares cache)
+		let shared = lazy.clone();
+		assert_eq!(*shared.evaluate(), 42);
+	}
+
+	/// Tests `ArcLazy::pure`.
+	///
+	/// Verifies that `pure` creates a thread-safe lazy value from a pre-computed value.
+	#[test]
+	fn test_arc_lazy_pure() {
+		let lazy = ArcLazy::pure(42);
+		assert_eq!(*lazy.evaluate(), 42);
+
+		// Verify it's still lazy (shares cache)
+		let shared = lazy.clone();
+		assert_eq!(*shared.evaluate(), 42);
+	}
+
+	/// Tests `ArcLazy::pure` with thread safety.
+	///
+	/// Verifies that `pure` works across threads.
+	#[test]
+	fn test_arc_lazy_pure_thread_safety() {
+		use std::thread;
+
+		let lazy = ArcLazy::pure(42);
+
+		let mut handles = vec![];
+		for _ in 0..10 {
+			let lazy_clone = lazy.clone();
+			handles.push(thread::spawn(move || {
+				assert_eq!(*lazy_clone.evaluate(), 42);
+			}));
+		}
+
+		for handle in handles {
+			handle.join().unwrap();
+		}
 	}
 }

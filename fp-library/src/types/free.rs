@@ -47,7 +47,7 @@ where
 	///
 	/// This variant represents a computation that is suspended in the functor `F`.
 	/// The functor contains the next step of the computation.
-	Defer(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+	Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
 
 	/// A bind operation.
 	///
@@ -86,7 +86,7 @@ where
 ///
 /// ## Why not use the "Naive" Recursive Definition?
 ///
-/// A naive definition (`enum Free { Pure(A), Defer(F<Box<Free<F, A>>>) }`) would support lifetimes
+/// A naive definition (`enum Free { Pure(A), Wrap(F<Box<Free<F, A>>>) }`) would support lifetimes
 /// and HKT traits. However, it was rejected because:
 /// 1.  **Stack Safety**: `run` would not be stack-safe for deep computations.
 /// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
@@ -161,12 +161,56 @@ where
 	/// use fp_library::{brands::*, types::*};
 	///
 	/// let eval = Thunk::new(|| Free::pure(42));
-	/// let free = Free::<ThunkBrand, _>::defer(eval);
+	/// let free = Free::<ThunkBrand, _>::wrap(eval);
 	/// ```
-	pub fn defer(
+	pub fn wrap(
 		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
 	) -> Self {
-		Free(Some(FreeInner::Defer(fa)))
+		Free(Some(FreeInner::Wrap(fa)))
+	}
+
+	/// Lifts a functor value into the Free monad.
+	///
+	/// This is the primary way to inject effects into Free monad computations.
+	/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
+	///
+	/// ### Type Signature
+	///
+	/// `forall f a. Functor f => f a -> Free f a`
+	///
+	/// ### Implementation
+	///
+	/// ```text
+	/// liftF fa = wrap (map pure fa)
+	/// ```
+	///
+	/// ### Parameters
+	///
+	/// * `fa`: The functor value to lift.
+	///
+	/// ### Returns
+	///
+	/// A `Free` computation that performs the effect and returns the result.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, types::*};
+	///
+	/// // Lift a simple computation
+	/// let thunk = Thunk::new(|| 42);
+	/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
+	/// assert_eq!(free.evaluate(), 42);
+	///
+	/// // Build a computation from raw effects
+	/// let computation = Free::lift_f(Thunk::new(|| 10))
+	///     .bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+	///     .bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+	/// assert_eq!(computation.evaluate(), 25);
+	/// ```
+	pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
+		// Map the value to a pure Free, then wrap it
+		Free::wrap(F::map(Free::pure, fa))
 	}
 
 	/// Monadic bind with O(1) complexity.
@@ -220,9 +264,9 @@ where
 				}))
 			}
 
-			// Defer: wrap in a Bind
-			FreeInner::Defer(fa) => {
-				let head = Free::defer(fa).boxed_erase_type();
+			// Wrap: wrap in a Bind
+			FreeInner::Wrap(fa) => {
+				let head = Free::wrap(fa).boxed_erase_type();
 				Free(Some(FreeInner::Bind {
 					head,
 					continuations: CatList::singleton(erased_f),
@@ -245,10 +289,10 @@ where
 
 		match inner {
 			FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as TypeErasedValue))),
-			FreeInner::Defer(fa) => {
+			FreeInner::Wrap(fa) => {
 				// Map over the functor to erase the inner type
 				let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
-				Free(Some(FreeInner::Defer(erased)))
+				Free(Some(FreeInner::Wrap(erased)))
 			}
 			FreeInner::Bind { head, continuations, .. } => {
 				Free(Some(FreeInner::Bind { head, continuations, _marker: PhantomData }))
@@ -310,7 +354,7 @@ where
 					}
 				}
 
-				FreeInner::Defer(fa) => {
+				FreeInner::Wrap(fa) => {
 					// Run the effect to get the inner Free
 					current = <F as Evaluable>::evaluate(fa);
 				}
@@ -371,7 +415,7 @@ mod tests {
 	#[test]
 	fn test_free_roll() {
 		let eval = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::defer(eval);
+		let free = Free::<ThunkBrand, _>::wrap(eval);
 		assert_eq!(free.evaluate(), 42);
 	}
 
@@ -417,14 +461,37 @@ mod tests {
 		let _free = count_down(100_000);
 	}
 
-	/// Tests `Free::bind` on a `Roll` variant.
+	/// Tests `Free::bind` on a `Wrap` variant.
 	///
-	/// **What it tests:** Verifies that `bind` works correctly when applied to a suspended computation (`Roll`).
-	/// **How it tests:** Creates a `Roll` (via `roll`) and `bind`s it.
+	/// **What it tests:** Verifies that `bind` works correctly when applied to a suspended computation (`Wrap`).
+	/// **How it tests:** Creates a `Wrap` (via `wrap`) and `bind`s it.
 	#[test]
-	fn test_free_bind_on_roll() {
+	fn test_free_bind_on_wrap() {
 		let eval = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::defer(eval).bind(|x| Free::pure(x + 1));
+		let free = Free::<ThunkBrand, _>::wrap(eval).bind(|x| Free::pure(x + 1));
 		assert_eq!(free.evaluate(), 43);
+	}
+
+	/// Tests `Free::lift_f`.
+	///
+	/// **What it tests:** Verifies that `lift_f` correctly lifts a functor value into the Free monad.
+	/// **How it tests:** Lifts a simple thunk and verifies the result.
+	#[test]
+	fn test_free_lift_f() {
+		let thunk = Thunk::new(|| 42);
+		let free = Free::<ThunkBrand, _>::lift_f(thunk);
+		assert_eq!(free.evaluate(), 42);
+	}
+
+	/// Tests `Free::lift_f` with bind.
+	///
+	/// **What it tests:** Verifies that `lift_f` can be used to build computations with `bind`.
+	/// **How it tests:** Chains multiple `lift_f` calls with `bind`.
+	#[test]
+	fn test_free_lift_f_with_bind() {
+		let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x * 2)))
+			.bind(|x| Free::<ThunkBrand, _>::lift_f(Thunk::new(move || x + 5)));
+		assert_eq!(computation.evaluate(), 25);
 	}
 }

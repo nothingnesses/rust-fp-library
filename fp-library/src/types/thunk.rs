@@ -2,10 +2,10 @@ use crate::{
 	Apply,
 	brands::ThunkBrand,
 	classes::{
-		Deferrable, apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
-		evaluable::Evaluable, foldable::Foldable, functor::Functor, lift::Lift,
-		monad_rec::MonadRec, monoid::Monoid, pointed::Pointed, semiapplicative::Semiapplicative,
-		semigroup::Semigroup, semimonad::Semimonad,
+		Deferrable, ApplyFirst, ApplySecond, CloneableFn,
+		Evaluable, Foldable, Functor, Lift,
+		MonadRec, Monoid, Pointed, Semiapplicative,
+		Semigroup, Semimonad,
 	},
 	impl_kind,
 	kinds::*,
@@ -111,7 +111,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, brands::*};
+	/// use fp_library::{brands::*, functions::*, classes::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(42);
 	/// assert_eq!(thunk.evaluate(), 42);
@@ -313,7 +313,7 @@ impl Functor for ThunkBrand {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(10);
-	/// let mapped = map::<ThunkBrand, _, _>(|x| x * 2, eval);
+	/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
 	/// assert_eq!(mapped.evaluate(), 20);
 	/// ```
 	fn map<'a, A: 'a, B: 'a, Func>(
@@ -349,9 +349,9 @@ impl Pointed for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let eval: Thunk<i32> = pure::<ThunkBrand, _>(42);
+	/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
 	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
@@ -443,7 +443,7 @@ impl Semiapplicative for ThunkBrand {
 	/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 	/// assert_eq!(result.evaluate(), 42);
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -484,17 +484,17 @@ impl Semimonad for ThunkBrand {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(10);
-	/// let result = bind::<ThunkBrand, _, _, _>(eval, |x| pure::<ThunkBrand, _>(x * 2));
+	/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 	/// assert_eq!(result.evaluate(), 20);
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.bind(f)
+		ma.bind(func)
 	}
 }
 
@@ -523,7 +523,7 @@ impl MonadRec for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
 	/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
 	///     |x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
@@ -574,10 +574,10 @@ impl Evaluable for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
 	/// let thunk = Thunk::new(|| 42);
-	/// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);
+	/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 	/// ```
 	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
 		fa.evaluate()
@@ -614,7 +614,7 @@ impl Foldable for ThunkBrand {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(10);
-	/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, eval);
+	/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
 	/// assert_eq!(result, 15);
 	/// ```
 	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
@@ -658,7 +658,7 @@ impl Foldable for ThunkBrand {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(10);
-	/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, eval);
+	/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
 	/// assert_eq!(result, 15);
 	/// ```
 	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
@@ -701,7 +701,7 @@ impl Foldable for ThunkBrand {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let thunk = pure::<ThunkBrand, _>(10);
-	/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), eval);
+	/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
 	/// assert_eq!(result, "10");
 	/// ```
 	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -767,7 +767,7 @@ impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 	/// ```
 	/// use fp_library::{classes::*, types::*};
 	///
-	/// let t: Thunk<String> = empty();
+	/// let t: Thunk<String> = Thunk::empty();
 	/// assert_eq!(t.evaluate(), "");
 	/// ```
 	fn empty() -> Self {

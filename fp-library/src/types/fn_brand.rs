@@ -124,7 +124,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, D: 'a, C: 'a>(
+	fn compose<'a, B: 'a, C: 'a, D: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {

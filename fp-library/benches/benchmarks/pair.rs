@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion};
 use fp_library::{
-	brands::{ArcFnBrand, PairWithFirstBrand, RcFnBrand},
+	brands::{ArcFnBrand, OptionBrand, PairWithFirstBrand, RcFnBrand},
 	classes::{
 		foldable::{fold_left, fold_right},
 		functor::map,
@@ -96,7 +96,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<PairWithFirstBrand<String>, fp_library::brands::OptionBrand, _, _, _>(
+				traverse::<PairWithFirstBrand<String>, _, _, OptionBrand, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val.clone()),
 				)
@@ -122,7 +122,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		);
 		group.bench_with_input(BenchmarkId::new("fp", input_desc_opt), &input_desc_opt, |b, &_| {
 			b.iter(|| {
-				sequence::<PairWithFirstBrand<String>, fp_library::brands::OptionBrand, _>(
+				sequence::<PairWithFirstBrand<String>, _, OptionBrand>(
 					std::hint::black_box(val_opt.clone()),
 				)
 			})

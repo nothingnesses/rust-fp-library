@@ -208,7 +208,7 @@ impl Semiapplicative for IdentityBrand {
 	/// let y = apply::<RcFnBrand, IdentityBrand, _, _>(f, x);
 	/// assert_eq!(y, Identity(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -249,14 +249,14 @@ impl Semimonad for IdentityBrand {
 	/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
 	/// assert_eq!(y, Identity(10));
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		f(ma.0)
+		func(ma.0)
 	}
 }
 
@@ -430,10 +430,10 @@ impl Traversable for IdentityBrand {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(5);
-	/// let y = traverse::<IdentityBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Identity(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -470,10 +470,10 @@ impl Traversable for IdentityBrand {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let x = Identity(Some(5));
-	/// let y = sequence::<IdentityBrand, OptionBrand, _>(x);
+	/// let y = sequence::<IdentityBrand, _, OptionBrand>(x);
 	/// assert_eq!(y, Some(Identity(5)));
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -741,7 +741,7 @@ mod tests {
 	#[test]
 	fn traverse_test() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<IdentityBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<IdentityBrand, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				Identity(1)
 			),

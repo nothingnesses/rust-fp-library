@@ -9,7 +9,7 @@ use quickcheck_macros::quickcheck;
 fn test_large_vector_par_fold_map() {
 	let xs: Vec<i32> = (0..100000).collect();
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
-	let res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
+	let res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 	assert_eq!(res, Sum(4999950000));
 }
 
@@ -22,7 +22,7 @@ fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
 
 	// Foldable::fold_map takes (f, fa)
 	let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _, _>(f_seq, xs.clone());
-	let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
+	let par_res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 
 	seq_res == par_res
 }
@@ -41,7 +41,7 @@ fn prop_par_fold_right_equals_fold_right(xs: Vec<i32>) -> bool {
 	let init = 0;
 
 	let seq_res = VecBrand::fold_right::<ArcFnBrand, _, _, _>(f_seq, init, xs.clone());
-	let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_right(f_par, init, xs.clone());
+	let par_res = VecBrand::par_fold_right::<ArcFnBrand, _, _>(f_par, init, xs.clone());
 
 	if seq_res != par_res {
 		println!("Fold right mismatch: seq={seq_res}, par={par_res}, xs={xs:?}");
@@ -58,7 +58,7 @@ fn prop_par_fold_map_empty_is_empty(xs: Vec<i32>) -> bool {
 	}
 
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
-	let par_res = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
+	let par_res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 
 	par_res == Sum::empty()
 }
@@ -70,8 +70,8 @@ fn prop_par_fold_map_deterministic(xs: Vec<i32>) -> bool {
 	let f_par: <ArcFnBrand as SendCloneableFn>::SendOf<'_, i32, Sum> =
 		<ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 
-	let res1 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par.clone(), xs.clone());
-	let res2 = <VecBrand as ParFoldable<ArcFnBrand>>::par_fold_map(f_par, xs);
+	let res1 = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par.clone(), xs.clone());
+	let res2 = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 	if res1 != res2 {
 		println!("Deterministic fail: {:?} != {:?}", res1, res2);
 		return false;

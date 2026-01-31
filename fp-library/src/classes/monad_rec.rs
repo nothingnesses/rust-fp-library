@@ -89,7 +89,7 @@ pub trait MonadRec: Monad {
 	/// ```
 	fn tail_rec_m<'a, A: 'a, B: 'a, Func>(
 		func: Func,
-		a: A,
+		initial: A,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
@@ -141,12 +141,12 @@ pub trait MonadRec: Monad {
 /// ```
 pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, Func>(
 	func: Func,
-	a: A,
+	initial: A,
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 		+ Clone
 		+ 'a,
 {
-	Brand::tail_rec_m(func, a)
+	Brand::tail_rec_m(func, initial)
 }

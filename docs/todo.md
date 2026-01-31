@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Make a macro that helps to generate documentation
 * Move module level docs from types.rs to individual type source files
 * Better Workflow Example in readme and lib
 * Sort order of MonadRec type params

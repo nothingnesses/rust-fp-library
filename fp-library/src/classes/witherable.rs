@@ -63,7 +63,7 @@ pub trait Witherable: Filterable + Traversable {
 	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 	/// assert_eq!(y, Some(Pair(Some(5), None)));
 	/// ```
-	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -78,7 +78,7 @@ pub trait Witherable: Filterable + Traversable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	{
-		M::map(|res| Self::separate(res), Self::traverse::<M, Result<O, E>, A, Func>(func, ta))
+		M::map(|res| Self::separate(res), Self::traverse::<A, Result<O, E>, M, Func>(func, ta))
 	}
 
 	/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
@@ -114,7 +114,7 @@ pub trait Witherable: Filterable + Traversable {
 	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -126,7 +126,7 @@ pub trait Witherable: Filterable + Traversable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 	{
-		M::map(|opt| Self::compact(opt), Self::traverse::<M, Option<B>, A, Func>(func, ta))
+		M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M, Func>(func, ta))
 	}
 }
 
@@ -169,9 +169,9 @@ pub fn wilt<
 	'a,
 	Brand: Witherable,
 	M: Applicative,
+	A: 'a + Clone,
 	O: 'a + Clone,
 	E: 'a + Clone,
-	A: 'a + Clone,
 	Func,
 >(
 	func: Func,
@@ -188,7 +188,7 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 {
-	Brand::wilt::<M, O, E, A, Func>(func, ta)
+	Brand::wilt::<M, A, O, E, Func>(func, ta)
 }
 
 /// Maps a function over a data structure and filters out [`None`] results in an applicative context.
@@ -225,7 +225,7 @@ where
 /// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn wither<'a, Brand: Witherable, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+pub fn wither<'a, Brand: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 	func: Func,
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -237,5 +237,5 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 {
-	Brand::wither::<M, B, A, Func>(func, ta)
+	Brand::wither::<M, A, B, Func>(func, ta)
 }

@@ -56,7 +56,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, D: 'a, C: 'a>(
+	fn compose<'a, B: 'a, C: 'a, D: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>);
@@ -96,9 +96,9 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
-pub fn compose<'a, Brand: Semigroupoid, B: 'a, D: 'a, C: 'a>(
+pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
 	f: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 	g: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
-	Brand::compose::<B, D, C>(f, g)
+	Brand::compose::<B, C, D>(f, g)
 }

@@ -6,7 +6,7 @@
 //! use fp_library::{brands::*, functions::*, types::*};
 //!
 //! let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
-//! assert_eq!(*memo.get(), 42);
+//! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
 use crate::{Apply, kinds::*};
@@ -39,7 +39,7 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	fn send_defer<'a, A>(
 		thunk: impl 'a
@@ -79,15 +79,15 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 /// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let memo: ArcLazy<i32> = send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
-/// assert_eq!(*memo.get(), 42);
+/// assert_eq!(*memo.evaluate(), 42);
 /// ```
-pub fn send_defer<'a, Brand, A, F>(
-	thunk: F
+pub fn send_defer<'a, Brand, A, Func>(
+	thunk: Func
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
 	Brand: SendDeferrable,
 	A: Clone + Send + Sync + 'a,
-	F: 'a + Fn() -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) + Send + Sync,
+	Func: 'a + Fn() -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) + Send + Sync,
 {
 	Brand::send_defer(thunk)
 }
