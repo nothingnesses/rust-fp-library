@@ -34,8 +34,8 @@ use crate::{
 /// use fp_library::types::*;
 ///
 /// let lazy: Lazy<i32> = Lazy::<_, RcLazyConfig>::new(|| Trampoline::new(|| 1 + 1).evaluate());
-/// lazy.get(); // Computes
-/// lazy.get(); // Returns cached
+/// lazy.evaluate(); // Computes
+/// lazy.evaluate(); // Returns cached
 /// ```
 ///
 /// ### Type Parameters
@@ -324,7 +324,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// let t1 = Trampoline::pure(10);
 	/// let t2 = Trampoline::pure(20);
-	/// let t3 = t1.map2(t2, |a, b| a + b);
+	/// let t3 = t1.lift2(t2, |a, b| a + b);
 	/// assert_eq!(t3.evaluate(), 30);
 	/// ```
 	pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
@@ -363,7 +363,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// let t1 = Trampoline::pure(10);
 	/// let t2 = Trampoline::pure(20);
-	/// let t3 = t1.and_then(t2);
+	/// let t3 = t1.then(t2);
 	/// assert_eq!(t3.evaluate(), 20);
 	/// ```
 	pub fn then<B: 'static + Send>(

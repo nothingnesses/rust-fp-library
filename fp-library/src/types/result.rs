@@ -271,7 +271,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// let f_err: Result<_, i32> = Err(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -326,14 +326,14 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///     Err(1)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.and_then(f)
+		ma.and_then(func)
 	}
 }
 
@@ -520,19 +520,19 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Ok(5)),
+	///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
 	///     Some(Ok(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Err(1)),
+	///     traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
 	///     Some(Err(1))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<()>, OptionBrand, _, _, _>(|_| None::<i32>, Ok(5)),
+	///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
 	///     None
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -574,19 +574,19 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<()>, OptionBrand, _>(Ok(Some(5))),
+	///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(Some(5))),
 	///     Some(Ok(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<i32>, OptionBrand, i32>(Err::<Option<i32>, _>(1)),
+	///     sequence::<ResultWithErrBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
 	///     Some(Err::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<()>, OptionBrand, _>(Ok(None::<i32>)),
+	///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(None::<i32>)),
 	///     None
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -795,7 +795,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// let f_ok: Result<i32, _> = Ok(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -850,16 +850,16 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///     Ok(1)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		match ma {
 			Ok(t) => Ok(t),
-			Err(e) => f(e),
+			Err(e) => func(e),
 		}
 	}
 }
@@ -1048,19 +1048,19 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Err(5)),
+	///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
 	///     Some(Err(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Ok(1)),
+	///     traverse::<ResultWithOkBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
 	///     Some(Ok(1))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<()>, OptionBrand, _, _, _>(|_| None::<i32>, Err(5)),
+	///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
 	///     None
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -1102,19 +1102,19 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<()>, OptionBrand, _>(Err(Some(5))),
+	///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(Some(5))),
 	///     Some(Err(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<i32>, OptionBrand, i32>(Ok::<_, Option<i32>>(1)),
+	///     sequence::<ResultWithOkBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
 	///     Some(Ok::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<()>, OptionBrand, _>(Err(None::<i32>)),
+	///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(None::<i32>)),
 	///     None
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -1128,7 +1128,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	}
 }
 
-impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithErrBrand<E> {
+impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 	///
 	/// This method maps the element of the result to a monoid and then returns it. The mapping operation may be executed in parallel.
@@ -1164,11 +1164,12 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, x_err), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1214,12 +1215,13 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, 10, x_err), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1230,7 +1232,7 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	}
 }
 
-impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOkBrand<T> {
+impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 	///
 	/// This method maps the element of the result to a monoid and then returns it (over error). The mapping operation may be executed in parallel.
@@ -1266,11 +1268,12 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, x_ok), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1316,12 +1319,13 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, 10, x_ok), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1560,7 +1564,7 @@ mod tests {
 	#[test]
 	fn traverse_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				Err(1)
 			),
@@ -1572,7 +1576,7 @@ mod tests {
 	#[test]
 	fn traverse_returning_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
 				|_: i32| None::<i32>,
 				Ok(1)
 			),

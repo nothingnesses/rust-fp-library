@@ -362,7 +362,7 @@ impl Semiapplicative for CatListBrand {
 	/// let vec: Vec<_> = applied.into_iter().collect();
 	/// assert_eq!(vec, vec![2, 3, 2, 4]);
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -406,14 +406,14 @@ impl Semimonad for CatListBrand {
 	/// let vec: Vec<_> = bound.into_iter().collect();
 	/// assert_eq!(vec, vec![1, 2, 2, 4]);
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.into_iter().flat_map(f).collect()
+		ma.into_iter().flat_map(func).collect()
 	}
 }
 
@@ -596,11 +596,11 @@ impl Traversable for CatListBrand {
 	/// use fp_library::classes::traversable::traverse;
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
-	/// let traversed = traverse::<CatListBrand, OptionBrand, _, _, _>(|x| Some(x * 2), list);
+	/// let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
 	/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 	/// assert_eq!(vec, vec![2, 4, 6]);
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -644,11 +644,11 @@ impl Traversable for CatListBrand {
 	/// use fp_library::classes::traversable::sequence;
 	///
 	/// let list = CatList::singleton(Some(1)).snoc(Some(2));
-	/// let sequenced = sequence::<CatListBrand, OptionBrand, _>(list);
+	/// let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
 	/// let vec: Vec<_> = sequenced.unwrap().into_iter().collect();
 	/// assert_eq!(vec, vec![1, 2]);
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -1064,7 +1064,7 @@ impl Witherable for CatListBrand {
 	/// assert_eq!(oks_vec, vec![2, 4]);
 	/// assert_eq!(errs_vec, vec![1, 3]);
 	/// ```
-	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1131,7 +1131,7 @@ impl Witherable for CatListBrand {
 	/// let vec: Vec<_> = withered.unwrap().into_iter().collect();
 	/// assert_eq!(vec, vec![4, 8]);
 	/// ```
-	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1910,7 +1910,7 @@ mod tests {
 	fn traverse_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<CatListBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<CatListBrand, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				CatList::empty()
 			),

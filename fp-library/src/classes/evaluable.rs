@@ -9,7 +9,7 @@
 //! use fp_library::{brands::*, functions::*, types::*};
 //!
 //! let thunk = Thunk::new(|| 42);
-//! assert_eq!(evaluable_evaluate::<ThunkBrand, _>(thunk), 42);
+//! assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 //! ```
 
 use crate::{Apply, classes::functor::Functor, kinds::*};
@@ -43,7 +43,7 @@ pub trait Evaluable: Functor {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let eval = Thunk::new(|| 42);
-	/// assert_eq!(evaluable_evaluate::<ThunkBrand, _>(eval), 42);
+	/// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);
 	/// ```
 	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A;
 }

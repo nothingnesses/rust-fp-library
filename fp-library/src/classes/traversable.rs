@@ -6,7 +6,7 @@
 //! use fp_library::{functions::*, brands::*};
 //!
 //! let x = Some(5);
-//! let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+//! let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
@@ -52,10 +52,10 @@ pub trait Traversable: Functor + Foldable {
 	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(5);
-	/// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -64,7 +64,7 @@ pub trait Traversable: Functor + Foldable {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
-		Self::sequence::<F, B>(Self::map::<
+		Self::sequence::<B, F>(Self::map::<
 			A,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 			Func,
@@ -98,17 +98,17 @@ pub trait Traversable: Functor + Foldable {
 	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(Some(5));
-	/// let y = sequence::<OptionBrand, OptionBrand, _>(x);
+	/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
-		Self::traverse::<F, A, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), _>(
+		Self::traverse::<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A, F, _>(
 			identity, ta,
 		)
 	}
@@ -145,10 +145,10 @@ pub trait Traversable: Functor + Foldable {
 /// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(5);
-/// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn traverse<'a, Brand: Traversable, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 	func: Func,
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -157,7 +157,7 @@ where
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 {
-	Brand::traverse::<F, B, A, Func>(func, ta)
+	Brand::traverse::<A, B, F, Func>(func, ta)
 }
 
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -188,15 +188,15 @@ where
 /// use fp_library::{functions::*, brands::*};
 ///
 /// let x = Some(Some(5));
-/// let y = sequence::<OptionBrand, OptionBrand, _>(x);
+/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
 /// assert_eq!(y, Some(Some(5)));
 /// ```
-pub fn sequence<'a, Brand: Traversable, F: Applicative, A: 'a + Clone>(
+pub fn sequence<'a, Brand: Traversable, A: 'a + Clone, F: Applicative>(
 	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 ) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 where
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 {
-	Brand::sequence::<F, A>(ta)
+	Brand::sequence::<A, F>(ta)
 }

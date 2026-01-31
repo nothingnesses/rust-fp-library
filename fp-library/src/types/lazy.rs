@@ -449,10 +449,10 @@ impl LazyConfig for ArcLazyConfig {
 /// let shared = memo.clone();
 ///
 /// // First force computes and caches:
-/// let value = memo.get();
+/// let value = memo.evaluate();
 ///
 /// // Second force returns cached value (shared sees same result):
-/// assert_eq!(shared.get(), value);
+/// assert_eq!(shared.evaluate(), value);
 /// ```
 pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(pub(crate) Config::Lazy<'a, A>)
 where
@@ -487,7 +487,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn evaluate(&self) -> &A {
 		Config::evaluate(&self.0)
@@ -522,7 +522,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
@@ -575,7 +575,7 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, ArcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
@@ -651,13 +651,13 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	/// use fp_library::{brands::*, classes::*, types::*};
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-	/// let mapped = LazyBrand::<RcLazyConfig>::map_ref(
+	/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(
 	///     |x: &i32| *x * 2,
 	///     memo,
 	/// );
-	/// assert_eq!(*mapped.get(), 20);
+	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
-	fn ref_map<'a, B: 'a, A: 'a, F>(
+	fn ref_map<'a, A: 'a, B: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)

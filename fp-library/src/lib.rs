@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
@@ -118,7 +118,7 @@
 //!
 //! // 3. Use Thunk to borrow the cached value without re-running
 //! let view = Thunk::new(|| {
-//!     let val = cached.get();
+//!     let val = cached.evaluate();
 //!     format!("Result: {}", val)
 //! });
 //! ```

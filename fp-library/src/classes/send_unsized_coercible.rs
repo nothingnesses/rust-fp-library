@@ -76,11 +76,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, F>(
-	f: F
+pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, Func>(
+	func: Func
 ) -> Brand::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>
 where
-	F: 'a + Fn(A) -> B + Send + Sync,
+	Func: 'a + Fn(A) -> B + Send + Sync,
 {
-	Brand::coerce_send_fn::<A, B>(f)
+	Brand::coerce_send_fn::<A, B>(func)
 }

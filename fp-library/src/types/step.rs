@@ -442,7 +442,7 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	/// let f: Step<_, _> = Step::Done(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, Step::Done(5)), Step::Done(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -488,15 +488,15 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	///     Step::Done(10)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		match ma {
-			Step::Done(a) => f(a),
+			Step::Done(a) => func(a),
 			Step::Loop(e) => Step::Loop(e),
 		}
 	}
@@ -684,15 +684,15 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     traverse::<StepWithLoopBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Step::Done(5)),
+	///     traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Done(5)),
 	///     Some(Step::Done(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<StepWithLoopBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Step::Loop(1)),
+	///     traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Loop(1)),
 	///     Some(Step::Loop(1))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -733,15 +733,15 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     sequence::<StepWithLoopBrand<()>, OptionBrand, _>(Step::Done(Some(5))),
+	///     sequence::<StepWithLoopBrand<()>, _, OptionBrand>(Step::Done(Some(5))),
 	///     Some(Step::Done(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<StepWithLoopBrand<i32>, OptionBrand, i32>(Step::Loop::<i32, Option<i32>>(1)),
+	///     sequence::<StepWithLoopBrand<i32>, i32, OptionBrand>(Step::Loop::<i32, Option<i32>>(1)),
 	///     Some(Step::Loop::<i32, i32>(1))
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -755,9 +755,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	}
 }
 
-impl<LoopType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
-	for StepWithLoopBrand<LoopType>
-{
+impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 	///
 	/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
@@ -793,11 +791,12 @@ impl<LoopType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// let x_loop: Step<i32, i32> = Step::Loop(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, x_loop), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -843,12 +842,13 @@ impl<LoopType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// let x_loop: Step<i32, i32> = Step::Loop(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, 10, x_loop), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1036,7 +1036,7 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	/// let f: Step<_, ()> = Step::Loop(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, Step::Loop(5)), Step::Loop(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -1082,16 +1082,16 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	///     Step::Loop(10)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		match ma {
 			Step::Done(t) => Step::Done(t),
-			Step::Loop(e) => f(e),
+			Step::Loop(e) => func(e),
 		}
 	}
 }
@@ -1278,15 +1278,15 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     traverse::<StepWithDoneBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Step::Loop(5)),
+	///     traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Loop(5)),
 	///     Some(Step::Loop(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<StepWithDoneBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Step::Done(1)),
+	///     traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Done(1)),
 	///     Some(Step::Done(1))
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -1327,15 +1327,15 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// assert_eq!(
-	///     sequence::<StepWithDoneBrand<()>, OptionBrand, _>(Step::Loop(Some(5))),
+	///     sequence::<StepWithDoneBrand<()>, _, OptionBrand>(Step::Loop(Some(5))),
 	///     Some(Step::Loop(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<StepWithDoneBrand<i32>, OptionBrand, i32>(Step::Done::<Option<i32>, _>(1)),
+	///     sequence::<StepWithDoneBrand<i32>, i32, OptionBrand>(Step::Done::<Option<i32>, _>(1)),
 	///     Some(Step::Done::<i32, i32>(1))
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -1349,9 +1349,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	}
 }
 
-impl<DoneType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
-	for StepWithDoneBrand<DoneType>
-{
+impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
 	///
 	/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
@@ -1387,11 +1385,12 @@ impl<DoneType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// let x_done: Step<i32, i32> = Step::Done(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, x_done), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1437,12 +1436,13 @@ impl<DoneType: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand>
 	/// let x_done: Step<i32, i32> = Step::Done(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, 10, x_done), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1833,13 +1833,13 @@ mod tests {
 	fn test_traversable_step_with_loop() {
 		let x = pure::<StepWithLoopBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<StepWithLoopBrand<()>, OptionBrand, _, _, _>(|a| Some(a * 2), x),
+			traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
 			Some(Step::Done(10))
 		);
 
 		let loop_step: Step<i32, i32> = Step::Loop(1);
 		assert_eq!(
-			traverse::<StepWithLoopBrand<i32>, OptionBrand, _, _, _>(|a| Some(a * 2), loop_step),
+			traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), loop_step),
 			Some(Step::Loop(1))
 		);
 	}
@@ -1851,13 +1851,13 @@ mod tests {
 	fn test_traversable_step_with_done() {
 		let x = pure::<StepWithDoneBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<StepWithDoneBrand<()>, OptionBrand, _, _, _>(|a| Some(a * 2), x),
+			traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
 			Some(Step::Loop(10))
 		);
 
 		let done_step: Step<i32, i32> = Step::Done(1);
 		assert_eq!(
-			traverse::<StepWithDoneBrand<i32>, OptionBrand, _, _, _>(|a| Some(a * 2), done_step),
+			traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), done_step),
 			Some(Step::Done(1))
 		);
 	}

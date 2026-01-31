@@ -285,7 +285,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
-	pub fn evalute(self) -> Result<A, E> {
+	pub fn evaluate(self) -> Result<A, E> {
 		(self.0)()
 	}
 }
@@ -328,7 +328,7 @@ mod tests {
 	#[test]
 	fn test_success() {
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests failure path.
@@ -337,7 +337,7 @@ mod tests {
 	#[test]
 	fn test_failure() {
 		let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
-		assert_eq!(try_thunk.evalute(), Err("error"));
+		assert_eq!(try_thunk.evaluate(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map`.
@@ -346,7 +346,7 @@ mod tests {
 	#[test]
 	fn test_map() {
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests `TryThunk::map_err`.
@@ -355,7 +355,7 @@ mod tests {
 	#[test]
 	fn test_map_err() {
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
-		assert_eq!(try_thunk.evalute(), Err(42));
+		assert_eq!(try_thunk.evaluate(), Err(42));
 	}
 
 	/// Tests `TryThunk::bind`.
@@ -364,7 +364,7 @@ mod tests {
 	#[test]
 	fn test_bind() {
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests borrowing in TryThunk.
@@ -374,7 +374,7 @@ mod tests {
 	fn test_borrowing() {
 		let x = 42;
 		let try_thunk: TryThunk<&i32, ()> = TryThunk::new(|| Ok(&x));
-		assert_eq!(try_thunk.evalute(), Ok(&42));
+		assert_eq!(try_thunk.evaluate(), Ok(&42));
 	}
 
 	/// Tests `TryThunk::bind` failure propagation.
@@ -383,7 +383,7 @@ mod tests {
 	#[test]
 	fn test_bind_failure() {
 		let try_thunk = TryThunk::<i32, &str>::err("error").bind(|x| TryThunk::pure(x * 2));
-		assert_eq!(try_thunk.evalute(), Err("error"));
+		assert_eq!(try_thunk.evaluate(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map` failure propagation.
@@ -392,7 +392,7 @@ mod tests {
 	#[test]
 	fn test_map_failure() {
 		let try_thunk = TryThunk::<i32, &str>::err("error").map(|x| x * 2);
-		assert_eq!(try_thunk.evalute(), Err("error"));
+		assert_eq!(try_thunk.evaluate(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map_err` success propagation.
@@ -401,7 +401,7 @@ mod tests {
 	#[test]
 	fn test_map_err_success() {
 		let try_thunk = TryThunk::<i32, &str>::pure(42).map_err(|_| "new error");
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests `From<Lazy>`.
@@ -410,7 +410,7 @@ mod tests {
 		use crate::types::RcLazy;
 		let memo = RcLazy::new(|| 42);
 		let try_thunk: TryThunk<i32, ()> = TryThunk::from(memo);
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests `From<TryLazy>`.
@@ -419,7 +419,7 @@ mod tests {
 		use crate::types::RcTryLazy;
 		let memo = RcTryLazy::new(|| Ok(42));
 		let try_thunk: TryThunk<i32, ()> = TryThunk::from(memo);
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 
 	/// Tests `Thunk::into_try`.
@@ -429,6 +429,6 @@ mod tests {
 	fn test_try_thunk_from_eval() {
 		let eval = Thunk::pure(42);
 		let try_thunk: TryThunk<i32, ()> = TryThunk::from(eval);
-		assert_eq!(try_thunk.evalute(), Ok(42));
+		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 }

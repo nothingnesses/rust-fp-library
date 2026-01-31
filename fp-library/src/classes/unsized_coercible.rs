@@ -74,11 +74,11 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, F>(
-	f: F
+pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, Func>(
+	func: Func
 ) -> Brand::CloneableOf<dyn 'a + Fn(A) -> B>
 where
-	F: 'a + Fn(A) -> B,
+	Func: 'a + Fn(A) -> B,
 {
-	Brand::coerce_fn::<A, B>(f)
+	Brand::coerce_fn::<A, B>(func)
 }
