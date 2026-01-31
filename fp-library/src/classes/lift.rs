@@ -21,18 +21,18 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a b. Lift f => ((a, b) -> c, f a, f b) -> f c`
+	/// `forall f a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result.
 	/// * `A`: The type of the first value.
 	/// * `B`: The type of the second value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
+	/// * `func`: The binary function to apply.
 	/// * `fa`: The first context.
 	/// * `fb`: The second context.
 	///
@@ -50,13 +50,13 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a;
@@ -68,19 +68,19 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall c a b. Lift f => ((a, b) -> c, f a, f b) -> f c`
+/// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the context.
-/// * `C`: The type of the result.
 /// * `A`: The type of the first value.
 /// * `B`: The type of the second value.
-/// * `F`: The type of the binary function.
+/// * `C`: The type of the result.
+/// * `Func`: The type of the binary function.
 ///
 /// ### Parameters
 ///
-/// * `f`: The binary function to apply.
+/// * `func`: The binary function to apply.
 /// * `fa`: The first context.
 /// * `fb`: The second context.
 ///
@@ -98,16 +98,16 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 /// assert_eq!(z, Some(3));
 /// ```
-pub fn lift2<'a, Brand: Lift, C, A, B, F>(
-	f: F,
+pub fn lift2<'a, Brand: Lift, A, B, C, Func>(
+	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 where
-	F: Fn(A, B) -> C + 'a,
+	Func: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,
 	B: Clone + 'a,
 	C: 'a,
 {
-	Brand::lift2::<C, A, B, F>(f, fa, fb)
+	Brand::lift2::<A, B, C, Func>(func, fa, fb)
 }

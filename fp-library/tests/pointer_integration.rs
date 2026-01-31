@@ -52,7 +52,7 @@ fn test_arc_fn_thread_safety() {
 #[test]
 fn test_arc_memo_basic() {
 	let memo = ArcLazy::new(|| 42);
-	assert_eq!(*memo.get(), 42);
+	assert_eq!(*memo.evaluate(), 42);
 }
 
 /// Tests shared memoization semantics of `ArcLazy`.
@@ -76,11 +76,11 @@ fn test_arc_memo_shared_memoization() {
 	let memo_clone = memo.clone();
 
 	assert_eq!(*counter.lock().unwrap(), 0);
-	assert_eq!(*memo.get(), 42);
+	assert_eq!(*memo.evaluate(), 42);
 	assert_eq!(*counter.lock().unwrap(), 1);
 
 	// Should use cached value
-	assert_eq!(*memo_clone.get(), 42);
+	assert_eq!(*memo_clone.evaluate(), 42);
 	assert_eq!(*counter.lock().unwrap(), 1);
 }
 
@@ -95,10 +95,10 @@ fn test_arc_memo_thread_safety() {
 	let memo = ArcLazy::new(|| 42);
 	let memo_clone = memo.clone();
 
-	let handle = thread::spawn(move || *memo_clone.get());
+	let handle = thread::spawn(move || *memo_clone.evaluate());
 
 	assert_eq!(handle.join().unwrap(), 42);
-	assert_eq!(*memo.get(), 42);
+	assert_eq!(*memo.evaluate(), 42);
 }
 
 /// Tests basic functionality of `RcLazy`.
@@ -109,7 +109,7 @@ fn test_arc_memo_thread_safety() {
 #[test]
 fn test_rc_memo_basic() {
 	let memo = RcLazy::new(|| 42);
-	assert_eq!(*memo.get(), 42);
+	assert_eq!(*memo.evaluate(), 42);
 }
 
 /// Tests shared memoization semantics of `RcLazy`.
@@ -135,10 +135,10 @@ fn test_rc_memo_shared_memoization() {
 	let memo_clone = memo.clone();
 
 	assert_eq!(*counter.borrow(), 0);
-	assert_eq!(*memo.get(), 42);
+	assert_eq!(*memo.evaluate(), 42);
 	assert_eq!(*counter.borrow(), 1);
 
 	// Should use cached value (shared memoization)
-	assert_eq!(*memo_clone.get(), 42);
+	assert_eq!(*memo_clone.evaluate(), 42);
 	assert_eq!(*counter.borrow(), 1);
 }

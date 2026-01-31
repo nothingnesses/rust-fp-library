@@ -1,6 +1,6 @@
 use fp_library::{
 	brands::{LazyBrand, RcFnBrand, ThunkBrand},
-	classes::{foldable::Foldable, monad_rec::tail_rec_m, ref_functor::map_ref},
+	classes::{foldable::Foldable, monad_rec::tail_rec_m, ref_functor::ref_map},
 	types::{Lazy, RcLazyConfig, Step, Thunk},
 };
 
@@ -20,7 +20,7 @@ fn test_eval_monad_rec() {
 		)
 	}
 
-	assert_eq!(factorial(5).run(), 120);
+	assert_eq!(factorial(5).evaluate(), 120);
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_memo_ref_functor() {
 	let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
 
 	// map_ref takes a reference to the value
-	let mapped = map_ref::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
+	let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
 
-	assert_eq!(*mapped.get(), 20);
+	assert_eq!(*mapped.evaluate(), 20);
 }

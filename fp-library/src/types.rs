@@ -82,18 +82,18 @@ pub mod fn_brand;
 ///    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
 ///      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
 ///    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
-///      baked into the [`Runnable`](crate::classes::runnable::Runnable) trait implemented by the functor `F`.
-///      The [`Free::run`] method relies on `F` knowing how to "run" itself.
+///      baked into the [`Evaluable`](crate::classes::Evaluable) trait implemented by the functor `F`.
+///      The [`Free::defer`] method relies on `F` knowing how to "run" itself.
 ///
 /// 2. **API Surface**:
 ///    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
-///    * **Rust**: Minimal API focused on construction (`pure`, `roll`, `bind`) and execution (`run`).
-///      * `liftF` is missing (use `roll` + `map`).
+///    * **Rust**: Minimal API focused on construction (`pure`, `defer`, `bind`) and execution (`evaluate`).
+///      * `liftF` is missing (use `defer` + `map`).
 ///      * `resume` is missing (cannot inspect the computation step-by-step).
 ///      * `hoistFree` is missing.
 ///
 /// 3. **Terminology**:
-///    * Rust's `Free::roll` corresponds to PureScript's `wrap`.
+///    * Rust's `Free::defer` corresponds to PureScript's `wrap`.
 ///
 /// ### Capabilities and Limitations
 ///
@@ -200,7 +200,7 @@ pub mod string;
 
 /// Deferred, non-memoized computation with higher-kinded type support.
 ///
-/// Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Each call to [`Thunk::run`] re-executes the computation. For stack-safe alternatives, use [`Trampoline`].
+/// Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Each call to [`Thunk::evaluate`] re-executes the computation. For stack-safe alternatives, use [`Trampoline`].
 pub mod thunk;
 
 /// Stack-safe computation type with guaranteed safety for unlimited recursion depth.
@@ -216,7 +216,7 @@ pub mod thunk;
 ///     .bind(|x| Trampoline::new(move || x * 2))
 ///     .bind(|x| Trampoline::new(move || x + 10));
 ///
-/// assert_eq!(task.run(), 14);
+/// assert_eq!(task.evaluate(), 14);
 /// ```
 pub mod trampoline;
 
@@ -227,7 +227,7 @@ pub mod try_lazy;
 
 /// Deferred, non-memoized fallible computation with higher-kinded type support.
 ///
-/// The fallible counterpart to [`Thunk`]. Each call to [`TryThunk::run`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
+/// The fallible counterpart to [`Thunk`]. Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
 pub mod try_thunk;
 
 /// Stack-safe fallible computation type with guaranteed safety for unlimited recursion depth.
@@ -243,7 +243,7 @@ pub mod try_thunk;
 ///     .map(|x| x * 2)
 ///     .bind(|x| TryTrampoline::ok(x + 5));
 ///
-/// assert_eq!(task.run(), Ok(25));
+/// assert_eq!(task.evaluate(), Ok(25));
 /// ```
 pub mod try_trampoline;
 

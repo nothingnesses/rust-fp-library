@@ -24,7 +24,7 @@ fn test_deep_recursion() {
 	}
 
 	// 1,000,000 iterations
-	assert_eq!(count_down(1_000_000).run(), 0);
+	assert_eq!(count_down(1_000_000).evaluate(), 0);
 }
 
 /// Tests deep bind chains using.
@@ -36,7 +36,7 @@ fn test_deep_bind_chain() {
 	for _ in 0..100_000 {
 		task = task.bind(|x| Trampoline::pure(x + 1));
 	}
-	assert_eq!(task.run(), 100_000);
+	assert_eq!(task.evaluate(), 100_000);
 }
 
 /// Tests deep defer chains.
@@ -53,5 +53,5 @@ fn test_deep_defer_chain() {
 	}
 
 	// 100,000 iterations
-	assert_eq!(recursive_defer(100_000).run(), 100_000);
+	assert_eq!(recursive_defer(100_000).evaluate(), 100_000);
 }

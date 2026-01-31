@@ -280,17 +280,17 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Functor (StepWithLoop t) => (a -> b, Step t a) -> Step t b`
+	/// `forall t a b. Functor (StepWithLoop t) => (a -> b, Step t a) -> Step t b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
 	/// * `A`: The type of the done value.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the done value.
+	/// * `func`: The function to apply to the done value.
 	/// * `fa`: The step to map over.
 	///
 	/// ### Returns
@@ -304,14 +304,14 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// assert_eq!(map::<StepWithLoopBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Done(5)), Step::Done(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map_done(f)
+		fa.map_done(func)
 	}
 }
 
@@ -322,18 +322,18 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t c a b. Lift (StepWithLoop t) => ((a, b) -> c, Step t a, Step t b) -> Step t c`
+	/// `forall t a b c. Lift (StepWithLoop t) => ((a, b) -> c, Step t a, Step t b) -> Step t c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result.
 	/// * `A`: The type of the first value.
 	/// * `B`: The type of the second value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
+	/// * `func`: The binary function to apply.
 	/// * `fa`: The first step.
 	/// * `fb`: The second step.
 	///
@@ -355,19 +355,19 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///     Step::Loop(2)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Step::Done(a), Step::Done(b)) => Step::Done(f(a, b)),
+			(Step::Done(a), Step::Done(b)) => Step::Done(func(a, b)),
 			(Step::Loop(e), _) => Step::Loop(e),
 			(_, Step::Loop(e)) => Step::Loop(e),
 		}
@@ -509,13 +509,13 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (StepWithLoop t) => ((a, b) -> b, b, Step t a) -> b`
+	/// `forall t a b. Foldable (StepWithLoop t) => ((a, b) -> b, b, Step t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -536,7 +536,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x, acc| x + acc, 0, Step::Done(5)), 5);
 	/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -557,13 +557,13 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (StepWithLoop t) => ((b, a) -> b, b, Step t a) -> b`
+	/// `forall t a b. Foldable (StepWithLoop t) => ((b, a) -> b, b, Step t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -584,7 +584,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|acc, x| acc + x, 0, Step::Done(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -605,13 +605,13 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t m a. (Foldable (StepWithLoop t), Monoid m) => ((a) -> m, Step t a) -> m`
+	/// `forall t a m. (Foldable (StepWithLoop t), Monoid m) => ((a) -> m, Step t a) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
 	/// * `F`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -637,7 +637,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, F>(
+	fn fold_map<'a, FnBrand, A: 'a, M, F>(
 		func: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -874,17 +874,17 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Functor (StepWithDone t) => (a -> b, Step a t) -> Step b t`
+	/// `forall t a b. Functor (StepWithDone t) => (a -> b, Step a t) -> Step b t`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
 	/// * `A`: The type of the loop value.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the loop value.
+	/// * `func`: The function to apply to the loop value.
 	/// * `fa`: The step to map over.
 	///
 	/// ### Returns
@@ -898,14 +898,14 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// assert_eq!(map::<StepWithDoneBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Loop(5)), Step::Loop(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map_loop(f)
+		fa.map_loop(func)
 	}
 }
 
@@ -916,18 +916,18 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t c a b. Lift (StepWithDone t) => ((a, b) -> c, Step a t, Step b t) -> Step c t`
+	/// `forall t a b c. Lift (StepWithDone t) => ((a, b) -> c, Step a t, Step b t) -> Step c t`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result loop value.
 	/// * `A`: The type of the first loop value.
 	/// * `B`: The type of the second loop value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result loop value.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply to the loops.
+	/// * `func`: The binary function to apply to the loops.
 	/// * `fa`: The first step.
 	/// * `fb`: The second step.
 	///
@@ -949,19 +949,19 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///     Step::Done(2)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Step::Loop(a), Step::Loop(b)) => Step::Loop(f(a, b)),
+			(Step::Loop(a), Step::Loop(b)) => Step::Loop(func(a, b)),
 			(Step::Done(t), _) => Step::Done(t),
 			(_, Step::Done(t)) => Step::Done(t),
 		}
@@ -1103,13 +1103,13 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (StepWithDone t) => ((a, b) -> b, b, Step a t) -> b`
+	/// `forall t a b. Foldable (StepWithDone t) => ((a, b) -> b, b, Step a t) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -1130,7 +1130,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 1);
 	/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Done(())), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1151,13 +1151,13 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (StepWithDone t) => ((b, a) -> b, b, Step a t) -> b`
+	/// `forall t a b. Foldable (StepWithDone t) => ((b, a) -> b, b, Step a t) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -1178,7 +1178,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Done(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1199,13 +1199,13 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t m a. (Foldable (StepWithDone t), Monoid m) => ((a) -> m, Step a t) -> m`
+	/// `forall t a m. (Foldable (StepWithDone t), Monoid m) => ((a) -> m, Step a t) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
 	/// * `F`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -1231,7 +1231,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, F>(
+	fn fold_map<'a, FnBrand, A: 'a, M, F>(
 		func: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M

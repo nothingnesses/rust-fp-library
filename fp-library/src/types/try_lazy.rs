@@ -54,8 +54,8 @@ where
 	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 	/// assert_eq!(memo.get(), Ok(&42));
 	/// ```
-	pub fn get(&self) -> Result<&A, &E> {
-		Config::force_try(&self.0)
+	pub fn evaluate(&self) -> Result<&A, &E> {
+		Config::try_evaluate(&self.0)
 	}
 }
 
@@ -64,7 +64,7 @@ where
 	A: 'a,
 	E: 'a,
 {
-	/// Creates a new TryLazy that will run `f` on first access.
+	/// Creates a new `TryLazy` that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
@@ -94,13 +94,13 @@ where
 	where
 		F: FnOnce() -> Result<A, E> + 'a,
 	{
-		TryLazy(RcLazyConfig::new_try_lazy(Box::new(f)))
+		TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 	}
 }
 
 impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
 	fn from(eval: TryThunk<'a, A, E>) -> Self {
-		Self::new(move || eval.run())
+		Self::new(move || eval.evalute())
 	}
 }
 
@@ -110,7 +110,7 @@ where
 	E: Send,
 {
 	fn from(task: TryTrampoline<A, E>) -> Self {
-		Self::new(move || task.run())
+		Self::new(move || task.evaluate())
 	}
 }
 
@@ -120,7 +120,7 @@ where
 	E: Send + Sync + 'a,
 {
 	fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
-		Self::new(move || Ok(memo.get().clone()))
+		Self::new(move || Ok(memo.evaluate().clone()))
 	}
 }
 
@@ -130,7 +130,7 @@ where
 	E: 'a,
 {
 	fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
-		Self::new(move || Ok(memo.get().clone()))
+		Self::new(move || Ok(memo.evaluate().clone()))
 	}
 }
 
@@ -138,7 +138,7 @@ impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
 where
 	A: 'a,
 {
-	/// Creates a TryLazy that catches unwinds (panics).
+	/// Creates a `TryLazy` that catches unwinds (panics).
 	///
 	/// ### Type Signature
 	///
@@ -190,7 +190,7 @@ where
 	A: 'a,
 	E: 'a,
 {
-	/// Creates a new TryLazy that will run `f` on first access.
+	/// Creates a new `TryLazy` that will run `f` on first access.
 	///
 	/// ### Type Signature
 	///
@@ -220,7 +220,7 @@ where
 	where
 		F: FnOnce() -> Result<A, E> + Send + 'a,
 	{
-		TryLazy(ArcLazyConfig::new_try_lazy(Box::new(f)))
+		TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
 	}
 }
 
@@ -251,9 +251,9 @@ mod tests {
 		});
 
 		assert_eq!(*counter.borrow(), 0);
-		assert_eq!(memo.get(), Ok(&42));
+		assert_eq!(memo.evaluate(), Ok(&42));
 		assert_eq!(*counter.borrow(), 1);
-		assert_eq!(memo.get(), Ok(&42));
+		assert_eq!(memo.evaluate(), Ok(&42));
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -270,9 +270,9 @@ mod tests {
 		});
 
 		assert_eq!(*counter.borrow(), 0);
-		assert_eq!(memo.get(), Err(&0));
+		assert_eq!(memo.evaluate(), Err(&0));
 		assert_eq!(*counter.borrow(), 1);
-		assert_eq!(memo.get(), Err(&0));
+		assert_eq!(memo.evaluate(), Err(&0));
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -289,9 +289,9 @@ mod tests {
 		});
 		let shared = memo.clone();
 
-		assert_eq!(memo.get(), Ok(&42));
+		assert_eq!(memo.evaluate(), Ok(&42));
 		assert_eq!(*counter.borrow(), 1);
-		assert_eq!(shared.get(), Ok(&42));
+		assert_eq!(shared.evaluate(), Ok(&42));
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -307,7 +307,7 @@ mod tests {
 			42
 		});
 
-		match memo.get() {
+		match memo.evaluate() {
 			Err(e) => assert_eq!(e, "oops"),
 			Ok(_) => panic!("Should have failed"),
 		}
@@ -318,7 +318,7 @@ mod tests {
 	fn test_try_memo_from_try_eval() {
 		let eval = TryThunk::new(|| Ok::<i32, ()>(42));
 		let memo = RcTryLazy::from(eval);
-		assert_eq!(memo.get(), Ok(&42));
+		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 
 	/// Tests creation from `TryTrampoline`.
@@ -326,7 +326,7 @@ mod tests {
 	fn test_try_memo_from_try_task() {
 		let task = TryTrampoline::<i32, ()>::ok(42);
 		let memo = RcTryLazy::from(task);
-		assert_eq!(memo.get(), Ok(&42));
+		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 
 	/// Tests conversion to TryLazy.
@@ -334,7 +334,7 @@ mod tests {
 	fn test_try_memo_from_rc_memo() {
 		let memo = RcLazy::new(|| 42);
 		let try_memo: crate::types::RcTryLazy<i32, ()> = crate::types::RcTryLazy::from(memo);
-		assert_eq!(try_memo.get(), Ok(&42));
+		assert_eq!(try_memo.evaluate(), Ok(&42));
 	}
 
 	/// Tests conversion to ArcTryLazy.
@@ -343,6 +343,6 @@ mod tests {
 		use crate::types::ArcLazy;
 		let memo = ArcLazy::new(|| 42);
 		let try_memo: crate::types::ArcTryLazy<i32, ()> = crate::types::ArcTryLazy::from(memo);
-		assert_eq!(try_memo.get(), Ok(&42));
+		assert_eq!(try_memo.evaluate(), Ok(&42));
 	}
 }

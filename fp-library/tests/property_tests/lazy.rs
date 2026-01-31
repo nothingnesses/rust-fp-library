@@ -14,8 +14,8 @@ use quickcheck_macros::quickcheck;
 #[quickcheck]
 fn prop_rc_memo_get_memoization(x: i32) -> bool {
 	let memo = RcLazy::new(move || x.wrapping_mul(2));
-	let result1 = *memo.get();
-	let result2 = *memo.get();
+	let result1 = *memo.evaluate();
+	let result2 = *memo.evaluate();
 	result1 == result2
 }
 
@@ -24,8 +24,8 @@ fn prop_rc_memo_get_memoization(x: i32) -> bool {
 #[quickcheck]
 fn prop_arc_memo_get_memoization(x: i32) -> bool {
 	let memo = ArcLazy::new(move || x.wrapping_mul(2));
-	let result1 = *memo.get();
-	let result2 = *memo.get();
+	let result1 = *memo.evaluate();
+	let result2 = *memo.evaluate();
 	result1 == result2
 }
 
@@ -40,8 +40,8 @@ fn prop_rc_memo_clone_shares_state(x: i32) -> bool {
 	let memo1 = RcLazy::new(move || x);
 	let memo2 = memo1.clone();
 
-	let result1 = *memo1.get();
-	let result2 = *memo2.get();
+	let result1 = *memo1.evaluate();
+	let result2 = *memo2.evaluate();
 	result1 == result2
 }
 
@@ -52,8 +52,8 @@ fn prop_arc_memo_clone_shares_state(x: i32) -> bool {
 	let memo1 = ArcLazy::new(move || x);
 	let memo2 = memo1.clone();
 
-	let result1 = *memo1.get();
-	let result2 = *memo2.get();
+	let result1 = *memo1.evaluate();
+	let result2 = *memo2.evaluate();
 	result1 == result2
 }
 
@@ -66,9 +66,9 @@ fn prop_memo_get_original_then_clone(x: String) -> bool {
 	let memo_clone = memo.clone();
 
 	// Get original first
-	let result1 = memo.get().clone();
+	let result1 = memo.evaluate().clone();
 	// Then get clone
-	let result2 = memo_clone.get().clone();
+	let result2 = memo_clone.evaluate().clone();
 
 	result1 == result2
 }
@@ -87,7 +87,7 @@ fn prop_memo_deterministic(
 	let memo1 = RcLazy::new(move || x.wrapping_add(y));
 	let memo2 = RcLazy::new(move || x.wrapping_add(y));
 
-	*memo1.get() == *memo2.get()
+	*memo1.evaluate() == *memo2.evaluate()
 }
 
 // -------------------------------------------------------------------------
@@ -115,7 +115,7 @@ fn prop_arc_memo_thread_safety() {
 	for _ in 0..10 {
 		let memo_clone = memo.clone();
 		handles.push(thread::spawn(move || {
-			assert_eq!(*memo_clone.get(), 42);
+			assert_eq!(*memo_clone.evaluate(), 42);
 		}));
 	}
 

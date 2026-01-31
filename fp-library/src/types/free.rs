@@ -1,29 +1,29 @@
 use crate::{
 	Apply,
-	classes::{Functor, Runnable},
+	classes::{Evaluable, Functor},
 	kinds::*,
-	types::cat_list::CatList,
+	types::CatList,
 };
 use std::{any::Any, marker::PhantomData};
 
 /// A type-erased value for internal use.
 ///
-/// This type alias represents a value whose type has been erased to `Box<dyn Any>`.
-/// It is used within the internal implementation of `Free` to allow for
+/// This type alias represents a value whose type has been erased to [`Box<dyn Any>`].
+/// It is used within the internal implementation of [`Free`] to allow for
 /// heterogeneous chains of computations in the [`CatList`].
-type Val = Box<dyn Any>;
+type TypeErasedValue = Box<dyn Any>;
 
 /// A type-erased continuation.
 ///
-/// This type alias represents a function that takes a type-erased value [`Val`]
-/// and returns a new `Free` computation (also type-erased).
+/// This type alias represents a function that takes a [`TypeErasedValue`]
+/// and returns a new [`Free`] computation (also type-erased).
 ///
 /// ### Type Parameters
 ///
 /// * `F`: The base functor.
-type Cont<F> = Box<dyn FnOnce(Val) -> Free<F, Val>>;
+type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
-/// The internal representation of the `Free` monad.
+/// The internal representation of the [`Free`] monad.
 ///
 /// This enum encodes the structure of the free monad, supporting
 /// pure values, suspended computations, and efficient concatenation of binds.
@@ -47,7 +47,7 @@ where
 	///
 	/// This variant represents a computation that is suspended in the functor `F`.
 	/// The functor contains the next step of the computation.
-	Roll(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+	Defer(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
 
 	/// A bind operation.
 	///
@@ -58,13 +58,17 @@ where
 	/// ### Fields
 	///
 	/// * `head`: The initial computation.
-	/// * `conts`: The list of continuations to apply to the result of `head`.
-	Bind { head: Box<Free<F, Val>>, conts: CatList<Cont<F>>, _marker: PhantomData<A> },
+	/// * `continuations`: The list of continuations to apply to the result of `head`.
+	Bind {
+		head: Box<Free<F, TypeErasedValue>>,
+		continuations: CatList<Continuation<F>>,
+		_marker: PhantomData<A>,
+	},
 }
 
-/// The Free monad with O(1) bind via CatList.
+/// The Free monad with O(1) bind via [`CatList`].
 ///
-/// This implementation follows "Reflection without Remorse" to ensure
+/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
 /// that left-associated binds do not degrade performance.
 ///
 /// # HKT and Lifetime Limitations
@@ -74,7 +78,7 @@ where
 /// ## The Conflict
 /// * **The Traits**: The `Kind` trait implemented by the `Functor` hierarchy requires the type
 ///   constructor to accept *any* lifetime `'a` (e.g., `type Of<'a, A> = Free<F, A>`).
-/// * **The Implementation**: This implementation uses `Box<dyn Any>` to type-erase continuations
+/// * **The Implementation**: This implementation uses [`Box<dyn Any>`] to type-erase continuations
 ///   for the "Reflection without Remorse" optimization. `dyn Any` strictly requires `A: 'static`.
 ///
 /// This creates an unresolvable conflict: `Free` cannot support non-static references (like `&'a str`),
@@ -82,7 +86,7 @@ where
 ///
 /// ## Why not use the "Naive" Recursive Definition?
 ///
-/// A naive definition (`enum Free { Pure(A), Roll(F<Box<Free<F, A>>>) }`) would support lifetimes
+/// A naive definition (`enum Free { Pure(A), Defer(F<Box<Free<F, A>>>) }`) would support lifetimes
 /// and HKT traits. However, it was rejected because:
 /// 1.  **Stack Safety**: `run` would not be stack-safe for deep computations.
 /// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
@@ -111,7 +115,7 @@ where
 	F: Functor + 'static,
 	A: 'static,
 {
-	/// Creates a pure Free value.
+	/// Creates a pure `Free` value.
 	///
 	/// ### Type Signature
 	///
@@ -157,15 +161,15 @@ where
 	/// use fp_library::{brands::*, types::*};
 	///
 	/// let eval = Thunk::new(|| Free::pure(42));
-	/// let free = Free::<ThunkBrand, _>::roll(eval);
+	/// let free = Free::<ThunkBrand, _>::defer(eval);
 	/// ```
-	pub fn roll(
+	pub fn defer(
 		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
 	) -> Self {
-		Free(Some(FreeInner::Roll(fa)))
+		Free(Some(FreeInner::Defer(fa)))
 	}
 
-	/// Monadic bind (flatMap) with O(1) complexity.
+	/// Monadic bind with O(1) complexity.
 	///
 	/// ### Type Signature
 	///
@@ -196,7 +200,7 @@ where
 		f: impl FnOnce(A) -> Free<F, B> + 'static,
 	) -> Free<F, B> {
 		// Type-erase the continuation
-		let erased_f: Cont<F> = Box::new(move |val: Val| {
+		let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
 			let a: A = *val.downcast().expect("Type mismatch in Free::bind");
 			let free_b: Free<F, B> = f(a);
 			free_b.erase_type()
@@ -208,63 +212,63 @@ where
 		match inner {
 			// Pure: create a Bind with this continuation
 			FreeInner::Pure(a) => {
-				let head: Free<F, Val> = Free::pure(a).erase_type();
+				let head: Free<F, TypeErasedValue> = Free::pure(a).erase_type();
 				Free(Some(FreeInner::Bind {
 					head: Box::new(head),
-					conts: CatList::singleton(erased_f),
+					continuations: CatList::singleton(erased_f),
 					_marker: PhantomData,
 				}))
 			}
 
-			// Roll: wrap in a Bind
-			FreeInner::Roll(fa) => {
-				let head = Free::roll(fa).erase_type_boxed();
+			// Defer: wrap in a Bind
+			FreeInner::Defer(fa) => {
+				let head = Free::defer(fa).boxed_erase_type();
 				Free(Some(FreeInner::Bind {
 					head,
-					conts: CatList::singleton(erased_f),
+					continuations: CatList::singleton(erased_f),
 					_marker: PhantomData,
 				}))
 			}
 
 			// Bind: snoc the new continuation onto the CatList (O(1)!)
-			FreeInner::Bind { head, conts, .. } => Free(Some(FreeInner::Bind {
+			FreeInner::Bind { head, continuations: conts, .. } => Free(Some(FreeInner::Bind {
 				head,
-				conts: conts.snoc(erased_f),
+				continuations: conts.snoc(erased_f),
 				_marker: PhantomData,
 			})),
 		}
 	}
 
 	/// Converts to type-erased form.
-	fn erase_type(mut self) -> Free<F, Val> {
+	fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 		let inner = self.0.take().expect("Free value already consumed");
 
 		match inner {
-			FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as Val))),
-			FreeInner::Roll(fa) => {
+			FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as TypeErasedValue))),
+			FreeInner::Defer(fa) => {
 				// Map over the functor to erase the inner type
 				let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
-				Free(Some(FreeInner::Roll(erased)))
+				Free(Some(FreeInner::Defer(erased)))
 			}
-			FreeInner::Bind { head, conts, .. } => {
-				Free(Some(FreeInner::Bind { head, conts, _marker: PhantomData }))
+			FreeInner::Bind { head, continuations, .. } => {
+				Free(Some(FreeInner::Bind { head, continuations, _marker: PhantomData }))
 			}
 		}
 	}
 
 	/// Converts to boxed type-erased form.
-	fn erase_type_boxed(self) -> Box<Free<F, Val>> {
+	fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 		Box::new(self.erase_type())
 	}
 
 	/// Executes the Free computation, returning the final result.
 	///
 	/// This is the "trampoline" that iteratively processes the
-	/// CatList of continuations without growing the stack.
+	/// [`CatList`] of continuations without growing the stack.
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Runnable f => Free f a -> a`
+	/// `forall f a. Evaluable f => Free f a -> a`
 	///
 	/// ### Returns
 	///
@@ -276,15 +280,15 @@ where
 	/// use fp_library::{brands::*, types::*};
 	///
 	/// let free = Free::<ThunkBrand, _>::pure(42);
-	/// assert_eq!(free.run(), 42);
+	/// assert_eq!(free.evaluate(), 42);
 	/// ```
-	pub fn run(self) -> A
+	pub fn evaluate(self) -> A
 	where
-		F: Runnable,
+		F: Evaluable,
 	{
 		// Start with a type-erased version
-		let mut current: Free<F, Val> = self.erase_type();
-		let mut conts: CatList<Cont<F>> = CatList::empty();
+		let mut current: Free<F, TypeErasedValue> = self.erase_type();
+		let mut continuations: CatList<Continuation<F>> = CatList::empty();
 
 		loop {
 			let inner = current.0.take().expect("Free value already consumed");
@@ -292,30 +296,30 @@ where
 			match inner {
 				FreeInner::Pure(val) => {
 					// Try to apply the next continuation
-					match conts.uncons() {
-						Some((cont, rest)) => {
-							current = cont(val);
-							conts = rest;
+					match continuations.uncons() {
+						Some((continuation, rest)) => {
+							current = continuation(val);
+							continuations = rest;
 						}
 						None => {
 							// No more continuations - we're done!
 							return *val
 								.downcast::<A>()
-								.expect("Type mismatch in Free::run final downcast");
+								.expect("Type mismatch in Free::evaluate final downcast");
 						}
 					}
 				}
 
-				FreeInner::Roll(fa) => {
+				FreeInner::Defer(fa) => {
 					// Run the effect to get the inner Free
-					current = <F as Runnable>::run(fa);
+					current = <F as Evaluable>::evaluate(fa);
 				}
 
-				FreeInner::Bind { head, conts: inner_conts, .. } => {
+				FreeInner::Bind { head, continuations: inner_continuations, .. } => {
 					// Merge the inner continuations with outer ones
 					// This is where CatList's O(1) append shines!
 					current = *head;
-					conts = inner_conts.append(conts);
+					continuations = inner_continuations.append(continuations);
 				}
 			}
 		}
@@ -333,9 +337,9 @@ where
 
 		// If the top level is a Bind, we need to start the iterative drop chain.
 		if let Some(FreeInner::Bind { mut head, .. }) = inner {
-			// head is Box<Free<F, Val>>.
+			// head is Box<Free<F, TypeEraseValue>>.
 			// We take its inner value to continue the chain.
-			// From now on, everything is typed as FreeInner<F, Val>.
+			// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
 			let mut current = head.0.take();
 
 			while let Some(FreeInner::Bind { mut head, .. }) = current {
@@ -357,7 +361,7 @@ mod tests {
 	#[test]
 	fn test_free_pure() {
 		let free = Free::<ThunkBrand, _>::pure(42);
-		assert_eq!(free.run(), 42);
+		assert_eq!(free.evaluate(), 42);
 	}
 
 	/// Tests `Free::roll`.
@@ -367,8 +371,8 @@ mod tests {
 	#[test]
 	fn test_free_roll() {
 		let eval = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::roll(eval);
-		assert_eq!(free.run(), 42);
+		let free = Free::<ThunkBrand, _>::defer(eval);
+		assert_eq!(free.evaluate(), 42);
 	}
 
 	/// Tests `Free::bind`.
@@ -379,10 +383,10 @@ mod tests {
 	fn test_free_bind() {
 		let free =
 			Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1)).bind(|x| Free::pure(x * 2));
-		assert_eq!(free.run(), 86);
+		assert_eq!(free.evaluate(), 86);
 	}
 
-	/// Tests stack safety of `Free::run`.
+	/// Tests stack safety of `Free::evaluate`.
 	///
 	/// **What it tests:** Verifies that `run` can handle deep recursion without stack overflow (trampolining).
 	/// **How it tests:** Creates a recursive `count_down` function that builds a chain of 100,000 `bind` calls.
@@ -395,7 +399,7 @@ mod tests {
 
 		// 100,000 iterations should overflow stack if not safe
 		let free = count_down(100_000);
-		assert_eq!(free.run(), 0);
+		assert_eq!(free.evaluate(), 0);
 	}
 
 	/// Tests stack safety of `Free::drop`.
@@ -420,7 +424,7 @@ mod tests {
 	#[test]
 	fn test_free_bind_on_roll() {
 		let eval = Thunk::new(|| Free::pure(42));
-		let free = Free::<ThunkBrand, _>::roll(eval).bind(|x| Free::pure(x + 1));
-		assert_eq!(free.run(), 43);
+		let free = Free::<ThunkBrand, _>::defer(eval).bind(|x| Free::pure(x + 1));
+		assert_eq!(free.evaluate(), 43);
 	}
 }

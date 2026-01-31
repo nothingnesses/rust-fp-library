@@ -65,8 +65,8 @@ pub trait Traversable: Functor + Foldable {
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
 		Self::sequence::<F, B>(Self::map::<
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 			A,
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 			Func,
 		>(func, ta))
 	}

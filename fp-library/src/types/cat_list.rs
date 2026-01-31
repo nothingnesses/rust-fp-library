@@ -191,17 +191,17 @@ impl Functor for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Functor CatList => (a -> b, CatList a) -> CatList b`
+	/// `forall a b. Functor CatList => (a -> b, CatList a) -> CatList b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the elements in the resulting list.
 	/// * `A`: The type of the elements in the list.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the elements in the resulting list.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to each element.
+	/// * `func`: The function to apply to each element.
 	/// * `fa`: The list to map over.
 	///
 	/// ### Returns
@@ -211,23 +211,21 @@ impl Functor for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// let mapped = map::<CatListBrand, _, _, _>(|x: i32| x * 2, list);
 	/// let vec: Vec<_> = mapped.into_iter().collect();
 	/// assert_eq!(vec, vec![2, 4, 6]);
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.into_iter().map(f).collect()
+		fa.into_iter().map(func).collect()
 	}
 }
 
@@ -238,18 +236,18 @@ impl Lift for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a b. Lift CatList => ((a, b) -> c, CatList a, CatList b) -> CatList c`
+	/// `forall a b c. Lift CatList => ((a, b) -> c, CatList a, CatList b) -> CatList c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the elements in the resulting list.
 	/// * `A`: The type of the elements in the first list.
 	/// * `B`: The type of the elements in the second list.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the elements in the resulting list.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
+	/// * `func`: The binary function to apply.
 	/// * `fa`: The first list.
 	/// * `fb`: The second list.
 	///
@@ -260,9 +258,7 @@ impl Lift for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list1 = CatList::singleton(1).snoc(2);
 	/// let list2 = CatList::singleton(10).snoc(20);
@@ -270,20 +266,20 @@ impl Lift for CatListBrand {
 	/// let vec: Vec<_> = lifted.into_iter().collect();
 	/// assert_eq!(vec, vec![11, 21, 12, 22]);
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		fa.into_iter()
 			.flat_map(|a| {
-				let f = &f;
+				let f = &func;
 				fb.clone().into_iter().map(move |b| f(a.clone(), b))
 			})
 			.collect()
@@ -428,13 +424,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable CatList => ((a, b) -> b, b, CatList a) -> b`
+	/// `forall a b. Foldable CatList => ((a, b) -> b, b, CatList a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the list.
+	/// * `B`: The type of the accumulator.
 	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -458,7 +454,7 @@ impl Foldable for CatListBrand {
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -476,13 +472,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable CatList => ((b, a) -> b, b, CatList a) -> b`
+	/// `forall a b. Foldable CatList => ((b, a) -> b, b, CatList a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the list.
+	/// * `B`: The type of the accumulator.
 	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -506,7 +502,7 @@ impl Foldable for CatListBrand {
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -524,13 +520,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m a. (Foldable CatList, Monoid m) => ((a) -> m, CatList a) -> m`
+	/// `forall a m. (Foldable CatList, Monoid m) => ((a) -> m, CatList a) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the list.
+	/// * `M`: The type of the monoid.
 	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -553,7 +549,7 @@ impl Foldable for CatListBrand {
 	///     "123".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -664,7 +660,7 @@ impl Traversable for CatListBrand {
 	}
 }
 
-impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for CatListBrand {
+impl ParFoldable for CatListBrand {
 	/// Maps values to a monoid and combines them in parallel.
 	///
 	/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
@@ -673,13 +669,12 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand m a. (ParFoldable CatList, Monoid m, Send m, Sync m) => (fn_brand a m, CatList a) -> m`
+	/// `forall fn a m. (SendCloneableFn fn, ParFoldable CatList, Monoid m) => (fn a m, CatList a) -> m`
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
 	/// * `A`: The element type (must be `Send + Sync`).
+	/// * `M`: The monoid type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -699,11 +694,12 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for CatListBrand {
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, list), "123".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -856,7 +852,7 @@ impl Filterable for CatListBrand {
 	/// assert_eq!(oks_vec, vec![2, 4]);
 	/// assert_eq!(errs_vec, vec![1, 3]);
 	/// ```
-	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
+	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -971,7 +967,7 @@ impl Filterable for CatListBrand {
 	/// let vec: Vec<_> = filtered.into_iter().collect();
 	/// assert_eq!(vec, vec![4, 8]);
 	/// ```
-	fn filter_map<'a, B: 'a, A: 'a, Func>(
+	fn filter_map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)

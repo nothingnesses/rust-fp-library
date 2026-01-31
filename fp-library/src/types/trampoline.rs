@@ -7,8 +7,8 @@ use crate::{
 ///
 /// `Trampoline` is the "heavy-duty" monadic type for deferred computations that
 /// require **guaranteed stack safety**. It is built on [`Free<Thunk, A>`] with
-/// [`CatList`](crate::types::CatList)-based bind stack, ensuring O(1) [`bind`](crate::functions::bind) operations and unlimited recursion
-/// depth without stack overflow.
+/// [`CatList`](crate::types::CatList)-based bind stack, ensuring O(1) [`bind`](crate::functions::bind)
+/// operations and unlimited recursion depth without stack overflow.
 ///
 /// # Requirements
 ///
@@ -18,11 +18,11 @@ use crate::{
 ///
 /// - **Stack safe**: Will not overflow regardless of recursion depth.
 /// - **O(1) bind**: Left-associated `bind` chains don't degrade.
-/// - **Lazy**: Computation is deferred until [`Trampoline::run`] is called.
+/// - **Lazy**: Computation is deferred until [`Trampoline::evaluate`] is called.
 ///
 /// # When to Use `Trampoline` vs [`Thunk`]
 ///
-/// - Use **`Trampoline<A>`** for deep recursion (1000+ levels), heavy monadic pipelines.
+/// - Use **`Trampoline<A>`** for deep recursion, heavy monadic pipelines.
 /// - Use **`Thunk<'a, A>`** for HKT integration, borrowed references, glue code.
 ///
 /// # Memoization
@@ -33,7 +33,7 @@ use crate::{
 /// ```rust
 /// use fp_library::types::*;
 ///
-/// let lazy: Lazy<i32> = Lazy::<_, RcLazyConfig>::new(|| Trampoline::new(|| 1 + 1).run());
+/// let lazy: Lazy<i32> = Lazy::<_, RcLazyConfig>::new(|| Trampoline::new(|| 1 + 1).evaluate());
 /// lazy.get(); // Computes
 /// lazy.get(); // Returns cached
 /// ```
@@ -55,17 +55,16 @@ use crate::{
 ///     .bind(|x| Trampoline::new(move || x * 2))
 ///     .bind(|x| Trampoline::new(move || x + 10));
 ///
-/// assert_eq!(task.run(), 14);
+/// assert_eq!(task.evaluate(), 14);
 /// ```
 pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
 
 impl<A: 'static + Send> Trampoline<A> {
 	/// Creates a `Trampoline` from an already-computed value.
 	///
-	/// Equivalent to Cats' `Eval.now`.
+	/// ### Complexity
 	///
-	/// # Complexity
-	/// O(1) creation, O(1) run
+	/// O(1) creation, O(1) evaluation
 	///
 	/// ### Type Signature
 	///
@@ -89,17 +88,16 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// use fp_library::types::*;
 	///
 	/// let task = Trampoline::pure(42);
-	/// assert_eq!(task.run(), 42);
+	/// assert_eq!(task.evaluate(), 42);
 	/// ```
 	#[inline]
 	pub fn pure(a: A) -> Self {
 		Trampoline(Free::pure(a))
 	}
 
-	/// Creates a lazy `Trampoline` that computes `f` on first `run()`.
+	/// Creates a lazy `Trampoline` that computes `f` on first evaluation.
 	///
-	/// This is equivalent to Cats' `Eval.later`, but note that
-	/// in our design, `Trampoline` does NOT memoize — each `run()`
+	/// `Trampoline` does NOT memoize — each `evaluate()`
 	/// re-evaluates. Use [`Lazy`] for caching.
 	///
 	/// # Complexity
@@ -133,14 +131,14 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// });
 	///
 	/// // Nothing printed yet
-	/// let result = task.run(); // Prints "Computing!"
+	/// let result = task.evaluate(); // Prints "Computing!"
 	/// ```
 	#[inline]
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + 'static,
 	{
-		Trampoline(Free::roll(Thunk::new(move || Free::pure(f()))))
+		Trampoline(Free::defer(Thunk::new(move || Free::pure(f()))))
 	}
 
 	/// Defers the construction of a `Trampoline` itself.
@@ -181,14 +179,14 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// }
 	///
 	/// // This works for n = 1_000_000 without stack overflow!
-	/// let result = recursive_sum(1_000, 0).run();
+	/// let result = recursive_sum(1_000, 0).evaluate();
 	/// ```
 	#[inline]
 	pub fn defer<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Trampoline<A> + 'static,
 	{
-		Trampoline(Free::roll(Thunk::new(move || f().0)))
+		Trampoline(Free::defer(Thunk::new(move || f().0)))
 	}
 
 	/// Monadic bind with O(1) complexity.
@@ -260,7 +258,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// use fp_library::types::*;
 	///
 	/// let task = Trampoline::pure(10).map(|x| x * 2);
-	/// assert_eq!(task.run(), 20);
+	/// assert_eq!(task.evaluate(), 20);
 	/// ```
 	#[inline]
 	pub fn map<B: 'static + Send, F>(
@@ -292,10 +290,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// use fp_library::types::*;
 	///
 	/// let task = Trampoline::new(|| 1 + 1);
-	/// assert_eq!(task.run(), 2);
+	/// assert_eq!(task.evaluate(), 2);
 	/// ```
-	pub fn run(self) -> A {
-		self.0.run()
+	pub fn evaluate(self) -> A {
+		self.0.evaluate()
 	}
 
 	/// Combines two `Trampoline`s, running both and combining results.
@@ -327,9 +325,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// let t1 = Trampoline::pure(10);
 	/// let t2 = Trampoline::pure(20);
 	/// let t3 = t1.map2(t2, |a, b| a + b);
-	/// assert_eq!(t3.run(), 30);
+	/// assert_eq!(t3.evaluate(), 30);
 	/// ```
-	pub fn map2<B: 'static + Send, C: 'static + Send, F>(
+	pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
 		self,
 		other: Trampoline<B>,
 		f: F,
@@ -366,9 +364,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// let t1 = Trampoline::pure(10);
 	/// let t2 = Trampoline::pure(20);
 	/// let t3 = t1.and_then(t2);
-	/// assert_eq!(t3.run(), 20);
+	/// assert_eq!(t3.evaluate(), 20);
 	/// ```
-	pub fn and_then<B: 'static + Send>(
+	pub fn then<B: 'static + Send>(
 		self,
 		other: Trampoline<B>,
 	) -> Trampoline<B> {
@@ -383,7 +381,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	/// of the recursion may need its own copy. Most closures naturally
 	/// implement `Clone` when all their captures implement `Clone`.
 	///
-	/// For closures that don't implement `Clone`, use `tail_rec_m_shared`
+	/// For closures that don't implement `Clone`, use `arc_tail_rec_m`
 	/// which wraps the closure in `Arc` internally.
 	///
 	/// ### Type Signature
@@ -420,7 +418,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///     }, (n, 0u64, 1u64))
 	/// }
 	///
-	/// assert_eq!(fib(50).run(), 12586269025);
+	/// assert_eq!(fib(50).evaluate(), 12586269025);
 	/// ```
 	pub fn tail_rec_m<S: 'static + Send, F>(
 		f: F,
@@ -479,7 +477,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// // Closure captures non-Clone state
 	/// let counter = Arc::new(AtomicUsize::new(0));
-	/// Trampoline::tail_rec_m_shared(move |n| {
+	/// Trampoline::arc_tail_rec_m(move |n| {
 	///     counter.fetch_add(1, Ordering::SeqCst);
 	///     if n == 0 {
 	///         Trampoline::pure(Step::Done(0))
@@ -488,7 +486,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///     }
 	/// }, 100);
 	/// ```
-	pub fn tail_rec_m_shared<S: 'static + Send, F>(
+	pub fn arc_tail_rec_m<S: 'static + Send, F>(
 		f: F,
 		initial: S,
 	) -> Self
@@ -509,7 +507,7 @@ impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config
 	for Trampoline<A>
 {
 	fn from(lazy: Lazy<'static, A, Config>) -> Self {
-		Trampoline::new(move || lazy.get().clone())
+		Trampoline::new(move || lazy.evaluate().clone())
 	}
 }
 
@@ -524,7 +522,7 @@ mod tests {
 	#[test]
 	fn test_task_pure() {
 		let task = Trampoline::pure(42);
-		assert_eq!(task.run(), 42);
+		assert_eq!(task.evaluate(), 42);
 	}
 
 	/// Tests `Trampoline::new`.
@@ -533,7 +531,7 @@ mod tests {
 	#[test]
 	fn test_task_new() {
 		let task = Trampoline::new(|| 42);
-		assert_eq!(task.run(), 42);
+		assert_eq!(task.evaluate(), 42);
 	}
 
 	/// Tests `Trampoline::bind`.
@@ -542,7 +540,7 @@ mod tests {
 	#[test]
 	fn test_task_bind() {
 		let task = Trampoline::pure(10).bind(|x| Trampoline::pure(x * 2));
-		assert_eq!(task.run(), 20);
+		assert_eq!(task.evaluate(), 20);
 	}
 
 	/// Tests `Trampoline::map`.
@@ -551,7 +549,7 @@ mod tests {
 	#[test]
 	fn test_task_map() {
 		let task = Trampoline::pure(10).map(|x| x * 2);
-		assert_eq!(task.run(), 20);
+		assert_eq!(task.evaluate(), 20);
 	}
 
 	/// Tests `Trampoline::defer`.
@@ -560,7 +558,7 @@ mod tests {
 	#[test]
 	fn test_task_defer() {
 		let task = Trampoline::defer(|| Trampoline::pure(42));
-		assert_eq!(task.run(), 42);
+		assert_eq!(task.evaluate(), 42);
 	}
 
 	/// Tests `Trampoline::tail_rec_m`.
@@ -581,7 +579,7 @@ mod tests {
 			)
 		}
 
-		assert_eq!(factorial(5).run(), 120);
+		assert_eq!(factorial(5).evaluate(), 120);
 	}
 
 	/// Tests `Trampoline::map2`.
@@ -591,8 +589,8 @@ mod tests {
 	fn test_task_map2() {
 		let t1 = Trampoline::pure(10);
 		let t2 = Trampoline::pure(20);
-		let t3 = t1.map2(t2, |a, b| a + b);
-		assert_eq!(t3.run(), 30);
+		let t3 = t1.lift2(t2, |a, b| a + b);
+		assert_eq!(t3.evaluate(), 30);
 	}
 
 	/// Tests `Trampoline::and_then`.
@@ -602,15 +600,15 @@ mod tests {
 	fn test_task_and_then() {
 		let t1 = Trampoline::pure(10);
 		let t2 = Trampoline::pure(20);
-		let t3 = t1.and_then(t2);
-		assert_eq!(t3.run(), 20);
+		let t3 = t1.then(t2);
+		assert_eq!(t3.evaluate(), 20);
 	}
 
-	/// Tests `Trampoline::tail_rec_m_shared`.
+	/// Tests `Trampoline::arc_tail_rec_m`.
 	///
-	/// Verifies that `tail_rec_m_shared` works with non-Clone closures.
+	/// Verifies that `arc_tail_rec_m` works with non-Clone closures.
 	#[test]
-	fn test_task_tail_rec_m_shared() {
+	fn test_task_arc_tail_rec_m() {
 		use std::sync::{
 			Arc,
 			atomic::{AtomicUsize, Ordering},
@@ -619,7 +617,7 @@ mod tests {
 		let counter = Arc::new(AtomicUsize::new(0));
 		let counter_clone = Arc::clone(&counter);
 
-		let task = Trampoline::tail_rec_m_shared(
+		let task = Trampoline::arc_tail_rec_m(
 			move |n| {
 				counter_clone.fetch_add(1, Ordering::SeqCst);
 				if n == 0 {
@@ -631,7 +629,7 @@ mod tests {
 			10,
 		);
 
-		assert_eq!(task.run(), 0);
+		assert_eq!(task.evaluate(), 0);
 		assert_eq!(counter.load(Ordering::SeqCst), 11);
 	}
 
@@ -656,12 +654,12 @@ mod tests {
 		// Should not have computed yet (lazy creation)
 		assert_eq!(*counter.borrow(), 0);
 
-		assert_eq!(task.run(), 42);
+		assert_eq!(task.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
 
 		// Run again, should use cached value
 		let task2 = Trampoline::from(memo);
-		assert_eq!(task2.run(), 42);
+		assert_eq!(task2.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -683,12 +681,12 @@ mod tests {
 		// Should not have computed yet (lazy creation)
 		assert_eq!(*counter.lock().unwrap(), 0);
 
-		assert_eq!(task.run(), 42);
+		assert_eq!(task.evaluate(), 42);
 		assert_eq!(*counter.lock().unwrap(), 1);
 
 		// Run again, should use cached value
 		let task2 = Trampoline::from(memo);
-		assert_eq!(task2.run(), 42);
+		assert_eq!(task2.evaluate(), 42);
 		assert_eq!(*counter.lock().unwrap(), 1);
 	}
 }

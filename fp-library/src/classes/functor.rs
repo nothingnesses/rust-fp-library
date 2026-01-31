@@ -29,13 +29,13 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. Functor f => (a -> b, f a) -> f b`
+	/// `forall f a b. Functor f => (a -> b, f a) -> f b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result(s) of applying the function.
 	/// * `A`: The type of the value(s) inside the functor.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result(s) of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
@@ -55,12 +55,12 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		f: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a;
+		Func: Fn(A) -> B + 'a;
 }
 
 /// Maps a function over the values in the functor context.
@@ -69,14 +69,14 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Functor f => (a -> b, f a) -> f b`
+/// `forall f a b. Functor f => (a -> b, f a) -> f b`
 ///
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the functor.
-/// * `B`: The type of the result(s) of applying the function.
 /// * `A`: The type of the value(s) inside the functor.
-/// * `F`: The type of the function to apply.
+/// * `B`: The type of the result(s) of applying the function.
+/// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
 ///
@@ -96,12 +96,12 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn map<'a, Brand: Functor, B: 'a, A: 'a, F>(
-	f: F,
+pub fn map<'a, Brand: Functor, A: 'a, B: 'a, Func>(
+	f: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	F: Fn(A) -> B + 'a,
+	Func: Fn(A) -> B + 'a,
 {
-	Brand::map::<B, A, F>(f, fa)
+	Brand::map::<A, B, Func>(f, fa)
 }

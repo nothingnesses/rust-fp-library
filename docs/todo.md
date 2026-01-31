@@ -1,5 +1,11 @@
 ### Tasks to do & ideas to look into
 
+* Move module level docs from types.rs to individual type source files
+* Better Workflow Example in readme and lib
+* Sort order of MonadRec type params
+* TryThunk should:
+	* Have catch like TryTrampoline
+	* Implement HKT classes
 * Add trait methods for type classes and methods for brand/type structs.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
@@ -14,3 +20,4 @@
 ### Questions
 * Inner or outer iteration?
 * Add benchmark outputs and graphs to repo to make them accessible? Maybe they should be in a separate repo, to prevent bloating this one?
+* Should Lazy have pure and defer?

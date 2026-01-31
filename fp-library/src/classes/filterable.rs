@@ -44,9 +44,9 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
+	/// * `A`: The type of the elements in the input structure.
 	/// * `O`: The type of the success values.
 	/// * `E`: The type of the error values.
-	/// * `A`: The type of the elements in the input structure.
 	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
@@ -68,7 +68,7 @@ pub trait Filterable: Compactable + Functor {
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
+	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -78,7 +78,7 @@ pub trait Filterable: Compactable + Functor {
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
-		Self::separate::<O, E>(Self::map::<Result<O, E>, A, Func>(func, fa))
+		Self::separate::<O, E>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
 
 	/// Partitions a data structure based on a predicate.
@@ -141,8 +141,8 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the elements in the output structure.
 	/// * `A`: The type of the elements in the input structure.
+	/// * `B`: The type of the elements in the output structure.
 	/// * `Func`: The type of the function to apply.
 	/// ### Parameters
 	///
@@ -162,14 +162,14 @@ pub trait Filterable: Compactable + Functor {
 	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, B: 'a, A: 'a, Func>(
+	fn filter_map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Func: Fn(A) -> Option<B> + 'a,
 	{
-		Self::compact::<B>(Self::map::<Option<B>, A, Func>(func, fa))
+		Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
 	}
 
 	/// Filters a data structure based on a predicate.
@@ -225,9 +225,9 @@ pub trait Filterable: Compactable + Functor {
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
+/// * `A`: The type of the elements in the input structure.
 /// * `O`: The type of the success values.
 /// * `E`: The type of the error values.
-/// * `A`: The type of the elements in the input structure.
 /// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
@@ -249,7 +249,7 @@ pub trait Filterable: Compactable + Functor {
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn partition_map<'a, Brand: Filterable, O: 'a, E: 'a, A: 'a, Func>(
+pub fn partition_map<'a, Brand: Filterable, A: 'a, O: 'a, E: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
@@ -259,7 +259,7 @@ pub fn partition_map<'a, Brand: Filterable, O: 'a, E: 'a, A: 'a, Func>(
 where
 	Func: Fn(A) -> Result<O, E> + 'a,
 {
-	Brand::partition_map::<O, E, A, Func>(func, fa)
+	Brand::partition_map::<A, O, E, Func>(func, fa)
 }
 
 /// Partitions a data structure based on a predicate.
@@ -321,8 +321,8 @@ where
 /// ### Type Parameters
 ///
 /// * `Brand`: The brand of the filterable structure.
-/// * `B`: The type of the elements in the output structure.
 /// * `A`: The type of the elements in the input structure.
+/// * `B`: The type of the elements in the output structure.
 /// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
@@ -343,14 +343,14 @@ where
 /// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn filter_map<'a, Brand: Filterable, B: 'a, A: 'a, Func>(
+pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	Func: Fn(A) -> Option<B> + 'a,
 {
-	Brand::filter_map::<B, A, Func>(func, fa)
+	Brand::filter_map::<A, B, Func>(func, fa)
 }
 
 /// Filters a data structure based on a predicate.

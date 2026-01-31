@@ -94,17 +94,17 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Functor (Result e) => (a -> b, Result a e) -> Result b e`
+	/// `forall e a b. Functor (Result e) => (a -> b, Result a e) -> Result b e`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
 	/// * `A`: The type of the value inside the result.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply.
 	/// * `fa`: The result to map over.
 	///
 	/// ### Returns
@@ -114,20 +114,19 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
 	/// assert_eq!(map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map(f)
+		fa.map(func)
 	}
 }
 
@@ -138,18 +137,18 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e c a b. Lift (Result e) => ((a, b) -> c, Result a e, Result b e) -> Result c e`
+	/// `forall e a b c. Lift (Result e) => ((a, b) -> c, Result a e, Result b e) -> Result c e`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result.
 	/// * `A`: The type of the first value.
 	/// * `B`: The type of the second value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
+	/// * `func`: The binary function to apply.
 	/// * `fa`: The first result.
 	/// * `fb`: The second result.
 	///
@@ -160,8 +159,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     lift2::<ResultWithErrBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
@@ -180,19 +178,19 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///     Err(1)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Ok(a), Ok(b)) => Ok(f(a, b)),
+			(Ok(a), Ok(b)) => Ok(func(a, b)),
 			(Err(e), _) => Err(e),
 			(_, Err(e)) => Err(e),
 		}
@@ -346,13 +344,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Foldable (Result e) => ((a, b) -> b, b, Result a e) -> b`
+	/// `forall e a b. Foldable (Result e) => ((a, b) -> b, b, Result a e) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -368,13 +366,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
+	/// use fp_library::{brands:: *, functions::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -395,13 +392,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Foldable (Result e) => ((b, a) -> b, b, Result a e) -> b`
+	/// `forall e a b. Foldable (Result e) => ((b, a) -> b, b, Result a e) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -417,13 +414,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
+	/// use fp_library::{brands:: *, functions::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Err(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -444,13 +440,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e m a. (Foldable (Result e), Monoid m) => ((a) -> m, Result a e) -> m`
+	/// `forall e a m. (Foldable (Result e), Monoid m) => ((a) -> m, Result a e) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
 	/// * `F`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -476,7 +472,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, F>(
+	fn fold_map<'a, FnBrand, A: 'a, M, F>(
 		func: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -619,17 +615,17 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Functor (Result t) => (a -> b, Result t a) -> Result t b`
+	/// `forall t a b. Functor (Result t) => (a -> b, Result t a) -> Result t b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
 	/// * `A`: The type of the error value inside the result.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error.
+	/// * `func`: The function to apply to the error.
 	/// * `fa`: The result to map over.
 	///
 	/// ### Returns
@@ -639,22 +635,21 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
 		match fa {
 			Ok(t) => Ok(t),
-			Err(e) => Err(f(e)),
+			Err(e) => Err(func(e)),
 		}
 	}
 }
@@ -666,18 +661,18 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t c a b. Lift (Result t) => ((a, b) -> c, Result t a, Result t b) -> Result t c`
+	/// `forall t a b c. Lift (Result t) => ((a, b) -> c, Result t a, Result t b) -> Result t c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result error value.
 	/// * `A`: The type of the first error value.
 	/// * `B`: The type of the second error value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The type of the result error value.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply to the errors.
+	/// * `func`: The binary function to apply to the errors.
 	/// * `fa`: The first result.
 	/// * `fb`: The second result.
 	///
@@ -688,8 +683,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
@@ -708,19 +702,19 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///     Ok(1)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Err(a), Err(b)) => Err(f(a, b)),
+			(Err(a), Err(b)) => Err(func(a, b)),
 			(Ok(t), _) => Ok(t),
 			(_, Ok(t)) => Ok(t),
 		}
@@ -877,13 +871,14 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (Result t) => ((a, b) -> b, b, Result t a) -> b`
+	/// `forall t a b. Foldable (Result t) => ((a, b) -> b, b, Result t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -899,13 +894,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithOkBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -926,13 +920,13 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (Result t) => ((b, a) -> b, b, Result t a) -> b`
+	/// `forall t a b. Foldable (Result t) => ((b, a) -> b, b, Result t a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `F`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -948,13 +942,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithOkBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -975,13 +968,13 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t m a. (Foldable (Result t), Monoid m) => ((a) -> m, Result t a) -> m`
+	/// `forall t a m. (Foldable (Result t), Monoid m) => ((a) -> m, Result t a) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
 	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -1007,7 +1000,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M

@@ -49,17 +49,17 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Functor Identity => (a -> b, Identity a) -> Identity b`
+	/// `forall a b. Functor Identity => (a -> b, Identity a) -> Identity b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
 	/// * `A`: The type of the value inside the identity.
-	/// * `F`: The type of the function to apply.
+	/// * `B`: The type of the result of applying the function.
+	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
+	/// * `func`: The function to apply.
 	/// * `fa`: The identity to map over.
 	///
 	/// ### Returns
@@ -75,14 +75,14 @@ impl Functor for IdentityBrand {
 	/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Identity(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		Identity(f(fa.0))
+		Identity(func(fa.0))
 	}
 }
 
@@ -93,18 +93,18 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a b. Lift Identity => ((a, b) -> c, Identity a, Identity b) -> Identity c`
+	/// `forall a b c. Lift Identity => ((a, b) -> c, Identity a, Identity b) -> Identity c`
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The return type of the function.
 	/// * `A`: The type of the first identity's value.
 	/// * `B`: The type of the second identity's value.
-	/// * `F`: The type of the binary function.
+	/// * `C`: The return type of the function.
+	/// * `Func`: The type of the binary function.
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
+	/// * `func`: The binary function to apply.
 	/// * `fa`: The first identity.
 	/// * `fb`: The second identity.
 	///
@@ -122,18 +122,18 @@ impl Lift for IdentityBrand {
 	/// let z = lift2::<IdentityBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Identity(3));
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: 'a,
 		B: 'a,
 		C: 'a,
 	{
-		Identity(f(fa.0, fb.0))
+		Identity(func(fa.0, fb.0))
 	}
 }
 
@@ -267,13 +267,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable Identity => ((a, b) -> b, b, Identity a) -> b`
+	/// `forall a b. Foldable Identity => ((a, b) -> b, b, Identity a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -295,7 +295,7 @@ impl Foldable for IdentityBrand {
 	/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -313,13 +313,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable Identity => ((b, a) -> b, b, Identity a) -> b`
+	/// `forall a b. Foldable Identity => ((b, a) -> b, b, Identity a) -> b`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
 	/// * `A`: The type of the elements in the structure.
+	/// * `B`: The type of the accumulator.
 	/// * `Func`: The type of the folding function.
 	///
 	/// ### Parameters
@@ -341,7 +341,7 @@ impl Foldable for IdentityBrand {
 	/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -359,13 +359,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m a. (Foldable Identity, Monoid m) => ((a) -> m, Identity a) -> m`
+	/// `forall a m. (Foldable Identity, Monoid m) => ((a) -> m, Identity a) -> m`
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
 	/// * `A`: The type of the elements in the structure.
+	/// * `M`: The type of the monoid.
 	/// * `Func`: The type of the mapping function.
 	///
 	/// ### Parameters
@@ -386,7 +386,7 @@ impl Foldable for IdentityBrand {
 	/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -484,19 +484,19 @@ impl Traversable for IdentityBrand {
 	}
 }
 
-impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
+impl ParFoldable for IdentityBrand {
 	/// Maps the value to a monoid and returns it in parallel.
 	///
 	/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand m a. (ParFoldable Identity, Monoid m, Send m, Sync m) => (fn_brand a m, Identity a) -> m`
+	/// `forall fn a m. (SendCloneableFn fn, ParFoldable Identity, Monoid m) => (fn a m, Identity a) -> m`
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The monoid type (must be `Send + Sync`).
 	/// * `A`: The element type (must be `Send + Sync`).
+	/// * `M`: The monoid type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -517,11 +517,12 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// let y = par_fold_map::<ArcFnBrand, IdentityBrand, _, _>(f, x);
 	/// assert_eq!(y, "1".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -534,12 +535,12 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. ParFoldable Identity => (fn_brand (a, b) b, b, Identity a) -> b`
+	/// `forall fn a, b. (SendCloneableFn fn, ParFoldable Identity) => (fn (a, b) b, b, Identity a) -> b`
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The accumulator type (must be `Send + Sync`).
 	/// * `A`: The element type (must be `Send + Sync`).
+	/// * `B`: The accumulator type (must be `Send + Sync`).
 	///
 	/// ### Parameters
 	///
@@ -561,12 +562,13 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for IdentityBrand {
 	/// let y = par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x);
 	/// assert_eq!(y, 11);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{

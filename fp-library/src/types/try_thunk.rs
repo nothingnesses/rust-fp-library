@@ -2,7 +2,7 @@ use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 
 /// A deferred computation that may fail with error type `E`.
 ///
-/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::run`] re-executes.
+/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 /// Unlike [`Thunk`], the result is [`Result<A, E>`].
 ///
 /// ### Type Parameters
@@ -23,7 +23,7 @@ use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 ///     Ok(42)
 /// });
 ///
-/// match computation.run() {
+/// match computation.evaluate() {
 ///     Ok(val) => assert_eq!(val, 42),
 ///     Err(_) => panic!("Should not fail"),
 /// }
@@ -31,7 +31,7 @@ use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
 
 impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
-	/// Creates a new TryThunk from a thunk.
+	/// Creates a new `TryThunk` from a thunk.
 	///
 	/// ### Type Signature
 	///
@@ -54,8 +54,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::new(|| Ok(42));
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::new(|| Ok(42));
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
@@ -83,8 +83,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::pure(42);
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
 	pub fn pure(a: A) -> Self
 	where
@@ -114,8 +114,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::ok(42);
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
 	pub fn ok(a: A) -> Self
 	where
@@ -143,8 +143,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, &str> = TryThunk::err("error");
-	/// assert_eq!(try_eval.run(), Err("error"));
+	/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
+	/// assert_eq!(try_thunk.evaluate(), Err("error"));
 	/// ```
 	pub fn err(e: E) -> Self
 	where
@@ -177,8 +177,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
 	pub fn bind<B: 'a, F>(
 		self,
@@ -191,45 +191,6 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 			Ok(a) => (f(a).0)(),
 			Err(e) => Err(e),
 		})
-	}
-
-	/// Alias for [`bind`](Self::bind).
-	///
-	/// Chains computations.
-	///
-	/// ### Type Signature
-	///
-	/// `forall e b a. (a -> TryThunk b e, TryThunk a e) -> TryThunk b e`
-	///
-	/// ### Type Parameters
-	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `F`: The type of the function to apply.
-	///
-	/// ### Parameters
-	///
-	/// * `f`: The function to apply to the result of the computation.
-	///
-	/// ### Returns
-	///
-	/// A new `TryThunk` instance representing the chained computation.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::ok(21).and_then(|x| TryThunk::ok(x * 2));
-	/// assert_eq!(try_eval.run(), Ok(42));
-	/// ```
-	pub fn and_then<B: 'a, F>(
-		self,
-		f: F,
-	) -> TryThunk<'a, B, E>
-	where
-		F: FnOnce(A) -> TryThunk<'a, B, E> + 'a,
-	{
-		self.bind(f)
 	}
 
 	/// Functor map: transforms the result.
@@ -256,17 +217,17 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
-	pub fn map<B: 'a, F>(
+	pub fn map<B: 'a, Func>(
 		self,
-		f: F,
+		func: Func,
 	) -> TryThunk<'a, B, E>
 	where
-		F: FnOnce(A) -> B + 'a,
+		Func: FnOnce(A) -> B + 'a,
 	{
-		TryThunk::new(move || (self.0)().map(f))
+		TryThunk::new(move || (self.0)().map(func))
 	}
 
 	/// Map error: transforms the error.
@@ -293,8 +254,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
-	/// assert_eq!(try_eval.run(), Err(42));
+	/// let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
+	/// assert_eq!(try_thunk.evaluate(), Err(42));
 	/// ```
 	pub fn map_err<E2: 'a, F>(
 		self,
@@ -321,10 +282,10 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let try_eval: TryThunk<i32, ()> = TryThunk::pure(42);
-	/// assert_eq!(try_eval.run(), Ok(42));
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
 	/// ```
-	pub fn run(self) -> Result<A, E> {
+	pub fn evalute(self) -> Result<A, E> {
 		(self.0)()
 	}
 }
@@ -336,7 +297,7 @@ where
 	Config: LazyConfig,
 {
 	fn from(memo: Lazy<'a, A, Config>) -> Self {
-		TryThunk::new(move || Ok(memo.get().clone()))
+		TryThunk::new(move || Ok(memo.evaluate().clone()))
 	}
 }
 
@@ -347,13 +308,13 @@ where
 	Config: LazyConfig,
 {
 	fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
-		TryThunk::new(move || memo.get().cloned().map_err(Clone::clone))
+		TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 	}
 }
 
 impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
 	fn from(eval: Thunk<'a, A>) -> Self {
-		TryThunk::new(move || Ok(eval.run()))
+		TryThunk::new(move || Ok(eval.evaluate()))
 	}
 }
 
@@ -366,8 +327,8 @@ mod tests {
 	/// Verifies that `TryThunk::pure` creates a successful computation.
 	#[test]
 	fn test_success() {
-		let try_eval: TryThunk<i32, ()> = TryThunk::pure(42);
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests failure path.
@@ -375,8 +336,8 @@ mod tests {
 	/// Verifies that `TryThunk::err` creates a failed computation.
 	#[test]
 	fn test_failure() {
-		let try_eval: TryThunk<i32, &str> = TryThunk::err("error");
-		assert_eq!(try_eval.run(), Err("error"));
+		let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
+		assert_eq!(try_thunk.evalute(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map`.
@@ -384,8 +345,8 @@ mod tests {
 	/// Verifies that `map` transforms the success value.
 	#[test]
 	fn test_map() {
-		let try_eval: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests `TryThunk::map_err`.
@@ -393,8 +354,8 @@ mod tests {
 	/// Verifies that `map_err` transforms the error value.
 	#[test]
 	fn test_map_err() {
-		let try_eval: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
-		assert_eq!(try_eval.run(), Err(42));
+		let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
+		assert_eq!(try_thunk.evalute(), Err(42));
 	}
 
 	/// Tests `TryThunk::bind`.
@@ -402,8 +363,8 @@ mod tests {
 	/// Verifies that `bind` chains computations.
 	#[test]
 	fn test_bind() {
-		let try_eval: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests borrowing in TryThunk.
@@ -412,8 +373,8 @@ mod tests {
 	#[test]
 	fn test_borrowing() {
 		let x = 42;
-		let try_eval: TryThunk<&i32, ()> = TryThunk::new(|| Ok(&x));
-		assert_eq!(try_eval.run(), Ok(&42));
+		let try_thunk: TryThunk<&i32, ()> = TryThunk::new(|| Ok(&x));
+		assert_eq!(try_thunk.evalute(), Ok(&42));
 	}
 
 	/// Tests `TryThunk::bind` failure propagation.
@@ -421,8 +382,8 @@ mod tests {
 	/// Verifies that if the first computation fails, the second one is not executed.
 	#[test]
 	fn test_bind_failure() {
-		let try_eval = TryThunk::<i32, &str>::err("error").bind(|x| TryThunk::pure(x * 2));
-		assert_eq!(try_eval.run(), Err("error"));
+		let try_thunk = TryThunk::<i32, &str>::err("error").bind(|x| TryThunk::pure(x * 2));
+		assert_eq!(try_thunk.evalute(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map` failure propagation.
@@ -430,8 +391,8 @@ mod tests {
 	/// Verifies that `map` is not executed if the computation fails.
 	#[test]
 	fn test_map_failure() {
-		let try_eval = TryThunk::<i32, &str>::err("error").map(|x| x * 2);
-		assert_eq!(try_eval.run(), Err("error"));
+		let try_thunk = TryThunk::<i32, &str>::err("error").map(|x| x * 2);
+		assert_eq!(try_thunk.evalute(), Err("error"));
 	}
 
 	/// Tests `TryThunk::map_err` success propagation.
@@ -439,35 +400,35 @@ mod tests {
 	/// Verifies that `map_err` is not executed if the computation succeeds.
 	#[test]
 	fn test_map_err_success() {
-		let try_eval = TryThunk::<i32, &str>::pure(42).map_err(|_| "new error");
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk = TryThunk::<i32, &str>::pure(42).map_err(|_| "new error");
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests `From<Lazy>`.
 	#[test]
-	fn test_try_eval_from_memo() {
+	fn test_try_thunk_from_memo() {
 		use crate::types::RcLazy;
 		let memo = RcLazy::new(|| 42);
-		let try_eval: TryThunk<i32, ()> = TryThunk::from(memo);
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::from(memo);
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests `From<TryLazy>`.
 	#[test]
-	fn test_try_eval_from_try_memo() {
+	fn test_try_thunk_from_try_memo() {
 		use crate::types::RcTryLazy;
 		let memo = RcTryLazy::new(|| Ok(42));
-		let try_eval: TryThunk<i32, ()> = TryThunk::from(memo);
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::from(memo);
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 
 	/// Tests `Thunk::into_try`.
 	///
 	/// Verifies that `From<Thunk>` converts a `Thunk` into a `TryThunk` that succeeds.
 	#[test]
-	fn test_try_eval_from_eval() {
+	fn test_try_thunk_from_eval() {
 		let eval = Thunk::pure(42);
-		let try_eval: TryThunk<i32, ()> = TryThunk::from(eval);
-		assert_eq!(try_eval.run(), Ok(42));
+		let try_thunk: TryThunk<i32, ()> = TryThunk::from(eval);
+		assert_eq!(try_thunk.evalute(), Ok(42));
 	}
 }
