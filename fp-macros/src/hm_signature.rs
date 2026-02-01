@@ -234,7 +234,12 @@ fn format_parameters(
 	if params.is_empty() {
 		String::new()
 	} else if params.len() == 1 {
-		params[0].clone()
+		let param = params[0].clone();
+		if param.contains("->") {
+			format!("({})", param)
+		} else {
+			param
+		}
 	} else {
 		format!("({})", params.join(", "))
 	}
@@ -438,7 +443,7 @@ mod tests {
 			fn foo(x: fn(i32, i32) -> i32) -> i32 { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default());
-		assert_eq!(sig, "(i32, i32) -> i32 -> i32");
+		assert_eq!(sig, "((i32, i32) -> i32) -> i32");
 	}
 
 	#[test]
@@ -537,5 +542,19 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default());
 		assert_eq!(sig, "forall input output. input -> output");
+	}
+
+	#[test]
+	fn test_flip_signature() {
+		let input: ItemFn = parse_quote! {
+			pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
+			where
+				F: Fn(A, B) -> C,
+			{
+				move |b, a| f(a, b)
+			}
+		};
+		let sig = generate_signature(&input.sig, None, &Config::default());
+		assert_eq!(sig, "forall a b c. ((a, b) -> c) -> (b, a) -> c");
 	}
 }

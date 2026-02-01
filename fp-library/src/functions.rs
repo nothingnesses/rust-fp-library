@@ -99,14 +99,14 @@ where
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The type of the argument to ignore.", "The type of the value to return.")]
+#[doc_type_params("The type of the value to return.", "The type of the argument to ignore.")]
 ///
 /// ### Parameters
 ///
 #[doc_params("The value to be returned by the constant function.", "The argument to be ignored.")]
 /// ### Returns
 ///
-/// A function that takes any value of type `B` and returns `a`.
+/// The first parameter.
 ///
 /// ### Examples
 ///
@@ -114,12 +114,12 @@ where
 /// use fp_library::functions::*;
 ///
 /// assert_eq!(
-///     constant(true)(false),
+///     constant(true, false),
 ///     true
 /// );
 /// ```
-pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
-	move |_| a.clone()
+pub fn constant<A: Clone, B>(a: A, _b: B) -> A {
+	a
 }
 
 /// Flips the arguments of a binary function.
