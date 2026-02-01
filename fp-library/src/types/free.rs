@@ -203,7 +203,7 @@ where
 	/// assert_eq!(free.evaluate(), 42);
 	///
 	/// // Build a computation from raw effects
-	/// let computation = Free::lift_f(Thunk::new(|| 10))
+	/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
 	///     .bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
 	///     .bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
 	/// assert_eq!(computation.evaluate(), 25);

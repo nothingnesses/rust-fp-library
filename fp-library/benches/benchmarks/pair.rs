@@ -122,9 +122,9 @@ pub fn bench_pair(c: &mut Criterion) {
 		);
 		group.bench_with_input(BenchmarkId::new("fp", input_desc_opt), &input_desc_opt, |b, &_| {
 			b.iter(|| {
-				sequence::<PairWithFirstBrand<String>, _, OptionBrand>(
-					std::hint::black_box(val_opt.clone()),
-				)
+				sequence::<PairWithFirstBrand<String>, _, OptionBrand>(std::hint::black_box(
+					val_opt.clone(),
+				))
 			})
 		});
 		group.finish();

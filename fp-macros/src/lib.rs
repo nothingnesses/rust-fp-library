@@ -5,13 +5,13 @@
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
 use generate::generate_name;
+use hm_signature::hm_signature_impl;
 use impl_kind::{ImplKindInput, impl_kind_impl};
 use parse::KindInput;
 use proc_macro::TokenStream;
 use quote::quote;
 use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
 use syn::parse_macro_input;
-use hm_signature::hm_signature_impl;
 
 pub(crate) mod apply;
 pub(crate) mod canonicalize;
@@ -435,6 +435,9 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
 /// ```
 #[proc_macro_attribute]
-pub fn hm_signature(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn hm_signature(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
 	hm_signature_impl(attr.into(), item.into()).into()
 }

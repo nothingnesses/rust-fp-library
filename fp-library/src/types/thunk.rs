@@ -2,10 +2,8 @@ use crate::{
 	Apply,
 	brands::ThunkBrand,
 	classes::{
-		Deferrable, ApplyFirst, ApplySecond, CloneableFn,
-		Evaluable, Foldable, Functor, Lift,
-		MonadRec, Monoid, Pointed, Semiapplicative,
-		Semigroup, Semimonad,
+		ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor, Lift,
+		MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
 	},
 	impl_kind,
 	kinds::*,

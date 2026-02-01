@@ -234,7 +234,9 @@ dependencies = [
  "quickcheck_macros",
  "quote",
  "rapidhash",
+ "serde",
  "syn",
+ "toml",
  "trybuild",
 ]
 
