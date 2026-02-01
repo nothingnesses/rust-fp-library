@@ -2,11 +2,12 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
-use syn::spanned::Spanned;
 use syn::{
 	GenericArgument, GenericParam, ItemFn, PathArguments, ReturnType, TraitBound, Type,
-	TypeParamBound, TypeTraitObject, WherePredicate, parse_quote,
+	TypeParamBound, TypeTraitObject, WherePredicate,
 };
+
+use crate::doc_utils::insert_doc_comment;
 
 #[derive(Debug, Deserialize, Default)]
 struct Config {
@@ -54,32 +55,11 @@ pub fn hm_signature_impl(
 	let signature = generate_signature(&input_fn, trait_name.as_deref(), &config);
 	let doc_comment = format!("`{}`", signature);
 
-	insert_doc_comment(&mut input_fn, doc_comment, proc_macro2::Span::call_site());
+	insert_doc_comment(&mut input_fn.attrs, doc_comment, proc_macro2::Span::call_site());
 
 	quote! {
 		#input_fn
 	}
-}
-
-fn insert_doc_comment(
-	input_fn: &mut ItemFn,
-	doc_comment: String,
-	macro_span: proc_macro2::Span,
-) {
-	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-
-	// Find insertion point based on macro invocation position
-	let mut insert_idx = input_fn.attrs.len();
-
-	for (i, attr) in input_fn.attrs.iter().enumerate() {
-		// If the attribute is after the macro invocation, insert before it
-		if attr.span().start().line > macro_span.start().line {
-			insert_idx = i;
-			break;
-		}
-	}
-
-	input_fn.attrs.insert(insert_idx, doc_attr);
 }
 
 fn generate_signature(
@@ -820,7 +800,7 @@ mod tests {
 		let ts: proc_macro2::TokenStream = span_source.parse().unwrap();
 		let macro_span = ts.into_iter().next().unwrap().span();
 
-		insert_doc_comment(&mut input_fn, "Signature".to_string(), macro_span);
+		insert_doc_comment(&mut input_fn.attrs, "Signature".to_string(), macro_span);
 
 		assert_eq!(input_fn.attrs.len(), 3);
 

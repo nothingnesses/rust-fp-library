@@ -4,6 +4,7 @@
 
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
+use doc_type_params::doc_type_params_impl;
 use generate::generate_name;
 use hm_signature::hm_signature_impl;
 use impl_kind::{ImplKindInput, impl_kind_impl};
@@ -16,6 +17,8 @@ use syn::parse_macro_input;
 pub(crate) mod apply;
 pub(crate) mod canonicalize;
 pub(crate) mod def_kind;
+pub(crate) mod doc_type_params;
+pub(crate) mod doc_utils;
 pub(crate) mod generate;
 pub(crate) mod hm_signature;
 pub(crate) mod impl_kind;
@@ -467,4 +470,58 @@ pub fn hm_signature(
 	item: TokenStream,
 ) -> TokenStream {
 	hm_signature_impl(attr.into(), item.into()).into()
+}
+
+/// Generates documentation for a function's type parameters.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// list based on the provided descriptions.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[doc_type_params(
+///     "Description for first parameter",
+///     "Description for second parameter",
+///     ...
+/// )]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
+/// ```
+///
+/// ### Parameters
+///
+/// * `Descriptions`: A comma-separated list of string literals. Each literal corresponds
+///   to a generic parameter in the function signature, in the order they are defined.
+///
+/// ### Generates
+///
+/// A list of documentation comments, one for each generic parameter, prepended to the
+/// function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[doc_type_params(
+///     "The type of the elements.",
+///     "The error type."
+/// )]
+/// pub fn map<T, E>(...) { ... }
+///
+/// // Expanded code
+/// /// * `T`: The type of the elements.
+/// /// * `E`: The error type.
+/// pub fn map<T, E>(...) { ... }
+/// ```
+///
+/// ### Constraints
+///
+/// * The number of description strings must exactly match the number of generic parameters
+///   (including lifetimes, types, and const generics) in the function signature.
+#[proc_macro_attribute]
+pub fn doc_type_params(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	doc_type_params_impl(attr.into(), item.into()).into()
 }
