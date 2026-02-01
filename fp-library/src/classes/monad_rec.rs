@@ -27,6 +27,7 @@
 //! assert_eq!(factorial(5).evaluate(), 120);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 use fp_macros::hm_signature;
@@ -66,9 +67,10 @@ pub trait MonadRec: Monad {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The step function.
-	/// * `a`: The initial value.
-	///
+	#[doc_params(
+		"The step function.",
+		"The initial value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of the computation.
@@ -120,9 +122,10 @@ pub trait MonadRec: Monad {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The step function.
-/// * `a`: The initial value.
-///
+#[doc_params(
+	"The step function.",
+	"The initial value."
+)]///
 /// ### Returns
 ///
 /// The result of the computation.

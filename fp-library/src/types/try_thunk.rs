@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 
@@ -45,8 +46,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk to wrap.
-	///
+	#[doc_params(
+		"The thunk to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance.
@@ -74,8 +76,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the value.
@@ -105,8 +108,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the value.
@@ -134,8 +138,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	/// * `e`: The error to wrap.
-	///
+	#[doc_params(
+		"The error to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the error.
@@ -169,8 +174,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
-	///
+	#[doc_params(
+		"The function to apply to the result of the computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance representing the chained computation.
@@ -210,8 +216,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
-	///
+	#[doc_params(
+		"The function to apply to the result of the computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance with the transformed result.
@@ -248,8 +255,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error.
-	///
+	#[doc_params(
+		"The function to apply to the error."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance with the transformed error.

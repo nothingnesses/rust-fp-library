@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use crate::{
 	classes::{monoid::Monoid, semigroup::Semigroup},
 	impl_kind,
@@ -21,9 +22,10 @@ impl Semigroup for String {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first string.
-	/// * `b`: The second string.
-	///
+	#[doc_params(
+		"The first string.",
+		"The second string."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined string.

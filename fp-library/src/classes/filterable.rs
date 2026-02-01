@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -55,9 +56,10 @@ pub trait Filterable: Compactable + Functor {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a [`Result`].
-	/// * `fa`: The data structure to partition.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a [`Result`].",
+		"The data structure to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
@@ -106,9 +108,10 @@ pub trait Filterable: Compactable + Functor {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate function.
-	/// * `fa`: The data structure to partition.
-	///
+	#[doc_params(
+		"The predicate function.",
+		"The data structure to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
@@ -197,9 +200,10 @@ pub trait Filterable: Compactable + Functor {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate function.
-	/// * `fa`: The data structure to filter.
-	///
+	#[doc_params(
+		"The predicate function.",
+		"The data structure to filter."
+	)]	///
 	/// ### Returns
 	///
 	/// A new data structure containing only the elements that satisfy the predicate.
@@ -244,9 +248,10 @@ pub trait Filterable: Compactable + Functor {
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning a [`Result`].
-/// * `fa`: The data structure to partition.
-///
+#[doc_params(
+	"The function to apply to each element, returning a [`Result`].",
+	"The data structure to partition."
+)]///
 /// ### Returns
 ///
 /// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
@@ -294,9 +299,10 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The predicate function.
-/// * `fa`: The data structure to partition.
-///
+#[doc_params(
+	"The predicate function.",
+	"The data structure to partition."
+)]///
 /// ### Returns
 ///
 /// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
@@ -343,9 +349,10 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning an [`Option`].
-/// * `fa`: The data structure to filter and map.
-///
+#[doc_params(
+	"The function to apply to each element, returning an [`Option`].",
+	"The data structure to filter and map."
+)]///
 /// ### Returns
 ///
 /// A new data structure containing only the values where the function returned [`Some`].
@@ -387,9 +394,10 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The predicate function.
-/// * `fa`: The data structure to filter.
-///
+#[doc_params(
+	"The predicate function.",
+	"The data structure to filter."
+)]///
 /// ### Returns
 ///
 /// A new data structure containing only the elements that satisfy the predicate.

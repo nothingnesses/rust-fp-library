@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	brands::ThunkBrand,
@@ -77,8 +78,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Trampoline` that produces the value `a`.
@@ -115,8 +117,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to execute.
-	///
+	#[doc_params(
+		"The closure to execute."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Trampoline` that executes `f` when run.
@@ -159,8 +162,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces a `Trampoline`.
-	///
+	#[doc_params(
+		"The closure that produces a `Trampoline`."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Trampoline` that defers the creation of the inner task.
@@ -207,8 +211,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of this task.
-	///
+	#[doc_params(
+		"The function to apply to the result of this task."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Trampoline` that chains `f` after this task.
@@ -249,8 +254,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of this task.
-	///
+	#[doc_params(
+		"The function to apply to the result of this task."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Trampoline` with the transformed result.
@@ -314,9 +320,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `other`: The second task.
-	/// * `f`: The function to combine the results.
-	///
+	#[doc_params(
+		"The second task.",
+		"The function to combine the results."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Trampoline` producing the combined result.
@@ -355,8 +362,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `other`: The second task.
-	///
+	#[doc_params(
+		"The second task."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Trampoline` that runs both tasks and returns the result of the second.
@@ -401,9 +409,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function that performs one step of the recursion.
-	/// * `initial`: The initial state.
-	///
+	#[doc_params(
+		"The function that performs one step of the recursion.",
+		"The initial state."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Trampoline` that performs the recursion.
@@ -469,9 +478,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function that performs one step of the recursion.
-	/// * `initial`: The initial state.
-	///
+	#[doc_params(
+		"The function that performs one step of the recursion.",
+		"The initial state."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Trampoline` that performs the recursion.

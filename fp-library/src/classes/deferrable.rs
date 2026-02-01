@@ -11,6 +11,7 @@
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::CloneableFn;
 
@@ -31,8 +32,9 @@ pub trait Deferrable<'a> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
-	///
+	#[doc_params(
+		"A thunk (wrapped in a cloneable function) that produces the value."
+	)]	///
 	/// ### Returns
 	///
 	/// The deferred value.
@@ -67,8 +69,9 @@ pub trait Deferrable<'a> {
 ///
 /// ### Parameters
 ///
-/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.
-///
+#[doc_params(
+	"A thunk (wrapped in a cloneable function) that produces the value."
+)]///
 /// ### Returns
 ///
 /// The deferred value.

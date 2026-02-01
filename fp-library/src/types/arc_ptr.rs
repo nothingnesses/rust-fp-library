@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	brands::ArcBrand,
@@ -26,8 +27,9 @@ impl Pointer for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -61,8 +63,9 @@ impl RefCountedPointer for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -92,8 +95,9 @@ impl RefCountedPointer for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ptr`: The pointer to attempt to unwrap.
-	///
+	#[doc_params(
+		"The pointer to attempt to unwrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -127,8 +131,9 @@ impl SendRefCountedPointer for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -162,8 +167,9 @@ impl UnsizedCoercible for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
-	///
+	#[doc_params(
+		"The closure to coerce."
+	)]	///
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a trait object.
@@ -197,8 +203,9 @@ impl SendUnsizedCoercible for ArcBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
-	///
+	#[doc_params(
+		"The closure to coerce."
+	)]	///
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a thread-safe trait object.

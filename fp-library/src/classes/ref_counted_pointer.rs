@@ -10,6 +10,7 @@
 //! assert_eq!(*clone, 42);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::Pointer;
 use fp_macros::hm_signature;
@@ -38,8 +39,9 @@ pub trait RefCountedPointer: Pointer {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The value wrapped in the cloneable pointer type.
@@ -69,8 +71,9 @@ pub trait RefCountedPointer: Pointer {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ptr`: The pointer to attempt to unwrap.
-	///
+	#[doc_params(
+		"The pointer to attempt to unwrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -106,8 +109,9 @@ pub trait RefCountedPointer: Pointer {
 )]///
 /// ### Parameters
 ///
-/// * `ptr`: The pointer to attempt to unwrap.
-///
+#[doc_params(
+	"The pointer to attempt to unwrap."
+)]///
 /// ### Returns
 ///
 /// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -142,8 +146,9 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 )]///
 /// ### Parameters
 ///
-/// * `value`: The value to wrap.
-///
+#[doc_params(
+	"The value to wrap."
+)]///
 /// ### Returns
 ///
 /// The value wrapped in the cloneable pointer type.

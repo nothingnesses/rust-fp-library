@@ -11,6 +11,7 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 /// A type class for types that support an associative binary operation.
@@ -28,9 +29,10 @@ pub trait Semigroup {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first value.
-	/// * `b`: The second value.
-	///
+	#[doc_params(
+		"The first value.",
+		"The second value."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined value.
@@ -66,9 +68,10 @@ pub trait Semigroup {
 )]///
 /// ### Parameters
 ///
-/// * `a`: The first value.
-/// * `b`: The second value.
-///
+#[doc_params(
+	"The first value.",
+	"The second value."
+)]///
 /// ### Returns
 ///
 /// The combined value.

@@ -9,6 +9,7 @@
 //! assert_eq!(f(5), 10);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::function::Function;
 use fp_macros::hm_signature;
@@ -44,8 +45,9 @@ pub trait CloneableFn: Function {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params(
+		"The closure to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -79,8 +81,9 @@ pub trait CloneableFn: Function {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The closure to wrap.
-///
+#[doc_params(
+	"The closure to wrap."
+)]///
 /// ### Returns
 ///
 /// The wrapped cloneable function.

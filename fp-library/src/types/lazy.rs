@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -51,8 +52,9 @@ pub trait LazyConfig: 'static {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new lazy cell.
@@ -82,8 +84,9 @@ pub trait LazyConfig: 'static {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new fallible lazy cell.
@@ -113,8 +116,9 @@ pub trait LazyConfig: 'static {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A reference to the value.
@@ -145,8 +149,9 @@ pub trait LazyConfig: 'static {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The fallible lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A result containing a reference to the value or error.
@@ -190,8 +195,9 @@ impl LazyConfig for RcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new lazy cell.
@@ -223,8 +229,9 @@ impl LazyConfig for RcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new fallible lazy cell.
@@ -256,8 +263,9 @@ impl LazyConfig for RcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A reference to the value.
@@ -290,8 +298,9 @@ impl LazyConfig for RcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The fallible lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A result containing a reference to the value or error.
@@ -337,8 +346,9 @@ impl LazyConfig for ArcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new lazy cell.
@@ -370,8 +380,9 @@ impl LazyConfig for ArcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
-	///
+	#[doc_params(
+		"The initializer thunk."
+	)]	///
 	/// ### Returns
 	///
 	/// A new fallible lazy cell.
@@ -403,8 +414,9 @@ impl LazyConfig for ArcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A reference to the value.
@@ -437,8 +449,9 @@ impl LazyConfig for ArcLazyConfig {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to evaluate.
-	///
+	#[doc_params(
+		"The fallible lazy cell to evaluate."
+	)]	///
 	/// ### Returns
 	///
 	/// A result containing a reference to the value or error.
@@ -543,8 +556,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the value.
-	///
+	#[doc_params(
+		"The closure that produces the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Lazy` instance.
@@ -574,8 +588,9 @@ where
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The pre-computed value to wrap.
-	///
+	#[doc_params(
+		"The pre-computed value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Lazy` instance containing the value.
@@ -625,8 +640,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the value.
-	///
+	#[doc_params(
+		"The closure that produces the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Lazy` instance.
@@ -657,8 +673,9 @@ where
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The pre-computed value to wrap.
-	///
+	#[doc_params(
+		"The pre-computed value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Lazy` instance containing the value.
@@ -734,9 +751,10 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
-	/// * `fa`: The memoized value.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The memoized value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new memoized value.

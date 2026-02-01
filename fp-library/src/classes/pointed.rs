@@ -9,6 +9,7 @@
 //! assert_eq!(x, Some(5));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -31,8 +32,9 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new context containing the value.
@@ -65,8 +67,9 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `a`: The value to wrap.
-///
+#[doc_params(
+	"The value to wrap."
+)]///
 /// ### Returns
 ///
 /// A new context containing the value.

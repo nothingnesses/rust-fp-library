@@ -9,6 +9,7 @@
 //! assert_eq!(f(1), 2);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::{SendRefCountedPointer, UnsizedCoercible};
 use fp_macros::hm_signature;
@@ -30,8 +31,9 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
-	///
+	#[doc_params(
+		"The closure to coerce."
+	)]	///
 	/// ### Returns
 	///
 	/// The closure wrapped in the pointer type as a thread-safe trait object.
@@ -68,8 +70,9 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 )]///
 /// ### Parameters
 ///
-/// * `f`: The closure to coerce.
-///
+#[doc_params(
+	"The closure to coerce."
+)]///
 /// ### Returns
 ///
 /// The closure wrapped in the pointer type as a thread-safe trait object.

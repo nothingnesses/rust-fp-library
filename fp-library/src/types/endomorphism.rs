@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use crate::{
 	Apply,
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
@@ -58,8 +59,9 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The morphism to wrap.
-	///
+	#[doc_params(
+		"The morphism to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Endomorphism`.
@@ -164,9 +166,10 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The second morphism to apply (the outer function).
-	/// * `b`: The first morphism to apply (the inner function).
-	///
+	#[doc_params(
+		"The second morphism to apply (the outer function).",
+		"The first morphism to apply (the inner function)."
+	)]	///
 	/// ### Returns
 	///
 	/// The composed morphism `a . b`.

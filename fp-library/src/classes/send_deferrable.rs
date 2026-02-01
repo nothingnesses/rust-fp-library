@@ -9,6 +9,7 @@
 //! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -31,8 +32,9 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `thunk`: The function that produces the value.
-	///
+	#[doc_params(
+		"The function that produces the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A deferred value.
@@ -73,8 +75,9 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `thunk`: The function that produces the value.
-///
+#[doc_params(
+	"The function that produces the value."
+)]///
 /// ### Returns
 ///
 /// A deferred value.

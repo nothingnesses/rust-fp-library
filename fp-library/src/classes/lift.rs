@@ -11,6 +11,7 @@
 //! assert_eq!(z, Some(3));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -36,10 +37,11 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first context.
-	/// * `fb`: The second context.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first context.",
+		"The second context."
+	)]	///
 	/// ### Returns
 	///
 	/// A new context containing the result of applying the function.
@@ -86,10 +88,11 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `func`: The binary function to apply.
-/// * `fa`: The first context.
-/// * `fb`: The second context.
-///
+#[doc_params(
+	"The binary function to apply.",
+	"The first context.",
+	"The second context."
+)]///
 /// ### Returns
 ///
 /// A new context containing the result of applying the function.

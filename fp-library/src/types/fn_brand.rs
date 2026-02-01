@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -38,8 +39,9 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params(
+		"The closure to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -77,8 +79,9 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params(
+		"The closure to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -115,9 +118,10 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The second morphism to apply (from C to D).
-	/// * `g`: The first morphism to apply (from B to C).
-	///
+	#[doc_params(
+		"The second morphism to apply (from C to D).",
+		"The first morphism to apply (from B to C)."
+	)]	///
 	/// ### Returns
 	///
 	/// The composed morphism (from B to D).
@@ -192,8 +196,9 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params(
+		"The closure to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.

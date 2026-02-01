@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -74,10 +75,11 @@ impl Bifunctor for PairBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the first value.
-	/// * `g`: The function to apply to the second value.
-	/// * `p`: The pair to map over.
-	///
+	#[doc_params(
+		"The function to apply to the first value.",
+		"The function to apply to the second value.",
+		"The pair to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair containing the mapped values.
@@ -131,9 +133,10 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the second value.
-	/// * `fa`: The pair to map over.
-	///
+	#[doc_params(
+		"The function to apply to the second value.",
+		"The pair to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair containing the result of applying the function to the second value.
@@ -179,10 +182,11 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply to the second values.
-	/// * `fa`: The first pair.
-	/// * `fb`: The second pair.
-	///
+	#[doc_params(
+		"The binary function to apply to the second values.",
+		"The first pair.",
+		"The second pair."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
@@ -232,8 +236,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair containing the empty value of the first type and `a`.
@@ -275,9 +280,10 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The pair containing the function.
-	/// * `fa`: The pair containing the value.
-	///
+	#[doc_params(
+		"The pair containing the function.",
+		"The pair containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined and the function is applied to the second value.
@@ -320,9 +326,10 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first pair.
-	/// * `f`: The function to apply to the second value.
-	///
+	#[doc_params(
+		"The first pair.",
+		"The function to apply to the second value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined.
@@ -370,10 +377,11 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)`.
@@ -416,10 +424,11 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The identity to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The identity to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)`.
@@ -462,9 +471,10 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)`.
@@ -512,9 +522,10 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The pair to traverse.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The pair to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The pair wrapped in the applicative context.
@@ -557,8 +568,9 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The pair containing the applicative value.
-	///
+	#[doc_params(
+		"The pair containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The pair wrapped in the applicative context.
@@ -604,9 +616,10 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -653,10 +666,11 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -710,9 +724,10 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the first value.
-	/// * `fa`: The pair to map over.
-	///
+	#[doc_params(
+		"The function to apply to the first value.",
+		"The pair to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair containing the result of applying the function to the first value.
@@ -758,10 +773,11 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply to the first values.
-	/// * `fa`: The first pair.
-	/// * `fb`: The second pair.
-	///
+	#[doc_params(
+		"The binary function to apply to the first values.",
+		"The first pair.",
+		"The second pair."
+	)]	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
@@ -811,8 +827,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair containing `a` and the empty value of the second type.
@@ -854,9 +871,10 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The pair containing the function (in Err).
-	/// * `fa`: The pair containing the value (in Err).
-	///
+	#[doc_params(
+		"The pair containing the function (in Err).",
+		"The pair containing the value (in Err)."
+	)]	///
 	/// ### Returns
 	///
 	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
@@ -899,9 +917,10 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first result.
-	/// * `f`: The function to apply to the error value.
-	///
+	#[doc_params(
+		"The first result.",
+		"The function to apply to the error value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
@@ -949,10 +968,11 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -995,10 +1015,11 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -1041,9 +1062,10 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
@@ -1091,9 +1113,10 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The result to traverse.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The result to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1137,8 +1160,9 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The result containing the applicative value.
-	///
+	#[doc_params(
+		"The result containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1184,9 +1208,10 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1233,10 +1258,11 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The pair to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The pair to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

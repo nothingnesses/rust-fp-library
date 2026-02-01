@@ -10,6 +10,7 @@
 //! assert_eq!(y, 15);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::monoid::Monoid;
 use crate::{
@@ -53,10 +54,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The structure to fold.
-	///
+	#[doc_params(
+		"The function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The structure to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -111,10 +113,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The structure to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The structure to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -177,9 +180,10 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to map each element to a monoid.
-	/// * `fa`: The structure to fold.
-	///
+	#[doc_params(
+		"The function to map each element to a monoid.",
+		"The structure to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -226,10 +230,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element and the accumulator.
-/// * `initial`: The initial value of the accumulator.
-/// * `fa`: The structure to fold.
-///
+#[doc_params(
+	"The function to apply to each element and the accumulator.",
+	"The initial value of the accumulator.",
+	"The structure to fold."
+)]///
 /// ### Returns
 ///
 /// The final accumulator value.
@@ -275,10 +280,11 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to the accumulator and each element.
-/// * `initial`: The initial value of the accumulator.
-/// * `fa`: The structure to fold.
-///
+#[doc_params(
+	"The function to apply to the accumulator and each element.",
+	"The initial value of the accumulator.",
+	"The structure to fold."
+)]///
 /// ### Returns
 ///
 /// The final accumulator value.
@@ -324,9 +330,10 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to map each element to a monoid.
-/// * `fa`: The structure to fold.
-///
+#[doc_params(
+	"The function to map each element to a monoid.",
+	"The structure to fold."
+)]///
 /// ### Returns
 ///
 /// The combined monoid value.

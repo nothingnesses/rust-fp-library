@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 
@@ -78,8 +79,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the result.
-	///
+	#[doc_params(
+		"The closure that produces the result."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance.
@@ -153,8 +155,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that might panic.
-	///
+	#[doc_params(
+		"The closure that might panic."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance where panics are converted to `Err(String)`.
@@ -206,8 +209,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the result.
-	///
+	#[doc_params(
+		"The closure that produces the result."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance.

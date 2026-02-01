@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 
@@ -38,8 +39,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The success value.
-	///
+	#[doc_params(
+		"The success value."
+	)]	///
 	/// ### Returns
 	///
 	/// A `TryTrampoline` representing success.
@@ -69,8 +71,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Parameters
 	///
-	/// * `e`: The error value.
-	///
+	#[doc_params(
+		"The error value."
+	)]	///
 	/// ### Returns
 	///
 	/// A `TryTrampoline` representing failure.
@@ -100,8 +103,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to execute.
-	///
+	#[doc_params(
+		"The closure to execute."
+	)]	///
 	/// ### Returns
 	///
 	/// A `TryTrampoline` that executes `f` when run.
@@ -135,8 +139,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the success value.
-	///
+	#[doc_params(
+		"The function to apply to the success value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryTrampoline` with the transformed success value.
@@ -173,8 +178,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error value.
-	///
+	#[doc_params(
+		"The function to apply to the error value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryTrampoline` with the transformed error value.
@@ -212,8 +218,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the success value.
-	///
+	#[doc_params(
+		"The function to apply to the success value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryTrampoline` that chains `f` after this task.
@@ -252,8 +259,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error value.
-	///
+	#[doc_params(
+		"The function to apply to the error value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `TryTrampoline` that attempts to recover from failure.

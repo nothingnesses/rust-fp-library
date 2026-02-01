@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -38,9 +39,10 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first computation.
-	/// * `f`: The function to apply to the result of the first computation.
-	///
+	#[doc_params(
+		"The first computation.",
+		"The function to apply to the result of the first computation."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of the second computation.
@@ -81,9 +83,10 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `ma`: The first computation.
-/// * `f`: The function to apply to the result of the first computation.
-///
+#[doc_params(
+	"The first computation.",
+	"The function to apply to the result of the first computation."
+)]///
 /// ### Returns
 ///
 /// The result of the second computation.

@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
 use fp_macros::hm_signature;
@@ -34,8 +35,9 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing [`Option`] values.
-	///
+	#[doc_params(
+		"The data structure containing [`Option`] values."
+	)]	///
 	/// ### Returns
 	///
 	/// A new data structure containing only the values from the [`Some`] variants.
@@ -75,8 +77,9 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing [`Result`] values.
-	///
+	#[doc_params(
+		"The data structure containing [`Result`] values."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
@@ -121,8 +124,9 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing [`Option`] values.
-///
+#[doc_params(
+	"The data structure containing [`Option`] values."
+)]///
 /// ### Returns
 ///
 /// A new data structure containing only the values from the [`Some`] variants.
@@ -163,8 +167,9 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 )]///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing [`Result`] values.
-///
+#[doc_params(
+	"The data structure containing [`Result`] values."
+)]///
 /// ### Returns
 ///
 /// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.

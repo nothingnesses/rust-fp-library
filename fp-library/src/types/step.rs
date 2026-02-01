@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -104,8 +105,9 @@ impl<A, B> Step<A, B> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the loop value.
-	///
+	#[doc_params(
+		"The function to apply to the loop value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Step` with the loop value transformed.
@@ -142,8 +144,9 @@ impl<A, B> Step<A, B> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the done value.
-	///
+	#[doc_params(
+		"The function to apply to the done value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Step` with the done value transformed.
@@ -181,9 +184,10 @@ impl<A, B> Step<A, B> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the loop value.
-	/// * `g`: The function to apply to the done value.
-	///
+	#[doc_params(
+		"The function to apply to the loop value.",
+		"The function to apply to the done value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Step` with both values transformed.
@@ -243,10 +247,11 @@ impl Bifunctor for StepBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the loop value.
-	/// * `g`: The function to apply to the done value.
-	/// * `p`: The step to map over.
-	///
+	#[doc_params(
+		"The function to apply to the loop value.",
+		"The function to apply to the done value.",
+		"The step to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new step containing the mapped values.
@@ -299,9 +304,10 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the done value.
-	/// * `fa`: The step to map over.
-	///
+	#[doc_params(
+		"The function to apply to the done value.",
+		"The step to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new step containing the result of applying the function to the done value.
@@ -344,10 +350,11 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first step.
-	/// * `fb`: The second step.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first step.",
+		"The second step."
+	)]	///
 	/// ### Returns
 	///
 	/// `Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered.
@@ -402,8 +409,9 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Done(a)`.
@@ -442,9 +450,10 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The step containing the function.
-	/// * `fa`: The step containing the value.
-	///
+	#[doc_params(
+		"The step containing the function.",
+		"The step containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// `Done(f(a))` if both are `Done`, otherwise the first loop encountered.
@@ -488,9 +497,10 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first step.
-	/// * `f`: The function to apply to the value inside the step.
-	///
+	#[doc_params(
+		"The first step.",
+		"The function to apply to the value inside the step."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop.
@@ -539,10 +549,11 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.
@@ -589,10 +600,11 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.
@@ -639,9 +651,10 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.
@@ -696,9 +709,10 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The step to traverse.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The step to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -748,8 +762,9 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The step containing the applicative value.
-	///
+	#[doc_params(
+		"The step containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -801,9 +816,10 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -853,10 +869,11 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -917,9 +934,10 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the loop value.
-	/// * `fa`: The step to map over.
-	///
+	#[doc_params(
+		"The function to apply to the loop value.",
+		"The step to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new step containing the result of applying the function to the loop value.
@@ -962,10 +980,11 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply to the loops.
-	/// * `fa`: The first step.
-	/// * `fb`: The second step.
-	///
+	#[doc_params(
+		"The binary function to apply to the loops.",
+		"The first step.",
+		"The second step."
+	)]	///
 	/// ### Returns
 	///
 	/// `Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered.
@@ -1020,8 +1039,9 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Loop(a)`.
@@ -1060,9 +1080,10 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The step containing the function (in Loop).
-	/// * `fa`: The step containing the value (in Loop).
-	///
+	#[doc_params(
+		"The step containing the function (in Loop).",
+		"The step containing the value (in Loop)."
+	)]	///
 	/// ### Returns
 	///
 	/// `Loop(f(a))` if both are `Loop`, otherwise the first done encountered.
@@ -1106,9 +1127,10 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first step.
-	/// * `f`: The function to apply to the loop value.
-	///
+	#[doc_params(
+		"The first step.",
+		"The function to apply to the loop value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done.
@@ -1157,10 +1179,11 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.
@@ -1207,10 +1230,11 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.
@@ -1257,9 +1281,10 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.
@@ -1314,9 +1339,10 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The step to traverse.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The step to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -1366,8 +1392,9 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The step containing the applicative value.
-	///
+	#[doc_params(
+		"The step containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -1419,9 +1446,10 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1471,10 +1499,11 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The step to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The step to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

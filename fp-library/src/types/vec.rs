@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 #[cfg(feature = "rayon")]
@@ -41,9 +42,10 @@ impl VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `head`: A value to prepend to the vector.
-	/// * `tail`: A vector to prepend the value to.
-	///
+	#[doc_params(
+		"A value to prepend to the vector.",
+		"A vector to prepend the value to."
+	)]	///
 	/// ### Returns
 	///
 	/// A new vector consisting of the `head` element prepended to the `tail` vector.
@@ -87,8 +89,9 @@ impl VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `slice`: The vector slice to deconstruct.
-	///
+	#[doc_params(
+		"The vector slice to deconstruct."
+	)]	///
 	/// ### Returns
 	///
 	/// An [`Option`] containing a tuple of the head element and the remaining tail vector,
@@ -136,9 +139,10 @@ impl Functor for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element.
-	/// * `fa`: The vector to map over.
-	///
+	#[doc_params(
+		"The function to apply to each element.",
+		"The vector to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying the function.
@@ -181,10 +185,11 @@ impl Lift for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first vector.
-	/// * `fb`: The second vector.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first vector.",
+		"The second vector."
+	)]	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying the function to all pairs of elements.
@@ -231,8 +236,9 @@ impl Pointed for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A vector containing the single value.
@@ -272,9 +278,10 @@ impl Semiapplicative for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The vector containing the functions.
-	/// * `fa`: The vector containing the values.
-	///
+	#[doc_params(
+		"The vector containing the functions.",
+		"The vector containing the values."
+	)]	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying each function to each value.
@@ -317,9 +324,10 @@ impl Semimonad for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first vector.
-	/// * `f`: The function to apply to each element, returning a vector.
-	///
+	#[doc_params(
+		"The first vector.",
+		"The function to apply to each element, returning a vector."
+	)]	///
 	/// ### Returns
 	///
 	/// A new vector containing the flattened results.
@@ -366,10 +374,11 @@ impl Foldable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The vector to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The vector to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -412,10 +421,11 @@ impl Foldable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The vector to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The vector to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -458,9 +468,10 @@ impl Foldable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The vector to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The vector to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -508,9 +519,10 @@ impl Traversable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The vector to traverse.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The vector to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The vector wrapped in the applicative context.
@@ -564,8 +576,9 @@ impl Traversable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The vector containing the applicative values.
-	///
+	#[doc_params(
+		"The vector containing the applicative values."
+	)]	///
 	/// ### Returns
 	///
 	/// The vector wrapped in the applicative context.
@@ -617,9 +630,10 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first vector.
-	/// * `b`: The second vector.
-	///
+	#[doc_params(
+		"The first vector.",
+		"The second vector."
+	)]	///
 	/// ### Returns
 	///
 	/// The concatenated vector.
@@ -689,9 +703,10 @@ impl ParFoldable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The vector to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The vector to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -743,8 +758,9 @@ impl Compactable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The vector of options.
-	///
+	#[doc_params(
+		"The vector of options."
+	)]	///
 	/// ### Returns
 	///
 	/// The flattened vector.
@@ -785,8 +801,9 @@ impl Compactable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The vector of results.
-	///
+	#[doc_params(
+		"The vector of results."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -839,9 +856,10 @@ impl Filterable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The vector to partition.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The vector to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -893,9 +911,10 @@ impl Filterable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The vector to partition.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The vector to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -943,9 +962,10 @@ impl Filterable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The vector to filter and map.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The vector to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped vector.
@@ -987,9 +1007,10 @@ impl Filterable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The vector to filter.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The vector to filter."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered vector.
@@ -1036,9 +1057,10 @@ impl Witherable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The vector to partition.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The vector to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// The partitioned vector wrapped in the applicative context.
@@ -1101,9 +1123,10 @@ impl Witherable for VecBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
-	/// * `ta`: The vector to filter and map.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning an `Option` in an applicative context.",
+		"The vector to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped vector wrapped in the applicative context.

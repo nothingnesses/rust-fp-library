@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
@@ -64,9 +65,10 @@ impl Functor for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The identity to map over.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The identity to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -111,10 +113,11 @@ impl Lift for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first identity.
-	/// * `fb`: The second identity.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first identity.",
+		"The second identity."
+	)]	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -161,8 +164,9 @@ impl Pointed for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// An identity containing the value.
@@ -202,9 +206,10 @@ impl Semiapplicative for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The identity containing the function.
-	/// * `fa`: The identity containing the value.
-	///
+	#[doc_params(
+		"The identity containing the function.",
+		"The identity containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -246,9 +251,10 @@ impl Semimonad for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first identity.
-	/// * `f`: The function to apply to the value inside the identity.
-	///
+	#[doc_params(
+		"The first identity.",
+		"The function to apply to the value inside the identity."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value.
@@ -293,10 +299,11 @@ impl Foldable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The identity to fold.
-	///
+	#[doc_params(
+		"The function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The identity to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -341,10 +348,11 @@ impl Foldable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The structure to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The structure to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -389,9 +397,10 @@ impl Foldable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The identity to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The identity to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The monoid value.
@@ -438,9 +447,10 @@ impl Traversable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The identity to traverse.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The identity to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The identity wrapped in the applicative context.
@@ -481,8 +491,9 @@ impl Traversable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The identity containing the applicative value.
-	///
+	#[doc_params(
+		"The identity containing the applicative value."
+	)]	///
 	/// # Returns
 	///
 	/// The identity wrapped in the applicative context.
@@ -526,9 +537,10 @@ impl ParFoldable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The identity to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The identity to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -573,10 +585,11 @@ impl ParFoldable for IdentityBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The identity to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The identity to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -119,9 +120,10 @@ impl CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `head`: A value to prepend to the list.
-	/// * `tail`: A list to prepend the value to.
-	///
+	#[doc_params(
+		"A value to prepend to the list.",
+		"A list to prepend the value to."
+	)]	///
 	/// ### Returns
 	///
 	/// A new list consisting of the `head` element prepended to the `tail` list.
@@ -160,8 +162,9 @@ impl CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `list`: The list to deconstruct.
-	///
+	#[doc_params(
+		"The list to deconstruct."
+	)]	///
 	/// ### Returns
 	///
 	/// An [`Option`] containing a tuple of the head element and the remaining tail list,
@@ -207,9 +210,10 @@ impl Functor for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element.
-	/// * `fa`: The list to map over.
-	///
+	#[doc_params(
+		"The function to apply to each element.",
+		"The list to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying the function.
@@ -255,10 +259,11 @@ impl Lift for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first list.
-	/// * `fb`: The second list.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first list.",
+		"The second list."
+	)]	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying the function to all pairs of elements.
@@ -311,8 +316,9 @@ impl Pointed for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A list containing the single value.
@@ -355,9 +361,10 @@ impl Semiapplicative for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The list containing the functions.
-	/// * `fa`: The list containing the values.
-	///
+	#[doc_params(
+		"The list containing the functions.",
+		"The list containing the values."
+	)]	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying each function to each value.
@@ -401,9 +408,10 @@ impl Semimonad for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first list.
-	/// * `f`: The function to apply to each element, returning a list.
-	///
+	#[doc_params(
+		"The first list.",
+		"The function to apply to each element, returning a list."
+	)]	///
 	/// ### Returns
 	///
 	/// A new list containing the flattened results.
@@ -451,10 +459,11 @@ impl Foldable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The list to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The list to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -501,10 +510,11 @@ impl Foldable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The list to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The list to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -551,9 +561,10 @@ impl Foldable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The list to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The list to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -602,9 +613,10 @@ impl Traversable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The list to traverse.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The list to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The list wrapped in the applicative context.
@@ -653,8 +665,9 @@ impl Traversable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The list containing the applicative values.
-	///
+	#[doc_params(
+		"The list containing the applicative values."
+	)]	///
 	/// ### Returns
 	///
 	/// The list wrapped in the applicative context.
@@ -705,9 +718,10 @@ impl ParFoldable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The list to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The list to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -761,8 +775,9 @@ impl Compactable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The list of options.
-	///
+	#[doc_params(
+		"The list of options."
+	)]	///
 	/// ### Returns
 	///
 	/// The flattened list.
@@ -806,8 +821,9 @@ impl Compactable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The list of results.
-	///
+	#[doc_params(
+		"The list of results."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -864,9 +880,10 @@ impl Filterable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The list to partition.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The list to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -923,9 +940,10 @@ impl Filterable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The list to partition.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The list to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -984,9 +1002,10 @@ impl Filterable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The list to filter and map.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The list to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped list.
@@ -1031,9 +1050,10 @@ impl Filterable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The list to filter.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The list to filter."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered list.
@@ -1083,9 +1103,10 @@ impl Witherable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The list to partition.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The list to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// The partitioned list wrapped in the applicative context.
@@ -1154,9 +1175,10 @@ impl Witherable for CatListBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
-	/// * `ta`: The list to filter and map.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning an `Option` in an applicative context.",
+		"The list to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped list wrapped in the applicative context.
@@ -1213,9 +1235,10 @@ impl<A> Semigroup for CatList<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first list.
-	/// * `b`: The second list.
-	///
+	#[doc_params(
+		"The first list.",
+		"The second list."
+	)]	///
 	/// ### Returns
 	///
 	/// The concatenated list.
@@ -1342,8 +1365,9 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The element to put in the list.
-	///
+	#[doc_params(
+		"The element to put in the list."
+	)]	///
 	/// ### Returns
 	///
 	/// A `CatList` containing the single element.
@@ -1373,9 +1397,9 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `self`: The list.
-	/// * `a`: The element to append.
-	///
+	#[doc_params(
+		"The element to append."
+	)]	///
 	/// ### Returns
 	///
 	/// The new list with the element appended to the front.
@@ -1407,9 +1431,9 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `self`: The list.
-	/// * `a`: The element to append.
-	///
+	#[doc_params(
+		"The element to append."
+	)]	///
 	/// ### Returns
 	///
 	/// The new list with the element appended to the back.
@@ -1444,9 +1468,9 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	/// * `self`: The first list.
-	/// * `other`: The second list.
-	///
+	#[doc_params(
+		"The second list."
+	)]	///
 	/// ### Returns
 	///
 	/// The concatenated list.

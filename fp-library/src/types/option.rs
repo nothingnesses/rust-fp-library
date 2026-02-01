@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -41,9 +42,10 @@ impl Functor for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the value.
-	/// * `fa`: The option to map over.
-	///
+	#[doc_params(
+		"The function to apply to the value.",
+		"The option to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new option containing the result of applying the function, or `None`.
@@ -88,10 +90,11 @@ impl Lift for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first option.
-	/// * `fb`: The second option.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first option.",
+		"The second option."
+	)]	///
 	/// ### Returns
 	///
 	/// `Some(f(a, b))` if both options are `Some`, otherwise `None`.
@@ -138,8 +141,9 @@ impl Pointed for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Some(a)`.
@@ -180,9 +184,10 @@ impl Semiapplicative for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The option containing the function.
-	/// * `fa`: The option containing the value.
-	///
+	#[doc_params(
+		"The option containing the function.",
+		"The option containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// `Some(f(a))` if both are `Some`, otherwise `None`.
@@ -227,9 +232,10 @@ impl Semimonad for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first option.
-	/// * `f`: The function to apply to the value inside the option.
-	///
+	#[doc_params(
+		"The first option.",
+		"The function to apply to the value inside the option."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.
@@ -275,10 +281,11 @@ impl Foldable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The option to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The option to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.
@@ -326,10 +333,11 @@ impl Foldable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The option to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The option to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.
@@ -377,9 +385,10 @@ impl Foldable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The option to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The option to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
@@ -429,9 +438,10 @@ impl Traversable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The option to traverse.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The option to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The option wrapped in the applicative context.
@@ -476,8 +486,9 @@ impl Traversable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The option containing the applicative value.
-	///
+	#[doc_params(
+		"The option containing the applicative value."
+	)]	///
 	/// # Returns
 	///
 	/// The option wrapped in the applicative context.
@@ -525,9 +536,10 @@ impl ParFoldable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The option to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The option to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -575,8 +587,9 @@ impl Compactable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The nested option.
-	///
+	#[doc_params(
+		"The nested option."
+	)]	///
 	/// ### Returns
 	///
 	/// The flattened option.
@@ -617,8 +630,9 @@ impl Compactable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The option of result.
-	///
+	#[doc_params(
+		"The option of result."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of options.
@@ -667,9 +681,10 @@ impl Filterable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The option to partition.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The option to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of options.
@@ -719,9 +734,10 @@ impl Filterable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The option to partition.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The option to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// A pair of options.
@@ -776,9 +792,10 @@ impl Filterable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The option to filter and map.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The option to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped option.
@@ -820,9 +837,10 @@ impl Filterable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The option to filter.
-	///
+	#[doc_params(
+		"The predicate.",
+		"The option to filter."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered option.
@@ -869,9 +887,10 @@ impl Witherable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
-	/// * `ta`: The option to partition.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a `Result` in an applicative context.",
+		"The option to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// The partitioned option wrapped in the applicative context.
@@ -931,9 +950,10 @@ impl Witherable for OptionBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
-	/// * `ta`: The option to filter and map.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning an `Option` in an applicative context.",
+		"The option to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped option wrapped in the applicative context.

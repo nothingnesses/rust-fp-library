@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -74,8 +75,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk to wrap.
-	///
+	#[doc_params(
+		"The thunk to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance.
@@ -103,8 +105,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance containing the value.
@@ -137,8 +140,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk that returns a `Thunk`.
-	///
+	#[doc_params(
+		"The thunk that returns a `Thunk`."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance.
@@ -175,8 +179,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
-	///
+	#[doc_params(
+		"The function to apply to the result of the computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance representing the chained computation.
@@ -217,8 +222,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
-	///
+	#[doc_params(
+		"The function to apply to the result of the computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance with the transformed result.
@@ -306,9 +312,10 @@ impl Functor for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the result of the computation.
-	/// * `fa`: The `Thunk` instance.
-	///
+	#[doc_params(
+		"The function to apply to the result of the computation.",
+		"The `Thunk` instance."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance with the transformed result.
@@ -348,8 +355,9 @@ impl Pointed for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance containing the value.
@@ -385,10 +393,11 @@ impl Lift for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first `Thunk`.
-	/// * `fb`: The second `Thunk`.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first `Thunk`.",
+		"The second `Thunk`."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance containing the result of applying the function.
@@ -438,9 +447,10 @@ impl Semiapplicative for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The `Thunk` containing the function.
-	/// * `fa`: The `Thunk` containing the value.
-	///
+	#[doc_params(
+		"The `Thunk` containing the function.",
+		"The `Thunk` containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance containing the result of applying the function.
@@ -485,9 +495,10 @@ impl Semimonad for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first `Thunk`.
-	/// * `f`: The function to apply to the result of the computation.
-	///
+	#[doc_params(
+		"The first `Thunk`.",
+		"The function to apply to the result of the computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` instance representing the chained computation.
@@ -529,9 +540,10 @@ impl MonadRec for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The step function.
-	/// * `initial`: The initial value.
-	///
+	#[doc_params(
+		"The step function.",
+		"The initial value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of the computation.
@@ -583,8 +595,9 @@ impl Evaluable for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The eval to run.
-	///
+	#[doc_params(
+		"The eval to run."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of running the thunk.
@@ -620,10 +633,11 @@ impl Foldable for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The `Thunk` to fold.
-	///
+	#[doc_params(
+		"The function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The `Thunk` to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -666,10 +680,11 @@ impl Foldable for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The `Thunk` to fold.
-	///
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The `Thunk` to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -712,9 +727,10 @@ impl Foldable for ThunkBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The Thunk to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The Thunk to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The monoid value.
@@ -750,9 +766,10 @@ impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first `Thunk`.
-	/// * `b`: The second `Thunk`.
-	///
+	#[doc_params(
+		"The first `Thunk`.",
+		"The second `Thunk`."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Thunk` containing the combined result.

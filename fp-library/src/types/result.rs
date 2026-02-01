@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
@@ -49,10 +50,11 @@ impl Bifunctor for ResultBrand {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error.
-	/// * `g`: The function to apply to the success.
-	/// * `p`: The result to map over.
-	///
+	#[doc_params(
+		"The function to apply to the error.",
+		"The function to apply to the success.",
+		"The result to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new result containing the mapped values.
@@ -111,9 +113,10 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The result to map over.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The result to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new result containing the result of applying the function, or the original error.
@@ -157,10 +160,11 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply.
-	/// * `fa`: The first result.
-	/// * `fb`: The second result.
-	///
+	#[doc_params(
+		"The binary function to apply.",
+		"The first result.",
+		"The second result."
+	)]	///
 	/// ### Returns
 	///
 	/// `Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered.
@@ -223,8 +227,9 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Ok(a)`.
@@ -264,9 +269,10 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The result containing the function.
-	/// * `fa`: The result containing the value.
-	///
+	#[doc_params(
+		"The result containing the function.",
+		"The result containing the value."
+	)]	///
 	/// ### Returns
 	///
 	/// `Ok(f(a))` if both are `Ok`, otherwise the first error encountered.
@@ -315,9 +321,10 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first result.
-	/// * `f`: The function to apply to the value inside the result.
-	///
+	#[doc_params(
+		"The first result.",
+		"The function to apply to the value inside the result."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error.
@@ -372,10 +379,11 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.
@@ -422,10 +430,11 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.
@@ -472,9 +481,10 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.
@@ -529,9 +539,10 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The result to traverse.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The result to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -586,8 +597,9 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The result containing the applicative value.
-	///
+	#[doc_params(
+		"The result containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -652,9 +664,10 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the error.
-	/// * `fa`: The result to map over.
-	///
+	#[doc_params(
+		"The function to apply to the error.",
+		"The result to map over."
+	)]	///
 	/// ### Returns
 	///
 	/// A new result containing the mapped error, or the original success value.
@@ -701,10 +714,11 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The binary function to apply to the errors.
-	/// * `fa`: The first result.
-	/// * `fb`: The second result.
-	///
+	#[doc_params(
+		"The binary function to apply to the errors.",
+		"The first result.",
+		"The second result."
+	)]	///
 	/// ### Returns
 	///
 	/// `Err(f(a, b))` if both results are `Err`, otherwise the first success encountered.
@@ -767,8 +781,9 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// `Err(a)`.
@@ -808,9 +823,10 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The result containing the function (in Err).
-	/// * `fa`: The result containing the value (in Err).
-	///
+	#[doc_params(
+		"The result containing the function (in Err).",
+		"The result containing the value (in Err)."
+	)]	///
 	/// ### Returns
 	///
 	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
@@ -859,9 +875,10 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first result.
-	/// * `f`: The function to apply to the error value.
-	///
+	#[doc_params(
+		"The first result.",
+		"The function to apply to the error value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
@@ -919,10 +936,11 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -969,10 +987,11 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The folding function.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -1019,9 +1038,10 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The mapping function.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
@@ -1076,9 +1096,10 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The result to traverse.
-	///
+	#[doc_params(
+		"The function to apply.",
+		"The result to traverse."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1133,8 +1154,9 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ta`: The result containing the applicative value.
-	///
+	#[doc_params(
+		"The result containing the applicative value."
+	)]	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1191,9 +1213,10 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1243,10 +1266,11 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -1299,9 +1323,10 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1351,10 +1376,11 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
-	///
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The result to fold."
+	)]	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

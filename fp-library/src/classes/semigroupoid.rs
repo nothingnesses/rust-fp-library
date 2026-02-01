@@ -11,6 +11,7 @@
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -43,9 +44,10 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The second morphism to apply (from C to D).
-	/// * `g`: The first morphism to apply (from B to C).
-	///
+	#[doc_params(
+		"The second morphism to apply (from C to D).",
+		"The first morphism to apply (from B to C)."
+	)]	///
 	/// ### Returns
 	///
 	/// The composed morphism (from B to D).
@@ -85,9 +87,10 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The second morphism to apply (from C to D).
-/// * `g`: The first morphism to apply (from B to C).
-///
+#[doc_params(
+	"The second morphism to apply (from C to D).",
+	"The first morphism to apply (from B to C)."
+)]///
 /// ### Returns
 ///
 /// The composed morphism (from B to D).

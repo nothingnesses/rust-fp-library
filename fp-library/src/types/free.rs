@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -125,8 +126,9 @@ where
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Free` computation that produces `a`.
@@ -151,8 +153,9 @@ where
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The functor value containing the next step.
-	///
+	#[doc_params(
+		"The functor value containing the next step."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Free` computation that performs the effect `fa`.
@@ -188,8 +191,9 @@ where
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The functor value to lift.
-	///
+	#[doc_params(
+		"The functor value to lift."
+	)]	///
 	/// ### Returns
 	///
 	/// A `Free` computation that performs the effect and returns the result.
@@ -228,8 +232,9 @@ where
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of this computation.
-	///
+	#[doc_params(
+		"The function to apply to the result of this computation."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Free` computation that chains `f` after this computation.

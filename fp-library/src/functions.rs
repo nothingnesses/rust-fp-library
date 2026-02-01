@@ -17,6 +17,7 @@
 //! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
@@ -50,9 +51,10 @@ fp_macros::generate_function_re_exports!("src/classes", {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The outer function to apply second.
-/// * `g`: The inner function to apply first.
-///
+#[doc_params(
+	"The outer function to apply second.",
+	"The inner function to apply first."
+)]///
 /// ### Returns
 ///
 /// A new function that takes an `A` and returns a `C`.
@@ -100,8 +102,9 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `a`: The value to be returned by the constant function.
-///
+#[doc_params(
+	"The value to be returned by the constant function."
+)]///
 /// ### Returns
 ///
 /// A function that takes any value of type `B` and returns `a`.
@@ -139,8 +142,9 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 )]///
 /// ### Parameters
 ///
-/// * `f`: A binary function.
-///
+#[doc_params(
+	"A binary function."
+)]///
 /// ### Returns
 ///
 /// A version of `f` that takes its arguments in reverse.
@@ -180,8 +184,9 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `a`: A value.
-///
+#[doc_params(
+	"A value."
+)]///
 /// ### Returns
 ///
 /// The same value `a`.

@@ -17,6 +17,7 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 use std::ops::Deref;
@@ -44,8 +45,9 @@ pub trait Pointer {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
-	///
+	#[doc_params(
+		"The value to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// The value wrapped in the pointer type.
@@ -77,8 +79,9 @@ pub trait Pointer {
 )]///
 /// ### Parameters
 ///
-/// * `value`: The value to wrap.
-///
+#[doc_params(
+	"The value to wrap."
+)]///
 /// ### Returns
 ///
 /// The value wrapped in the pointer type.

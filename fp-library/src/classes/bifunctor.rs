@@ -10,6 +10,7 @@
 //! assert_eq!(y, Ok(10));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 
@@ -43,10 +44,11 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the first value.
-	/// * `g`: The function to apply to the second value.
-	/// * `p`: The bifunctor instance.
-	///
+	#[doc_params(
+		"The function to apply to the first value.",
+		"The function to apply to the second value.",
+		"The bifunctor instance."
+	)]	///
 	/// ### Returns
 	///
 	/// A new bifunctor instance containing the results of applying the functions.

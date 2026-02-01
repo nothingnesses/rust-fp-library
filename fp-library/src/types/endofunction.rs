@@ -1,3 +1,4 @@
+use fp_macros::doc_params;
 use crate::{
 	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
@@ -54,8 +55,9 @@ impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to wrap.
-	///
+	#[doc_params(
+		"The function to wrap."
+	)]	///
 	/// ### Returns
 	///
 	/// A new `Endofunction`.
@@ -157,9 +159,10 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBran
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The second function to apply (the outer function).
-	/// * `b`: The first function to apply (the inner function).
-	///
+	#[doc_params(
+		"The second function to apply (the outer function).",
+		"The first function to apply (the inner function)."
+	)]	///
 	/// ### Returns
 	///
 	/// The composed function `a . b`.

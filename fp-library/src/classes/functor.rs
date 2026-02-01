@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -43,9 +44,10 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the value(s) inside the functor.
-	/// * `fa`: The functor instance containing the value(s).
-	///
+	#[doc_params(
+		"The function to apply to the value(s) inside the functor.",
+		"The functor instance containing the value(s)."
+	)]	///
 	/// ### Returns
 	///
 	/// A new functor instance containing the result(s) of applying the function.
@@ -86,9 +88,10 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The function to apply to the value(s) inside the functor.
-/// * `fa`: The functor instance containing the value(s).
-///
+#[doc_params(
+	"The function to apply to the value(s) inside the functor.",
+	"The functor instance containing the value(s)."
+)]///
 /// ### Returns
 ///
 /// A new functor instance containing the result(s) of applying the function.

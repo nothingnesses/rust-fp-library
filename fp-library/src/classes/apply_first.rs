@@ -11,6 +11,7 @@
 //! assert_eq!(z, Some(5));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
@@ -38,9 +39,10 @@ pub trait ApplyFirst: Lift {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `fa`: The first context.
-	/// * `fb`: The second context.
-	///
+	#[doc_params(
+		"The first context.",
+		"The second context."
+	)]	///
 	/// ### Returns
 	///
 	/// The first context.
@@ -81,9 +83,10 @@ pub trait ApplyFirst: Lift {
 )]///
 /// ### Parameters
 ///
-/// * `fa`: The first context.
-/// * `fb`: The second context.
-///
+#[doc_params(
+	"The first context.",
+	"The second context."
+)]///
 /// ### Returns
 ///
 /// The first context.

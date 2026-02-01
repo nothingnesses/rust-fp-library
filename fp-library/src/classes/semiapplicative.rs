@@ -11,6 +11,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
@@ -49,9 +50,10 @@ pub trait Semiapplicative: Lift + Functor {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `ff`: The context containing the function(s).
-	/// * `fa`: The context containing the value(s).
-	///
+	#[doc_params(
+		"The context containing the function(s).",
+		"The context containing the value(s)."
+	)]	///
 	/// ### Returns
 	///
 	/// A new context containing the result(s) of applying the function(s) to the value(s).
@@ -91,9 +93,10 @@ pub trait Semiapplicative: Lift + Functor {
 )]///
 /// ### Parameters
 ///
-/// * `ff`: The context containing the function(s).
-/// * `fa`: The context containing the value(s).
-///
+#[doc_params(
+	"The context containing the function(s).",
+	"The context containing the value(s)."
+)]///
 /// ### Returns
 ///
 /// A new context containing the result(s) of applying the function(s) to the value(s).

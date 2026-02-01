@@ -9,6 +9,7 @@
 //! assert_eq!(f(1), 2);
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use super::RefCountedPointer;
 
@@ -29,8 +30,9 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
-	///
+	#[doc_params(
+		"The closure to coerce."
+	)]	///
 	/// ### Returns
 	///
 	/// The closure wrapped in the pointer type as a trait object.
@@ -65,8 +67,9 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 )]///
 /// ### Parameters
 ///
-/// * `f`: The closure to coerce.
-///
+#[doc_params(
+	"The closure to coerce."
+)]///
 /// ### Returns
 ///
 /// The closure wrapped in the pointer type as a trait object.
