@@ -1,10 +1,11 @@
-//! Simulates higher-kinded types using type-level defunctionalisation based on Yallop
-//! and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
-//!
 //! `Kind` traits represent the arity of a kind.
+//!
 //! These traits are implemented by [`Brand` types][crate::brands],
 //! which represent higher-kinded (unapplied/partially-applied) forms
 //! (type constructors) of [types][crate::types].
+//!
+//! This is an implementation of the type-level defunctionalisation technique
+//! to simulate higher-kinded types, based on Yallop and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
 //!
 //! # `Kind` Traits
 //!

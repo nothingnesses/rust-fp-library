@@ -1,4 +1,4 @@
-//! Generic, helper free functions and re-exports of free versions
+//! Contains generic, helper free functions and re-exports of free versions
 //! of type class functions.
 //!
 //! This module provides a collection of utility functions commonly found in functional programming,

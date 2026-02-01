@@ -1,6 +1,4 @@
-//! Functional programming type classes.
-//!
-//! This module defines traits for common algebraic structures and functional abstractions,
+//! Defines traits for common algebraic structures and functional abstractions,
 //! such as [`Functor`], [`Applicative`] and [`Monad`].
 //!
 //! Traits representing higher-kinded types (e.g., `Functor`) are implemented by

@@ -1,5 +1,3 @@
-//! Higher-kinded representations of [types][crate::types].
-//!
 //! Brands represent higher-kinded (unapplied/partially-applied) forms of
 //! [types][crate::types], as opposed to concrete types, which are
 //! fully-applied.
