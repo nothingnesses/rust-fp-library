@@ -4,6 +4,7 @@
 
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
+use doc_params::doc_params_impl;
 use doc_type_params::doc_type_params_impl;
 use generate::generate_name;
 use hm_signature::hm_signature_impl;
@@ -17,8 +18,10 @@ use syn::parse_macro_input;
 pub(crate) mod apply;
 pub(crate) mod canonicalize;
 pub(crate) mod def_kind;
+pub(crate) mod doc_params;
 pub(crate) mod doc_type_params;
 pub(crate) mod doc_utils;
+pub(crate) mod function_utils;
 pub(crate) mod generate;
 pub(crate) mod hm_signature;
 pub(crate) mod impl_kind;
@@ -482,7 +485,7 @@ pub fn hm_signature(
 /// ```ignore
 /// #[doc_type_params(
 ///     "Description for first parameter",
-///     "Description for second parameter",
+///     ("OverriddenName", "Description for second parameter"),
 ///     ...
 /// )]
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
@@ -490,8 +493,8 @@ pub fn hm_signature(
 ///
 /// ### Parameters
 ///
-/// * `Descriptions`: A comma-separated list of string literals. Each literal corresponds
-///   to a generic parameter in the function signature, in the order they are defined.
+/// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
+///   or a tuple of two string literals `(Name, Description)`.
 ///
 /// ### Generates
 ///
@@ -504,19 +507,19 @@ pub fn hm_signature(
 /// // Invocation
 /// #[doc_type_params(
 ///     "The type of the elements.",
-///     "The error type."
+///     ("E", "The error type.")
 /// )]
-/// pub fn map<T, E>(...) { ... }
+/// pub fn map<T, ERR>(...) { ... }
 ///
 /// // Expanded code
 /// /// * `T`: The type of the elements.
 /// /// * `E`: The error type.
-/// pub fn map<T, E>(...) { ... }
+/// pub fn map<T, ERR>(...) { ... }
 /// ```
 ///
 /// ### Constraints
 ///
-/// * The number of description strings must exactly match the number of generic parameters
+/// * The number of arguments must exactly match the number of generic parameters
 ///   (including lifetimes, types, and const generics) in the function signature.
 #[proc_macro_attribute]
 pub fn doc_type_params(
@@ -524,4 +527,58 @@ pub fn doc_type_params(
 	item: TokenStream,
 ) -> TokenStream {
 	doc_type_params_impl(attr.into(), item.into()).into()
+}
+
+/// Generates documentation for a function's parameters.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// list based on the provided descriptions. It also handles curried return types.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[doc_params(
+///     "Description for first parameter",
+///     ("overridden_name", "Description for second parameter"),
+///     ...
+/// )]
+/// pub fn function_name(params) -> impl Fn(...) { ... }
+/// ```
+///
+/// ### Parameters
+///
+/// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
+///   or a tuple of two string literals `(Name, Description)`.
+///
+/// ### Generates
+///
+/// A list of documentation comments, one for each parameter, prepended to the
+/// function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[doc_params(
+///     "The first input value.",
+///     ("y", "The second input value.")
+/// )]
+/// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
+///
+/// // Expanded code
+/// /// * `x`: The first input value.
+/// /// * `y`: The second input value.
+/// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
+/// ```
+///
+/// ### Constraints
+///
+/// * The number of arguments must exactly match the number of function parameters
+///   (excluding `self` but including parameters from curried return types).
+#[proc_macro_attribute]
+pub fn doc_params(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	doc_params_impl(attr.into(), item.into()).into()
 }

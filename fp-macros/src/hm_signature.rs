@@ -1,53 +1,13 @@
-use proc_macro2::TokenStream;
-use quote::quote;
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
-use syn::{
-	GenericArgument, GenericParam, ItemFn, PathArguments, ReturnType, TraitBound, Type,
-	TypeParamBound, TypeTraitObject, WherePredicate,
-};
+use syn::{GenericParam, ItemFn, ReturnType, Type, TypeParamBound, WherePredicate};
 
 use crate::doc_utils::insert_doc_comment;
-
-#[derive(Debug, Deserialize, Default)]
-struct Config {
-	brand_mappings: HashMap<String, String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CargoMetadata {
-	hm_signature: Option<Config>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CargoManifest {
-	package: Option<PackageMetadata>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PackageMetadata {
-	metadata: Option<CargoMetadata>,
-}
-
-fn load_config() -> Config {
-	let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
-	let manifest_path = std::path::Path::new(&manifest_dir).join("Cargo.toml");
-
-	if let Ok(content) = std::fs::read_to_string(manifest_path)
-		&& let Ok(manifest) = toml::from_str::<CargoManifest>(&content)
-		&& let Some(package) = manifest.package
-		&& let Some(metadata) = package.metadata
-		&& let Some(config) = metadata.hm_signature
-	{
-		return config;
-	}
-	Config::default()
-}
+use crate::function_utils::{Config, format_type, get_fn_signature, is_phantom_data, load_config};
 
 pub fn hm_signature_impl(
-	attr: TokenStream,
-	item: TokenStream,
-) -> TokenStream {
+	attr: proc_macro2::TokenStream,
+	item: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
 	let mut input_fn = syn::parse2::<ItemFn>(item).expect("Failed to parse function");
 	let trait_name = if attr.is_empty() { None } else { Some(attr.to_string()) };
 
@@ -57,7 +17,7 @@ pub fn hm_signature_impl(
 
 	insert_doc_comment(&mut input_fn.attrs, doc_comment, proc_macro2::Span::call_site());
 
-	quote! {
+	quote::quote! {
 		#input_fn
 	}
 }
@@ -158,22 +118,6 @@ fn generate_signature(
 	parts.join(" ")
 }
 
-fn get_fn_signature(
-	trait_bound: &TraitBound,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> Option<String> {
-	let name = trait_bound.path.segments.last().unwrap().ident.to_string();
-	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		Some(format_fn_trait(trait_bound, fn_bounds, generic_names, config))
-	} else if name == "SendCloneableFn" || name == "CloneableFn" || name == "Function" {
-		Some("fn_brand_marker".to_string())
-	} else {
-		None
-	}
-}
-
 fn format_generics(
 	generics: &syn::Generics,
 	fn_bounds: &HashMap<String, String>,
@@ -238,7 +182,7 @@ fn format_generics(
 }
 
 fn format_trait_bound(
-	bound: &TraitBound,
+	bound: &syn::TraitBound,
 	type_var: &str,
 	config: &Config,
 ) -> Option<String> {
@@ -251,7 +195,7 @@ fn format_trait_bound(
 		// Also filter out function traits used in bounds (e.g. FnBrand: SendCloneableFn)
 		"Fn" | "FnMut" | "FnOnce" | "CloneableFn" | "SendCloneableFn" | "Function" => None,
 		_ => {
-			let name = format_brand_name(&trait_name, config);
+			let name = crate::function_utils::format_brand_name(&trait_name, config);
 			Some(format!("{} {}", name, type_var))
 		}
 	}
@@ -290,399 +234,6 @@ fn format_return_type(
 	match output {
 		ReturnType::Default => "()".to_string(), // Unit type
 		ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
-	}
-}
-
-fn format_brand_name(
-	name: &str,
-	config: &Config,
-) -> String {
-	if let Some(mapping) = config.brand_mappings.get(name) {
-		return mapping.clone();
-	}
-
-	if let Some(stripped) = name.strip_suffix("Brand") {
-		stripped.to_string()
-	} else {
-		name.to_string()
-	}
-}
-
-fn format_type_arg(
-	ty: &Type,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> String {
-	let s = format_type(ty, fn_bounds, generic_names, config);
-	// If the string contains spaces and isn't already wrapped in parens, wrap it.
-	// Simple heuristic: if it contains space and doesn't start with '(', wrap it.
-	// Or if it starts with '(' but the matching ')' is not at the end (e.g. "(a -> b) -> c").
-	// A robust check would count parens.
-
-	if !s.contains(' ') {
-		return s;
-	}
-
-	// Check if it's fully parenthesized
-	if s.starts_with('(') && s.ends_with(')') {
-		// Check if the outer parens are matching
-		let mut depth = 0;
-		let mut fully_wrapped = true;
-		for (i, c) in s.chars().enumerate() {
-			if c == '(' {
-				depth += 1;
-			} else if c == ')' {
-				depth -= 1;
-				if depth == 0 && i < s.len() - 1 {
-					fully_wrapped = false;
-					break;
-				}
-			}
-		}
-		if fully_wrapped {
-			return s;
-		}
-	}
-
-	format!("({})", s)
-}
-
-fn format_type(
-	ty: &Type,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> String {
-	match ty {
-		Type::Path(type_path) => {
-			// Handle <F as Kind...>::Of<'a, A>
-			if let Some(qself) = &type_path.qself {
-				// Check for function traits
-				if type_path.path.segments.len() >= 2 {
-					let trait_name = type_path.path.segments[0].ident.to_string();
-					if trait_name == "SendCloneableFn"
-						|| trait_name == "CloneableFn"
-						|| trait_name == "Function"
-					{
-						let last_segment = type_path.path.segments.last().unwrap();
-						if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-							let mut type_args = Vec::new();
-							for arg in &args.args {
-								if let GenericArgument::Type(inner_ty) = arg {
-									type_args.push(format_type(
-										inner_ty,
-										fn_bounds,
-										generic_names,
-										config,
-									));
-								}
-							}
-
-							// Last type is output, others are input
-							if !type_args.is_empty() {
-								let output = type_args.pop().unwrap();
-								let input = if type_args.is_empty() {
-									"()".to_string()
-								} else if type_args.len() == 1 {
-									type_args[0].clone()
-								} else {
-									format!("({})", type_args.join(", "))
-								};
-								return format!("{} -> {}", input, output);
-							}
-						}
-					}
-				}
-
-				let constructor = format_type(&qself.ty, fn_bounds, generic_names, config);
-				let last_segment = type_path.path.segments.last().unwrap();
-
-				if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(
-								inner_ty,
-								fn_bounds,
-								generic_names,
-								config,
-							));
-						}
-					}
-					if !type_args.is_empty() {
-						return format!("{} {}", constructor, type_args.join(" "));
-					}
-				}
-				return constructor;
-			}
-
-			if let Some(segment) = type_path.path.segments.last()
-				&& segment.ident == "PhantomData"
-			{
-				return "()".to_string();
-			}
-
-			// Handle associated types: F::Of<A> -> f a
-			// Or Self::Of<A> -> self a
-			if type_path.path.segments.len() >= 2 {
-				let first = &type_path.path.segments[0];
-				let last = type_path.path.segments.last().unwrap();
-
-				let mut constructor = first.ident.to_string();
-				if generic_names.contains(&constructor) || constructor == "Self" {
-					constructor = constructor.to_lowercase();
-				} else {
-					constructor = format_brand_name(&constructor, config);
-				}
-
-				if let PathArguments::AngleBracketed(args) = &last.arguments {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(
-								inner_ty,
-								fn_bounds,
-								generic_names,
-								config,
-							));
-						}
-					}
-					if !type_args.is_empty() {
-						return format!("{} {}", constructor, type_args.join(" "));
-					}
-				}
-			}
-
-			let segment = type_path.path.segments.last().unwrap();
-			let name = segment.ident.to_string();
-
-			// Strip smart pointers
-			if (name == "Box" || name == "Arc" || name == "Rc")
-				&& let PathArguments::AngleBracketed(args) = &segment.arguments
-				&& let Some(GenericArgument::Type(inner_ty)) = args.args.first()
-			{
-				return format_type(inner_ty, fn_bounds, generic_names, config);
-			}
-
-			// Check if this type is a function type variable
-			if let Some(sig) = fn_bounds.get(&name) {
-				if sig == "fn_brand_marker" {
-					return name.to_lowercase();
-				}
-				return sig.clone();
-			}
-
-			if generic_names.contains(&name) {
-				return name.to_lowercase();
-			}
-
-			if name == "Self" {
-				return "self".to_string();
-			}
-
-			let name = format_brand_name(&name, config);
-
-			// Handle generics
-			match &segment.arguments {
-				PathArguments::AngleBracketed(args) => {
-					let mut type_args = Vec::new();
-					for arg in &args.args {
-						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(
-								inner_ty,
-								fn_bounds,
-								generic_names,
-								config,
-							));
-						}
-					}
-					if type_args.is_empty() {
-						name
-					} else {
-						format!("{} {}", name, type_args.join(" "))
-					}
-				}
-				_ => name,
-			}
-		}
-		Type::ImplTrait(impl_trait) => {
-			// Handle impl Fn(A) -> B
-			for bound in &impl_trait.bounds {
-				if let TypeParamBound::Trait(trait_bound) = bound {
-					return format_trait_bound_as_type(
-						trait_bound,
-						fn_bounds,
-						generic_names,
-						config,
-					);
-				}
-			}
-			"impl_trait".to_string()
-		}
-		Type::Reference(type_ref) => format_type(&type_ref.elem, fn_bounds, generic_names, config),
-		Type::Tuple(tuple) => {
-			let types: Vec<String> = tuple
-				.elems
-				.iter()
-				.filter(|t| !is_phantom_data(t))
-				.map(|t| format_type(t, fn_bounds, generic_names, config))
-				.collect();
-			if types.is_empty() {
-				"()".to_string()
-			} else if types.len() == 1 {
-				types[0].clone()
-			} else {
-				format!("({})", types.join(", "))
-			}
-		}
-		Type::Array(array) => {
-			let inner = format_type(&array.elem, fn_bounds, generic_names, config);
-			format!("[{}]", inner)
-		}
-		Type::Slice(slice) => {
-			let inner = format_type(&slice.elem, fn_bounds, generic_names, config);
-			format!("[{}]", inner)
-		}
-		Type::TraitObject(type_trait_object) => {
-			format_trait_object(type_trait_object, fn_bounds, generic_names, config)
-		}
-		Type::BareFn(bare_fn) => {
-			let inputs: Vec<String> = bare_fn
-				.inputs
-				.iter()
-				.map(|arg| format_type(&arg.ty, fn_bounds, generic_names, config))
-				.collect();
-			let output = match &bare_fn.output {
-				ReturnType::Default => "()".to_string(),
-				ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
-			};
-			let input_str = if inputs.len() == 1 {
-				inputs[0].clone()
-			} else {
-				format!("({})", inputs.join(", "))
-			};
-			format!("{} -> {}", input_str, output)
-		}
-		Type::Macro(type_macro) => {
-			if type_macro.mac.path.is_ident("Apply") {
-				match syn::parse2::<crate::apply::ApplyInput>(type_macro.mac.tokens.clone()) {
-					Ok(apply_input) => {
-						let constructor =
-							format_type(&apply_input.brand, fn_bounds, generic_names, config);
-						let mut type_args = Vec::new();
-						for arg in &apply_input.args.args {
-							if let GenericArgument::Type(inner_ty) = arg {
-								type_args.push(format_type_arg(
-									inner_ty,
-									fn_bounds,
-									generic_names,
-									config,
-								));
-							}
-						}
-						if !type_args.is_empty() {
-							return format!("{} {}", constructor, type_args.join(" "));
-						}
-						return constructor;
-					}
-					Err(e) => return format!("macro_error: {}", e),
-				}
-			}
-			"macro".to_string()
-		}
-		_ => "_".to_string(),
-	}
-}
-
-fn format_trait_object(
-	trait_object: &TypeTraitObject,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> String {
-	for bound in &trait_object.bounds {
-		if let TypeParamBound::Trait(trait_bound) = bound {
-			return format_trait_bound_as_type(trait_bound, fn_bounds, generic_names, config);
-		}
-	}
-	"dyn".to_string()
-}
-
-fn format_trait_bound_as_type(
-	trait_bound: &TraitBound,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> String {
-	let segment = trait_bound.path.segments.last().unwrap();
-	let name = segment.ident.to_string();
-
-	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		return format_fn_trait(trait_bound, fn_bounds, generic_names, config);
-	}
-
-	let name = if generic_names.contains(&name) || name == "Self" {
-		name.to_lowercase()
-	} else {
-		format_brand_name(&name, config)
-	};
-
-	if let PathArguments::AngleBracketed(args) = &segment.arguments {
-		let mut arg_strs = Vec::new();
-		for arg in &args.args {
-			match arg {
-				GenericArgument::Type(ty) => {
-					arg_strs.push(format_type_arg(ty, fn_bounds, generic_names, config));
-				}
-				GenericArgument::AssocType(assoc) => {
-					arg_strs.push(format_type_arg(&assoc.ty, fn_bounds, generic_names, config));
-				}
-				_ => {}
-			}
-		}
-		if !arg_strs.is_empty() {
-			return format!("{} {}", name, arg_strs.join(" "));
-		}
-	}
-
-	name
-}
-
-fn is_phantom_data(ty: &Type) -> bool {
-	match ty {
-		Type::Path(type_path) => {
-			if let Some(segment) = type_path.path.segments.last() {
-				return segment.ident == "PhantomData";
-			}
-			false
-		}
-		Type::Reference(type_ref) => is_phantom_data(&type_ref.elem),
-		_ => false,
-	}
-}
-
-fn format_fn_trait(
-	trait_bound: &TraitBound,
-	fn_bounds: &HashMap<String, String>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> String {
-	let segment = trait_bound.path.segments.last().unwrap();
-	if let PathArguments::Parenthesized(args) = &segment.arguments {
-		let inputs: Vec<String> =
-			args.inputs.iter().map(|t| format_type(t, fn_bounds, generic_names, config)).collect();
-		let output = match &args.output {
-			ReturnType::Default => "()".to_string(),
-			ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
-		};
-
-		let input_str =
-			if inputs.len() == 1 { inputs[0].clone() } else { format!("({})", inputs.join(", ")) };
-
-		format!("{} -> {}", input_str, output)
-	} else {
-		"fn".to_string()
 	}
 }
 

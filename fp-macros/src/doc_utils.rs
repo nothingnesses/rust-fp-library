@@ -1,4 +1,57 @@
-use syn::{parse_quote, spanned::Spanned};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{Error, Expr, ExprTuple, LitStr, Token, parse_quote, spanned::Spanned};
+
+pub enum DocArg {
+	Desc(LitStr),
+	Override(LitStr, LitStr),
+}
+
+impl Parse for DocArg {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		if input.peek(syn::token::Paren) {
+			let tuple: ExprTuple = input.parse()?;
+			if tuple.elems.len() != 2 {
+				return Err(Error::new(
+					tuple.span(),
+					"Expected a tuple of (Name, Description), e.g., (\"arg\", \"description\")",
+				));
+			}
+			let name = match &tuple.elems[0] {
+				Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) => s.clone(),
+				_ => {
+					return Err(Error::new(
+						tuple.elems[0].span(),
+						"Expected a string literal for the parameter name",
+					));
+				}
+			};
+			let desc = match &tuple.elems[1] {
+				Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) => s.clone(),
+				_ => {
+					return Err(Error::new(
+						tuple.elems[1].span(),
+						"Expected a string literal for the description",
+					));
+				}
+			};
+			Ok(DocArg::Override(name, desc))
+		} else {
+			let lit: LitStr = input.parse()?;
+			Ok(DocArg::Desc(lit))
+		}
+	}
+}
+
+pub struct GenericArgs {
+	pub entries: Punctuated<DocArg, Token![,]>,
+}
+
+impl Parse for GenericArgs {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		Ok(GenericArgs { entries: Punctuated::parse_terminated(input)? })
+	}
+}
 
 pub fn insert_doc_comment(
 	attrs: &mut Vec<syn::Attribute>,
