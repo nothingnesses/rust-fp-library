@@ -92,12 +92,30 @@ def process_file(filepath):
             f.write(new_content)
         print(f"Updated {filepath}")
 
-for root, dirs, files in os.walk('.'):
-    if 'target' in dirs:
-        dirs.remove('target')
-    if '.git' in dirs:
-        dirs.remove('.git')
-        
-    for file in files:
-        if file.endswith('.rs'):
-            process_file(os.path.join(root, file))
+def main():
+    import sys
+    if len(sys.argv) > 1:
+        for arg in sys.argv[1:]:
+            if os.path.isfile(arg):
+                process_file(arg)
+            else:
+                for root, dirs, files in os.walk(arg):
+                    if 'target' in dirs:
+                        dirs.remove('target')
+                    if '.git' in dirs:
+                        dirs.remove('.git')
+                    for file in files:
+                        if file.endswith('.rs'):
+                            process_file(os.path.join(root, file))
+    else:
+        for root, dirs, files in os.walk('.'):
+            if 'target' in dirs:
+                dirs.remove('target')
+            if '.git' in dirs:
+                dirs.remove('.git')
+            for file in files:
+                if file.endswith('.rs'):
+                    process_file(os.path.join(root, file))
+
+if __name__ == "__main__":
+    main()
