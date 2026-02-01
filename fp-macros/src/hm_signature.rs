@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use syn::spanned::Spanned;
 use syn::{
 	GenericArgument, GenericParam, ItemFn, PathArguments, ReturnType, TraitBound, Type,
@@ -88,6 +88,14 @@ fn generate_signature(
 	config: &Config,
 ) -> String {
 	let mut fn_bounds = HashMap::new();
+	let mut generic_names = HashSet::new();
+
+	// Collect all generic type names
+	for param in &input.sig.generics.params {
+		if let GenericParam::Type(type_param) = param {
+			generic_names.insert(type_param.ident.to_string());
+		}
+	}
 
 	// Collect Fn bounds from generics
 	for param in &input.sig.generics.params {
@@ -95,7 +103,8 @@ fn generate_signature(
 			let name = type_param.ident.to_string();
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(sig) = get_fn_signature(trait_bound, &fn_bounds, config)
+					&& let Some(sig) =
+						get_fn_signature(trait_bound, &fn_bounds, &generic_names, config)
 				{
 					fn_bounds.insert(name.clone(), sig);
 				}
@@ -113,7 +122,8 @@ fn generate_signature(
 				let name = type_path.path.segments[0].ident.to_string();
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
-						&& let Some(sig) = get_fn_signature(trait_bound, &fn_bounds, config)
+						&& let Some(sig) =
+							get_fn_signature(trait_bound, &fn_bounds, &generic_names, config)
 					{
 						fn_bounds.insert(name.clone(), sig);
 					}
@@ -122,9 +132,10 @@ fn generate_signature(
 		}
 	}
 
-	let (mut forall, mut constraints) = format_generics(&input.sig.generics, &fn_bounds, config);
-	let params = format_parameters(input, &fn_bounds, config);
-	let ret = format_return_type(&input.sig.output, &fn_bounds, config);
+	let (mut forall, mut constraints) =
+		format_generics(&input.sig.generics, &fn_bounds, &generic_names, config);
+	let params = format_parameters(input, &fn_bounds, &generic_names, config);
+	let ret = format_return_type(&input.sig.output, &fn_bounds, &generic_names, config);
 
 	// Check if "self" is used in params or return type
 	let uses_self = params.contains("self") || ret.contains("self");
@@ -170,11 +181,12 @@ fn generate_signature(
 fn get_fn_signature(
 	trait_bound: &TraitBound,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> Option<String> {
 	let name = trait_bound.path.segments.last().unwrap().ident.to_string();
 	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		Some(format_fn_trait(trait_bound, fn_bounds, config))
+		Some(format_fn_trait(trait_bound, fn_bounds, generic_names, config))
 	} else if name == "SendCloneableFn" || name == "CloneableFn" || name == "Function" {
 		Some("fn_brand_marker".to_string())
 	} else {
@@ -185,6 +197,7 @@ fn get_fn_signature(
 fn format_generics(
 	generics: &syn::Generics,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> (String, String) {
 	let mut type_vars = Vec::new();
@@ -213,7 +226,8 @@ fn format_generics(
 	if let Some(where_clause) = &generics.where_clause {
 		for predicate in &where_clause.predicates {
 			if let WherePredicate::Type(predicate_type) = predicate {
-				let type_name = format_type(&predicate_type.bounded_ty, fn_bounds, config);
+				let type_name =
+					format_type(&predicate_type.bounded_ty, fn_bounds, generic_names, config);
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
 						&& let Some(constraint) =
@@ -266,6 +280,7 @@ fn format_trait_bound(
 fn format_parameters(
 	input: &ItemFn,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	let mut params = Vec::new();
@@ -273,7 +288,7 @@ fn format_parameters(
 		if let syn::FnArg::Typed(pat_type) = input
 			&& !is_phantom_data(&pat_type.ty)
 		{
-			params.push(format_type(&pat_type.ty, fn_bounds, config));
+			params.push(format_type(&pat_type.ty, fn_bounds, generic_names, config));
 		}
 	}
 
@@ -289,11 +304,12 @@ fn format_parameters(
 fn format_return_type(
 	output: &ReturnType,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	match output {
 		ReturnType::Default => "()".to_string(), // Unit type
-		ReturnType::Type(_, ty) => format_type(ty, fn_bounds, config),
+		ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
 	}
 }
 
@@ -315,9 +331,10 @@ fn format_brand_name(
 fn format_type_arg(
 	ty: &Type,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
-	let s = format_type(ty, fn_bounds, config);
+	let s = format_type(ty, fn_bounds, generic_names, config);
 	// If the string contains spaces and isn't already wrapped in parens, wrap it.
 	// Simple heuristic: if it contains space and doesn't start with '(', wrap it.
 	// Or if it starts with '(' but the matching ')' is not at the end (e.g. "(a -> b) -> c").
@@ -354,6 +371,7 @@ fn format_type_arg(
 fn format_type(
 	ty: &Type,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	match ty {
@@ -372,7 +390,12 @@ fn format_type(
 							let mut type_args = Vec::new();
 							for arg in &args.args {
 								if let GenericArgument::Type(inner_ty) = arg {
-									type_args.push(format_type(inner_ty, fn_bounds, config));
+									type_args.push(format_type(
+										inner_ty,
+										fn_bounds,
+										generic_names,
+										config,
+									));
 								}
 							}
 
@@ -392,14 +415,19 @@ fn format_type(
 					}
 				}
 
-				let constructor = format_type(&qself.ty, fn_bounds, config);
+				let constructor = format_type(&qself.ty, fn_bounds, generic_names, config);
 				let last_segment = type_path.path.segments.last().unwrap();
 
 				if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
 					let mut type_args = Vec::new();
 					for arg in &args.args {
 						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(inner_ty, fn_bounds, config));
+							type_args.push(format_type_arg(
+								inner_ty,
+								fn_bounds,
+								generic_names,
+								config,
+							));
 						}
 					}
 					if !type_args.is_empty() {
@@ -421,13 +449,23 @@ fn format_type(
 				let first = &type_path.path.segments[0];
 				let last = type_path.path.segments.last().unwrap();
 
-				let constructor = first.ident.to_string().to_lowercase();
+				let mut constructor = first.ident.to_string();
+				if generic_names.contains(&constructor) || constructor == "Self" {
+					constructor = constructor.to_lowercase();
+				} else {
+					constructor = format_brand_name(&constructor, config);
+				}
 
 				if let PathArguments::AngleBracketed(args) = &last.arguments {
 					let mut type_args = Vec::new();
 					for arg in &args.args {
 						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(inner_ty, fn_bounds, config));
+							type_args.push(format_type_arg(
+								inner_ty,
+								fn_bounds,
+								generic_names,
+								config,
+							));
 						}
 					}
 					if !type_args.is_empty() {
@@ -444,7 +482,7 @@ fn format_type(
 				&& let PathArguments::AngleBracketed(args) = &segment.arguments
 				&& let Some(GenericArgument::Type(inner_ty)) = args.args.first()
 			{
-				return format_type(inner_ty, fn_bounds, config);
+				return format_type(inner_ty, fn_bounds, generic_names, config);
 			}
 
 			// Check if this type is a function type variable
@@ -458,7 +496,7 @@ fn format_type(
 				return sig.clone();
 			}
 
-			if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
+			if generic_names.contains(&name) {
 				return name.to_lowercase();
 			}
 
@@ -474,7 +512,12 @@ fn format_type(
 					let mut type_args = Vec::new();
 					for arg in &args.args {
 						if let GenericArgument::Type(inner_ty) = arg {
-							type_args.push(format_type_arg(inner_ty, fn_bounds, config));
+							type_args.push(format_type_arg(
+								inner_ty,
+								fn_bounds,
+								generic_names,
+								config,
+							));
 						}
 					}
 					if type_args.is_empty() {
@@ -490,18 +533,23 @@ fn format_type(
 			// Handle impl Fn(A) -> B
 			for bound in &impl_trait.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound {
-					return format_trait_bound_as_type(trait_bound, fn_bounds, config);
+					return format_trait_bound_as_type(
+						trait_bound,
+						fn_bounds,
+						generic_names,
+						config,
+					);
 				}
 			}
 			"impl_trait".to_string()
 		}
-		Type::Reference(type_ref) => format_type(&type_ref.elem, fn_bounds, config),
+		Type::Reference(type_ref) => format_type(&type_ref.elem, fn_bounds, generic_names, config),
 		Type::Tuple(tuple) => {
 			let types: Vec<String> = tuple
 				.elems
 				.iter()
 				.filter(|t| !is_phantom_data(t))
-				.map(|t| format_type(t, fn_bounds, config))
+				.map(|t| format_type(t, fn_bounds, generic_names, config))
 				.collect();
 			if types.is_empty() {
 				"()".to_string()
@@ -512,22 +560,25 @@ fn format_type(
 			}
 		}
 		Type::Array(array) => {
-			let inner = format_type(&array.elem, fn_bounds, config);
+			let inner = format_type(&array.elem, fn_bounds, generic_names, config);
 			format!("[{}]", inner)
 		}
 		Type::Slice(slice) => {
-			let inner = format_type(&slice.elem, fn_bounds, config);
+			let inner = format_type(&slice.elem, fn_bounds, generic_names, config);
 			format!("[{}]", inner)
 		}
 		Type::TraitObject(type_trait_object) => {
-			format_trait_object(type_trait_object, fn_bounds, config)
+			format_trait_object(type_trait_object, fn_bounds, generic_names, config)
 		}
 		Type::BareFn(bare_fn) => {
-			let inputs: Vec<String> =
-				bare_fn.inputs.iter().map(|arg| format_type(&arg.ty, fn_bounds, config)).collect();
+			let inputs: Vec<String> = bare_fn
+				.inputs
+				.iter()
+				.map(|arg| format_type(&arg.ty, fn_bounds, generic_names, config))
+				.collect();
 			let output = match &bare_fn.output {
 				ReturnType::Default => "()".to_string(),
-				ReturnType::Type(_, ty) => format_type(ty, fn_bounds, config),
+				ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
 			};
 			let input_str = if inputs.len() == 1 {
 				inputs[0].clone()
@@ -540,11 +591,17 @@ fn format_type(
 			if type_macro.mac.path.is_ident("Apply") {
 				match syn::parse2::<crate::apply::ApplyInput>(type_macro.mac.tokens.clone()) {
 					Ok(apply_input) => {
-						let constructor = format_type(&apply_input.brand, fn_bounds, config);
+						let constructor =
+							format_type(&apply_input.brand, fn_bounds, generic_names, config);
 						let mut type_args = Vec::new();
 						for arg in &apply_input.args.args {
 							if let GenericArgument::Type(inner_ty) = arg {
-								type_args.push(format_type_arg(inner_ty, fn_bounds, config));
+								type_args.push(format_type_arg(
+									inner_ty,
+									fn_bounds,
+									generic_names,
+									config,
+								));
 							}
 						}
 						if !type_args.is_empty() {
@@ -564,11 +621,12 @@ fn format_type(
 fn format_trait_object(
 	trait_object: &TypeTraitObject,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	for bound in &trait_object.bounds {
 		if let TypeParamBound::Trait(trait_bound) = bound {
-			return format_trait_bound_as_type(trait_bound, fn_bounds, config);
+			return format_trait_bound_as_type(trait_bound, fn_bounds, generic_names, config);
 		}
 	}
 	"dyn".to_string()
@@ -577,26 +635,31 @@ fn format_trait_object(
 fn format_trait_bound_as_type(
 	trait_bound: &TraitBound,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	let segment = trait_bound.path.segments.last().unwrap();
 	let name = segment.ident.to_string();
 
 	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-		return format_fn_trait(trait_bound, fn_bounds, config);
+		return format_fn_trait(trait_bound, fn_bounds, generic_names, config);
 	}
 
-	let name = format_brand_name(&name, config);
+	let name = if generic_names.contains(&name) || name == "Self" {
+		name.to_lowercase()
+	} else {
+		format_brand_name(&name, config)
+	};
 
 	if let PathArguments::AngleBracketed(args) = &segment.arguments {
 		let mut arg_strs = Vec::new();
 		for arg in &args.args {
 			match arg {
 				GenericArgument::Type(ty) => {
-					arg_strs.push(format_type_arg(ty, fn_bounds, config));
+					arg_strs.push(format_type_arg(ty, fn_bounds, generic_names, config));
 				}
 				GenericArgument::AssocType(assoc) => {
-					arg_strs.push(format_type_arg(&assoc.ty, fn_bounds, config));
+					arg_strs.push(format_type_arg(&assoc.ty, fn_bounds, generic_names, config));
 				}
 				_ => {}
 			}
@@ -625,15 +688,16 @@ fn is_phantom_data(ty: &Type) -> bool {
 fn format_fn_trait(
 	trait_bound: &TraitBound,
 	fn_bounds: &HashMap<String, String>,
+	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> String {
 	let segment = trait_bound.path.segments.last().unwrap();
 	if let PathArguments::Parenthesized(args) = &segment.arguments {
 		let inputs: Vec<String> =
-			args.inputs.iter().map(|t| format_type(t, fn_bounds, config)).collect();
+			args.inputs.iter().map(|t| format_type(t, fn_bounds, generic_names, config)).collect();
 		let output = match &args.output {
 			ReturnType::Default => "()".to_string(),
-			ReturnType::Type(_, ty) => format_type(ty, fn_bounds, config),
+			ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
 		};
 
 		let input_str =
@@ -921,5 +985,14 @@ mod tests {
 		};
 		let sig = generate_signature(&input, None, &Config::default());
 		assert_eq!(sig, "forall p a b c d. Bifunctor p => (a -> b, c -> d, p a c) -> p b d");
+	}
+
+	#[test]
+	fn test_multi_letter_generic() {
+		let input: ItemFn = parse_quote! {
+			fn foo<Input, Output>(x: Input) -> Output { todo!() }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall input output. input -> output");
 	}
 }
