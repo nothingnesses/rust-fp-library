@@ -32,10 +32,10 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
-		("A", "The type of the value(s) inside the functor.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -80,11 +80,11 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the values.",
 	"The brand of the functor.",
 	"The type of the value(s) inside the functor.",
 	"The type of the result(s) of applying the function.",
-	("A", "The type of the value(s) inside the functor.")
+	"The type of the function to apply."
 )]
 ///
 /// ### Parameters

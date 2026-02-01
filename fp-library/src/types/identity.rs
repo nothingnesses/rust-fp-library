@@ -58,7 +58,7 @@ impl Functor for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the value.",
 		"The type of the value inside the identity.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -104,7 +104,7 @@ impl Lift for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first identity's value.",
 		"The type of the second identity's value.",
 		"The return type of the function.",
@@ -155,7 +155,7 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -193,7 +193,7 @@ impl Semiapplicative for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -237,10 +237,10 @@ impl Semimonad for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -283,7 +283,7 @@ impl Foldable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -334,7 +334,7 @@ impl Foldable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -385,7 +385,7 @@ impl Foldable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -434,7 +434,7 @@ impl Traversable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -482,7 +482,7 @@ impl Traversable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -527,10 +527,10 @@ impl ParFoldable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("A", "The element type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -574,10 +574,10 @@ impl ParFoldable for IdentityBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("A", "The element type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters

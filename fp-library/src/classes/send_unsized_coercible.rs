@@ -25,7 +25,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
@@ -62,11 +62,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the closure.",
 	"The brand of the pointer.",
 	"The input type of the function.",
 	"The output type of the function.",
-	("F", "The type of the closure to coerce.")
+	"The type of the closure function."
 )]
 ///
 /// ### Parameters

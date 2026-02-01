@@ -300,7 +300,7 @@ impl Functor for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The type of the value inside the `Thunk`.",
 		"The type of the result of the transformation.",
 		"The type of the transformation function."
@@ -346,7 +346,7 @@ impl Pointed for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the computation.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -379,7 +379,7 @@ impl Lift for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
@@ -432,8 +432,8 @@ impl Semiapplicative for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of the function wrapper.",
+		"The lifetime of the computation.",
+		"The brand of the cloneable function wrapper.",
 		"The type of the input.",
 		"The type of the result."
 	)]
@@ -479,10 +479,10 @@ impl Semimonad for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The type of the result of the first computation.",
 		"The type of the result of the new computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -523,7 +523,7 @@ impl MonadRec for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
 		"The type of the step function."
@@ -578,7 +578,10 @@ impl Evaluable for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value inside the thunk.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value inside the thunk."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -611,7 +614,7 @@ impl Foldable for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -660,7 +663,7 @@ impl Foldable for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -709,7 +712,7 @@ impl Foldable for ThunkBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",

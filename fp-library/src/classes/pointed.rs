@@ -26,7 +26,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -57,7 +57,11 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("Undocumented", "The brand of the context.", "The type of the value to wrap.")]
+#[doc_type_params(
+	"The lifetime of the value.",
+	"The brand of the context.",
+	"The type of the value to wrap."
+)]
 ///
 /// ### Parameters
 ///

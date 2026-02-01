@@ -30,7 +30,7 @@ pub trait Evaluable: Functor {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value inside the functor.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value inside the functor.")]
 	///
 	/// ### Parameters
 	///
@@ -62,7 +62,7 @@ pub trait Evaluable: Functor {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the value.",
 	"The evaluable functor.",
 	"The type of the value inside the functor."
 )]

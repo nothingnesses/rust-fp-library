@@ -85,7 +85,7 @@ pub trait ParFoldable: Foldable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The brand of thread-safe function to use.",
 		"The element type.",
 		"The monoid type."
@@ -132,10 +132,10 @@ pub trait ParFoldable: Foldable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use",
-		"The element type (must be `Send + Sync`)",
-		"The accumulator type (must be `Send + Sync`)"
+		"The lifetime of the computation.",
+		"The brand of thread-safe function to use.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters
@@ -197,11 +197,11 @@ pub trait ParFoldable: Foldable {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
-	"The brand of thread-safe function to use (must implement `SendCloneableFn`).",
+	"The lifetime of the computation.",
+	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
-	"The element type (must be `Send + Sync`).",
-	"The monoid type (must be `Send + Sync`)."
+	"The element type.",
+	"The monoid type."
 )]
 ///
 /// ### Parameters
@@ -246,11 +246,11 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the computation.",
 	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
-	"The element type (must be `Send + Sync`).",
-	"The accumulator type (must be `Send + Sync`)."
+	"The element type.",
+	"The accumulator type."
 )]
 ///
 /// ### Parameters

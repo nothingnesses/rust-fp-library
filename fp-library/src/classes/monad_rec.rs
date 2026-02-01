@@ -60,7 +60,7 @@ pub trait MonadRec: Monad {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
 		"The type of the step function."
@@ -113,11 +113,11 @@ pub trait MonadRec: Monad {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the computation.",
 	"The brand of the monad.",
 	"The type of the initial value and loop state.",
 	"The type of the result.",
-	("A", "The type of the initial value and loop state.")
+	"The type of the step function."
 )]
 ///
 /// ### Parameters

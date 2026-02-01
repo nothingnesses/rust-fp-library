@@ -39,14 +39,14 @@ pub trait Function: Category {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "Undocumented")]
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -73,7 +73,7 @@ pub trait Function: Category {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the function and its captured data.",
 	"The brand of the function wrapper.",
 	"The input type of the function.",
 	"The output type of the function."
@@ -81,7 +81,7 @@ pub trait Function: Category {
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to wrap.", "Undocumented")]
+#[doc_params("The closure to wrap.", "The input value to the function.")]
 /// ### Returns
 ///
 /// The wrapped function.

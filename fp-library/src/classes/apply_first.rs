@@ -33,7 +33,7 @@ pub trait ApplyFirst: Lift {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the value in the first context.",
 		"The type of the value in the second context."
 	)]
@@ -75,7 +75,7 @@ pub trait ApplyFirst: Lift {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the values.",
 	"The brand of the context.",
 	"The type of the value in the first context.",
 	"The type of the value in the second context."

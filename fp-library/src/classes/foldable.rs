@@ -46,7 +46,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -107,7 +107,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -176,7 +176,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -224,7 +224,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
 	"The type of the elements in the structure.",
@@ -276,7 +276,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
 	"The type of the elements in the structure.",
@@ -328,7 +328,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
 	"The type of the elements in the structure.",

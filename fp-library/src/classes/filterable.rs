@@ -48,7 +48,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the success values.",
 		"The type of the error values.",
@@ -104,7 +104,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
@@ -152,7 +152,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
@@ -196,7 +196,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
@@ -240,7 +240,7 @@ pub trait Filterable: Compactable + Functor {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
 	"The type of the success values.",
@@ -295,7 +295,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
@@ -343,7 +343,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
 	"The type of the elements in the output structure.",
@@ -391,7 +391,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."

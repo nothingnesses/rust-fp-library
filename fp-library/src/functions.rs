@@ -44,8 +44,8 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 #[doc_type_params(
 	"The input type of the inner function `g`.",
-	"The output type of the outer function `f`.",
 	"The output type of `g` and the input type of `f`.",
+	"The output type of the outer function `f`.",
 	"The type of the outer function.",
 	"The type of the inner function."
 )]
@@ -55,7 +55,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 #[doc_params(
 	"The outer function to apply second.",
 	"The inner function to apply first.",
-	"Undocumented"
+	"The argument to be passed to the composed function."
 )]
 /// ### Returns
 ///
@@ -68,7 +68,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// let add_one = |x: i32| x + 1;
 /// let times_two = |x: i32| x * 2;
-/// let times_two_add_one = compose::<i32, i32, _, _, _>(add_one, times_two);
+/// let times_two_add_one = compose(add_one, times_two);
 ///
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(
@@ -76,7 +76,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///     7
 /// );
 /// ```
-pub fn compose<A, C, B, F, G>(
+pub fn compose<A, B, C, F, G>(
 	f: F,
 	g: G,
 ) -> impl Fn(A) -> C
@@ -102,7 +102,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params("The value to be returned by the constant function.", "Undocumented")]
+#[doc_params("The value to be returned by the constant function.", "The argument to be ignored.")]
 /// ### Returns
 ///
 /// A function that takes any value of type `B` and returns `a`.
@@ -113,11 +113,11 @@ where
 /// use fp_library::functions::*;
 ///
 /// assert_eq!(
-///     constant::<bool, _>(true)(false),
+///     constant(true)(false),
 ///     true
 /// );
 /// ```
-pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
+pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
 	move |_| a.clone()
 }
 
@@ -141,7 +141,11 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 ///
 /// ### Parameters
 ///
-#[doc_params("A binary function.", "Undocumented", "Undocumented")]
+#[doc_params(
+	"A binary function.",
+	"The second argument (which will be passed as the first to `f`).",
+	"The first argument (which will be passed as the second to `f`)."
+)]
 /// ### Returns
 ///
 /// A version of `f` that takes its arguments in reverse.
@@ -155,7 +159,7 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
-///     flip::<i32, i32, _, _>(subtract)(1, 0),
+///     flip(subtract)(1, 0),
 ///     -1
 /// );
 /// ```

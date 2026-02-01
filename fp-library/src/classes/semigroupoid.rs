@@ -37,7 +37,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the morphisms.",
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
 		"The target type of the second morphism."
@@ -81,7 +81,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the morphisms.",
 	"The brand of the semigroupoid.",
 	"The source type of the first morphism.",
 	"The target type of the first morphism and the source type of the second morphism.",

@@ -46,7 +46,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.")]
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
@@ -74,7 +74,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.", "The type of the error.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -102,7 +106,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "Undocumented", "The type of the value.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -131,8 +139,8 @@ pub trait LazyConfig: 'static {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"Undocumented",
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
 		"The type of the value.",
 		"The type of the error."
 	)]
@@ -178,7 +186,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.")]
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
@@ -208,7 +216,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.", "The type of the error.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -238,7 +250,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "Undocumented", "The type of the value.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -269,8 +285,8 @@ impl LazyConfig for RcLazyConfig {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"Undocumented",
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
 		"The type of the value.",
 		"The type of the error."
 	)]
@@ -318,7 +334,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.")]
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
@@ -348,7 +364,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.", "The type of the error.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -378,7 +398,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "Undocumented", "The type of the value.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -409,8 +433,8 @@ impl LazyConfig for ArcLazyConfig {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"Undocumented",
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
 		"The type of the value.",
 		"The type of the error."
 	)]
@@ -705,7 +729,7 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the value.",
 		"The type of the result.",
 		"The type of the function."

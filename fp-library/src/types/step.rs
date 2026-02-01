@@ -232,7 +232,7 @@ impl Bifunctor for StepBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the loop value.",
 		"The type of the mapped loop value.",
 		"The type of the done value.",
@@ -294,7 +294,7 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the done value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -338,7 +338,7 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
@@ -397,7 +397,7 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -434,7 +434,7 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -480,10 +480,10 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -530,7 +530,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -579,7 +579,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -628,7 +628,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -685,7 +685,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -739,7 +739,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -792,10 +792,10 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -844,10 +844,10 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters
@@ -911,7 +911,7 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the loop value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -955,7 +955,7 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first loop value.",
 		"The type of the second loop value.",
 		"The type of the result loop value.",
@@ -1018,7 +1018,7 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -1055,7 +1055,7 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -1104,10 +1104,10 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -1154,7 +1154,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -1203,7 +1203,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -1252,7 +1252,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -1309,7 +1309,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -1363,7 +1363,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -1416,10 +1416,10 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -1468,10 +1468,10 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters

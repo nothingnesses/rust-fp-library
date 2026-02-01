@@ -43,7 +43,7 @@ pub trait Semiapplicative: Lift + Functor {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -84,7 +84,7 @@ pub trait Semiapplicative: Lift + Functor {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the values.",
 	"The brand of the cloneable function wrapper.",
 	"The brand of the context.",
 	"The type of the input value.",

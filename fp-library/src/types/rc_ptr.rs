@@ -117,7 +117,7 @@ impl UnsizedCoercible for RcBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]

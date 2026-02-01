@@ -29,7 +29,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
@@ -77,7 +77,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the values.",
 	"The brand of the context.",
 	"The type of the first value.",
 	"The type of the second value.",

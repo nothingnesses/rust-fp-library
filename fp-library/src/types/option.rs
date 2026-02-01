@@ -35,7 +35,7 @@ impl Functor for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the value.",
 		"The type of the value inside the option.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -81,7 +81,7 @@ impl Lift for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first option's value.",
 		"The type of the second option's value.",
 		"The return type of the function.",
@@ -132,7 +132,7 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -171,7 +171,7 @@ impl Semiapplicative for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -218,10 +218,10 @@ impl Semimonad for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -265,7 +265,7 @@ impl Foldable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -315,7 +315,7 @@ impl Foldable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -369,7 +369,7 @@ impl Foldable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -421,7 +421,7 @@ impl Traversable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -473,7 +473,7 @@ impl Traversable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -522,10 +522,10 @@ impl ParFoldable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("A", "The element type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -573,7 +573,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the elements.")]
+	#[doc_type_params("The lifetime of the values.", "The type of the elements.")]
 	///
 	/// ### Parameters
 	///
@@ -613,7 +613,7 @@ impl Compactable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the success value.",
 		"The type of the error value."
 	)]
@@ -662,7 +662,7 @@ impl Filterable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the input value.",
 		"The type of the success value.",
 		"The type of the error value.",
@@ -715,7 +715,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -768,7 +772,7 @@ impl Filterable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the input value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -812,7 +816,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -855,7 +863,7 @@ impl Witherable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the success values.",
@@ -921,7 +929,7 @@ impl Witherable for OptionBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the result of applying the function.",

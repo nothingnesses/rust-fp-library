@@ -40,7 +40,7 @@ impl Bifunctor for ResultBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the error value.",
 		"The type of the mapped error value.",
 		"The type of the success value.",
@@ -108,7 +108,7 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the value inside the result.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -153,7 +153,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
@@ -220,7 +220,7 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -258,7 +258,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -309,10 +309,10 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -365,7 +365,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -414,7 +414,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -463,7 +463,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -520,7 +520,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -579,7 +579,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -645,7 +645,7 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the error value inside the result.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -693,7 +693,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first error value.",
 		"The type of the second error value.",
 		"The type of the result error value.",
@@ -764,7 +764,7 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -802,7 +802,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -856,10 +856,10 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -915,7 +915,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -964,7 +964,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -1013,7 +1013,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -1070,7 +1070,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -1129,7 +1129,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -1187,10 +1187,10 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -1242,10 +1242,10 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters
@@ -1301,10 +1301,10 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -1356,10 +1356,10 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		"The brand of thread-safe function to use.",
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters

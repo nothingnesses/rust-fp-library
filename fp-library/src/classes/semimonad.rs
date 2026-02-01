@@ -32,10 +32,10 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the computations.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -77,11 +77,11 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the computations.",
 	"The brand of the semimonad.",
 	"The type of the result of the first computation.",
 	"The type of the result of the second computation.",
-	("A", "The type of the result of the first computation.")
+	"The type of the function to apply."
 )]
 ///
 /// ### Parameters

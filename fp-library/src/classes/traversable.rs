@@ -36,7 +36,7 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -90,7 +90,7 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -136,7 +136,7 @@ pub trait Traversable: Functor + Foldable {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
 	"The type of the elements in the resulting traversable structure.",
@@ -187,7 +187,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
 	"The applicative context."

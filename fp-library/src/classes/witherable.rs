@@ -43,7 +43,7 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the success values.",
@@ -100,7 +100,7 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
@@ -154,7 +154,7 @@ pub trait Witherable: Filterable + Traversable {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
 	"The type of the elements in the input structure.",
@@ -212,7 +212,7 @@ where
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
 	"The type of the elements in the input structure.",

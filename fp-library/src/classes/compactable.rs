@@ -29,7 +29,10 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the elements in the [`Option`].")]
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the [`Option`]."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -68,7 +71,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the elements.",
 		"The type of the success values.",
 		"The type of the error values."
 	)]
@@ -115,7 +118,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the elements in the [`Option`]."
 )]
@@ -157,7 +160,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the success values.",
 	"The type of the error values."

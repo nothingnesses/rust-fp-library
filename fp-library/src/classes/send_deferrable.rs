@@ -26,7 +26,7 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
@@ -65,10 +65,10 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the value.",
 	"The brand of the deferred type.",
 	"The type of the value.",
-	("F", "The type of the thunk.")
+	"The type of the thunk function."
 )]
 ///
 /// ### Parameters

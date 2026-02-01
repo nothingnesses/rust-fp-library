@@ -13,6 +13,7 @@
 use crate::{Apply, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that can be mapped over two type arguments.
 ///
@@ -27,6 +28,8 @@ use fp_macros::doc_type_params;
 pub trait Bifunctor: Kind_266801a817966495 {
 	/// Maps functions over the values in the bifunctor context.
 	///
+	/// This method applies two functions to the values inside the bifunctor context, producing a new bifunctor context with the transformed values.
+	///
 	/// ### Type Signature
 	///
 	/// `forall p a b c d. Bifunctor p => (a -> b, c -> d, p a c) -> p b d`
@@ -34,7 +37,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the first result.",
 		"The type of the second value.",
@@ -54,6 +57,16 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	/// ### Returns
 	///
 	/// A new bifunctor instance containing the results of applying the functions.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let x = Result::<i32, i32>::Ok(5);
+	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
+	/// assert_eq!(y, Ok(10));
+	/// ```
 	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 		f: F,
 		g: G,
@@ -67,6 +80,45 @@ pub trait Bifunctor: Kind_266801a817966495 {
 /// Maps functions over the values in the bifunctor context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Bifunctor::bimap`].
+///
+/// ### Type Signature
+///
+#[hm_signature(Bifunctor)]
+///
+/// ### Type Parameters
+///
+#[doc_type_params(
+	"The lifetime of the values.",
+	"The brand of the bifunctor.",
+	"The type of the first value.",
+	"The type of the first result.",
+	"The type of the second value.",
+	"The type of the second result.",
+	"The type of the first function.",
+	"The type of the second function."
+)]
+///
+/// ### Parameters
+///
+#[doc_params(
+	"The function to apply to the first value.",
+	"The function to apply to the second value.",
+	"The bifunctor instance."
+)]
+///
+/// ### Returns
+///
+/// A new bifunctor instance containing the results of applying the functions.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, functions::*};
+///
+/// let x = Result::<i32, i32>::Ok(5);
+/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
+/// assert_eq!(y, Ok(10));
+/// ```
 pub fn bimap<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 	f: F,
 	g: G,

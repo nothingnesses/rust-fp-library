@@ -43,14 +43,14 @@ pub trait SendCloneableFn: CloneableFn {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap. Must be `Send + Sync`.", "Undocumented")]
+	#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.
@@ -85,7 +85,7 @@ pub trait SendCloneableFn: CloneableFn {
 /// ### Type Parameters
 ///
 #[doc_type_params(
-	"Undocumented",
+	"The lifetime of the function and its captured data.",
 	"The brand of the thread-safe cloneable function wrapper.",
 	"The input type of the function.",
 	"The output type of the function."
@@ -93,7 +93,7 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to wrap. Must be `Send + Sync`.", "Undocumented")]
+#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
 /// ### Returns
 ///
 /// The wrapped thread-safe cloneable function.

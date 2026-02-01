@@ -65,7 +65,7 @@ impl Bifunctor for PairBrand {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the mapped first value.",
 		"The type of the second value.",
@@ -128,7 +128,7 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the second value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -175,7 +175,7 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first second value.",
 		"The type of the second second value.",
 		"The type of the result second value.",
@@ -233,7 +233,7 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -273,7 +273,7 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -318,10 +318,10 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -367,7 +367,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -412,7 +412,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -461,7 +461,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -511,7 +511,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -561,7 +561,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -608,10 +608,10 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("A", "The element type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -657,10 +657,10 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("B", "The accumulator type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters
@@ -717,7 +717,7 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
@@ -764,7 +764,7 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the first first value.",
 		"The type of the second first value.",
 		"The type of the result first value.",
@@ -822,7 +822,7 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
@@ -862,7 +862,7 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -910,10 +910,10 @@ where
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
-		("A", "The type of the result of the first computation.")
+		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
@@ -959,7 +959,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -1004,7 +1004,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
@@ -1049,7 +1049,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
@@ -1099,7 +1099,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -1147,7 +1147,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -1194,10 +1194,10 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("M", "The monoid type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The monoid type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
 	)]
 	///
 	/// ### Parameters
@@ -1243,10 +1243,10 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
-		("B", "The accumulator type (must be `Send + Sync`)."),
-		"The element type (must be `Send + Sync`).",
-		"The accumulator type (must be `Send + Sync`)."
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
 	)]
 	///
 	/// ### Parameters

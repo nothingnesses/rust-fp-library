@@ -35,7 +35,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the object.")]
+	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -62,7 +62,11 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("Undocumented", "The brand of the category.", "The type of the object.")]
+#[doc_type_params(
+	"The lifetime of the morphism.",
+	"The brand of the category.",
+	"The type of the object."
+)]
 ///
 /// ### Returns
 ///

@@ -33,14 +33,14 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "Undocumented")]
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -72,14 +72,14 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "Undocumented")]
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -109,7 +109,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the morphisms.",
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
 		"The target type of the second morphism."
@@ -155,7 +155,7 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("Undocumented", "The type of the object.")]
+	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -188,7 +188,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	/// ### Type Parameters
 	///
 	#[doc_type_params(
-		"Undocumented",
+		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
