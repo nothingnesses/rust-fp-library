@@ -1,9 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-	Attribute, Error, Expr, ExprTuple, LitStr, Signature, Token, parse_quote, spanned::Spanned,
+	Attribute, Error, Expr, ExprTuple, ImplItemFn, ItemFn, LitStr, Signature, Token, TraitItemFn,
+	parse_quote, spanned::Spanned,
 };
-use syn::{ImplItemFn, ItemFn, TraitItemFn};
 
 pub enum GenericItem {
 	Fn(ItemFn),

@@ -1,9 +1,9 @@
-use crate::apply::ApplyInput;
-use crate::hm_ast::HMType;
+use crate::{apply::ApplyInput, hm_ast::HMType};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use syn::{
-	GenericArgument, PathArguments, ReturnType, TraitBound, Type, TypeParamBound, TypeTraitObject,
+	GenericArgument, GenericParam, PathArguments, ReturnType, Signature, TraitBound, Type,
+	TypeParamBound, TypeTraitObject, WherePredicate,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -39,6 +39,58 @@ pub fn load_config() -> Config {
 		return config;
 	}
 	Config::default()
+}
+
+pub fn analyze_generics(
+	sig: &Signature,
+	config: &Config,
+) -> (HashSet<String>, HashMap<String, HMType>) {
+	let mut fn_bounds = HashMap::new();
+	let mut generic_names = HashSet::new();
+
+	// Collect all generic type names
+	for param in &sig.generics.params {
+		if let GenericParam::Type(type_param) = param {
+			generic_names.insert(type_param.ident.to_string());
+		}
+	}
+
+	// Collect Fn bounds from generics
+	for param in &sig.generics.params {
+		if let GenericParam::Type(type_param) = param {
+			let name = type_param.ident.to_string();
+			for bound in &type_param.bounds {
+				if let TypeParamBound::Trait(trait_bound) = bound
+					&& let Some(sig_ty) =
+						get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
+				{
+					fn_bounds.insert(name.clone(), sig_ty);
+				}
+			}
+		}
+	}
+
+	// Collect Fn bounds from where clause
+	if let Some(where_clause) = &sig.generics.where_clause {
+		for predicate in &where_clause.predicates {
+			if let WherePredicate::Type(predicate_type) = predicate
+				&& let Type::Path(type_path) = &predicate_type.bounded_ty
+				&& type_path.path.segments.len() == 1
+			{
+				let name = type_path.path.segments[0].ident.to_string();
+				for bound in &predicate_type.bounds {
+					if let TypeParamBound::Trait(trait_bound) = bound
+						&& let Some(sig_ty) =
+							get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
+					{
+						fn_bounds.insert(name.clone(), sig_ty);
+					}
+				}
+			}
+		}
+	}
+
+	(generic_names, fn_bounds)
 }
 
 pub fn get_fn_type(

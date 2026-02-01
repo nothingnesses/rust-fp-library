@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::collections::HashMap;
-use std::fs;
-use std::path::Path;
-use syn::parse::{Parse, ParseStream};
-use syn::{Ident, Item, LitStr, Result, Token, Visibility, braced, parse_file};
+use std::{collections::HashMap, fs, path::Path};
+use syn::{
+	parse::{Parse, ParseStream},
+	{Ident, Item, LitStr, Result, Token, Visibility, braced, parse_file},
+};
 
 pub struct ReexportInput {
 	path: LitStr,

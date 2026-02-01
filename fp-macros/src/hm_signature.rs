@@ -1,11 +1,12 @@
-use std::collections::{HashMap, HashSet};
-use syn::{GenericParam, ReturnType, Type, TypeParamBound, WherePredicate};
-
-use crate::doc_utils::{GenericItem, insert_doc_comment};
-use crate::function_utils::{
-	Config, format_brand_name, get_fn_type, is_phantom_data, load_config, type_to_hm,
+use crate::{
+	doc_utils::{GenericItem, insert_doc_comment},
+	function_utils::{
+		Config, analyze_generics, format_brand_name, is_phantom_data, load_config, type_to_hm,
+	},
+	hm_ast::HMType,
 };
-use crate::hm_ast::HMType;
+use std::collections::{HashMap, HashSet};
+use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
 pub fn hm_signature_impl(
 	attr: proc_macro2::TokenStream,
@@ -45,50 +46,7 @@ fn generate_signature(
 	trait_context: Option<&str>,
 	config: &Config,
 ) -> String {
-	let mut fn_bounds = HashMap::new();
-	let mut generic_names = HashSet::new();
-
-	// Collect all generic type names
-	for param in &sig.generics.params {
-		if let GenericParam::Type(type_param) = param {
-			generic_names.insert(type_param.ident.to_string());
-		}
-	}
-
-	// Collect Fn bounds from generics
-	for param in &sig.generics.params {
-		if let GenericParam::Type(type_param) = param {
-			let name = type_param.ident.to_string();
-			for bound in &type_param.bounds {
-				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(sig_ty) =
-						get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
-				{
-					fn_bounds.insert(name.clone(), sig_ty);
-				}
-			}
-		}
-	}
-
-	// Collect Fn bounds from where clause
-	if let Some(where_clause) = &sig.generics.where_clause {
-		for predicate in &where_clause.predicates {
-			if let WherePredicate::Type(predicate_type) = predicate
-				&& let Type::Path(type_path) = &predicate_type.bounded_ty
-				&& type_path.path.segments.len() == 1
-			{
-				let name = type_path.path.segments[0].ident.to_string();
-				for bound in &predicate_type.bounds {
-					if let TypeParamBound::Trait(trait_bound) = bound
-						&& let Some(sig_ty) =
-							get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
-					{
-						fn_bounds.insert(name.clone(), sig_ty);
-					}
-				}
-			}
-		}
-	}
+	let (generic_names, fn_bounds) = analyze_generics(sig, config);
 
 	let (mut forall, mut constraints) =
 		format_generics(&sig.generics, &fn_bounds, &generic_names, config);
