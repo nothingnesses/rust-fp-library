@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
+use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use crate::{
 	Apply,
@@ -51,9 +52,10 @@ pub trait Witherable: Filterable + Traversable {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
-	/// * `ta`: The data structure to partition.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning a [`Result`] in an applicative context.",
+		"The data structure to partition."
+	)]	///
 	/// ### Returns
 	///
 	/// The partitioned data structure wrapped in the applicative context.
@@ -104,9 +106,10 @@ pub trait Witherable: Filterable + Traversable {
 	)]	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.
-	/// * `ta`: The data structure to filter and map.
-	///
+	#[doc_params(
+		"The function to apply to each element, returning an [`Option`] in an applicative context.",
+		"The data structure to filter and map."
+	)]	///
 	/// ### Returns
 	///
 	/// The filtered and mapped data structure wrapped in the applicative context.
@@ -157,9 +160,10 @@ pub trait Witherable: Filterable + Traversable {
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
-/// * `ta`: The data structure to partition.
-///
+#[doc_params(
+	"The function to apply to each element, returning a [`Result`] in an applicative context.",
+	"The data structure to partition."
+)]///
 /// ### Returns
 ///
 /// The partitioned data structure wrapped in the applicative context.
@@ -211,9 +215,10 @@ where
 )]///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.
-/// * `ta`: The data structure to filter and map.
-///
+#[doc_params(
+	"The function to apply to each element, returning an [`Option`] in an applicative context.",
+	"The data structure to filter and map."
+)]///
 /// ### Returns
 ///
 /// The filtered and mapped data structure wrapped in the applicative context.
