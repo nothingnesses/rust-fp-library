@@ -33,7 +33,7 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c d. Bifunctor Result => (a -> b, c -> d, Result c a) -> Result d b`
+	#[hm_signature(Bifunctor)]
 	///
 	/// ### Type Parameters
 	///
@@ -96,7 +96,7 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a b. Functor (Result e) => (a -> b, Result a e) -> Result b e`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -139,7 +139,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a b c. Lift (Result e) => ((a, b) -> c, Result a e, Result b e) -> Result c e`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -206,7 +206,7 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. Pointed (Result e) => a -> Result a e`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -241,11 +241,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// This method applies a function wrapped in a result to a value wrapped in a result.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall e a b. Semiapplicative (Result _ e) => (Result (a -> b) e, Result a e) -> Result b e`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Semiapplicative)]
 	///
@@ -296,7 +292,7 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Semimonad (Result e) => (Result a e, a -> Result b e) -> Result b e`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -350,7 +346,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a b. Foldable (Result e) => ((a, b) -> b, b, Result a e) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -398,7 +394,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a b. Foldable (Result e) => ((b, a) -> b, b, Result a e) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -446,7 +442,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a m. (Foldable (Result e), Monoid m) => ((a) -> m, Result a e) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -499,11 +495,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall e a b f. (Traversable (Result _ e), Applicative f) => (a -> f b, Result a e) -> f (Result b e)`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Traversable)]
 	///
@@ -560,11 +552,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// This method evaluates the computation inside the result and accumulates the result into an applicative context.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall e a f. (Traversable (Result _ e), Applicative f) => Result (f a) e -> f (Result a e)`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Traversable)]
 	///
@@ -629,7 +617,7 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Functor (Result t) => (a -> b, Result t a) -> Result t b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -675,7 +663,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b c. Lift (Result t) => ((a, b) -> c, Result t a, Result t b) -> Result t c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -742,7 +730,7 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. Pointed (Result t) => a -> Result t a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -779,7 +767,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. Semiapplicative (Result t) => (Result t (fn_brand a b), Result t a) -> Result t b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -828,7 +816,7 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Semimonad (Result t) => (Result t a, a -> Result t b) -> Result t b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -885,7 +873,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (Result t) => ((a, b) -> b, b, Result t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -934,7 +922,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (Result t) => ((b, a) -> b, b, Result t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -982,7 +970,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a m. (Foldable (Result t), Monoid m) => ((a) -> m, Result t a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1037,7 +1025,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (Result t), Applicative f) => (a -> f b, Result t a) -> f (Result t b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1094,7 +1082,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (Result t), Applicative f) => (Result t (f a)) -> f (Result t a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1149,7 +1137,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand e m a. (ParFoldable (Result e), Monoid m, Send m, Sync m) => (fn_brand a m, Result a e) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1199,7 +1187,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand e b a. ParFoldable (Result e) => (fn_brand (a, b) b, b, Result a e) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1253,7 +1241,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable (Result t), Monoid m, Send m, Sync m) => (fn_brand a m, Result t a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1303,7 +1291,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (Result t) => (fn_brand (a, b) b, b, Result t a) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///

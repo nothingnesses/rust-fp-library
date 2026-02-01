@@ -12,6 +12,7 @@
 
 use super::{Applicative, Foldable, Functor};
 use crate::{Apply, functions::identity, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for traversable functors.
 ///
@@ -28,7 +29,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -77,7 +78,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -120,7 +121,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Type Signature
 ///
-/// `forall t f b a. (Traversable t, Applicative f) => (a -> f b, t a) -> f (t b)`
+#[hm_signature(Traversable)]
 ///
 /// ### Type Parameters
 ///
@@ -166,7 +167,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall t f a. (Traversable t, Applicative f) => (t (f a)) -> f (t a)`
+#[hm_signature(Traversable)]
 ///
 /// ### Type Parameters
 ///

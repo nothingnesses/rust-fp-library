@@ -17,6 +17,7 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Base type class for heap-allocated pointers.
@@ -64,7 +65,7 @@ pub trait Pointer {
 ///
 /// ### Type Signature
 ///
-/// `forall p a. Pointer p => a -> Pointer a`
+#[hm_signature(Pointer)]
 ///
 /// ### Type Parameters
 ///

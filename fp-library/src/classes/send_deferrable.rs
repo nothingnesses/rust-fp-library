@@ -10,6 +10,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A trait for deferred lazy evaluation with thread-safe thunks.
 ///
@@ -57,7 +58,7 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f a. (SendDeferrable f, Send a, Sync a) => (() -> a) -> f a`
+#[hm_signature(SendDeferrable)]
 ///
 /// ### Type Parameters
 ///

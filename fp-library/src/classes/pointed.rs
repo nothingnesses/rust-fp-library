@@ -10,6 +10,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for contexts that can be initialized with a value.
 pub trait Pointed: Kind_cdc7cd43dac7585f {
@@ -50,7 +51,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Pointed f => a -> f a`
+#[hm_signature(Pointed)]
 ///
 /// ### Type Parameters
 ///

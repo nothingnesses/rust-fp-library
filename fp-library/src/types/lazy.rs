@@ -6,6 +6,7 @@ use crate::{
 	kinds::*,
 	types::{Thunk, Trampoline},
 };
+use fp_macros::hm_signature;
 use std::{
 	cell::LazyCell,
 	rc::Rc,
@@ -688,7 +689,7 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. RefFunctor (Lazy RcLazyConfig) => (a -> b, Lazy a RcLazyConfig) -> Lazy b RcLazyConfig`
+	#[hm_signature(RefFunctor)]
 	///
 	/// ### Type Parameters
 	///

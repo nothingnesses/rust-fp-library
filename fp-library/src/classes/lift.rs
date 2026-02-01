@@ -12,6 +12,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for lifting binary functions into a context.
 pub trait Lift: Kind_cdc7cd43dac7585f {
@@ -68,7 +69,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
+#[hm_signature(Lift)]
 ///
 /// ### Type Parameters
 ///

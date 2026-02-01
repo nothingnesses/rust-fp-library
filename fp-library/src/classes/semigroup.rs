@@ -11,6 +11,7 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
+use fp_macros::hm_signature;
 /// A type class for types that support an associative binary operation.
 ///
 /// `Semigroup` instances must satisfy the associative law:
@@ -55,7 +56,7 @@ pub trait Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall s. Semigroup s => (s, s) -> s`
+#[hm_signature(Semigroup)]
 ///
 /// ### Type Parameters
 ///

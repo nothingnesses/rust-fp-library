@@ -13,6 +13,7 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::hm_signature;
 
 impl_kind! {
 	for OptionBrand {
@@ -27,7 +28,7 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor Option => (a -> b, Option a) -> Option b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -71,7 +72,7 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -122,7 +123,7 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Option => a -> Option a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -160,7 +161,7 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative Option => (Option (fn_brand a b), Option a) -> Option b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -205,7 +206,7 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Option => (Option a, a -> Option b) -> Option b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -250,7 +251,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Option => ((a, b) -> b, b, Option a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -299,7 +300,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Option => ((b, a) -> b, b, Option a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -348,7 +349,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -398,7 +399,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -445,7 +446,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -491,7 +492,7 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn a m. (SendCloneableFn fn, ParFoldable Option, Monoid m) => (fn a m, Option a) -> m`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
@@ -540,7 +541,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Compactable Option => Option (Option a) -> Option a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -579,7 +580,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e. Compactable Option => Option (Result o e) -> (Option o, Option e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -625,7 +626,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e a. Filterable Option => (a -> Result o e, Option a) -> Pair (Option o) (Option e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -677,7 +678,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool, Option a) -> Pair (Option a) (Option a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -731,7 +732,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Filterable Option => (a -> Option b, Option a) -> Option b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -774,7 +775,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool, Option a) -> Option a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -818,7 +819,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m o e a. (Witherable Option, Applicative m) => (a -> m (Result o e), Option a) -> m (Pair (Option o) (Option e))`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
@@ -879,7 +880,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. (Witherable Option, Applicative m) => (a -> m (Option b), Option a) -> m (Option b)`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///

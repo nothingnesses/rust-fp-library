@@ -13,6 +13,7 @@
 
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for types that support combining two contexts, keeping the first value.
 ///
@@ -25,7 +26,7 @@ pub trait ApplyFirst: Lift {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
+	#[hm_signature(ApplyFirst)]
 	///
 	/// ### Type Parameters
 	///
@@ -65,7 +66,7 @@ pub trait ApplyFirst: Lift {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
+#[hm_signature(ApplyFirst)]
 ///
 /// ### Type Parameters
 ///

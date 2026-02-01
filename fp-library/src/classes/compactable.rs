@@ -11,6 +11,7 @@
 //! ```
 
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
+use fp_macros::hm_signature;
 
 /// A type class for data structures that can be compacted and separated.
 ///
@@ -104,7 +105,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a f. Compactable f => f (Option a) -> f a`
+#[hm_signature(Compactable)]
 ///
 /// ### Type Parameters
 ///
@@ -143,7 +144,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Signature
 ///
-/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
+#[hm_signature(Compactable)]
 ///
 /// ### Type Parameters
 ///

@@ -34,11 +34,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`separate`](crate::functions::separate).
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall self m a o e. (Witherable self, Applicative m) => (a -> m (Result o e), self a) -> m (Pair (self o) (self e))`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Witherable)]
 	///
@@ -92,7 +88,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall self m a b. (Witherable self, Applicative m) => (a -> m (Option b), self a) -> m (self b)`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
@@ -141,7 +137,7 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Signature
 ///
-/// `forall f m a o e. (Witherable f, Applicative m) => (a -> m (Result o e), f a) -> m (Pair (f o) (f e))`
+#[hm_signature(Witherable)]
 ///
 /// ### Type Parameters
 ///
@@ -194,7 +190,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f m a b. (Witherable f, Applicative m) => (a -> m (Option b), f a) -> m (f b)`
+#[hm_signature(Witherable)]
 ///
 /// ### Type Parameters
 ///

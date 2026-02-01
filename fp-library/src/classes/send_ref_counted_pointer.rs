@@ -10,6 +10,7 @@
 //! ```
 
 use super::RefCountedPointer;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Extension trait for thread-safe reference-counted pointers.
@@ -57,7 +58,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Signature
 ///
-/// `forall p a. (SendRefCountedPointer p, Send a) => a -> SendRefCountedPointer a`
+#[hm_signature(SendRefCountedPointer)]
 ///
 /// ### Type Parameters
 ///

@@ -10,6 +10,7 @@
 //! ```
 
 use super::function::Function;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
@@ -63,7 +64,7 @@ pub trait CloneableFn: Function {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. CloneableFn f => (a -> b) -> f a b`
+#[hm_signature(CloneableFn)]
 ///
 /// ### Type Parameters
 ///

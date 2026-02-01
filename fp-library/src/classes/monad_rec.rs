@@ -28,6 +28,7 @@
 //! ```
 
 use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
+use fp_macros::hm_signature;
 
 /// A type class for monads that support stack-safe tail recursion.
 ///
@@ -103,7 +104,7 @@ pub trait MonadRec: Monad {
 ///
 /// ### Type Signature
 ///
-/// `forall m b a. MonadRec m => (a -> m (Step a b), a) -> m b`
+#[hm_signature(MonadRec)]
 ///
 /// ### Type Parameters
 ///

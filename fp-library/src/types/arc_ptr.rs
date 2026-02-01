@@ -6,6 +6,7 @@ use crate::{
 		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
 	},
 };
+use fp_macros::hm_signature;
 use std::sync::Arc;
 
 impl Pointer for ArcBrand {
@@ -113,7 +114,7 @@ impl SendRefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Send a, Sync a) => a -> Arc a`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///
@@ -178,7 +179,7 @@ impl SendUnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (Send (a -> b), Sync (a -> b)) => (a -> b) -> Arc (dyn Fn a -> b + Send + Sync)`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///

@@ -118,11 +118,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// Folds the structure by applying a function from right to left, potentially in parallel.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall self a b. ParFoldable self => ((a, b) -> b, b, self a) -> b`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(ParFoldable)]
 	///
@@ -184,7 +180,7 @@ pub trait ParFoldable: Foldable {
 ///
 /// ### Type Signature
 ///
-/// `forall f a m. (ParFoldable f, Monoid m) => (a -> m, f a) -> m`
+#[hm_signature(ParFoldable)]
 ///
 /// ### Type Parameters
 ///
@@ -231,7 +227,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f a b. (ParFoldable f) => ((a, b) -> b, b, f a) -> b`
+#[hm_signature(ParFoldable)]
 ///
 /// ### Type Parameters
 ///

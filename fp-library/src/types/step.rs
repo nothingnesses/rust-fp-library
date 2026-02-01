@@ -11,6 +11,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::hm_signature;
 
 /// Represents the result of a single step in a tail-recursive computation.
 ///
@@ -223,7 +224,7 @@ impl Bifunctor for StepBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c d. Bifunctor Step => (a -> b, c -> d, Step a c) -> Step b d`
+	#[hm_signature(Bifunctor)]
 	///
 	/// ### Type Parameters
 	///
@@ -280,7 +281,7 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Functor (StepWithLoop t) => (a -> b, Step t a) -> Step t b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -322,7 +323,7 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b c. Lift (StepWithLoop t) => ((a, b) -> c, Step t a, Step t b) -> Step t c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -381,7 +382,7 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. Pointed (StepWithLoop t) => a -> Step t a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -417,7 +418,7 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. Semiapplicative (StepWithLoop t) => (Step t (fn_brand a b), Step t a) -> Step t b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -461,7 +462,7 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Semimonad (StepWithLoop t) => (Step t a, a -> Step t b) -> Step t b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -509,7 +510,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (StepWithLoop t) => ((a, b) -> b, b, Step t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -557,7 +558,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (StepWithLoop t) => ((b, a) -> b, b, Step t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -605,7 +606,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a m. (Foldable (StepWithLoop t), Monoid m) => ((a) -> m, Step t a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -660,7 +661,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (StepWithLoop t), Applicative f) => (a -> f b, Step t a) -> f (Step t b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -712,7 +713,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (StepWithLoop t), Applicative f) => (Step t (f a)) -> f (Step t a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -762,7 +763,7 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable (StepWithLoop t), Monoid m, Send m, Sync m) => (fn_brand a m, Step t a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -812,7 +813,7 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (StepWithLoop t) => (fn_brand (a, b) b, b, Step t a) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -874,7 +875,7 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Functor (StepWithDone t) => (a -> b, Step a t) -> Step b t`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -916,7 +917,7 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b c. Lift (StepWithDone t) => ((a, b) -> c, Step a t, Step b t) -> Step c t`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -975,7 +976,7 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. Pointed (StepWithDone t) => a -> Step a t`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -1011,7 +1012,7 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. Semiapplicative (StepWithDone t) => (Step (fn_brand a b) t, Step a t) -> Step b t`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -1055,7 +1056,7 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Semimonad (StepWithDone t) => (Step a t, a -> Step b t) -> Step b t`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -1103,7 +1104,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (StepWithDone t) => ((a, b) -> b, b, Step a t) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1151,7 +1152,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (StepWithDone t) => ((b, a) -> b, b, Step a t) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1199,7 +1200,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a m. (Foldable (StepWithDone t), Monoid m) => ((a) -> m, Step a t) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1254,7 +1255,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (StepWithDone t), Applicative f) => (a -> f b, Step a t) -> f (Step b t)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1306,7 +1307,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (StepWithDone t), Applicative f) => (Step (f a) t) -> f (Step a t)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1356,7 +1357,7 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable (StepWithDone t), Monoid m, Send m, Sync m) => (fn_brand a m, Step a t) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1406,7 +1407,7 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (StepWithDone t) => (fn_brand (a, b) b, b, Step a t) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///

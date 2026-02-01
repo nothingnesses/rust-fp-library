@@ -1,3 +1,4 @@
+use fp_macros::hm_signature;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
@@ -120,7 +121,7 @@ impl Functor for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor Vec => (a -> b, Vec a) -> Vec b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -162,7 +163,7 @@ impl Lift for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift Vec => ((a, b) -> c, Vec a, Vec b) -> Vec c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -213,7 +214,7 @@ impl Pointed for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Vec => a -> Vec a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -250,7 +251,7 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative Vec => (Vec (fn_brand a b), Vec a) -> Vec b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -293,7 +294,7 @@ impl Semimonad for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Vec => (Vec a, a -> Vec b) -> Vec b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -339,7 +340,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Vec => ((a, b) -> b, b, Vec a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -383,7 +384,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Vec => ((b, a) -> b, b, Vec a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -427,7 +428,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable Vec, Monoid m) => ((a) -> m, Vec a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -475,7 +476,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. (Traversable Vec, Applicative f) => (a -> f b, Vec a) -> f (Vec b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -531,7 +532,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (Traversable Vec, Applicative f) => (Vec (f a)) -> f (Vec a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -585,7 +586,7 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup (Vec a) => (Vec a, Vec a) -> Vec a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Type Parameters
 	///
@@ -622,7 +623,7 @@ impl<A: Clone> Monoid for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid (Vec a) => () -> Vec a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Type Parameters
 	///
@@ -653,7 +654,7 @@ impl ParFoldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand m a. (ParFoldable Vec, Monoid m, Send m, Sync m) => (fn_brand a m, Vec a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -707,7 +708,7 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Compactable Vec => Vec (Option a) -> Vec a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -746,7 +747,7 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e. Compactable Vec => Vec (Result o e) -> (Vec o, Vec e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -796,7 +797,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e a. Filterable Vec => (a -> Result o e, Vec a) -> Pair (Vec o) (Vec e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -850,7 +851,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Vec => (a -> bool, Vec a) -> Pair (Vec a) (Vec a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -897,7 +898,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Filterable Vec => (a -> Option b, Vec a) -> Vec b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -940,7 +941,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Vec => (a -> bool, Vec a) -> Vec a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -984,7 +985,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m o e a. (Witherable Vec, Applicative m) => (a -> m (Result o e), Vec a) -> m (Pair (Vec o) (Vec e))`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1048,7 +1049,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. (Witherable Vec, Applicative m) => (a -> m (Option b), Vec a) -> m (Vec b)`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///

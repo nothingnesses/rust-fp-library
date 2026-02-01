@@ -11,6 +11,7 @@
 //! ```
 
 use super::Pointer;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Extension trait for reference-counted pointers with shared ownership.
@@ -127,7 +128,7 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Signature
 ///
-/// `forall p a. RefCountedPointer p => a -> RefCountedPointer a`
+#[hm_signature(RefCountedPointer)]
 ///
 /// ### Type Parameters
 ///

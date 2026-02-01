@@ -3,6 +3,7 @@ use crate::{
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
 	kinds::*,
 };
+use fp_macros::hm_signature;
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -48,7 +49,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Category c => c a a -> Endomorphism c a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///
@@ -159,7 +160,7 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
@@ -197,7 +198,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Monoid (Endomorphism c a) => () -> Endomorphism c a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

@@ -13,6 +13,7 @@
 
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for categories, which are semigroupoids with an identity element.
 ///
@@ -56,7 +57,7 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Signature
 ///
-/// `forall c a. Category c => () -> c a a`
+#[hm_signature(Category)]
 ///
 /// ### Type Parameters
 ///

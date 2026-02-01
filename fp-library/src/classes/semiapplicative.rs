@@ -13,6 +13,7 @@
 
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for applying functions within a context to values within a context.
 ///
@@ -74,7 +75,7 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Type Signature
 ///
-/// `forall fn_brand f b a. Semiapplicative f => (f (fn_brand a b), f a) -> f b`
+#[hm_signature(Semiapplicative)]
 ///
 /// ### Type Parameters
 ///

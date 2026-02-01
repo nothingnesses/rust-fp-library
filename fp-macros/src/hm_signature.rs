@@ -490,9 +490,6 @@ fn format_type(
 				if sig == "fn_brand_marker" {
 					return name.to_lowercase();
 				}
-				if sig.contains("->") {
-					return format!("({})", sig);
-				}
 				return sig.clone();
 			}
 
@@ -778,7 +775,7 @@ mod tests {
 			{ todo!() }
 		};
 		let sig = generate_signature(&input, None, &Config::default());
-		assert_eq!(sig, "forall a b. ((a -> b), a) -> b");
+		assert_eq!(sig, "forall a b. (a -> b, a) -> b");
 	}
 
 	#[test]
@@ -805,7 +802,7 @@ mod tests {
 		let sig = generate_signature(&input, Some("Witherable"), &Config::default());
 		assert_eq!(
 			sig,
-			"forall self m a o e. (Witherable self, Applicative m) => ((a -> m (Result o e)), self a) -> m (Pair (self o) (self e))"
+			"forall self m a o e. (Witherable self, Applicative m) => (a -> m (Result o e), self a) -> m (Pair (self o) (self e))"
 		);
 	}
 

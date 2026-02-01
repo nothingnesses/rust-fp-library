@@ -10,6 +10,7 @@
 //! ```
 
 use super::semigroup::Semigroup;
+use fp_macros::hm_signature;
 
 /// A type class for types that have an identity element and an associative binary operation.
 ///
@@ -48,7 +49,7 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall m. Monoid m => () -> m`
+#[hm_signature(Monoid)]
 ///
 /// ### Type Parameters
 ///

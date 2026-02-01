@@ -17,6 +17,7 @@ use crate::{
 	kinds::*,
 	types::Endofunction,
 };
+use fp_macros::hm_signature;
 
 /// A type class for structures that can be folded to a single value.
 ///
@@ -38,7 +39,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. Foldable f => ((a, b) -> b, b, f a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -94,7 +95,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. Foldable f => ((b, a) -> b, b, f a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -158,7 +159,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f m a. (Foldable f, Monoid m) => ((a) -> m, f a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -204,7 +205,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Foldable f => ((a, b) -> b, b, f a) -> b`
+#[hm_signature(Foldable)]
 ///
 /// ### Type Parameters
 ///
@@ -251,7 +252,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Foldable f => ((b, a) -> b, b, f a) -> b`
+#[hm_signature(Foldable)]
 ///
 /// ### Type Parameters
 ///
@@ -298,7 +299,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f m a. (Foldable f, Monoid m) => ((a) -> m, f a) -> m`
+#[hm_signature(Foldable)]
 ///
 /// ### Type Parameters
 ///

@@ -10,6 +10,7 @@
 //! ```
 
 use super::{SendRefCountedPointer, UnsizedCoercible};
+use fp_macros::hm_signature;
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
@@ -51,7 +52,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// ### Type Signature
 ///
-/// `forall a b. (Send (a -> b)) => (a -> b) -> SendUnsizedCoercible (a -> b)`
+#[hm_signature(Send)]
 ///
 /// ### Type Parameters
 ///

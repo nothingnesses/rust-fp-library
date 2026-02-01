@@ -12,6 +12,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for semigroupoids.
 ///
@@ -68,7 +69,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Signature
 ///
-/// `forall f b d c. Semigroupoid f => (f c d, f b c) -> f b d`
+#[hm_signature(Semigroupoid)]
 ///
 /// ### Type Parameters
 ///

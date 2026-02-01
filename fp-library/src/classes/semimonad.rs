@@ -11,6 +11,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
@@ -64,7 +65,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall m b a. Semimonad m => (m a, a -> m b) -> m b`
+#[hm_signature(Semimonad)]
 ///
 /// ### Type Parameters
 ///

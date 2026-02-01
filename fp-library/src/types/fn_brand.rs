@@ -9,6 +9,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::hm_signature;
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {
@@ -25,7 +26,7 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (Function (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(Function)]
 	///
 	/// ### Type Parameters
 	///
@@ -62,7 +63,7 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (CloneableFn (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(CloneableFn)]
 	///
 	/// ### Type Parameters
 	///
@@ -97,7 +98,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p b d c. (Semigroupoid (FnBrand p), UnsizedCoercible p) => (FnBrand p c d, FnBrand p b c) -> FnBrand p b d`
+	#[hm_signature(Semigroupoid)]
 	///
 	/// ### Type Parameters
 	///
@@ -139,7 +140,7 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a. (Category (FnBrand p), UnsizedCoercible p) => () -> FnBrand p a a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///
@@ -171,7 +172,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (SendCloneableFn (FnBrand p), SendUnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///

@@ -13,6 +13,7 @@
 //! ```
 
 use crate::{Apply, classes::functor::Functor, kinds::*};
+use fp_macros::hm_signature;
 
 /// A functor whose effects can be evaluated to produce the inner value.
 ///
@@ -54,7 +55,7 @@ pub trait Evaluable: Functor {
 ///
 /// ### Type Signature
 ///
-/// `forall a. Evaluable f => f a -> a`
+#[hm_signature(Evaluable)]
 ///
 /// ### Type Parameters
 ///

@@ -4,6 +4,7 @@ use crate::{
 	kinds::*,
 	types::CatList,
 };
+use fp_macros::hm_signature;
 use std::{any::Any, marker::PhantomData};
 
 /// A type-erased value for internal use.
@@ -176,7 +177,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Functor f => f a -> Free f a`
+	#[hm_signature(Functor)]
 	///
 	/// ### Implementation
 	///
@@ -312,7 +313,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Evaluable f => Free f a -> a`
+	#[hm_signature(Evaluable)]
 	///
 	/// ### Returns
 	///

@@ -16,6 +16,7 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::hm_signature;
 
 /// A type class for data structures that can be filtered and partitioned.
 ///
@@ -40,7 +41,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -91,7 +92,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -137,7 +138,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Signature
 	/// ### Type Signature
 	///
-	/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -178,7 +179,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -220,7 +221,7 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Signature
 ///
-/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
@@ -270,7 +271,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
@@ -316,7 +317,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
@@ -359,7 +360,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///

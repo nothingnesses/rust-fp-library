@@ -14,6 +14,7 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::hm_signature;
 
 /// A type class for types that can be mapped over, returning references.
 ///
@@ -67,7 +68,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. RefFunctor f => (a -> b, f a) -> f b`
+#[hm_signature(RefFunctor)]
 ///
 /// ### Type Parameters
 ///

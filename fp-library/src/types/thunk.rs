@@ -9,6 +9,7 @@ use crate::{
 	kinds::*,
 	types::{Lazy, LazyConfig, step::Step},
 };
+use fp_macros::hm_signature;
 
 /// A deferred computation that produces a value of type `A`.
 ///
@@ -288,7 +289,7 @@ impl Functor for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor Thunk => (a -> b, Thunk a) -> Thunk b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -330,7 +331,7 @@ impl Pointed for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Thunk => a -> Thunk a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -362,7 +363,7 @@ impl Lift for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift Thunk => ((a, b) -> c, Thunk a, Thunk b) -> Thunk c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -414,7 +415,7 @@ impl Semiapplicative for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative Thunk => (Thunk (fn_brand a b), Thunk a) -> Thunk b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -459,7 +460,7 @@ impl Semimonad for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Thunk => (Thunk a, a -> Thunk b) -> Thunk b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -501,7 +502,7 @@ impl MonadRec for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. MonadRec Thunk => (a -> Thunk (Step a b), a) -> Thunk b`
+	#[hm_signature(MonadRec)]
 	///
 	/// ### Type Parameters
 	///
@@ -555,7 +556,7 @@ impl Evaluable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Runnable Thunk => Thunk a -> a`
+	#[hm_signature(Runnable)]
 	///
 	/// ### Type Parameters
 	///
@@ -587,7 +588,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Thunk => ((a, b) -> b, b, Thunk a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -631,7 +632,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Thunk => ((b, a) -> b, b, Thunk a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -675,7 +676,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable Thunk, Monoid m) => ((a) -> m, Thunk a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -720,7 +721,7 @@ impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup a => (Thunk a, Thunk a) -> Thunk a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
@@ -754,7 +755,7 @@ impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid a => () -> Thunk a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

@@ -2,6 +2,7 @@ use crate::{
 	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
 };
+use fp_macros::hm_signature;
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -152,7 +153,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBran
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Semigroup (Endofunction fn_brand a) => (Endofunction fn_brand a, Endofunction fn_brand a) -> Endofunction fn_brand a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
@@ -193,7 +194,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, 
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Monoid (Endofunction fn_brand a) => () -> Endofunction fn_brand a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

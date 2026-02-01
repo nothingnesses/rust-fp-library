@@ -51,7 +51,7 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor Identity => (a -> b, Identity a) -> Identity b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -95,7 +95,7 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift Identity => ((a, b) -> c, Identity a, Identity b) -> Identity c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -146,7 +146,7 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Identity => a -> Identity a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -181,11 +181,7 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// This method applies a function wrapped in an identity to a value wrapped in an identity.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall fn_brand b a. Semiapplicative Identity => (Identity (fn_brand a b), Identity a) -> Identity b`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Semiapplicative)]
 	///
@@ -229,7 +225,7 @@ impl Semimonad for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Identity => (Identity a, a -> Identity b) -> Identity b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -273,7 +269,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Identity => ((a, b) -> b, b, Identity a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -319,7 +315,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable Identity => ((b, a) -> b, b, Identity a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -365,7 +361,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable Identity, Monoid m) => ((a) -> m, Identity a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -410,11 +406,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// This method maps the element of the identity to a computation, evaluates it, and wraps the result in the applicative context.
 	///
-	/// ### Type Signature (Old)
-	///
-	/// `forall f b a. (Traversable Identity, Applicative f) => (a -> f b, Identity a) -> f (Identity b)`
-	///
-	/// ### Type Signature (New)
+	/// ### Type Signature
 	///
 	#[hm_signature(Traversable)]
 	///
@@ -459,10 +451,6 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (Traversable Identity, Applicative f) => (Identity (f a)) -> f (Identity a)`
-	///
-	/// ### Type Signature (New)
-	///
 	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
@@ -505,7 +493,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn a m. (SendCloneableFn fn, ParFoldable Identity, Monoid m) => (fn a m, Identity a) -> m`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
@@ -549,7 +537,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn a, b. (SendCloneableFn fn, ParFoldable Identity) => (fn (a, b) b, b, Identity a) -> b`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///

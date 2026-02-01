@@ -10,6 +10,7 @@
 //! ```
 
 use super::category::Category;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
@@ -63,7 +64,7 @@ pub trait Function: Category {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. Function f => (a -> b) -> f a b`
+#[hm_signature(Function)]
 ///
 /// ### Type Parameters
 ///

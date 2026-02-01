@@ -16,6 +16,7 @@
 //! ```
 
 use super::cloneable_fn::CloneableFn;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Abstraction for thread-safe cloneable wrappers over closures.
@@ -75,7 +76,7 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. SendCloneableFn f => (a -> b) -> f a b`
+#[hm_signature(SendCloneableFn)]
 ///
 /// ### Type Parameters
 ///

@@ -13,6 +13,7 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::hm_signature;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
@@ -191,7 +192,7 @@ impl Functor for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Functor CatList => (a -> b, CatList a) -> CatList b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -236,7 +237,7 @@ impl Lift for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c. Lift CatList => ((a, b) -> c, CatList a, CatList b) -> CatList c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -293,7 +294,7 @@ impl Pointed for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed CatList => a -> CatList a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -333,7 +334,7 @@ impl Semiapplicative for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative CatList => (CatList (fn_brand a b), CatList a) -> CatList b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -377,7 +378,7 @@ impl Semimonad for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad CatList => (CatList a, a -> CatList b) -> CatList b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -424,7 +425,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable CatList => ((a, b) -> b, b, CatList a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -472,7 +473,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Foldable CatList => ((b, a) -> b, b, CatList a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -520,7 +521,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a m. (Foldable CatList, Monoid m) => ((a) -> m, CatList a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -569,7 +570,7 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. (Traversable CatList, Applicative f) => (a -> f b, CatList a) -> f (CatList b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -620,7 +621,7 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (Traversable CatList, Applicative f) => (CatList (f a)) -> f (CatList a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -669,7 +670,7 @@ impl ParFoldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn a m. (SendCloneableFn fn, ParFoldable CatList, Monoid m) => (fn a m, CatList a) -> m`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
@@ -724,7 +725,7 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Compactable CatList => CatList (Option a) -> CatList a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -766,7 +767,7 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e. Compactable CatList => CatList (Result o e) -> (CatList o, CatList e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -820,7 +821,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e a. Filterable CatList => (a -> Result o e, CatList a) -> Pair (CatList o) (CatList e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -879,7 +880,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable CatList => (a -> bool, CatList a) -> Pair (CatList a) (CatList a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -937,7 +938,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Filterable CatList => (a -> Option b, CatList a) -> CatList b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -983,7 +984,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable CatList => (a -> bool, CatList a) -> CatList a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1030,7 +1031,7 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m o e a. (Witherable CatList, Applicative m) => (a -> m (Result o e), CatList a) -> m (Pair (CatList o) (CatList e))`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1100,7 +1101,7 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. (Witherable CatList, Applicative m) => (a -> m (Option b), CatList a) -> m (CatList b)`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1162,7 +1163,7 @@ impl<A> Semigroup for CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup (CatList a) => (CatList a, CatList a) -> CatList a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Type Parameters
 	///
@@ -1204,7 +1205,7 @@ impl<A> Monoid for CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid (CatList a) => () -> CatList a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Type Parameters
 	///

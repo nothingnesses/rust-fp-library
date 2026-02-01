@@ -11,6 +11,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::hm_signature;
 
 /// Wraps two values.
 ///
@@ -57,7 +58,7 @@ impl Bifunctor for PairBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c d. Bifunctor Pair => (a -> b, c -> d, Pair a c) -> Pair b d`
+	#[hm_signature(Bifunctor)]
 	///
 	/// ### Type Parameters
 	///
@@ -115,7 +116,7 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Functor (Pair t) => (a -> b, Pair t a) -> Pair t b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -160,7 +161,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b c. (Lift (Pair t), Semigroup t) => ((a, b) -> c, Pair t a, Pair t b) -> Pair t c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -214,7 +215,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. (Pointed (Pair t), Monoid t) => a -> Pair t a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -253,7 +254,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. (Semiapplicative (Pair t), Semigroup t) => (Pair t (fn_brand a b), Pair t a) -> Pair t b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -296,7 +297,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. (Semimonad (Pair t), Semigroup t) => (Pair t a, a -> Pair t b) -> Pair t b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -343,7 +344,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (Pair t) => ((a, b) -> b, b, Pair t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -387,7 +388,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (Pair t) => ((b, a) -> b, b, Pair t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -431,7 +432,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a m. (Foldable (Pair t), Monoid m) => ((a) -> m, Pair t a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -479,7 +480,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (Pair t), Applicative f) => (a -> f b, Pair t a) -> f (Pair t b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -524,7 +525,7 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (Pair t), Applicative f) => (Pair t (f a)) -> f (Pair t a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -568,7 +569,7 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn t a m. (SendCloneableFn fn, ParFoldable (Pair t), Monoid m) => (fn a m, Pair t a) -> m`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
@@ -614,7 +615,7 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (Pair t) => (fn_brand (a, b) b, b, Pair t a) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -668,7 +669,7 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Functor (PairWithSecond t) => (a -> b, Pair a t) -> Pair b t`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
@@ -713,7 +714,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b c. (Lift (PairWithSecond t), Semigroup t) => ((a, b) -> c, Pair a t, Pair b t) -> Pair c t`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
@@ -767,7 +768,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. (Pointed (PairWithSecond t), Monoid t) => a -> Pair a t`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
@@ -806,7 +807,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. (Semiapplicative (PairWithSecond t), Semigroup t) => (Pair (fn_brand a b) t, Pair a t) -> Pair b t`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -849,7 +850,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. (Semimonad (PairWithSecond t), Semigroup t) => (Pair a t, a -> Pair b t) -> Pair b t`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
@@ -896,7 +897,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (PairWithSecond t) => ((a, b) -> b, b, Pair a t) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -940,7 +941,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a b. Foldable (PairWithSecond t) => ((b, a) -> b, b, Pair a t) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -984,7 +985,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a m. (Foldable (PairWithSecond t), Monoid m) => ((a) -> m, Pair a t) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1032,7 +1033,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (PairWithSecond t), Applicative f) => (a -> f b, Pair a t) -> f (Pair b t)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1078,7 +1079,7 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (PairWithSecond t), Applicative f) => (Pair (f a) t) -> f (Pair a t)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1122,7 +1123,7 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable (PairWithSecond t), Monoid m, Send m, Sync m) => (fn_brand a m, Pair a t) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1168,7 +1169,7 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (PairWithSecond t) => (fn_brand (a, b) b, b, Pair a t) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
