@@ -118,7 +118,10 @@ where
 ///     true
 /// );
 /// ```
-pub fn constant<A: Clone, B>(a: A, _b: B) -> A {
+pub fn constant<A: Clone, B>(
+	a: A,
+	_b: B,
+) -> A {
 	a
 }
 

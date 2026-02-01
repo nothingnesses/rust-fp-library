@@ -23,6 +23,7 @@ pub(crate) mod doc_type_params;
 pub(crate) mod doc_utils;
 pub(crate) mod function_utils;
 pub(crate) mod generate;
+pub(crate) mod hm_ast;
 pub(crate) mod hm_signature;
 pub(crate) mod impl_kind;
 pub(crate) mod parse;

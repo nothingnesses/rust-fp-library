@@ -4,7 +4,8 @@ use std::collections::{HashMap, HashSet};
 use syn::{Error, GenericParam, Type, TypeParamBound, WherePredicate, spanned::Spanned};
 
 use crate::doc_utils::{DocArg, GenericArgs, GenericItem, insert_doc_comment};
-use crate::function_utils::{LogicalParam, get_fn_signature, get_logical_params, load_config};
+use crate::function_utils::{LogicalParam, get_fn_type, get_logical_params, load_config};
+use crate::hm_ast::HMType;
 
 pub fn doc_params_impl(
 	attr: TokenStream,
@@ -22,7 +23,7 @@ pub fn doc_params_impl(
 
 	let config = load_config();
 
-	let mut fn_bounds = HashMap::new();
+	let mut fn_bounds: HashMap<String, HMType> = HashMap::new();
 	let mut generic_names = HashSet::new();
 
 	let sig = match generic_item.sig() {
@@ -44,10 +45,10 @@ pub fn doc_params_impl(
 			let name = type_param.ident.to_string();
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(sig_str) =
-						get_fn_signature(trait_bound, &fn_bounds, &generic_names, &config)
+					&& let Some(sig_ty) =
+						get_fn_type(trait_bound, &fn_bounds, &generic_names, &config)
 				{
-					fn_bounds.insert(name.clone(), sig_str);
+					fn_bounds.insert(name.clone(), sig_ty);
 				}
 			}
 		}
@@ -62,10 +63,10 @@ pub fn doc_params_impl(
 				let name = type_path.path.segments[0].ident.to_string();
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
-						&& let Some(sig_str) =
-							get_fn_signature(trait_bound, &fn_bounds, &generic_names, &config)
+						&& let Some(sig_ty) =
+							get_fn_type(trait_bound, &fn_bounds, &generic_names, &config)
 					{
-						fn_bounds.insert(name.clone(), sig_str);
+						fn_bounds.insert(name.clone(), sig_ty);
 					}
 				}
 			}

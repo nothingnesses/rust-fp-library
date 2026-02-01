@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 use syn::{GenericParam, ReturnType, Type, TypeParamBound, WherePredicate};
 
 use crate::doc_utils::{GenericItem, insert_doc_comment};
-use crate::function_utils::{Config, format_type, get_fn_signature, is_phantom_data, load_config};
+use crate::function_utils::{
+	Config, format_brand_name, get_fn_type, is_phantom_data, load_config, type_to_hm,
+};
+use crate::hm_ast::HMType;
 
 pub fn hm_signature_impl(
 	attr: proc_macro2::TokenStream,
@@ -58,10 +61,10 @@ fn generate_signature(
 			let name = type_param.ident.to_string();
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(sig_str) =
-						get_fn_signature(trait_bound, &fn_bounds, &generic_names, config)
+					&& let Some(sig_ty) =
+						get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
 				{
-					fn_bounds.insert(name.clone(), sig_str);
+					fn_bounds.insert(name.clone(), sig_ty);
 				}
 			}
 		}
@@ -77,10 +80,10 @@ fn generate_signature(
 				let name = type_path.path.segments[0].ident.to_string();
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
-						&& let Some(sig_str) =
-							get_fn_signature(trait_bound, &fn_bounds, &generic_names, config)
+						&& let Some(sig_ty) =
+							get_fn_type(trait_bound, &fn_bounds, &generic_names, config)
 					{
-						fn_bounds.insert(name.clone(), sig_str);
+						fn_bounds.insert(name.clone(), sig_ty);
 					}
 				}
 			}
@@ -93,7 +96,7 @@ fn generate_signature(
 	let ret = format_return_type(&sig.output, &fn_bounds, &generic_names, config);
 
 	// Check if "self" is used in params or return type
-	let uses_self = params.contains("self") || ret.contains("self");
+	let uses_self = params.iter().any(hm_type_uses_self) || hm_type_uses_self(&ret);
 
 	if uses_self {
 		// Add "self" to forall
@@ -127,15 +130,32 @@ fn generate_signature(
 		parts.push(format!("{} =>", constraints));
 	}
 
-	let func_sig = if params.is_empty() { ret } else { format!("{} -> {}", params, ret) };
+	let func_sig = if params.is_empty() {
+		format!("{}", ret)
+	} else {
+		let input_type = if params.len() == 1 { params[0].clone() } else { HMType::Tuple(params) };
+		let func_type = HMType::Arrow(Box::new(input_type), Box::new(ret));
+		format!("{}", func_type)
+	};
 	parts.push(func_sig);
 
 	parts.join(" ")
 }
 
+fn hm_type_uses_self(ty: &HMType) -> bool {
+	match ty {
+		HMType::Variable(name) => name == "self",
+		HMType::Constructor(name, args) => name == "self" || args.iter().any(hm_type_uses_self),
+		HMType::Arrow(a, b) => hm_type_uses_self(a) || hm_type_uses_self(b),
+		HMType::Tuple(args) => args.iter().any(hm_type_uses_self),
+		HMType::List(inner) => hm_type_uses_self(inner),
+		HMType::Unit => false,
+	}
+}
+
 fn format_generics(
 	generics: &syn::Generics,
-	fn_bounds: &HashMap<String, String>,
+	fn_bounds: &HashMap<String, HMType>,
 	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> (String, String) {
@@ -153,9 +173,11 @@ fn format_generics(
 
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(constraint) =
-						format_trait_bound(trait_bound, &name.to_lowercase(), config)
-				{
+					&& let Some(constraint) = format_trait_bound(
+						trait_bound,
+						&HMType::Variable(name.to_lowercase()),
+						config,
+					) {
 					constraints.push(constraint);
 				}
 			}
@@ -165,12 +187,11 @@ fn format_generics(
 	if let Some(where_clause) = &generics.where_clause {
 		for predicate in &where_clause.predicates {
 			if let WherePredicate::Type(predicate_type) = predicate {
-				let type_name =
-					format_type(&predicate_type.bounded_ty, fn_bounds, generic_names, config);
+				let type_ty =
+					type_to_hm(&predicate_type.bounded_ty, fn_bounds, generic_names, config);
 				for bound in &predicate_type.bounds {
 					if let TypeParamBound::Trait(trait_bound) = bound
-						&& let Some(constraint) =
-							format_trait_bound(trait_bound, &type_name, config)
+						&& let Some(constraint) = format_trait_bound(trait_bound, &type_ty, config)
 					{
 						constraints.push(constraint);
 					}
@@ -198,7 +219,7 @@ fn format_generics(
 
 fn format_trait_bound(
 	bound: &syn::TraitBound,
-	type_var: &str,
+	type_var: &HMType,
 	config: &Config,
 ) -> Option<String> {
 	let trait_name = bound.path.segments.last().unwrap().ident.to_string();
@@ -210,7 +231,7 @@ fn format_trait_bound(
 		// Also filter out function traits used in bounds (e.g. FnBrand: SendCloneableFn)
 		"Fn" | "FnMut" | "FnOnce" | "CloneableFn" | "SendCloneableFn" | "Function" => None,
 		_ => {
-			let name = crate::function_utils::format_brand_name(&trait_name, config);
+			let name = format_brand_name(&trait_name, config);
 			Some(format!("{} {}", name, type_var))
 		}
 	}
@@ -218,42 +239,30 @@ fn format_trait_bound(
 
 fn format_parameters(
 	sig: &syn::Signature,
-	fn_bounds: &HashMap<String, String>,
+	fn_bounds: &HashMap<String, HMType>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> String {
+) -> Vec<HMType> {
 	let mut params = Vec::new();
 	for input in &sig.inputs {
 		if let syn::FnArg::Typed(pat_type) = input
 			&& !is_phantom_data(&pat_type.ty)
 		{
-			params.push(format_type(&pat_type.ty, fn_bounds, generic_names, config));
+			params.push(type_to_hm(&pat_type.ty, fn_bounds, generic_names, config));
 		}
 	}
-
-	if params.is_empty() {
-		String::new()
-	} else if params.len() == 1 {
-		let param = params[0].clone();
-		if param.contains("->") {
-			format!("({})", param)
-		} else {
-			param
-		}
-	} else {
-		format!("({})", params.join(", "))
-	}
+	params
 }
 
 fn format_return_type(
 	output: &ReturnType,
-	fn_bounds: &HashMap<String, String>,
+	fn_bounds: &HashMap<String, HMType>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> String {
+) -> HMType {
 	match output {
-		ReturnType::Default => "()".to_string(), // Unit type
-		ReturnType::Type(_, ty) => format_type(ty, fn_bounds, generic_names, config),
+		ReturnType::Default => HMType::Unit, // Unit type
+		ReturnType::Type(_, ty) => type_to_hm(ty, fn_bounds, generic_names, config),
 	}
 }
 
