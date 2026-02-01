@@ -388,7 +388,7 @@ Rc<A>               // → a (Rc is implementation detail)
 ```
 
 **Edge cases**:
-- `PhantomData<T>` should probably be omitted
+- `PhantomData<T>` is explicitly omitted from parameter lists and tuples
 - Smart pointers (Box, Rc, Arc) are implementation details
 - Iterator types might need special handling
 
@@ -537,10 +537,10 @@ fn foo<A, B = i32>(a: A) -> B
 
 ```rust
 // Input
-fn foo(f: &dyn Fn(i32) -> i32) -> i32
+fn foo(f: &dyn Fn(i32) -> i32, i: Box<dyn Iterator<Item = String>>) -> i32
 
 // Output
-// (i32 -> i32) -> i32
+// (i32 -> i32, Iterator String) -> i32
 ```
 
 #### Impl Trait
@@ -554,7 +554,7 @@ fn foo(f: impl Fn(A) -> B) -> C
 
 // Other trait input
 fn foo(x: impl Iterator<Item = String>) -> i32
-// Output: iterator -> i32
+// Output: Iterator String -> i32
 ```
 
 ### 12. Return Type Handling

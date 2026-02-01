@@ -270,7 +270,9 @@ fn format_parameters(
 ) -> String {
 	let mut params = Vec::new();
 	for input in &input.sig.inputs {
-		if let syn::FnArg::Typed(pat_type) = input {
+		if let syn::FnArg::Typed(pat_type) = input
+			&& !is_phantom_data(&pat_type.ty)
+		{
 			params.push(format_type(&pat_type.ty, fn_bounds, config));
 		}
 	}
@@ -407,6 +409,12 @@ fn format_type(
 				return constructor;
 			}
 
+			if let Some(segment) = type_path.path.segments.last()
+				&& segment.ident == "PhantomData"
+			{
+				return "()".to_string();
+			}
+
 			// Handle associated types: F::Of<A> -> f a
 			// Or Self::Of<A> -> self a
 			if type_path.path.segments.len() >= 2 {
@@ -482,21 +490,26 @@ fn format_type(
 			// Handle impl Fn(A) -> B
 			for bound in &impl_trait.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound {
-					let name = trait_bound.path.segments.last().unwrap().ident.to_string();
-					if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-						return format_fn_trait(trait_bound, fn_bounds, config);
-					}
-					// If it's not a function trait, treat it as a brand (e.g. impl Iterator -> iterator)
-					return format_brand_name(&name, config).to_lowercase();
+					return format_trait_bound_as_type(trait_bound, fn_bounds, config);
 				}
 			}
 			"impl_trait".to_string()
 		}
 		Type::Reference(type_ref) => format_type(&type_ref.elem, fn_bounds, config),
 		Type::Tuple(tuple) => {
-			let types: Vec<String> =
-				tuple.elems.iter().map(|t| format_type(t, fn_bounds, config)).collect();
-			format!("({})", types.join(", "))
+			let types: Vec<String> = tuple
+				.elems
+				.iter()
+				.filter(|t| !is_phantom_data(t))
+				.map(|t| format_type(t, fn_bounds, config))
+				.collect();
+			if types.is_empty() {
+				"()".to_string()
+			} else if types.len() == 1 {
+				types[0].clone()
+			} else {
+				format!("({})", types.join(", "))
+			}
 		}
 		Type::Array(array) => {
 			let inner = format_type(&array.elem, fn_bounds, config);
@@ -555,14 +568,58 @@ fn format_trait_object(
 ) -> String {
 	for bound in &trait_object.bounds {
 		if let TypeParamBound::Trait(trait_bound) = bound {
-			let name = trait_bound.path.segments.last().unwrap().ident.to_string();
-			if name == "Fn" || name == "FnMut" || name == "FnOnce" {
-				return format_fn_trait(trait_bound, fn_bounds, config);
-			}
-			return format_brand_name(&name, config).to_lowercase();
+			return format_trait_bound_as_type(trait_bound, fn_bounds, config);
 		}
 	}
 	"dyn".to_string()
+}
+
+fn format_trait_bound_as_type(
+	trait_bound: &TraitBound,
+	fn_bounds: &HashMap<String, String>,
+	config: &Config,
+) -> String {
+	let segment = trait_bound.path.segments.last().unwrap();
+	let name = segment.ident.to_string();
+
+	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
+		return format_fn_trait(trait_bound, fn_bounds, config);
+	}
+
+	let name = format_brand_name(&name, config);
+
+	if let PathArguments::AngleBracketed(args) = &segment.arguments {
+		let mut arg_strs = Vec::new();
+		for arg in &args.args {
+			match arg {
+				GenericArgument::Type(ty) => {
+					arg_strs.push(format_type_arg(ty, fn_bounds, config));
+				}
+				GenericArgument::AssocType(assoc) => {
+					arg_strs.push(format_type_arg(&assoc.ty, fn_bounds, config));
+				}
+				_ => {}
+			}
+		}
+		if !arg_strs.is_empty() {
+			return format!("{} {}", name, arg_strs.join(" "));
+		}
+	}
+
+	name
+}
+
+fn is_phantom_data(ty: &Type) -> bool {
+	match ty {
+		Type::Path(type_path) => {
+			if let Some(segment) = type_path.path.segments.last() {
+				return segment.ident == "PhantomData";
+			}
+			false
+		}
+		Type::Reference(type_ref) => is_phantom_data(&type_ref.elem),
+		_ => false,
+	}
 }
 
 fn format_fn_trait(
@@ -765,7 +822,7 @@ mod tests {
 			fn foo(x: &dyn Fn(i32) -> i32, y: Box<dyn Iterator<Item = String>>) -> i32 { todo!() }
 		};
 		let sig = generate_signature(&input, None, &Config::default());
-		assert_eq!(sig, "(i32 -> i32, iterator) -> i32");
+		assert_eq!(sig, "(i32 -> i32, Iterator String) -> i32");
 	}
 
 	#[test]
@@ -795,7 +852,35 @@ mod tests {
 			fn foo(x: impl Iterator<Item = String>) -> i32 { 0 }
 		};
 		let sig = generate_signature(&input, None, &Config::default());
-		assert_eq!(sig, "iterator -> i32");
+		assert_eq!(sig, "Iterator String -> i32");
+	}
+
+	#[test]
+	fn test_phantom_data_omission() {
+		let input: ItemFn = parse_quote! {
+			fn foo<A>(x: A, p: std::marker::PhantomData<A>) -> A { x }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall a. a -> a");
+	}
+
+	#[test]
+	fn test_phantom_data_tuple_omission() {
+		let input: ItemFn = parse_quote! {
+			fn foo<A>(x: (A, std::marker::PhantomData<A>)) -> A { x.0 }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall a. a -> a");
+	}
+
+	#[test]
+	fn test_phantom_data_in_generic() {
+		let input: ItemFn = parse_quote! {
+			fn foo<A>(x: Vec<std::marker::PhantomData<A>>) { }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		// Vec expects an arg, so Vec () is appropriate if PhantomData maps to ()
+		assert_eq!(sig, "forall a. Vec () -> ()");
 	}
 
 	#[test]
