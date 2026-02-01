@@ -710,6 +710,23 @@ pub fn traverse<T, F, A, B>(...)
 7. **LaTeX Output**: Generate signatures for papers/documentation in LaTeX format
 8. **Interactive Mode**: CLI tool to experiment with transformations and test edge cases
 
+### Concrete Self Resolution
+
+**Goal**: Support generating signatures with concrete types instead of `self` when the macro is applied to an implementation block (e.g., `Result a e` instead of `self a`).
+
+**Motivation**:
+While `self` is correct for trait-generic signatures, documentation for specific implementations (like `impl Functor for Result`) often benefits from showing the concrete type (`Result`) to be more explicit and readable for users of that specific type.
+
+**Analysis**:
+Implementing this is **complex** because the current macro is applied to function definitions (`fn`), which are isolated from their `impl` block context. The macro cannot see the `impl` generics (e.g., `E` in `impl<E>`) or the concrete `Self` type (e.g., `ResultWithErrBrand<E>`).
+
+**Required Changes**:
+1.  **Macro Placement**: Move `#[hm_signature]` from methods to the `impl` block.
+2.  **Context Merging**: Parse `ItemImpl` to extract `Self` type and `impl` generics, then merge them with method generics.
+3.  **HKT Resolution**: Implement logic to map the internal HKT encoding (e.g., `ResultWithErrBrand<E> + Of<A>`) back to the user-facing concrete type (`Result<A, E>`).
+    *   **Challenge**: This requires handling argument reordering (e.g., `Result` takes `A, E` but the brand structure might imply `E, A`).
+    *   **Solution**: May require advanced configuration to define argument mapping rules for brands.
+
 ## Non-Goals
 
 1. **Type inference**: This is not a type checker

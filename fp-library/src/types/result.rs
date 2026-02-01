@@ -243,7 +243,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature (Old)
 	///
-	/// `forall e a b. Semiapplicative (Result e) => (Result (a -> b) e, Result a e) -> Result b e`
+	/// `forall e a b. Semiapplicative (Result _ e) => (Result (a -> b) e, Result a e) -> Result b e`
 	///
 	/// ### Type Signature (New)
 	///
@@ -501,7 +501,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature (Old)
 	///
-	/// `forall e f b a. (Traversable (Result e), Applicative f) => (a -> f b, Result a e) -> f (Result b e)`
+	/// `forall e a b f. (Traversable (Result _ e), Applicative f) => (a -> f b, Result a e) -> f (Result b e)`
 	///
 	/// ### Type Signature (New)
 	///
@@ -509,9 +509,9 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
 	/// * `A`: The type of the elements in the traversable structure.
+	/// * `B`: The type of the elements in the resulting traversable structure.
+	/// * `F`: The applicative context.
 	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
@@ -562,7 +562,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature (Old)
 	///
-	/// `forall e f a. (Traversable (Result e), Applicative f) => (Result (f a) e) -> f (Result a e)`
+	/// `forall e a f. (Traversable (Result _ e), Applicative f) => Result (f a) e -> f (Result a e)`
 	///
 	/// ### Type Signature (New)
 	///
@@ -570,8 +570,8 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
 	/// * `A`: The type of the elements in the traversable structure.
+	/// * `F`: The applicative context.
 	///
 	/// ### Parameters
 	///
