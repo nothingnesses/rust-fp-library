@@ -1,10 +1,13 @@
+//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`] and [`Monoid`] instances based on categorical composition.
+//!
+//! A more general form of `Endofunction` that works with any [`Category`], not just functions.
+
 use crate::{
 	Apply,
 	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, hm_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,

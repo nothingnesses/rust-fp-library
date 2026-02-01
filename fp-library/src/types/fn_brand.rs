@@ -1,3 +1,7 @@
+//! Reference-counted cloneable function wrappers with [`Semigroupoid`] and [`Category`] instances.
+//!
+//! Provides the [`FnBrand`] abstraction for wrapping closures in `Rc<dyn Fn>` or `Arc<dyn Fn>` for use in higher-kinded contexts.
+
 use crate::{
 	Apply,
 	brands::FnBrand,
@@ -9,9 +13,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {

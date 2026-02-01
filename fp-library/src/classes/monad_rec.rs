@@ -1,4 +1,4 @@
-//! A type class for monads that support stack-safe tail recursion.
+//! Monads that support stack-safe tail recursion via the [`Step`] type.
 //!
 //! ### Examples
 //!

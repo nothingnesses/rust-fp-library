@@ -1,4 +1,4 @@
-//! A functor whose effects can be evaluated to produce the inner value.
+//! Functors whose effects can be evaluated to produce an inner value.
 //!
 //! This trait is used by [`Free::evaluate`](crate::types::Free::evaluate) to execute the effects
 //! in a [`Free`](crate::types::Free) monad.

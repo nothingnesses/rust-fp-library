@@ -1,4 +1,4 @@
-//! A type class for types that can be mapped over two type arguments.
+//! Types that can be mapped over two type arguments simultaneously.
 //!
 //! ### Examples
 //!

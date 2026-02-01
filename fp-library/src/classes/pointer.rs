@@ -1,4 +1,4 @@
-//! A hierarchy of traits for abstracting over different types of pointers, specifically focusing on reference-counted pointers ([`Rc`](`std::rc::Rc`), [`Arc`](std::sync::Arc)) and their capabilities.
+//! Hierarchy of traits for abstracting over different types of pointers and their capabilities.
 //!
 //! The hierarchy is as follows:
 //! * [`Pointer`]: Base trait for any heap-allocated pointer.

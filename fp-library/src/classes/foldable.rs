@@ -1,4 +1,4 @@
-//! A type class for data structures that can be folded to a single value.
+//! Data structures that can be folded into a single value from the left or right.
 //!
 //! ### Examples
 //!

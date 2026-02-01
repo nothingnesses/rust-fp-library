@@ -1,4 +1,4 @@
-//! A type class for sequencing two computations and keeping the result of the first.
+//! Sequencing of two computations while keeping the result of the first.
 //!
 //! ### Examples
 //!

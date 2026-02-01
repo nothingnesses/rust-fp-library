@@ -1,4 +1,4 @@
-//! A type class for sequencing computations where the second computation depends on the result of the first.
+//! Sequencing of computations where the structure depends on previous results, without an identity element.
 //!
 //! ### Examples
 //!

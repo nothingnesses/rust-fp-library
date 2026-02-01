@@ -1,4 +1,4 @@
-//! A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
+//! Cloneable wrappers over closures for generic handling of functions in higher-kinded contexts.
 //!
 //! ### Examples
 //!

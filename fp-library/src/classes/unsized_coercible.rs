@@ -1,4 +1,4 @@
-//! A trait for pointer brands that can perform unsized coercion to `dyn Fn`.
+//! Pointer brands that can perform unsized coercion to `dyn Fn` trait objects.
 //!
 //! ### Examples
 //!

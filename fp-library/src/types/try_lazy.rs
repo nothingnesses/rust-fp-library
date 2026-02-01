@@ -1,7 +1,9 @@
+//! Memoized lazy evaluation for fallible computations.
+//!
+//! Computes a [`Result`] at most once and caches either the success value or error. All clones share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe [`ArcTryLazy`] variants.
+
 use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazily-computed, memoized value that may fail.
 ///

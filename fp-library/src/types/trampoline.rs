@@ -1,10 +1,24 @@
+//! Stack-safe computation type with guaranteed safety for unlimited recursion depth.
+//!
+//! Built on the [`Free`] monad with O(1) [`bind`](crate::functions::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::types::*;
+//!
+//! let task = Trampoline::new(|| 1 + 1)
+//!     .bind(|x| Trampoline::new(move || x * 2))
+//!     .bind(|x| Trampoline::new(move || x + 10));
+//!
+//! assert_eq!(task.evaluate(), 14);
+//! ```
+
 use crate::{
 	brands::ThunkBrand,
 	types::{Lazy, LazyConfig, Thunk, free::Free, step::Step},
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///

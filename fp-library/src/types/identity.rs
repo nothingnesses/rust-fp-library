@@ -1,6 +1,6 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+//! Trivial wrapper that contains a single value.
+//!
+//! The simplest possible container type, often used as a base case for higher-kinded types or when a container is required but no additional effect is needed.
 
 use crate::{
 	Apply,
@@ -15,6 +15,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// Wraps a value.
 ///

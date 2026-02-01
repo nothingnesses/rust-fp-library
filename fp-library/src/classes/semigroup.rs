@@ -1,4 +1,4 @@
-//! A type class for types that support an associative binary operation.
+//! Types that support an associative binary operation.
 //!
 //! ### Examples
 //!

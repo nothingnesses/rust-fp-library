@@ -1,4 +1,4 @@
-//! A trait for reference-counted pointers with shared ownership.
+//! Reference-counted pointers with shared ownership and unwrapping capabilities.
 //!
 //! ### Examples
 //!

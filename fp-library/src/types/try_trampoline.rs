@@ -1,7 +1,21 @@
+//! Stack-safe fallible computation type with guaranteed safety for unlimited recursion depth.
+//!
+//! Wraps [`Trampoline<Result<A, E>>`](crate::types::Trampoline) with ergonomic combinators for error handling. Provides complete stack safety for fallible computations that may recurse deeply.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::types::*;
+//!
+//! let task: TryTrampoline<i32, String> = TryTrampoline::ok(10)
+//!     .map(|x| x * 2)
+//!     .bind(|x| TryTrampoline::ok(x + 5));
+//!
+//! assert_eq!(task.evaluate(), Ok(25));
+//! ```
+
 use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///

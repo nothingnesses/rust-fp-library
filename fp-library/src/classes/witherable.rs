@@ -1,4 +1,4 @@
-//! A type class for data structures that can be traversed and filtered in an applicative context.
+//! Data structures that can be traversed and filtered simultaneously in an applicative context.
 //!
 //! ### Examples
 //!

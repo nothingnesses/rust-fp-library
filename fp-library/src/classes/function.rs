@@ -1,4 +1,4 @@
-//! A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
+//! Wrappers over closures for generic handling of functions in higher-kinded contexts.
 //!
 //! ### Examples
 //!

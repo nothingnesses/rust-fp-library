@@ -1,3 +1,22 @@
+//! Control type representing Loop/Done states for tail-recursive computations.
+//!
+//! Used by [`MonadRec`](crate::classes::monad_rec::MonadRec) to implement stack-safe tail recursion. [`Step::Loop`] continues iteration, while [`Step::Done`] terminates with a result.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::types::*;
+//!
+//! // Count down from n to 0, accumulating the sum
+//! fn sum_to_zero(n: i32, acc: i32) -> Step<(i32, i32), i32> {
+//!     if n <= 0 {
+//!         Step::Done(acc)
+//!     } else {
+//!         Step::Loop((n - 1, acc + n))
+//!     }
+//! }
+//! ```
+
 use crate::{
 	Apply,
 	brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},
@@ -11,9 +30,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// Represents the result of a single step in a tail-recursive computation.
 ///

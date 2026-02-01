@@ -1,4 +1,4 @@
-//! A trait for deferred lazy evaluation with thread-safe thunks.
+//! Deferred lazy evaluation using thread-safe thunks.
 //!
 //! ### Examples
 //!

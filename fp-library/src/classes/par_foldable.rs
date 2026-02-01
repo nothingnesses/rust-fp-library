@@ -1,4 +1,4 @@
-//! A type class for data structures that can be folded in parallel.
+//! Data structures that can be folded in parallel using thread-safe functions.
 //!
 //! **Note: The `rayon` feature must be enabled to use parallel iteration.**
 //!

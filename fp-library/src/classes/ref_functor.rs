@@ -1,4 +1,4 @@
-//! A type class for types that can be mapped over, returning references.
+//! Types that can be mapped over by receiving or returning references to their contents.
 //!
 //! ### Examples
 //!

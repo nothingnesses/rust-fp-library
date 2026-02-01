@@ -1,4 +1,4 @@
-//! A type class for types that have an identity element and an associative binary operation.
+//! Types that have an identity element and an associative binary operation.
 //!
 //! ### Examples
 //!

@@ -1,3 +1,16 @@
+//! Thread-safe reference-counted pointer abstraction using [`Arc`].
+//!
+//! Provides trait implementations for using `Arc` in the library's pointer abstraction hierarchy.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
+//! assert_eq!(*ptr, 42);
+//! ```
+
 use crate::{
 	brands::ArcBrand,
 	classes::{
@@ -6,9 +19,7 @@ use crate::{
 		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
 	},
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::sync::Arc;
 
 impl Pointer for ArcBrand {

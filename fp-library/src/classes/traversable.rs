@@ -1,4 +1,4 @@
-//! A type class for data structures that can be traversed, accumulating results in an applicative context.
+//! Data structures that can be traversed, accumulating results in an applicative context.
 //!
 //! ### Examples
 //!

@@ -1,6 +1,6 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+//! Functional programming trait implementations for the standard library [`Result`] type.
+//!
+//! Extends `Result` with dual functor/monad instances: [`ResultWithErrBrand`] (standard Result monad) functors over the success value, while [`ResultWithOkBrand`] functors over the error value.
 
 use crate::{
 	Apply,
@@ -15,6 +15,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	for ResultBrand {

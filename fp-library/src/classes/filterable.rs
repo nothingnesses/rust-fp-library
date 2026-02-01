@@ -1,4 +1,4 @@
-//! A type class for data structures that can be filtered and partitioned.
+//! Data structures that can be filtered and partitioned based on predicates or mapping functions.
 //!
 //! ### Examples
 //!

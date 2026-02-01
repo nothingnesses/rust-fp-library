@@ -1,3 +1,7 @@
+//! Functional programming trait implementations for the standard library [`Option`] type.
+//!
+//! Extends `Option` with [`Functor`], [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`], [`Traversable`], [`Filterable`], and [`Witherable`] instances.
+
 use crate::{
 	Apply,
 	brands::OptionBrand,
@@ -13,9 +17,7 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	for OptionBrand {

@@ -1,4 +1,4 @@
-//! A type class for types that can be constructed lazily.
+//! Types that can be constructed lazily from a computation.
 //!
 //! ### Examples
 //!

@@ -1,7 +1,9 @@
+//! Deferred, non-memoized fallible computation with higher-kinded type support.
+//!
+//! The fallible counterpart to [`Thunk`]. Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
+
 use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A deferred computation that may fail with error type `E`.
 ///

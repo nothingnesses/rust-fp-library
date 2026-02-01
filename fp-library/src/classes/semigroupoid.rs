@@ -1,4 +1,4 @@
-//! A type class for semigroupoids, representing a set of objects and composable relationships between them.
+//! Semigroupoids, representing objects and composable relationships (morphisms) between them.
 //!
 //! ### Examples
 //!

@@ -1,3 +1,16 @@
+//! Single-threaded reference-counted pointer abstraction using [`Rc`].
+//!
+//! Provides trait implementations for using `Rc` in the library's pointer abstraction hierarchy. Not thread-safe; use [`ArcBrand`](crate::brands::ArcBrand) for multi-threaded contexts.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let ptr = pointer_new::<RcBrand, _>(42);
+//! assert_eq!(*ptr, 42);
+//! ```
+
 use crate::{
 	brands::RcBrand,
 	classes::{
@@ -5,9 +18,7 @@ use crate::{
 		unsized_coercible::UnsizedCoercible,
 	},
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::rc::Rc;
 
 impl Pointer for RcBrand {

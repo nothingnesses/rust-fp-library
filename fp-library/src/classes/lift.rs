@@ -1,4 +1,4 @@
-//! A type class for lifting binary functions into a context.
+//! Lifting of binary functions to operate on values within a context.
 //!
 //! ### Examples
 //!

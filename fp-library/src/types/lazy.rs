@@ -1,3 +1,7 @@
+//! Memoized lazy evaluation with shared cache semantics.
+//!
+//! Computes a value at most once on first access and caches the result. All clones share the same cache. Available in both single-threaded [`RcLazy`] and thread-safe [`ArcLazy`] variants.
+
 use crate::{
 	Apply,
 	brands::LazyBrand,
@@ -6,9 +10,7 @@ use crate::{
 	kinds::*,
 	types::{Thunk, Trampoline},
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::{
 	cell::LazyCell,
 	rc::Rc,

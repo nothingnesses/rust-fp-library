@@ -1,9 +1,12 @@
+//! Wrapper for endofunctions (functions `a -> a`) with [`Semigroup`] and [`Monoid`] instances based on function composition.
+//!
+//! Used to treat function composition as a monoidal operation where [`append`](crate::functions::append) composes functions and [`empty`](crate::functions::empty) is the identity function.
+
 use crate::{
 	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
 	functions::identity,
 };
-use fp_macros::doc_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, hm_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,

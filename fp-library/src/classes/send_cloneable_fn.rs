@@ -1,4 +1,4 @@
-//! A trait for thread-safe cloneable wrappers over closures.
+//! Thread-safe cloneable wrappers over closures that carry `Send + Sync` bounds.
 //!
 //! ### Examples
 //!

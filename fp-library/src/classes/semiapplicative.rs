@@ -1,4 +1,4 @@
-//! A type class for applying functions within a context to values within a context.
+//! Applying functions within a context to values within a context, without an identity element.
 //!
 //! ### Examples
 //!

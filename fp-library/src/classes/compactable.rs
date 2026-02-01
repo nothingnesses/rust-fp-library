@@ -1,4 +1,4 @@
-//! A type class for data structures that can be compacted (filtering out [`None`] values) and separated (splitting [`Result`] values).
+//! Data structures that can be compacted by filtering out [`None`] or separated by splitting [`Result`] values.
 //!
 //! ### Examples
 //!

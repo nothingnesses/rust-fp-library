@@ -1,4 +1,4 @@
-//! A type class for categories, which are semigroupoids with an identity element.
+//! Categories, which are semigroupoids with an identity element for each object.
 //!
 //! A category consists of objects and morphisms between them, with composition and identity.
 //!

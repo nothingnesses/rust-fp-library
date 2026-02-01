@@ -1,8 +1,6 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
-#[cfg(feature = "rayon")]
-use rayon::prelude::*;
+//! Functional programming trait implementations for the standard library [`Vec`] type.
+//!
+//! Extends `Vec` with [`Functor`], [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`], [`Traversable`], [`Filterable`], [`Witherable`], and parallel folding instances.
 
 use crate::{
 	Apply,
@@ -19,6 +17,9 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
 
 impl_kind! {
 	for VecBrand {

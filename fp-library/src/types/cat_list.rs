@@ -1,3 +1,26 @@
+//! Efficient queue-like structure with O(1) append and O(1) amortized uncons.
+//!
+//! Implements the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) data structure used to enable O(1) left-associated [`bind`](crate::functions::bind) operations in the [`Free`](crate::types::Free) monad.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::types::cat_list::CatList;
+//!
+//! let list = CatList::singleton(1)
+//!     .snoc(2)
+//!     .snoc(3)
+//!     .append(CatList::singleton(4));
+//!
+//! let mut result = Vec::new();
+//! let mut current = list;
+//! while let Some((head, tail)) = current.uncons() {
+//!     result.push(head);
+//!     current = tail;
+//! }
+//! assert_eq!(result, vec![1, 2, 3, 4]);
+//! ```
+
 use crate::{
 	Apply,
 	brands::{CatListBrand, OptionBrand},

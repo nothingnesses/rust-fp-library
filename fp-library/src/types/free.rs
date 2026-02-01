@@ -1,12 +1,71 @@
+//! Stack-safe Free monad over a functor with O(1) [`bind`](crate::functions::bind) operations.
+//!
+//! Enables building computation chains without stack overflow by using a catenable list of continuations. Note: requires `'static` types and cannot implement the library's HKT traits due to type erasure.
+//!
+//! ## Comparison with PureScript
+//!
+//! This implementation is based on the PureScript [`Control.Monad.Free`](https://github.com/purescript/purescript-free/blob/master/src/Control/Monad/Free.purs) module
+//! and the ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) technique. It shares the same core algorithmic properties (O(1) bind, stack safety)
+//! but differs significantly in its intended use case and API surface.
+//!
+//! ### Key Differences
+//!
+//! 1. **Interpretation Strategy**:
+//!    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
+//!      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
+//!    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
+//!      baked into the [`Evaluable`] trait implemented by the functor `F`.
+//!      The [`Free::wrap`] method wraps a functor layer containing a Free computation.
+//!
+//! 2. **API Surface**:
+//!    * **PureScript**: Rich API including `liftF`, `hoistFree`, `resume`, `foldFree`.
+//!    * **Rust**: Focused API with construction (`pure`, `wrap`, `lift_f`, `bind`) and execution (`evaluate`).
+//!      * `resume` is missing (cannot inspect the computation step-by-step).
+//!      * `hoistFree` is missing.
+//!
+//! 3. **Terminology**:
+//!    * Rust's `Free::wrap` corresponds to PureScript's `wrap`.
+//!
+//! ### Capabilities and Limitations
+//!
+//! **What it CAN do:**
+//! * Provide stack-safe recursion for monadic computations (trampolining).
+//! * Prevent stack overflows when chaining many `bind` operations.
+//! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
+//!
+//! **What it CANNOT do (easily):**
+//! * Act as a generic DSL where the interpretation is decoupled from the operation type.
+//!   * *Example*: You cannot easily define a `DatabaseOp` enum and interpret it differently for
+//!     production (SQL) and testing (InMemory) using this `Free` implementation, because
+//!     `DatabaseOp` must implement a single `Runnable` trait.
+//! * Inspect the structure of the computation (introspection) via `resume`.
+//!
+//! ### Lifetimes and Memory Management
+//!
+//! * **PureScript**: Relies on a garbage collector and `unsafeCoerce`. This allows it to ignore
+//!   lifetimes and ownership, enabling a simpler implementation that supports all types.
+//! * **Rust**: Relies on ownership and `Box<dyn Any>` for type erasure. `Any` requires `'static`
+//!   to ensure memory safety (preventing use-after-free of references). This forces `Free` to
+//!   only work with `'static` types, preventing it from implementing the library's HKT traits
+//!   which require lifetime polymorphism.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, types::*};
+//!
+//! // ✅ CAN DO: Stack-safe recursion
+//! let free = Free::<ThunkBrand, _>::pure(42)
+//!     .bind(|x| Free::pure(x + 1));
+//! ```
+
 use crate::{
 	Apply,
 	classes::{Evaluable, Functor},
 	kinds::*,
 	types::CatList,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::{any::Any, marker::PhantomData};
 
 /// A type-erased value for internal use.

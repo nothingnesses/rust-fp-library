@@ -1,3 +1,7 @@
+//! Two-value container with [`Bifunctor`] and dual [`Functor`] instances.
+//!
+//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`PairWithFirstBrand`] or second value [`PairWithSecondBrand`].
+
 use crate::{
 	Apply,
 	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
@@ -11,9 +15,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// Wraps two values.
 ///

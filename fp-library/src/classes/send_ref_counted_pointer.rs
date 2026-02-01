@@ -1,4 +1,4 @@
-//! A trait for thread-safe reference-counted pointers.
+//! Thread-safe reference-counted pointers that carry `Send + Sync` bounds.
 //!
 //! ### Examples
 //!

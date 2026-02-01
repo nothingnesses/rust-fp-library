@@ -1,4 +1,4 @@
-//! A type class for types that can be mapped over.
+//! Types that can be mapped over, allowing functions to be applied to values within a context.
 //!
 //! ### Examples
 //!

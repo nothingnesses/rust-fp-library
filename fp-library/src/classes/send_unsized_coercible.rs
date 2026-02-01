@@ -1,4 +1,4 @@
-//! A trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
+//! Pointer brands that can perform unsized coercion to thread-safe `dyn Fn` trait objects.
 //!
 //! ### Examples
 //!

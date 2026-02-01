@@ -1,4 +1,4 @@
-//! A type class for contexts that can be initialized with a value.
+//! Contexts that can be initialized with a value via the [`pure`] operation.
 //!
 //! ### Examples
 //!

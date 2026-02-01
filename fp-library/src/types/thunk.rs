@@ -1,3 +1,7 @@
+//! Deferred, non-memoized computation with higher-kinded type support.
+//!
+//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Each call to [`Thunk::evaluate`] re-executes the computation. For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
+
 use crate::{
 	Apply,
 	brands::ThunkBrand,
@@ -9,9 +13,7 @@ use crate::{
 	kinds::*,
 	types::{Lazy, LazyConfig, step::Step},
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A deferred computation that produces a value of type `A`.
 ///
