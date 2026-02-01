@@ -18,10 +18,12 @@ pub fn def_kind_impl(input: KindInput) -> TokenStream {
 		let ident = &assoc.ident;
 		let generics = &assoc.generics;
 		let output_bounds = &assoc.output_bounds;
+		let attrs = &assoc.attrs;
 		let output_bounds_tokens =
 			if output_bounds.is_empty() { quote!() } else { quote!(: #output_bounds) };
 
 		quote! {
+			#(#attrs)*
 			type #ident #generics #output_bounds_tokens;
 		}
 	});

@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
@@ -119,17 +119,13 @@
 //!
 //! // 1. Stack-safe recursion with error handling (TryTrampoline)
 //! fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
-//!     match expr {
-//!         Expr::Val(n) => TryTrampoline::ok(*n),
+//!     let expr = expr.clone(); // Capture owned data for 'static closure
+//!     TryTrampoline::defer(move || match expr {
+//!         Expr::Val(n) => TryTrampoline::ok(n),
 //!         Expr::Add(lhs, rhs) => {
-//!             let lhs = (**lhs).clone();
-//!             let rhs = (**rhs).clone();
-//!             // 'bind' ensures stack safety by deferring the next step
 //!             eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
 //!         }
 //!         Expr::Div(lhs, rhs) => {
-//!             let lhs = (**lhs).clone();
-//!             let rhs = (**rhs).clone();
 //!             eval(&lhs).bind(move |l| {
 //!                 eval(&rhs).bind(move |r| {
 //!                     if r == 0 {
@@ -140,7 +136,7 @@
 //!                 })
 //!             })
 //!         }
-//!     }
+//!     })
 //! }
 //!
 //! // Usage

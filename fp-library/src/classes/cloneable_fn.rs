@@ -26,6 +26,10 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait CloneableFn: Function {
+	/// The type of the cloneable function wrapper.
+	///
+	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
+	/// that implements `Clone` and dereferences to the underlying closure.
 	type Of<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new cloneable function wrapper.

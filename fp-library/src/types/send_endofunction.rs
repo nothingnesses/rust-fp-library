@@ -3,7 +3,7 @@
 //! The `Send + Sync` counterpart to [`Endofunction`](crate::types::Endofunction), wrapping functions that can be safely shared across threads.
 
 use crate::{
-	classes::{monoid::Monoid, semigroup::Semigroup, send_cloneable_fn::SendCloneableFn},
+	classes::{Monoid, Semigroup, SendCloneableFn},
 	functions::identity,
 };
 use fp_macros::{doc_params, hm_signature};

@@ -14,7 +14,10 @@
 //! assert_eq!(task.evaluate(), Ok(25));
 //! ```
 
-use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
+use crate::{
+	classes::{CloneableFn, Deferrable},
+	types::{Lazy, LazyConfig, Trampoline, TryLazy},
+};
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazy, stack-safe computation that may fail with an error.
@@ -134,6 +137,60 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 		F: FnOnce() -> Result<A, E> + 'static,
 	{
 		TryTrampoline(Trampoline::new(f))
+	}
+
+	/// Defers the construction of a `TryTrampoline`.
+	///
+	/// Use this for stack-safe recursion.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that returns the next step.")]
+	///
+	/// ### Returns
+	///
+	/// A `TryTrampoline` that executes `f` to get the next step.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
+	/// assert_eq!(task.evaluate(), Ok(42));
+	/// ```
+	///
+	/// Stack-safe recursion:
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// fn factorial(n: i32, acc: i32) -> TryTrampoline<i32, String> {
+	///     if n < 0 {
+	///         TryTrampoline::err("Negative input".to_string())
+	///     } else if n == 0 {
+	///         TryTrampoline::ok(acc)
+	///     } else {
+	///         TryTrampoline::defer(move || factorial(n - 1, n * acc))
+	///     }
+	/// }
+	///
+	/// let task = factorial(5, 1);
+	/// assert_eq!(task.evaluate(), Ok(120));
+	/// ```
+	pub fn defer<F>(f: F) -> Self
+	where
+		F: FnOnce() -> TryTrampoline<A, E> + 'static,
+	{
+		TryTrampoline(Trampoline::defer(move || f().0))
 	}
 
 	/// Maps over the success value.
@@ -346,6 +403,49 @@ where
 {
 	fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 		TryTrampoline::new(move || memo.evaluate().cloned().map_err(Clone::clone))
+	}
+}
+
+impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
+where
+	A: 'static + Send,
+	E: 'static + Send,
+{
+	/// Creates a value from a computation that produces the value.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The brand of the cloneable function wrapper.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: TryTrampoline<i32, String> = Deferrable::defer::<ArcFnBrand>(
+	///     cloneable_fn_new::<ArcFnBrand, _, _>(|_| TryTrampoline::ok(42))
+	/// );
+	/// assert_eq!(task.evaluate(), Ok(42));
+	/// ```
+	fn defer<FnBrand: 'static + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<'static, (), Self>
+	) -> Self
+	where
+		Self: Sized,
+	{
+		TryTrampoline(Trampoline::defer(move || f(()).0))
 	}
 }
 

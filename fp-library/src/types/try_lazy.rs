@@ -2,7 +2,14 @@
 //!
 //! Computes a [`Result`] at most once and caches either the success value or error. All clones share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe [`ArcTryLazy`] variants.
 
-use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
+use crate::{
+	Apply,
+	brands::TryLazyBrand,
+	classes::{CloneableFn, Deferrable, SendDeferrable},
+	impl_kind,
+	kinds::*,
+	types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
+};
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazily-computed, memoized value that may fail.
@@ -229,6 +236,102 @@ where
 	}
 }
 
+impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
+where
+	A: Clone + 'a,
+	E: Clone + 'a,
+{
+	/// Defers a computation that produces a `TryLazy` value.
+	///
+	/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
+	/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The brand of the function.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `TryLazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+	///
+	/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer::<RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcTryLazy::new(|| Ok(42)))
+	/// );
+	/// assert_eq!(lazy.evaluate(), Ok(&42));
+	/// ```
+	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	where
+		Self: Sized,
+	{
+		Self::new(move || f(()).evaluate().cloned().map_err(Clone::clone))
+	}
+}
+
+impl_kind! {
+	impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
+		type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+	}
+}
+
+impl<E> SendDeferrable for TryLazyBrand<E, ArcLazyConfig>
+where
+	E: Clone + Send + Sync + 'static,
+{
+	/// Defers a computation that produces a thread-safe `TryLazy` value.
+	///
+	/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
+	/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(SendDeferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The lifetime of the value.", "The type of the value.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `ArcTryLazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let lazy = TryLazyBrand::<(), ArcLazyConfig>::send_defer(|| ArcTryLazy::new(|| Ok(42)));
+	/// assert_eq!(lazy.evaluate(), Ok(&42));
+	/// ```
+	fn send_defer<'a, A>(
+		thunk: impl 'a
+		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		+ Send
+		+ Sync
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	where
+		A: Clone + Send + Sync + 'a,
+	{
+		ArcTryLazy::new(move || thunk().evaluate().cloned().map_err(Clone::clone))
+	}
+}
+
 /// Single-threaded fallible memoization alias.
 pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
 
@@ -349,5 +452,15 @@ mod tests {
 		let memo = ArcLazy::new(|| 42);
 		let try_memo: crate::types::ArcTryLazy<i32, ()> = crate::types::ArcTryLazy::from(memo);
 		assert_eq!(try_memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests SendDefer implementation.
+	#[test]
+	fn test_send_defer() {
+		use crate::classes::send_deferrable::send_defer;
+
+		let memo: ArcTryLazy<i32, ()> =
+			send_defer::<TryLazyBrand<(), ArcLazyConfig>, _, _>(|| ArcTryLazy::new(|| Ok(42)));
+		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 }

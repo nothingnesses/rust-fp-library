@@ -2,7 +2,10 @@
 //!
 //! The fallible counterpart to [`Thunk`]. Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
 
-use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
+use crate::{
+	classes::{CloneableFn, Deferrable},
+	types::{Lazy, LazyConfig, Thunk, TryLazy},
+};
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A deferred computation that may fail with error type `E`.
@@ -96,6 +99,39 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 		A: 'a,
 	{
 		TryThunk::new(move || Ok(a))
+	}
+
+	/// Defers a computation that returns a TryThunk.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that returns a `TryThunk`.")]
+	///
+	/// ### Returns
+	///
+	/// A new `TryThunk` instance.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
+	/// assert_eq!(try_thunk.evaluate(), Ok(42));
+	/// ```
+	pub fn defer<F>(f: F) -> Self
+	where
+		F: FnOnce() -> TryThunk<'a, A, E> + 'a,
+	{
+		TryThunk::new(move || f().evaluate())
 	}
 
 	/// Alias for [`pure`](Self::pure).
@@ -326,6 +362,19 @@ impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
 	}
 }
 
+impl<'a, A, E> Deferrable<'a> for TryThunk<'a, A, E>
+where
+	A: 'a,
+	E: 'a,
+{
+	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	where
+		Self: Sized,
+	{
+		TryThunk::defer(move || f(()))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -437,6 +486,13 @@ mod tests {
 	fn test_try_thunk_from_eval() {
 		let eval = Thunk::pure(42);
 		let try_thunk: TryThunk<i32, ()> = TryThunk::from(eval);
+		assert_eq!(try_thunk.evaluate(), Ok(42));
+	}
+
+	/// Tests `TryThunk::defer`.
+	#[test]
+	fn test_defer() {
+		let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
 		assert_eq!(try_thunk.evaluate(), Ok(42));
 	}
 }

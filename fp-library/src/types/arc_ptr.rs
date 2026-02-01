@@ -14,9 +14,7 @@
 use crate::{
 	brands::ArcBrand,
 	classes::{
-		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
-		send_ref_counted_pointer::SendRefCountedPointer,
-		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
+		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, UnsizedCoercible,
 	},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};

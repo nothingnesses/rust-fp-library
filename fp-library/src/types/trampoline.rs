@@ -16,7 +16,7 @@
 
 use crate::{
 	brands::ThunkBrand,
-	types::{Lazy, LazyConfig, Thunk, free::Free, step::Step},
+	types::{Free, Lazy, LazyConfig, Step, Thunk},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 

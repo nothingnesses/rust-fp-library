@@ -3,7 +3,7 @@
 //! Provides string concatenation as a monoidal operation with the empty string as the identity element.
 
 use crate::{
-	classes::{monoid::Monoid, semigroup::Semigroup},
+	classes::{Monoid, Semigroup},
 	impl_kind,
 	kinds::*,
 };

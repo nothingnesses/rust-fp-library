@@ -3,7 +3,7 @@
 //! Used to treat function composition as a monoidal operation where [`append`](crate::functions::append) composes functions and [`empty`](crate::functions::empty) is the identity function.
 
 use crate::{
-	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
+	classes::{CloneableFn, Monoid, Semigroup},
 	functions::identity,
 };
 use fp_macros::{doc_params, hm_signature};

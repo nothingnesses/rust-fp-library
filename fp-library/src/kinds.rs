@@ -36,29 +36,36 @@
 use fp_macros::def_kind;
 
 def_kind! {
+	/// The applied type.
 	type Of<A>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<A, B>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A, B>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A: 'a>: 'a;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A: 'a, B: 'a>: 'a;
 }

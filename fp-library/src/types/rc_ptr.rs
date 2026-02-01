@@ -13,10 +13,7 @@
 
 use crate::{
 	brands::RcBrand,
-	classes::{
-		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
-		unsized_coercible::UnsizedCoercible,
-	},
+	classes::{Pointer, RefCountedPointer, UnsizedCoercible},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::rc::Rc;

@@ -4,7 +4,7 @@
 //! It handles parsing of associated type definitions with generics and bounds.
 
 use syn::{
-	Generics, Ident, Token, TypeParamBound,
+	Attribute, Generics, Ident, Token, TypeParamBound,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
@@ -23,6 +23,8 @@ pub struct KindInput {
 /// Example: `type Of<'a, T: 'a>: Display;`
 #[derive(Debug)]
 pub struct KindAssocTypeInput {
+	/// Attributes (e.g., doc comments).
+	pub attrs: Vec<Attribute>,
 	/// The `type` keyword.
 	pub _type_token: Token![type],
 	/// The name of the associated type (e.g., `Of`).
@@ -49,6 +51,7 @@ impl Parse for KindInput {
 
 impl Parse for KindAssocTypeInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let attrs = input.call(Attribute::parse_outer)?;
 		let type_token: Token![type] = input.parse()?;
 		let ident: Ident = input.parse()?;
 		let generics: Generics = input.parse()?;
@@ -75,6 +78,7 @@ impl Parse for KindAssocTypeInput {
 		let semi_token: Token![;] = input.parse()?;
 
 		Ok(KindAssocTypeInput {
+			attrs,
 			_type_token: type_token,
 			ident,
 			generics,

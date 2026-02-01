@@ -11,7 +11,7 @@ use crate::{
 	},
 	impl_kind,
 	kinds::*,
-	types::{Lazy, LazyConfig, step::Step},
+	types::{Lazy, LazyConfig, Step},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 

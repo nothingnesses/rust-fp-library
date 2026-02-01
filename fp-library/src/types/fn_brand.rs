@@ -6,9 +6,8 @@ use crate::{
 	Apply,
 	brands::FnBrand,
 	classes::{
-		RefCountedPointer, category::Category, cloneable_fn::CloneableFn, function::Function,
-		semigroupoid::Semigroupoid, send_cloneable_fn::SendCloneableFn,
-		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
+		Category, CloneableFn, Function, RefCountedPointer, Semigroupoid, SendCloneableFn,
+		SendUnsizedCoercible, UnsizedCoercible,
 	},
 	impl_kind,
 	kinds::*,

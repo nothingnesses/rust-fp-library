@@ -699,6 +699,37 @@ impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
 where
 	A: Clone + 'a,
 {
+	/// Defers a computation that produces a `Lazy` value.
+	///
+	/// This flattens the nested structure: instead of `Lazy<Lazy<A>>`, we get `Lazy<A>`.
+	/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The brand of the function.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+	///
+	/// let lazy = Lazy::<_, RcLazyConfig>::defer::<RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::pure(42))
+	/// );
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
 	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
 	where
 		Self: Sized,
@@ -708,6 +739,35 @@ where
 }
 
 impl SendDeferrable for LazyBrand<ArcLazyConfig> {
+	/// Defers a computation that produces a thread-safe `Lazy` value.
+	///
+	/// This flattens the nested structure: instead of `ArcLazy<ArcLazy<A>>`, we get `ArcLazy<A>`.
+	/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(SendDeferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The lifetime of the value.", "The type of the value.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `ArcLazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let lazy = LazyBrand::<ArcLazyConfig>::send_defer(|| ArcLazy::pure(42));
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
 	fn send_defer<'a, A>(
 		thunk: impl 'a
 		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)

@@ -30,6 +30,10 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait SendCloneableFn: CloneableFn {
+	/// The type of the thread-safe cloneable function wrapper.
+	///
+	/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
+	/// that implements `Clone`, `Send`, `Sync` and dereferences to the underlying closure.
 	type SendOf<'a, A, B>: Clone + Send + Sync + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
 
 	/// Creates a new thread-safe cloneable function wrapper.

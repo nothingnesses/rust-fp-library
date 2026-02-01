@@ -6,11 +6,8 @@ use crate::{
 	Apply,
 	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	classes::{
-		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		bifunctor::Bifunctor, cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor,
-		lift::Lift, monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
-		semiapplicative::Semiapplicative, semimonad::Semimonad, send_cloneable_fn::SendCloneableFn,
-		traversable::Traversable,
+		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
+		Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
 	},
 	impl_kind,
 	kinds::*,

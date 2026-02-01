@@ -151,6 +151,7 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		.definitions
 		.iter()
 		.map(|def| KindAssocTypeInput {
+			attrs: Vec::new(),
 			_type_token: def.type_token,
 			ident: def.ident.clone(),
 			generics: def.generics.clone(),

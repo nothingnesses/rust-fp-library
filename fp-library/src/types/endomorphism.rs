@@ -4,7 +4,7 @@
 
 use crate::{
 	Apply,
-	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
+	classes::{Category, Monoid, Semigroup},
 	kinds::*,
 };
 use fp_macros::{doc_params, hm_signature};
