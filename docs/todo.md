@@ -1,10 +1,6 @@
 ### Tasks to do & ideas to look into
 
-* Better Workflow Example in readme and lib
-* Sort order of MonadRec type params
-* TryThunk should:
-	* Have catch like TryTrampoline
-	* Implement HKT classes
+* Implement Traversable for Thunk.
 * Add extra trait methods for type classes and methods for brand/type structs. Make trait implementations use type methods. E.g., add a map method for Identity, make the Functor implementation use it, like how Functor for Vec uses Iterator map internally.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).

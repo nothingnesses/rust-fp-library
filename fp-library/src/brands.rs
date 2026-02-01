@@ -120,13 +120,21 @@ pub struct StepWithLoopBrand<A>(PhantomData<A>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 
-/// Brand for [`TryThunk`](crate::types::TryThunk).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryThunkBrand<E>(PhantomData<E>);
-
 /// Brand for [`TryLazy`](crate::types::TryLazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkBrand;
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the error value filled in (Functor over [`Ok`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the success value filled in (Functor over [`Err`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
