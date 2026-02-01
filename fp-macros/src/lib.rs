@@ -419,6 +419,9 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
 /// ```
 ///
+/// When applying this macro to a method inside a trait, you can provide the trait name
+/// as an argument to correctly generate the `Trait self` constraint.
+///
 /// ### Generates
 ///
 /// A documentation comment with the generated signature, prepended to the function definition.
@@ -433,6 +436,30 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// // Expanded code
 /// /// `forall f a b. Functor f => (a -> b, f a) -> f b`
 /// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// #[hm_signature]
+/// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
+///
+/// // Expanded code
+/// /// `iterator -> i32`
+/// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// trait Functor {
+///     #[hm_signature(Functor)]
+///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
+/// }
+///
+/// // Expanded code
+/// trait Functor {
+///     /// `forall self a b. Functor self => (a -> b, self a) -> self b`
+///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
+/// }
 /// ```
 #[proc_macro_attribute]
 pub fn hm_signature(

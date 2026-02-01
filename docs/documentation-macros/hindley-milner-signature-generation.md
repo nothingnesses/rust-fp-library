@@ -40,7 +40,9 @@ A procedural macro that **automatically generates Hindley-Milner style type sign
 
 ### Attribute Macro
 
-The macro should be applied as an attribute to function/method definitions and expands to a doc comment in place:
+The macro is applied as an attribute to function or method definitions. It expands to a doc comment containing the generated Hindley-Milner signature.
+
+#### Basic Usage
 
 ```rust
 /// Some docs about the function
@@ -75,6 +77,23 @@ where
     // implementation
 }
 ```
+
+#### Trait Methods and `Self` Context
+
+When applying the macro to methods inside a trait definition, you can provide the trait name as an argument to the macro. This enables the macro to generate a `Constraint self` entry in the signature's constraint section.
+
+```rust
+trait Functor {
+    /// Maps a function over the structure
+    #[hm_signature(Functor)]
+    fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
+}
+```
+
+**Output**:
+`forall self a b. Functor self => (a -> b, self a) -> self b`
+
+If the trait name is omitted, the signature will still use `self` but won't include the trait constraint unless it's explicitly present in a `where` clause.
 
 ### Design Principles
 
@@ -526,12 +545,16 @@ fn foo(f: &dyn Fn(i32) -> i32) -> i32
 
 #### Impl Trait
 
-```rust
-// Input
-fn foo(f: impl Fn(A) -> B) -> C
+The macro handles `impl Trait` by either converting it to arrow syntax (for `Fn` traits) or to a brand name (for other traits).
 
-// Output
-// (a -> b) -> c
+```rust
+// Fn trait input
+fn foo(f: impl Fn(A) -> B) -> C
+// Output: (a -> b) -> c
+
+// Other trait input
+fn foo(x: impl Iterator<Item = String>) -> i32
+// Output: iterator -> i32
 ```
 
 ### 12. Return Type Handling

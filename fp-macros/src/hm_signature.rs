@@ -486,6 +486,8 @@ fn format_type(
 					if name == "Fn" || name == "FnMut" || name == "FnOnce" {
 						return format_fn_trait(trait_bound, fn_bounds, config);
 					}
+					// If it's not a function trait, treat it as a brand (e.g. impl Iterator -> iterator)
+					return format_brand_name(&name, config).to_lowercase();
 				}
 			}
 			"impl_trait".to_string()
@@ -785,5 +787,54 @@ mod tests {
 		};
 		let sig = generate_signature(&input, None, &config);
 		assert_eq!(sig, "Custom i32 -> Custom u32");
+	}
+
+	#[test]
+	fn test_impl_iterator() {
+		let input: ItemFn = parse_quote! {
+			fn foo(x: impl Iterator<Item = String>) -> i32 { 0 }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "iterator -> i32");
+	}
+
+	#[test]
+	fn test_lifetimes_and_const_generics() {
+		let input: ItemFn = parse_quote! {
+			fn foo<'a, const N: usize, A: 'a>(x: &'a [A; N]) -> A { todo!() }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall a. [a] -> a");
+	}
+
+	#[test]
+	fn test_multiple_constraints() {
+		let input: ItemFn = parse_quote! {
+			fn foo<F, A>(fa: F::Of<A>)
+			where F: Functor + Foldable, A: Clone
+			{ todo!() }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall f a. (Functor f, Foldable f) => f a -> ()");
+	}
+
+	#[test]
+	fn test_forall_order() {
+		let input: ItemFn = parse_quote! {
+			fn foo<B, A, C>(a: A, b: B, c: C) { todo!() }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall b a c. (a, b, c) -> ()");
+	}
+
+	#[test]
+	fn test_bifunctor_apply() {
+		let input: ItemFn = parse_quote! {
+			fn bimap<P, A, B, C, D>(f: impl Fn(A) -> B, g: impl Fn(C) -> D, pab: Apply!(<P as Kind!(type Of<A, B>;)>::Of<A, C>)) -> Apply!(<P as Kind!(type Of<A, B>;)>::Of<B, D>)
+			where P: Bifunctor
+			{ todo!() }
+		};
+		let sig = generate_signature(&input, None, &Config::default());
+		assert_eq!(sig, "forall p a b c d. Bifunctor p => (a -> b, c -> d, p a c) -> p b d");
 	}
 }
