@@ -434,7 +434,7 @@ pub enum LogicalParam {
 }
 
 pub fn get_logical_params(
-	input_fn: &syn::ItemFn,
+	sig: &syn::Signature,
 	fn_bounds: &HashMap<String, String>,
 	generic_names: &HashSet<String>,
 	config: &Config,
@@ -442,7 +442,7 @@ pub fn get_logical_params(
 	let mut params = Vec::new();
 
 	// 1. Explicit arguments
-	for input in &input_fn.sig.inputs {
+	for input in &sig.inputs {
 		match input {
 			syn::FnArg::Receiver(_) => continue, // Skip self
 			syn::FnArg::Typed(pat_type) => {
@@ -454,7 +454,7 @@ pub fn get_logical_params(
 	}
 
 	// 2. Curried arguments from return type
-	extract_curried_params(&input_fn.sig.output, &mut params, fn_bounds, generic_names, config);
+	extract_curried_params(&sig.output, &mut params, fn_bounds, generic_names, config);
 
 	params
 }

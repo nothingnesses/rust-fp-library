@@ -1,15 +1,15 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Error, GenericParam, ItemFn, spanned::Spanned};
+use syn::{Error, GenericParam, spanned::Spanned};
 
-use crate::doc_utils::{DocArg, GenericArgs, insert_doc_comment};
+use crate::doc_utils::{DocArg, GenericArgs, GenericItem, insert_doc_comment};
 
 pub fn doc_type_params_impl(
 	attr: TokenStream,
-	item: TokenStream,
+	item_tokens: TokenStream,
 ) -> TokenStream {
-	let mut input_fn = match syn::parse2::<ItemFn>(item) {
-		Ok(f) => f,
+	let mut generic_item = match GenericItem::parse(item_tokens) {
+		Ok(i) => i,
 		Err(e) => return e.to_compile_error(),
 	};
 
@@ -18,36 +18,42 @@ pub fn doc_type_params_impl(
 		Err(e) => return e.to_compile_error(),
 	};
 
-	let params = &input_fn.sig.generics.params;
-	let entries: Vec<_> = args.entries.into_iter().collect();
+	let (params_count, entries) = {
+		let generics = generic_item.generics();
+		(generics.params.len(), args.entries.into_iter().collect::<Vec<_>>())
+	};
 
-	if params.len() != entries.len() {
+	if params_count != entries.len() {
 		return Error::new(
 			attr.span(),
-			format!("Expected {} description arguments, found {}.", params.len(), entries.len()),
+			format!("Expected {} description arguments, found {}.", params_count, entries.len()),
 		)
 		.to_compile_error();
 	}
 
-	for (param, entry) in params.iter().zip(entries) {
+	for i in 0..params_count {
+		let entry = &entries[i];
 		let (name, desc) = match entry {
 			DocArg::Override(n, d) => (n.value(), d.value()),
 			DocArg::Desc(d) => {
-				let name = match param {
-					GenericParam::Type(t) => t.ident.to_string(),
-					GenericParam::Lifetime(l) => l.lifetime.to_string(),
-					GenericParam::Const(c) => c.ident.to_string(),
+				let name = {
+					let param = &generic_item.generics().params[i];
+					match param {
+						GenericParam::Type(t) => t.ident.to_string(),
+						GenericParam::Lifetime(l) => l.lifetime.to_string(),
+						GenericParam::Const(c) => c.ident.to_string(),
+					}
 				};
 				(name, d.value())
 			}
 		};
 
 		let doc_comment = format!("* `{}`: {}", name, desc);
-		insert_doc_comment(&mut input_fn.attrs, doc_comment, proc_macro2::Span::call_site());
+		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
 	}
 
 	quote! {
-		#input_fn
+		#generic_item
 	}
 }
 

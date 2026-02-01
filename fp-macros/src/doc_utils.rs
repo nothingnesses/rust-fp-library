@@ -1,14 +1,100 @@
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{Error, Expr, ExprTuple, LitStr, Token, parse_quote, spanned::Spanned};
+use syn::{Attribute, Error, Expr, ExprTuple, LitStr, Signature, Token, parse_quote, spanned::Spanned};
+use syn::{ItemFn, TraitItemFn, ImplItemFn};
+use proc_macro2::TokenStream;
+use quote::ToTokens;
+
+pub enum GenericItem {
+	Fn(ItemFn),
+	TraitFn(TraitItemFn),
+	ImplFn(ImplItemFn),
+	Struct(syn::ItemStruct),
+	Enum(syn::ItemEnum),
+	Union(syn::ItemUnion),
+	Trait(syn::ItemTrait),
+	Type(syn::ItemType),
+}
+
+impl GenericItem {
+	pub fn parse(item: TokenStream) -> syn::Result<Self> {
+		if let Ok(f) = syn::parse2::<ItemFn>(item.clone()) {
+			Ok(GenericItem::Fn(f))
+		} else if let Ok(f) = syn::parse2::<TraitItemFn>(item.clone()) {
+			Ok(GenericItem::TraitFn(f))
+		} else if let Ok(f) = syn::parse2::<ImplItemFn>(item.clone()) {
+			Ok(GenericItem::ImplFn(f))
+		} else if let Ok(f) = syn::parse2::<syn::ItemStruct>(item.clone()) {
+			Ok(GenericItem::Struct(f))
+		} else if let Ok(f) = syn::parse2::<syn::ItemEnum>(item.clone()) {
+			Ok(GenericItem::Enum(f))
+		} else if let Ok(f) = syn::parse2::<syn::ItemUnion>(item.clone()) {
+			Ok(GenericItem::Union(f))
+		} else if let Ok(f) = syn::parse2::<syn::ItemTrait>(item.clone()) {
+			Ok(GenericItem::Trait(f))
+		} else if let Ok(f) = syn::parse2::<syn::ItemType>(item) {
+			Ok(GenericItem::Type(f))
+		} else {
+			Err(Error::new(proc_macro2::Span::call_site(), "Unsupported item type for documentation macros"))
+		}
+	}
+
+	pub fn attrs(&mut self) -> &mut Vec<Attribute> {
+		match self {
+			GenericItem::Fn(f) => &mut f.attrs,
+			GenericItem::TraitFn(f) => &mut f.attrs,
+			GenericItem::ImplFn(f) => &mut f.attrs,
+			GenericItem::Struct(f) => &mut f.attrs,
+			GenericItem::Enum(f) => &mut f.attrs,
+			GenericItem::Union(f) => &mut f.attrs,
+			GenericItem::Trait(f) => &mut f.attrs,
+			GenericItem::Type(f) => &mut f.attrs,
+		}
+	}
+
+	pub fn generics(&self) -> &syn::Generics {
+		match self {
+			GenericItem::Fn(f) => &f.sig.generics,
+			GenericItem::TraitFn(f) => &f.sig.generics,
+			GenericItem::ImplFn(f) => &f.sig.generics,
+			GenericItem::Struct(f) => &f.generics,
+			GenericItem::Enum(f) => &f.generics,
+			GenericItem::Union(f) => &f.generics,
+			GenericItem::Trait(f) => &f.generics,
+			GenericItem::Type(f) => &f.generics,
+		}
+	}
+
+	pub fn sig(&self) -> Option<&Signature> {
+		match self {
+			GenericItem::Fn(f) => Some(&f.sig),
+			GenericItem::TraitFn(f) => Some(&f.sig),
+			GenericItem::ImplFn(f) => Some(&f.sig),
+			_ => None,
+		}
+	}
+}
+
+impl ToTokens for GenericItem {
+	fn to_tokens(&self, tokens: &mut TokenStream) {
+		match self {
+			GenericItem::Fn(f) => f.to_tokens(tokens),
+			GenericItem::TraitFn(f) => f.to_tokens(tokens),
+			GenericItem::ImplFn(f) => f.to_tokens(tokens),
+			GenericItem::Struct(f) => f.to_tokens(tokens),
+			GenericItem::Enum(f) => f.to_tokens(tokens),
+			GenericItem::Union(f) => f.to_tokens(tokens),
+			GenericItem::Trait(f) => f.to_tokens(tokens),
+			GenericItem::Type(f) => f.to_tokens(tokens),
+		}
+	}
+}
 
 pub enum DocArg {
 	Desc(LitStr),
 	Override(LitStr, LitStr),
 }
 
-impl Parse for DocArg {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
+impl syn::parse::Parse for DocArg {
+	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
 		if input.peek(syn::token::Paren) {
 			let tuple: ExprTuple = input.parse()?;
 			if tuple.elems.len() != 2 {
@@ -44,12 +130,12 @@ impl Parse for DocArg {
 }
 
 pub struct GenericArgs {
-	pub entries: Punctuated<DocArg, Token![,]>,
+	pub entries: syn::punctuated::Punctuated<DocArg, Token![,]>,
 }
 
-impl Parse for GenericArgs {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(GenericArgs { entries: Punctuated::parse_terminated(input)? })
+impl syn::parse::Parse for GenericArgs {
+	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+		Ok(GenericArgs { entries: syn::punctuated::Punctuated::parse_terminated(input)? })
 	}
 }
 
