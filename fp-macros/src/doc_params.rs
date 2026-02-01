@@ -1,91 +1,46 @@
-use crate::{
-	doc_utils::{DocArg, GenericArgs, GenericItem, insert_doc_comment},
-	function_utils::{LogicalParam, analyze_generics, get_logical_params, load_config},
-};
+use crate::function_utils::{LogicalParam, get_logical_params, load_config};
 use proc_macro2::TokenStream;
-use quote::{ToTokens, quote};
-use syn::{Error, spanned::Spanned};
+use quote::ToTokens;
+use syn::Error;
 
 pub fn doc_params_impl(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> TokenStream {
-	let mut generic_item = match GenericItem::parse(item_tokens) {
-		Ok(i) => i,
-		Err(e) => return e.to_compile_error(),
-	};
+	crate::doc_utils::generate_doc_comments(attr, item_tokens, |generic_item| {
+		let config = load_config();
 
-	let args = match syn::parse2::<GenericArgs>(attr.clone()) {
-		Ok(a) => a,
-		Err(e) => return e.to_compile_error(),
-	};
-
-	let config = load_config();
-
-	let sig = match generic_item.sig() {
-		Some(s) => s,
-		None => {
-			return Error::new(attr.span(), "doc_params can only be used on functions")
-				.to_compile_error();
-		}
-	};
-
-	let (generic_names, fn_bounds) = analyze_generics(sig, &config);
-
-	let logical_params = get_logical_params(sig, &fn_bounds, &generic_names, &config);
-	let entries: Vec<_> = args.entries.into_iter().collect();
-
-	if logical_params.len() != entries.len() {
-		return Error::new(
-			attr.span(),
-			format!(
-				"Expected {} description arguments, found {}.",
-				logical_params.len(),
-				entries.len()
-			),
-		)
-		.to_compile_error();
-	}
-
-	for (param, entry) in logical_params.iter().zip(entries) {
-		let (name, desc) = match entry {
-			DocArg::Override(n, d) => (n.value(), d.value()),
-			DocArg::Desc(d) => {
-				let name = match param {
-					LogicalParam::Explicit(pat) => {
-						let s = pat.to_token_stream().to_string();
-						s.replace(" , ", ", ")
-					}
-					LogicalParam::Implicit(_) => "_".to_string(),
-				};
-				(name, d.value())
+		let sig = match generic_item.sig() {
+			Some(s) => s,
+			None => {
+				return Err(Error::new(
+					proc_macro2::Span::call_site(),
+					"doc_params can only be used on functions",
+				));
 			}
 		};
 
-		let doc_comment = format!("* `{}`: {}", name, desc);
-		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
-	}
+		let logical_params = get_logical_params(sig, &config);
 
-	quote! {
-		#generic_item
-	}
+		Ok(logical_params
+			.into_iter()
+			.map(|param| match param {
+				LogicalParam::Explicit(pat) => {
+					let s = pat.to_token_stream().to_string();
+					s.replace(" , ", ", ")
+				}
+				LogicalParam::Implicit(_) => "_".to_string(),
+			})
+			.collect())
+	})
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::doc_utils::get_doc;
+	use quote::quote;
 	use syn::ItemFn;
-
-	fn get_doc(attr: &syn::Attribute) -> String {
-		if let syn::Meta::NameValue(nv) = &attr.meta {
-			if let syn::Expr::Lit(lit) = &nv.value {
-				if let syn::Lit::Str(s) = &lit.lit {
-					return s.value();
-				}
-			}
-		}
-		panic!("Not a doc comment: {:?}", attr);
-	}
 
 	#[test]
 	fn test_doc_params_basic() {

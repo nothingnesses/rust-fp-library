@@ -147,6 +147,54 @@ impl syn::parse::Parse for GenericArgs {
 	}
 }
 
+pub fn generate_doc_comments<F>(
+	attr: TokenStream,
+	item_tokens: TokenStream,
+	get_targets: F,
+) -> TokenStream
+where
+	F: FnOnce(&GenericItem) -> Result<Vec<String>, Error>,
+{
+	let mut generic_item = match GenericItem::parse(item_tokens) {
+		Ok(i) => i,
+		Err(e) => return e.to_compile_error(),
+	};
+
+	let args = match syn::parse2::<GenericArgs>(attr.clone()) {
+		Ok(a) => a,
+		Err(e) => return e.to_compile_error(),
+	};
+
+	let targets = match get_targets(&generic_item) {
+		Ok(t) => t,
+		Err(e) => return e.to_compile_error(),
+	};
+
+	let entries: Vec<_> = args.entries.into_iter().collect();
+
+	if targets.len() != entries.len() {
+		return Error::new(
+			attr.span(),
+			format!("Expected {} description arguments, found {}.", targets.len(), entries.len()),
+		)
+		.to_compile_error();
+	}
+
+	for (name_from_target, entry) in targets.iter().zip(entries) {
+		let (name, desc) = match entry {
+			DocArg::Override(n, d) => (n.value(), d.value()),
+			DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+		};
+
+		let doc_comment = format!("* `{}`: {}", name, desc);
+		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
+	}
+
+	quote::quote! {
+		#generic_item
+	}
+}
+
 pub fn insert_doc_comment(
 	attrs: &mut Vec<syn::Attribute>,
 	doc_comment: String,
@@ -166,4 +214,15 @@ pub fn insert_doc_comment(
 	}
 
 	attrs.insert(insert_idx, doc_attr);
+}
+
+#[cfg(test)]
+pub fn get_doc(attr: &syn::Attribute) -> String {
+	if let syn::Meta::NameValue(nv) = &attr.meta
+		&& let syn::Expr::Lit(lit) = &nv.value
+		&& let syn::Lit::Str(s) = &lit.lit
+	{
+		return s.value();
+	}
+	panic!("Not a doc comment: {:?}", attr);
 }
