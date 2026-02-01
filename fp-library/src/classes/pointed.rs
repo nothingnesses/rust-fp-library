@@ -9,9 +9,9 @@
 //! assert_eq!(x, Some(5));
 //! ```
 
+use crate::{Apply, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
 /// A type class for contexts that can be initialized with a value.
@@ -26,15 +26,12 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A new context containing the value.
@@ -60,16 +57,12 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"Undocumented",
-	"The brand of the context.",
-	"The type of the value to wrap."
-)]///
+#[doc_type_params("Undocumented", "The brand of the context.", "The type of the value to wrap.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The value to wrap."
-)]///
+#[doc_params("The value to wrap.")]
+///
 /// ### Returns
 ///
 /// A new context containing the value.

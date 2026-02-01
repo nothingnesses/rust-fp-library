@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	brands::ArcBrand,
 	classes::{
@@ -8,6 +6,8 @@ use crate::{
 		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
 	},
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 use std::sync::Arc;
 
@@ -22,14 +22,12 @@ impl Pointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -58,14 +56,12 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -90,14 +86,12 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the wrapped value."
-	)]	///
+	#[doc_type_params("The type of the wrapped value.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pointer to attempt to unwrap."
-	)]	///
+	#[doc_params("The pointer to attempt to unwrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -126,14 +120,12 @@ impl SendRefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Arc`.
@@ -164,12 +156,12 @@ impl UnsizedCoercible for ArcBrand {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to coerce."
-	)]	///
+	#[doc_params("The closure to coerce.")]
+	///
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a trait object.
@@ -200,12 +192,12 @@ impl SendUnsizedCoercible for ArcBrand {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to coerce."
-	)]	///
+	#[doc_params("The closure to coerce.")]
+	///
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Arc` as a thread-safe trait object.

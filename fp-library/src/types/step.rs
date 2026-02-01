@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},
@@ -13,6 +11,8 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// Represents the result of a single step in a tail-recursive computation.
@@ -100,14 +100,12 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The new loop type."
-	)]	///
+	#[doc_type_params("The new loop type.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the loop value."
-	)]	///
+	#[doc_params("The function to apply to the loop value.")]
+	///
 	/// ### Returns
 	///
 	/// A new `Step` with the loop value transformed.
@@ -139,14 +137,12 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The new done type."
-	)]	///
+	#[doc_type_params("The new done type.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the done value."
-	)]	///
+	#[doc_params("The function to apply to the done value.")]
+	///
 	/// ### Returns
 	///
 	/// A new `Step` with the done value transformed.
@@ -178,16 +174,15 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The new loop type.",
-		"The new done type."
-	)]	///
+	#[doc_type_params("The new loop type.", "The new done type.")]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the loop value.",
 		"The function to apply to the done value."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new `Step` with both values transformed.
@@ -244,14 +239,16 @@ impl Bifunctor for StepBrand {
 		"The type of the mapped done value.",
 		"The type of the function to apply to the loop value.",
 		"The type of the function to apply to the done value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the loop value.",
 		"The function to apply to the done value.",
 		"The step to map over."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new step containing the mapped values.
@@ -301,13 +298,12 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 		"The type of the done value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the done value.",
-		"The step to map over."
-	)]	///
+	#[doc_params("The function to apply to the done value.", "The step to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new step containing the result of applying the function to the done value.
@@ -347,14 +343,12 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 		"The type of the second value.",
 		"The type of the result.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The binary function to apply.",
-		"The first step.",
-		"The second step."
-	)]	///
+	#[doc_params("The binary function to apply.", "The first step.", "The second step.")]
+	///
 	/// ### Returns
 	///
 	/// `Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered.
@@ -403,15 +397,12 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Done(a)`.
@@ -447,13 +438,12 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The step containing the function.",
-		"The step containing the value."
-	)]	///
+	#[doc_params("The step containing the function.", "The step containing the value.")]
+	///
 	/// ### Returns
 	///
 	/// `Done(f(a))` if both are `Done`, otherwise the first loop encountered.
@@ -494,13 +484,12 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first step.",
-		"The function to apply to the value inside the step."
-	)]	///
+	#[doc_params("The first step.", "The function to apply to the value inside the step.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop.
@@ -546,14 +535,12 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.
@@ -597,14 +584,12 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.
@@ -648,13 +633,12 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.
@@ -706,13 +690,12 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The step to traverse."
-	)]	///
+	#[doc_params("The function to apply.", "The step to traverse.")]
+	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -759,12 +742,12 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The step containing the applicative value."
-	)]	///
+	#[doc_params("The step containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -813,13 +796,12 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thread-safe function to map each element to a monoid.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -866,14 +848,16 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The step to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -931,13 +915,12 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 		"The type of the loop value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the loop value.",
-		"The step to map over."
-	)]	///
+	#[doc_params("The function to apply to the loop value.", "The step to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new step containing the result of applying the function to the loop value.
@@ -977,14 +960,16 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 		"The type of the second loop value.",
 		"The type of the result loop value.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The binary function to apply to the loops.",
 		"The first step.",
 		"The second step."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered.
@@ -1033,15 +1018,12 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Loop(a)`.
@@ -1077,13 +1059,15 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The step containing the function (in Loop).",
 		"The step containing the value (in Loop)."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `Loop(f(a))` if both are `Loop`, otherwise the first done encountered.
@@ -1124,13 +1108,12 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first step.",
-		"The function to apply to the loop value."
-	)]	///
+	#[doc_params("The first step.", "The function to apply to the loop value.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done.
@@ -1176,14 +1159,12 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.
@@ -1227,14 +1208,12 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.
@@ -1278,13 +1257,12 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.
@@ -1336,13 +1314,12 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The step to traverse."
-	)]	///
+	#[doc_params("The function to apply.", "The step to traverse.")]
+	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -1389,12 +1366,12 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The step containing the applicative value."
-	)]	///
+	#[doc_params("The step containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The step wrapped in the applicative context.
@@ -1443,13 +1420,12 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thread-safe function to map each element to a monoid.",
-		"The step to fold."
-	)]	///
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1496,14 +1472,16 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The step to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

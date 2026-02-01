@@ -10,14 +10,14 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{compactable::Compactable, functor::Functor},
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for data structures that can be filtered and partitioned.
@@ -53,13 +53,15 @@ pub trait Filterable: Compactable + Functor {
 		"The type of the success values.",
 		"The type of the error values.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a [`Result`].",
 		"The data structure to partition."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
@@ -105,13 +107,12 @@ pub trait Filterable: Compactable + Functor {
 		"Undocumented",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate function.",
-		"The data structure to partition."
-	)]	///
+	#[doc_params("The predicate function.", "The data structure to partition.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
@@ -155,7 +156,8 @@ pub trait Filterable: Compactable + Functor {
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
-	)]	/// ### Parameters
+	)]
+	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an [`Option`].
 	/// * `fa`: The data structure to filter and map.
@@ -197,13 +199,12 @@ pub trait Filterable: Compactable + Functor {
 		"Undocumented",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate function.",
-		"The data structure to filter."
-	)]	///
+	#[doc_params("The predicate function.", "The data structure to filter.")]
+	///
 	/// ### Returns
 	///
 	/// A new data structure containing only the elements that satisfy the predicate.
@@ -245,13 +246,15 @@ pub trait Filterable: Compactable + Functor {
 	"The type of the success values.",
 	"The type of the error values.",
 	"The type of the function to apply."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element, returning a [`Result`].",
 	"The data structure to partition."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
@@ -296,13 +299,12 @@ where
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The predicate function.",
-	"The data structure to partition."
-)]///
+#[doc_params("The predicate function.", "The data structure to partition.")]
+///
 /// ### Returns
 ///
 /// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
@@ -346,13 +348,15 @@ where
 	"The type of the elements in the input structure.",
 	"The type of the elements in the output structure.",
 	"The type of the function to apply."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element, returning an [`Option`].",
 	"The data structure to filter and map."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// A new data structure containing only the values where the function returned [`Some`].
@@ -391,13 +395,12 @@ where
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The predicate function.",
-	"The data structure to filter."
-)]///
+#[doc_params("The predicate function.", "The data structure to filter.")]
+///
 /// ### Returns
 ///
 /// A new data structure containing only the elements that satisfy the predicate.

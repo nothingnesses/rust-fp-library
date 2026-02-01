@@ -37,15 +37,12 @@ impl VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the elements in the vector."
-	)]	///
+	#[doc_type_params("The type of the elements in the vector.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"A value to prepend to the vector.",
-		"A vector to prepend the value to."
-	)]	///
+	#[doc_params("A value to prepend to the vector.", "A vector to prepend the value to.")]
+	///
 	/// ### Returns
 	///
 	/// A new vector consisting of the `head` element prepended to the `tail` vector.
@@ -84,14 +81,12 @@ impl VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the elements in the vector."
-	)]	///
+	#[doc_type_params("The type of the elements in the vector.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The vector slice to deconstruct."
-	)]	///
+	#[doc_params("The vector slice to deconstruct.")]
+	///
 	/// ### Returns
 	///
 	/// An [`Option`] containing a tuple of the head element and the remaining tail vector,
@@ -136,13 +131,12 @@ impl Functor for VecBrand {
 		"The type of the elements in the vector.",
 		"The type of the elements in the resulting vector.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to each element.",
-		"The vector to map over."
-	)]	///
+	#[doc_params("The function to apply to each element.", "The vector to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying the function.
@@ -182,14 +176,12 @@ impl Lift for VecBrand {
 		"The type of the elements in the second vector.",
 		"The type of the elements in the resulting vector.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The binary function to apply.",
-		"The first vector.",
-		"The second vector."
-	)]	///
+	#[doc_params("The binary function to apply.", "The first vector.", "The second vector.")]
+	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying the function to all pairs of elements.
@@ -230,15 +222,12 @@ impl Pointed for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A vector containing the single value.
@@ -275,13 +264,12 @@ impl Semiapplicative for VecBrand {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input values.",
 		"The type of the output values."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The vector containing the functions.",
-		"The vector containing the values."
-	)]	///
+	#[doc_params("The vector containing the functions.", "The vector containing the values.")]
+	///
 	/// ### Returns
 	///
 	/// A new vector containing the results of applying each function to each value.
@@ -321,13 +309,12 @@ impl Semimonad for VecBrand {
 		"The type of the elements in the input vector.",
 		"The type of the elements in the output vector.",
 		("A", "The type of the elements in the input vector.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first vector.",
-		"The function to apply to each element, returning a vector."
-	)]	///
+	#[doc_params("The first vector.", "The function to apply to each element, returning a vector.")]
+	///
 	/// ### Returns
 	///
 	/// A new vector containing the flattened results.
@@ -371,14 +358,12 @@ impl Foldable for VecBrand {
 		"The type of the elements in the vector.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The vector to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The vector to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -418,14 +403,16 @@ impl Foldable for VecBrand {
 		"The type of the elements in the vector.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The vector to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -465,13 +452,12 @@ impl Foldable for VecBrand {
 		"The type of the elements in the vector.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The vector to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The vector to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -516,13 +502,15 @@ impl Traversable for VecBrand {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The vector to traverse."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The vector wrapped in the applicative context.
@@ -573,12 +561,12 @@ impl Traversable for VecBrand {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The vector containing the applicative values."
-	)]	///
+	#[doc_params("The vector containing the applicative values.")]
+	///
 	/// ### Returns
 	///
 	/// The vector wrapped in the applicative context.
@@ -630,10 +618,8 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first vector.",
-		"The second vector."
-	)]	///
+	#[doc_params("The first vector.", "The second vector.")]
+	///
 	/// ### Returns
 	///
 	/// The concatenated vector.
@@ -700,13 +686,15 @@ impl ParFoldable for VecBrand {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to map each element to a monoid.",
 		"The vector to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -752,15 +740,12 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The vector of options."
-	)]	///
+	#[doc_params("The vector of options.")]
+	///
 	/// ### Returns
 	///
 	/// The flattened vector.
@@ -798,12 +783,12 @@ impl Compactable for VecBrand {
 		"Undocumented",
 		"The type of the success value.",
 		"The type of the error value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The vector of results."
-	)]	///
+	#[doc_params("The vector of results.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -853,13 +838,12 @@ impl Filterable for VecBrand {
 		"The type of the success value.",
 		"The type of the error value.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The vector to partition."
-	)]	///
+	#[doc_params("The function to apply.", "The vector to partition.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -904,17 +888,12 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements.",
-		"The type of the predicate."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate.",
-		"The vector to partition."
-	)]	///
+	#[doc_params("The predicate.", "The vector to partition.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of vectors.
@@ -959,13 +938,12 @@ impl Filterable for VecBrand {
 		"The type of the input value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The vector to filter and map."
-	)]	///
+	#[doc_params("The function to apply.", "The vector to filter and map.")]
+	///
 	/// ### Returns
 	///
 	/// The filtered and mapped vector.
@@ -1000,17 +978,12 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements.",
-		"The type of the predicate."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate.",
-		"The vector to filter."
-	)]	///
+	#[doc_params("The predicate.", "The vector to filter.")]
+	///
 	/// ### Returns
 	///
 	/// The filtered vector.
@@ -1054,13 +1027,12 @@ impl Witherable for VecBrand {
 		"The type of the success value.",
 		"The type of the error value.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The vector to partition."
-	)]	///
+	#[doc_params("The function to apply.", "The vector to partition.")]
+	///
 	/// ### Returns
 	///
 	/// The partitioned vector wrapped in the applicative context.
@@ -1120,13 +1092,15 @@ impl Witherable for VecBrand {
 		"The type of the elements in the input structure.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning an `Option` in an applicative context.",
 		"The vector to filter and map."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The filtered and mapped vector wrapped in the applicative context.

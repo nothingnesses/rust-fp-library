@@ -10,14 +10,14 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{Applicative, Filterable, Traversable},
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for data structures that can be traversed and filtered.
@@ -49,13 +49,15 @@ pub trait Witherable: Filterable + Traversable {
 		"The type of the success values.",
 		"The type of the error values.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a [`Result`] in an applicative context.",
 		"The data structure to partition."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The partitioned data structure wrapped in the applicative context.
@@ -103,13 +105,15 @@ pub trait Witherable: Filterable + Traversable {
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning an [`Option`] in an applicative context.",
 		"The data structure to filter and map."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The filtered and mapped data structure wrapped in the applicative context.
@@ -157,13 +161,15 @@ pub trait Witherable: Filterable + Traversable {
 	"The type of the success values.",
 	"The type of the error values.",
 	"The type of the function to apply."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element, returning a [`Result`] in an applicative context.",
 	"The data structure to partition."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The partitioned data structure wrapped in the applicative context.
@@ -212,13 +218,15 @@ where
 	"The type of the elements in the input structure.",
 	"The type of the elements in the output structure.",
 	"The type of the function to apply."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element, returning an [`Option`] in an applicative context.",
 	"The data structure to filter and map."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The filtered and mapped data structure wrapped in the applicative context.

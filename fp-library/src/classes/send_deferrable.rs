@@ -9,9 +9,9 @@
 //! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
+use crate::{Apply, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
 /// A trait for deferred lazy evaluation with thread-safe thunks.
@@ -26,15 +26,12 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function that produces the value."
-	)]	///
+	#[doc_params("The function that produces the value.")]
+	///
 	/// ### Returns
 	///
 	/// A deferred value.
@@ -72,12 +69,12 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	"The brand of the deferred type.",
 	"The type of the value.",
 	("F", "The type of the thunk.")
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The function that produces the value."
-)]///
+#[doc_params("The function that produces the value.")]
+///
 /// ### Returns
 ///
 /// A deferred value.

@@ -29,10 +29,8 @@ pub trait Semigroup {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first value.",
-		"The second value."
-	)]	///
+	#[doc_params("The first value.", "The second value.")]
+	///
 	/// ### Returns
 	///
 	/// The combined value.
@@ -63,15 +61,12 @@ pub trait Semigroup {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The type of the semigroup."
-)]///
+#[doc_type_params("The type of the semigroup.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The first value.",
-	"The second value."
-)]///
+#[doc_params("The first value.", "The second value.")]
+///
 /// ### Returns
 ///
 /// The combined value.

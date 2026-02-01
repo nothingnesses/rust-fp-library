@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::{CatListBrand, OptionBrand},
@@ -15,6 +13,8 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
@@ -115,15 +115,12 @@ impl CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the elements in the list."
-	)]	///
+	#[doc_type_params("The type of the elements in the list.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"A value to prepend to the list.",
-		"A list to prepend the value to."
-	)]	///
+	#[doc_params("A value to prepend to the list.", "A list to prepend the value to.")]
+	///
 	/// ### Returns
 	///
 	/// A new list consisting of the `head` element prepended to the `tail` list.
@@ -157,14 +154,12 @@ impl CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the elements in the list."
-	)]	///
+	#[doc_type_params("The type of the elements in the list.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The list to deconstruct."
-	)]	///
+	#[doc_params("The list to deconstruct.")]
+	///
 	/// ### Returns
 	///
 	/// An [`Option`] containing a tuple of the head element and the remaining tail list,
@@ -207,13 +202,12 @@ impl Functor for CatListBrand {
 		"The type of the elements in the list.",
 		"The type of the elements in the resulting list.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to each element.",
-		"The list to map over."
-	)]	///
+	#[doc_params("The function to apply to each element.", "The list to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying the function.
@@ -256,14 +250,12 @@ impl Lift for CatListBrand {
 		"The type of the elements in the second list.",
 		"The type of the elements in the resulting list.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The binary function to apply.",
-		"The first list.",
-		"The second list."
-	)]	///
+	#[doc_params("The binary function to apply.", "The first list.", "The second list.")]
+	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying the function to all pairs of elements.
@@ -310,15 +302,12 @@ impl Pointed for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A list containing the single value.
@@ -358,13 +347,12 @@ impl Semiapplicative for CatListBrand {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input values.",
 		"The type of the output values."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The list containing the functions.",
-		"The list containing the values."
-	)]	///
+	#[doc_params("The list containing the functions.", "The list containing the values.")]
+	///
 	/// ### Returns
 	///
 	/// A new list containing the results of applying each function to each value.
@@ -405,13 +393,12 @@ impl Semimonad for CatListBrand {
 		"The type of the elements in the input list.",
 		"The type of the elements in the output list.",
 		("A", "The type of the elements in the input list.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first list.",
-		"The function to apply to each element, returning a list."
-	)]	///
+	#[doc_params("The first list.", "The function to apply to each element, returning a list.")]
+	///
 	/// ### Returns
 	///
 	/// A new list containing the flattened results.
@@ -456,14 +443,12 @@ impl Foldable for CatListBrand {
 		"The type of the elements in the list.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The list to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The list to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -507,14 +492,16 @@ impl Foldable for CatListBrand {
 		"The type of the elements in the list.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The list to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -558,13 +545,12 @@ impl Foldable for CatListBrand {
 		"The type of the elements in the list.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The list to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The list to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -610,13 +596,15 @@ impl Traversable for CatListBrand {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The list to traverse."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The list wrapped in the applicative context.
@@ -662,12 +650,12 @@ impl Traversable for CatListBrand {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The list containing the applicative values."
-	)]	///
+	#[doc_params("The list containing the applicative values.")]
+	///
 	/// ### Returns
 	///
 	/// The list wrapped in the applicative context.
@@ -715,13 +703,12 @@ impl ParFoldable for CatListBrand {
 		("A", "The element type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thread-safe function to map each element to a monoid.",
-		"The list to fold."
-	)]	///
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The list to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -769,15 +756,12 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The list of options."
-	)]	///
+	#[doc_params("The list of options.")]
+	///
 	/// ### Returns
 	///
 	/// The flattened list.
@@ -818,12 +802,12 @@ impl Compactable for CatListBrand {
 		"Undocumented",
 		"The type of the success value.",
 		"The type of the error value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The list of results."
-	)]	///
+	#[doc_params("The list of results.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -877,13 +861,12 @@ impl Filterable for CatListBrand {
 		"The type of the success value.",
 		"The type of the error value.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The list to partition."
-	)]	///
+	#[doc_params("The function to apply.", "The list to partition.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -933,17 +916,12 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements.",
-		"The type of the predicate."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate.",
-		"The list to partition."
-	)]	///
+	#[doc_params("The predicate.", "The list to partition.")]
+	///
 	/// ### Returns
 	///
 	/// A pair of lists.
@@ -999,13 +977,12 @@ impl Filterable for CatListBrand {
 		"The type of the input value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The list to filter and map."
-	)]	///
+	#[doc_params("The function to apply.", "The list to filter and map.")]
+	///
 	/// ### Returns
 	///
 	/// The filtered and mapped list.
@@ -1043,17 +1020,12 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the elements.",
-		"The type of the predicate."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the elements.", "The type of the predicate.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The predicate.",
-		"The list to filter."
-	)]	///
+	#[doc_params("The predicate.", "The list to filter.")]
+	///
 	/// ### Returns
 	///
 	/// The filtered list.
@@ -1100,13 +1072,12 @@ impl Witherable for CatListBrand {
 		"The type of the success value.",
 		"The type of the error value.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The list to partition."
-	)]	///
+	#[doc_params("The function to apply.", "The list to partition.")]
+	///
 	/// ### Returns
 	///
 	/// The partitioned list wrapped in the applicative context.
@@ -1172,13 +1143,15 @@ impl Witherable for CatListBrand {
 		"The type of the elements in the input structure.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning an `Option` in an applicative context.",
 		"The list to filter and map."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The filtered and mapped list wrapped in the applicative context.
@@ -1235,10 +1208,8 @@ impl<A> Semigroup for CatList<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first list.",
-		"The second list."
-	)]	///
+	#[doc_params("The first list.", "The second list.")]
+	///
 	/// ### Returns
 	///
 	/// The concatenated list.
@@ -1365,9 +1336,8 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The element to put in the list."
-	)]	///
+	#[doc_params("The element to put in the list.")]
+	///
 	/// ### Returns
 	///
 	/// A `CatList` containing the single element.
@@ -1397,9 +1367,8 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The element to append."
-	)]	///
+	#[doc_params("The element to append.")]
+	///
 	/// ### Returns
 	///
 	/// The new list with the element appended to the front.
@@ -1431,9 +1400,8 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The element to append."
-	)]	///
+	#[doc_params("The element to append.")]
+	///
 	/// ### Returns
 	///
 	/// The new list with the element appended to the back.
@@ -1468,9 +1436,8 @@ impl<A> CatList<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The second list."
-	)]	///
+	#[doc_params("The second list.")]
+	///
 	/// ### Returns
 	///
 	/// The concatenated list.

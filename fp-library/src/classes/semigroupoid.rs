@@ -11,9 +11,9 @@
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
 
+use crate::{Apply, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
 /// A type class for semigroupoids.
@@ -41,13 +41,15 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
 		"The target type of the second morphism."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The second morphism to apply (from C to D).",
 		"The first morphism to apply (from B to C)."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The composed morphism (from B to D).
@@ -84,13 +86,15 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	"The source type of the first morphism.",
 	"The target type of the first morphism and the source type of the second morphism.",
 	"The target type of the second morphism."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The second morphism to apply (from C to D).",
 	"The first morphism to apply (from B to C)."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The composed morphism (from B to D).

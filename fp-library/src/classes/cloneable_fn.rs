@@ -9,9 +9,9 @@
 //! assert_eq!(f(5), 10);
 //! ```
 
+use super::function::Function;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::function::Function;
 use fp_macros::hm_signature;
 use std::ops::Deref;
 
@@ -42,12 +42,11 @@ pub trait CloneableFn: Function {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to wrap."
-	)]	///
+	#[doc_params("The closure to wrap.", "Undocumented")]
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -78,12 +77,11 @@ pub trait CloneableFn: Function {
 	"The brand of the cloneable function wrapper.",
 	"The input type of the function.",
 	"The output type of the function."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The closure to wrap."
-)]///
+#[doc_params("The closure to wrap.", "Undocumented")]
 /// ### Returns
 ///
 /// The wrapped cloneable function.

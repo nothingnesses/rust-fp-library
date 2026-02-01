@@ -1,6 +1,6 @@
+use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 
 /// A lazily-computed, memoized value that may fail.
 ///
@@ -74,14 +74,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the initializer closure."
-	)]	///
+	#[doc_type_params("The type of the initializer closure.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure that produces the result."
-	)]	///
+	#[doc_params("The closure that produces the result.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance.
@@ -150,14 +148,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the initializer closure."
-	)]	///
+	#[doc_type_params("The type of the initializer closure.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure that might panic."
-	)]	///
+	#[doc_params("The closure that might panic.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance where panics are converted to `Err(String)`.
@@ -204,14 +200,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the initializer closure."
-	)]	///
+	#[doc_type_params("The type of the initializer closure.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure that produces the result."
-	)]	///
+	#[doc_params("The closure that produces the result.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryLazy` instance.

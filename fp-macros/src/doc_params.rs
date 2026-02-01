@@ -27,7 +27,10 @@ pub fn doc_params_impl(
 
 	let sig = match generic_item.sig() {
 		Some(s) => s,
-		None => return Error::new(attr.span(), "doc_params can only be used on functions").to_compile_error(),
+		None => {
+			return Error::new(attr.span(), "doc_params can only be used on functions")
+				.to_compile_error();
+		}
 	};
 
 	for param in &sig.generics.params {
@@ -72,11 +75,11 @@ pub fn doc_params_impl(
 	let logical_params = get_logical_params(sig, &fn_bounds, &generic_names, &config);
 	let entries: Vec<_> = args.entries.into_iter().collect();
 
-	if entries.len() > logical_params.len() {
+	if logical_params.len() != entries.len() {
 		return Error::new(
 			attr.span(),
 			format!(
-				"Expected at most {} description arguments, found {}.",
+				"Expected {} description arguments, found {}.",
 				logical_params.len(),
 				entries.len()
 			),
@@ -185,28 +188,14 @@ mod tests {
 
 	#[test]
 	fn test_doc_params_mismatch() {
-		let attr = quote! { "Arg 1", "Arg 2", "Too many" };
+		let attr = quote! { "Too few" };
 		let item = quote! {
 			fn foo(a: i32, b: i32) {}
 		};
 
 		let output = doc_params_impl(attr, item);
 		let error = output.to_string();
-		assert!(error.contains("Expected at most 2 description arguments, found 3."));
-	}
-
-	#[test]
-	fn test_doc_params_partial() {
-		let attr = quote! { "Arg 1" };
-		let item = quote! {
-			fn foo(a: i32, b: i32) {}
-		};
-
-		let output = doc_params_impl(attr, item);
-		let output_fn: ItemFn = syn::parse2(output).unwrap();
-
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
+		assert!(error.contains("Expected 2 description arguments, found 1."));
 	}
 
 	#[test]

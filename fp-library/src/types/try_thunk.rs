@@ -1,6 +1,6 @@
+use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 
 /// A deferred computation that may fail with error type `E`.
 ///
@@ -41,14 +41,12 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the thunk."
-	)]	///
+	#[doc_type_params("The type of the thunk.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thunk to wrap."
-	)]	///
+	#[doc_params("The thunk to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance.
@@ -76,9 +74,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the value.
@@ -108,9 +105,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the value.
@@ -138,9 +134,8 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The error to wrap."
-	)]	///
+	#[doc_params("The error to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance containing the error.
@@ -171,12 +166,12 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	#[doc_type_params(
 		"The type of the result of the new computation.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the result of the computation."
-	)]	///
+	#[doc_params("The function to apply to the result of the computation.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance representing the chained computation.
@@ -213,12 +208,12 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	#[doc_type_params(
 		"The type of the result of the transformation.",
 		("F", "The type of the transformation function.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the result of the computation."
-	)]	///
+	#[doc_params("The function to apply to the result of the computation.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance with the transformed result.
@@ -249,15 +244,12 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the new error.",
-		"The type of the transformation function."
-	)]	///
+	#[doc_type_params("The type of the new error.", "The type of the transformation function.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the error."
-	)]	///
+	#[doc_params("The function to apply to the error.")]
+	///
 	/// ### Returns
 	///
 	/// A new `TryThunk` instance with the transformed error.

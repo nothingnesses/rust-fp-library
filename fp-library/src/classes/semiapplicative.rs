@@ -11,10 +11,10 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for applying functions within a context to values within a context.
@@ -47,13 +47,12 @@ pub trait Semiapplicative: Lift + Functor {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The context containing the function(s).",
-		"The context containing the value(s)."
-	)]	///
+	#[doc_params("The context containing the function(s).", "The context containing the value(s).")]
+	///
 	/// ### Returns
 	///
 	/// A new context containing the result(s) of applying the function(s) to the value(s).
@@ -90,13 +89,12 @@ pub trait Semiapplicative: Lift + Functor {
 	"The brand of the context.",
 	"The type of the input value.",
 	"The type of the output value."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The context containing the function(s).",
-	"The context containing the value(s)."
-)]///
+#[doc_params("The context containing the function(s).", "The context containing the value(s).")]
+///
 /// ### Returns
 ///
 /// A new context containing the result(s) of applying the function(s) to the value(s).

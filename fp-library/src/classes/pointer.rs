@@ -40,14 +40,12 @@ pub trait Pointer {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in the pointer type.
@@ -73,15 +71,12 @@ pub trait Pointer {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The pointer brand.",
-	"The type of the value to wrap."
-)]///
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The value to wrap."
-)]///
+#[doc_params("The value to wrap.")]
+///
 /// ### Returns
 ///
 /// The value wrapped in the pointer type.

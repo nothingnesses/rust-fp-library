@@ -62,13 +62,12 @@ impl Functor for IdentityBrand {
 		"The type of the value inside the identity.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The identity to map over."
-	)]	///
+	#[doc_params("The function to apply.", "The identity to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -110,14 +109,12 @@ impl Lift for IdentityBrand {
 		"The type of the second identity's value.",
 		"The return type of the function.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The binary function to apply.",
-		"The first identity.",
-		"The second identity."
-	)]	///
+	#[doc_params("The binary function to apply.", "The first identity.", "The second identity.")]
+	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -158,15 +155,12 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// An identity containing the value.
@@ -203,13 +197,12 @@ impl Semiapplicative for IdentityBrand {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The identity containing the function.",
-		"The identity containing the value."
-	)]	///
+	#[doc_params("The identity containing the function.", "The identity containing the value.")]
+	///
 	/// ### Returns
 	///
 	/// A new identity containing the result of applying the function.
@@ -248,13 +241,12 @@ impl Semimonad for IdentityBrand {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first identity.",
-		"The function to apply to the value inside the identity."
-	)]	///
+	#[doc_params("The first identity.", "The function to apply to the value inside the identity.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value.
@@ -296,14 +288,16 @@ impl Foldable for IdentityBrand {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The identity to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -345,14 +339,16 @@ impl Foldable for IdentityBrand {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -394,13 +390,12 @@ impl Foldable for IdentityBrand {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The identity to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The identity to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The monoid value.
@@ -444,13 +439,15 @@ impl Traversable for IdentityBrand {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The identity to traverse."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The identity wrapped in the applicative context.
@@ -488,12 +485,12 @@ impl Traversable for IdentityBrand {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The identity containing the applicative value."
-	)]	///
+	#[doc_params("The identity containing the applicative value.")]
+	///
 	/// # Returns
 	///
 	/// The identity wrapped in the applicative context.
@@ -534,13 +531,12 @@ impl ParFoldable for IdentityBrand {
 		("A", "The element type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The identity to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The identity to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -582,14 +578,16 @@ impl ParFoldable for IdentityBrand {
 		("A", "The element type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The identity to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

@@ -31,8 +31,8 @@ pub fn doc_type_params_impl(
 		.to_compile_error();
 	}
 
-	for i in 0..params_count {
-		let entry = &entries[i];
+	for (i, item) in entries.iter().enumerate().take(params_count) {
+		let entry = &item;
 		let (name, desc) = match entry {
 			DocArg::Override(n, d) => (n.value(), d.value()),
 			DocArg::Desc(d) => {

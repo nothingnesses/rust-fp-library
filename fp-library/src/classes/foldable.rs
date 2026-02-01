@@ -10,8 +10,6 @@
 //! assert_eq!(y, 15);
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use super::monoid::Monoid;
 use crate::{
 	Apply,
@@ -19,6 +17,8 @@ use crate::{
 	kinds::*,
 	types::Endofunction,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for structures that can be folded to a single value.
@@ -51,14 +51,16 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -110,14 +112,16 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -177,13 +181,12 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to map each element to a monoid.",
-		"The structure to fold."
-	)]	///
+	#[doc_params("The function to map each element to a monoid.", "The structure to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -227,14 +230,16 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	"The type of the elements in the structure.",
 	"The type of the accumulator.",
 	"The type of the folding function."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element and the accumulator.",
 	"The initial value of the accumulator.",
 	"The structure to fold."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The final accumulator value.
@@ -277,14 +282,16 @@ where
 	"The type of the elements in the structure.",
 	"The type of the accumulator.",
 	"The type of the folding function."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to the accumulator and each element.",
 	"The initial value of the accumulator.",
 	"The structure to fold."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The final accumulator value.
@@ -327,13 +334,12 @@ where
 	"The type of the elements in the structure.",
 	"The type of the monoid.",
 	"The type of the mapping function."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The function to map each element to a monoid.",
-	"The structure to fold."
-)]///
+#[doc_params("The function to map each element to a monoid.", "The structure to fold.")]
+///
 /// ### Returns
 ///
 /// The combined monoid value.

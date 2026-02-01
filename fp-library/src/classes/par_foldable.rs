@@ -89,13 +89,15 @@ pub trait ParFoldable: Foldable {
 		"The brand of thread-safe function to use.",
 		"The element type.",
 		"The monoid type."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to map each element to a monoid`.",
 		"The foldable structure."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value
@@ -134,14 +136,16 @@ pub trait ParFoldable: Foldable {
 		"The brand of thread-safe function to use",
 		"The element type (must be `Send + Sync`)",
 		"The accumulator type (must be `Send + Sync`)"
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value
@@ -198,13 +202,12 @@ pub trait ParFoldable: Foldable {
 	"The brand of the foldable structure.",
 	"The element type (must be `Send + Sync`).",
 	"The monoid type (must be `Send + Sync`)."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The thread-safe function to map each element to a monoid.",
-	"The structure to fold."
-)]///
+#[doc_params("The thread-safe function to map each element to a monoid.", "The structure to fold.")]
+///
 /// ### Returns
 ///
 /// The combined monoid value.
@@ -248,14 +251,16 @@ where
 	"The brand of the foldable structure.",
 	"The element type (must be `Send + Sync`).",
 	"The accumulator type (must be `Send + Sync`)."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The thread-safe function to apply to each element and the accumulator.",
 	"The initial value of the accumulator.",
 	"The structure to fold."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The final accumulator value.

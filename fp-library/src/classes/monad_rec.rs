@@ -27,9 +27,9 @@
 //! assert_eq!(factorial(5).evaluate(), 120);
 //! ```
 
+use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 use fp_macros::hm_signature;
 
 /// A type class for monads that support stack-safe tail recursion.
@@ -64,13 +64,12 @@ pub trait MonadRec: Monad {
 		"The type of the initial value and loop state.",
 		"The type of the result.",
 		"The type of the step function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The step function.",
-		"The initial value."
-	)]	///
+	#[doc_params("The step function.", "The initial value.")]
+	///
 	/// ### Returns
 	///
 	/// The result of the computation.
@@ -119,13 +118,12 @@ pub trait MonadRec: Monad {
 	"The type of the initial value and loop state.",
 	"The type of the result.",
 	("A", "The type of the initial value and loop state.")
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The step function.",
-	"The initial value."
-)]///
+#[doc_params("The step function.", "The initial value.")]
+///
 /// ### Returns
 ///
 /// The result of the computation.

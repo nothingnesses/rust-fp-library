@@ -47,14 +47,16 @@ impl Bifunctor for ResultBrand {
 		"The type of the mapped success value.",
 		"The type of the function to apply to the error.",
 		"The type of the function to apply to the success."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the error.",
 		"The function to apply to the success.",
 		"The result to map over."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new result containing the mapped values.
@@ -110,13 +112,12 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 		"The type of the value inside the result.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The result to map over."
-	)]	///
+	#[doc_params("The function to apply.", "The result to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new result containing the result of applying the function, or the original error.
@@ -157,14 +158,12 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 		"The type of the second value.",
 		"The type of the result.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The binary function to apply.",
-		"The first result.",
-		"The second result."
-	)]	///
+	#[doc_params("The binary function to apply.", "The first result.", "The second result.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered.
@@ -221,15 +220,12 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(a)`.
@@ -266,13 +262,12 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The result containing the function.",
-		"The result containing the value."
-	)]	///
+	#[doc_params("The result containing the function.", "The result containing the value.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(f(a))` if both are `Ok`, otherwise the first error encountered.
@@ -318,13 +313,12 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first result.",
-		"The function to apply to the value inside the result."
-	)]	///
+	#[doc_params("The first result.", "The function to apply to the value inside the result.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error.
@@ -376,14 +370,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.
@@ -427,14 +419,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.
@@ -478,13 +468,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.
@@ -536,13 +525,12 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The result to traverse."
-	)]	///
+	#[doc_params("The function to apply.", "The result to traverse.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -594,12 +582,12 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The result containing the applicative value."
-	)]	///
+	#[doc_params("The result containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -661,13 +649,12 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 		"The type of the error value inside the result.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the error.",
-		"The result to map over."
-	)]	///
+	#[doc_params("The function to apply to the error.", "The result to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new result containing the mapped error, or the original success value.
@@ -711,14 +698,16 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 		"The type of the second error value.",
 		"The type of the result error value.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The binary function to apply to the errors.",
 		"The first result.",
 		"The second result."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `Err(f(a, b))` if both results are `Err`, otherwise the first success encountered.
@@ -775,15 +764,12 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Err(a)`.
@@ -820,13 +806,15 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The result containing the function (in Err).",
 		"The result containing the value (in Err)."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
@@ -872,13 +860,12 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first result.",
-		"The function to apply to the error value."
-	)]	///
+	#[doc_params("The first result.", "The function to apply to the error value.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
@@ -933,14 +920,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -984,14 +969,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -1035,13 +1018,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
@@ -1093,13 +1075,12 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The result to traverse."
-	)]	///
+	#[doc_params("The function to apply.", "The result to traverse.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1151,12 +1132,12 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The result containing the applicative value."
-	)]	///
+	#[doc_params("The result containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1210,13 +1191,15 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to map each element to a monoid.",
 		"The result to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1263,14 +1246,16 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The result to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -1320,13 +1305,15 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to map each element to a monoid.",
 		"The result to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1373,14 +1360,16 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 		"The brand of thread-safe function to use.",
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The result to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

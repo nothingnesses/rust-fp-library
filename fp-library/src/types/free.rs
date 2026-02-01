@@ -1,11 +1,11 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{Evaluable, Functor},
 	kinds::*,
 	types::CatList,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 use std::{any::Any, marker::PhantomData};
 
@@ -126,9 +126,8 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A `Free` computation that produces `a`.
@@ -153,9 +152,8 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The functor value containing the next step."
-	)]	///
+	#[doc_params("The functor value containing the next step.")]
+	///
 	/// ### Returns
 	///
 	/// A `Free` computation that performs the effect `fa`.
@@ -191,9 +189,8 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The functor value to lift."
-	)]	///
+	#[doc_params("The functor value to lift.")]
+	///
 	/// ### Returns
 	///
 	/// A `Free` computation that performs the effect and returns the result.
@@ -227,14 +224,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The result type of the new computation."
-	)]	///
+	#[doc_type_params("The result type of the new computation.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the result of this computation."
-	)]	///
+	#[doc_params("The function to apply to the result of this computation.")]
+	///
 	/// ### Returns
 	///
 	/// A new `Free` computation that chains `f` after this computation.

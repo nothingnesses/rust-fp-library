@@ -9,9 +9,9 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
+use super::RefCountedPointer;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::RefCountedPointer;
 use fp_macros::hm_signature;
 use std::ops::Deref;
 
@@ -33,14 +33,12 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in the thread-safe pointer type.
@@ -66,15 +64,12 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The pointer brand.",
-	"The type of the value to wrap."
-)]///
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The value to wrap."
-)]///
+#[doc_params("The value to wrap.")]
+///
 /// ### Returns
 ///
 /// The value wrapped in the thread-safe pointer type.

@@ -1,7 +1,9 @@
-use syn::{Attribute, Error, Expr, ExprTuple, LitStr, Signature, Token, parse_quote, spanned::Spanned};
-use syn::{ItemFn, TraitItemFn, ImplItemFn};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
+use syn::{
+	Attribute, Error, Expr, ExprTuple, LitStr, Signature, Token, parse_quote, spanned::Spanned,
+};
+use syn::{ImplItemFn, ItemFn, TraitItemFn};
 
 pub enum GenericItem {
 	Fn(ItemFn),
@@ -33,7 +35,10 @@ impl GenericItem {
 		} else if let Ok(f) = syn::parse2::<syn::ItemType>(item) {
 			Ok(GenericItem::Type(f))
 		} else {
-			Err(Error::new(proc_macro2::Span::call_site(), "Unsupported item type for documentation macros"))
+			Err(Error::new(
+				proc_macro2::Span::call_site(),
+				"Unsupported item type for documentation macros",
+			))
 		}
 	}
 
@@ -74,7 +79,10 @@ impl GenericItem {
 }
 
 impl ToTokens for GenericItem {
-	fn to_tokens(&self, tokens: &mut TokenStream) {
+	fn to_tokens(
+		&self,
+		tokens: &mut TokenStream,
+	) {
 		match self {
 			GenericItem::Fn(f) => f.to_tokens(tokens),
 			GenericItem::TraitFn(f) => f.to_tokens(tokens),

@@ -10,10 +10,10 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use super::{Applicative, Foldable, Functor};
 use crate::{Apply, functions::identity, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for traversable functors.
@@ -41,13 +41,15 @@ pub trait Traversable: Functor + Foldable {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The traversable structure."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The traversable structure wrapped in the applicative context.
@@ -91,12 +93,12 @@ pub trait Traversable: Functor + Foldable {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The traversable structure containing values in an applicative context."
-	)]	///
+	#[doc_params("The traversable structure containing values in an applicative context.")]
+	///
 	/// ### Returns
 	///
 	/// The traversable structure wrapped in the applicative context.
@@ -140,13 +142,15 @@ pub trait Traversable: Functor + Foldable {
 	"The type of the elements in the resulting traversable structure.",
 	"The applicative context.",
 	"The type of the function to apply."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The function to apply to each element, returning a value in an applicative context.",
 	"The traversable structure."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The traversable structure wrapped in the applicative context.
@@ -187,12 +191,12 @@ where
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
 	"The applicative context."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The traversable structure containing values in an applicative context."
-)]///
+#[doc_params("The traversable structure containing values in an applicative context.")]
+///
 /// ### Returns
 ///
 /// The traversable structure wrapped in the applicative context.

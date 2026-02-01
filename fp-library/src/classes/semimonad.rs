@@ -10,9 +10,9 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use crate::{Apply, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -36,13 +36,15 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The first computation.",
 		"The function to apply to the result of the first computation."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The result of the second computation.
@@ -80,13 +82,15 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	"The type of the result of the first computation.",
 	"The type of the result of the second computation.",
 	("A", "The type of the result of the first computation.")
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The first computation.",
 	"The function to apply to the result of the first computation."
-)]///
+)]
+///
 /// ### Returns
 ///
 /// The result of the second computation.

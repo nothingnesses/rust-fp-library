@@ -48,13 +48,15 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"The output type of `g` and the input type of `f`.",
 	"The type of the outer function.",
 	"The type of the inner function."
-)]///
+)]
+///
 /// ### Parameters
 ///
 #[doc_params(
 	"The outer function to apply second.",
-	"The inner function to apply first."
-)]///
+	"The inner function to apply first.",
+	"Undocumented"
+)]
 /// ### Returns
 ///
 /// A new function that takes an `A` and returns a `C`.
@@ -96,15 +98,11 @@ where
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The type of the argument to ignore.",
-	"The type of the value to return."
-)]///
+#[doc_type_params("The type of the argument to ignore.", "The type of the value to return.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The value to be returned by the constant function."
-)]///
+#[doc_params("The value to be returned by the constant function.", "Undocumented")]
 /// ### Returns
 ///
 /// A function that takes any value of type `B` and returns `a`.
@@ -139,12 +137,11 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 	"The type of the second argument of the input function.",
 	"The return type of the function.",
 	"The type of the input binary function."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"A binary function."
-)]///
+#[doc_params("A binary function.", "Undocumented", "Undocumented")]
 /// ### Returns
 ///
 /// A version of `f` that takes its arguments in reverse.
@@ -179,14 +176,12 @@ where
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The type of the value."
-)]///
+#[doc_type_params("The type of the value.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"A value."
-)]///
+#[doc_params("A value.")]
+///
 /// ### Returns
 ///
 /// The same value `a`.

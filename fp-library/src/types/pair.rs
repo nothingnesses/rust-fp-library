@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
@@ -13,6 +11,8 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// Wraps two values.
@@ -72,14 +72,16 @@ impl Bifunctor for PairBrand {
 		"The type of the mapped second value.",
 		"The type of the function to apply to the first value.",
 		"The type of the function to apply to the second value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the first value.",
 		"The function to apply to the second value.",
 		"The pair to map over."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new pair containing the mapped values.
@@ -130,13 +132,12 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 		"The type of the second value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the second value.",
-		"The pair to map over."
-	)]	///
+	#[doc_params("The function to apply to the second value.", "The pair to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new pair containing the result of applying the function to the second value.
@@ -179,14 +180,16 @@ where
 		"The type of the second second value.",
 		"The type of the result second value.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The binary function to apply to the second values.",
 		"The first pair.",
 		"The second pair."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
@@ -230,15 +233,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A pair containing the empty value of the first type and `a`.
@@ -277,13 +277,12 @@ where
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pair containing the function.",
-		"The pair containing the value."
-	)]	///
+	#[doc_params("The pair containing the function.", "The pair containing the value.")]
+	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined and the function is applied to the second value.
@@ -323,13 +322,12 @@ where
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first pair.",
-		"The function to apply to the second value."
-	)]	///
+	#[doc_params("The first pair.", "The function to apply to the second value.")]
+	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined.
@@ -374,14 +372,12 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The pair to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The pair to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)`.
@@ -421,14 +417,16 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The identity to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)`.
@@ -468,13 +466,12 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The pair to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The pair to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)`.
@@ -519,13 +516,15 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The pair to traverse."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The pair wrapped in the applicative context.
@@ -565,12 +564,12 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pair containing the applicative value."
-	)]	///
+	#[doc_params("The pair containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The pair wrapped in the applicative context.
@@ -613,13 +612,12 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 		("A", "The element type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thread-safe function to map each element to a monoid.",
-		"The pair to fold."
-	)]	///
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The pair to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -663,14 +661,16 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 		("B", "The accumulator type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The pair to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.
@@ -721,13 +721,12 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 		"The type of the first value.",
 		"The type of the result of applying the function.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply to the first value.",
-		"The pair to map over."
-	)]	///
+	#[doc_params("The function to apply to the first value.", "The pair to map over.")]
+	///
 	/// ### Returns
 	///
 	/// A new pair containing the result of applying the function to the first value.
@@ -770,14 +769,16 @@ where
 		"The type of the second first value.",
 		"The type of the result first value.",
 		"The type of the binary function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The binary function to apply to the first values.",
 		"The first pair.",
 		"The second pair."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
@@ -821,15 +822,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// A pair containing `a` and the empty value of the second type.
@@ -868,13 +866,15 @@ where
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The pair containing the function (in Err).",
 		"The pair containing the value (in Err)."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
@@ -914,13 +914,12 @@ where
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
 		("A", "The type of the result of the first computation.")
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first result.",
-		"The function to apply to the error value."
-	)]	///
+	#[doc_params("The first result.", "The function to apply to the error value.")]
+	///
 	/// ### Returns
 	///
 	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
@@ -965,14 +964,12 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -1012,14 +1009,12 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 		"The type of the elements in the structure.",
 		"The type of the accumulator.",
 		"The type of the folding function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The folding function.",
-		"The initial value.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
@@ -1059,13 +1054,12 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 		"The type of the elements in the structure.",
 		"The type of the monoid.",
 		"The type of the mapping function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The mapping function.",
-		"The result to fold."
-	)]	///
+	#[doc_params("The mapping function.", "The result to fold.")]
+	///
 	/// ### Returns
 	///
 	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
@@ -1110,13 +1104,12 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
 		"The type of the function to apply."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The function to apply.",
-		"The result to traverse."
-	)]	///
+	#[doc_params("The function to apply.", "The result to traverse.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1157,12 +1150,12 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		"Undocumented",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The result containing the applicative value."
-	)]	///
+	#[doc_params("The result containing the applicative value.")]
+	///
 	/// ### Returns
 	///
 	/// The result wrapped in the applicative context.
@@ -1205,13 +1198,12 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 		("M", "The monoid type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The monoid type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The thread-safe function to map each element to a monoid.",
-		"The pair to fold."
-	)]	///
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The pair to fold.")]
+	///
 	/// ### Returns
 	///
 	/// The combined monoid value.
@@ -1255,14 +1247,16 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 		("B", "The accumulator type (must be `Send + Sync`)."),
 		"The element type (must be `Send + Sync`).",
 		"The accumulator type (must be `Send + Sync`)."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The pair to fold."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The final accumulator value.

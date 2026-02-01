@@ -11,10 +11,10 @@
 //! assert_eq!(z, Some(5));
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 /// A type class for types that support combining two contexts, keeping the first value.
@@ -36,13 +36,12 @@ pub trait ApplyFirst: Lift {
 		"Undocumented",
 		"The type of the value in the first context.",
 		"The type of the value in the second context."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The first context.",
-		"The second context."
-	)]	///
+	#[doc_params("The first context.", "The second context.")]
+	///
 	/// ### Returns
 	///
 	/// The first context.
@@ -80,13 +79,12 @@ pub trait ApplyFirst: Lift {
 	"The brand of the context.",
 	"The type of the value in the first context.",
 	"The type of the value in the second context."
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The first context.",
-	"The second context."
-)]///
+#[doc_params("The first context.", "The second context.")]
+///
 /// ### Returns
 ///
 /// The first context.

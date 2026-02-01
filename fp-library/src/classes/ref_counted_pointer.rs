@@ -10,9 +10,9 @@
 //! assert_eq!(*clone, 42);
 //! ```
 
+use super::Pointer;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::Pointer;
 use fp_macros::hm_signature;
 use std::ops::Deref;
 
@@ -34,14 +34,12 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in the cloneable pointer type.
@@ -66,14 +64,12 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the wrapped value."
-	)]	///
+	#[doc_type_params("The type of the wrapped value.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pointer to attempt to unwrap."
-	)]	///
+	#[doc_params("The pointer to attempt to unwrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -103,15 +99,12 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The pointer brand.",
-	"The type of the wrapped value."
-)]///
+#[doc_type_params("The pointer brand.", "The type of the wrapped value.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The pointer to attempt to unwrap."
-)]///
+#[doc_params("The pointer to attempt to unwrap.")]
+///
 /// ### Returns
 ///
 /// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -140,15 +133,12 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
-	"The pointer brand.",
-	"The type of the value to wrap."
-)]///
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The value to wrap."
-)]///
+#[doc_params("The value to wrap.")]
+///
 /// ### Returns
 ///
 /// The value wrapped in the cloneable pointer type.

@@ -9,9 +9,9 @@
 //! assert_eq!(f(1), 2);
 //! ```
 
+use super::{SendRefCountedPointer, UnsizedCoercible};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::{SendRefCountedPointer, UnsizedCoercible};
 use fp_macros::hm_signature;
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
@@ -28,12 +28,12 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to coerce."
-	)]	///
+	#[doc_params("The closure to coerce.")]
+	///
 	/// ### Returns
 	///
 	/// The closure wrapped in the pointer type as a thread-safe trait object.
@@ -67,12 +67,12 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	"The input type of the function.",
 	"The output type of the function.",
 	("F", "The type of the closure to coerce.")
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The closure to coerce."
-)]///
+#[doc_params("The closure to coerce.")]
+///
 /// ### Returns
 ///
 /// The closure wrapped in the pointer type as a thread-safe trait object.

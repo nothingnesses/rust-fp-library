@@ -9,9 +9,9 @@
 //! assert_eq!(f(1), 2);
 //! ```
 
+use super::RefCountedPointer;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::RefCountedPointer;
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
@@ -27,12 +27,12 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to coerce."
-	)]	///
+	#[doc_params("The closure to coerce.")]
+	///
 	/// ### Returns
 	///
 	/// The closure wrapped in the pointer type as a trait object.
@@ -64,12 +64,12 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	"The input type of the function.",
 	"The output type of the function.",
 	("F", "The type of the closure to coerce.")
-)]///
+)]
+///
 /// ### Parameters
 ///
-#[doc_params(
-	"The closure to coerce."
-)]///
+#[doc_params("The closure to coerce.")]
+///
 /// ### Returns
 ///
 /// The closure wrapped in the pointer type as a trait object.

@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::FnBrand,
@@ -11,6 +9,8 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 impl_kind! {
@@ -36,12 +36,11 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to wrap."
-	)]	///
+	#[doc_params("The closure to wrap.", "Undocumented")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -76,12 +75,11 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to wrap."
-	)]	///
+	#[doc_params("The closure to wrap.", "Undocumented")]
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -115,13 +113,15 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
 		"The target type of the second morphism."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
 	#[doc_params(
 		"The second morphism to apply (from C to D).",
 		"The first morphism to apply (from B to C)."
-	)]	///
+	)]
+	///
 	/// ### Returns
 	///
 	/// The composed morphism (from B to D).
@@ -155,10 +155,8 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"Undocumented",
-		"The type of the object."
-	)]	///
+	#[doc_type_params("Undocumented", "The type of the object.")]
+	///
 	/// ### Returns
 	///
 	/// The identity morphism.
@@ -193,12 +191,11 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to wrap."
-	)]	///
+	#[doc_params("The closure to wrap.")]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.

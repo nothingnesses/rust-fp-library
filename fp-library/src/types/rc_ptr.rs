@@ -1,5 +1,3 @@
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
 use crate::{
 	brands::RcBrand,
 	classes::{
@@ -7,6 +5,8 @@ use crate::{
 		unsized_coercible::UnsizedCoercible,
 	},
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
 use std::rc::Rc;
 
 impl Pointer for RcBrand {
@@ -20,14 +20,12 @@ impl Pointer for RcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Rc`.
@@ -56,14 +54,12 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the value to wrap."
-	)]	///
+	#[doc_type_params("The type of the value to wrap.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The value to wrap."
-	)]	///
+	#[doc_params("The value to wrap.")]
+	///
 	/// ### Returns
 	///
 	/// The value wrapped in an `Rc`.
@@ -88,14 +84,12 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The type of the wrapped value."
-	)]	///
+	#[doc_type_params("The type of the wrapped value.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pointer to attempt to unwrap."
-	)]	///
+	#[doc_params("The pointer to attempt to unwrap.")]
+	///
 	/// ### Returns
 	///
 	/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
@@ -126,12 +120,12 @@ impl UnsizedCoercible for RcBrand {
 		"Undocumented",
 		"The input type of the function.",
 		"The output type of the function."
-	)]	///
+	)]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The closure to coerce."
-	)]	///
+	#[doc_params("The closure to coerce.")]
+	///
 	/// ### Returns
 	///
 	/// The closure wrapped in an `Rc` as a trait object.

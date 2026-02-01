@@ -11,9 +11,9 @@
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
+use super::CloneableFn;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
-use super::CloneableFn;
 
 /// A type class for types that can be constructed lazily.
 pub trait Deferrable<'a> {
@@ -27,14 +27,12 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
-		"The brand of the cloneable function wrapper."
-	)]	///
+	#[doc_type_params("The brand of the cloneable function wrapper.")]
+	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"A thunk (wrapped in a cloneable function) that produces the value."
-	)]	///
+	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	///
 	/// ### Returns
 	///
 	/// The deferred value.
@@ -69,9 +67,8 @@ pub trait Deferrable<'a> {
 ///
 /// ### Parameters
 ///
-#[doc_params(
-	"A thunk (wrapped in a cloneable function) that produces the value."
-)]///
+#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+///
 /// ### Returns
 ///
 /// The deferred value.
