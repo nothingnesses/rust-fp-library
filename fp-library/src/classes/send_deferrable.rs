@@ -9,6 +9,7 @@
 //! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -24,8 +25,10 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `thunk`: The function that produces the value.
@@ -62,10 +65,12 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the deferred type.
-/// * `A`: The type of the value.
-/// * `F`: The type of the thunk.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the deferred type.",
+	"The type of the value.",
+	("F", "The type of the thunk.")
+)]///
 /// ### Parameters
 ///
 /// * `thunk`: The function that produces the value.

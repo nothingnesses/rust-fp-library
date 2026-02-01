@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	brands::ThunkBrand,
 	types::{Lazy, LazyConfig, Thunk, free::Free, step::Step},
@@ -109,9 +110,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value produced by the closure.
-	/// * `F`: The type of the closure.
-	///
+	#[doc_type_params(
+		"The type of the closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to execute.
@@ -153,9 +154,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value produced by the task.
-	/// * `F`: The type of the closure.
-	///
+	#[doc_type_params(
+		"The type of the closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that produces a `Trampoline`.
@@ -200,9 +201,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new task.
-	/// * `F`: The type of the binding function.
-	///
+	#[doc_type_params(
+		"The type of the result of the new task.",
+		"The type of the binding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of this task.
@@ -241,9 +243,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the mapping function.
-	/// * `F`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"The type of the result of the mapping function.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of this task.
@@ -304,10 +307,11 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the second task's result.
-	/// * `C`: The type of the combined result.
-	/// * `F`: The type of the combining function.
-	///
+	#[doc_type_params(
+		"The type of the second task's result.",
+		"The type of the combined result.",
+		"The type of the combining function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `other`: The second task.
@@ -346,8 +350,9 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the second task's result.
-	///
+	#[doc_type_params(
+		"The type of the second task's result."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `other`: The second task.
@@ -390,9 +395,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `S`: The type of the state.
-	/// * `F`: The type of the step function.
-	///
+	#[doc_type_params(
+		"The type of the state.",
+		"The type of the step function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function that performs one step of the recursion.
@@ -457,9 +463,10 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `S`: The type of the state.
-	/// * `F`: The type of the step function.
-	///
+	#[doc_type_params(
+		"The type of the state.",
+		"The type of the step function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function that performs one step of the recursion.

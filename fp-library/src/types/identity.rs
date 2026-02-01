@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 use crate::{
@@ -55,10 +56,12 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the identity.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the identity.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -99,11 +102,13 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first identity's value.
-	/// * `B`: The type of the second identity's value.
-	/// * `C`: The return type of the function.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first identity's value.",
+		"The type of the second identity's value.",
+		"The return type of the function.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -150,8 +155,10 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -187,10 +194,12 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The identity containing the function.
@@ -229,10 +238,12 @@ impl Semimonad for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first identity.
@@ -273,11 +284,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element and the accumulator.
@@ -319,11 +332,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -365,11 +380,13 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -412,11 +429,13 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -455,9 +474,11 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The identity containing the applicative value.
@@ -497,9 +518,12 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("A", "The element type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -541,9 +565,12 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("A", "The element type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The accumulator type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.

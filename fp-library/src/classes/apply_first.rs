@@ -11,6 +11,7 @@
 //! assert_eq!(z, Some(5));
 //! ```
 
+use fp_macros::doc_type_params;
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -30,9 +31,11 @@ pub trait ApplyFirst: Lift {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value in the first context.
-	/// * `B`: The type of the value in the second context.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value in the first context.",
+		"The type of the value in the second context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The first context.
@@ -70,10 +73,12 @@ pub trait ApplyFirst: Lift {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the context.
-/// * `A`: The type of the value in the first context.
-/// * `B`: The type of the value in the second context.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the context.",
+	"The type of the value in the first context.",
+	"The type of the value in the second context."
+)]///
 /// ### Parameters
 ///
 /// * `fa`: The first context.

@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
@@ -62,13 +63,15 @@ impl Bifunctor for PairBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the mapped first value.
-	/// * `C`: The type of the second value.
-	/// * `D`: The type of the mapped second value.
-	/// * `F`: The type of the function to apply to the first value.
-	/// * `G`: The type of the function to apply to the second value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the mapped first value.",
+		"The type of the second value.",
+		"The type of the mapped second value.",
+		"The type of the function to apply to the first value.",
+		"The type of the function to apply to the second value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the first value.
@@ -120,10 +123,12 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the second value.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the second value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the second value.
@@ -165,11 +170,13 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first second value.
-	/// * `B`: The type of the second second value.
-	/// * `C`: The type of the result second value.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first second value.",
+		"The type of the second second value.",
+		"The type of the result second value.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply to the second values.
@@ -219,8 +226,10 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -258,10 +267,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The pair containing the function.
@@ -301,10 +312,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first pair.
@@ -348,11 +361,13 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -392,11 +407,13 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -436,11 +453,13 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -484,11 +503,13 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -529,9 +550,11 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The pair containing the applicative value.
@@ -573,9 +596,12 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("A", "The element type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -619,9 +645,12 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("B", "The accumulator type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The accumulator type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.
@@ -673,10 +702,12 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the first value.
@@ -718,11 +749,13 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first first value.
-	/// * `B`: The type of the second first value.
-	/// * `C`: The type of the result first value.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first first value.",
+		"The type of the second first value.",
+		"The type of the result first value.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply to the first values.
@@ -772,8 +805,10 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -811,10 +846,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The pair containing the function (in Err).
@@ -854,10 +891,12 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first result.
@@ -901,11 +940,13 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -945,11 +986,13 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -989,11 +1032,13 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -1037,11 +1082,13 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -1083,9 +1130,11 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The result containing the applicative value.
@@ -1127,9 +1176,12 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("M", "The monoid type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -1173,9 +1225,12 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("B", "The accumulator type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The accumulator type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.

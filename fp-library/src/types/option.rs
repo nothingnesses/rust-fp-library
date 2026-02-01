@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::OptionBrand,
@@ -32,10 +33,12 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the option.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the option.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the value.
@@ -76,11 +79,13 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first option's value.
-	/// * `B`: The type of the second option's value.
-	/// * `C`: The return type of the function.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first option's value.",
+		"The type of the second option's value.",
+		"The return type of the function.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -127,8 +132,10 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -165,10 +172,12 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The option containing the function.
@@ -210,10 +219,12 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first option.
@@ -255,11 +266,13 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -304,11 +317,13 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -353,11 +368,13 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -403,11 +420,13 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -450,9 +469,11 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The option containing the applicative value.
@@ -496,9 +517,12 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("A", "The element type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -545,8 +569,10 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The nested option.
@@ -584,9 +610,11 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the success value.",
+		"The type of the error value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The option of result.
@@ -630,11 +658,13 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -682,9 +712,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -736,10 +768,12 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -779,9 +813,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -823,12 +859,14 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the success values.",
+		"The type of the error values.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
@@ -884,11 +922,13 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.

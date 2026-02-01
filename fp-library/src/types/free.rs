@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{Evaluable, Functor},
@@ -222,8 +223,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The result type of the new computation.
-	///
+	#[doc_type_params(
+		"The result type of the new computation."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of this computation.

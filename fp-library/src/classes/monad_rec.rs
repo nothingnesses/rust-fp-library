@@ -27,6 +27,7 @@
 //! assert_eq!(factorial(5).evaluate(), 120);
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
 use fp_macros::hm_signature;
 
@@ -57,10 +58,12 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the initial value and loop state.
-	/// * `B`: The type of the result.
-	/// * `Func`: The type of the step function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the initial value and loop state.",
+		"The type of the result.",
+		"The type of the step function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The step function.
@@ -108,11 +111,13 @@ pub trait MonadRec: Monad {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the monad.
-/// * `B`: The type of the result.
-/// * `A`: The type of the initial value and loop state.
-/// * `F`: The type of the step function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the monad.",
+	"The type of the initial value and loop state.",
+	"The type of the result.",
+	("A", "The type of the initial value and loop state.")
+)]///
 /// ### Parameters
 ///
 /// * `f`: The step function.

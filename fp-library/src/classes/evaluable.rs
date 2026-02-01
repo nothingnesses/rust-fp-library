@@ -12,6 +12,7 @@
 //! assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, classes::functor::Functor, kinds::*};
 use fp_macros::hm_signature;
 
@@ -28,8 +29,10 @@ pub trait Evaluable: Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the functor.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the functor."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The functor instance to evaluate.
@@ -59,9 +62,11 @@ pub trait Evaluable: Functor {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The evaluable functor.
-/// * `A`: The type of the value inside the functor.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The evaluable functor.",
+	"The type of the value inside the functor."
+)]///
 /// ### Parameters
 ///
 /// * `fa`: The functor instance to evaluable.

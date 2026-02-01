@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 
 /// A deferred computation that may fail with error type `E`.
@@ -39,8 +40,9 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the thunk.
-	///
+	#[doc_type_params(
+		"The type of the thunk."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The thunk to wrap.
@@ -161,9 +163,10 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"The type of the result of the new computation.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of the computation.
@@ -201,9 +204,10 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the transformation.
-	/// * `F`: The type of the transformation function.
-	///
+	#[doc_type_params(
+		"The type of the result of the transformation.",
+		("F", "The type of the transformation function.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of the computation.
@@ -238,9 +242,10 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `E2`: The type of the new error.
-	/// * `F`: The type of the transformation function.
-	///
+	#[doc_type_params(
+		"The type of the new error.",
+		"The type of the transformation function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the error.

@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{compactable::Compactable, functor::Functor},
@@ -45,11 +46,13 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the input structure.
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the input structure.",
+		"The type of the success values.",
+		"The type of the error values.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a [`Result`].
@@ -96,9 +99,11 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the predicate function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the structure.",
+		"The type of the predicate function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate function.
@@ -142,10 +147,12 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the input structure.
-	/// * `B`: The type of the elements in the output structure.
-	/// * `Func`: The type of the function to apply.
-	/// ### Parameters
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"The type of the function to apply."
+	)]	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an [`Option`].
 	/// * `fa`: The data structure to filter and map.
@@ -183,9 +190,11 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the predicate function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the structure.",
+		"The type of the predicate function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate function.
@@ -225,12 +234,14 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the input structure.
-/// * `O`: The type of the success values.
-/// * `E`: The type of the error values.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the filterable structure.",
+	"The type of the elements in the input structure.",
+	"The type of the success values.",
+	"The type of the error values.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element, returning a [`Result`].
@@ -275,10 +286,12 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `Func`: The type of the predicate function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the filterable structure.",
+	"The type of the elements in the structure.",
+	"The type of the predicate function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The predicate function.
@@ -321,11 +334,13 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the input structure.
-/// * `B`: The type of the elements in the output structure.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the filterable structure.",
+	"The type of the elements in the input structure.",
+	"The type of the elements in the output structure.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element, returning an [`Option`].
@@ -364,10 +379,12 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `Func`: The type of the predicate function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the filterable structure.",
+	"The type of the elements in the structure.",
+	"The type of the predicate function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The predicate function.

@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	classes::{Applicative, Filterable, Traversable},
@@ -40,12 +41,14 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the success values.",
+		"The type of the error values.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
@@ -92,11 +95,13 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `B`: The type of the elements in the output structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.
@@ -141,13 +146,15 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the witherable structure.
-/// * `M`: The applicative context.
-/// * `A`: The type of the elements in the input structure.
-/// * `O`: The type of the success values.
-/// * `E`: The type of the error values.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the witherable structure.",
+	"The applicative context.",
+	"The type of the elements in the input structure.",
+	"The type of the success values.",
+	"The type of the error values.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element, returning a [`Result`] in an applicative context.
@@ -194,12 +201,14 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `F`: The brand of the witherable structure.
-/// * `M`: The applicative context.
-/// * `A`: The type of the elements in the input structure.
-/// * `B`: The type of the elements in the output structure.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the witherable structure.",
+	"The applicative context.",
+	"The type of the elements in the input structure.",
+	"The type of the elements in the output structure.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element, returning an [`Option`] in an applicative context.

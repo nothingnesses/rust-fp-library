@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 use crate::{
@@ -37,13 +38,15 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the error value.
-	/// * `B`: The type of the mapped error value.
-	/// * `C`: The type of the success value.
-	/// * `D`: The type of the mapped success value.
-	/// * `F`: The type of the function to apply to the error.
-	/// * `G`: The type of the function to apply to the success.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the error value.",
+		"The type of the mapped error value.",
+		"The type of the success value.",
+		"The type of the mapped success value.",
+		"The type of the function to apply to the error.",
+		"The type of the function to apply to the success."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the error.
@@ -100,10 +103,12 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the result.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the result.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -143,11 +148,13 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the second value.
-	/// * `C`: The type of the result.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the result.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -210,8 +217,10 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -247,10 +256,12 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `A`: The type of the input value.
-	/// * `B`: The type of the output value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The result containing the function.
@@ -296,10 +307,12 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first result.
@@ -350,11 +363,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -398,11 +413,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -446,11 +463,13 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `F`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -501,11 +520,13 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `F`: The applicative context.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -558,9 +579,11 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `F`: The applicative context.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The result containing the applicative value.
@@ -621,10 +644,12 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the error value inside the result.
-	/// * `B`: The type of the result of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the error value inside the result.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the error.
@@ -667,11 +692,13 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first error value.
-	/// * `B`: The type of the second error value.
-	/// * `C`: The type of the result error value.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first error value.",
+		"The type of the second error value.",
+		"The type of the result error value.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply to the errors.
@@ -734,8 +761,10 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -771,10 +800,12 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The result containing the function (in Err).
@@ -820,10 +851,12 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first result.
@@ -877,12 +910,13 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -926,11 +960,13 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `F`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -974,11 +1010,13 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -1029,11 +1067,13 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -1086,9 +1126,11 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The result containing the applicative value.
@@ -1141,10 +1183,12 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -1191,10 +1235,12 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type (must be `Send + Sync`).",
+		"The accumulator type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.
@@ -1245,10 +1291,12 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -1295,10 +1343,12 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type (must be `Send + Sync`).",
+		"The accumulator type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.

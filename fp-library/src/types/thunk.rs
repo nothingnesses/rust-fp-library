@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::ThunkBrand,
@@ -68,8 +69,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the thunk.
-	///
+	#[doc_type_params(
+		"The type of the thunk."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The thunk to wrap.
@@ -130,8 +132,9 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the thunk.
-	///
+	#[doc_type_params(
+		"The type of the thunk."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The thunk that returns a `Thunk`.
@@ -166,9 +169,10 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"The type of the result of the new computation.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of the computation.
@@ -207,9 +211,10 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the transformation.
-	/// * `F`: The type of the transformation function.
-	///
+	#[doc_type_params(
+		"The type of the result of the transformation.",
+		"The type of the transformation function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the result of the computation.
@@ -293,10 +298,12 @@ impl Functor for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the `Thunk`.
-	/// * `B`: The type of the result of the transformation.
-	/// * `Func`: The type of the transformation function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the `Thunk`.",
+		"The type of the result of the transformation.",
+		"The type of the transformation function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the result of the computation.
@@ -335,8 +342,10 @@ impl Pointed for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -367,11 +376,13 @@ impl Lift for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the second value.
-	/// * `C`: The type of the result.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the result.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -419,10 +430,12 @@ impl Semiapplicative for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the function wrapper.
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the input.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the function wrapper.",
+		"The type of the input.",
+		"The type of the result."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The `Thunk` containing the function.
@@ -464,10 +477,12 @@ impl Semimonad for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the new computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first `Thunk`.
@@ -506,10 +521,12 @@ impl MonadRec for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the initial value and loop state.
-	/// * `F`: The type of the step function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the initial value and loop state.",
+		"The type of the result.",
+		"The type of the step function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The step function.
@@ -560,8 +577,10 @@ impl Evaluable for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the thunk.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value inside the thunk."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The eval to run.
@@ -592,11 +611,13 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element and the accumulator.
@@ -636,11 +657,13 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -680,11 +703,13 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.

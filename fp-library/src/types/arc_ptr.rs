@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	brands::ArcBrand,
 	classes::{
@@ -20,8 +21,9 @@ impl Pointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `value`: The value to wrap.
@@ -54,8 +56,9 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `value`: The value to wrap.
@@ -84,8 +87,9 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the wrapped value.
-	///
+	#[doc_type_params(
+		"The type of the wrapped value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ptr`: The pointer to attempt to unwrap.
@@ -118,8 +122,9 @@ impl SendRefCountedPointer for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `value`: The value to wrap.
@@ -150,9 +155,11 @@ impl UnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to coerce.
@@ -183,9 +190,11 @@ impl SendUnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to coerce.

@@ -11,6 +11,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_type_params;
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -40,10 +41,12 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The context containing the function(s).
@@ -79,11 +82,13 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the cloneable function wrapper.
-/// * `Brand`: The brand of the context.
-/// * `B`: The type of the output value.
-/// * `A`: The type of the input value.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the cloneable function wrapper.",
+	"The brand of the context.",
+	"The type of the input value.",
+	"The type of the output value."
+)]///
 /// ### Parameters
 ///
 /// * `ff`: The context containing the function(s).

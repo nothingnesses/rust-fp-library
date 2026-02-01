@@ -15,6 +15,7 @@
 //! handle.join().unwrap();
 //! ```
 
+use fp_macros::doc_type_params;
 use super::cloneable_fn::CloneableFn;
 use fp_macros::hm_signature;
 use std::ops::Deref;
@@ -40,9 +41,11 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap. Must be `Send + Sync`.
@@ -80,10 +83,12 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the thread-safe cloneable function wrapper.
-/// * `A`: The input type of the function.
-/// * `B`: The output type of the function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the thread-safe cloneable function wrapper.",
+	"The input type of the function.",
+	"The output type of the function."
+)]///
 /// ### Parameters
 ///
 /// * `f`: The closure to wrap. Must be `Send + Sync`.

@@ -11,6 +11,7 @@
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
+use fp_macros::doc_type_params;
 use super::CloneableFn;
 
 /// A type class for types that can be constructed lazily.
@@ -25,8 +26,9 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	///
+	#[doc_type_params(
+		"The brand of the cloneable function wrapper."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: A thunk (wrapped in a cloneable function) that produces the value.

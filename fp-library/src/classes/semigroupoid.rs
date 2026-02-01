@@ -11,6 +11,7 @@
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -34,10 +35,12 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The source type of the first morphism.
-	/// * `D`: The target type of the second morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The source type of the first morphism.",
+		"The target type of the first morphism and the source type of the second morphism.",
+		"The target type of the second morphism."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The second morphism to apply (from C to D).
@@ -73,11 +76,13 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the semigroupoid.
-/// * `B`: The source type of the first morphism.
-/// * `D`: The target type of the second morphism.
-/// * `C`: The target type of the first morphism and the source type of the second morphism.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the semigroupoid.",
+	"The source type of the first morphism.",
+	"The target type of the first morphism and the source type of the second morphism.",
+	"The target type of the second morphism."
+)]///
 /// ### Parameters
 ///
 /// * `f`: The second morphism to apply (from C to D).

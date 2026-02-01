@@ -11,6 +11,7 @@
 //! assert_eq!(z, Some(3));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -26,11 +27,13 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the second value.
-	/// * `C`: The type of the result.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the result.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -73,12 +76,14 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the context.
-/// * `A`: The type of the first value.
-/// * `B`: The type of the second value.
-/// * `C`: The type of the result.
-/// * `Func`: The type of the binary function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the context.",
+	"The type of the first value.",
+	"The type of the second value.",
+	"The type of the result.",
+	"The type of the binary function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The binary function to apply.

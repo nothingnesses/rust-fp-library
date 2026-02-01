@@ -9,6 +9,7 @@
 //! assert_eq!(x, "".to_string());
 //! ```
 
+use fp_macros::doc_type_params;
 use super::semigroup::Semigroup;
 use fp_macros::hm_signature;
 
@@ -53,8 +54,9 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Parameters
 ///
-/// * `M`: The type of the monoid.
-///
+#[doc_type_params(
+	"The type of the monoid."
+)]///
 /// ### Returns
 ///
 /// The identity element.

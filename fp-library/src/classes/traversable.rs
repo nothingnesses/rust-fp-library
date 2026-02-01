@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
+use fp_macros::doc_type_params;
 use super::{Applicative, Foldable, Functor};
 use crate::{Apply, functions::identity, kinds::*};
 use fp_macros::hm_signature;
@@ -33,11 +34,13 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -82,9 +85,11 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The traversable structure containing values in an applicative context.
@@ -125,12 +130,14 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the traversable structure.
-/// * `F`: The applicative context.
-/// * `B`: The type of the elements in the resulting traversable structure.
-/// * `A`: The type of the elements in the traversable structure.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the traversable structure.",
+	"The type of the elements in the traversable structure.",
+	"The type of the elements in the resulting traversable structure.",
+	"The applicative context.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -171,10 +178,12 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the traversable structure.
-/// * `F`: The applicative context.
-/// * `A`: The type of the elements in the traversable structure.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the traversable structure.",
+	"The type of the elements in the traversable structure.",
+	"The applicative context."
+)]///
 /// ### Parameters
 ///
 /// * `ta`: The traversable structure containing values in an applicative context.

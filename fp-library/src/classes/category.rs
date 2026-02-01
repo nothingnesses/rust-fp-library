@@ -11,6 +11,7 @@
 //! assert_eq!(id(5), 5);
 //! ```
 
+use fp_macros::doc_type_params;
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
@@ -34,8 +35,10 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the object.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the object."
+	)]	///
 	/// ### Returns
 	///
 	/// The identity morphism.
@@ -61,9 +64,11 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the category.
-/// * `A`: The type of the object.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the category.",
+	"The type of the object."
+)]///
 /// ### Returns
 ///
 /// The identity morphism.

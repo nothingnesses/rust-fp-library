@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::{CatListBrand, OptionBrand},
@@ -113,8 +114,9 @@ impl CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the list.
-	///
+	#[doc_type_params(
+		"The type of the elements in the list."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `head`: A value to prepend to the list.
@@ -153,8 +155,9 @@ impl CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the list.
-	///
+	#[doc_type_params(
+		"The type of the elements in the list."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `list`: The list to deconstruct.
@@ -196,10 +199,12 @@ impl Functor for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the list.
-	/// * `B`: The type of the elements in the resulting list.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the list.",
+		"The type of the elements in the resulting list.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element.
@@ -241,11 +246,13 @@ impl Lift for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the first list.
-	/// * `B`: The type of the elements in the second list.
-	/// * `C`: The type of the elements in the resulting list.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the first list.",
+		"The type of the elements in the second list.",
+		"The type of the elements in the resulting list.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -298,8 +305,10 @@ impl Pointed for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -338,10 +347,12 @@ impl Semiapplicative for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output values.
-	/// * `A`: The type of the input values.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input values.",
+		"The type of the output values."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The list containing the functions.
@@ -382,10 +393,12 @@ impl Semimonad for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the elements in the output list.
-	/// * `A`: The type of the elements in the input list.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the input list.",
+		"The type of the elements in the output list.",
+		("A", "The type of the elements in the input list.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first list.
@@ -429,11 +442,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the list.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the list.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -477,11 +492,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the list.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the list.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -525,11 +542,13 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the list.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the list.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -574,11 +593,13 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -625,9 +646,11 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The list containing the applicative values.
@@ -674,9 +697,12 @@ impl ParFoldable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		("A", "The element type (must be `Send + Sync`)."),
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -729,8 +755,10 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The list of options.
@@ -771,9 +799,11 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the success value.",
+		"The type of the error value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The list of results.
@@ -825,11 +855,13 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -884,9 +916,11 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -942,10 +976,12 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -988,9 +1024,11 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -1035,12 +1073,14 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -1105,11 +1145,13 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.

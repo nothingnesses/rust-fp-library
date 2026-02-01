@@ -10,6 +10,7 @@
 //! assert_eq!(y, Ok(10));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 
 /// A type class for types that can be mapped over two type arguments.
@@ -31,13 +32,15 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the first result.
-	/// * `C`: The type of the second value.
-	/// * `D`: The type of the second result.
-	/// * `F`: The type of the first function.
-	/// * `G`: The type of the second function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the first value.",
+		"The type of the first result.",
+		"The type of the second value.",
+		"The type of the second result.",
+		"The type of the first function.",
+		"The type of the second function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the first value.

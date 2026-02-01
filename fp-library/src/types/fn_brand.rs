@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::FnBrand,
@@ -30,9 +31,11 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap.
@@ -67,9 +70,11 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap.
@@ -102,10 +107,12 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The source type of the first morphism.
-	/// * `D`: The target type of the second morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The source type of the first morphism.",
+		"The target type of the first morphism and the source type of the second morphism.",
+		"The target type of the second morphism."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The second morphism to apply (from C to D).
@@ -144,8 +151,10 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the object.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the object."
+	)]	///
 	/// ### Returns
 	///
 	/// The identity morphism.
@@ -176,9 +185,11 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The input type of the function.",
+		"The output type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to wrap.

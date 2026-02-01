@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
 use fp_macros::hm_signature;
 
@@ -27,8 +28,10 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the [`Option`].
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the [`Option`]."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The data structure containing [`Option`] values.
@@ -65,9 +68,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the success values.",
+		"The type of the error values."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The data structure containing [`Result`] values.
@@ -109,9 +114,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the compactable structure.
-/// * `A`: The type of the elements in the [`Option`].
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the compactable structure.",
+	"The type of the elements in the [`Option`]."
+)]///
 /// ### Parameters
 ///
 /// * `fa`: The data structure containing [`Option`] values.
@@ -148,10 +155,12 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the compactable structure.
-/// * `O`: The type of the success values.
-/// * `E`: The type of the error values.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the compactable structure.",
+	"The type of the success values.",
+	"The type of the error values."
+)]///
 /// ### Parameters
 ///
 /// * `fa`: The data structure containing [`Result`] values.

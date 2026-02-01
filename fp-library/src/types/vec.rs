@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -35,8 +36,9 @@ impl VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the vector.
-	///
+	#[doc_type_params(
+		"The type of the elements in the vector."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `head`: A value to prepend to the vector.
@@ -80,8 +82,9 @@ impl VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the vector.
-	///
+	#[doc_type_params(
+		"The type of the elements in the vector."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `slice`: The vector slice to deconstruct.
@@ -125,10 +128,12 @@ impl Functor for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the vector.
-	/// * `B`: The type of the elements in the resulting vector.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the vector.",
+		"The type of the elements in the resulting vector.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element.
@@ -167,11 +172,13 @@ impl Lift for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the first vector.
-	/// * `B`: The type of the elements in the second vector.
-	/// * `C`: The type of the elements in the resulting vector.
-	/// * `Func`: The type of the binary function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the first vector.",
+		"The type of the elements in the second vector.",
+		"The type of the elements in the resulting vector.",
+		"The type of the binary function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The binary function to apply.
@@ -218,8 +225,10 @@ impl Pointed for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `a`: The value to wrap.
@@ -255,10 +264,12 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output values.
-	/// * `A`: The type of the input values.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input values.",
+		"The type of the output values."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ff`: The vector containing the functions.
@@ -298,10 +309,12 @@ impl Semimonad for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the elements in the output vector.
-	/// * `A`: The type of the elements in the input vector.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the input vector.",
+		"The type of the elements in the output vector.",
+		("A", "The type of the elements in the input vector.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first vector.
@@ -344,11 +357,13 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the vector.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the vector.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The folding function.
@@ -388,11 +403,13 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the vector.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the vector.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -432,11 +449,13 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the vector.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the vector.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The mapping function.
@@ -480,11 +499,13 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning a value in an applicative context.
@@ -536,9 +557,11 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ta`: The vector containing the applicative values.
@@ -658,10 +681,12 @@ impl ParFoldable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type (must be `Send + Sync`).",
+		"The monoid type (must be `Send + Sync`)."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid.
@@ -712,8 +737,10 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The vector of options.
@@ -751,9 +778,11 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the success value.",
+		"The type of the error value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `fa`: The vector of results.
@@ -801,11 +830,13 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -855,9 +886,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -902,10 +935,12 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the input value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -945,9 +980,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The predicate.
@@ -989,12 +1026,14 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply.
@@ -1053,11 +1092,13 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.

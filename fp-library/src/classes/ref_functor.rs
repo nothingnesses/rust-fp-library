@@ -13,6 +13,7 @@
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -29,10 +30,12 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result(s) of applying the function.
-	/// * `A`: The type of the value(s) inside the functor.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value(s) inside the functor.",
+		"The type of the result(s) of applying the function.",
+		("A", "The type of the value(s) inside the functor.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the value(s) inside the functor.
@@ -72,11 +75,13 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the functor.
-/// * `B`: The type of the result(s) of applying the function.
-/// * `A`: The type of the value(s) inside the functor.
-/// * `F`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the functor.",
+	"The type of the value(s) inside the functor.",
+	"The type of the result(s) of applying the function.",
+	("A", "The type of the value(s) inside the functor.")
+)]///
 /// ### Parameters
 ///
 /// * `f`: The function to apply to the value(s) inside the functor.

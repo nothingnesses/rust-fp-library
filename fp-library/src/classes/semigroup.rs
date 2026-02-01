@@ -11,6 +11,7 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 /// A type class for types that support an associative binary operation.
 ///
@@ -60,8 +61,9 @@ pub trait Semigroup {
 ///
 /// ### Type Parameters
 ///
-/// * `S`: The type of the semigroup.
-///
+#[doc_type_params(
+	"The type of the semigroup."
+)]///
 /// ### Parameters
 ///
 /// * `a`: The first value.

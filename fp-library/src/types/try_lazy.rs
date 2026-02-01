@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 
 /// A lazily-computed, memoized value that may fail.
@@ -72,8 +73,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
-	///
+	#[doc_type_params(
+		"The type of the initializer closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that produces the result.
@@ -146,8 +148,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
-	///
+	#[doc_type_params(
+		"The type of the initializer closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that might panic.
@@ -198,8 +201,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
-	///
+	#[doc_type_params(
+		"The type of the initializer closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that produces the result.

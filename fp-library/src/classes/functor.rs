@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -34,10 +35,12 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value(s) inside the functor.
-	/// * `B`: The type of the result(s) of applying the function.
-	/// * `Func`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value(s) inside the functor.",
+		"The type of the result(s) of applying the function.",
+		"The type of the function to apply."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the value(s) inside the functor.
@@ -74,11 +77,13 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the functor.
-/// * `A`: The type of the value(s) inside the functor.
-/// * `B`: The type of the result(s) of applying the function.
-/// * `Func`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the functor.",
+	"The type of the value(s) inside the functor.",
+	"The type of the result(s) of applying the function.",
+	"The type of the function to apply."
+)]///
 /// ### Parameters
 ///
 /// * `f`: The function to apply to the value(s) inside the functor.

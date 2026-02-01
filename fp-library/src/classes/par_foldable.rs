@@ -13,6 +13,7 @@
 //! assert_eq!(result, "12345");
 //! ```
 
+use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
 
 use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
@@ -82,10 +83,12 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `A`: The element type.
-	/// * `M`: The monoid type.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use.",
+		"The element type.",
+		"The monoid type."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to map each element to a monoid`.
@@ -124,10 +127,12 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use
-	/// * `A`: The element type (must be `Send + Sync`)
-	/// * `B`: The accumulator type (must be `Send + Sync`)
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of thread-safe function to use",
+		"The element type (must be `Send + Sync`)",
+		"The accumulator type (must be `Send + Sync`)"
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The thread-safe function to apply to each element and the accumulator.
@@ -184,11 +189,13 @@ pub trait ParFoldable: Foldable {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`).
-/// * `F`: The brand of the foldable structure.
-/// * `A`: The element type (must be `Send + Sync`).
-/// * `M`: The monoid type (must be `Send + Sync`).
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of thread-safe function to use (must implement `SendCloneableFn`).",
+	"The brand of the foldable structure.",
+	"The element type (must be `Send + Sync`).",
+	"The monoid type (must be `Send + Sync`)."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The thread-safe function to map each element to a monoid.
@@ -231,11 +238,13 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of thread-safe function to use.
-/// * `F`: The brand of the foldable structure.
-/// * `A`: The element type (must be `Send + Sync`).
-/// * `B`: The accumulator type (must be `Send + Sync`).
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of thread-safe function to use.",
+	"The brand of the foldable structure.",
+	"The element type (must be `Send + Sync`).",
+	"The accumulator type (must be `Send + Sync`)."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The thread-safe function to apply to each element and the accumulator.

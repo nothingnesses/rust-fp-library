@@ -10,6 +10,7 @@
 //! assert_eq!(y, 15);
 //! ```
 
+use fp_macros::doc_type_params;
 use super::monoid::Monoid;
 use crate::{
 	Apply,
@@ -43,11 +44,13 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element and the accumulator.
@@ -99,11 +102,13 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `B`: The type of the accumulator.
-	/// * `Func`: The type of the folding function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to the accumulator and each element.
@@ -163,11 +168,13 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `A`: The type of the elements in the structure.
-	/// * `M`: The type of the monoid.
-	/// * `Func`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `func`: The function to map each element to a monoid.
@@ -209,12 +216,14 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the cloneable function to use.
-/// * `Brand`: The brand of the foldable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `B`: The type of the accumulator.
-/// * `Func`: The type of the folding function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the cloneable function to use.",
+	"The brand of the foldable structure.",
+	"The type of the elements in the structure.",
+	"The type of the accumulator.",
+	"The type of the folding function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to each element and the accumulator.
@@ -256,12 +265,14 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the cloneable function to use.
-/// * `Brand`: The brand of the foldable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `B`: The type of the accumulator.
-/// * `Func`: The type of the folding function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the cloneable function to use.",
+	"The brand of the foldable structure.",
+	"The type of the elements in the structure.",
+	"The type of the accumulator.",
+	"The type of the folding function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to apply to the accumulator and each element.
@@ -303,12 +314,14 @@ where
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of the cloneable function to use.
-/// * `Brand`: The brand of the foldable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `M`: The type of the monoid.
-/// * `Func`: The type of the mapping function.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the cloneable function to use.",
+	"The brand of the foldable structure.",
+	"The type of the elements in the structure.",
+	"The type of the monoid.",
+	"The type of the mapping function."
+)]///
 /// ### Parameters
 ///
 /// * `func`: The function to map each element to a monoid.

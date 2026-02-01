@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 
 /// A lazy, stack-safe computation that may fail with an error.
@@ -94,10 +95,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `F`: The type of the closure.
-	///
+	#[doc_type_params(
+		"The type of the closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure to execute.
@@ -129,9 +129,10 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the new success value.
-	/// * `F`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"The type of the new success value.",
+		("F", "The type of the mapping function.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the success value.
@@ -166,9 +167,10 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `E2`: The type of the new error value.
-	/// * `F`: The type of the mapping function.
-	///
+	#[doc_type_params(
+		"The type of the new error value.",
+		("F", "The type of the mapping function.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the error value.
@@ -204,9 +206,10 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the new success value.
-	/// * `F`: The type of the binding function.
-	///
+	#[doc_type_params(
+		"The type of the new success value.",
+		"The type of the binding function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the success value.
@@ -244,8 +247,9 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the recovery function.
-	///
+	#[doc_type_params(
+		"The type of the recovery function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply to the error value.

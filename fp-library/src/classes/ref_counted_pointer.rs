@@ -10,6 +10,7 @@
 //! assert_eq!(*clone, 42);
 //! ```
 
+use fp_macros::doc_type_params;
 use super::Pointer;
 use fp_macros::hm_signature;
 use std::ops::Deref;
@@ -32,8 +33,9 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `value`: The value to wrap.
@@ -62,8 +64,9 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the wrapped value.
-	///
+	#[doc_type_params(
+		"The type of the wrapped value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ptr`: The pointer to attempt to unwrap.
@@ -97,9 +100,10 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the wrapped value.
-///
+#[doc_type_params(
+	"The pointer brand.",
+	"The type of the wrapped value."
+)]///
 /// ### Parameters
 ///
 /// * `ptr`: The pointer to attempt to unwrap.
@@ -132,9 +136,10 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the value to wrap.
-///
+#[doc_type_params(
+	"The pointer brand.",
+	"The type of the value to wrap."
+)]///
 /// ### Parameters
 ///
 /// * `value`: The value to wrap.

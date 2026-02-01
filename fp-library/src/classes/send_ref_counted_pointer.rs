@@ -9,6 +9,7 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
+use fp_macros::doc_type_params;
 use super::RefCountedPointer;
 use fp_macros::hm_signature;
 use std::ops::Deref;
@@ -31,8 +32,9 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
-	///
+	#[doc_type_params(
+		"The type of the value to wrap."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `value`: The value to wrap.
@@ -62,9 +64,10 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the value to wrap.
-///
+#[doc_type_params(
+	"The pointer brand.",
+	"The type of the value to wrap."
+)]///
 /// ### Parameters
 ///
 /// * `value`: The value to wrap.

@@ -1,3 +1,4 @@
+use fp_macros::doc_type_params;
 use crate::{
 	Apply,
 	brands::LazyBrand,
@@ -44,8 +45,10 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -72,9 +75,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -101,8 +106,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The lazy cell to evaluate.
@@ -129,9 +137,12 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The fallible lazy cell to evaluate.
@@ -173,8 +184,10 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -203,9 +216,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -234,8 +249,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The lazy cell to evaluate.
@@ -264,9 +282,12 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The fallible lazy cell to evaluate.
@@ -310,8 +331,10 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -340,9 +363,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The initializer thunk.
@@ -371,8 +396,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The lazy cell to evaluate.
@@ -401,9 +429,12 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"Undocumented",
+		"The type of the value.",
+		"The type of the error."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `lazy`: The fallible lazy cell to evaluate.
@@ -507,8 +538,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
-	///
+	#[doc_type_params(
+		"The type of the initializer closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that produces the value.
@@ -588,8 +620,9 @@ where
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
-	///
+	#[doc_type_params(
+		"The type of the initializer closure."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The closure that produces the value.
@@ -693,10 +726,12 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the value.
-	/// * `F`: The type of the function.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the value.",
+		"The type of the result.",
+		"The type of the function."
+	)]	///
 	/// ### Parameters
 	///
 	/// * `f`: The function to apply.

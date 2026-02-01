@@ -10,6 +10,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
+use fp_macros::doc_type_params;
 use crate::{Apply, kinds::*};
 use fp_macros::hm_signature;
 
@@ -29,10 +30,12 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
-	///
+	#[doc_type_params(
+		"Undocumented",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		("A", "The type of the result of the first computation.")
+	)]	///
 	/// ### Parameters
 	///
 	/// * `ma`: The first computation.
@@ -69,11 +72,13 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the semimonad.
-/// * `B`: The type of the result of the second computation.
-/// * `A`: The type of the result of the first computation.
-/// * `F`: The type of the function to apply.
-///
+#[doc_type_params(
+	"Undocumented",
+	"The brand of the semimonad.",
+	"The type of the result of the first computation.",
+	"The type of the result of the second computation.",
+	("A", "The type of the result of the first computation.")
+)]///
 /// ### Parameters
 ///
 /// * `ma`: The first computation.
