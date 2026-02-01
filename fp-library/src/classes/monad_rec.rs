@@ -55,7 +55,7 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m a b. MonadRec m => (a -> m (Step a b), a) -> m b`
+	#[hm_signature(MonadRec)]
 	///
 	/// ### Type Parameters
 	///

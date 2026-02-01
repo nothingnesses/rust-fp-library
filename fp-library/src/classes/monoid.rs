@@ -27,7 +27,7 @@ pub trait Monoid: Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m. Monoid m => () -> m`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

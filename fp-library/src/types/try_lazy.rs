@@ -1,6 +1,7 @@
 use crate::types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A lazily-computed, memoized value that may fail.
 ///
@@ -42,7 +43,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -70,7 +71,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -144,7 +145,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> TryLazy a String`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -196,7 +197,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

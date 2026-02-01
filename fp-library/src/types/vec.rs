@@ -33,7 +33,7 @@ impl VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Vec a -> Vec a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -77,7 +77,7 @@ impl VecBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. &[a] -> Option (a, Vec a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

@@ -38,7 +38,7 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand f b a. Semiapplicative f => (f (fn_brand a b), f a) -> f b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///

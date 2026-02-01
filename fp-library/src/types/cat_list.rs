@@ -111,7 +111,7 @@ impl CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> CatList a -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -150,7 +150,7 @@ impl CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. CatList a -> Option (a, CatList a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1278,7 +1278,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. () -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1305,7 +1305,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. CatList a -> bool`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1336,7 +1336,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1367,7 +1367,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (CatList a, a) -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1400,7 +1400,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (CatList a, a) -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1436,7 +1436,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (CatList a, CatList a) -> CatList a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1490,7 +1490,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. CatList a -> Option (a, CatList a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1544,7 +1544,7 @@ impl<A> CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. CatList a -> usize`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

@@ -66,7 +66,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -99,7 +99,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -128,7 +128,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> Thunk a) -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -164,7 +164,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> Thunk b, Thunk a) -> Thunk b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -207,7 +207,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> b, Thunk a) -> Thunk b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -246,7 +246,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Thunk a -> a`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

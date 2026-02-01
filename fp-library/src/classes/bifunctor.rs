@@ -32,7 +32,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b c d. Bifunctor p => (a -> b, c -> d, p a c) -> p b d`
+	#[hm_signature(Bifunctor)]
 	///
 	/// ### Type Parameters
 	///

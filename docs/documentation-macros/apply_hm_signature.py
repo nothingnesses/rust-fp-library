@@ -8,7 +8,8 @@ def process_file(filepath):
     pattern = re.compile(
         r'(^|\n)([ \t]*)/// ### Type Signature[ \t]*\n'
         r'[ \t]*///[ \t]*\n'
-        r'[ \t]*///\s*`forall ([^`\n]+)`'
+        r'[ \t]*///\s*`([^`\n]+)`',
+        re.MULTILINE
     )
 
     def replacement(match):
@@ -17,10 +18,11 @@ def process_file(filepath):
         signature_content = match.group(3)
         
         trait_match = re.search(r'.*?\.\s*(?:[(]\s*)?(\w+).*?=>', signature_content)
-        if not trait_match:
-            return match.group(0) 
-            
-        trait = trait_match.group(1)
+        if trait_match:
+            trait = trait_match.group(1)
+            attr = f'({trait})'
+        else:
+            attr = ''
 
         start_idx = match.end()
         lookahead = content[start_idx:start_idx+5000]
@@ -59,12 +61,7 @@ def process_file(filepath):
                     found_decl = True
                     break
         
-        if found_decl:
-            return match.group(0)
-        if not found_body:
-            return match.group(0)
-            
-        return f'{prefix}{indent}/// ### Type Signature\n{indent}///\n{indent}#[hm_signature({trait})]'
+        return f'{prefix}{indent}/// ### Type Signature\n{indent}///\n{indent}#[hm_signature{attr}]'
 
     new_content = pattern.sub(replacement, content)
 

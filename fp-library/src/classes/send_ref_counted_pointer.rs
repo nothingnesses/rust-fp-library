@@ -29,7 +29,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Send a => a -> SendRefCountedPointer a`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///

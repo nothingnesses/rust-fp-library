@@ -26,7 +26,7 @@ pub trait Evaluable: Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Evaluable f => f a -> a`
+	#[hm_signature(Evaluable)]
 	///
 	/// ### Type Parameters
 	///

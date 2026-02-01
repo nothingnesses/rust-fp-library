@@ -38,7 +38,7 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. SendCloneableFn f => (a -> b) -> f a b`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///

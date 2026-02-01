@@ -4,6 +4,7 @@ use crate::{
 };
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
@@ -70,7 +71,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Trampoline a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -107,7 +108,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Trampoline a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -150,7 +151,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> Trampoline a) -> Trampoline a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -196,7 +197,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> Trampoline b, Trampoline a) -> Trampoline b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -239,7 +240,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> b, Trampoline a) -> Trampoline b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -282,7 +283,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Trampoline a -> a`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -304,7 +305,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c b a. (Trampoline b, (a, b) -> c, Trampoline a) -> Trampoline c`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -347,7 +348,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (Trampoline b, Trampoline a) -> Trampoline b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -391,7 +392,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall s a. (s -> Trampoline (Step s a), s) -> Trampoline a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -456,7 +457,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall s a. (s -> Trampoline (Step s a), s) -> Trampoline a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

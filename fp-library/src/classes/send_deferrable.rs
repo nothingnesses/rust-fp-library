@@ -22,7 +22,7 @@ pub trait SendDeferrable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (SendDeferrable f, Send a, Sync a) => (() -> a) -> f a`
+	#[hm_signature(SendDeferrable)]
 	///
 	/// ### Type Parameters
 	///

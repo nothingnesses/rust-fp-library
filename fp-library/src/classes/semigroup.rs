@@ -25,7 +25,7 @@ pub trait Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall s. Semigroup s => (s, s) -> s`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///

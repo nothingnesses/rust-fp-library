@@ -22,7 +22,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed f => a -> f a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///

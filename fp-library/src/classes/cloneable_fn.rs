@@ -34,7 +34,7 @@ pub trait CloneableFn: Function {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. CloneableFn f => (a -> b) -> f a b`
+	#[hm_signature(CloneableFn)]
 	///
 	/// ### Type Parameters
 	///

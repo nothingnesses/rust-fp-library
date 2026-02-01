@@ -42,7 +42,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -70,7 +70,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -102,7 +102,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -134,7 +134,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -182,7 +182,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -212,7 +212,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -246,7 +246,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -280,7 +280,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -330,7 +330,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -360,7 +360,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -394,7 +394,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -428,7 +428,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -511,7 +511,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -538,7 +538,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -573,7 +573,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -619,7 +619,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -655,7 +655,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///

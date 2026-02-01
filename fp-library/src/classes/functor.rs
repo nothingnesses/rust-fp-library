@@ -32,7 +32,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a b. Functor f => (a -> b, f a) -> f b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///

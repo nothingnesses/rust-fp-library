@@ -1,6 +1,7 @@
 use crate::types::{Lazy, LazyConfig, TryLazy, trampoline::Trampoline};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///
@@ -30,7 +31,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. a -> TryTrampoline a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -61,7 +62,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. e -> TryTrampoline a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -92,7 +93,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryTrampoline a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -125,7 +126,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> b, TryTrampoline a e) -> TryTrampoline b e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -164,7 +165,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e2 e a. (e -> e2, TryTrampoline a e) -> TryTrampoline a e2`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -204,7 +205,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> TryTrampoline b e, TryTrampoline a e) -> TryTrampoline b e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -243,7 +244,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (e -> TryTrampoline a e, TryTrampoline a e) -> TryTrampoline a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -283,7 +284,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryTrampoline a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

@@ -14,6 +14,7 @@
 use super::CloneableFn;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that can be constructed lazily.
 pub trait Deferrable<'a> {
@@ -23,7 +24,7 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall. Deferrable d => (() -> d) -> d`
+	#[hm_signature(Deferrable)]
 	///
 	/// ### Type Parameters
 	///
@@ -58,7 +59,7 @@ pub trait Deferrable<'a> {
 ///
 /// ### Type Signature
 ///
-/// `forall. Deferrable d => (() -> d) -> d`
+#[hm_signature(Deferrable)]
 ///
 /// ### Type Parameters
 //

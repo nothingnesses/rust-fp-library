@@ -80,7 +80,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall self a m. (ParFoldable self, Monoid m) => (a -> m, self a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///

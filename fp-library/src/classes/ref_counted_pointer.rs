@@ -30,7 +30,7 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> RefCountedPointer a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -60,7 +60,7 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. RefCountedPointer a -> Result a (RefCountedPointer a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -95,7 +95,7 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Type Signature
 ///
-/// `forall a. RefCountedPointer a -> Result a (RefCountedPointer a)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

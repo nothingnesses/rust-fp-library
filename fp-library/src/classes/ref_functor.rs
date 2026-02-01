@@ -27,7 +27,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. RefFunctor f => (a -> b, f a) -> f b`
+	#[hm_signature(RefFunctor)]
 	///
 	/// ### Type Parameters
 	///

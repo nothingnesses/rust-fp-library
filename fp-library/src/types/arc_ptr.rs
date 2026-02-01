@@ -18,7 +18,7 @@ impl Pointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Arc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -52,7 +52,7 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Arc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -82,7 +82,7 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Arc a -> Result a (Arc a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -148,7 +148,7 @@ impl UnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> Arc (dyn Fn a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

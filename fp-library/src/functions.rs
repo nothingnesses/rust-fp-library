@@ -19,6 +19,7 @@
 
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -38,7 +39,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// ### Type Signature
 ///
-/// `forall a c b. (b -> c, a -> b) -> (a -> c)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -94,7 +95,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall b a. a -> (b -> a)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -128,7 +129,7 @@ pub fn constant<A: Clone, B>(a: A) -> impl Fn(B) -> A {
 ///
 /// ### Type Signature
 ///
-/// `forall a b c. ((a, b) -> c) -> ((b, a) -> c)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -176,7 +177,7 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a. a -> a`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

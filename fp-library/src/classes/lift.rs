@@ -24,7 +24,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a b c. Lift f => ((a, b) -> c, f a, f b) -> f c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///

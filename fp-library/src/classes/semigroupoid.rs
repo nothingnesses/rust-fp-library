@@ -32,7 +32,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b d c. Semigroupoid f => (f c d, f b c) -> f b d`
+	#[hm_signature(Semigroupoid)]
 	///
 	/// ### Type Parameters
 	///

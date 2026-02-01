@@ -36,7 +36,7 @@ pub trait Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Pointer a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

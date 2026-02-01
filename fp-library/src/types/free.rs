@@ -122,7 +122,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. a -> Free f a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -148,7 +148,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. f (Free f a) -> Free f a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -220,7 +220,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. (a -> Free f b, Free f a) -> Free f b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

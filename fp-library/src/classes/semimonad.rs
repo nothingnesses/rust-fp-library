@@ -27,7 +27,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. Semimonad m => (m a, a -> m b) -> m b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///

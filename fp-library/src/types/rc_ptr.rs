@@ -7,6 +7,7 @@ use crate::{
 };
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::rc::Rc;
 
 impl Pointer for RcBrand {
@@ -16,7 +17,7 @@ impl Pointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Rc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -50,7 +51,7 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Rc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -80,7 +81,7 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Rc a -> Result a (Rc a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -112,7 +113,7 @@ impl UnsizedCoercible for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> Rc (dyn Fn a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

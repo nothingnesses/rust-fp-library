@@ -34,7 +34,7 @@ pub trait Function: Category {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Function f => (a -> b) -> f a b`
+	#[hm_signature(Function)]
 	///
 	/// ### Type Parameters
 	///

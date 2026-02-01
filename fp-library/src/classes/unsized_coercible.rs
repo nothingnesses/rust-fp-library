@@ -12,6 +12,7 @@
 use super::RefCountedPointer;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
@@ -19,7 +20,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> UnsizedCoercible (a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -54,7 +55,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. (a -> b) -> UnsizedCoercible (a -> b)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

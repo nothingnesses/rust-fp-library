@@ -50,7 +50,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Step a b -> bool`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -73,7 +73,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Step a b -> bool`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -96,7 +96,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c b a. (a -> c, Step a b) -> Step c b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -133,7 +133,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c b a. (b -> c, Step a b) -> Step a c`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -170,7 +170,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall d c b a. (a -> c, b -> d, Step a b) -> Step c d`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

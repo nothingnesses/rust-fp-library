@@ -25,7 +25,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. Compactable f => f (Option a) -> f a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
@@ -66,7 +66,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///

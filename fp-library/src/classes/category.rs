@@ -31,7 +31,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Category c => () -> c a a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///

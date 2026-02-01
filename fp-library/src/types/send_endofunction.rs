@@ -48,7 +48,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. (a -> a) -> SendEndofunction fn_brand a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

@@ -46,7 +46,7 @@ impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. (a -> a) -> Endofunction fn_brand a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

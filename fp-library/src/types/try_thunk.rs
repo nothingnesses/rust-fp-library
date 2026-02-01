@@ -1,6 +1,7 @@
 use crate::types::{Lazy, LazyConfig, Thunk, TryLazy};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A deferred computation that may fail with error type `E`.
 ///
@@ -37,7 +38,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryThunk a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -70,7 +71,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. a -> TryThunk a e`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -101,7 +102,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. a -> TryThunk a e`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -130,7 +131,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. e -> TryThunk a e`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -159,7 +160,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> TryThunk b e, TryThunk a e) -> TryThunk b e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -201,7 +202,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. (a -> b, TryThunk a e) -> TryThunk b e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -240,7 +241,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e2 e a. (e -> e2, TryThunk a e) -> TryThunk a e2`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -276,7 +277,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryThunk a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
