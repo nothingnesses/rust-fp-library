@@ -101,26 +101,65 @@
 //! 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
 //! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
 //!
-//! #### Workflow Example
+//! #### Workflow Example: Expression Evaluator
 //!
-//! A common pattern is to use `Trampoline` for the heavy lifting (recursion), `Lazy` to freeze the result, and `Thunk` to borrow it later.
+//! A robust pattern is to use `TryTrampoline` for stack-safe, fallible recursion, `TryLazy` to memoize expensive results, and `TryThunk` to create lightweight views.
+//!
+//! Consider an expression evaluator that handles division errors and deep recursion:
 //!
 //! ```rust
 //! use fp_library::types::*;
 //!
-//! // 1. Use Trampoline for stack-safe recursion
-//! let heavy_computation = Trampoline::tail_rec_m(|n| {
-//!     if n < 1_000 { Trampoline::pure(Step::Loop(n + 1)) } else { Trampoline::pure(Step::Done(n)) }
-//! }, 0);
+//! #[derive(Clone)]
+//! enum Expr {
+//!     Val(i32),
+//!     Add(Box<Expr>, Box<Expr>),
+//!     Div(Box<Expr>, Box<Expr>),
+//! }
 //!
-//! // 2. Convert to Lazy to cache the result (runs once)
-//! let cached = Lazy::<_, RcLazyConfig>::from(heavy_computation);
+//! // 1. Stack-safe recursion with error handling (TryTrampoline)
+//! fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
+//!     match expr {
+//!         Expr::Val(n) => TryTrampoline::ok(*n),
+//!         Expr::Add(lhs, rhs) => {
+//!             let lhs = (**lhs).clone();
+//!             let rhs = (**rhs).clone();
+//!             // 'bind' ensures stack safety by deferring the next step
+//!             eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
+//!         }
+//!         Expr::Div(lhs, rhs) => {
+//!             let lhs = (**lhs).clone();
+//!             let rhs = (**rhs).clone();
+//!             eval(&lhs).bind(move |l| {
+//!                 eval(&rhs).bind(move |r| {
+//!                     if r == 0 {
+//!                         TryTrampoline::err("Division by zero".to_string())
+//!                     } else {
+//!                         TryTrampoline::ok(l / r)
+//!                     }
+//!                 })
+//!             })
+//!         }
+//!     }
+//! }
 //!
-//! // 3. Use Thunk to borrow the cached value without re-running
-//! let view = Thunk::new(|| {
-//!     let val = cached.evaluate();
-//!     format!("Result: {}", val)
-//! });
+//! // Usage
+//! fn main() {
+//!     let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
+//!
+//!     // 2. Memoize result (TryLazy)
+//!     // The evaluation runs at most once, even if accessed multiple times.
+//!     let result = RcTryLazy::new(move || eval(&expr).evaluate());
+//!
+//!     // 3. Create deferred view (TryThunk)
+//!     // Borrow the cached result to format it.
+//!     let view: TryThunk<String, String> = TryThunk::new(|| {
+//!         let val = result.evaluate().map_err(|e| e.clone())?;
+//!         Ok(format!("Result: {}", val))
+//!     });
+//!
+//!     assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
+//! }
 //! ```
 //!
 //! ### Thread Safety and Parallelism

@@ -1,12 +1,11 @@
 ### Tasks to do & ideas to look into
 
-* Move module level docs from types.rs to individual type source files
 * Better Workflow Example in readme and lib
 * Sort order of MonadRec type params
 * TryThunk should:
 	* Have catch like TryTrampoline
 	* Implement HKT classes
-* Add trait methods for type classes and methods for brand/type structs.
+* Add extra trait methods for type classes and methods for brand/type structs. Make trait implementations use type methods. E.g., add a map method for Identity, make the Functor implementation use it, like how Functor for Vec uses Iterator map internally.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
