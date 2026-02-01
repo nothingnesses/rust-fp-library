@@ -1,3 +1,5 @@
+use fp_macros::hm_signature;
+
 use crate::{
 	Apply,
 	brands::IdentityBrand,
@@ -179,9 +181,13 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// This method applies a function wrapped in an identity to a value wrapped in an identity.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
 	/// `forall fn_brand b a. Semiapplicative Identity => (Identity (fn_brand a b), Identity a) -> Identity b`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
@@ -404,9 +410,13 @@ impl Traversable for IdentityBrand {
 	///
 	/// This method maps the element of the identity to a computation, evaluates it, and wraps the result in the applicative context.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
 	/// `forall f b a. (Traversable Identity, Applicative f) => (a -> f b, Identity a) -> f (Identity b)`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -450,6 +460,10 @@ impl Traversable for IdentityBrand {
 	/// ### Type Signature
 	///
 	/// `forall f a. (Traversable Identity, Applicative f) => (Identity (f a)) -> f (Identity a)`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///

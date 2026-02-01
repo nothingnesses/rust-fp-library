@@ -16,6 +16,7 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::hm_signature;
 
 /// A type class for data structures that can be traversed and filtered.
 ///
@@ -33,16 +34,20 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`separate`](crate::functions::separate).
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
-	/// `forall self m o e a. (Witherable self, Applicative m) => (a -> m (Result o e), self a) -> m (Pair (self o) (self e))`
+	/// `forall self m a o e. (Witherable self, Applicative m) => (a -> m (Result o e), self a) -> m (Pair (self o) (self e))`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
 	/// * `M`: The applicative context.
+	/// * `A`: The type of the elements in the input structure.
 	/// * `O`: The type of the success values.
 	/// * `E`: The type of the error values.
-	/// * `A`: The type of the elements in the input structure.
 	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
@@ -87,13 +92,13 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall self m b a. (Witherable self, Applicative m) => (a -> m (Option b), self a) -> m (self b)`
+	/// `forall self m a b. (Witherable self, Applicative m) => (a -> m (Option b), self a) -> m (self b)`
 	///
 	/// ### Type Parameters
 	///
 	/// * `M`: The applicative context.
-	/// * `B`: The type of the elements in the output structure.
 	/// * `A`: The type of the elements in the input structure.
+	/// * `B`: The type of the elements in the output structure.
 	/// * `Func`: The type of the function to apply.
 	///
 	/// ### Parameters
@@ -136,15 +141,15 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Signature
 ///
-/// `forall f m o e a. (Witherable f, Applicative m) => (a -> m (Result o e), f a) -> m (Pair (f o) (f e))`
+/// `forall f m a o e. (Witherable f, Applicative m) => (a -> m (Result o e), f a) -> m (Pair (f o) (f e))`
 ///
 /// ### Type Parameters
 ///
 /// * `F`: The brand of the witherable structure.
 /// * `M`: The applicative context.
+/// * `A`: The type of the elements in the input structure.
 /// * `O`: The type of the success values.
 /// * `E`: The type of the error values.
-/// * `A`: The type of the elements in the input structure.
 /// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters
@@ -165,15 +170,7 @@ pub trait Witherable: Filterable + Traversable {
 /// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 /// assert_eq!(y, Some(Pair(Some(5), None)));
 /// ```
-pub fn wilt<
-	'a,
-	F: Witherable,
-	M: Applicative,
-	A: 'a + Clone,
-	O: 'a + Clone,
-	E: 'a + Clone,
-	Func,
->(
+pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
 	func: Func,
 	ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -197,14 +194,14 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f m b a. (Witherable f, Applicative m) => (a -> m (Option b), f a) -> m (f b)`
+/// `forall f m a b. (Witherable f, Applicative m) => (a -> m (Option b), f a) -> m (f b)`
 ///
 /// ### Type Parameters
 ///
 /// * `F`: The brand of the witherable structure.
 /// * `M`: The applicative context.
-/// * `B`: The type of the elements in the output structure.
 /// * `A`: The type of the elements in the input structure.
+/// * `B`: The type of the elements in the output structure.
 /// * `Func`: The type of the function to apply.
 ///
 /// ### Parameters

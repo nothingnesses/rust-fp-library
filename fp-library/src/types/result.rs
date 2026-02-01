@@ -1,3 +1,5 @@
+use fp_macros::hm_signature;
+
 use crate::{
 	Apply,
 	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
@@ -239,15 +241,19 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// This method applies a function wrapped in a result to a value wrapped in a result.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
-	/// `forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e`
+	/// `forall e a b. Semiapplicative (Result e) => (Result (a -> b) e, Result a e) -> Result b e`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
 	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
 	/// * `A`: The type of the input value.
+	/// * `B`: The type of the output value.
 	///
 	/// ### Parameters
 	///
@@ -493,9 +499,13 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
 	/// `forall e f b a. (Traversable (Result e), Applicative f) => (a -> f b, Result a e) -> f (Result b e)`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
@@ -550,9 +560,13 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// This method evaluates the computation inside the result and accumulates the result into an applicative context.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
 	/// `forall e f a. (Traversable (Result e), Applicative f) => (Result (f a) e) -> f (Result a e)`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///

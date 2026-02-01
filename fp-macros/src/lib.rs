@@ -11,11 +11,13 @@ use proc_macro::TokenStream;
 use quote::quote;
 use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
 use syn::parse_macro_input;
+use hm_signature::hm_signature_impl;
 
 pub(crate) mod apply;
 pub(crate) mod canonicalize;
 pub(crate) mod def_kind;
 pub(crate) mod generate;
+pub(crate) mod hm_signature;
 pub(crate) mod impl_kind;
 pub(crate) mod parse;
 pub(crate) mod re_export;
@@ -403,4 +405,36 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReexportInput);
 	generate_trait_re_exports_impl(input).into()
+}
+
+/// Generates a Hindley-Milner style type signature for a function.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// containing the corresponding HM type signature.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[hm_signature]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
+/// ```
+///
+/// ### Generates
+///
+/// A documentation comment with the generated signature, prepended to the function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[hm_signature]
+/// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
+///
+/// // Expanded code
+/// /// `forall f a b. Functor f => (a -> b, f a) -> f b`
+/// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
+/// ```
+#[proc_macro_attribute]
+pub fn hm_signature(attr: TokenStream, item: TokenStream) -> TokenStream {
+	hm_signature_impl(attr.into(), item.into()).into()
 }

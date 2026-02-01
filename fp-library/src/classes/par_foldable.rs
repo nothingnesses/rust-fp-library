@@ -13,6 +13,8 @@
 //! assert_eq!(result, "12345");
 //! ```
 
+use fp_macros::hm_signature;
+
 use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*, types::SendEndofunction};
 
@@ -116,9 +118,13 @@ pub trait ParFoldable: Foldable {
 	///
 	/// Folds the structure by applying a function from right to left, potentially in parallel.
 	///
-	/// ### Type Signature
+	/// ### Type Signature (Old)
 	///
-	/// `forall self a b. (ParFoldable self) => ((a, b) -> b, b, self a) -> b`
+	/// `forall self a b. ParFoldable self => ((a, b) -> b, b, self a) -> b`
+	///
+	/// ### Type Signature (New)
+	///
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
