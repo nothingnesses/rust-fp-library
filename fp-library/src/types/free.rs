@@ -31,7 +31,7 @@
 //! **What it CAN do:**
 //! * Provide stack-safe recursion for monadic computations (trampolining).
 //! * Prevent stack overflows when chaining many `bind` operations.
-//! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
+//! * Execute self-describing effects (like [`Thunk`]).
 //!
 //! **What it CANNOT do (easily):**
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.

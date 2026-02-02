@@ -603,7 +603,7 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///

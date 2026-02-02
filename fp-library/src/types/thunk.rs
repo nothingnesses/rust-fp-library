@@ -603,7 +603,7 @@ impl Evaluable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Runnable)]
+	#[hm_signature(Evaluable)]
 	///
 	/// ### Type Parameters
 	///

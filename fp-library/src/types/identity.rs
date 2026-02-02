@@ -520,7 +520,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -567,7 +567,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///

@@ -36,9 +36,13 @@ use crate::{
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
-use std::cmp::Ordering;
-use std::collections::VecDeque;
-use std::hash::{Hash, Hasher};
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+use std::{
+	cmp::Ordering,
+	collections::VecDeque,
+	hash::{Hash, Hasher},
+};
 
 /// A catenable list with O(1) append and O(1) amortized uncons.
 ///
@@ -714,7 +718,7 @@ impl ParFoldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
@@ -1598,10 +1602,10 @@ impl<A> CatList<A> {
 // Iteration support
 impl<A> IntoIterator for CatList<A> {
 	type Item = A;
-	type IntoIter = CatListIter<A>;
+	type IntoIter = CatListIterator<A>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		CatListIter { list: self }
+		CatListIterator { list: self }
 	}
 }
 
@@ -1614,11 +1618,11 @@ impl<A> IntoIterator for CatList<A> {
 /// ### Fields
 ///
 /// * `list`: The list being iterated over.
-pub struct CatListIter<A> {
+pub struct CatListIterator<A> {
 	list: CatList<A>,
 }
 
-impl<A> Iterator for CatListIter<A> {
+impl<A> Iterator for CatListIterator<A> {
 	type Item = A;
 
 	fn next(&mut self) -> Option<Self::Item> {

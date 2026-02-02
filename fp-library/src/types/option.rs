@@ -516,7 +516,7 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
