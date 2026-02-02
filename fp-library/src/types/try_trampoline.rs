@@ -1,23 +1,8 @@
 //! Stack-safe fallible computation type with guaranteed safety for unlimited recursion depth.
 //!
 //! Wraps [`Trampoline<Result<A, E>>`](crate::types::Trampoline) with ergonomic combinators for error handling. Provides complete stack safety for fallible computations that may recurse deeply.
-//!
-//! ### Examples
-//!
-//! ```
-//! use fp_library::types::*;
-//!
-//! let task: TryTrampoline<i32, String> = TryTrampoline::ok(10)
-//!     .map(|x| x * 2)
-//!     .bind(|x| TryTrampoline::ok(x + 5));
-//!
-//! assert_eq!(task.evaluate(), Ok(25));
-//! ```
 
-use crate::{
-	classes::{CloneableFn, Deferrable},
-	types::{Lazy, LazyConfig, Trampoline, TryLazy},
-};
+use crate::types::{Lazy, LazyConfig, Trampoline, TryLazy};
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A lazy, stack-safe computation that may fail with an error.
@@ -403,49 +388,6 @@ where
 {
 	fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 		TryTrampoline::new(move || memo.evaluate().cloned().map_err(Clone::clone))
-	}
-}
-
-impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
-where
-	A: 'static + Send,
-	E: 'static + Send,
-{
-	/// Creates a value from a computation that produces the value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Deferrable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The brand of the cloneable function wrapper.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
-	///
-	/// ### Returns
-	///
-	/// The deferred value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
-	///
-	/// let task: TryTrampoline<i32, String> = Deferrable::defer::<ArcFnBrand>(
-	///     cloneable_fn_new::<ArcFnBrand, _, _>(|_| TryTrampoline::ok(42))
-	/// );
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	fn defer<FnBrand: 'static + CloneableFn>(
-		f: <FnBrand as CloneableFn>::Of<'static, (), Self>
-	) -> Self
-	where
-		Self: Sized,
-	{
-		TryTrampoline(Trampoline::defer(move || f(()).0))
 	}
 }
 

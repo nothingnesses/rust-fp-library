@@ -136,6 +136,14 @@ pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
+/// Brand for [`Trampoline`](crate::types::Trampoline).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TrampolineBrand;
+
+/// Brand for [`TryTrampoline`](crate::types::TryTrampoline).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryTrampolineBrand<E>(pub PhantomData<E>);
+
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VecBrand;

@@ -283,11 +283,48 @@ impl_kind! {
 	}
 }
 
-impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
-	where
-		Self: Sized,
-	{
+impl Deferrable for ThunkBrand {
+	/// Creates a value from a computation that produces the value.
+	///
+	/// This function takes a thunk (wrapped in a cloneable function) and creates a deferred value that will be computed using the thunk.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the deferred value.",
+		"The brand of the cloneable function wrapper."
+	)]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*};
+	///
+	/// let eval: Thunk<i32> = defer::<ThunkBrand, i32, RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
+	/// );
+	/// assert_eq!(eval.evaluate(), 42);
+	/// ```
+	fn defer<'a, A: 'a, FnBrand: 'a + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<
+			'a,
+			(),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		>
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Thunk::defer(move || f(()))
 	}
 }

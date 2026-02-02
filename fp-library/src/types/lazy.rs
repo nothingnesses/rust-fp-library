@@ -695,10 +695,7 @@ impl_kind! {
 	}
 }
 
-impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
-where
-	A: Clone + 'a,
-{
+impl Deferrable for LazyBrand<RcLazyConfig> {
 	/// Defers a computation that produces a `Lazy` value.
 	///
 	/// This flattens the nested structure: instead of `Lazy<Lazy<A>>`, we get `Lazy<A>`.
@@ -710,7 +707,11 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The brand of the function.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the deferred value.",
+		"The brand of the cloneable function wrapper."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -725,14 +726,20 @@ where
 	/// ```
 	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
 	///
-	/// let lazy = Lazy::<_, RcLazyConfig>::defer::<RcFnBrand>(
+	/// let lazy = defer::<LazyBrand<RcLazyConfig>, _, RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::pure(42))
 	/// );
 	/// assert_eq!(*lazy.evaluate(), 42);
 	/// ```
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<'a, A: 'a, FnBrand: 'a + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<
+			'a,
+			(),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		>
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
-		Self: Sized,
+		A: Clone,
 	{
 		RcLazy::new(move || f(()).evaluate().clone())
 	}
@@ -932,10 +939,9 @@ mod tests {
 		use crate::classes::deferrable::defer;
 		use crate::functions::cloneable_fn_new;
 
-		let memo: RcLazy<i32> =
-			defer::<RcLazy<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
-				RcLazy::new(|| 42)
-			}));
+		let memo: RcLazy<i32> = defer::<LazyBrand<RcLazyConfig>, i32, RcFnBrand>(
+			cloneable_fn_new::<RcFnBrand, _, _>(|_| RcLazy::new(|| 42)),
+		);
 		assert_eq!(*memo.evaluate(), 42);
 	}
 

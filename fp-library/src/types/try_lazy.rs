@@ -236,11 +236,13 @@ where
 	}
 }
 
-impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
-where
-	A: Clone + 'a,
-	E: Clone + 'a,
-{
+impl_kind! {
+	impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
+		type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+	}
+}
+
+impl Deferrable for TryLazyBrand<(), RcLazyConfig> {
 	/// Defers a computation that produces a `TryLazy` value.
 	///
 	/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
@@ -252,7 +254,11 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The brand of the function.")]
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the deferred value.",
+		"The brand of the cloneable function wrapper."
+	)]
 	///
 	/// ### Parameters
 	///
@@ -267,22 +273,22 @@ where
 	/// ```
 	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
 	///
-	/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer::<RcFnBrand>(
+	/// let lazy = defer::<TryLazyBrand<(), RcLazyConfig>, _, RcFnBrand>(
 	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcTryLazy::new(|| Ok(42)))
 	/// );
 	/// assert_eq!(lazy.evaluate(), Ok(&42));
 	/// ```
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<'a, A: 'a, FnBrand: 'a + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<
+			'a,
+			(),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		>
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
-		Self: Sized,
+		A: Clone,
 	{
-		Self::new(move || f(()).evaluate().cloned().map_err(Clone::clone))
-	}
-}
-
-impl_kind! {
-	impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
-		type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+		RcTryLazy::new(move || f(()).evaluate().map(|a| a.clone()).map_err(|e| e.clone()))
 	}
 }
 
@@ -461,6 +467,24 @@ mod tests {
 
 		let memo: ArcTryLazy<i32, ()> =
 			send_defer::<TryLazyBrand<(), ArcLazyConfig>, _, _>(|| ArcTryLazy::new(|| Ok(42)));
+		assert_eq!(memo.evaluate(), Ok(&42));
+	}
+
+	/// Tests Defer implementation.
+	#[test]
+	fn test_defer() {
+		use crate::brands::RcFnBrand;
+		use crate::classes::deferrable::defer;
+		use crate::functions::cloneable_fn_new;
+
+		let memo: RcTryLazy<i32, ()> =
+			defer::<TryLazyBrand<(), RcLazyConfig>, i32, RcFnBrand>(cloneable_fn_new::<
+				RcFnBrand,
+				_,
+				_,
+			>(|_| {
+				RcTryLazy::new(|| Ok(42))
+			}));
 		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 }

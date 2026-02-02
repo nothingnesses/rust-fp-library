@@ -409,14 +409,48 @@ impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
 	}
 }
 
-impl<'a, A, E> Deferrable<'a> for TryThunk<'a, A, E>
-where
-	A: 'a,
-	E: 'a,
-{
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+impl<E: 'static> Deferrable for TryThunkWithErrBrand<E> {
+	/// Creates a value from a computation that produces the value.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the deferred value.",
+		"The brand of the cloneable function wrapper."
+	)]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::deferrable::*, functions::*, types::*};
+	///
+	/// let eval: TryThunk<i32, ()> = defer::<TryThunkWithErrBrand<()>, _, RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| TryThunk::pure(42))
+	/// );
+	/// assert_eq!(eval.evaluate(), Ok(42));
+	/// ```
+	fn defer<'a, A: 'a, FnBrand: 'a + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<
+			'a,
+			(),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		>
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
-		Self: Sized,
+		A: Clone,
 	{
 		TryThunk::defer(move || f(()))
 	}
@@ -996,6 +1030,53 @@ impl Bifunctor for TryThunkBrand {
 	}
 }
 
+impl<A: 'static> Deferrable for TryThunkWithOkBrand<A> {
+	/// Creates a value from a computation that produces the value (as error).
+	///
+	/// ### Type Signature
+	///
+	/// #[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	/// #[doc_type_params(
+	/// 	"The lifetime of the computation.",
+	/// 	"The type of the deferred value (error).",
+	/// 	"The brand of the cloneable function wrapper."
+	/// )]
+	///
+	/// ### Parameters
+	///
+	/// #[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::deferrable::*, functions::*, types::*};
+	///
+	/// let eval: TryThunk<i32, i32> = defer::<TryThunkWithOkBrand<i32>, _, RcFnBrand>(
+	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| TryThunk::err(42))
+	/// );
+	/// assert_eq!(eval.evaluate(), Err(42));
+	/// ```
+	fn defer<'a, E: 'a, FnBrand: 'a + CloneableFn>(
+		f: <FnBrand as CloneableFn>::Of<
+			'a,
+			(),
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+		>
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>)
+	where
+		E: Clone,
+	{
+		TryThunk::defer(move || f(()))
+	}
+}
+
 impl_kind! {
 	impl<A: 'static> for TryThunkWithOkBrand<A> {
 		type Of<'a, E: 'a>: 'a = TryThunk<'a, A, E>;
@@ -1569,6 +1650,28 @@ mod tests {
 			bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(),
 			Err(6)
 		);
+	}
+
+	/// Tests `Deferrable` for `TryThunkWithErrBrand`.
+	#[test]
+	fn test_deferrable_err_brand() {
+		use crate::{brands::*, classes::deferrable::*, functions::*};
+
+		let eval: TryThunk<i32, ()> = defer::<TryThunkWithErrBrand<()>, _, RcFnBrand>(
+			cloneable_fn_new::<RcFnBrand, _, _>(|_| TryThunk::pure(42)),
+		);
+		assert_eq!(eval.evaluate(), Ok(42));
+	}
+
+	/// Tests `Deferrable` for `TryThunkWithOkBrand`.
+	#[test]
+	fn test_deferrable_ok_brand() {
+		use crate::{brands::*, classes::deferrable::*, functions::*};
+
+		let eval: TryThunk<i32, i32> = defer::<TryThunkWithOkBrand<i32>, _, RcFnBrand>(
+			cloneable_fn_new::<RcFnBrand, _, _>(|_| TryThunk::err(42)),
+		);
+		assert_eq!(eval.evaluate(), Err(42));
 	}
 
 	/// Tests `TryThunkWithOkBrand` (Functor over Error).
