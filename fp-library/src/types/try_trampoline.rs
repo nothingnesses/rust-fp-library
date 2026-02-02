@@ -419,11 +419,11 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The brand of the cloneable function wrapper.")]
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	#[doc_params("A thunk that produces the value.")]
 	///
 	/// ### Returns
 	///

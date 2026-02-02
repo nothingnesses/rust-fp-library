@@ -251,7 +251,7 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The brand of the function.")]
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///

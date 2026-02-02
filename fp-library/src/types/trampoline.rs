@@ -16,6 +16,7 @@
 
 use crate::{
 	brands::ThunkBrand,
+	classes::Deferrable,
 	types::{Free, Lazy, LazyConfig, Step, Thunk},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
@@ -524,6 +525,42 @@ impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config
 {
 	fn from(lazy: Lazy<'static, A, Config>) -> Self {
 		Trampoline::new(move || lazy.evaluate().clone())
+	}
+}
+
+impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
+	/// Creates a `Trampoline` from a computation that produces it.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that produces the trampoline.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred trampoline.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: Trampoline<i32> = Deferrable::defer(|| Trampoline::pure(42));
+	/// assert_eq!(task.evaluate(), 42);
+	/// ```
+	fn defer<F>(f: F) -> Self
+	where
+		F: FnOnce() -> Self + 'static,
+		Self: Sized,
+	{
+		Trampoline::defer(f)
 	}
 }
 

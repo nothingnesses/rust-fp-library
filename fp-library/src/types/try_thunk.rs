@@ -414,6 +414,32 @@ where
 	A: 'a,
 	E: 'a,
 {
+	/// Creates a `TryThunk` from a computation that produces it.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that produces the try thunk.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred try thunk.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::pure(42));
+	/// assert_eq!(task.evaluate(), Ok(42));
+	/// ```
 	fn defer<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Self + 'a,

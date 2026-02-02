@@ -61,9 +61,10 @@
 
 use crate::{
 	Apply,
-	classes::{Evaluable, Functor},
+	brands::ThunkBrand,
+	classes::{Deferrable, Evaluable, Functor},
 	kinds::*,
-	types::CatList,
+	types::{CatList, Thunk},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::{any::Any, marker::PhantomData};
@@ -452,6 +453,44 @@ where
 				current = head.0.take();
 			}
 		}
+	}
+}
+
+impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
+	/// Creates a `Free` computation from a thunk.
+	///
+	/// This delegates to `Free::wrap` and `Thunk::new`.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that produces the free computation.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred free computation.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
+	/// assert_eq!(task.evaluate(), 42);
+	/// ```
+	fn defer<F>(f: F) -> Self
+	where
+		F: FnOnce() -> Self + 'static,
+		Self: Sized,
+	{
+		Self::wrap(Thunk::new(f))
 	}
 }
 

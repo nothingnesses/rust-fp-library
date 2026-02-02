@@ -284,6 +284,32 @@ impl_kind! {
 }
 
 impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
+	/// Creates a `Thunk` from a computation that produces it.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that produces the thunk.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred thunk.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
+	/// assert_eq!(task.evaluate(), 42);
+	/// ```
 	fn defer<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Self + 'a,
