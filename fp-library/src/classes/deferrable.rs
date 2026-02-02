@@ -62,9 +62,8 @@ pub trait Deferrable<'a> {
 #[hm_signature(Deferrable)]
 ///
 /// ### Type Parameters
-//
-/// * `FnBrand`: The brand of the cloneable function wrapper./
-/// * `D`: The type of the deferred value.
+///
+#[doc_type_params("The lifetime of the computation", "The type of the deferred value.", "The brand of the cloneable function wrapper.")]
 ///
 /// ### Parameters
 ///
