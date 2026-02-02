@@ -17,25 +17,20 @@
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 //! - **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
-//!   - `Functor`, `Applicative`, `Monad`
-//!   - `Semigroup`, `Monoid`
-//!   - `Foldable`, `Traversable`
-//!   - `Compactable`, `Filterable`, `Witherable`
-//!   - `Category`, `Semigroupoid`
-//!   - `Pointed`, `Lift`
-//!   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-//!   - `MonadRec`, `RefFunctor`
-//!   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
-//!   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
-//!   - `Defer`, `SendDefer`
+//!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
+//!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
+//!   - **Category Theory:** `Category`, `Semigroupoid`
+//!   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
+//!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
+//!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
 //! - **Helper Functions:** Standard FP utilities:
 //!   - `compose`, `constant`, `flip`, `identity`
 //! - **Data Types:** Implementations for standard and custom types:
-//!   - `Option`, `Result`, `Vec`, `String`
-//!   - `Identity`, `Lazy`, `Pair`
-//!   - `Trampoline`, `Thunk`, `Free`
-//!   - `Endofunction`, `Endomorphism`, `SendEndofunction`
-//!   - `RcBrand`, `ArcBrand`, `FnBrand`
+//!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
+//!   - **Laziness, Memoization & Stack Safety:** `Lazy`, `Thunk`, `Trampoline`, `Free`
+//!   - **Generic Containers:** `Identity`, `Pair`
+//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
+//!   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 //!
 //! ## How it Works
 //!
