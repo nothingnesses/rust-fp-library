@@ -1,11 +1,23 @@
+//! Thread-safe reference-counted pointer abstraction using [`Arc`].
+//!
+//! Provides trait implementations for using `Arc` in the library's pointer abstraction hierarchy.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
+//! assert_eq!(*ptr, 42);
+//! ```
+
 use crate::{
 	brands::ArcBrand,
 	classes::{
-		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
-		send_ref_counted_pointer::SendRefCountedPointer,
-		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
+		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, UnsizedCoercible,
 	},
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::sync::Arc;
 
 impl Pointer for ArcBrand {
@@ -15,15 +27,15 @@ impl Pointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Arc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -49,15 +61,15 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Arc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -79,15 +91,15 @@ impl RefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Arc a -> Result a (Arc a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the wrapped value.
+	#[doc_type_params("The type of the wrapped value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `ptr`: The pointer to attempt to unwrap.
+	#[doc_params("The pointer to attempt to unwrap.")]
 	///
 	/// ### Returns
 	///
@@ -113,15 +125,15 @@ impl SendRefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Send a, Sync a) => a -> Arc a`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -145,16 +157,19 @@ impl UnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> Arc (dyn Fn a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the closure.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
+	#[doc_params("The closure to coerce.")]
 	///
 	/// ### Returns
 	///
@@ -178,16 +193,19 @@ impl SendUnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (Send (a -> b), Sync (a -> b)) => (a -> b) -> Arc (dyn Fn a -> b + Send + Sync)`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the closure.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
+	#[doc_params("The closure to coerce.")]
 	///
 	/// ### Returns
 	///

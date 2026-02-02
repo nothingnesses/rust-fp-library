@@ -1,5 +1,3 @@
-//! Higher-kinded representations of [types][crate::types].
-//!
 //! Brands represent higher-kinded (unapplied/partially-applied) forms of
 //! [types][crate::types], as opposed to concrete types, which are
 //! fully-applied.
@@ -18,9 +16,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{
-	category::Category, cloneable_fn::CloneableFn, ref_counted_pointer::RefCountedPointer,
-};
+use crate::classes::{Category, CloneableFn, RefCountedPointer};
 use std::marker::PhantomData;
 
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
@@ -37,6 +33,10 @@ pub type ArcFnBrand = FnBrand<ArcBrand>;
 /// Brand for [`Box`] unique ownership pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BoxBrand;
+
+/// Brand for [`CatList`](crate::types::CatList).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CatListBrand;
 
 /// Brand for [`Endofunction`](crate::types::Endofunction).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -120,13 +120,21 @@ pub struct StepWithLoopBrand<A>(PhantomData<A>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 
-/// Brand for [`TryThunk`](crate::types::TryThunk).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TryThunkBrand<E>(PhantomData<E>);
-
 /// Brand for [`TryLazy`](crate::types::TryLazy).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) (Bifunctor).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkBrand;
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the error value filled in (Functor over [`Ok`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
+
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the success value filled in (Functor over [`Err`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

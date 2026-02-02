@@ -1,4 +1,4 @@
-//! A type class for types that can be mapped over.
+//! Types that can be mapped over, allowing functions to be applied to values within a context.
 //!
 //! ### Examples
 //!
@@ -11,6 +11,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that can be mapped over.
 ///
@@ -29,18 +32,23 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. Functor f => (a -> b, f a) -> f b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result(s) of applying the function.
-	/// * `A`: The type of the value(s) inside the functor.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the value(s) inside the functor.",
+		"The type of the result(s) of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the value(s) inside the functor.
-	/// * `fa`: The functor instance containing the value(s).
+	#[doc_params(
+		"The function to apply to the value(s) inside the functor.",
+		"The functor instance containing the value(s)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -55,12 +63,12 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		f: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a;
+		Func: Fn(A) -> B + 'a;
 }
 
 /// Maps a function over the values in the functor context.
@@ -69,19 +77,24 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Functor f => (a -> b, f a) -> f b`
+#[hm_signature(Functor)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the functor.
-/// * `B`: The type of the result(s) of applying the function.
-/// * `A`: The type of the value(s) inside the functor.
-/// * `F`: The type of the function to apply.
+#[doc_type_params(
+	"The lifetime of the values.",
+	"The brand of the functor.",
+	"The type of the value(s) inside the functor.",
+	"The type of the result(s) of applying the function.",
+	"The type of the function to apply."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The function to apply to the value(s) inside the functor.
-/// * `fa`: The functor instance containing the value(s).
+#[doc_params(
+	"The function to apply to the value(s) inside the functor.",
+	"The functor instance containing the value(s)."
+)]
 ///
 /// ### Returns
 ///
@@ -96,12 +109,12 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn map<'a, Brand: Functor, B: 'a, A: 'a, F>(
-	f: F,
+pub fn map<'a, Brand: Functor, A: 'a, B: 'a, Func>(
+	f: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	F: Fn(A) -> B + 'a,
+	Func: Fn(A) -> B + 'a,
 {
-	Brand::map::<B, A, F>(f, fa)
+	Brand::map::<A, B, Func>(f, fa)
 }

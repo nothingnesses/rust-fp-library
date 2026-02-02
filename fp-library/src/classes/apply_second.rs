@@ -1,4 +1,4 @@
-//! A type class for sequencing two computations and keeping the result of the second.
+//! Sequencing of two computations while keeping the result of the second.
 //!
 //! ### Examples
 //!
@@ -13,6 +13,9 @@
 
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
@@ -25,17 +28,19 @@ pub trait ApplySecond: Lift {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. ApplySecond f => (f a, f b) -> f b`
+	#[hm_signature(ApplySecond)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value in the first context.
-	/// * `B`: The type of the value in the second context.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the value in the first context.",
+		"The type of the value in the second context."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The first context.
-	/// * `fb`: The second context.
+	#[doc_params("The first context.", "The second context.")]
 	///
 	/// ### Returns
 	///
@@ -51,11 +56,11 @@ pub trait ApplySecond: Lift {
 	/// let z = apply_second::<OptionBrand, _, _>(x, y);
 	/// assert_eq!(z, Some(10));
 	/// ```
-	fn apply_second<'a, B: 'a + Clone, A: 'a + Clone>(
+	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		Self::lift2::<B, A, B, _>(|_, b| b, fa, fb)
+		Self::lift2::<A, B, B, _>(|_, b| b, fa, fb)
 	}
 }
 
@@ -65,18 +70,20 @@ pub trait ApplySecond: Lift {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. ApplySecond f => (f a, f b) -> f b`
+#[hm_signature(ApplySecond)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the context.
-/// * `B`: The type of the value in the second context.
-/// * `A`: The type of the value in the first context.
+#[doc_type_params(
+	"The lifetime of the values.",
+	"The brand of the context.",
+	"The type of the value in the first context.",
+	"The type of the value in the second context."
+)]
 ///
 /// ### Parameters
 ///
-/// * `fa`: The first context.
-/// * `fb`: The second context.
+#[doc_params("The first context.", "The second context.")]
 ///
 /// ### Returns
 ///
@@ -92,9 +99,9 @@ pub trait ApplySecond: Lift {
 /// let z = apply_second::<OptionBrand, _, _>(x, y);
 /// assert_eq!(z, Some(10));
 /// ```
-pub fn apply_second<'a, Brand: ApplySecond, B: 'a + Clone, A: 'a + Clone>(
+pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-	Brand::apply_second::<B, A>(fa, fb)
+	Brand::apply_second::<A, B>(fa, fb)
 }

@@ -1,4 +1,4 @@
-//! A trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
+//! Pointer brands that can perform unsized coercion to thread-safe `dyn Fn` trait objects.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,9 @@
 //! ```
 
 use super::{SendRefCountedPointer, UnsizedCoercible};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
@@ -17,16 +20,19 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (Send (a -> b)) => (a -> b) -> SendUnsizedCoercible (a -> b)`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the closure.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
+	#[doc_params("The closure to coerce.")]
 	///
 	/// ### Returns
 	///
@@ -51,18 +57,21 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// ### Type Signature
 ///
-/// `forall a b. (Send (a -> b)) => (a -> b) -> SendUnsizedCoercible (a -> b)`
+#[hm_signature(Send)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the pointer.
-/// * `A`: The input type of the function.
-/// * `B`: The output type of the function.
-/// * `F`: The type of the closure to coerce.
+#[doc_type_params(
+	"The lifetime of the closure.",
+	"The brand of the pointer.",
+	"The input type of the function.",
+	"The output type of the function.",
+	"The type of the closure function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The closure to coerce.
+#[doc_params("The closure to coerce.")]
 ///
 /// ### Returns
 ///
@@ -76,11 +85,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, F>(
-	f: F
+pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, Func>(
+	func: Func
 ) -> Brand::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>
 where
-	F: 'a + Fn(A) -> B + Send + Sync,
+	Func: 'a + Fn(A) -> B + Send + Sync,
 {
-	Brand::coerce_send_fn::<A, B>(f)
+	Brand::coerce_send_fn::<A, B>(func)
 }

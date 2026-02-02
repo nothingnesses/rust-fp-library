@@ -1,7 +1,12 @@
+//! Thread-safe wrapper for endofunctions with [`Semigroup`] and [`Monoid`] instances.
+//!
+//! The `Send + Sync` counterpart to [`Endofunction`](crate::types::Endofunction), wrapping functions that can be safely shared across threads.
+
 use crate::{
-	classes::{monoid::Monoid, semigroup::Semigroup, send_cloneable_fn::SendCloneableFn},
+	classes::{Monoid, Semigroup, SendCloneableFn},
 	functions::identity,
 };
+use fp_macros::{doc_params, hm_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -46,7 +51,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. (a -> a) -> SendEndofunction fn_brand a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -55,7 +60,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to wrap.
+	#[doc_params("The function to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -156,12 +161,14 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Semigroup (SendEndofunction fn_brand a) => (SendEndofunction fn_brand a, SendEndofunction fn_brand a) -> SendEndofunction fn_brand a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The second function to apply (the outer function).
-	/// * `b`: The first function to apply (the inner function).
+	#[doc_params(
+		"The second function to apply (the outer function).",
+		"The first function to apply (the inner function)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -199,7 +206,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Monoid (SendEndofunction fn_brand a) => () -> SendEndofunction fn_brand a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

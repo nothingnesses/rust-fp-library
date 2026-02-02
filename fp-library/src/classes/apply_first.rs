@@ -1,4 +1,4 @@
-//! A type class for sequencing two computations and keeping the result of the first.
+//! Sequencing of two computations while keeping the result of the first.
 //!
 //! ### Examples
 //!
@@ -13,6 +13,9 @@
 
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that support combining two contexts, keeping the first value.
 ///
@@ -25,17 +28,19 @@ pub trait ApplyFirst: Lift {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
+	#[hm_signature(ApplyFirst)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value in the first context.
-	/// * `B`: The type of the value in the second context.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the value in the first context.",
+		"The type of the value in the second context."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The first context.
-	/// * `fb`: The second context.
+	#[doc_params("The first context.", "The second context.")]
 	///
 	/// ### Returns
 	///
@@ -65,18 +70,20 @@ pub trait ApplyFirst: Lift {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. ApplyFirst f => (f a, f b) -> f a`
+#[hm_signature(ApplyFirst)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the context.
-/// * `A`: The type of the value in the first context.
-/// * `B`: The type of the value in the second context.
+#[doc_type_params(
+	"The lifetime of the values.",
+	"The brand of the context.",
+	"The type of the value in the first context.",
+	"The type of the value in the second context."
+)]
 ///
 /// ### Parameters
 ///
-/// * `fa`: The first context.
-/// * `fb`: The second context.
+#[doc_params("The first context.", "The second context.")]
 ///
 /// ### Returns
 ///

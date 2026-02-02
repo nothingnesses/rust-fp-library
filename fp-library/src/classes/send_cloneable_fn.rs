@@ -1,4 +1,4 @@
-//! A trait for thread-safe cloneable wrappers over closures.
+//! Thread-safe cloneable wrappers over closures that carry `Send + Sync` bounds.
 //!
 //! ### Examples
 //!
@@ -16,6 +16,9 @@
 //! ```
 
 use super::cloneable_fn::CloneableFn;
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Abstraction for thread-safe cloneable wrappers over closures.
@@ -27,6 +30,10 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait SendCloneableFn: CloneableFn {
+	/// The type of the thread-safe cloneable function wrapper.
+	///
+	/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
+	/// that implements `Clone`, `Send`, `Sync` and dereferences to the underlying closure.
 	type SendOf<'a, A, B>: Clone + Send + Sync + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
 
 	/// Creates a new thread-safe cloneable function wrapper.
@@ -35,17 +42,19 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. SendCloneableFn f => (a -> b) -> f a b`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the function and its captured data.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap. Must be `Send + Sync`.
-	///
+	#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.
@@ -75,18 +84,20 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. SendCloneableFn f => (a -> b) -> f a b`
+#[hm_signature(SendCloneableFn)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the thread-safe cloneable function wrapper.
-/// * `A`: The input type of the function.
-/// * `B`: The output type of the function.
+#[doc_type_params(
+	"The lifetime of the function and its captured data.",
+	"The brand of the thread-safe cloneable function wrapper.",
+	"The input type of the function.",
+	"The output type of the function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The closure to wrap. Must be `Send + Sync`.
-///
+#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
 /// ### Returns
 ///
 /// The wrapped thread-safe cloneable function.

@@ -1,4 +1,4 @@
-//! A type class for types that have an identity element and an associative binary operation.
+//! Types that have an identity element and an associative binary operation.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,8 @@
 //! ```
 
 use super::semigroup::Semigroup;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for types that have an identity element and an associative binary operation.
 ///
@@ -25,7 +27,7 @@ pub trait Monoid: Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m. Monoid m => () -> m`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///
@@ -48,11 +50,11 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall m. Monoid m => () -> m`
+#[hm_signature(Monoid)]
 ///
 /// ### Type Parameters
 ///
-/// * `M`: The type of the monoid.
+#[doc_type_params("The type of the monoid.")]
 ///
 /// ### Returns
 ///

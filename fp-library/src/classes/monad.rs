@@ -1,4 +1,4 @@
-//! A type class for monads, allowing for sequencing computations where the structure of the computation depends on the result of the previous computation.
+//! Monads, allowing for sequencing computations where the structure depends on previous results.
 //!
 //! ### Examples
 //!

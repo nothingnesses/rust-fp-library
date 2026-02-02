@@ -1,20 +1,23 @@
+//! Deferred, non-memoized computation with higher-kinded type support.
+//!
+//! Builds computation chains without stack safety guarantees but supports borrowing and lifetime polymorphism. Each call to [`Thunk::evaluate`] re-executes the computation. For stack-safe alternatives, use [`Trampoline`](crate::types::Trampoline).
+
 use crate::{
 	Apply,
 	brands::ThunkBrand,
 	classes::{
-		Defer, apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
-		foldable::Foldable, functor::Functor, lift::Lift, monad_rec::MonadRec, monoid::Monoid,
-		pointed::Pointed, runnable::Runnable, semiapplicative::Semiapplicative,
-		semigroup::Semigroup, semimonad::Semimonad,
+		ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor, Lift,
+		MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
 	},
 	impl_kind,
 	kinds::*,
-	types::{Lazy, LazyConfig, step::Step},
+	types::{Lazy, LazyConfig, Step},
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 /// A deferred computation that produces a value of type `A`.
 ///
-/// `Thunk` is NOT memoized - each call to [`Thunk::run`] re-executes the computation.
+/// `Thunk` is NOT memoized - each call to [`Thunk::evaluate`] re-executes the computation.
 /// This type exists to build computation chains without allocation overhead.
 ///
 /// Unlike [`Trampoline`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
@@ -32,9 +35,9 @@ use crate::{
 /// ### Algebraic Properties
 ///
 /// `Thunk` is a proper Monad:
-/// - `pure(a).run() == a` (left identity).
-/// - `eval.bind(pure) == eval` (right identity).
-/// - `eval.bind(f).bind(g) == eval.bind(|a| f(a).bind(g))` (associativity).
+/// - `pure(a).evaluate() == a` (left identity).
+/// - `thunk.bind(pure) == thunk` (right identity).
+/// - `thunk.bind(f).bind(g) == thunk.bind(|a| f(a).bind(g))` (associativity).
 ///
 /// ### Type Parameters
 ///
@@ -54,26 +57,26 @@ use crate::{
 ///     .map(|x| x + 1);
 ///
 /// // No computation has happened yet!
-/// // Only when we call run() does it execute:
-/// let result = computation.run();
+/// // Only when we call evaluate() does it execute:
+/// let result = computation.evaluate();
 /// assert_eq!(result, 11);
 /// ```
 pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
 
 impl<'a, A: 'a> Thunk<'a, A> {
-	/// Creates a new Thunk from a thunk.
+	/// Creates a new `Thunk` from a thunk.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the thunk.
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk to wrap.
+	#[doc_params("The thunk to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -84,8 +87,8 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let eval = Thunk::new(|| 42);
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = Thunk::new(|| 42);
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
@@ -98,11 +101,11 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -111,10 +114,10 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::*;
+	/// use fp_library::{brands::*, functions::*, classes::*};
 	///
-	/// let eval = Thunk::pure(42);
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = pure::<ThunkBrand, _>(42);
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	pub fn pure(a: A) -> Self
 	where
@@ -127,15 +130,15 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> Thunk a) -> Thunk a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the thunk.
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The thunk that returns a `Thunk`.
+	#[doc_params("The thunk that returns a `Thunk`.")]
 	///
 	/// ### Returns
 	///
@@ -144,35 +147,37 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::*;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let eval = Thunk::defer(|| Thunk::pure(42));
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	pub fn defer<F>(f: F) -> Self
 	where
 		F: FnOnce() -> Thunk<'a, A> + 'a,
 	{
-		Thunk::new(move || f().run())
+		Thunk::new(move || f().evaluate())
 	}
 
 	/// Monadic bind: chains computations.
 	///
-	/// Note: Each `bind` adds to the call stack. For deep recursion
-	/// (>1000 levels), use [`Trampoline`](crate::types::Trampoline) instead.
+	/// Note: Each `bind` adds to the call stack. For deep recursion,
+	/// use [`Trampoline`](crate::types::Trampoline) instead.
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> Thunk b, Thunk a) -> Thunk b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The type of the result of the new computation.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
+	#[doc_params("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -181,10 +186,10 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(21).bind(|x| Thunk::pure(x * 2));
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	pub fn bind<B: 'a, F>(
 		self,
@@ -195,8 +200,8 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	{
 		Thunk::new(move || {
 			let a = (self.0)();
-			let eval_b = f(a);
-			(eval_b.0)()
+			let thunk_b = f(a);
+			(thunk_b.0)()
 		})
 	}
 
@@ -204,16 +209,18 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. (a -> b, Thunk a) -> Thunk b`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the transformation.
-	/// * `F`: The type of the transformation function.
+	#[doc_type_params(
+		"The type of the result of the transformation.",
+		"The type of the transformation function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
+	#[doc_params("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -222,10 +229,10 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(21).map(|x| x * 2);
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	pub fn map<B: 'a, F>(
 		self,
@@ -241,7 +248,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Thunk a -> a`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -250,12 +257,12 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::*;
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(42);
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk = pure::<ThunkBrand, _>(42);
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
-	pub fn run(self) -> A {
+	pub fn evaluate(self) -> A {
 		(self.0)()
 	}
 }
@@ -266,7 +273,7 @@ where
 	Config: LazyConfig,
 {
 	fn from(lazy: Lazy<'a, A, Config>) -> Self {
-		Thunk::new(move || lazy.get().clone())
+		Thunk::new(move || lazy.evaluate().clone())
 	}
 }
 
@@ -276,83 +283,115 @@ impl_kind! {
 	}
 }
 
-impl<'a, A: 'a> Defer<'a> for Thunk<'a, A> {
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
+	/// Creates a `Thunk` from a computation that produces it.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("A thunk that produces the thunk.")]
+	///
+	/// ### Returns
+	///
+	/// The deferred thunk.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+	///
+	/// let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
+	/// assert_eq!(task.evaluate(), 42);
+	/// ```
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized,
 	{
-		Thunk::defer(move || f(()))
+		Thunk::defer(f)
 	}
 }
 
 impl Functor for ThunkBrand {
-	/// Maps a function over the result of a Thunk computation.
+	/// Maps a function over the result of a `Thunk` computation.
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Functor Thunk => (a -> b, Thunk a) -> Thunk b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the transformation.
-	/// * `A`: The type of the value inside the Thunk.
-	/// * `F`: The type of the transformation function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value inside the `Thunk`.",
+		"The type of the result of the transformation.",
+		"The type of the transformation function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the result of the computation.
-	/// * `fa`: The Thunk instance.
+	#[doc_params(
+		"The function to apply to the result of the computation.",
+		"The `Thunk` instance."
+	)]
 	///
 	/// ### Returns
 	///
-	/// A new Thunk instance with the transformed result.
+	/// A new `Thunk` instance with the transformed result.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(10);
-	/// let mapped = ThunkBrand::map(|x| x * 2, eval);
-	/// assert_eq!(mapped.run(), 20);
+	/// let thunk = pure::<ThunkBrand, _>(10);
+	/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
+	/// assert_eq!(mapped.evaluate(), 20);
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map(f)
+		fa.map(func)
 	}
 }
 
 impl Pointed for ThunkBrand {
-	/// Wraps a value in a Thunk context.
+	/// Wraps a value in a `Thunk` context.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Thunk => a -> Thunk a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
+	#[doc_type_params("The lifetime of the computation.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
-	/// A new Thunk instance containing the value.
+	/// A new `Thunk` instance containing the value.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let eval: Thunk<i32> = ThunkBrand::pure(42);
-	/// assert_eq!(eval.run(), 42);
+	/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
+	/// assert_eq!(thunk.evaluate(), 42);
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Thunk::pure(a)
@@ -360,51 +399,52 @@ impl Pointed for ThunkBrand {
 }
 
 impl Lift for ThunkBrand {
-	/// Lifts a binary function into the Thunk context.
+	/// Lifts a binary function into the `Thunk` context.
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a b. Lift Thunk => ((a, b) -> c, Thunk a, Thunk b) -> Thunk c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result.
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the second value.
-	/// * `F`: The type of the binary function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the result.",
+		"The type of the binary function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
-	/// * `fa`: The first Thunk.
-	/// * `fb`: The second Thunk.
+	#[doc_params("The binary function to apply.", "The first `Thunk`.", "The second `Thunk`.")]
 	///
 	/// ### Returns
 	///
-	/// A new Thunk instance containing the result of applying the function.
+	/// A new `Thunk` instance containing the result of applying the function.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval1 = Thunk::pure(10);
-	/// let eval2 = Thunk::pure(20);
-	/// let result = ThunkBrand::lift2(|a, b| a + b, eval1, eval2);
-	/// assert_eq!(result.run(), 30);
+	/// let eval1 = pure::<ThunkBrand, _>(10);
+	/// let eval2 = pure::<ThunkBrand, _>(20);
+	/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
+	/// assert_eq!(result.evaluate(), 30);
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
-		fa.bind(move |a| fb.map(move |b| f(a, b)))
+		fa.bind(move |a| fb.map(move |b| func(a, b)))
 	}
 }
 
@@ -412,38 +452,40 @@ impl ApplyFirst for ThunkBrand {}
 impl ApplySecond for ThunkBrand {}
 
 impl Semiapplicative for ThunkBrand {
-	/// Applies a function wrapped in Thunk to a value wrapped in Thunk.
+	/// Applies a function wrapped in `Thunk` to a value wrapped in `Thunk`.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative Thunk => (Thunk (fn_brand a b), Thunk a) -> Thunk b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the function wrapper.
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the input.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input.",
+		"The type of the result."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ff`: The Thunk containing the function.
-	/// * `fa`: The Thunk containing the value.
+	#[doc_params("The `Thunk` containing the function.", "The `Thunk` containing the value.")]
 	///
 	/// ### Returns
 	///
-	/// A new Thunk instance containing the result of applying the function.
+	/// A new `Thunk` instance containing the result of applying the function.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let func = Thunk::pure(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// let val = Thunk::pure(21);
-	/// let result = ThunkBrand::apply::<RcFnBrand, _, _>(func, val);
-	/// assert_eq!(result.run(), 42);
+	/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// let val = pure::<ThunkBrand, _>(21);
+	/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+	/// assert_eq!(result.evaluate(), 42);
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -457,48 +499,46 @@ impl Semiapplicative for ThunkBrand {
 }
 
 impl Semimonad for ThunkBrand {
-	/// Chains Thunk computations.
+	/// Chains `Thunk` computations.
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Thunk => (Thunk a, a -> Thunk b) -> Thunk b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the new computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the result of the first computation.",
+		"The type of the result of the new computation.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first Thunk.
-	/// * `f`: The function to apply to the result of the computation.
+	#[doc_params("The first `Thunk`.", "The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
-	/// A new Thunk instance representing the chained computation.
+	/// A new `Thunk` instance representing the chained computation.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{
-	///     brands::*,
-	///     classes::*,
-	///     types::*,
-	/// };
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(10);
-	/// let result = ThunkBrand::bind(eval, |x| Thunk::pure(x * 2));
-	/// assert_eq!(result.run(), 20);
+	/// let thunk = pure::<ThunkBrand, _>(10);
+	/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
+	/// assert_eq!(result.evaluate(), 20);
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.bind(f)
+		ma.bind(func)
 	}
 }
 
@@ -507,18 +547,20 @@ impl MonadRec for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. MonadRec Thunk => (a -> Thunk (Step a b), a) -> Thunk b`
+	#[hm_signature(MonadRec)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the initial value and loop state.
-	/// * `F`: The type of the step function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the initial value and loop state.",
+		"The type of the result.",
+		"The type of the step function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The step function.
-	/// * `initial`: The initial value.
+	#[doc_params("The step function.", "The initial value.")]
 	///
 	/// ### Returns
 	///
@@ -527,13 +569,13 @@ impl MonadRec for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let result = ThunkBrand::tail_rec_m(
-	///     |x| Thunk::pure(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+	/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
+	///     |x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
 	///     0,
 	/// );
-	/// assert_eq!(result.run(), 1000);
+	/// assert_eq!(result.evaluate(), 1000);
 	/// ```
 	fn tail_rec_m<'a, A: 'a, B: 'a, F>(
 		f: F,
@@ -547,7 +589,7 @@ impl MonadRec for ThunkBrand {
 		Thunk::new(move || {
 			let mut current = a;
 			loop {
-				match f(current).run() {
+				match f(current).evaluate() {
 					Step::Loop(next) => current = next,
 					Step::Done(res) => break res,
 				}
@@ -556,57 +598,65 @@ impl MonadRec for ThunkBrand {
 	}
 }
 
-impl Runnable for ThunkBrand {
+impl Evaluable for ThunkBrand {
 	/// Runs the eval, producing the inner value.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Runnable Thunk => Thunk a -> a`
+	#[hm_signature(Evaluable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value inside the eval.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value inside the thunk."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The eval to run.
+	#[doc_params("The eval to run.")]
 	///
 	/// ### Returns
 	///
-	/// The result of running the eval.
+	/// The result of running the thunk.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
 	///
-	/// let eval = Thunk::new(|| 42);
-	/// assert_eq!(ThunkBrand::run(eval), 42);
+	/// let thunk = Thunk::new(|| 42);
+	/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 	/// ```
-	fn run<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
-		fa.run()
+	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A {
+		fa.evaluate()
 	}
 }
 
 impl Foldable for ThunkBrand {
-	/// Folds the Thunk from the right.
+	/// Folds the `Thunk` from the right.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Foldable Thunk => ((a, b) -> b, b, Thunk a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The Thunk to fold.
+	#[doc_params(
+		"The function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The `Thunk` to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -615,13 +665,13 @@ impl Foldable for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(10);
-	/// let result = ThunkBrand::fold_right::<RcFnBrand, _, _, _>(|a, b| a + b, 5, eval);
+	/// let thunk = pure::<ThunkBrand, _>(10);
+	/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
 	/// assert_eq!(result, 15);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -630,27 +680,32 @@ impl Foldable for ThunkBrand {
 		Func: Fn(A, B) -> B + 'a,
 		FnBrand: CloneableFn + 'a,
 	{
-		func(fa.run(), initial)
+		func(fa.evaluate(), initial)
 	}
 
-	/// Folds the Thunk from the left.
+	/// Folds the `Thunk` from the left.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Foldable Thunk => ((b, a) -> b, b, Thunk a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The Thunk to fold.
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The `Thunk` to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -659,13 +714,13 @@ impl Foldable for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(10);
-	/// let result = ThunkBrand::fold_left::<RcFnBrand, _, _, _>(|b, a| b + a, 5, eval);
+	/// let thunk = pure::<ThunkBrand, _>(10);
+	/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
 	/// assert_eq!(result, 15);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -674,26 +729,28 @@ impl Foldable for ThunkBrand {
 		Func: Fn(B, A) -> B + 'a,
 		FnBrand: CloneableFn + 'a,
 	{
-		func(initial, fa.run())
+		func(initial, fa.evaluate())
 	}
 
 	/// Maps the value to a monoid and returns it.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand m a. (Foldable Thunk, Monoid m) => ((a) -> m, Thunk a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the mapping function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The Thunk to fold.
+	#[doc_params("The mapping function.", "The Thunk to fold.")]
 	///
 	/// ### Returns
 	///
@@ -702,13 +759,13 @@ impl Foldable for ThunkBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let eval = Thunk::pure(10);
-	/// let result = ThunkBrand::fold_map::<RcFnBrand, String, _, _>(|a| a.to_string(), eval);
+	/// let thunk = pure::<ThunkBrand, _>(10);
+	/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
 	/// assert_eq!(result, "10");
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -717,7 +774,7 @@ impl Foldable for ThunkBrand {
 		Func: Fn(A) -> M + 'a,
 		FnBrand: CloneableFn + 'a,
 	{
-		func(fa.run())
+		func(fa.evaluate())
 	}
 }
 
@@ -726,12 +783,11 @@ impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Semigroup a => (Thunk a, Thunk a) -> Thunk a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first eval.
-	/// * `b`: The second eval.
+	#[doc_params("The first `Thunk`.", "The second `Thunk`.")]
 	///
 	/// ### Returns
 	///
@@ -744,14 +800,14 @@ impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 	///
 	/// let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 	/// let t2 = pure::<ThunkBrand, _>(" World".to_string());
-	/// let t3 = Semigroup::append(t1, t2);
-	/// assert_eq!(t3.run(), "Hello World");
+	/// let t3 = append::<_>(t1, t2);
+	/// assert_eq!(t3.evaluate(), "Hello World");
 	/// ```
 	fn append(
 		a: Self,
 		b: Self,
 	) -> Self {
-		Thunk::new(move || Semigroup::append(a.run(), b.run()))
+		Thunk::new(move || Semigroup::append(a.evaluate(), b.evaluate()))
 	}
 }
 
@@ -760,7 +816,7 @@ impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Monoid a => () -> Thunk a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///
@@ -771,8 +827,8 @@ impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 	/// ```
 	/// use fp_library::{classes::*, types::*};
 	///
-	/// let t: Thunk<String> = Monoid::empty();
-	/// assert_eq!(t.run(), "");
+	/// let t: Thunk<String> = Thunk::empty();
+	/// assert_eq!(t.evaluate(), "");
 	/// ```
 	fn empty() -> Self {
 		Thunk::new(|| Monoid::empty())
@@ -788,8 +844,8 @@ mod tests {
 	/// Verifies that `Thunk::new` creates a computation that can be run to produce the expected value.
 	#[test]
 	fn test_basic_execution() {
-		let eval = Thunk::new(|| 42);
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::new(|| 42);
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests `Thunk::pure`.
@@ -797,8 +853,8 @@ mod tests {
 	/// Verifies that `Thunk::pure` creates a computation that returns the provided value.
 	#[test]
 	fn test_pure() {
-		let eval = Thunk::pure(42);
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::pure(42);
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests borrowing in Thunk.
@@ -807,8 +863,8 @@ mod tests {
 	#[test]
 	fn test_borrowing() {
 		let x = 42;
-		let eval = Thunk::new(|| &x);
-		assert_eq!(eval.run(), &42);
+		let thunk = Thunk::new(|| &x);
+		assert_eq!(thunk.evaluate(), &42);
 	}
 
 	/// Tests `Thunk::map`.
@@ -816,8 +872,8 @@ mod tests {
 	/// Verifies that `map` transforms the result of the computation.
 	#[test]
 	fn test_map() {
-		let eval = Thunk::pure(21).map(|x| x * 2);
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::pure(21).map(|x| x * 2);
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests `Thunk::bind`.
@@ -825,8 +881,8 @@ mod tests {
 	/// Verifies that `bind` chains computations correctly.
 	#[test]
 	fn test_bind() {
-		let eval = Thunk::pure(21).bind(|x| Thunk::pure(x * 2));
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::pure(21).bind(|x| Thunk::pure(x * 2));
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests `Thunk::defer`.
@@ -834,8 +890,8 @@ mod tests {
 	/// Verifies that `defer` allows creating an `Thunk` from a thunk that returns an `Thunk`.
 	#[test]
 	fn test_defer() {
-		let eval = Thunk::defer(|| Thunk::pure(42));
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::defer(|| Thunk::pure(42));
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests `From<Lazy>`.
@@ -843,8 +899,8 @@ mod tests {
 	fn test_eval_from_memo() {
 		use crate::types::RcLazy;
 		let memo = RcLazy::new(|| 42);
-		let eval = Thunk::from(memo);
-		assert_eq!(eval.run(), 42);
+		let thunk = Thunk::from(memo);
+		assert_eq!(thunk.evaluate(), 42);
 	}
 
 	/// Tests the `Semigroup` implementation for `Thunk`.
@@ -857,7 +913,7 @@ mod tests {
 		let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		let t2 = pure::<ThunkBrand, _>(" World".to_string());
 		let t3 = append(t1, t2);
-		assert_eq!(t3.run(), "Hello World");
+		assert_eq!(t3.evaluate(), "Hello World");
 	}
 
 	/// Tests the `Monoid` implementation for `Thunk`.
@@ -867,6 +923,6 @@ mod tests {
 	fn test_eval_monoid() {
 		use crate::classes::monoid::empty;
 		let t: Thunk<String> = empty();
-		assert_eq!(t.run(), "");
+		assert_eq!(t.evaluate(), "");
 	}
 }

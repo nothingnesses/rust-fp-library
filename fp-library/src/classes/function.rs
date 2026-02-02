@@ -1,4 +1,4 @@
-//! A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
+//! Wrappers over closures for generic handling of functions in higher-kinded contexts.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,9 @@
 //! ```
 
 use super::category::Category;
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
@@ -23,6 +26,10 @@ use std::ops::Deref;
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait Function: Category {
+	/// The type of the function wrapper.
+	///
+	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
+	/// that dereferences to the underlying closure.
 	type Of<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new function wrapper.
@@ -31,17 +38,19 @@ pub trait Function: Category {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. Function f => (a -> b) -> f a b`
+	#[hm_signature(Function)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the function and its captured data.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -63,18 +72,20 @@ pub trait Function: Category {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. Function f => (a -> b) -> f a b`
+#[hm_signature(Function)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the function wrapper.
-/// * `A`: The input type of the function.
-/// * `B`: The output type of the function.
+#[doc_type_params(
+	"The lifetime of the function and its captured data.",
+	"The brand of the function wrapper.",
+	"The input type of the function.",
+	"The output type of the function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The closure to wrap.
-///
+#[doc_params("The closure to wrap.", "The input value to the function.")]
 /// ### Returns
 ///
 /// The wrapped function.

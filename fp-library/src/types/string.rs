@@ -1,8 +1,13 @@
+//! [`Semigroup`] and [`Monoid`] instances for the standard library [`String`] type.
+//!
+//! Provides string concatenation as a monoidal operation with the empty string as the identity element.
+
 use crate::{
-	classes::{monoid::Monoid, semigroup::Semigroup},
+	classes::{Monoid, Semigroup},
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::{doc_params, hm_signature};
 
 impl_kind! {
 	for String {
@@ -17,12 +22,11 @@ impl Semigroup for String {
 	///
 	/// ### Type Signature
 	///
-	/// `Semigroup String => (String, String) -> String`
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first string.
-	/// * `b`: The second string.
+	#[doc_params("The first string.", "The second string.")]
 	///
 	/// ### Returns
 	///
@@ -53,7 +57,7 @@ impl Monoid for String {
 	///
 	/// ### Type Signature
 	///
-	/// `Monoid String => () -> String`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

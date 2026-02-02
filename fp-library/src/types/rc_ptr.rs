@@ -1,10 +1,21 @@
+//! Single-threaded reference-counted pointer abstraction using [`Rc`].
+//!
+//! Provides trait implementations for using `Rc` in the library's pointer abstraction hierarchy. Not thread-safe; use [`ArcBrand`](crate::brands::ArcBrand) for multi-threaded contexts.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! let ptr = pointer_new::<RcBrand, _>(42);
+//! assert_eq!(*ptr, 42);
+//! ```
+
 use crate::{
 	brands::RcBrand,
-	classes::{
-		pointer::Pointer, ref_counted_pointer::RefCountedPointer,
-		unsized_coercible::UnsizedCoercible,
-	},
+	classes::{Pointer, RefCountedPointer, UnsizedCoercible},
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::rc::Rc;
 
 impl Pointer for RcBrand {
@@ -14,15 +25,15 @@ impl Pointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Rc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -48,15 +59,15 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Rc a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -78,15 +89,15 @@ impl RefCountedPointer for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Rc a -> Result a (Rc a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the wrapped value.
+	#[doc_type_params("The type of the wrapped value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `ptr`: The pointer to attempt to unwrap.
+	#[doc_params("The pointer to attempt to unwrap.")]
 	///
 	/// ### Returns
 	///
@@ -110,16 +121,19 @@ impl UnsizedCoercible for RcBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> Rc (dyn Fn a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the closure.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
+	#[doc_params("The closure to coerce.")]
 	///
 	/// ### Returns
 	///

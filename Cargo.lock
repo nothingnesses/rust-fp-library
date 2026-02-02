@@ -214,7 +214,7 @@ checksum = "f449e6c6c08c865631d4890cfacf252b3d396c9bcc83adb6623cdb02a8336c41"
 
 [[package]]
 name = "fp-library"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "criterion",
  "fp-macros",
@@ -227,14 +227,16 @@ dependencies = [
 
 [[package]]
 name = "fp-macros"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "proc-macro2",
  "quickcheck",
  "quickcheck_macros",
  "quote",
  "rapidhash",
+ "serde",
  "syn",
+ "toml",
  "trybuild",
 ]
 

@@ -1,4 +1,4 @@
-//! A type class for applicative functors, allowing for values to be wrapped in a context and for functions within a context to be applied to values within a context.
+//! Applicative functors, allowing for values and functions to be wrapped and applied within a context.
 //!
 //! ### Examples
 //!

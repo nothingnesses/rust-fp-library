@@ -1,4 +1,4 @@
-//! A type class for data structures that can be folded in parallel.
+//! Data structures that can be folded in parallel using thread-safe functions.
 //!
 //! **Note: The `rayon` feature must be enabled to use parallel iteration.**
 //!
@@ -12,6 +12,10 @@
 //! let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 //! assert_eq!(result, "12345");
 //! ```
+
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*, types::SendEndofunction};
@@ -69,25 +73,30 @@ use crate::{Apply, kinds::*, types::SendEndofunction};
 /// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 /// assert_eq!(result, "12345");
 /// ```
-pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
+pub trait ParFoldable: Foldable {
 	/// Parallel version of fold_map.
 	///
 	/// Maps each element to a monoid value using `func`, then combines all values using the monoid's `append` operation. The mapping operations may be executed in parallel.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable t, Monoid m, Send m, Sync m) => (fn_brand a m, t a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`).
-	/// * `A`: The element type (must be `Send + Sync`).
-	/// * `M`: The monoid type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of thread-safe function to use.",
+		"The element type.",
+		"The monoid type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid`.
-	/// * `fa`: The foldable structure.
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid`.",
+		"The foldable structure."
+	)]
 	///
 	/// ### Returns
 	///
@@ -103,11 +112,12 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 	/// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 	/// assert_eq!(result, "12345");
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a;
 
@@ -117,19 +127,24 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable t => (fn_brand (a, b) b, b, t a) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use
-	/// * `A`: The element type (must be `Send + Sync`)
-	/// * `B`: The accumulator type (must be `Send + Sync`)
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The brand of thread-safe function to use.",
+		"The element type.",
+		"The accumulator type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The structure to fold.
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value of the accumulator.",
+		"The structure to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -145,7 +160,7 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 	/// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 	/// assert_eq!(sum, 25);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		init: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -153,10 +168,10 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 	where
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
-		FnBrand: 'a,
+		FnBrand: 'a + SendCloneableFn,
 	{
 		let f_clone = func.clone();
-		let endo = Self::par_fold_map(
+		let endo = Self::par_fold_map::<FnBrand, _, _>(
 			<FnBrand as SendCloneableFn>::send_cloneable_fn_new(move |a: A| {
 				let f_inner = f_clone.clone();
 				SendEndofunction::<FnBrand, B>::new(
@@ -177,19 +192,21 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 ///
 /// ### Type Signature
 ///
-/// `forall fn_brand t m a. (ParFoldable t, Monoid m, Send m, Sync m) => (fn_brand a m, t a) -> m`
+#[hm_signature(ParFoldable)]
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of thread-safe function to use (must implement `SendCloneableFn`).
-/// * `Brand`: The brand of the foldable structure.
-/// * `M`: The monoid type (must be `Send + Sync`).
-/// * `A`: The element type (must be `Send + Sync`).
+#[doc_type_params(
+	"The lifetime of the computation.",
+	"The brand of thread-safe function to use.",
+	"The brand of the foldable structure.",
+	"The element type.",
+	"The monoid type."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The thread-safe function to map each element to a monoid.
-/// * `fa`: The structure to fold.
+#[doc_params("The thread-safe function to map each element to a monoid.", "The structure to fold.")]
 ///
 /// ### Returns
 ///
@@ -205,17 +222,17 @@ pub trait ParFoldable<FnBrand: SendCloneableFn>: Foldable {
 /// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 /// assert_eq!(result, "12345");
 /// ```
-pub fn par_fold_map<'a, FnBrand, Brand, M, A>(
+pub fn par_fold_map<'a, FnBrand, F, A, M>(
 	func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> M
 where
-	FnBrand: SendCloneableFn,
-	Brand: ParFoldable<FnBrand>,
+	FnBrand: 'a + SendCloneableFn,
+	F: ParFoldable,
 	A: 'a + Clone + Send + Sync,
 	M: Monoid + Send + Sync + 'a,
 {
-	Brand::par_fold_map::<M, A>(func, fa)
+	F::par_fold_map::<FnBrand, A, M>(func, fa)
 }
 
 /// Parallel fold_right operation.
@@ -224,20 +241,25 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall fn_brand t b a. ParFoldable t => (fn_brand (a, b) b, b, t a) -> b`
+#[hm_signature(ParFoldable)]
 ///
 /// ### Type Parameters
 ///
-/// * `FnBrand`: The brand of thread-safe function to use.
-/// * `Brand`: The brand of the foldable structure.
-/// * `B`: The accumulator type (must be `Send + Sync`).
-/// * `A`: The element type (must be `Send + Sync`).
+#[doc_type_params(
+	"The lifetime of the computation.",
+	"The brand of thread-safe function to use.",
+	"The brand of the foldable structure.",
+	"The element type.",
+	"The accumulator type."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The thread-safe function to apply to each element and the accumulator.
-/// * `init`: The initial value of the accumulator.
-/// * `fa`: The structure to fold.
+#[doc_params(
+	"The thread-safe function to apply to each element and the accumulator.",
+	"The initial value of the accumulator.",
+	"The structure to fold."
+)]
 ///
 /// ### Returns
 ///
@@ -253,17 +275,16 @@ where
 /// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 /// assert_eq!(sum, 25);
 /// ```
-pub fn par_fold_right<'a, FnBrand, Brand, B, A>(
+pub fn par_fold_right<'a, FnBrand, F, A, B>(
 	func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-	init: B,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	initial: B,
+	fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> B
 where
-	FnBrand: SendCloneableFn,
-	Brand: ParFoldable<FnBrand>,
+	FnBrand: SendCloneableFn + 'a,
+	F: ParFoldable,
 	A: 'a + Clone + Send + Sync,
 	B: Send + Sync + 'a,
-	FnBrand: 'a,
 {
-	Brand::par_fold_right::<B, A>(func, init, fa)
+	F::par_fold_right::<FnBrand, A, B>(func, initial, fa)
 }

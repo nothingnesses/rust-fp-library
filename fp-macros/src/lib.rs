@@ -4,7 +4,10 @@
 
 use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
+use doc_params::doc_params_impl;
+use doc_type_params::doc_type_params_impl;
 use generate::generate_name;
+use hm_signature::hm_signature_impl;
 use impl_kind::{ImplKindInput, impl_kind_impl};
 use parse::KindInput;
 use proc_macro::TokenStream;
@@ -15,7 +18,13 @@ use syn::parse_macro_input;
 pub(crate) mod apply;
 pub(crate) mod canonicalize;
 pub(crate) mod def_kind;
+pub(crate) mod doc_params;
+pub(crate) mod doc_type_params;
+pub(crate) mod doc_utils;
+pub(crate) mod function_utils;
 pub(crate) mod generate;
+pub(crate) mod hm_ast;
+pub(crate) mod hm_signature;
 pub(crate) mod impl_kind;
 pub(crate) mod parse;
 pub(crate) mod re_export;
@@ -403,4 +412,174 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReexportInput);
 	generate_trait_re_exports_impl(input).into()
+}
+
+/// Generates a Hindley-Milner style type signature for a function.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// containing the corresponding HM type signature.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[hm_signature]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
+/// ```
+///
+/// When applying this macro to a method inside a trait, you can provide the trait name
+/// as an argument to correctly generate the `Trait self` constraint.
+///
+/// ### Generates
+///
+/// A documentation comment with the generated signature, prepended to the function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[hm_signature]
+/// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
+///
+/// // Expanded code
+/// /// `forall f a b. Functor f => (a -> b, f a) -> f b`
+/// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// #[hm_signature]
+/// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
+///
+/// // Expanded code
+/// /// `iterator -> i32`
+/// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
+/// ```
+///
+/// ```ignore
+/// // Invocation
+/// trait Functor {
+///     #[hm_signature(Functor)]
+///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
+/// }
+///
+/// // Expanded code
+/// trait Functor {
+///     /// `forall self a b. Functor self => (a -> b, self a) -> self b`
+///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn hm_signature(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	hm_signature_impl(attr.into(), item.into()).into()
+}
+
+/// Generates documentation for a function's type parameters.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// list based on the provided descriptions.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[doc_type_params(
+///     "Description for first parameter",
+///     ("OverriddenName", "Description for second parameter"),
+///     ...
+/// )]
+/// pub fn function_name<Generics>(params) -> ReturnType { ... }
+/// ```
+///
+/// ### Parameters
+///
+/// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
+///   or a tuple of two string literals `(Name, Description)`.
+///
+/// ### Generates
+///
+/// A list of documentation comments, one for each generic parameter, prepended to the
+/// function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[doc_type_params(
+///     "The type of the elements.",
+///     ("E", "The error type.")
+/// )]
+/// pub fn map<T, ERR>(...) { ... }
+///
+/// // Expanded code
+/// /// * `T`: The type of the elements.
+/// /// * `E`: The error type.
+/// pub fn map<T, ERR>(...) { ... }
+/// ```
+///
+/// ### Constraints
+///
+/// * The number of arguments must exactly match the number of generic parameters
+///   (including lifetimes, types, and const generics) in the function signature.
+#[proc_macro_attribute]
+pub fn doc_type_params(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	doc_type_params_impl(attr.into(), item.into()).into()
+}
+
+/// Generates documentation for a function's parameters.
+///
+/// This macro analyzes the function signature and generates a documentation comment
+/// list based on the provided descriptions. It also handles curried return types.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[doc_params(
+///     "Description for first parameter",
+///     ("overridden_name", "Description for second parameter"),
+///     ...
+/// )]
+/// pub fn function_name(params) -> impl Fn(...) { ... }
+/// ```
+///
+/// ### Parameters
+///
+/// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
+///   or a tuple of two string literals `(Name, Description)`.
+///
+/// ### Generates
+///
+/// A list of documentation comments, one for each parameter, prepended to the
+/// function definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[doc_params(
+///     "The first input value.",
+///     ("y", "The second input value.")
+/// )]
+/// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
+///
+/// // Expanded code
+/// /// * `x`: The first input value.
+/// /// * `y`: The second input value.
+/// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
+/// ```
+///
+/// ### Constraints
+///
+/// * The number of arguments must exactly match the number of function parameters
+///   (excluding `self` but including parameters from curried return types).
+#[proc_macro_attribute]
+pub fn doc_params(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	doc_params_impl(attr.into(), item.into()).into()
 }

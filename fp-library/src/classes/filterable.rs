@@ -1,4 +1,4 @@
-//! A type class for data structures that can be filtered and partitioned.
+//! Data structures that can be filtered and partitioned based on predicates or mapping functions.
 //!
 //! ### Examples
 //!
@@ -16,6 +16,9 @@ use crate::{
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for data structures that can be filtered and partitioned.
 ///
@@ -40,19 +43,24 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the input structure.",
+		"The type of the success values.",
+		"The type of the error values.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a [`Result`].
-	/// * `fa`: The data structure to partition.
+	#[doc_params(
+		"The function to apply to each element, returning a [`Result`].",
+		"The data structure to partition."
+	)]
 	///
 	/// ### Returns
 	///
@@ -68,7 +76,7 @@ pub trait Filterable: Compactable + Functor {
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
+	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -78,7 +86,7 @@ pub trait Filterable: Compactable + Functor {
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
-		Self::separate::<O, E>(Self::map::<Result<O, E>, A, Func>(func, fa))
+		Self::separate::<O, E>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
 
 	/// Partitions a data structure based on a predicate.
@@ -91,17 +99,19 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the predicate function.
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the structure.",
+		"The type of the predicate function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate function.
-	/// * `fa`: The data structure to partition.
+	#[doc_params("The predicate function.", "The data structure to partition.")]
 	///
 	/// ### Returns
 	///
@@ -137,13 +147,16 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Signature
 	/// ### Type Signature
 	///
-	/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the elements in the output structure.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the input structure.",
+		"The type of the elements in the output structure.",
+		"The type of the function to apply."
+	)]
 	/// ### Parameters
 	///
 	/// * `func`: The function to apply to each element, returning an [`Option`].
@@ -162,14 +175,14 @@ pub trait Filterable: Compactable + Functor {
 	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, B: 'a, A: 'a, Func>(
+	fn filter_map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
 		Func: Fn(A) -> Option<B> + 'a,
 	{
-		Self::compact::<B>(Self::map::<Option<B>, A, Func>(func, fa))
+		Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
 	}
 
 	/// Filters a data structure based on a predicate.
@@ -178,17 +191,19 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the predicate function.
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the structure.",
+		"The type of the predicate function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate function.
-	/// * `fa`: The data structure to filter.
+	#[doc_params("The predicate function.", "The data structure to filter.")]
 	///
 	/// ### Returns
 	///
@@ -220,20 +235,25 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Signature
 ///
-/// `forall f o e a. Filterable f => (a -> Result o e, f a) -> Pair (f o) (f e)`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `O`: The type of the success values.
-/// * `E`: The type of the error values.
-/// * `A`: The type of the elements in the input structure.
-/// * `Func`: The type of the function to apply.
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the filterable structure.",
+	"The type of the elements in the input structure.",
+	"The type of the success values.",
+	"The type of the error values.",
+	"The type of the function to apply."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning a [`Result`].
-/// * `fa`: The data structure to partition.
+#[doc_params(
+	"The function to apply to each element, returning a [`Result`].",
+	"The data structure to partition."
+)]
 ///
 /// ### Returns
 ///
@@ -249,7 +269,7 @@ pub trait Filterable: Compactable + Functor {
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn partition_map<'a, Brand: Filterable, O: 'a, E: 'a, A: 'a, Func>(
+pub fn partition_map<'a, Brand: Filterable, A: 'a, O: 'a, E: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Pair<
@@ -259,7 +279,7 @@ pub fn partition_map<'a, Brand: Filterable, O: 'a, E: 'a, A: 'a, Func>(
 where
 	Func: Fn(A) -> Result<O, E> + 'a,
 {
-	Brand::partition_map::<O, E, A, Func>(func, fa)
+	Brand::partition_map::<A, O, E, Func>(func, fa)
 }
 
 /// Partitions a data structure based on a predicate.
@@ -270,18 +290,20 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Filterable f => (a -> bool, f a) -> Pair (f a) (f a)`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `Func`: The type of the predicate function.
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the filterable structure.",
+	"The type of the elements in the structure.",
+	"The type of the predicate function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The predicate function.
-/// * `fa`: The data structure to partition.
+#[doc_params("The predicate function.", "The data structure to partition.")]
 ///
 /// ### Returns
 ///
@@ -316,19 +338,24 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f b a. Filterable f => (a -> Option b, f a) -> f b`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `B`: The type of the elements in the output structure.
-/// * `A`: The type of the elements in the input structure.
-/// * `Func`: The type of the function to apply.
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the filterable structure.",
+	"The type of the elements in the input structure.",
+	"The type of the elements in the output structure.",
+	"The type of the function to apply."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The function to apply to each element, returning an [`Option`].
-/// * `fa`: The data structure to filter and map.
+#[doc_params(
+	"The function to apply to each element, returning an [`Option`].",
+	"The data structure to filter and map."
+)]
 ///
 /// ### Returns
 ///
@@ -343,14 +370,14 @@ where
 /// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn filter_map<'a, Brand: Filterable, B: 'a, A: 'a, Func>(
+pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
 	Func: Fn(A) -> Option<B> + 'a,
 {
-	Brand::filter_map::<B, A, Func>(func, fa)
+	Brand::filter_map::<A, B, Func>(func, fa)
 }
 
 /// Filters a data structure based on a predicate.
@@ -359,18 +386,20 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Filterable f => (a -> bool, f a) -> f a`
+#[hm_signature(Filterable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the filterable structure.
-/// * `A`: The type of the elements in the structure.
-/// * `Func`: The type of the predicate function.
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the filterable structure.",
+	"The type of the elements in the structure.",
+	"The type of the predicate function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `func`: The predicate function.
-/// * `fa`: The data structure to filter.
+#[doc_params("The predicate function.", "The data structure to filter.")]
 ///
 /// ### Returns
 ///

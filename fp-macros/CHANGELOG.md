@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-02-02
+
+### Added
+- **Documentation Macros**:
+  - Added `hm_signature` macro for generating Hindley-Milner type signatures.
+  - Added `doc_type_params` macro for documenting generic type parameters.
+  - Added `doc_params` macro for documenting function parameters.
+
+### Changed
+- **`def_kind!` Attributes**: Updated `def_kind!` macro to support attributes (e.g., doc comments) on associated type definitions.
+
 ## [0.3.2] - 2026-01-27
 
 ### Changed

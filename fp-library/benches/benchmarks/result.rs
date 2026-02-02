@@ -76,7 +76,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+				traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val_ok),
 				)
@@ -97,7 +97,7 @@ pub fn bench_result(c: &mut Criterion) {
 		);
 		group.bench_with_input(BenchmarkId::new("fp", input_desc_opt), &input_desc_opt, |b, &_| {
 			b.iter(|| {
-				sequence::<ResultWithErrBrand<i32>, OptionBrand, _>(std::hint::black_box(val_opt))
+				sequence::<ResultWithErrBrand<i32>, _, OptionBrand>(std::hint::black_box(val_opt))
 			})
 		});
 		group.finish();

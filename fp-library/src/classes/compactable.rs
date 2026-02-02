@@ -1,4 +1,4 @@
-//! A type class for data structures that can be compacted (filtering out [`None`] values) and separated (splitting [`Result`] values).
+//! Data structures that can be compacted by filtering out [`None`] or separated by splitting [`Result`] values.
 //!
 //! ### Examples
 //!
@@ -11,6 +11,9 @@
 //! ```
 
 use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for data structures that can be compacted and separated.
 ///
@@ -22,15 +25,18 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a f. Compactable f => f (Option a) -> f a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the [`Option`].
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the elements in the [`Option`]."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing [`Option`] values.
+	#[doc_params("The data structure containing [`Option`] values.")]
 	///
 	/// ### Returns
 	///
@@ -60,16 +66,19 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
+	#[doc_type_params(
+		"The lifetime of the elements.",
+		"The type of the success values.",
+		"The type of the error values."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The data structure containing [`Result`] values.
+	#[doc_params("The data structure containing [`Result`] values.")]
 	///
 	/// ### Returns
 	///
@@ -104,16 +113,19 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall a f. Compactable f => f (Option a) -> f a`
+#[hm_signature(Compactable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the compactable structure.
-/// * `A`: The type of the elements in the [`Option`].
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the compactable structure.",
+	"The type of the elements in the [`Option`]."
+)]
 ///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing [`Option`] values.
+#[doc_params("The data structure containing [`Option`] values.")]
 ///
 /// ### Returns
 ///
@@ -143,17 +155,20 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Signature
 ///
-/// `forall o e f. Compactable f => f (Result o e) -> (f o, f e)`
+#[hm_signature(Compactable)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the compactable structure.
-/// * `O`: The type of the success values.
-/// * `E`: The type of the error values.
+#[doc_type_params(
+	"The lifetime of the elements.",
+	"The brand of the compactable structure.",
+	"The type of the success values.",
+	"The type of the error values."
+)]
 ///
 /// ### Parameters
 ///
-/// * `fa`: The data structure containing [`Result`] values.
+#[doc_params("The data structure containing [`Result`] values.")]
 ///
 /// ### Returns
 ///

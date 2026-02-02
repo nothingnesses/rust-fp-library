@@ -1,4 +1,4 @@
-//! A type class for types that support an associative binary operation.
+//! Types that support an associative binary operation.
 //!
 //! ### Examples
 //!
@@ -11,6 +11,9 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 /// A type class for types that support an associative binary operation.
 ///
 /// `Semigroup` instances must satisfy the associative law:
@@ -22,12 +25,11 @@ pub trait Semigroup {
 	///
 	/// ### Type Signature
 	///
-	/// `forall s. Semigroup s => (s, s) -> s`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The first value.
-	/// * `b`: The second value.
+	#[doc_params("The first value.", "The second value.")]
 	///
 	/// ### Returns
 	///
@@ -55,16 +57,15 @@ pub trait Semigroup {
 ///
 /// ### Type Signature
 ///
-/// `forall s. Semigroup s => (s, s) -> s`
+#[hm_signature(Semigroup)]
 ///
 /// ### Type Parameters
 ///
-/// * `S`: The type of the semigroup.
+#[doc_type_params("The type of the semigroup.")]
 ///
 /// ### Parameters
 ///
-/// * `a`: The first value.
-/// * `b`: The second value.
+#[doc_params("The first value.", "The second value.")]
 ///
 /// ### Returns
 ///

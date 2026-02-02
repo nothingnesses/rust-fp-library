@@ -1,4 +1,4 @@
-//! A type class for semigroupoids, representing a set of objects and composable relationships between them.
+//! Semigroupoids, representing objects and composable relationships (morphisms) between them.
 //!
 //! ### Examples
 //!
@@ -12,6 +12,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for semigroupoids.
 ///
@@ -29,18 +32,23 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b d c. Semigroupoid f => (f c d, f b c) -> f b d`
+	#[hm_signature(Semigroupoid)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The source type of the first morphism.
-	/// * `D`: The target type of the second morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
+	#[doc_type_params(
+		"The lifetime of the morphisms.",
+		"The source type of the first morphism.",
+		"The target type of the first morphism and the source type of the second morphism.",
+		"The target type of the second morphism."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The second morphism to apply (from C to D).
-	/// * `g`: The first morphism to apply (from B to C).
+	#[doc_params(
+		"The second morphism to apply (from C to D).",
+		"The first morphism to apply (from B to C)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -56,7 +64,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, D: 'a, C: 'a>(
+	fn compose<'a, B: 'a, C: 'a, D: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>);
@@ -68,19 +76,24 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Signature
 ///
-/// `forall f b d c. Semigroupoid f => (f c d, f b c) -> f b d`
+#[hm_signature(Semigroupoid)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the semigroupoid.
-/// * `B`: The source type of the first morphism.
-/// * `D`: The target type of the second morphism.
-/// * `C`: The target type of the first morphism and the source type of the second morphism.
+#[doc_type_params(
+	"The lifetime of the morphisms.",
+	"The brand of the semigroupoid.",
+	"The source type of the first morphism.",
+	"The target type of the first morphism and the source type of the second morphism.",
+	"The target type of the second morphism."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The second morphism to apply (from C to D).
-/// * `g`: The first morphism to apply (from B to C).
+#[doc_params(
+	"The second morphism to apply (from C to D).",
+	"The first morphism to apply (from B to C)."
+)]
 ///
 /// ### Returns
 ///
@@ -96,9 +109,9 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 /// assert_eq!(h(5), 12); // (5 + 1) * 2
 /// ```
-pub fn compose<'a, Brand: Semigroupoid, B: 'a, D: 'a, C: 'a>(
+pub fn compose<'a, Brand: Semigroupoid, B: 'a, C: 'a, D: 'a>(
 	f: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 	g: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
-	Brand::compose::<B, D, C>(f, g)
+	Brand::compose::<B, C, D>(f, g)
 }

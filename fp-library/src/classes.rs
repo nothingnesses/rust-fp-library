@@ -1,6 +1,4 @@
-//! Functional programming type classes.
-//!
-//! This module defines traits for common algebraic structures and functional abstractions,
+//! Defines traits for common algebraic structures and functional abstractions,
 //! such as [`Functor`], [`Applicative`] and [`Monad`].
 //!
 //! Traits representing higher-kinded types (e.g., `Functor`) are implemented by
@@ -24,7 +22,8 @@ pub mod bifunctor;
 pub mod category;
 pub mod cloneable_fn;
 pub mod compactable;
-pub mod defer;
+pub mod deferrable;
+pub mod evaluable;
 pub mod filterable;
 pub mod foldable;
 pub mod function;
@@ -38,13 +37,12 @@ pub mod pointed;
 pub mod pointer;
 pub mod ref_counted_pointer;
 pub mod ref_functor;
-pub mod runnable;
 pub mod semiapplicative;
 pub mod semigroup;
 pub mod semigroupoid;
 pub mod semimonad;
 pub mod send_cloneable_fn;
-pub mod send_defer;
+pub mod send_deferrable;
 pub mod send_ref_counted_pointer;
 pub mod send_unsized_coercible;
 pub mod traversable;

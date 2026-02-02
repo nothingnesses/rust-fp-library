@@ -1,4 +1,4 @@
-//! A trait for thread-safe reference-counted pointers.
+//! Thread-safe reference-counted pointers that carry `Send + Sync` bounds.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,9 @@
 //! ```
 
 use super::RefCountedPointer;
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Extension trait for thread-safe reference-counted pointers.
@@ -26,15 +29,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Send a => a -> SendRefCountedPointer a`
+	#[hm_signature(Send)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -57,16 +60,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Signature
 ///
-/// `forall p a. (SendRefCountedPointer p, Send a) => a -> SendRefCountedPointer a`
+#[hm_signature(SendRefCountedPointer)]
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the value to wrap.
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-/// * `value`: The value to wrap.
+#[doc_params("The value to wrap.")]
 ///
 /// ### Returns
 ///

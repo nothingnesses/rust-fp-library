@@ -1,4 +1,4 @@
-//! A type class for contexts that can be initialized with a value.
+//! Contexts that can be initialized with a value via the [`pure`] operation.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for contexts that can be initialized with a value.
 pub trait Pointed: Kind_cdc7cd43dac7585f {
@@ -19,15 +22,15 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed f => a -> f a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -50,16 +53,19 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-/// `forall f a. Pointed f => a -> f a`
+#[hm_signature(Pointed)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the context.
-/// * `A`: The type of the value to wrap.
+#[doc_type_params(
+	"The lifetime of the value.",
+	"The brand of the context.",
+	"The type of the value to wrap."
+)]
 ///
 /// ### Parameters
 ///
-/// * `a`: The value to wrap.
+#[doc_params("The value to wrap.")]
 ///
 /// ### Returns
 ///

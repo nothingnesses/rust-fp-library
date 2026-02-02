@@ -1,6 +1,7 @@
 ### Tasks to do & ideas to look into
 
-* Add trait methods for type classes and methods for brand/type structs.
+* Implement Traversable for Thunk.
+* Add extra trait methods for type classes and methods for brand/type structs. Make trait implementations use type methods. E.g., add a map method for Identity, make the Functor implementation use it, like how Functor for Vec uses Iterator map internally.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
@@ -14,3 +15,4 @@
 ### Questions
 * Inner or outer iteration?
 * Add benchmark outputs and graphs to repo to make them accessible? Maybe they should be in a separate repo, to prevent bloating this one?
+* Should Lazy have pure and defer?

@@ -1,4 +1,4 @@
-//! Generic, helper free functions and re-exports of free versions
+//! Contains generic, helper free functions and re-exports of free versions
 //! of type class functions.
 //!
 //! This module provides a collection of utility functions commonly found in functional programming,
@@ -17,6 +17,7 @@
 //! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -27,7 +28,6 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"send_ref_counted_pointer::send_new": send_ref_counted_pointer_new,
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
-	"runnable::run": runnable_run,
 });
 
 /// Composes two functions.
@@ -37,21 +37,25 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// ### Type Signature
 ///
-/// `forall a c b. (b -> c, a -> b) -> (a -> c)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `A`: The input type of the inner function `g`.
-/// * `C`: The output type of the outer function `f`.
-/// * `B`: The output type of `g` and the input type of `f`.
-/// * `F`: The type of the outer function.
-/// * `G`: The type of the inner function.
+#[doc_type_params(
+	"The input type of the inner function `g`.",
+	"The output type of `g` and the input type of `f`.",
+	"The output type of the outer function `f`.",
+	"The type of the outer function.",
+	"The type of the inner function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The outer function to apply second.
-/// * `g`: The inner function to apply first.
-///
+#[doc_params(
+	"The outer function to apply second.",
+	"The inner function to apply first.",
+	"The argument to be passed to the composed function."
+)]
 /// ### Returns
 ///
 /// A new function that takes an `A` and returns a `C`.
@@ -63,7 +67,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// let add_one = |x: i32| x + 1;
 /// let times_two = |x: i32| x * 2;
-/// let times_two_add_one = compose::<i32, i32, _, _, _>(add_one, times_two);
+/// let times_two_add_one = compose(add_one, times_two);
 ///
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(
@@ -71,7 +75,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///     7
 /// );
 /// ```
-pub fn compose<A, C, B, F, G>(
+pub fn compose<A, B, C, F, G>(
 	f: F,
 	g: G,
 ) -> impl Fn(A) -> C
@@ -89,20 +93,18 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall b a. a -> (b -> a)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `B`: The type of the argument to ignore.
-/// * `A`: The type of the value to return.
+#[doc_type_params("The type of the value to return.", "The type of the argument to ignore.")]
 ///
 /// ### Parameters
 ///
-/// * `a`: The value to be returned by the constant function.
-///
+#[doc_params("The value to be returned by the constant function.", "The argument to be ignored.")]
 /// ### Returns
 ///
-/// A function that takes any value of type `B` and returns `a`.
+/// The first parameter.
 ///
 /// ### Examples
 ///
@@ -110,12 +112,15 @@ where
 /// use fp_library::functions::*;
 ///
 /// assert_eq!(
-///     constant::<bool, _>(true)(false),
+///     constant(true, false),
 ///     true
 /// );
 /// ```
-pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
-	move |_| a.clone()
+pub fn constant<A: Clone, B>(
+	a: A,
+	_b: B,
+) -> A {
+	a
 }
 
 /// Flips the arguments of a binary function.
@@ -125,19 +130,24 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 ///
 /// ### Type Signature
 ///
-/// `forall a b c. ((a, b) -> c) -> ((b, a) -> c)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `A`: The type of the first argument of the input function.
-/// * `B`: The type of the second argument of the input function.
-/// * `C`: The return type of the function.
-/// * `F`: The type of the input binary function.
+#[doc_type_params(
+	"The type of the first argument of the input function.",
+	"The type of the second argument of the input function.",
+	"The return type of the function.",
+	"The type of the input binary function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: A binary function.
-///
+#[doc_params(
+	"A binary function.",
+	"The second argument (which will be passed as the first to `f`).",
+	"The first argument (which will be passed as the second to `f`)."
+)]
 /// ### Returns
 ///
 /// A version of `f` that takes its arguments in reverse.
@@ -151,7 +161,7 @@ pub fn constant<B, A: Clone>(a: A) -> impl Fn(B) -> A {
 ///
 /// // 0 - 1 = -1
 /// assert_eq!(
-///     flip::<i32, i32, _, _>(subtract)(1, 0),
+///     flip(subtract)(1, 0),
 ///     -1
 /// );
 /// ```
@@ -168,15 +178,15 @@ where
 ///
 /// ### Type Signature
 ///
-/// `forall a. a -> a`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `A`: The type of the value.
+#[doc_type_params("The type of the value.")]
 ///
 /// ### Parameters
 ///
-/// * `a`: A value.
+#[doc_params("A value.")]
 ///
 /// ### Returns
 ///

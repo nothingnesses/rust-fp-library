@@ -1,4 +1,4 @@
-//! A hierarchy of traits for abstracting over different types of pointers, specifically focusing on reference-counted pointers ([`Rc`](`std::rc::Rc`), [`Arc`](std::sync::Arc)) and their capabilities.
+//! Hierarchy of traits for abstracting over different types of pointers and their capabilities.
 //!
 //! The hierarchy is as follows:
 //! * [`Pointer`]: Base trait for any heap-allocated pointer.
@@ -17,6 +17,9 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Base type class for heap-allocated pointers.
@@ -33,15 +36,15 @@ pub trait Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> Pointer a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -64,16 +67,15 @@ pub trait Pointer {
 ///
 /// ### Type Signature
 ///
-/// `forall p a. Pointer p => a -> Pointer a`
+#[hm_signature(Pointer)]
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the value to wrap.
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-/// * `value`: The value to wrap.
+#[doc_params("The value to wrap.")]
 ///
 /// ### Returns
 ///

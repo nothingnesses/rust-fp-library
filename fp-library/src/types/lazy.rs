@@ -1,11 +1,16 @@
+//! Memoized lazy evaluation with shared cache semantics.
+//!
+//! Computes a value at most once on first access and caches the result. All clones share the same cache. Available in both single-threaded [`RcLazy`] and thread-safe [`ArcLazy`] variants.
+
 use crate::{
 	Apply,
 	brands::LazyBrand,
-	classes::{CloneableFn, Defer, RefFunctor, SendDefer},
+	classes::{Deferrable, RefFunctor, SendDeferrable},
 	impl_kind,
 	kinds::*,
 	types::{Thunk, Trampoline},
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 use std::{
 	cell::LazyCell,
 	rc::Rc,
@@ -30,24 +35,24 @@ pub trait LazyConfig: 'static {
 	type TryLazy<'a, A: 'a, E: 'a>: Clone;
 
 	/// The type of the initializer thunk.
-	type Init<'a, A: 'a>: ?Sized;
+	type Thunk<'a, A: 'a>: ?Sized;
 
 	/// The type of the fallible initializer thunk.
-	type TryInit<'a, A: 'a, E: 'a>: ?Sized;
+	type TryThunk<'a, A: 'a, E: 'a>: ?Sized;
 
 	/// Creates a new lazy cell from an initializer.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -58,25 +63,28 @@ pub trait LazyConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A>;
+	fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A>;
 
 	/// Creates a new fallible lazy cell from an initializer.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -87,24 +95,28 @@ pub trait LazyConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E>;
+	fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E>;
 
 	/// Forces evaluation and returns a reference.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to force.
+	#[doc_params("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -115,25 +127,29 @@ pub trait LazyConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
+	fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
 
 	/// Forces evaluation and returns a reference to the result.
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to force.
+	#[doc_params("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -144,13 +160,15 @@ pub trait LazyConfig: 'static {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E>;
+	fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
+		lazy: &'b Self::TryLazy<'a, A, E>
+	) -> Result<&'b A, &'b E>;
 }
 
-/// Single-threaded memoization using `Rc<LazyCell>`.
+/// Single-threaded memoization using [`Rc<LazyCell>`].
 ///
 /// Not thread-safe. Use [`ArcLazyConfig`] for multi-threaded contexts.
 pub struct RcLazyConfig;
@@ -159,22 +177,22 @@ impl LazyConfig for RcLazyConfig {
 	type Lazy<'a, A: 'a> = Rc<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>;
 	type TryLazy<'a, A: 'a, E: 'a> =
 		Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
-	type Init<'a, A: 'a> = dyn FnOnce() -> A + 'a;
-	type TryInit<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + 'a;
+	type Thunk<'a, A: 'a> = dyn FnOnce() -> A + 'a;
+	type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + 'a;
 
 	/// Creates a new lazy cell from an initializer.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -185,10 +203,10 @@ impl LazyConfig for RcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A> {
+	fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A> {
 		Rc::new(LazyCell::new(f))
 	}
 
@@ -196,16 +214,19 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -216,10 +237,10 @@ impl LazyConfig for RcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
+	fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
 		Rc::new(LazyCell::new(f))
 	}
 
@@ -227,15 +248,19 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to force.
+	#[doc_params("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -246,10 +271,10 @@ impl LazyConfig for RcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*RcLazyConfig::force(&lazy), 42);
+	/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
+	fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 		LazyCell::force(lazy)
 	}
 
@@ -257,16 +282,20 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to force.
+	#[doc_params("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -277,15 +306,17 @@ impl LazyConfig for RcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = RcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(RcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E> {
+	fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
+		lazy: &'b Self::TryLazy<'a, A, E>
+	) -> Result<&'b A, &'b E> {
 		LazyCell::force(lazy).as_ref()
 	}
 }
 
-/// Thread-safe memoization using `Arc<LazyLock>`.
+/// Thread-safe memoization using [`Arc<LazyLock>`].
 ///
 /// Requires `A: Send + Sync` for the value type.
 pub struct ArcLazyConfig;
@@ -294,22 +325,22 @@ impl LazyConfig for ArcLazyConfig {
 	type Lazy<'a, A: 'a> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>;
 	type TryLazy<'a, A: 'a, E: 'a> =
 		Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
-	type Init<'a, A: 'a> = dyn FnOnce() -> A + Send + 'a;
-	type TryInit<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + Send + 'a;
+	type Thunk<'a, A: 'a> = dyn FnOnce() -> A + Send + 'a;
+	type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + Send + 'a;
 
 	/// Creates a new lazy cell from an initializer.
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -320,10 +351,10 @@ impl LazyConfig for ArcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*ArcLazyConfig::force(&lazy), 42);
+	/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn new_lazy<'a, A: 'a>(f: Box<Self::Init<'a, A>>) -> Self::Lazy<'a, A> {
+	fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A> {
 		Arc::new(LazyLock::new(f))
 	}
 
@@ -331,16 +362,19 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. (Unit -> Result a e) -> TryLazy a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The initializer thunk.
+	#[doc_params("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -351,10 +385,10 @@ impl LazyConfig for ArcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(ArcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn new_try_lazy<'a, A: 'a, E: 'a>(f: Box<Self::TryInit<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
+	fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
 		Arc::new(LazyLock::new(f))
 	}
 
@@ -362,15 +396,19 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The lazy cell to force.
+	#[doc_params("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -381,10 +419,10 @@ impl LazyConfig for ArcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcLazyConfig::new_lazy(Box::new(|| 42));
-	/// assert_eq!(*ArcLazyConfig::force(&lazy), 42);
+	/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
+	/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
 	/// ```
-	fn force<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
+	fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 		LazyLock::force(lazy)
 	}
 
@@ -392,16 +430,20 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. TryLazy a e -> Result a e`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value.
-	/// * `E`: The type of the error.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The lifetime of the reference.",
+		"The type of the value.",
+		"The type of the error."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `lazy`: The fallible lazy cell to force.
+	#[doc_params("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -412,10 +454,12 @@ impl LazyConfig for ArcLazyConfig {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let lazy = ArcLazyConfig::new_try_lazy(Box::new(|| Ok::<i32, ()>(42)));
-	/// assert_eq!(ArcLazyConfig::force_try(&lazy), Ok(&42));
+	/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+	/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
 	/// ```
-	fn force_try<'a, 'b, A: 'a, E: 'a>(lazy: &'b Self::TryLazy<'a, A, E>) -> Result<&'b A, &'b E> {
+	fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
+		lazy: &'b Self::TryLazy<'a, A, E>
+	) -> Result<&'b A, &'b E> {
 		LazyLock::force(lazy).as_ref()
 	}
 }
@@ -443,10 +487,10 @@ impl LazyConfig for ArcLazyConfig {
 /// let shared = memo.clone();
 ///
 /// // First force computes and caches:
-/// let value = memo.get();
+/// let value = memo.evaluate();
 ///
 /// // Second force returns cached value (shared sees same result):
-/// assert_eq!(shared.get(), value);
+/// assert_eq!(shared.evaluate(), value);
 /// ```
 pub struct Lazy<'a, A, Config: LazyConfig = RcLazyConfig>(pub(crate) Config::Lazy<'a, A>)
 where
@@ -469,7 +513,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Lazy a -> a`
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -481,10 +525,10 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
-	pub fn get(&self) -> &A {
-		Config::force(&self.0)
+	pub fn evaluate(&self) -> &A {
+		Config::evaluate(&self.0)
 	}
 }
 
@@ -496,15 +540,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
+	#[doc_type_params("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the value.
+	#[doc_params("The closure that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -516,19 +560,47 @@ where
 	/// use fp_library::types::*;
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + 'a,
 	{
-		Lazy(RcLazyConfig::new_lazy(Box::new(f)))
+		Lazy(RcLazyConfig::lazy_new(Box::new(f)))
+	}
+
+	/// Creates a `Lazy` from an already-computed value.
+	///
+	/// The value is immediately available without any computation.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The pre-computed value to wrap.")]
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn pure(a: A) -> Self {
+		Lazy(RcLazyConfig::lazy_new(Box::new(move || a)))
 	}
 }
 
 impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
 	fn from(eval: Thunk<'a, A>) -> Self {
-		Self::new(move || eval.run())
+		Self::new(move || eval.evaluate())
 	}
 }
 
@@ -537,7 +609,7 @@ where
 	A: Send,
 {
 	fn from(task: Trampoline<A>) -> Self {
-		Self::new(move || task.run())
+		Self::new(move || task.evaluate())
 	}
 }
 
@@ -549,15 +621,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. (Unit -> a) -> Lazy a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The type of the initializer closure.
+	#[doc_type_params("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure that produces the value.
+	#[doc_params("The closure that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -568,14 +640,46 @@ where
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let memo = Lazy::<_, ArcLazyConfig>::new(|| 42);
-	/// assert_eq!(*memo.get(), 42);
+	/// let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
+	/// assert_eq!(*lazy.evaluate(), 42);
 	/// ```
 	pub fn new<F>(f: F) -> Self
 	where
 		F: FnOnce() -> A + Send + 'a,
 	{
-		Lazy(ArcLazyConfig::new_lazy(Box::new(f)))
+		Lazy(ArcLazyConfig::lazy_new(Box::new(f)))
+	}
+
+	/// Creates a `Lazy` from an already-computed value.
+	///
+	/// The value is immediately available without any computation.
+	/// Requires `Send` since `ArcLazy` is thread-safe.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The pre-computed value to wrap.")]
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` instance containing the value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	pub fn pure(a: A) -> Self
+	where
+		A: Send,
+	{
+		Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
 	}
 }
 
@@ -591,29 +695,87 @@ impl_kind! {
 	}
 }
 
-impl<'a, A> Defer<'a> for Lazy<'a, A, RcLazyConfig>
+impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
 where
 	A: Clone + 'a,
 {
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	/// Defers a computation that produces a `Lazy` value.
+	///
+	/// This flattens the nested structure: instead of `Lazy<Lazy<A>>`, we get `Lazy<A>`.
+	/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(Deferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `Lazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+	///
+	/// let lazy = Lazy::<_, RcLazyConfig>::defer(|| RcLazy::pure(42));
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized,
 	{
-		RcLazy::new(move || f(()).get().clone())
+		RcLazy::new(move || f().evaluate().clone())
 	}
 }
 
-impl SendDefer for LazyBrand<ArcLazyConfig> {
-	fn send_defer<'a, A>(
-		thunk: impl 'a
-		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		+ Send
-		+ Sync
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+impl<'a, A> SendDeferrable<'a> for Lazy<'a, A, ArcLazyConfig>
+where
+	A: Clone + Send + Sync + 'a,
+{
+	/// Defers a computation that produces a thread-safe `Lazy` value.
+	///
+	/// This flattens the nested structure: instead of `ArcLazy<ArcLazy<A>>`, we get `ArcLazy<A>`.
+	/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
+	///
+	/// ### Type Signature
+	///
+	#[hm_signature(SendDeferrable)]
+	///
+	/// ### Type Parameters
+	///
+	#[doc_type_params("The type of the thunk.")]
+	///
+	/// ### Parameters
+	///
+	#[doc_params("The thunk that produces the lazy value.")]
+	///
+	/// ### Returns
+	///
+	/// A new `ArcLazy` value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, classes::*, types::*};
+	///
+	/// let lazy = ArcLazy::send_defer(|| ArcLazy::pure(42));
+	/// assert_eq!(*lazy.evaluate(), 42);
+	/// ```
+	fn send_defer<F>(f: F) -> Self
 	where
-		A: Clone + Send + Sync + 'a,
+		F: FnOnce() -> Self + Send + Sync + 'a,
+		Self: Sized,
 	{
-		ArcLazy::new(move || thunk().get().clone())
+		ArcLazy::new(move || f().evaluate().clone())
 	}
 }
 
@@ -622,18 +784,20 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. RefFunctor (Lazy RcLazyConfig) => (a -> b, Lazy a RcLazyConfig) -> Lazy b RcLazyConfig`
+	#[hm_signature(RefFunctor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the value.
-	/// * `F`: The type of the function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the value.",
+		"The type of the result.",
+		"The type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
-	/// * `fa`: The memoized value.
+	#[doc_params("The function to apply.", "The memoized value.")]
 	///
 	/// ### Returns
 	///
@@ -642,20 +806,16 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{
-	///     brands::*,
-	///     classes::*,
-	///     types::*,
-	/// };
+	/// use fp_library::{brands::*, classes::*, types::*};
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-	/// let mapped = LazyBrand::<RcLazyConfig>::map_ref(
+	/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(
 	///     |x: &i32| *x * 2,
 	///     memo,
 	/// );
-	/// assert_eq!(*mapped.get(), 20);
+	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
-	fn map_ref<'a, B: 'a, A: 'a, F>(
+	fn ref_map<'a, A: 'a, B: 'a, F>(
 		f: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -663,8 +823,8 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 		F: FnOnce(&A) -> B + 'a,
 	{
 		let fa = fa.clone();
-		let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.get()));
-		Lazy(RcLazyConfig::new_lazy(init))
+		let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
+		Lazy(RcLazyConfig::lazy_new(init))
 	}
 }
 
@@ -687,9 +847,9 @@ mod tests {
 		});
 
 		assert_eq!(*counter.borrow(), 0);
-		assert_eq!(*memo.get(), 42);
+		assert_eq!(*memo.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
-		assert_eq!(*memo.get(), 42);
+		assert_eq!(*memo.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -706,9 +866,9 @@ mod tests {
 		});
 		let shared = memo.clone();
 
-		assert_eq!(*memo.get(), 42);
+		assert_eq!(*memo.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
-		assert_eq!(*shared.get(), 42);
+		assert_eq!(*shared.evaluate(), 42);
 		assert_eq!(*counter.borrow(), 1);
 	}
 
@@ -731,7 +891,7 @@ mod tests {
 		for _ in 0..10 {
 			let memo_clone = memo.clone();
 			handles.push(thread::spawn(move || {
-				assert_eq!(*memo_clone.get(), 42);
+				assert_eq!(*memo_clone.evaluate(), 42);
 			}));
 		}
 
@@ -749,7 +909,7 @@ mod tests {
 	fn test_memo_from_eval() {
 		let eval = Thunk::new(|| 42);
 		let memo = RcLazy::from(eval);
-		assert_eq!(*memo.get(), 42);
+		assert_eq!(*memo.evaluate(), 42);
 	}
 
 	/// Tests creation from `Trampoline`.
@@ -760,31 +920,72 @@ mod tests {
 		// Trampoline requires Send, so we use a Send-compatible value
 		let task = Trampoline::pure(42);
 		let memo = RcLazy::from(task);
-		assert_eq!(*memo.get(), 42);
+		assert_eq!(*memo.evaluate(), 42);
 	}
 
 	/// Tests Defer implementation.
 	#[test]
 	fn test_defer() {
-		use crate::brands::RcFnBrand;
-		use crate::classes::defer::defer;
-		use crate::functions::cloneable_fn_new;
+		use crate::classes::deferrable::defer;
 
-		let memo: RcLazy<i32> =
-			defer::<RcLazy<i32>, RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|_| {
-				RcLazy::new(|| 42)
-			}));
-		assert_eq!(*memo.get(), 42);
+		let memo: RcLazy<i32> = defer(|| RcLazy::new(|| 42));
+		assert_eq!(*memo.evaluate(), 42);
 	}
 
 	/// Tests SendDefer implementation.
 	#[test]
 	fn test_send_defer() {
-		use crate::brands::LazyBrand;
-		use crate::classes::send_defer::send_defer;
+		use crate::classes::send_deferrable::send_defer;
 
-		let memo: ArcLazy<i32> =
-			send_defer::<LazyBrand<ArcLazyConfig>, _, _>(|| ArcLazy::new(|| 42));
-		assert_eq!(*memo.get(), 42);
+		let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
+		assert_eq!(*memo.evaluate(), 42);
+	}
+
+	/// Tests `RcLazy::pure`.
+	///
+	/// Verifies that `pure` creates a lazy value from a pre-computed value.
+	#[test]
+	fn test_rc_lazy_pure() {
+		let lazy = RcLazy::pure(42);
+		assert_eq!(*lazy.evaluate(), 42);
+
+		// Verify it's still lazy (shares cache)
+		let shared = lazy.clone();
+		assert_eq!(*shared.evaluate(), 42);
+	}
+
+	/// Tests `ArcLazy::pure`.
+	///
+	/// Verifies that `pure` creates a thread-safe lazy value from a pre-computed value.
+	#[test]
+	fn test_arc_lazy_pure() {
+		let lazy = ArcLazy::pure(42);
+		assert_eq!(*lazy.evaluate(), 42);
+
+		// Verify it's still lazy (shares cache)
+		let shared = lazy.clone();
+		assert_eq!(*shared.evaluate(), 42);
+	}
+
+	/// Tests `ArcLazy::pure` with thread safety.
+	///
+	/// Verifies that `pure` works across threads.
+	#[test]
+	fn test_arc_lazy_pure_thread_safety() {
+		use std::thread;
+
+		let lazy = ArcLazy::pure(42);
+
+		let mut handles = vec![];
+		for _ in 0..10 {
+			let lazy_clone = lazy.clone();
+			handles.push(thread::spawn(move || {
+				assert_eq!(*lazy_clone.evaluate(), 42);
+			}));
+		}
+
+		for handle in handles {
+			handle.join().unwrap();
+		}
 	}
 }

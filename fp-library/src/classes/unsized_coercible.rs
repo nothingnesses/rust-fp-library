@@ -1,4 +1,4 @@
-//! A trait for pointer brands that can perform unsized coercion to `dyn Fn`.
+//! Pointer brands that can perform unsized coercion to `dyn Fn` trait objects.
 //!
 //! ### Examples
 //!
@@ -10,6 +10,9 @@
 //! ```
 
 use super::RefCountedPointer;
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
@@ -17,16 +20,19 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b. (a -> b) -> UnsizedCoercible (a -> b)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the closure.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to coerce.
+	#[doc_params("The closure to coerce.")]
 	///
 	/// ### Returns
 	///
@@ -49,18 +55,21 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 ///
 /// ### Type Signature
 ///
-/// `forall a b. (a -> b) -> UnsizedCoercible (a -> b)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the pointer.
-/// * `A`: The input type of the function.
-/// * `B`: The output type of the function.
-/// * `F`: The type of the closure to coerce.
+#[doc_type_params(
+	"The lifetime of the closure.",
+	"The brand of the pointer.",
+	"The input type of the function.",
+	"The output type of the function.",
+	"The type of the closure function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The closure to coerce.
+#[doc_params("The closure to coerce.")]
 ///
 /// ### Returns
 ///
@@ -74,11 +83,11 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, F>(
-	f: F
+pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, Func>(
+	func: Func
 ) -> Brand::CloneableOf<dyn 'a + Fn(A) -> B>
 where
-	F: 'a + Fn(A) -> B,
+	Func: 'a + Fn(A) -> B,
 {
-	Brand::coerce_fn::<A, B>(f)
+	Brand::coerce_fn::<A, B>(func)
 }

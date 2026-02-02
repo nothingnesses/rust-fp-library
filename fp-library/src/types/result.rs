@@ -1,16 +1,18 @@
+//! Functional programming trait implementations for the standard library [`Result`] type.
+//!
+//! Extends `Result` with dual functor/monad instances: [`ResultWithErrBrand`] (standard Result monad) functors over the success value, while [`ResultWithOkBrand`] functors over the error value.
+
 use crate::{
 	Apply,
 	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
 	classes::{
-		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		bifunctor::Bifunctor, cloneable_fn::CloneableFn, foldable::Foldable, functor::Functor,
-		lift::Lift, monoid::Monoid, par_foldable::ParFoldable, pointed::Pointed,
-		semiapplicative::Semiapplicative, semimonad::Semimonad, send_cloneable_fn::SendCloneableFn,
-		traversable::Traversable,
+		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
+		Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
 	},
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	for ResultBrand {
@@ -31,22 +33,27 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a b c d. Bifunctor Result => (a -> b, c -> d, Result c a) -> Result d b`
+	#[hm_signature(Bifunctor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the error value.
-	/// * `B`: The type of the mapped error value.
-	/// * `C`: The type of the success value.
-	/// * `D`: The type of the mapped success value.
-	/// * `F`: The type of the function to apply to the error.
-	/// * `G`: The type of the function to apply to the success.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the error value.",
+		"The type of the mapped error value.",
+		"The type of the success value.",
+		"The type of the mapped success value.",
+		"The type of the function to apply to the error.",
+		"The type of the function to apply to the success."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error.
-	/// * `g`: The function to apply to the success.
-	/// * `p`: The result to map over.
+	#[doc_params(
+		"The function to apply to the error.",
+		"The function to apply to the success.",
+		"The result to map over."
+	)]
 	///
 	/// ### Returns
 	///
@@ -94,18 +101,20 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Functor (Result e) => (a -> b, Result a e) -> Result b e`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the value inside the result.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the value inside the result.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply.
-	/// * `fa`: The result to map over.
+	#[doc_params("The function to apply.", "The result to map over.")]
 	///
 	/// ### Returns
 	///
@@ -114,20 +123,19 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
 	/// assert_eq!(map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map(f)
+		fa.map(func)
 	}
 }
 
@@ -138,20 +146,21 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e c a b. Lift (Result e) => ((a, b) -> c, Result a e, Result b e) -> Result c e`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result.
-	/// * `A`: The type of the first value.
-	/// * `B`: The type of the second value.
-	/// * `F`: The type of the binary function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the first value.",
+		"The type of the second value.",
+		"The type of the result.",
+		"The type of the binary function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
-	/// * `fa`: The first result.
-	/// * `fb`: The second result.
+	#[doc_params("The binary function to apply.", "The first result.", "The second result.")]
 	///
 	/// ### Returns
 	///
@@ -160,8 +169,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithErrBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     lift2::<ResultWithErrBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
@@ -180,19 +188,19 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///     Err(1)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Ok(a), Ok(b)) => Ok(f(a, b)),
+			(Ok(a), Ok(b)) => Ok(func(a, b)),
 			(Err(e), _) => Err(e),
 			(_, Err(e)) => Err(e),
 		}
@@ -206,15 +214,15 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e a. Pointed (Result e) => a -> Result a e`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -243,18 +251,20 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand e b a. Semiapplicative (Result e) => (Result (fn_brand a b) e, Result a e) -> Result b e`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ff`: The result containing the function.
-	/// * `fa`: The result containing the value.
+	#[doc_params("The result containing the function.", "The result containing the value.")]
 	///
 	/// ### Returns
 	///
@@ -273,7 +283,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	/// let f_err: Result<_, i32> = Err(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -292,18 +302,20 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Semimonad (Result e) => (Result a e, a -> Result b e) -> Result b e`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first result.
-	/// * `f`: The function to apply to the value inside the result.
+	#[doc_params("The first result.", "The function to apply to the value inside the result.")]
 	///
 	/// ### Returns
 	///
@@ -328,14 +340,14 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///     Err(1)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.and_then(f)
+		ma.and_then(func)
 	}
 }
 
@@ -346,20 +358,21 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Foldable (Result e) => ((a, b) -> b, b, Result a e) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `F`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -368,13 +381,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
+	/// use fp_library::{brands:: *, functions::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -395,20 +407,21 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e b a. Foldable (Result e) => ((b, a) -> b, b, Result a e) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `F`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -417,13 +430,12 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithErrBrand, RcFnBrand};
+	/// use fp_library::{brands:: *, functions::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Err(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -444,19 +456,21 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e m a. (Foldable (Result e), Monoid m) => ((a) -> m, Result a e) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
-	/// * `A`: The type of the elements in the structure.
-	/// * `F`: The type of the mapping function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The result to fold.
+	#[doc_params("The mapping function.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -476,7 +490,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, F>(
+	fn fold_map<'a, FnBrand, A: 'a, M, F>(
 		func: F,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -499,19 +513,21 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e f b a. (Traversable (Result e), Applicative f) => (a -> f b, Result a e) -> f (Result b e)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The result to traverse.
+	#[doc_params("The function to apply.", "The result to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -524,19 +540,19 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Ok(5)),
+	///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
 	///     Some(Ok(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Err(1)),
+	///     traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
 	///     Some(Err(1))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithErrBrand<()>, OptionBrand, _, _, _>(|_| None::<i32>, Ok(5)),
+	///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
 	///     None
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -556,16 +572,19 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall e f a. (Traversable (Result e), Applicative f) => (Result (f a) e) -> f (Result a e)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ta`: The result containing the applicative value.
+	#[doc_params("The result containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -578,19 +597,19 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<()>, OptionBrand, _>(Ok(Some(5))),
+	///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(Some(5))),
 	///     Some(Ok(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<i32>, OptionBrand, i32>(Err::<Option<i32>, _>(1)),
+	///     sequence::<ResultWithErrBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
 	///     Some(Err::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithErrBrand<()>, OptionBrand, _>(Ok(None::<i32>)),
+	///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(None::<i32>)),
 	///     None
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -619,18 +638,20 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Functor (Result t) => (a -> b, Result t a) -> Result t b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the error value inside the result.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the error value inside the result.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the error.
-	/// * `fa`: The result to map over.
+	#[doc_params("The function to apply to the error.", "The result to map over.")]
 	///
 	/// ### Returns
 	///
@@ -639,22 +660,21 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
 	/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
 		match fa {
 			Ok(t) => Ok(t),
-			Err(e) => Err(f(e)),
+			Err(e) => Err(func(e)),
 		}
 	}
 }
@@ -666,20 +686,25 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t c a b. Lift (Result t) => ((a, b) -> c, Result t a, Result t b) -> Result t c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The type of the result error value.
-	/// * `A`: The type of the first error value.
-	/// * `B`: The type of the second error value.
-	/// * `F`: The type of the binary function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the first error value.",
+		"The type of the second error value.",
+		"The type of the result error value.",
+		"The type of the binary function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply to the errors.
-	/// * `fa`: The first result.
-	/// * `fb`: The second result.
+	#[doc_params(
+		"The binary function to apply to the errors.",
+		"The first result.",
+		"The second result."
+	)]
 	///
 	/// ### Returns
 	///
@@ -688,8 +713,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::ResultWithOkBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
 	///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
@@ -708,19 +732,19 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///     Ok(1)
 	/// );
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a,
 	{
 		match (fa, fb) {
-			(Err(a), Err(b)) => Err(f(a, b)),
+			(Err(a), Err(b)) => Err(func(a, b)),
 			(Ok(t), _) => Ok(t),
 			(_, Ok(t)) => Ok(t),
 		}
@@ -734,15 +758,15 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t a. Pointed (Result t) => a -> Result t a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -771,18 +795,23 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. Semiapplicative (Result t) => (Result t (fn_brand a b), Result t a) -> Result t b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ff`: The result containing the function (in Err).
-	/// * `fa`: The result containing the value (in Err).
+	#[doc_params(
+		"The result containing the function (in Err).",
+		"The result containing the value (in Err)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -801,7 +830,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	/// let f_ok: Result<i32, _> = Ok(1);
 	/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -820,18 +849,20 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Semimonad (Result t) => (Result t a, a -> Result t b) -> Result t b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first result.
-	/// * `f`: The function to apply to the error value.
+	#[doc_params("The first result.", "The function to apply to the error value.")]
 	///
 	/// ### Returns
 	///
@@ -856,16 +887,16 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///     Ok(1)
 	/// );
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
 		match ma {
 			Ok(t) => Ok(t),
-			Err(e) => f(e),
+			Err(e) => func(e),
 		}
 	}
 }
@@ -877,20 +908,21 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (Result t) => ((a, b) -> b, b, Result t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `F`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -899,13 +931,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithOkBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
 	/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -926,20 +957,21 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t b a. Foldable (Result t) => ((b, a) -> b, b, Result t a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `F`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -948,13 +980,12 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{ResultWithOkBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)), 5);
 	/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)), 0);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, F>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -975,19 +1006,21 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t m a. (Foldable (Result t), Monoid m) => ((a) -> m, Result t a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the mapping function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The result to fold.
+	#[doc_params("The mapping function.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1007,7 +1040,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///     "".to_string()
 	/// );
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -1030,19 +1063,21 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f b a. (Traversable (Result t), Applicative f) => (a -> f b, Result t a) -> f (Result t b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `ta`: The result to traverse.
+	#[doc_params("The function to apply.", "The result to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -1055,19 +1090,19 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<()>, OptionBrand, _, _, _>(|x| Some(x * 2), Err(5)),
+	///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
 	///     Some(Err(10))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<i32>, OptionBrand, _, _, _>(|x: i32| Some(x * 2), Ok(1)),
+	///     traverse::<ResultWithOkBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
 	///     Some(Ok(1))
 	/// );
 	/// assert_eq!(
-	///     traverse::<ResultWithOkBrand<()>, OptionBrand, _, _, _>(|_| None::<i32>, Err(5)),
+	///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
 	///     None
 	/// );
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -1087,16 +1122,19 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall t f a. (Traversable (Result t), Applicative f) => (Result t (f a)) -> f (Result t a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ta`: The result containing the applicative value.
+	#[doc_params("The result containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -1109,19 +1147,19 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
 	///
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<()>, OptionBrand, _>(Err(Some(5))),
+	///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(Some(5))),
 	///     Some(Err(5))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<i32>, OptionBrand, i32>(Ok::<_, Option<i32>>(1)),
+	///     sequence::<ResultWithOkBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
 	///     Some(Ok::<i32, i32>(1))
 	/// );
 	/// assert_eq!(
-	///     sequence::<ResultWithOkBrand<()>, OptionBrand, _>(Err(None::<i32>)),
+	///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(None::<i32>)),
 	///     None
 	/// );
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -1135,25 +1173,30 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	}
 }
 
-impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithErrBrand<E> {
+impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 	///
 	/// This method maps the element of the result to a monoid and then returns it. The mapping operation may be executed in parallel.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand e m a. (ParFoldable (Result e), Monoid m, Send m, Sync m) => (fn_brand a m, Result a e) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The result to fold.
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The result to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1171,11 +1214,12 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, x_err), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1191,19 +1235,24 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand e b a. ParFoldable (Result e) => (fn_brand (a, b) b, b, Result a e) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The result to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1221,12 +1270,13 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	/// let x_err: Result<i32, i32> = Err(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, 10, x_err), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1237,25 +1287,30 @@ impl<E: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithEr
 	}
 }
 
-impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOkBrand<T> {
+impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 	///
 	/// This method maps the element of the result to a monoid and then returns it (over error). The mapping operation may be executed in parallel.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t m a. (ParFoldable (Result t), Monoid m, Send m, Sync m) => (fn_brand a m, Result t a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to map each element to a monoid.
-	/// * `fa`: The result to fold.
+	#[doc_params(
+		"The thread-safe function to map each element to a monoid.",
+		"The result to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1273,11 +1328,12 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, x_ok), "".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -1293,19 +1349,24 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand t b a. ParFoldable (Result t) => (fn_brand (a, b) b, b, Result t a) -> b`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of thread-safe function to use.
-	/// * `B`: The accumulator type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The accumulator type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The thread-safe function to apply to each element and the accumulator.
-	/// * `initial`: The initial value.
-	/// * `fa`: The result to fold.
+	#[doc_params(
+		"The thread-safe function to apply to each element and the accumulator.",
+		"The initial value.",
+		"The result to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1323,12 +1384,13 @@ impl<T: 'static, FnBrand: SendCloneableFn> ParFoldable<FnBrand> for ResultWithOk
 	/// let x_ok: Result<i32, i32> = Ok(1);
 	/// assert_eq!(par_fold_right::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, 10, x_ok), 10);
 	/// ```
-	fn par_fold_right<'a, B, A>(
+	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
 	{
@@ -1567,7 +1629,7 @@ mod tests {
 	#[test]
 	fn traverse_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				Err(1)
 			),
@@ -1579,7 +1641,7 @@ mod tests {
 	#[test]
 	fn traverse_returning_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
 				|_: i32| None::<i32>,
 				Ok(1)
 			),

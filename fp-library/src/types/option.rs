@@ -1,18 +1,20 @@
+//! Functional programming trait implementations for the standard library [`Option`] type.
+//!
+//! Extends `Option` with [`Functor`], [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`], [`Traversable`], [`Filterable`], and [`Witherable`] instances.
+
 use crate::{
 	Apply,
 	brands::OptionBrand,
 	classes::{
-		applicative::Applicative, apply_first::ApplyFirst, apply_second::ApplySecond,
-		cloneable_fn::CloneableFn, compactable::Compactable, filterable::Filterable,
-		foldable::Foldable, functor::Functor, lift::Lift, monoid::Monoid,
-		par_foldable::ParFoldable, pointed::Pointed, semiapplicative::Semiapplicative,
-		semimonad::Semimonad, send_cloneable_fn::SendCloneableFn, traversable::Traversable,
-		witherable::Witherable,
+		Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
+		Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
+		Traversable, Witherable,
 	},
 	impl_kind,
 	kinds::*,
 	types::Pair,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	for OptionBrand {
@@ -27,18 +29,20 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Functor Option => (a -> b, Option a) -> Option b`
+	#[hm_signature(Functor)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the value inside the option.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the value.",
+		"The type of the value inside the option.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to apply to the value.
-	/// * `fa`: The option to map over.
+	#[doc_params("The function to apply to the value.", "The option to map over.")]
 	///
 	/// ### Returns
 	///
@@ -47,21 +51,20 @@ impl Functor for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
 	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn map<'a, B: 'a, A: 'a, F>(
-		f: F,
+	fn map<'a, A: 'a, B: 'a, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a,
+		Func: Fn(A) -> B + 'a,
 	{
-		fa.map(f)
+		fa.map(func)
 	}
 }
 
@@ -72,20 +75,21 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a b. Lift Option => ((a, b) -> c, Option a, Option b) -> Option c`
+	#[hm_signature(Lift)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The return type of the function.
-	/// * `A`: The type of the first option's value.
-	/// * `B`: The type of the second option's value.
-	/// * `F`: The type of the binary function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the first option's value.",
+		"The type of the second option's value.",
+		"The return type of the function.",
+		"The type of the binary function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The binary function to apply.
-	/// * `fa`: The first option.
-	/// * `fb`: The second option.
+	#[doc_params("The binary function to apply.", "The first option.", "The second option.")]
 	///
 	/// ### Returns
 	///
@@ -94,26 +98,25 @@ impl Lift for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::OptionBrand;
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(1);
 	/// let y = Some(2);
 	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	fn lift2<'a, C, A, B, F>(
-		f: F,
+	fn lift2<'a, A, B, C, Func>(
+		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		F: Fn(A, B) -> C + 'a,
+		Func: Fn(A, B) -> C + 'a,
 		A: 'a,
 		B: 'a,
 		C: 'a,
 	{
-		fa.zip(fb).map(|(a, b)| f(a, b))
+		fa.zip(fb).map(|(a, b)| func(a, b))
 	}
 }
 
@@ -124,15 +127,15 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Pointed Option => a -> Option a`
+	#[hm_signature(Pointed)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value to wrap.
+	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -162,18 +165,20 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand b a. Semiapplicative Option => (Option (fn_brand a b), Option a) -> Option b`
+	#[hm_signature(Semiapplicative)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function wrapper.
-	/// * `B`: The type of the output value.
-	/// * `A`: The type of the input value.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The type of the input value.",
+		"The type of the output value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ff`: The option containing the function.
-	/// * `fa`: The option containing the value.
+	#[doc_params("The option containing the function.", "The option containing the value.")]
 	///
 	/// ### Returns
 	///
@@ -189,7 +194,7 @@ impl Semiapplicative for OptionBrand {
 	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, B: 'a, A: 'a + Clone>(
+	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
@@ -207,18 +212,20 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Semimonad Option => (Option a, a -> Option b) -> Option b`
+	#[hm_signature(Semimonad)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of the second computation.
-	/// * `A`: The type of the result of the first computation.
-	/// * `F`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the result of the first computation.",
+		"The type of the result of the second computation.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ma`: The first option.
-	/// * `f`: The function to apply to the value inside the option.
+	#[doc_params("The first option.", "The function to apply to the value inside the option.")]
 	///
 	/// ### Returns
 	///
@@ -234,14 +241,14 @@ impl Semimonad for OptionBrand {
 	/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn bind<'a, B: 'a, A: 'a, F>(
+	fn bind<'a, A: 'a, B: 'a, Func>(
 		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: F,
+		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		ma.and_then(f)
+		ma.and_then(func)
 	}
 }
 
@@ -252,20 +259,21 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable Option => ((a, b) -> b, b, Option a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The folding function.
-	/// * `initial`: The initial value.
-	/// * `fa`: The option to fold.
+	#[doc_params("The folding function.", "The initial value.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -274,14 +282,13 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
 	/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_right<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -302,20 +309,25 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Foldable Option => ((b, a) -> b, b, Option a) -> b`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `B`: The type of the accumulator.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the folding function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the accumulator.",
+		"The type of the folding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to the accumulator and each element.
-	/// * `initial`: The initial value of the accumulator.
-	/// * `fa`: The option to fold.
+	#[doc_params(
+		"The function to apply to the accumulator and each element.",
+		"The initial value of the accumulator.",
+		"The option to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -324,14 +336,13 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, RcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
 	/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	fn fold_left<'a, FnBrand, B: 'a, A: 'a, Func>(
+	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
 		initial: B,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -352,19 +363,21 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m a. (Foldable Option, Monoid m) => ((a) -> m, Option a) -> m`
+	#[hm_signature(Foldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the cloneable function to use.
-	/// * `M`: The type of the monoid.
-	/// * `A`: The type of the elements in the structure.
-	/// * `Func`: The type of the mapping function.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function to use.",
+		"The type of the elements in the structure.",
+		"The type of the monoid.",
+		"The type of the mapping function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The option to fold.
+	#[doc_params("The mapping function.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -373,13 +386,13 @@ impl Foldable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
 	/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	fn fold_map<'a, FnBrand, M, A: 'a, Func>(
+	fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
@@ -402,19 +415,24 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f b a. (Traversable Option, Applicative f) => (a -> f b, Option a) -> f (Option b)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `B`: The type of the elements in the resulting traversable structure.
-	/// * `A`: The type of the elements in the traversable structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The type of the elements in the resulting traversable structure.",
+		"The applicative context.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a value in an applicative context.
-	/// * `ta`: The option to traverse.
+	#[doc_params(
+		"The function to apply to each element, returning a value in an applicative context.",
+		"The option to traverse."
+	)]
 	///
 	/// ### Returns
 	///
@@ -427,10 +445,10 @@ impl Traversable for OptionBrand {
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(5);
-	/// let y = traverse::<OptionBrand, OptionBrand, _, _, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, F: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
@@ -449,16 +467,19 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall f a. (Traversable Option, Applicative f) => (Option (f a)) -> f (Option a)`
+	#[hm_signature(Traversable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The applicative context.
-	/// * `A`: The type of the elements in the traversable structure.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements in the traversable structure.",
+		"The applicative context."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `ta`: The option containing the applicative value.
+	#[doc_params("The option containing the applicative value.")]
 	///
 	/// # Returns
 	///
@@ -471,10 +492,10 @@ impl Traversable for OptionBrand {
 	/// use fp_library::brands::OptionBrand;
 	///
 	/// let x = Some(Some(5));
-	/// let y = sequence::<OptionBrand, OptionBrand, _>(x);
+	/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
-	fn sequence<'a, F: Applicative, A: 'a + Clone>(
+	fn sequence<'a, A: 'a + Clone, F: Applicative>(
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
@@ -488,24 +509,27 @@ impl Traversable for OptionBrand {
 	}
 }
 
-impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for OptionBrand {
+impl ParFoldable for OptionBrand {
 	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 	///
 	/// This method maps the element of the option to a monoid. Since `Option` contains at most one element, no actual parallelism occurs, but the interface is satisfied.
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand m a. (ParFoldable Option, Monoid m, Send m, Sync m) => (fn_brand a m, Option a) -> m`
+	#[hm_signature(ParFoldable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The monoid type (must be `Send + Sync`).
-	/// * `A`: The element type (must be `Send + Sync`).
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The brand of the cloneable function wrapper.",
+		"The element type.",
+		"The monoid type."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The mapping function.
-	/// * `fa`: The option to fold.
+	#[doc_params("The mapping function.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -514,19 +538,19 @@ impl<FnBrand: SendCloneableFn> ParFoldable<FnBrand> for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, ArcFnBrand};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// let y = par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, "1".to_string());
 	/// ```
-	fn par_fold_map<'a, M, A>(
+	fn par_fold_map<'a, FnBrand, A, M>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
+		FnBrand: 'a + SendCloneableFn,
 		A: 'a + Clone + Send + Sync,
 		M: Monoid + Send + Sync + 'a,
 	{
@@ -544,15 +568,15 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Compactable Option => Option (Option a) -> Option a`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
+	#[doc_type_params("The lifetime of the values.", "The type of the elements.")]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The nested option.
+	#[doc_params("The nested option.")]
 	///
 	/// ### Returns
 	///
@@ -583,16 +607,19 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e. Compactable Option => Option (Result o e) -> (Option o, Option e)`
+	#[hm_signature(Compactable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `fa`: The option of result.
+	#[doc_params("The option of result.")]
 	///
 	/// ### Returns
 	///
@@ -629,19 +656,21 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall o e a. Filterable Option => (a -> Result o e, Option a) -> Pair (Option o) (Option e)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `O`: The type of the success value.
-	/// * `E`: The type of the error value.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the input value.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The option to partition.
+	#[doc_params("The function to apply.", "The option to partition.")]
 	///
 	/// ### Returns
 	///
@@ -657,7 +686,7 @@ impl Filterable for OptionBrand {
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, O: 'a, E: 'a, A: 'a, Func>(
+	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Pair<
@@ -681,17 +710,19 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool, Option a) -> Pair (Option a) (Option a)`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The option to partition.
+	#[doc_params("The predicate.", "The option to partition.")]
 	///
 	/// ### Returns
 	///
@@ -735,18 +766,20 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall b a. Filterable Option => (a -> Option b, Option a) -> Option b`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the input value.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the input value.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply.
-	/// * `fa`: The option to filter and map.
+	#[doc_params("The function to apply.", "The option to filter and map.")]
 	///
 	/// ### Returns
 	///
@@ -762,7 +795,7 @@ impl Filterable for OptionBrand {
 	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, B: 'a, A: 'a, Func>(
+	fn filter_map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
@@ -778,17 +811,19 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. Filterable Option => (a -> bool, Option a) -> Option a`
+	#[hm_signature(Filterable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements.
-	/// * `Func`: The type of the predicate.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The type of the elements.",
+		"The type of the predicate."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The predicate.
-	/// * `fa`: The option to filter.
+	#[doc_params("The predicate.", "The option to filter.")]
 	///
 	/// ### Returns
 	///
@@ -822,20 +857,25 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m o e a. (Witherable Option, Applicative m) => (a -> m (Result o e), Option a) -> m (Pair (Option o) (Option e))`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `O`: The type of the success values.
-	/// * `E`: The type of the error values.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the success values.",
+		"The type of the error values.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning a `Result` in an applicative context.
-	/// * `ta`: The option to partition.
+	#[doc_params(
+		"The function to apply to each element, returning a `Result` in an applicative context.",
+		"The option to partition."
+	)]
 	///
 	/// ### Returns
 	///
@@ -850,7 +890,7 @@ impl Witherable for OptionBrand {
 	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 	/// assert_eq!(y, Some(Pair(Some(5), None)));
 	/// ```
-	fn wilt<'a, M: Applicative, O: 'a + Clone, E: 'a + Clone, A: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -883,19 +923,24 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. (Witherable Option, Applicative m) => (a -> m (Option b), Option a) -> m (Option b)`
+	#[hm_signature(Witherable)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `M`: The applicative context.
-	/// * `B`: The type of the result of applying the function.
-	/// * `A`: The type of the elements in the input structure.
-	/// * `Func`: The type of the function to apply.
+	#[doc_type_params(
+		"The lifetime of the values.",
+		"The applicative context.",
+		"The type of the elements in the input structure.",
+		"The type of the result of applying the function.",
+		"The type of the function to apply."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `func`: The function to apply to each element, returning an `Option` in an applicative context.
-	/// * `ta`: The option to filter and map.
+	#[doc_params(
+		"The function to apply to each element, returning an `Option` in an applicative context.",
+		"The option to filter and map."
+	)]
 	///
 	/// ### Returns
 	///
@@ -910,7 +955,7 @@ impl Witherable for OptionBrand {
 	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn wither<'a, M: Applicative, B: 'a + Clone, A: 'a + Clone, Func>(
+	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -1103,7 +1148,7 @@ mod tests {
 	#[test]
 	fn traverse_none() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<OptionBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand, _>(
 				|x: i32| Some(x + 1),
 				None
 			),
@@ -1115,7 +1160,7 @@ mod tests {
 	#[test]
 	fn traverse_returning_none() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<OptionBrand, OptionBrand, _, _, _>(
+			crate::classes::traversable::traverse::<OptionBrand, _, _, OptionBrand, _>(
 				|_: i32| None::<i32>,
 				Some(5)
 			),
@@ -1233,7 +1278,7 @@ mod tests {
 		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = map::<OptionBrand, _, _, _>(
 			|res| separate::<OptionBrand, _, _>(res),
-			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
+			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs
@@ -1247,7 +1292,7 @@ mod tests {
 		let lhs = wither::<OptionBrand, OptionBrand, _, _, _>(p, x.clone());
 		let rhs = map::<OptionBrand, _, _, _>(
 			|opt| compact::<OptionBrand, _>(opt),
-			traverse::<OptionBrand, OptionBrand, _, _, _>(p, x),
+			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
 		);
 
 		lhs == rhs

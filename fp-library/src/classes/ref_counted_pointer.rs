@@ -1,4 +1,4 @@
-//! A trait for reference-counted pointers with shared ownership.
+//! Reference-counted pointers with shared ownership and unwrapping capabilities.
 //!
 //! ### Examples
 //!
@@ -11,6 +11,9 @@
 //! ```
 
 use super::Pointer;
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 use std::ops::Deref;
 
 /// Extension trait for reference-counted pointers with shared ownership.
@@ -27,15 +30,15 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. a -> RefCountedPointer a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the value to wrap.
+	#[doc_type_params("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	/// * `value`: The value to wrap.
+	#[doc_params("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -57,15 +60,15 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	/// `forall a. RefCountedPointer a -> Result a (RefCountedPointer a)`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
-	/// * `T`: The type of the wrapped value.
+	#[doc_type_params("The type of the wrapped value.")]
 	///
 	/// ### Parameters
 	///
-	/// * `ptr`: The pointer to attempt to unwrap.
+	#[doc_params("The pointer to attempt to unwrap.")]
 	///
 	/// ### Returns
 	///
@@ -92,16 +95,15 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Type Signature
 ///
-/// `forall a. RefCountedPointer a -> Result a (RefCountedPointer a)`
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the wrapped value.
+#[doc_type_params("The pointer brand.", "The type of the wrapped value.")]
 ///
 /// ### Parameters
 ///
-/// * `ptr`: The pointer to attempt to unwrap.
+#[doc_params("The pointer to attempt to unwrap.")]
 ///
 /// ### Returns
 ///
@@ -127,16 +129,15 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Signature
 ///
-/// `forall p a. RefCountedPointer p => a -> RefCountedPointer a`
+#[hm_signature(RefCountedPointer)]
 ///
 /// ### Type Parameters
 ///
-/// * `P`: The pointer brand.
-/// * `T`: The type of the value to wrap.
+#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-/// * `value`: The value to wrap.
+#[doc_params("The value to wrap.")]
 ///
 /// ### Returns
 ///

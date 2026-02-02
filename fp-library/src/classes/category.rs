@@ -1,4 +1,4 @@
-//! A type class for categories, which are semigroupoids with an identity element.
+//! Categories, which are semigroupoids with an identity element for each object.
 //!
 //! A category consists of objects and morphisms between them, with composition and identity.
 //!
@@ -13,6 +13,8 @@
 
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for categories, which are semigroupoids with an identity element.
 ///
@@ -29,11 +31,11 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Category c => () -> c a a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the object.
+	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -56,12 +58,15 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Signature
 ///
-/// `forall c a. Category c => () -> c a a`
+#[hm_signature(Category)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the category.
-/// * `A`: The type of the object.
+#[doc_type_params(
+	"The lifetime of the morphism.",
+	"The brand of the category.",
+	"The type of the object."
+)]
 ///
 /// ### Returns
 ///

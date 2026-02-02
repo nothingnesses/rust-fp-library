@@ -1,14 +1,18 @@
+//! Reference-counted cloneable function wrappers with [`Semigroupoid`] and [`Category`] instances.
+//!
+//! Provides the [`FnBrand`] abstraction for wrapping closures in `Rc<dyn Fn>` or `Arc<dyn Fn>` for use in higher-kinded contexts.
+
 use crate::{
 	Apply,
 	brands::FnBrand,
 	classes::{
-		RefCountedPointer, category::Category, cloneable_fn::CloneableFn, function::Function,
-		semigroupoid::Semigroupoid, send_cloneable_fn::SendCloneableFn,
-		send_unsized_coercible::SendUnsizedCoercible, unsized_coercible::UnsizedCoercible,
+		Category, CloneableFn, Function, RefCountedPointer, Semigroupoid, SendCloneableFn,
+		SendUnsizedCoercible, UnsizedCoercible,
 	},
 	impl_kind,
 	kinds::*,
 };
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {
@@ -25,17 +29,19 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (Function (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(Function)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the function and its captured data.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -62,17 +68,19 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (CloneableFn (FnBrand p), UnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(CloneableFn)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the function and its captured data.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -97,18 +105,23 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p b d c. (Semigroupoid (FnBrand p), UnsizedCoercible p) => (FnBrand p c d, FnBrand p b c) -> FnBrand p b d`
+	#[hm_signature(Semigroupoid)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The source type of the first morphism.
-	/// * `D`: The target type of the second morphism.
-	/// * `C`: The target type of the first morphism and the source type of the second morphism.
+	#[doc_type_params(
+		"The lifetime of the morphisms.",
+		"The source type of the first morphism.",
+		"The target type of the first morphism and the source type of the second morphism.",
+		"The target type of the second morphism."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The second morphism to apply (from C to D).
-	/// * `g`: The first morphism to apply (from B to C).
+	#[doc_params(
+		"The second morphism to apply (from C to D).",
+		"The first morphism to apply (from B to C)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -124,7 +137,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 	/// assert_eq!(h(5), 12); // (5 + 1) * 2
 	/// ```
-	fn compose<'a, B: 'a, D: 'a, C: 'a>(
+	fn compose<'a, B: 'a, C: 'a, D: 'a>(
 		f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
 		g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
@@ -139,11 +152,11 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a. (Category (FnBrand p), UnsizedCoercible p) => () -> FnBrand p a a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the object.
+	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -171,17 +184,19 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall p a b. (SendCloneableFn (FnBrand p), SendUnsizedCoercible p) => (a -> b) -> FnBrand p a b`
+	#[hm_signature(SendCloneableFn)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The input type of the function.
-	/// * `B`: The output type of the function.
+	#[doc_type_params(
+		"The lifetime of the function and its captured data.",
+		"The input type of the function.",
+		"The output type of the function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The closure to wrap.
-	///
+	#[doc_params("The closure to wrap.")]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.

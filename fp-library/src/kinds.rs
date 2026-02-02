@@ -1,10 +1,11 @@
-//! Simulates higher-kinded types using type-level defunctionalisation based on Yallop
-//! and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
-//!
 //! `Kind` traits represent the arity of a kind.
+//!
 //! These traits are implemented by [`Brand` types][crate::brands],
 //! which represent higher-kinded (unapplied/partially-applied) forms
 //! (type constructors) of [types][crate::types].
+//!
+//! This is an implementation of the type-level defunctionalisation technique
+//! to simulate higher-kinded types, based on Yallop and White's [Lightweight higher-kinded polymorphism](https://www.cl.cam.ac.uk/~jdy22/papers/lightweight-higher-kinded-polymorphism.pdf).
 //!
 //! # `Kind` Traits
 //!
@@ -35,29 +36,36 @@
 use fp_macros::def_kind;
 
 def_kind! {
+	/// The applied type.
 	type Of<A>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<A, B>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A, B>;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A: 'a>: 'a;
 }
 
 def_kind! {
+	/// The applied type.
 	type Of<'a, A: 'a, B: 'a>: 'a;
 }

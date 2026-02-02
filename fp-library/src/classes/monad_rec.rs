@@ -1,4 +1,4 @@
-//! A type class for monads that support stack-safe tail recursion.
+//! Monads that support stack-safe tail recursion via the [`Step`] type.
 //!
 //! ### Examples
 //!
@@ -24,10 +24,13 @@
 //!     )
 //! }
 //!
-//! assert_eq!(factorial(5).run(), 120);
+//! assert_eq!(factorial(5).evaluate(), 120);
 //! ```
 
 use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
+use fp_macros::doc_params;
+use fp_macros::doc_type_params;
+use fp_macros::hm_signature;
 
 /// A type class for monads that support stack-safe tail recursion.
 ///
@@ -52,18 +55,20 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Type Signature
 	///
-	/// `forall m b a. MonadRec m => (a -> m (Step a b), a) -> m b`
+	#[hm_signature(MonadRec)]
 	///
 	/// ### Type Parameters
 	///
-	/// * `B`: The type of the result.
-	/// * `A`: The type of the initial value and loop state.
-	/// * `F`: The type of the step function.
+	#[doc_type_params(
+		"The lifetime of the computation.",
+		"The type of the initial value and loop state.",
+		"The type of the result.",
+		"The type of the step function."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The step function.
-	/// * `a`: The initial value.
+	#[doc_params("The step function.", "The initial value.")]
 	///
 	/// ### Returns
 	///
@@ -72,13 +77,9 @@ pub trait MonadRec: Monad {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{
-	///     brands::*,
-	///     classes::*,
-	///     types::*,
-	/// };
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let result = ThunkBrand::tail_rec_m(
+	/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
 	///     |n| {
 	///         if n < 10 {
 	///             Thunk::pure(Step::Loop(n + 1))
@@ -89,14 +90,14 @@ pub trait MonadRec: Monad {
 	///     0,
 	/// );
 	///
-	/// assert_eq!(result.run(), 10);
+	/// assert_eq!(result.evaluate(), 10);
 	/// ```
-	fn tail_rec_m<'a, A: 'a, B: 'a, F>(
-		f: F,
-		a: A,
+	fn tail_rec_m<'a, A: 'a, B: 'a, Func>(
+		func: Func,
+		initial: A,
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 			+ Clone
 			+ 'a;
 }
@@ -107,19 +108,21 @@ pub trait MonadRec: Monad {
 ///
 /// ### Type Signature
 ///
-/// `forall m b a. MonadRec m => (a -> m (Step a b), a) -> m b`
+#[hm_signature(MonadRec)]
 ///
 /// ### Type Parameters
 ///
-/// * `Brand`: The brand of the monad.
-/// * `B`: The type of the result.
-/// * `A`: The type of the initial value and loop state.
-/// * `F`: The type of the step function.
+#[doc_type_params(
+	"The lifetime of the computation.",
+	"The brand of the monad.",
+	"The type of the initial value and loop state.",
+	"The type of the result.",
+	"The type of the step function."
+)]
 ///
 /// ### Parameters
 ///
-/// * `f`: The step function.
-/// * `a`: The initial value.
+#[doc_params("The step function.", "The initial value.")]
 ///
 /// ### Returns
 ///
@@ -128,12 +131,7 @@ pub trait MonadRec: Monad {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{
-///     brands::*,
-///     classes::*,
-///     types::*,
-///     functions::tail_rec_m,
-/// };
+/// use fp_library::{brands::*, functions::*, types::*};
 ///
 /// let result = tail_rec_m::<ThunkBrand, _, _, _>(
 ///     |n| {
@@ -146,16 +144,16 @@ pub trait MonadRec: Monad {
 ///     0,
 /// );
 ///
-/// assert_eq!(result.run(), 10);
+/// assert_eq!(result.evaluate(), 10);
 /// ```
-pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, F>(
-	f: F,
-	a: A,
+pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, Func>(
+	func: Func,
+	initial: A,
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	F: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 		+ Clone
 		+ 'a,
 {
-	Brand::tail_rec_m(f, a)
+	Brand::tail_rec_m(func, initial)
 }

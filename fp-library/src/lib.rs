@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! A functional programming library for Rust featuring your favourite higher-kinded types and type classes.
 //!
 //! ## Motivation
@@ -15,31 +17,26 @@
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
 //! - **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
-//!   - `Functor`, `Applicative`, `Monad`
-//!   - `Semigroup`, `Monoid`
-//!   - `Foldable`, `Traversable`
-//!   - `Compactable`, `Filterable`, `Witherable`
-//!   - `Category`, `Semigroupoid`
-//!   - `Pointed`, `Lift`
-//!   - `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-//!   - `MonadRec`, `RefFunctor`
-//!   - `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable` (Function wrappers and thread-safe operations)
-//!   - `Pointer`, `RefCountedPointer`, `SendRefCountedPointer` (Pointer abstraction)
-//!   - `Defer`, `SendDefer`
+//!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
+//!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
+//!   - **Category Theory:** `Category`, `Semigroupoid`
+//!   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
+//!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
+//!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
 //! - **Helper Functions:** Standard FP utilities:
 //!   - `compose`, `constant`, `flip`, `identity`
 //! - **Data Types:** Implementations for standard and custom types:
-//!   - `Option`, `Result`, `Vec`, `String`
-//!   - `Identity`, `Lazy`, `Pair`
-//!   - `Trampoline`, `Thunk`, `Free`
-//!   - `Endofunction`, `Endomorphism`, `SendEndofunction`
-//!   - `RcBrand`, `ArcBrand`, `FnBrand`
+//!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
+//!   - **Laziness, Memoization & Stack Safety:** `Lazy`, `Thunk`, `Trampoline`, `Free`
+//!   - **Generic Containers:** `Identity`, `Pair`
+//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
+//!   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 //!
 //! ## How it Works
 //!
 //! ### Higher-Kinded Types (HKT)
 //!
-//! Since Rust doesn't support HKTs directly (e.g., `trait Functor<F<_>>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or type-level defunctionalization).
+//! Since Rust doesn't support HKTs directly (i.e., it's not possible to use `Option` in `impl Functor for Option`, instead of `Option<T>`), this library uses **Lightweight Higher-Kinded Polymorphism** (also known as the "Brand" pattern or type-level defunctionalization).
 //!
 //! Each type constructor has a corresponding `Brand` type (e.g., `OptionBrand` for `Option`). These brands implement the `Kind` traits, which map the brand and generic arguments back to the concrete type. The library provides macros to simplify this process.
 //!
@@ -97,28 +94,63 @@
 //! Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 //!
 //! 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.run()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
+//! 2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
 //!
-//! #### Workflow Example
+//! #### Workflow Example: Expression Evaluator
 //!
-//! A common pattern is to use `Trampoline` for the heavy lifting (recursion), `Lazy` to freeze the result, and `Thunk` to borrow it later.
+//! A robust pattern is to use `TryTrampoline` for stack-safe, fallible recursion, `TryLazy` to memoize expensive results, and `TryThunk` to create lightweight views.
+//!
+//! Consider an expression evaluator that handles division errors and deep recursion:
 //!
 //! ```rust
 //! use fp_library::types::*;
 //!
-//! // 1. Use Trampoline for stack-safe recursion
-//! let heavy_computation = Trampoline::tail_rec_m(|n| {
-//!     if n < 1_000 { Trampoline::pure(Step::Loop(n + 1)) } else { Trampoline::pure(Step::Done(n)) }
-//! }, 0);
+//! #[derive(Clone)]
+//! enum Expr {
+//!     Val(i32),
+//!     Add(Box<Expr>, Box<Expr>),
+//!     Div(Box<Expr>, Box<Expr>),
+//! }
 //!
-//! // 2. Convert to Lazy to cache the result (runs once)
-//! let cached = Lazy::<_, RcLazyConfig>::from(heavy_computation);
+//! // 1. Stack-safe recursion with error handling (TryTrampoline)
+//! fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
+//!     let expr = expr.clone(); // Capture owned data for 'static closure
+//!     TryTrampoline::defer(move || match expr {
+//!         Expr::Val(n) => TryTrampoline::ok(n),
+//!         Expr::Add(lhs, rhs) => {
+//!             eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
+//!         }
+//!         Expr::Div(lhs, rhs) => {
+//!             eval(&lhs).bind(move |l| {
+//!                 eval(&rhs).bind(move |r| {
+//!                     if r == 0 {
+//!                         TryTrampoline::err("Division by zero".to_string())
+//!                     } else {
+//!                         TryTrampoline::ok(l / r)
+//!                     }
+//!                 })
+//!             })
+//!         }
+//!     })
+//! }
 //!
-//! // 3. Use Thunk to borrow the cached value without re-running
-//! let view = Thunk::new(|| {
-//!     let val = cached.get();
-//!     format!("Result: {}", val)
-//! });
+//! // Usage
+//! fn main() {
+//!     let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
+//!
+//!     // 2. Memoize result (TryLazy)
+//!     // The evaluation runs at most once, even if accessed multiple times.
+//!     let result = RcTryLazy::new(move || eval(&expr).evaluate());
+//!
+//!     // 3. Create deferred view (TryThunk)
+//!     // Borrow the cached result to format it.
+//!     let view: TryThunk<String, String> = TryThunk::new(|| {
+//!         let val = result.evaluate().map_err(|e| e.clone())?;
+//!         Ok(format!("Result: {}", val))
+//!     });
+//!
+//!     assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
+//! }
 //! ```
 //!
 //! ### Thread Safety and Parallelism

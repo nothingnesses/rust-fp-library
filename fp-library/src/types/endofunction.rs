@@ -1,7 +1,12 @@
+//! Wrapper for endofunctions (functions `a -> a`) with [`Semigroup`] and [`Monoid`] instances based on function composition.
+//!
+//! Used to treat function composition as a monoidal operation where [`append`](crate::functions::append) composes functions and [`empty`](crate::functions::empty) is the identity function.
+
 use crate::{
-	classes::{cloneable_fn::CloneableFn, monoid::Monoid, semigroup::Semigroup},
+	classes::{CloneableFn, Monoid, Semigroup},
 	functions::identity,
 };
+use fp_macros::{doc_params, hm_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -44,7 +49,7 @@ impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. (a -> a) -> Endofunction fn_brand a`
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -53,7 +58,7 @@ impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The function to wrap.
+	#[doc_params("The function to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -152,12 +157,14 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBran
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Semigroup (Endofunction fn_brand a) => (Endofunction fn_brand a, Endofunction fn_brand a) -> Endofunction fn_brand a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The second function to apply (the outer function).
-	/// * `b`: The first function to apply (the inner function).
+	#[doc_params(
+		"The second function to apply (the outer function).",
+		"The first function to apply (the inner function)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -193,7 +200,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, 
 	///
 	/// ### Type Signature
 	///
-	/// `forall fn_brand a. Monoid (Endofunction fn_brand a) => () -> Endofunction fn_brand a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///

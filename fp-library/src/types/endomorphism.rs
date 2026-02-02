@@ -1,8 +1,13 @@
+//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`] and [`Monoid`] instances based on categorical composition.
+//!
+//! A more general form of `Endofunction` that works with any [`Category`], not just functions.
+
 use crate::{
 	Apply,
-	classes::{category::Category, monoid::Monoid, semigroup::Semigroup},
+	classes::{Category, Monoid, Semigroup},
 	kinds::*,
 };
+use fp_macros::{doc_params, hm_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -48,7 +53,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Category c => c a a -> Endomorphism c a`
+	#[hm_signature(Category)]
 	///
 	/// ### Type Parameters
 	///
@@ -57,7 +62,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Parameters
 	///
-	/// * `f`: The morphism to wrap.
+	#[doc_params("The morphism to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -159,12 +164,14 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Semigroup (Endomorphism c a) => (Endomorphism c a, Endomorphism c a) -> Endomorphism c a`
+	#[hm_signature(Semigroup)]
 	///
 	/// ### Parameters
 	///
-	/// * `a`: The second morphism to apply (the outer function).
-	/// * `b`: The first morphism to apply (the inner function).
+	#[doc_params(
+		"The second morphism to apply (the outer function).",
+		"The first morphism to apply (the inner function)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -197,7 +204,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	/// `forall c a. Monoid (Endomorphism c a) => () -> Endomorphism c a`
+	#[hm_signature(Monoid)]
 	///
 	/// ### Returns
 	///
