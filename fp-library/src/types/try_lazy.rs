@@ -3,9 +3,8 @@
 //! Computes a [`Result`] at most once and caches either the success value or error. All clones share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe [`ArcTryLazy`] variants.
 
 use crate::{
-	Apply,
 	brands::TryLazyBrand,
-	classes::{CloneableFn, Deferrable, SendDeferrable},
+	classes::{Deferrable, SendDeferrable},
 	impl_kind,
 	kinds::*,
 	types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
@@ -267,16 +266,15 @@ where
 	/// ```
 	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
 	///
-	/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer::<RcFnBrand>(
-	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| RcTryLazy::new(|| Ok(42)))
-	/// );
+	/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
 	/// assert_eq!(lazy.evaluate(), Ok(&42));
 	/// ```
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized,
 	{
-		Self::new(move || f(()).evaluate().cloned().map_err(Clone::clone))
+		Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 	}
 }
 
@@ -286,9 +284,10 @@ impl_kind! {
 	}
 }
 
-impl<E> SendDeferrable for TryLazyBrand<E, ArcLazyConfig>
+impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
 where
-	E: Clone + Send + Sync + 'static,
+	A: Clone + Send + Sync + 'a,
+	E: Clone + Send + Sync + 'a,
 {
 	/// Defers a computation that produces a thread-safe `TryLazy` value.
 	///
@@ -301,7 +300,7 @@ where
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value.")]
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
@@ -316,19 +315,15 @@ where
 	/// ```
 	/// use fp_library::{brands::*, classes::*, types::*};
 	///
-	/// let lazy = TryLazyBrand::<(), ArcLazyConfig>::send_defer(|| ArcTryLazy::new(|| Ok(42)));
+	/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
 	/// assert_eq!(lazy.evaluate(), Ok(&42));
 	/// ```
-	fn send_defer<'a, A>(
-		thunk: impl 'a
-		+ Fn() -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		+ Send
-		+ Sync
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	fn send_defer<F>(f: F) -> Self
 	where
-		A: Clone + Send + Sync + 'a,
+		F: FnOnce() -> Self + Send + Sync + 'a,
+		Self: Sized,
 	{
-		ArcTryLazy::new(move || thunk().evaluate().cloned().map_err(Clone::clone))
+		Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 	}
 }
 
@@ -459,8 +454,7 @@ mod tests {
 	fn test_send_defer() {
 		use crate::classes::send_deferrable::send_defer;
 
-		let memo: ArcTryLazy<i32, ()> =
-			send_defer::<TryLazyBrand<(), ArcLazyConfig>, _, _>(|| ArcTryLazy::new(|| Ok(42)));
+		let memo: ArcTryLazy<i32, ()> = send_defer(|| ArcTryLazy::new(|| Ok(42)));
 		assert_eq!(memo.evaluate(), Ok(&42));
 	}
 }

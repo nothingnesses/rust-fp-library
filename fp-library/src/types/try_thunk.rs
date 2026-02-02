@@ -414,11 +414,12 @@ where
 	A: 'a,
 	E: 'a,
 {
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized,
 	{
-		TryThunk::defer(move || f(()))
+		TryThunk::defer(f)
 	}
 }
 

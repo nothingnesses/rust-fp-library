@@ -284,11 +284,12 @@ impl_kind! {
 }
 
 impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized,
 	{
-		Thunk::defer(move || f(()))
+		Thunk::defer(f)
 	}
 }
 

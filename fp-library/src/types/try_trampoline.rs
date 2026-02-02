@@ -15,7 +15,7 @@
 //! ```
 
 use crate::{
-	classes::{CloneableFn, Deferrable},
+	classes::Deferrable,
 	types::{Lazy, LazyConfig, Trampoline, TryLazy},
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
@@ -434,18 +434,15 @@ where
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
 	///
-	/// let task: TryTrampoline<i32, String> = Deferrable::defer::<ArcFnBrand>(
-	///     cloneable_fn_new::<ArcFnBrand, _, _>(|_| TryTrampoline::ok(42))
-	/// );
+	/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
 	/// assert_eq!(task.evaluate(), Ok(42));
 	/// ```
-	fn defer<FnBrand: 'static + CloneableFn>(
-		f: <FnBrand as CloneableFn>::Of<'static, (), Self>
-	) -> Self
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'static,
 		Self: Sized,
 	{
-		TryTrampoline(Trampoline::defer(move || f(()).0))
+		TryTrampoline(Trampoline::defer(move || f().0))
 	}
 }
 

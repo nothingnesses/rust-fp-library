@@ -5,13 +5,10 @@
 //! ```
 //! use fp_library::{brands::*, functions::*, types::*};
 //!
-//! let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
-//!     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
-//! );
+//! let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
-use super::CloneableFn;
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
@@ -20,7 +17,7 @@ use fp_macros::hm_signature;
 pub trait Deferrable<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
-	/// This function takes a thunk (wrapped in a cloneable function) and creates a deferred value that will be computed using the thunk.
+	/// This function takes a thunk and creates a deferred value that will be computed using the thunk.
 	///
 	/// ### Type Signature
 	///
@@ -28,11 +25,11 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The brand of the cloneable function wrapper.")]
+	#[doc_type_params("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+	#[doc_params("A thunk that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -43,13 +40,12 @@ pub trait Deferrable<'a> {
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
 	///
-	/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
-	///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
-	/// );
+	/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 	/// assert_eq!(eval.evaluate(), 42);
 	/// ```
-	fn defer<FnBrand: 'a + CloneableFn>(f: <FnBrand as CloneableFn>::Of<'a, (), Self>) -> Self
+	fn defer<F>(f: F) -> Self
 	where
+		F: FnOnce() -> Self + 'a,
 		Self: Sized;
 }
 
@@ -63,11 +59,15 @@ pub trait Deferrable<'a> {
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The lifetime of the computation", "The type of the deferred value.", "The brand of the cloneable function wrapper.")]
+#[doc_type_params(
+	"The lifetime of the computation",
+	"The type of the deferred value.",
+	"The type of the thunk."
+)]
 ///
 /// ### Parameters
 ///
-#[doc_params("A thunk (wrapped in a cloneable function) that produces the value.")]
+#[doc_params("A thunk that produces the value.")]
 ///
 /// ### Returns
 ///
@@ -78,15 +78,13 @@ pub trait Deferrable<'a> {
 /// ```
 /// use fp_library::{brands::*, functions::*, types::*};
 ///
-/// let eval: Thunk<i32> = defer::<Thunk<i32>, RcFnBrand>(
-///     cloneable_fn_new::<RcFnBrand, _, _>(|_| Thunk::new(|| 42))
-/// );
+/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 /// assert_eq!(eval.evaluate(), 42);
 /// ```
-pub fn defer<'a, D, FnBrand>(f: <FnBrand as CloneableFn>::Of<'a, (), D>) -> D
+pub fn defer<'a, D, F>(f: F) -> D
 where
 	D: Deferrable<'a>,
-	FnBrand: 'a + CloneableFn,
+	F: FnOnce() -> D + 'a,
 {
-	D::defer::<FnBrand>(f)
+	D::defer(f)
 }
