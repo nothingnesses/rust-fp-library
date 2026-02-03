@@ -69,6 +69,7 @@ impl<T> ...
 - By performing the expansion directly, `document_impl` can construct a "synthetic" function signature in memory that:
   1.  Merges the `impl` generics (params and `where` clauses) with the method generics.
   2.  Substitutes `Self` types (including the `self` receiver) with the concrete `impl` type (e.g., `CatList<A>`), strictly preserving value/reference/mutability semantics (e.g., `&self` -> `&CatList A` and `&mut self` -> `&mut CatList A`).
+      - **Note on Associated Types**: Substitutions in path segments (e.g., `Self::Item`) must generate valid Qualified Paths (e.g., `<CatList<A>>::Item`) to ensure the synthetic signature is syntactically valid for `syn` to parse.
   3.  Injects the trait implementation itself as a bound (e.g., `Semigroup (CatList A)`).
 - This synthetic signature is then passed to the shared core logic of `hm_signature`, guaranteeing that the generated string includes all constraints.
 
@@ -126,7 +127,17 @@ impl<T> ...
 **Rationale**:
 
 - **Complexity**: Resolving associated types requires full type inference or deeper analysis of the `impl` block's associated type definitions, which is significant additional complexity.
+- **Validity**: While the output may look like `Type::Assoc`, the internal substitution must use Qualified Paths (e.g., `<Type>::Assoc`) to maintain syntactic validity during macro processing.
 - **Acceptability**: Displaying the associated type path is sufficient for documentation purposes in the initial version.
+
+### 6. Interaction with Existing Logic
+
+**Decision**: Reuse existing `hm_signature` configuration and macro handling.
+
+**Rationale**:
+
+- **Brand Mappings**: `hm_signature` already handles mapping brands (e.g., `CatListBrand`) to types (e.g., `CatList`). Since `document_impl` substitutes the `impl` type (e.g., `CatListBrand`) for `Self`, this mapping logic will automatically apply to the generated signature.
+- **Macros**: `hm_signature` supports `Apply!` and other type macros. Since `document_impl` expands before the compiler resolves these macros, the synthetic signature passed to `hm_signature` will retain them, allowing `hm_signature` to process them correctly.
 
 ## Implementation Strategy
 
@@ -150,7 +161,10 @@ impl<T> ...
       - Look for `#[hm_signature]` attribute.
       - If found:
         - Clone the method signature.
-        - **Substitute `Self`**: Use `syn::visit_mut::VisitMut` to recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type. Reference and mutability modifiers must be preserved (e.g., `&Self` becomes `&CatList A`, `&mut Self` becomes `&mut CatList A`). For the `self` receiver, convert it to a typed argument preserving its mode: `self` becomes `self: CatList A`, `&self` becomes `self: &CatList A`, and `&mut self` becomes `self: &mut CatList A`.
+        - **Substitute `Self`**: Use `syn::visit_mut::VisitMut` to recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type.
+          - **Semantics**: Reference and mutability modifiers must be preserved (e.g., `&Self` becomes `&CatList A`).
+          - **Receiver**: For the `self` receiver, convert it to a typed argument preserving its mode: `self` becomes `self: CatList A`, `&self` becomes `self: &CatList A`, etc.
+          - **Path Segments**: If `Self` appears as a path segment (e.g., `Self::Item`), convert it to a Qualified Path (e.g., `<CatList<A>>::Item`) to ensure syntactic validity.
         - **Synthesize Trait Bound**: Create a bound `ConcreteType: Trait` and add it to the signature's `where` clause.
         - **Merge Generics**: Merge `impl` generic params into the cloned signature's params (ensuring lifetimes precede types). Append `impl` `where` predicates to the signature's `where` clause.
         - Call the shared `generate_signature` function (passing `None` for trait name).
