@@ -76,7 +76,9 @@ impl std::fmt::Display for SignatureData {
 		}
 
 		let func_sig = if self.params.is_empty() {
-			format!("{}", self.return_type)
+			let func_type =
+				HMType::Arrow(Box::new(HMType::Unit), Box::new(self.return_type.clone()));
+			format!("{}", func_type)
 		} else {
 			let input_type = if self.params.len() == 1 {
 				self.params[0].clone()
@@ -565,5 +567,14 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
 		assert_eq!(sig, "forall self. &mut self -> bool");
+	}
+
+	#[test]
+	fn test_zero_argument_function() {
+		let input: ItemFn = parse_quote! {
+			fn empty<A>() -> CatList<A> { todo!() }
+		};
+		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
+		assert_eq!(sig, "forall a. () -> CatList a");
 	}
 }
