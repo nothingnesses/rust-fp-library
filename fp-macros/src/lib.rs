@@ -470,6 +470,22 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
 /// ```
+///
+/// ### Configuration
+///
+/// This macro can be configured via `Cargo.toml` under `[package.metadata.hm_signature]`.
+///
+/// * `brand_mappings`: A map of brand struct names to their display names in the signature.
+/// * `apply_macro_aliases`: A list of macro names that should be treated as `Apply!`.
+/// * `ignored_traits`: A list of traits to ignore in the signature constraints.
+///
+/// Example:
+/// ```toml
+/// [package.metadata.hm_signature]
+/// brand_mappings = { "OptionBrand" = "Option", "VecBrand" = "Vec" }
+/// apply_macro_aliases = ["MyApply"]
+/// ignored_traits = ["Clone", "Debug"]
+/// ```
 #[proc_macro_attribute]
 pub fn hm_signature(
 	attr: TokenStream,
@@ -578,6 +594,18 @@ pub fn doc_type_params(
 ///
 /// * The number of arguments must exactly match the number of function parameters
 ///   (excluding `self` but including parameters from curried return types).
+///
+/// ### Configuration
+///
+/// This macro can be configured via `Cargo.toml` under `[package.metadata.hm_signature]`.
+///
+/// * `apply_macro_aliases`: A list of macro names that should be treated as `Apply!` for curried parameter extraction.
+///
+/// Example:
+/// ```toml
+/// [package.metadata.hm_signature]
+/// apply_macro_aliases = ["MyApply"]
+/// ```
 #[proc_macro_attribute]
 pub fn doc_params(
 	attr: TokenStream,
@@ -620,6 +648,10 @@ pub fn doc_params(
 /// 2. If `#[doc_type_params]` is present:
 ///    - Documentation for the `impl` parameters is inserted **before** it.
 ///    - The existing `#[doc_type_params]` attribute is then expanded normally to document method-level parameters.
+///
+/// ### Configuration
+///
+/// This macro uses the same configuration as `#[hm_signature]`. See [`hm_signature`] for details.
 #[proc_macro_attribute]
 pub fn document_impl(
 	attr: TokenStream,

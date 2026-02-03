@@ -13,6 +13,28 @@ workspace = "../"
 [package.metadata.docs.rs]
 all-features = true
 
+[package.metadata.hm_signature.brand_mappings]
+ArcBrand = "Arc"
+BoxBrand = "Box"
+CatListBrand = "CatList"
+EndofunctionBrand = "Endofunction"
+EndomorphismBrand = "Endomorphism"
+FnBrand = "Fn"
+FreeBrand = "Free"
+IdentityBrand = "Identity"
+LazyBrand = "Lazy"
+OptionBrand = "Option"
+PairBrand = "Pair"
+RcBrand = "Rc"
+ResultBrand = "Result"
+StepBrand = "Step"
+ThunkBrand = "Thunk"
+TryLazyBrand = "TryLazy"
+TryThunkBrand = "TryThunk"
+Tuple1Brand = "Tuple1"
+Tuple2Brand = "Tuple2"
+VecBrand = "Vec"
+
 [[bench]]
 harness = false
 name = "benchmarks"
@@ -32,4 +54,3 @@ trybuild = "1.0"
 default = []
 # Enable parallel folding operations using Rayon
 rayon = ["dep:rayon"]
-
