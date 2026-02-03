@@ -67,8 +67,8 @@ impl<T> ...
 
 - `hm_signature` attribute syntax does not support passing arbitrary `where` clauses or complex bounds easily.
 - By performing the expansion directly, `document_impl` can construct a "synthetic" function signature in memory that:
-  1.  Merges the `impl` generics with the method generics.
-  2.  Substitutes `Self` types with the concrete `impl` type (e.g., `CatList<A>`).
+  1.  Merges the `impl` generics (params and `where` clauses) with the method generics.
+  2.  Substitutes `Self` types (including the `self` receiver) with the concrete `impl` type (e.g., `CatList<A>`), strictly preserving value/reference/mutability semantics (e.g., `&self` -> `&CatList A` and `&mut self` -> `&mut CatList A`).
   3.  Injects the trait implementation itself as a bound (e.g., `Semigroup (CatList A)`).
 - This synthetic signature is then passed to the shared core logic of `hm_signature`, guaranteeing that the generated string includes all constraints.
 
@@ -150,9 +150,9 @@ impl<T> ...
       - Look for `#[hm_signature]` attribute.
       - If found:
         - Clone the method signature.
-        - **Substitute `Self`**: Recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type (e.g., `CatList<A>`).
+        - **Substitute `Self`**: Recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type. Reference and mutability modifiers must be preserved (e.g., `&Self` becomes `&CatList A`, `&mut Self` becomes `&mut CatList A`). For the `self` receiver, convert it to a typed argument preserving its mode: `self` becomes `self: CatList A`, `&self` becomes `self: &CatList A`, and `&mut self` becomes `self: &mut CatList A`.
         - **Synthesize Trait Bound**: Create a bound `ConcreteType: Trait` and add it to the signature's `where` clause.
-        - **Merge Generics**: Merge `impl` generics into the cloned signature's generics, ensuring lifetime parameters precede type parameters.
+        - **Merge Generics**: Merge `impl` generic params into the cloned signature's params (ensuring lifetimes precede types). Append `impl` `where` predicates to the signature's `where` clause.
         - Call the shared `generate_signature` function (passing `None` for trait name).
         - **Replace** the `#[hm_signature]` attribute with the generated `#[doc = "..."]`.
     - **Doc Params**:
