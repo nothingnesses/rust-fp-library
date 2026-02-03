@@ -15,7 +15,7 @@ A new module-level procedural macro, `#[document_module]`, that:
 
 - Is applied once to the module (e.g., as `#![document_module]`).
 - Automatically extracts Brand-to-Concrete type mappings from both `impl_kind!` invocations and standard `impl` blocks (Impl-Scanning).
-- Automatically applies the `document_impl` logic to all `impl` blocks, using a hierarchical configuration system to resolve ambiguities.
+- Replaces the manual `#[document_impl]` macro, automatically applying the documentation logic to all `impl` blocks using a hierarchical configuration system to resolve ambiguities.
 
 ## Functional Requirements
 
@@ -40,6 +40,9 @@ A new module-level procedural macro, `#[document_module]`, that:
     Extracts: `ArcBrand::Of<T>` -> `Arc<T>`.
 
 The macro aggregates these findings into a module-wide configuration.
+
+**Collision Handling**:
+If multiple `impl` blocks define the same associated type name for the same Brand (e.g., via different traits), the macro must **error** unless one is marked `#[doc_primary]`. This prevents ambiguity when resolving `Self::Assoc`.
 
 **Generics Handling**:
 The extraction logic must use **Positional Mapping** to map generic parameters correctly.
@@ -117,7 +120,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 ### 4. Logic Reuse & Deprecation
 
-**Decision**: Refactor `fp-macros/src/document_impl.rs` and `hm_signature.rs` to accept a rich `Config` object containing the projection map and defaults. **Remove** the standalone `#[document_impl]` macro.
+**Decision**: Refactor `fp-macros/src/document_impl.rs` and `hm_signature.rs` to accept a rich `Config` object containing the projection map and defaults. The standalone `#[document_impl]` macro will be **deleted**.
 
 **Rationale**:
 
@@ -188,11 +191,11 @@ Attribute macros run before the expansion of macros inside them. `#[document_mod
 
 1.  **Refactor `impl_kind!` Parser**: Update `fp-macros/src/impl_kind.rs` to parse attributes on associated type definitions.
 2.  **Refactor Config**: Update `Config` struct to support associated type mappings (using positional mapping) and defaults.
-3.  **Refactor Core Logic**: Update `document_impl` and `hm_signature` to use the new Config for resolution (Projection vs Default) and explicit `Self` substitution.
+3.  **Refactor Core Logic**: Extract the signature generation logic from `document_impl` into a shared module (e.g., `signature_gen`). Update it to use the new Config for resolution (Projection vs Default) and explicit `Self` substitution.
 4.  **Implement `document_module`**:
     - Parse `impl_kind!` and scan `impl` blocks to build the Config.
     - Traverse module items.
     - For each `impl`, check attributes for overrides.
     - For each method, check attributes for overrides.
     - Invoke generation logic.
-5.  **Update `lib.rs`**: Export `document_module`.
+5.  **Update `lib.rs`**: Export `document_module` and remove `document_impl`.
