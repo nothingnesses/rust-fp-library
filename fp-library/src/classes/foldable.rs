@@ -41,7 +41,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -102,7 +102,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -171,7 +171,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -219,7 +219,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Foldable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -271,7 +271,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Foldable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -323,7 +323,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Foldable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

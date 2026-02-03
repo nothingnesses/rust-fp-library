@@ -55,7 +55,7 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(MonadRec)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -108,7 +108,7 @@ pub trait MonadRec: Monad {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(MonadRec)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

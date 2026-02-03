@@ -33,7 +33,7 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -101,7 +101,7 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -146,7 +146,7 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -214,7 +214,7 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -251,7 +251,7 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -302,7 +302,7 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -358,7 +358,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -407,7 +407,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -456,7 +456,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -513,7 +513,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -572,7 +572,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -638,7 +638,7 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -686,7 +686,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -758,7 +758,7 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -795,7 +795,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -849,7 +849,7 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -908,7 +908,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -957,7 +957,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1006,7 +1006,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1063,7 +1063,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1122,7 +1122,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1180,7 +1180,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1235,7 +1235,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1294,7 +1294,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1349,7 +1349,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

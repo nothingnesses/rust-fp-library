@@ -24,7 +24,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -72,7 +72,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Lift)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

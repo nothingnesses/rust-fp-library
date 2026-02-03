@@ -37,7 +37,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -97,7 +97,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -151,7 +151,7 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Witherable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -209,7 +209,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Witherable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

@@ -32,7 +32,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -83,7 +83,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Bifunctor)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

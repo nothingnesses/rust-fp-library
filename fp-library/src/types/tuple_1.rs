@@ -33,7 +33,7 @@ impl Functor for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -79,7 +79,7 @@ impl Lift for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -131,7 +131,7 @@ impl Pointed for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -168,7 +168,7 @@ impl Semiapplicative for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -212,7 +212,7 @@ impl Semimonad for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -258,7 +258,7 @@ impl Foldable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -309,7 +309,7 @@ impl Foldable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -360,7 +360,7 @@ impl Foldable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -409,7 +409,7 @@ impl Traversable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -458,7 +458,7 @@ impl Traversable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -503,7 +503,7 @@ impl ParFoldable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -550,7 +550,7 @@ impl ParFoldable for Tuple1Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

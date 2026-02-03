@@ -415,7 +415,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

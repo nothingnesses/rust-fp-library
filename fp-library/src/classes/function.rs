@@ -38,7 +38,7 @@ pub trait Function: Category {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Function)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -72,7 +72,7 @@ pub trait Function: Category {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Function)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

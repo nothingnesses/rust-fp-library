@@ -67,7 +67,7 @@ pub trait Pointer {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Pointer)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

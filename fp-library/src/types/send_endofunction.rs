@@ -161,7 +161,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -206,7 +206,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

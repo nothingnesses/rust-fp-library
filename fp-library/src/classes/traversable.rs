@@ -31,7 +31,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -85,7 +85,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -131,7 +131,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Traversable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -182,7 +182,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Traversable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

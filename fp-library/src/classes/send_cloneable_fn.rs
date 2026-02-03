@@ -42,7 +42,7 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -84,7 +84,7 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(SendCloneableFn)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

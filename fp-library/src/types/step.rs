@@ -241,7 +241,7 @@ impl Bifunctor for StepBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -303,7 +303,7 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -347,7 +347,7 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -407,7 +407,7 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -443,7 +443,7 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -489,7 +489,7 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -539,7 +539,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -588,7 +588,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -637,7 +637,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -694,7 +694,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -748,7 +748,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -801,7 +801,7 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -853,7 +853,7 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -920,7 +920,7 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -964,7 +964,7 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1028,7 +1028,7 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1064,7 +1064,7 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1113,7 +1113,7 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1163,7 +1163,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1212,7 +1212,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1261,7 +1261,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1318,7 +1318,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1372,7 +1372,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1425,7 +1425,7 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1477,7 +1477,7 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

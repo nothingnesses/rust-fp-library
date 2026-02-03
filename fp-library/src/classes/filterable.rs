@@ -42,7 +42,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -98,7 +98,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -146,7 +146,7 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Signature
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -190,7 +190,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -234,7 +234,7 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Filterable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -289,7 +289,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Filterable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -337,7 +337,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Filterable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -385,7 +385,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Filterable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

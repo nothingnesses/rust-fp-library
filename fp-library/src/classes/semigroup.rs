@@ -25,7 +25,7 @@ pub trait Semigroup {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -57,7 +57,7 @@ pub trait Semigroup {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Semigroup)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

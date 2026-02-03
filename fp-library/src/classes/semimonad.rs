@@ -27,7 +27,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -72,7 +72,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Semimonad)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

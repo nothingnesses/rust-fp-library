@@ -20,7 +20,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Send)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -57,7 +57,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Send)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

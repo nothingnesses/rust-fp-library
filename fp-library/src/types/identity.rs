@@ -51,7 +51,7 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -97,7 +97,7 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -149,7 +149,7 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -186,7 +186,7 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -230,7 +230,7 @@ impl Semimonad for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -276,7 +276,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -327,7 +327,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -378,7 +378,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -427,7 +427,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -475,7 +475,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -520,7 +520,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -567,7 +567,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

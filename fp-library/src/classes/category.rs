@@ -31,7 +31,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Category)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -58,7 +58,7 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Category)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

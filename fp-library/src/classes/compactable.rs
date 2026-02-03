@@ -25,7 +25,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -66,7 +66,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -113,7 +113,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Compactable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -155,7 +155,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Compactable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

@@ -32,7 +32,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroupoid)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -76,7 +76,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Semigroupoid)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

@@ -34,7 +34,7 @@ impl Bifunctor for Tuple2Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -96,7 +96,7 @@ impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -143,7 +143,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -202,7 +202,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -241,7 +241,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -286,7 +286,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -335,7 +335,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -380,7 +380,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -429,7 +429,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -479,7 +479,7 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -529,7 +529,7 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -576,7 +576,7 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -625,7 +625,7 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -686,7 +686,7 @@ impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -733,7 +733,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -792,7 +792,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -831,7 +831,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -876,7 +876,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -925,7 +925,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -970,7 +970,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1015,7 +1015,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1065,7 +1065,7 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1113,7 +1113,7 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1160,7 +1160,7 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1209,7 +1209,7 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

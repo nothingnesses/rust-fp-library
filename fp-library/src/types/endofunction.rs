@@ -157,7 +157,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBran
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -200,7 +200,7 @@ impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, 
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

@@ -125,7 +125,7 @@ impl SendRefCountedPointer for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Send)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -193,7 +193,7 @@ impl SendUnsizedCoercible for ArcBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Send)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

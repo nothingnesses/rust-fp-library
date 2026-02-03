@@ -26,7 +26,7 @@ pub trait Evaluable: Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Evaluable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -57,7 +57,7 @@ pub trait Evaluable: Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Evaluable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

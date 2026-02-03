@@ -28,7 +28,7 @@ pub trait ApplyFirst: Lift {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ApplyFirst)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -70,7 +70,7 @@ pub trait ApplyFirst: Lift {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ApplyFirst)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

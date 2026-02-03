@@ -418,7 +418,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -460,7 +460,7 @@ impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -507,7 +507,7 @@ impl<E: 'static> Pointed for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -539,7 +539,7 @@ impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -596,7 +596,7 @@ impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -643,7 +643,7 @@ impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -690,7 +690,7 @@ impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(MonadRec)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -747,7 +747,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -799,7 +799,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -851,7 +851,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -901,7 +901,7 @@ impl<'a, A: Semigroup + 'a, E: 'a> Semigroup for TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -938,7 +938,7 @@ impl<'a, A: Monoid + 'a, E: 'a> Monoid for TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -970,7 +970,7 @@ impl Bifunctor for TryThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1034,7 +1034,7 @@ impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1078,7 +1078,7 @@ impl<A: 'static> Pointed for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1110,7 +1110,7 @@ impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1171,7 +1171,7 @@ impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1220,7 +1220,7 @@ impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1270,7 +1270,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1322,7 +1322,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1374,7 +1374,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

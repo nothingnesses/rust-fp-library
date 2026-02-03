@@ -22,7 +22,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -53,7 +53,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Pointed)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

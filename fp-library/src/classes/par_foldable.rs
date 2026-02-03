@@ -80,7 +80,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -127,7 +127,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -192,7 +192,7 @@ pub trait ParFoldable: Foldable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ParFoldable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
@@ -241,7 +241,7 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ParFoldable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

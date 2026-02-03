@@ -29,11 +29,13 @@ pub fn hm_signature_impl(
 		}
 	};
 
-	// Note: trait_name argument is now ignored as per specification,
-	// but we keep the parameter for backward compatibility during transition if needed.
-	// Actually, the spec says "Modify hm_signature to no longer accept a trait name argument."
-	// But for the proc-macro entry point, we still get the attr TokenStream.
-	let _ = attr;
+	if !attr.is_empty() {
+		return syn::Error::new(
+			proc_macro2::Span::call_site(),
+			"hm_signature does not accept arguments",
+		)
+		.to_compile_error();
+	}
 
 	let config = load_config();
 	let signature = generate_signature(sig, None, &config);

@@ -706,7 +706,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -748,7 +748,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendDeferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -784,7 +784,7 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(RefFunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

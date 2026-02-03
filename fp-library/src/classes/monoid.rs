@@ -27,7 +27,7 @@ pub trait Monoid: Semigroup {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -50,7 +50,7 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Monoid)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

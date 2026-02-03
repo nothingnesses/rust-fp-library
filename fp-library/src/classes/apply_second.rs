@@ -28,7 +28,7 @@ pub trait ApplySecond: Lift {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ApplySecond)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -70,7 +70,7 @@ pub trait ApplySecond: Lift {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ApplySecond)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

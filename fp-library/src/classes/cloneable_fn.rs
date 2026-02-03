@@ -38,7 +38,7 @@ pub trait CloneableFn: Function {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(CloneableFn)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -72,7 +72,7 @@ pub trait CloneableFn: Function {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(CloneableFn)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

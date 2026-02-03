@@ -239,7 +239,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Implementation
 	///
@@ -375,7 +375,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Evaluable)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///
@@ -463,7 +463,7 @@ impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

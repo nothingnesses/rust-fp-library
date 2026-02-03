@@ -38,7 +38,7 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -79,7 +79,7 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Semiapplicative)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

@@ -29,7 +29,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Send)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -60,7 +60,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(SendRefCountedPointer)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

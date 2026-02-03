@@ -21,7 +21,7 @@ pub trait SendDeferrable<'a> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendDeferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -55,7 +55,7 @@ pub trait SendDeferrable<'a> {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(SendDeferrable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

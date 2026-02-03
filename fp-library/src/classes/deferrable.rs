@@ -21,7 +21,7 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -55,7 +55,7 @@ pub trait Deferrable<'a> {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Deferrable)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

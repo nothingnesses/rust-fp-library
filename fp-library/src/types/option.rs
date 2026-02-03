@@ -28,7 +28,7 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -74,7 +74,7 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -126,7 +126,7 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -164,7 +164,7 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -211,7 +211,7 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -258,7 +258,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -308,7 +308,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -362,7 +362,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -414,7 +414,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -466,7 +466,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -515,7 +515,7 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -567,7 +567,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -606,7 +606,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -655,7 +655,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -709,7 +709,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -765,7 +765,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -810,7 +810,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -856,7 +856,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -922,7 +922,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

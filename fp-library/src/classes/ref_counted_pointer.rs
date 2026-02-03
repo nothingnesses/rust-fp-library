@@ -129,7 +129,7 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Signature
 ///
-#[hm_signature(RefCountedPointer)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

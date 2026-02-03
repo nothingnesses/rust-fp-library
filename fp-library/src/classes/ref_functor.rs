@@ -27,7 +27,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(RefFunctor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -75,7 +75,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(RefFunctor)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///

@@ -53,7 +53,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Category)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -164,7 +164,7 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Parameters
 	///
@@ -204,7 +204,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Returns
 	///

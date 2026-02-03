@@ -212,7 +212,7 @@ impl Functor for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -259,7 +259,7 @@ impl Lift for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -317,7 +317,7 @@ impl Pointed for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -355,7 +355,7 @@ impl Semiapplicative for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -401,7 +401,7 @@ impl Semimonad for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -448,7 +448,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -494,7 +494,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -544,7 +544,7 @@ impl Foldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -595,7 +595,7 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -648,7 +648,7 @@ impl Traversable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -697,7 +697,7 @@ impl ParFoldable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -755,7 +755,7 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -794,7 +794,7 @@ impl Compactable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -849,7 +849,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -908,7 +908,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -966,7 +966,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1011,7 +1011,7 @@ impl Filterable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1057,7 +1057,7 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1127,7 +1127,7 @@ impl Witherable for CatListBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1191,7 +1191,7 @@ impl<A> Semigroup for CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1231,7 +1231,7 @@ impl<A> Monoid for CatList<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

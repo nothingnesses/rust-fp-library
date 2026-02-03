@@ -533,7 +533,7 @@ impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

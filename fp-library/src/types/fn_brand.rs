@@ -29,7 +29,7 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Function)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -68,7 +68,7 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(CloneableFn)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -105,7 +105,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroupoid)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -152,7 +152,7 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Category)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -184,7 +184,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

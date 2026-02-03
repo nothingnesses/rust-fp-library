@@ -119,7 +119,7 @@ impl Functor for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -163,7 +163,7 @@ impl Lift for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Lift)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -215,7 +215,7 @@ impl Pointed for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Pointed)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -252,7 +252,7 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semiapplicative)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -297,7 +297,7 @@ impl Semimonad for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semimonad)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -345,7 +345,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -390,7 +390,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -439,7 +439,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Foldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -489,7 +489,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -550,7 +550,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -607,7 +607,7 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Semigroup)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -643,7 +643,7 @@ impl<A: Clone> Monoid for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Monoid)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -674,7 +674,7 @@ impl ParFoldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -733,7 +733,7 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -772,7 +772,7 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Compactable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -825,7 +825,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -881,7 +881,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -930,7 +930,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -975,7 +975,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Filterable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1021,7 +1021,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -1087,7 +1087,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Witherable)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///

@@ -460,7 +460,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// ```ignore
 /// // Invocation
 /// trait Functor {
-///     #[hm_signature(Functor)]
+///     #[hm_signature]
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
 ///

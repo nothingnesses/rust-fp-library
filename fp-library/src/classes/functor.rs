@@ -32,7 +32,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Functor)]
+	#[hm_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -77,7 +77,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Functor)]
+#[hm_signature]
 ///
 /// ### Type Parameters
 ///
