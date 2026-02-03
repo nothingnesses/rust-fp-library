@@ -17,9 +17,10 @@ use crate::{
 		Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible, UnsizedCoercible,
 	},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{doc_params, doc_type_params, document_impl};
 use std::sync::Arc;
 
+#[document_impl]
 impl Pointer for ArcBrand {
 	type Of<T: ?Sized> = Arc<T>;
 
@@ -54,6 +55,7 @@ impl Pointer for ArcBrand {
 	}
 }
 
+#[document_impl]
 impl RefCountedPointer for ArcBrand {
 	type CloneableOf<T: ?Sized> = Arc<T>;
 
@@ -118,6 +120,7 @@ impl RefCountedPointer for ArcBrand {
 	}
 }
 
+#[document_impl]
 impl SendRefCountedPointer for ArcBrand {
 	type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
 
@@ -152,6 +155,7 @@ impl SendRefCountedPointer for ArcBrand {
 	}
 }
 
+#[document_impl]
 impl UnsizedCoercible for ArcBrand {
 	/// Coerces a sized closure to a `dyn Fn` wrapped in an `Arc`.
 	///
@@ -188,6 +192,7 @@ impl UnsizedCoercible for ArcBrand {
 	}
 }
 
+#[document_impl]
 impl SendUnsizedCoercible for ArcBrand {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync` wrapped in an `Arc`.
 	///

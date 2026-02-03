@@ -205,6 +205,7 @@ impl CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Functor for CatListBrand {
 	/// Maps a function over the list.
 	///
@@ -252,6 +253,7 @@ impl Functor for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Lift for CatListBrand {
 	/// Lifts a binary function into the list context (Cartesian product).
 	///
@@ -310,6 +312,7 @@ impl Lift for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Pointed for CatListBrand {
 	/// Wraps a value in a list.
 	///
@@ -348,6 +351,7 @@ impl Pointed for CatListBrand {
 impl ApplyFirst for CatListBrand {}
 impl ApplySecond for CatListBrand {}
 
+#[document_impl]
 impl Semiapplicative for CatListBrand {
 	/// Applies wrapped functions to wrapped values (Cartesian product).
 	///
@@ -394,6 +398,7 @@ impl Semiapplicative for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Semimonad for CatListBrand {
 	/// Chains list computations (`flat_map`).
 	///
@@ -441,6 +446,7 @@ impl Semimonad for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Foldable for CatListBrand {
 	/// Folds the list from the right.
 	///
@@ -588,6 +594,7 @@ impl Foldable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Traversable for CatListBrand {
 	/// Traverses the list with an applicative function.
 	///
@@ -688,6 +695,7 @@ impl Traversable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl ParFoldable for CatListBrand {
 	/// Maps values to a monoid and combines them in parallel.
 	///
@@ -748,6 +756,7 @@ impl ParFoldable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Compactable for CatListBrand {
 	/// Compacts a list of options.
 	///
@@ -842,6 +851,7 @@ impl Compactable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Filterable for CatListBrand {
 	/// Partitions a list based on a function that returns a result.
 	///
@@ -1185,6 +1195,7 @@ impl Witherable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl<A> Semigroup for CatList<A> {
 	/// Appends one list to another.
 	///
@@ -1225,6 +1236,7 @@ impl<A> Semigroup for CatList<A> {
 	}
 }
 
+#[document_impl]
 impl<A> Monoid for CatList<A> {
 	/// Returns an empty list.
 	///
