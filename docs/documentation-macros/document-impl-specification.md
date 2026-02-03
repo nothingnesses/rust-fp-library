@@ -69,19 +69,23 @@ impl<T> ...
 - By performing the expansion directly, `document_impl` can construct a "synthetic" function signature in memory that merges the `impl` generics with the method generics.
 - This synthetic signature is then passed to the shared core logic of `hm_signature`, guaranteeing that the generated string includes all constraints (e.g., `impl` bounds).
 
-### 2. Shared Core Logic
+> **Note on Shadowing**: Rust forbids shadowing generic parameters within the same item (error `E0403`). Therefore, the implementation does not need to handle name collisions between `impl` and method generics during the merge process.
 
-**Decision**: Refactor [`hm_signature`](../../fp-macros/src/hm_signature.rs) and [`doc_type_params`](../../fp-macros/src/doc_type_params.rs) to expose their core logic as reusable functions (e.g., in [`function_utils.rs`](../../fp-macros/src/function_utils.rs) and [`doc_utils.rs`](../../fp-macros/src/doc_utils.rs)).
+### 2. Shared Core Logic and Simplification
+
+**Decision**:
+- Refactor [`hm_signature`](../../fp-macros/src/hm_signature.rs) and [`doc_type_params`](../../fp-macros/src/doc_type_params.rs) to expose their core logic as reusable functions.
+- Modify `hm_signature` to **no longer accept** a trait name argument.
 
 **Rationale**:
 
-- Avoids code duplication.
-- Ensures consistency between standalone macros and the `document_impl` macro.
-- Allows `document_impl` to "act like" `hm_signature` without the limitations of the attribute interface.
+- **Reuse**: Avoids code duplication and ensures consistency.
+- **Simplification**: Since all HKT trait impls must use `document_impl` (which infers the trait name), the manual argument is obsolete. Standalone usage remains supported (without arguments).
+- **Fallback**: If used on a trait method without `document_impl`, it gracefully falls back to a signature without the trait constraint.
 
 ### 3. Positional Syntax for Documentation
 
-**Decision**: Maintain the existing **Positional Syntax** for `doc_type_params`.
+**Decision**: Maintain the existing **Positional Syntax** for `doc_type_params`. **Mandatory documentation** is enforced.
 
 **Syntax Rules**:
 
@@ -90,11 +94,16 @@ impl<T> ...
 - `"Description"`: Use the generic's actual name for display.
 - `("OverrideName", "Description")`: Use the override name for display.
 
+**Constraints**:
+
+- **No Skipping**: Documentation is mandatory for all generic parameters. Empty descriptions or skipping parameters is not supported.
+
 **Rationale**:
 
 - **Consistency**: Matches existing `doc_type_params` usage throughout the codebase.
 - **Simplicity**: Standard Rust literals/tuples are easy to parse and read.
 - **Explicit**: Unambiguous separation between data (description) and metadata (display name).
+- **Completeness**: Enforces full documentation coverage for the library.
 
 ### 4. Documentation Ordering and Opt-in
 
