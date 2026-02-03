@@ -42,13 +42,17 @@ A new module-level procedural macro, `#[document_module]`, that:
 The macro aggregates these findings into a module-wide configuration.
 
 **Generics Handling**:
-The extraction logic must use **Name-Based Substitution** to map generic parameters correctly.
+The extraction logic must use **Positional Mapping** to map generic parameters correctly.
 
-- LHS: `type Of<A, B>` -> Params: `[A, B]`
-- RHS: `Result<A, B>`
-- Mapping: `Of<$0, $1> = Result<$0, $1>`
+- **Parse Definition**: `type Of<A, B>` -> Parameters `[A, B]` (Indices: A=0, B=1).
+- **Parse Target**: `Result<B, A>`.
+- **Build Map**: Map usage based on indices. Target becomes `Result<$1, $0>`.
+- **Apply**: When encountering `Self::Of<X, Y>`, substitute `X` (index 0) and `Y` (index 1) into the target structure -> `Result<Y, X>`.
 
-This ensures that parameter swapping (e.g., `type Of<A, B> = Result<B, A>`) or duplication is handled correctly.
+This ensures that parameter swapping (e.g., `type Of<A, B> = Result<B, A>`), duplication, or omission is handled correctly.
+
+**Where Clause Handling**:
+The extraction logic must robustly parse `where` clauses on associated types (e.g., `type Of<A> = Foo<A> where A: Clone;`) but **ignore** them for the purpose of building the projection map. The `where` clause is relevant for code validity but not for the structural mapping required for documentation.
 
 **Cfg Handling**:
 The macro should **ignore** `cfg` attributes during extraction (i.e., extract everything). This ensures that documentation is complete regardless of the compiler's active feature flags, preventing broken links or missing docs for optional features.
@@ -73,12 +77,23 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - Resolve `Self` usage:
   - **Path/Projected** (`Self::Assoc`): Map using the Context Extraction table (e.g., `Self::SendOf` -> `Arc`).
   - **Bare** (`self`, `Self`): Map using the Hierarchical Default (e.g., `self` -> `Box`).
-    - **Note**: For `impl` blocks on Brands (e.g., `impl Kind for VecBrand`), `Self` maps to the concrete type constructor (e.g., `Vec`). For `impl` blocks on concrete types (e.g., `impl<A> Vec<A>`), `Self` is already concrete and generics are preserved.
+    - **Brand Impls**: For `impl` blocks on Brands (e.g., `impl Kind for VecBrand`), the macro must **actively substitute** the `Self` type (which is `VecBrand`) with the concrete type constructor (e.g., `Vec`) found in the mapping. This ensures documentation shows `Vec<A>` instead of `VecBrand`.
+    - **Concrete Impls**: For `impl` blocks on concrete types (e.g., `impl<A> Vec<A>`), `Self` is already concrete and is used as-is.
 - Generate HM signatures and parameter docs respecting these resolutions.
 
 ## Design Decisions
 
-### 1. Syntax: `#[doc_primary]`
+### 1. Update `impl_kind!` Parser
+
+**Decision**: Modify the `impl_kind!` macro parser to accept and parse attributes (like `#[doc_primary]`) on associated type definitions.
+
+**Rationale**:
+
+- **Enabling Configuration**: The current `impl_kind!` parser does not support attributes on associated types. To support "Module Default" configuration via `#[doc_primary]` inside `impl_kind!`, the parser must be updated.
+- **Standard Compliance**: This aligns `impl_kind!` syntax closer to standard Rust `impl` blocks, where attributes on associated types are valid.
+- **Implementation**: The macro will parse these attributes to make them available for `document_module` extraction, but will strip them from the generated output to avoid "unused attribute" warnings.
+
+### 2. Syntax: `#[doc_primary]`
 
 **Decision**: Use `#[doc_primary = "Name"]` (attribute with value) or `#[doc_primary]` (marker) to control defaults.
 
@@ -91,7 +106,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - **Clarity**: Explicitly naming the associated type (`AssocName`) ensures that the override points to a valid, defined type mapping, rather than an arbitrary string, preventing typo-induced errors.
 - **Granularity**: Allowing overrides at both the `impl` block and method level handles edge cases where different methods on the same Brand conceptually operate on different concrete representations (e.g., `Box` vs `Rc` contexts).
 
-### 2. Macro Type: Attribute Macro
+### 3. Macro Type: Attribute Macro
 
 **Decision**: `#[proc_macro_attribute]` applied to the module (`mod` item).
 
@@ -100,7 +115,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - **Full Visibility**: Attribute macros on modules receive the entire module content (including `impl_kind!`, `impl` blocks, and manual trait impls) as a single token stream. This allows a single-pass extraction of context before processing items, which is impossible with per-item macros.
 - **Zero Boilerplate**: Users only need to add one line (`#![document_module]`) per file, achieving the primary goal of reducing annotation noise.
 
-### 3. Logic Reuse & Deprecation
+### 4. Logic Reuse & Deprecation
 
 **Decision**: Refactor `fp-macros/src/document_impl.rs` and `hm_signature.rs` to accept a rich `Config` object containing the projection map and defaults. **Remove** the standalone `#[document_impl]` macro.
 
@@ -109,7 +124,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - **Maintainability**: The core logic for generating HM signatures (analyzing generics, formatting bounds) is complex. Duplicating it for the new macro would lead to bugs and drift.
 - **Simplification**: The `#[document_module]` macro subsumes the functionality of `#[document_impl]`. Removing the standalone macro simplifies the codebase and removes the need to maintain `Cargo.toml` configuration.
 
-### 4. Impl-Scanning Strategy
+### 5. Impl-Scanning Strategy
 
 **Decision**: Extract associated type mappings from _any_ top-level `impl` block in the module, not just `impl_kind!`. The macro will **not** recursively scan inside function bodies or nested modules.
 
@@ -119,7 +134,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - **Zero Config**: It allows the system to work "out of the box" for manual implementations without requiring a parallel "declaration" macro just for documentation metadata.
 - **Completeness**: It captures all associated types (`CloneableOf`, `SendOf`) defined in standard Rust `impl` blocks, ensuring the "Full Projection" map is complete.
 
-### 5. Attribute Placement
+### 6. Attribute Placement
 
 **Decision**: Enforce usage as an **inner attribute** (`#![document_module]`) at the top of the file.
 
@@ -127,7 +142,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 - **Access to Content**: Inner attributes guarantee that the macro receives the file's content as its input. Outer attributes on `mod foo;` declarations might not have access to the content if it resides in a separate file (unless explicitly loaded, which is complex and non-standard for proc macros).
 
-### 6. Macro Expansion Order
+### 7. Macro Expansion Order
 
 **Decision**: Explicitly document that the macro **cannot** see `impl` blocks generated by other macros (except `impl_kind!`).
 
@@ -136,7 +151,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - **Technical Limitation**: Attribute macros run before the expansion of macros inside them. `document_module` will see the macro invocation (e.g., `my_macro! { ... }`), not the generated code.
 - **User Action**: Users must manually annotate macro-generated `impl` blocks if they exist, or the generating macro must be updated to support documentation generation directly.
 
-### 7. Coupling to `impl_kind!`
+### 8. Coupling to `impl_kind!`
 
 **Decision**: Share the parsing logic (the `ImplKindInput` struct in `fp-macros/src/impl_kind.rs`) between both macros.
 
@@ -144,7 +159,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 - **Maintenance**: `document_module` must parse `impl_kind!` to extract context. Sharing the parser ensures that if `impl_kind!` syntax changes, `document_module` stays in sync automatically, preventing breakage.
 
-### 8. Error Handling Strategy
+### 9. Error Handling Strategy
 
 **Decision**: Use **Hard Errors** (compile errors) for any resolution failures or configuration ambiguities.
 
@@ -158,7 +173,10 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 The `#[document_module]` macro can only inspect the tokens within the module it is applied to. If a Brand is defined (via `impl_kind!`) in one module but implemented (via `impl`) in another, applying `#[document_module]` to the implementation module will fail to resolve the Brand mappings because it cannot see the definition.
 
-**Mitigation**: Enforce the co-location rule strictly. If the macro encounters a Brand that it cannot resolve (because the definition is in another module), it will emit a helpful compile-time error instructing the user to co-locate the definition or ensure a local `impl` block defines the mapping.
+**Mitigation**: Enforce the co-location rule strictly. If the macro encounters a Brand that it cannot resolve (because the definition is in another module), it will:
+
+1.  **Check for Manual Overrides**: Look for `#[doc_primary = "..."]` on the `impl` block.
+2.  **Fallback Error**: If no mapping and no override are found, emit a compile-time error instructing the user to co-locate the definition or ensure a local `impl` block defines the mapping.
 
 ### 2. Macro Expansion Order
 
@@ -168,12 +186,13 @@ Attribute macros run before the expansion of macros inside them. `#[document_mod
 
 ## Implementation Plan
 
-1.  **Refactor Config**: Update `Config` struct to support associated type mappings and defaults.
-2.  **Refactor Core Logic**: Update `document_impl` and `hm_signature` to use the new Config for resolution (Projection vs Default).
-3.  **Implement `document_module`**:
+1.  **Refactor `impl_kind!` Parser**: Update `fp-macros/src/impl_kind.rs` to parse attributes on associated type definitions.
+2.  **Refactor Config**: Update `Config` struct to support associated type mappings (using positional mapping) and defaults.
+3.  **Refactor Core Logic**: Update `document_impl` and `hm_signature` to use the new Config for resolution (Projection vs Default) and explicit `Self` substitution.
+4.  **Implement `document_module`**:
     - Parse `impl_kind!` and scan `impl` blocks to build the Config.
     - Traverse module items.
     - For each `impl`, check attributes for overrides.
     - For each method, check attributes for overrides.
     - Invoke generation logic.
-4.  **Update `lib.rs`**: Export `document_module`.
+5.  **Update `lib.rs`**: Export `document_module`.
