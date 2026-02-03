@@ -62,11 +62,11 @@ impl HMType {
 			HMType::List(inner) => write!(f, "[{}]", inner)?,
 			HMType::Reference(inner) => {
 				write!(f, "&")?;
-				inner.fmt_with_precedence(f, 3)?;
+				inner.fmt_with_precedence(f, 2)?;
 			}
 			HMType::MutableReference(inner) => {
 				write!(f, "&mut ")?;
-				inner.fmt_with_precedence(f, 3)?;
+				inner.fmt_with_precedence(f, 2)?;
 			}
 			HMType::Tuple(args) => {
 				write!(f, "(")?;

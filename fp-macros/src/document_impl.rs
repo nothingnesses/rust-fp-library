@@ -62,11 +62,8 @@ fn process_document_impl(
 	input: &DocumentImplInput,
 	item_impl: &mut ItemImpl,
 ) -> Result<()> {
-	let trait_path = match &item_impl.trait_ {
-		Some((_, path, _)) => path,
-		None => return Ok(()), // Only works on trait impls
-	};
-	let trait_name = trait_path.segments.last().unwrap().ident.to_string();
+	let trait_path = item_impl.trait_.as_ref().map(|(_, path, _)| path);
+	let trait_name = trait_path.map(|p| p.segments.last().unwrap().ident.to_string());
 	let self_ty = &*item_impl.self_ty;
 
 	let config = load_config();
@@ -86,11 +83,14 @@ fn process_document_impl(
 				// Merge generics
 				merge_generics(&mut synthetic_sig, &item_impl.generics);
 
-				// Add trait bound: SelfTy: Trait
-				let where_clause = synthetic_sig.generics.make_where_clause();
-				where_clause.predicates.push(parse_quote!(#self_ty: #trait_path));
+				// Add trait bound: SelfTy: Trait (only if it's a trait impl)
+				if let Some(trait_path) = trait_path {
+					let where_clause = synthetic_sig.generics.make_where_clause();
+					where_clause.predicates.push(parse_quote!(#self_ty: #trait_path));
+				}
 
-				let signature_data = generate_signature(&synthetic_sig, Some(&trait_name), &config);
+				let signature_data =
+					generate_signature(&synthetic_sig, trait_name.as_deref(), &config);
 				let doc_comment = format!("`{}`", signature_data);
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 				method.attrs.insert(attr_pos, doc_attr);
@@ -234,12 +234,33 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 				if let Some(reference) = &r.reference {
 					let lt = &reference.1;
 					if r.mutability.is_some() {
-						*input = parse_quote!(#(#attrs)* self: &#lt mut #self_ty);
+						let pat: syn::Pat = parse_quote!(self);
+						let ty: syn::Type = parse_quote!(&#lt mut #self_ty);
+						*input = syn::FnArg::Typed(syn::PatType {
+							attrs: attrs.clone(),
+							pat: Box::new(pat),
+							colon_token: Default::default(),
+							ty: Box::new(ty),
+						});
 					} else {
-						*input = parse_quote!(#(#attrs)* self: &#lt #self_ty);
+						let pat: syn::Pat = parse_quote!(self);
+						let ty: syn::Type = parse_quote!(&#lt #self_ty);
+						*input = syn::FnArg::Typed(syn::PatType {
+							attrs: attrs.clone(),
+							pat: Box::new(pat),
+							colon_token: Default::default(),
+							ty: Box::new(ty),
+						});
 					}
 				} else {
-					*input = parse_quote!(#(#attrs)* self: #self_ty);
+					let pat: syn::Pat = parse_quote!(self);
+					let ty: syn::Type = parse_quote!(#self_ty);
+					*input = syn::FnArg::Typed(syn::PatType {
+						attrs: attrs.clone(),
+						pat: Box::new(pat),
+						colon_token: Default::default(),
+						ty: Box::new(ty),
+					});
 				}
 			}
 		}
@@ -431,5 +452,31 @@ mod tests {
 			fn foo(x: Apply!(<MyBrand as Kind!(type Of<T>;)>::Of<T>))
 		);
 		assert_eq!(quote!(#sig).to_string(), quote!(#expected).to_string());
+	}
+
+	/// Tests that `document_impl` works on inherent impls (impl Type {}), not just trait impls.
+	/// - Verifies that `self` is correctly substituted with the concrete type.
+	/// - Verifies that no trait bound is added.
+	#[test]
+	fn test_inherent_impl_expansion() {
+		let attr = quote! {};
+		let item = quote! {
+			impl<A> CatList<A> {
+				#[hm_signature]
+				fn is_empty(&self) -> bool { true }
+			}
+		};
+
+		let output = document_impl_impl(attr, item);
+		let item_impl: ItemImpl = syn::parse2(output).unwrap();
+
+		let method = match &item_impl.items[0] {
+			ImplItem::Fn(m) => m,
+			_ => panic!("Expected method"),
+		};
+
+		let doc = get_doc(&method.attrs[0]);
+		// Expected: forall a. &CatList a -> bool
+		assert_eq!(doc, "`forall a. &CatList a -> bool`");
 	}
 }
