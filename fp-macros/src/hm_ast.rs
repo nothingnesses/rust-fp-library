@@ -7,6 +7,8 @@ pub enum HMType {
 	Arrow(Box<HMType>, Box<HMType>),
 	Tuple(Vec<HMType>),
 	List(Box<HMType>), // For [T]
+	Reference(Box<HMType>),
+	MutableReference(Box<HMType>),
 	Unit,
 }
 
@@ -23,7 +25,12 @@ impl HMType {
 	fn precedence(&self) -> u8 {
 		match self {
 			// Atoms: always safe
-			HMType::Variable(_) | HMType::Unit | HMType::List(_) | HMType::Tuple(_) => 3,
+			HMType::Variable(_)
+			| HMType::Unit
+			| HMType::List(_)
+			| HMType::Tuple(_)
+			| HMType::Reference(_)
+			| HMType::MutableReference(_) => 3,
 			// Application: binds tight
 			HMType::Constructor(_, args) => {
 				if args.is_empty() {
@@ -53,6 +60,14 @@ impl HMType {
 			HMType::Variable(name) => write!(f, "{}", name)?,
 			HMType::Unit => write!(f, "()")?,
 			HMType::List(inner) => write!(f, "[{}]", inner)?,
+			HMType::Reference(inner) => {
+				write!(f, "&")?;
+				inner.fmt_with_precedence(f, 3)?;
+			}
+			HMType::MutableReference(inner) => {
+				write!(f, "&mut ")?;
+				inner.fmt_with_precedence(f, 3)?;
+			}
 			HMType::Tuple(args) => {
 				write!(f, "(")?;
 				for (i, arg) in args.iter().enumerate() {

@@ -466,7 +466,12 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		&mut self,
 		type_ref: &syn::TypeReference,
 	) -> Self::Output {
-		self.visit(&type_ref.elem)
+		let inner = self.visit(&type_ref.elem);
+		if type_ref.mutability.is_some() {
+			HMType::MutableReference(Box::new(inner))
+		} else {
+			HMType::Reference(Box::new(inner))
+		}
 	}
 
 	fn visit_impl_trait(

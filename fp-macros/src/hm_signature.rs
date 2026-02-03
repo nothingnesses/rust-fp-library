@@ -124,6 +124,8 @@ fn hm_type_uses_self(ty: &HMType) -> bool {
 		HMType::Arrow(a, b) => hm_type_uses_self(a) || hm_type_uses_self(b),
 		HMType::Tuple(args) => args.iter().any(hm_type_uses_self),
 		HMType::List(inner) => hm_type_uses_self(inner),
+		HMType::Reference(inner) => hm_type_uses_self(inner),
+		HMType::MutableReference(inner) => hm_type_uses_self(inner),
 		HMType::Unit => false,
 	}
 }
@@ -207,10 +209,24 @@ fn format_parameters(
 ) -> Vec<HMType> {
 	let mut params = Vec::new();
 	for input in &sig.inputs {
-		if let syn::FnArg::Typed(pat_type) = input
-			&& !is_phantom_data(&pat_type.ty)
-		{
-			params.push(type_to_hm(&pat_type.ty, fn_bounds, generic_names, config));
+		match input {
+			syn::FnArg::Receiver(receiver) => {
+				let self_ty = HMType::Variable("self".to_string());
+				if receiver.reference.is_some() {
+					if receiver.mutability.is_some() {
+						params.push(HMType::MutableReference(Box::new(self_ty)));
+					} else {
+						params.push(HMType::Reference(Box::new(self_ty)));
+					}
+				} else {
+					params.push(self_ty);
+				}
+			}
+			syn::FnArg::Typed(pat_type) => {
+				if !is_phantom_data(&pat_type.ty) {
+					params.push(type_to_hm(&pat_type.ty, fn_bounds, generic_names, config));
+				}
+			}
 		}
 	}
 	params
@@ -391,7 +407,7 @@ mod tests {
 			fn foo(x: [i32; 5], y: &[String]) -> &[u32] { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "([i32], [String]) -> [u32]");
+		assert_eq!(sig, "([i32], &[String]) -> &[u32]");
 	}
 
 	#[test]
@@ -400,7 +416,7 @@ mod tests {
 			fn foo(x: &dyn Fn(i32) -> i32, y: Box<dyn Iterator<Item = String>>) -> i32 { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "(i32 -> i32, Iterator String) -> i32");
+		assert_eq!(sig, "(&(i32 -> i32), Iterator String) -> i32");
 	}
 
 	#[test]
@@ -467,7 +483,7 @@ mod tests {
 			fn foo<'a, const N: usize, A: 'a>(x: &'a [A; N]) -> A { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. [a] -> a");
+		assert_eq!(sig, "forall a. &[a] -> a");
 	}
 
 	#[test]
@@ -522,5 +538,32 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
 		assert_eq!(sig, "forall a b c. ((a, b) -> c) -> (b, a) -> c");
+	}
+
+	#[test]
+	fn test_self_receiver_by_value() {
+		let input: ItemFn = parse_quote! {
+			fn is_empty(self) -> bool { true }
+		};
+		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
+		assert_eq!(sig, "forall self. self -> bool");
+	}
+
+	#[test]
+	fn test_self_receiver_by_reference() {
+		let input: ItemFn = parse_quote! {
+			fn is_empty(&self) -> bool { true }
+		};
+		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
+		assert_eq!(sig, "forall self. &self -> bool");
+	}
+
+	#[test]
+	fn test_self_receiver_by_mutable_reference() {
+		let input: ItemFn = parse_quote! {
+			fn is_empty(&mut self) -> bool { true }
+		};
+		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
+		assert_eq!(sig, "forall self. &mut self -> bool");
 	}
 }

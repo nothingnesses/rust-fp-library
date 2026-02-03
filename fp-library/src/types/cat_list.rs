@@ -1267,6 +1267,7 @@ impl<A> Monoid for CatList<A> {
 	}
 }
 
+#[document_impl]
 impl<A> CatList<A> {
 	/// Creates an empty CatList.
 	///
