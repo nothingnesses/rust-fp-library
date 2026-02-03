@@ -33,6 +33,7 @@ pub mod trampoline;
 pub mod try_lazy;
 pub mod try_thunk;
 pub mod try_trampoline;
+pub mod tuple_1;
 pub mod tuple_2;
 pub mod vec;
 

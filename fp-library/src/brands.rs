@@ -136,6 +136,10 @@ pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
+/// Brand for `(A,)`, with A not filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple1Brand;
+
 /// Brand for `(First, Second)`, with neither `First` nor `Second` filled in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tuple2Brand;
