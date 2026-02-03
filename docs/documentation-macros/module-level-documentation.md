@@ -21,7 +21,7 @@ A new module-level procedural macro, `#[document_module]`, that:
 
 ### 1. Context Extraction (Full Projection & Impl-Scanning)
 
-**Requirement**: The macro must extract a comprehensive mapping of `(Brand, AssociatedType) -> ConcreteType` from two sources:
+**Requirement**: The macro must extract a comprehensive mapping of `(Brand, AssociatedType, Generics) -> TargetType` from two sources. This extra detail is required to perform correct parameter substitution during resolution (e.g., mapping `Self::Of<X, Y>` to `Result<X, Y>` requires knowing that `Of<A, B> = Result<A, B>`).
 
 1.  **`impl_kind!` Invocations**:
 
@@ -29,7 +29,7 @@ A new module-level procedural macro, `#[document_module]`, that:
     impl_kind! { for MyBrand { type Of<A> = Box<A>; } }
     ```
 
-    Extracts: `MyBrand::Of` -> `Box`.
+    Extracts: `MyBrand::Of<A>` -> `Box<A>`.
 
 2.  **Standard `impl` Blocks (Impl-Scanning)**:
     ```rust
@@ -37,7 +37,7 @@ A new module-level procedural macro, `#[document_module]`, that:
         type Of<T> = Arc<T>;
     }
     ```
-    Extracts: `ArcBrand::Of` -> `Arc`.
+    Extracts: `ArcBrand::Of<T>` -> `Arc<T>`.
 
 The macro aggregates these findings into a module-wide configuration.
 
@@ -49,7 +49,9 @@ The macro aggregates these findings into a module-wide configuration.
 2.  **Impl Block Override**: `#[doc_primary = "AssocName"]` on the `impl` block.
 3.  **Global Default**: `#[primary]` (or `#[doc_primary]`) on the associated type definition in `impl_kind!` (or `impl` block).
 4.  **Implicit Default**: The associated type named `Of`.
-5.  **Fallback**: The first associated type defined.
+5.  **Fallback**: Error or Refuse Resolution (Do not resolve `Self`).
+
+    **Rationale**: Relying on "the first associated type defined" is fragile, as source order can change during refactoring. If no explicit default is marked and no associated type is named `Of`, the macro should error or refuse to resolve `Self` (leaving it as is) rather than guessing. Silent defaults lead to confusing documentation.
 
 ### 3. Automatic Documentation Application
 
