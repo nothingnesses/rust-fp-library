@@ -32,9 +32,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::{doc_params, doc_type_params, hm_signature};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::{
