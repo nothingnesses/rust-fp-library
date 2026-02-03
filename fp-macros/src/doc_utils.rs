@@ -172,12 +172,8 @@ where
 
 	let entries: Vec<_> = args.entries.into_iter().collect();
 
-	if targets.len() != entries.len() {
-		return Error::new(
-			attr.span(),
-			format!("Expected {} description arguments, found {}.", targets.len(), entries.len()),
-		)
-		.to_compile_error();
+	if let Err(e) = validate_doc_args(targets.len(), entries.len(), attr.span()) {
+		return e.to_compile_error();
 	}
 
 	for (name_from_target, entry) in targets.iter().zip(entries) {
@@ -193,6 +189,20 @@ where
 	quote::quote! {
 		#generic_item
 	}
+}
+
+pub fn validate_doc_args(
+	expected: usize,
+	found: usize,
+	span: proc_macro2::Span,
+) -> Result<(), Error> {
+	if expected != found {
+		return Err(Error::new(
+			span,
+			format!("Expected {} description arguments, found {}.", expected, found),
+		));
+	}
+	Ok(())
 }
 
 pub fn insert_doc_comment(

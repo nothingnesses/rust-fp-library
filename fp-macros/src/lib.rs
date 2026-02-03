@@ -6,6 +6,7 @@ use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
 use doc_params::doc_params_impl;
 use doc_type_params::doc_type_params_impl;
+use document_impl::document_impl_impl;
 use generate::generate_name;
 use hm_signature::hm_signature_impl;
 use impl_kind::{ImplKindInput, impl_kind_impl};
@@ -21,6 +22,7 @@ pub(crate) mod def_kind;
 pub(crate) mod doc_params;
 pub(crate) mod doc_type_params;
 pub(crate) mod doc_utils;
+pub(crate) mod document_impl;
 pub(crate) mod function_utils;
 pub(crate) mod generate;
 pub(crate) mod hm_ast;
@@ -582,4 +584,46 @@ pub fn doc_params(
 	item: TokenStream,
 ) -> TokenStream {
 	doc_params_impl(attr.into(), item.into()).into()
+}
+
+/// Orchestrates documentation generation for an `impl` block.
+///
+/// This macro parses the full `impl` context (trait name, generics, bounds) and
+/// automatically generates accurate HM signatures and trait-level parameter documentation
+/// for all methods annotated with `#[hm_signature]` and `#[doc_type_params]`.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[document_impl(
+///     doc_type_params(
+///         "Description for first trait parameter",
+///         ("OverriddenName", "Description for second trait parameter"),
+///         ...
+///     )
+/// )]
+/// impl<T, ...> Trait for Type<T, ...> { ... }
+/// ```
+///
+/// ### Parameters
+///
+/// * `doc_type_params`: Documentation for the `impl` block's generic parameters.
+///   Follows the same syntax as `#[doc_type_params]`.
+///
+/// ### Behavior
+///
+/// For each method in the `impl` block:
+/// 1. If `#[hm_signature]` is present:
+///    - It is replaced with a generated HM signature.
+///    - The signature includes all bounds from the `impl` block and the trait constraint itself.
+///    - `Self` and `self` are correctly substituted with the concrete type and its reference/mutability modes.
+/// 2. If `#[doc_type_params]` is present:
+///    - Documentation for the `impl` parameters is inserted **before** it.
+///    - The existing `#[doc_type_params]` attribute is then expanded normally to document method-level parameters.
+#[proc_macro_attribute]
+pub fn document_impl(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	document_impl_impl(attr.into(), item.into()).into()
 }

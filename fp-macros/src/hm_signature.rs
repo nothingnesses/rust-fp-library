@@ -29,10 +29,14 @@ pub fn hm_signature_impl(
 		}
 	};
 
-	let trait_name = if attr.is_empty() { None } else { Some(attr.to_string()) };
+	// Note: trait_name argument is now ignored as per specification,
+	// but we keep the parameter for backward compatibility during transition if needed.
+	// Actually, the spec says "Modify hm_signature to no longer accept a trait name argument."
+	// But for the proc-macro entry point, we still get the attr TokenStream.
+	let _ = attr;
 
 	let config = load_config();
-	let signature = generate_signature(sig, trait_name.as_deref(), &config);
+	let signature = generate_signature(sig, None, &config);
 	let doc_comment = format!("`{}`", signature);
 
 	insert_doc_comment(item.attrs(), doc_comment, proc_macro2::Span::call_site());
@@ -86,7 +90,7 @@ impl std::fmt::Display for SignatureData {
 	}
 }
 
-fn generate_signature(
+pub fn generate_signature(
 	sig: &syn::Signature,
 	trait_context: Option<&str>,
 	config: &Config,
