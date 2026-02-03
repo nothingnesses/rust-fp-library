@@ -37,7 +37,7 @@ impl<T: Clone> MyTrait for MyType<T> {
 }
 ```
 
-**Output Signature**: `forall t. Clone t => t -> t`
+**Output Signature**: `forall t. Clone t => MyType t -> MyType t`
 (Current behavior without this macro would represent `T` as unbounded).
 
 ### 3. Trait Parameter Documentation
@@ -150,7 +150,7 @@ impl<T> ...
       - Look for `#[hm_signature]` attribute.
       - If found:
         - Clone the method signature.
-        - **Substitute `Self`**: Recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type. Reference and mutability modifiers must be preserved (e.g., `&Self` becomes `&CatList A`, `&mut Self` becomes `&mut CatList A`). For the `self` receiver, convert it to a typed argument preserving its mode: `self` becomes `self: CatList A`, `&self` becomes `self: &CatList A`, and `&mut self` becomes `self: &mut CatList A`.
+        - **Substitute `Self`**: Use `syn::visit_mut::VisitMut` to recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type. Reference and mutability modifiers must be preserved (e.g., `&Self` becomes `&CatList A`, `&mut Self` becomes `&mut CatList A`). For the `self` receiver, convert it to a typed argument preserving its mode: `self` becomes `self: CatList A`, `&self` becomes `self: &CatList A`, and `&mut self` becomes `self: &mut CatList A`.
         - **Synthesize Trait Bound**: Create a bound `ConcreteType: Trait` and add it to the signature's `where` clause.
         - **Merge Generics**: Merge `impl` generic params into the cloned signature's params (ensuring lifetimes precede types). Append `impl` `where` predicates to the signature's `where` clause.
         - Call the shared `generate_signature` function (passing `None` for trait name).
