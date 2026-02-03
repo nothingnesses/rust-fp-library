@@ -136,6 +136,18 @@ pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
+/// Brand for `(First, Second)`, with neither `First` nor `Second` filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2Brand;
+
+/// Brand for `(First, Second)`, with `First` filled in (Functor over `Second`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2WithFirstBrand<First>(First);
+
+/// Brand for `(First, Second)`, with `Second` filled in (Functor over `First`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2WithSecondBrand<Second>(Second);
+
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VecBrand;

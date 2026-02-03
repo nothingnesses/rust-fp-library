@@ -14,7 +14,6 @@ use crate::{
 	Apply,
 	classes::{Applicative, Filterable, Traversable},
 	kinds::*,
-	types::Pair,
 };
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
@@ -46,8 +45,8 @@ pub trait Witherable: Filterable + Traversable {
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
-		"The type of the success values.",
 		"The type of the error values.",
+		"The type of the success values.",
 		"The type of the function to apply."
 	)]
 	///
@@ -69,24 +68,27 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// let x = Some(5);
 	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
-	/// assert_eq!(y, Some(Pair(Some(5), None)));
+	/// assert_eq!(y, Some((None, Some(5))));
 	/// ```
-	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
-		Pair<
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		(
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		>,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		),
 	>)
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	{
-		M::map(|res| Self::separate(res), Self::traverse::<A, Result<O, E>, M, Func>(func, ta))
+		M::map(
+			|res| Self::separate::<E, O>(res),
+			Self::traverse::<A, Result<O, E>, M, Func>(func, ta),
+		)
 	}
 
 	/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
@@ -158,8 +160,8 @@ pub trait Witherable: Filterable + Traversable {
 	"The brand of the witherable structure.",
 	"The applicative context.",
 	"The type of the elements in the input structure.",
-	"The type of the success values.",
 	"The type of the error values.",
+	"The type of the success values.",
 	"The type of the function to apply."
 )]
 ///
@@ -181,24 +183,24 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// let x = Some(5);
 /// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
-/// assert_eq!(y, Some(Pair(Some(5), None)));
+/// assert_eq!(y, Some((None, Some(5))));
 /// ```
-pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
+pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 	func: Func,
 	ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 	'a,
-	Pair<
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	(
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>,
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	),
 >)
 where
 	Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 {
-	F::wilt::<M, A, O, E, Func>(func, ta)
+	F::wilt::<M, A, E, O, Func>(func, ta)
 }
 
 /// Maps a function over a data structure and filters out [`None`] results in an applicative context.

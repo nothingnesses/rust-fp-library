@@ -1,10 +1,10 @@
-//! Two-value container with [`Bifunctor`] and dual [`Functor`] instances.
+//! Two-value tuple with [`Bifunctor`] and dual [`Functor`] instances.
 //!
-//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`PairWithFirstBrand`] or second value [`PairWithSecondBrand`].
+//! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`Tuple2WithFirstBrand`] or second value [`Tuple2WithSecondBrand`].
 
 use crate::{
 	Apply,
-	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
+	brands::{Tuple2Brand, Tuple2WithFirstBrand, Tuple2WithSecondBrand},
 	classes::{
 		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
 		Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad, SendCloneableFn,
@@ -15,46 +15,20 @@ use crate::{
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
-/// Wraps two values.
-///
-/// A simple tuple struct that holds two values of potentially different types.
-///
-/// ### Type Parameters
-///
-/// * `First`: The type of the first value.
-/// * `Second`: The type of the second value.
-///
-/// ### Fields
-///
-/// * `0`: The first value.
-/// * `1`: The second value.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::types::*;
-///
-/// let p = Pair(1, "hello");
-/// assert_eq!(p.0, 1);
-/// assert_eq!(p.1, "hello");
-/// ```
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Pair<First, Second>(pub First, pub Second);
-
 impl_kind! {
-	for PairBrand {
-		type Of<First, Second> = Pair<First, Second>;
+	for Tuple2Brand {
+		type Of<First, Second> = (First, Second);
 	}
 }
 
 impl_kind! {
-	for PairBrand {
-		type Of<'a, First: 'a, Second: 'a>: 'a = Pair<First, Second>;
+	for Tuple2Brand {
+		type Of<'a, First: 'a, Second: 'a>: 'a = (First, Second);
 	}
 }
 
-impl Bifunctor for PairBrand {
-	/// Maps functions over the values in the pair.
+impl Bifunctor for Tuple2Brand {
+	/// Maps functions over the values in the tuple.
 	///
 	/// This method applies one function to the first value and another to the second value.
 	///
@@ -79,20 +53,20 @@ impl Bifunctor for PairBrand {
 	#[doc_params(
 		"The function to apply to the first value.",
 		"The function to apply to the second value.",
-		"The pair to map over."
+		"The tuple to map over."
 	)]
 	///
 	/// ### Returns
 	///
-	/// A new pair containing the mapped values.
+	/// A new tuple containing the mapped values.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::bifunctor::*, functions::*, types::*};
+	/// use fp_library::{brands::*, classes::bifunctor::*, functions::*};
 	///
-	/// let x = Pair(1, 5);
-	/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+	/// let x = (1, 5);
+	/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
 	/// ```
 	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 		f: F,
@@ -103,23 +77,22 @@ impl Bifunctor for PairBrand {
 		F: Fn(A) -> B + 'a,
 		G: Fn(C) -> D + 'a,
 	{
-		let Pair(a, c) = p;
-		Pair(f(a), g(c))
+		(f(p.0), g(p.1))
 	}
 }
 
-// PairWithFirstBrand<First> (Functor over Second)
+// Tuple2WithFirstBrand<First> (Functor over Second)
 
 impl_kind! {
-	impl<First: 'static> for PairWithFirstBrand<First> {
-		type Of<'a, A: 'a>: 'a = Pair<First, A>;
+	impl<First: 'static> for Tuple2WithFirstBrand<First> {
+		type Of<'a, A: 'a>: 'a = (First, A);
 	}
 }
 
-impl<First: 'static> Functor for PairWithFirstBrand<First> {
-	/// Maps a function over the second value in the pair.
+impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
+	/// Maps a function over the second value in the tuple.
 	///
-	/// This method applies a function to the second value inside the pair, producing a new pair with the transformed second value. The first value remains unchanged.
+	/// This method applies a function to the second value inside the tuple, producing a new tuple with the transformed second value. The first value remains unchanged.
 	///
 	/// ### Type Signature
 	///
@@ -136,18 +109,18 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the second value.", "The pair to map over.")]
+	#[doc_params("The function to apply to the second value.", "The tuple to map over.")]
 	///
 	/// ### Returns
 	///
-	/// A new pair containing the result of applying the function to the second value.
+	/// A new tuple containing the result of applying the function to the second value.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(map::<PairWithFirstBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
+	/// assert_eq!(map::<Tuple2WithFirstBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 	/// ```
 	fn map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
@@ -156,17 +129,17 @@ impl<First: 'static> Functor for PairWithFirstBrand<First> {
 	where
 		Func: Fn(A) -> B + 'a,
 	{
-		Pair(fa.0, func(fa.1))
+		(fa.0, func(fa.1))
 	}
 }
 
-impl<First: Clone + 'static> Lift for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Lift for Tuple2WithFirstBrand<First>
 where
 	First: Semigroup,
 {
-	/// Lifts a binary function into the pair context (over second).
+	/// Lifts a binary function into the tuple context (over second).
 	///
-	/// This method lifts a binary function to operate on the second values within the pair context. The first values are combined using their `Semigroup` implementation.
+	/// This method lifts a binary function to operate on the second values within the tuple context. The first values are combined using their `Semigroup` implementation.
 	///
 	/// ### Type Signature
 	///
@@ -186,22 +159,22 @@ where
 	///
 	#[doc_params(
 		"The binary function to apply to the second values.",
-		"The first pair.",
-		"The second pair."
+		"The first tuple.",
+		"The second tuple."
 	)]
 	///
 	/// ### Returns
 	///
-	/// A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
+	/// A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     lift2::<PairWithFirstBrand<String>, _, _, _, _>(|x, y| x + y, Pair("a".to_string(), 1), Pair("b".to_string(), 2)),
-	///     Pair("ab".to_string(), 3)
+	///     lift2::<Tuple2WithFirstBrand<String>, _, _, _, _>(|x, y| x + y, ("a".to_string(), 1), ("b".to_string(), 2)),
+	///     ("ab".to_string(), 3)
 	/// );
 	/// ```
 	fn lift2<'a, A, B, C, Func>(
@@ -215,17 +188,17 @@ where
 		B: Clone + 'a,
 		C: 'a,
 	{
-		Pair(Semigroup::append(fa.0, fb.0), func(fa.1, fb.1))
+		(Semigroup::append(fa.0, fb.0), func(fa.1, fb.1))
 	}
 }
 
-impl<First: Clone + 'static> Pointed for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Pointed for Tuple2WithFirstBrand<First>
 where
 	First: Monoid,
 {
-	/// Wraps a value in a pair (with empty first).
+	/// Wraps a value in a tuple (with empty first).
 	///
-	/// This method wraps a value in a pair, using the `Monoid::empty()` value for the first element.
+	/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the first element.
 	///
 	/// ### Type Signature
 	///
@@ -241,30 +214,30 @@ where
 	///
 	/// ### Returns
 	///
-	/// A pair containing the empty value of the first type and `a`.
+	/// A tuple containing the empty value of the first type and `a`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(pure::<PairWithFirstBrand<String>, _>(5), Pair("".to_string(), 5));
+	/// assert_eq!(pure::<Tuple2WithFirstBrand<String>, _>(5), ("".to_string(), 5));
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		Pair(Monoid::empty(), a)
+		(Monoid::empty(), a)
 	}
 }
 
-impl<First: Clone + Semigroup + 'static> ApplyFirst for PairWithFirstBrand<First> {}
-impl<First: Clone + Semigroup + 'static> ApplySecond for PairWithFirstBrand<First> {}
+impl<First: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithFirstBrand<First> {}
+impl<First: Clone + Semigroup + 'static> ApplySecond for Tuple2WithFirstBrand<First> {}
 
-impl<First: Clone + 'static> Semiapplicative for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Semiapplicative for Tuple2WithFirstBrand<First>
 where
 	First: Semigroup,
 {
 	/// Applies a wrapped function to a wrapped value (over second).
 	///
-	/// This method applies a function wrapped in a pair to a value wrapped in a pair. The first values are combined using their `Semigroup` implementation.
+	/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The first values are combined using their `Semigroup` implementation.
 	///
 	/// ### Type Signature
 	///
@@ -281,33 +254,33 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The pair containing the function.", "The pair containing the value.")]
+	#[doc_params("The tuple containing the function.", "The tuple containing the value.")]
 	///
 	/// ### Returns
 	///
-	/// A new pair where the first values are combined and the function is applied to the second value.
+	/// A new tuple where the first values are combined and the function is applied to the second value.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = Pair("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(f, Pair("b".to_string(), 5)), Pair("ab".to_string(), 10));
+	/// let f = ("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+	/// assert_eq!(apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, ("b".to_string(), 5)), ("ab".to_string(), 10));
 	/// ```
 	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		Pair(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
+		(Semigroup::append(ff.0, fa.0), ff.1(fa.1))
 	}
 }
 
-impl<First: Clone + 'static> Semimonad for PairWithFirstBrand<First>
+impl<First: Clone + 'static> Semimonad for Tuple2WithFirstBrand<First>
 where
 	First: Semigroup,
 {
-	/// Chains pair computations (over second).
+	/// Chains tuple computations (over second).
 	///
 	/// This method chains two computations, where the second computation depends on the result of the first. The first values are combined using their `Semigroup` implementation.
 	///
@@ -326,20 +299,20 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first pair.", "The function to apply to the second value.")]
+	#[doc_params("The first tuple.", "The function to apply to the second value.")]
 	///
 	/// ### Returns
 	///
-	/// A new pair where the first values are combined.
+	/// A new tuple where the first values are combined.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     bind::<PairWithFirstBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair("b".to_string(), x * 2)),
-	///     Pair("ab".to_string(), 10)
+	///     bind::<Tuple2WithFirstBrand<String>, _, _, _>(("a".to_string(), 5), |x| ("b".to_string(), x * 2)),
+	///     ("ab".to_string(), 10)
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, Func>(
@@ -349,16 +322,16 @@ where
 	where
 		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		let Pair(first, second) = ma;
-		let Pair(next_first, next_second) = func(second);
-		Pair(Semigroup::append(first, next_first), next_second)
+		let (first, second) = ma;
+		let (next_first, next_second) = func(second);
+		(Semigroup::append(first, next_first), next_second)
 	}
 }
 
-impl<First: 'static> Foldable for PairWithFirstBrand<First> {
-	/// Folds the pair from the right (over second).
+impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
+	/// Folds the tuple from the right (over second).
 	///
-	/// This method performs a right-associative fold of the pair (over second).
+	/// This method performs a right-associative fold of the tuple (over second).
 	///
 	/// ### Type Signature
 	///
@@ -376,7 +349,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The pair to fold.")]
+	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -385,9 +358,9 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(fold_right::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair((), 5)), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, ((), 5)), 5);
 	/// ```
 	fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
@@ -401,9 +374,9 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 		func(fa.1, initial)
 	}
 
-	/// Folds the pair from the left (over second).
+	/// Folds the tuple from the left (over second).
 	///
-	/// This method performs a left-associative fold of the pair (over second).
+	/// This method performs a left-associative fold of the tuple (over second).
 	///
 	/// ### Type Signature
 	///
@@ -424,7 +397,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	#[doc_params(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
-		"The identity to fold."
+		"The tuple to fold."
 	)]
 	///
 	/// ### Returns
@@ -434,9 +407,9 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(fold_left::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair((), 5)), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, ((), 5)), 5);
 	/// ```
 	fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 		func: Func,
@@ -452,7 +425,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 
 	/// Maps the value to a monoid and returns it (over second).
 	///
-	/// This method maps the element of the pair to a monoid and then returns it (over second).
+	/// This method maps the element of the tuple to a monoid and then returns it (over second).
 	///
 	/// ### Type Signature
 	///
@@ -470,7 +443,7 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The pair to fold.")]
+	#[doc_params("The mapping function.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -479,10 +452,10 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     fold_map::<RcFnBrand, PairWithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair((), 5)),
+	///     fold_map::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), ((), 5)),
 	///     "5".to_string()
 	/// );
 	/// ```
@@ -499,10 +472,10 @@ impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 	}
 }
 
-impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
-	/// Traverses the pair with an applicative function (over second).
+impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
+	/// Traverses the tuple with an applicative function (over second).
 	///
-	/// This method maps the element of the pair to a computation, evaluates it, and combines the result into an applicative context (over second).
+	/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over second).
 	///
 	/// ### Type Signature
 	///
@@ -522,21 +495,21 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	#[doc_params(
 		"The function to apply to each element, returning a value in an applicative context.",
-		"The pair to traverse."
+		"The tuple to traverse."
 	)]
 	///
 	/// ### Returns
 	///
-	/// The pair wrapped in the applicative context.
+	/// The tuple wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     traverse::<PairWithFirstBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair((), 5)),
-	///     Some(Pair((), 10))
+	///     traverse::<Tuple2WithFirstBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), ((), 5)),
+	///     Some(((), 10))
 	/// );
 	/// ```
 	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -547,12 +520,12 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
-		let Pair(first, second) = ta;
-		F::map(move |b| Pair(first.clone(), b), func(second))
+		let (first, second) = ta;
+		F::map(move |b| (first.clone(), b), func(second))
 	}
-	/// Sequences a pair of applicative (over second).
+	/// Sequences a tuple of applicative (over second).
 	///
-	/// This method evaluates the computation inside the pair and accumulates the result into an applicative context (over second).
+	/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over second).
 	///
 	/// ### Type Signature
 	///
@@ -568,20 +541,20 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The pair containing the applicative value.")]
+	#[doc_params("The tuple containing the applicative value.")]
 	///
 	/// ### Returns
 	///
-	/// The pair wrapped in the applicative context.
+	/// The tuple wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     sequence::<PairWithFirstBrand<()>, _, OptionBrand>(Pair((), Some(5))),
-	///     Some(Pair((), 5))
+	///     sequence::<Tuple2WithFirstBrand<()>, _, OptionBrand>(((), Some(5))),
+	///     Some(((), 5))
 	/// );
 	/// ```
 	fn sequence<'a, A: 'a + Clone, F: Applicative>(
@@ -591,15 +564,15 @@ impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
-		let Pair(first, second) = ta;
-		F::map(move |a| Pair(first.clone(), a), second)
+		let (first, second) = ta;
+		F::map(move |a| (first.clone(), a), second)
 	}
 }
 
-impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
+impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	/// Maps the value to a monoid and returns it in parallel (over second).
 	///
-	/// This method maps the element of the pair to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
+	/// This method maps the element of the tuple to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
 	///
 	/// ### Type Signature
 	///
@@ -616,7 +589,7 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The pair to fold.")]
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -625,12 +598,12 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let x = Pair("a".to_string(), 1);
+	/// let x = ("a".to_string(), 1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(
-	///     par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, x),
+	///     par_fold_map::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, x),
 	///     "1".to_string()
 	/// );
 	/// ```
@@ -646,9 +619,9 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 		func(fa.1)
 	}
 
-	/// Folds the pair from the right in parallel (over second).
+	/// Folds the tuple from the right in parallel (over second).
 	///
-	/// This method folds the pair by applying a function from right to left, potentially in parallel (over second).
+	/// This method folds the tuple by applying a function from right to left, potentially in parallel (over second).
 	///
 	/// ### Type Signature
 	///
@@ -668,7 +641,7 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
-		"The pair to fold."
+		"The tuple to fold."
 	)]
 	///
 	/// ### Returns
@@ -678,11 +651,11 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let x = Pair("a".to_string(), 1);
+	/// let x = ("a".to_string(), 1);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
+	/// assert_eq!(par_fold_right::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, 10, x), 11);
 	/// ```
 	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
@@ -697,18 +670,19 @@ impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 		func((fa.1, initial))
 	}
 }
-// PairWithSecondBrand<Second> (Functor over First)
+
+// Tuple2WithSecondBrand<Second> (Functor over First)
 
 impl_kind! {
-	impl<Second: 'static> for PairWithSecondBrand<Second> {
-		type Of<'a, A: 'a>: 'a = Pair<A, Second>;
+	impl<Second: 'static> for Tuple2WithSecondBrand<Second> {
+		type Of<'a, A: 'a>: 'a = (A, Second);
 	}
 }
 
-impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
-	/// Maps a function over the first value in the pair.
+impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
+	/// Maps a function over the first value in the tuple.
 	///
-	/// This method applies a function to the first value inside the pair, producing a new pair with the transformed first value. The second value remains unchanged.
+	/// This method applies a function to the first value inside the tuple, producing a new tuple with the transformed first value. The second value remains unchanged.
 	///
 	/// ### Type Signature
 	///
@@ -725,18 +699,18 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the first value.", "The pair to map over.")]
+	#[doc_params("The function to apply to the first value.", "The tuple to map over.")]
 	///
 	/// ### Returns
 	///
-	/// A new pair containing the result of applying the function to the first value.
+	/// A new tuple containing the result of applying the function to the first value.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(map::<PairWithSecondBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
+	/// assert_eq!(map::<Tuple2WithSecondBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 	/// ```
 	fn map<'a, A: 'a, B: 'a, Func>(
 		func: Func,
@@ -745,17 +719,17 @@ impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 	where
 		Func: Fn(A) -> B + 'a,
 	{
-		Pair(func(fa.0), fa.1)
+		(func(fa.0), fa.1)
 	}
 }
 
-impl<Second: Clone + 'static> Lift for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Lift for Tuple2WithSecondBrand<Second>
 where
 	Second: Semigroup,
 {
-	/// Lifts a binary function into the pair context (over first).
+	/// Lifts a binary function into the tuple context (over first).
 	///
-	/// This method lifts a binary function to operate on the first values within the pair context. The second values are combined using their `Semigroup` implementation.
+	/// This method lifts a binary function to operate on the first values within the tuple context. The second values are combined using their `Semigroup` implementation.
 	///
 	/// ### Type Signature
 	///
@@ -775,22 +749,22 @@ where
 	///
 	#[doc_params(
 		"The binary function to apply to the first values.",
-		"The first pair.",
-		"The second pair."
+		"The first tuple.",
+		"The second tuple."
 	)]
 	///
 	/// ### Returns
 	///
-	/// A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
+	/// A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     lift2::<PairWithSecondBrand<String>, _, _, _, _>(|x, y| x + y, Pair(1, "a".to_string()), Pair(2, "b".to_string())),
-	///     Pair(3, "ab".to_string())
+	///     lift2::<Tuple2WithSecondBrand<String>, _, _, _, _>(|x, y| x + y, (1, "a".to_string()), (2, "b".to_string())),
+	///     (3, "ab".to_string())
 	/// );
 	/// ```
 	fn lift2<'a, A, B, C, Func>(
@@ -804,17 +778,17 @@ where
 		B: Clone + 'a,
 		C: 'a,
 	{
-		Pair(func(fa.0, fb.0), Semigroup::append(fa.1, fb.1))
+		(func(fa.0, fb.0), Semigroup::append(fa.1, fb.1))
 	}
 }
 
-impl<Second: Clone + 'static> Pointed for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Pointed for Tuple2WithSecondBrand<Second>
 where
 	Second: Monoid,
 {
-	/// Wraps a value in a pair (with empty second).
+	/// Wraps a value in a tuple (with empty second).
 	///
-	/// This method wraps a value in a pair, using the `Monoid::empty()` value for the second element.
+	/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the second element.
 	///
 	/// ### Type Signature
 	///
@@ -830,30 +804,30 @@ where
 	///
 	/// ### Returns
 	///
-	/// A pair containing `a` and the empty value of the second type.
+	/// A tuple containing `a` and the empty value of the second type.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(pure::<PairWithSecondBrand<String>, _>(5), Pair(5, "".to_string()));
+	/// assert_eq!(pure::<Tuple2WithSecondBrand<String>, _>(5), (5, "".to_string()));
 	/// ```
 	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		Pair(a, Monoid::empty())
+		(a, Monoid::empty())
 	}
 }
 
-impl<Second: Clone + Semigroup + 'static> ApplyFirst for PairWithSecondBrand<Second> {}
-impl<Second: Clone + Semigroup + 'static> ApplySecond for PairWithSecondBrand<Second> {}
+impl<Second: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithSecondBrand<Second> {}
+impl<Second: Clone + Semigroup + 'static> ApplySecond for Tuple2WithSecondBrand<Second> {}
 
-impl<Second: Clone + 'static> Semiapplicative for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Semiapplicative for Tuple2WithSecondBrand<Second>
 where
 	Second: Semigroup,
 {
 	/// Applies a wrapped function to a wrapped value (over first).
 	///
-	/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
+	/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The second values are combined using their `Semigroup` implementation.
 	///
 	/// ### Type Signature
 	///
@@ -870,38 +844,35 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
-		"The pair containing the function (in Err).",
-		"The pair containing the value (in Err)."
-	)]
+	#[doc_params("The tuple containing the function.", "The tuple containing the value.")]
 	///
 	/// ### Returns
 	///
-	/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
+	/// A new tuple where the function is applied to the first value and the second values are combined.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let f = Pair(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
-	/// assert_eq!(apply::<RcFnBrand, PairWithSecondBrand<String>, _, _>(f, Pair(5, "b".to_string())), Pair(10, "ab".to_string()));
+	/// let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
+	/// assert_eq!(apply::<RcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, (5, "b".to_string())), (10, "ab".to_string()));
 	/// ```
 	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		Pair(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
+		(ff.0(fa.0), Semigroup::append(ff.1, fa.1))
 	}
 }
 
-impl<Second: Clone + 'static> Semimonad for PairWithSecondBrand<Second>
+impl<Second: Clone + 'static> Semimonad for Tuple2WithSecondBrand<Second>
 where
 	Second: Semigroup,
 {
-	/// Chains pair computations (over first).
+	/// Chains tuple computations (over first).
 	///
-	/// This method chains two computations, where the second computation depends on the result of the first (over error).
+	/// This method chains two computations, where the second computation depends on the result of the first. The second values are combined using their `Semigroup` implementation.
 	///
 	/// ### Type Signature
 	///
@@ -918,20 +889,20 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first result.", "The function to apply to the error value.")]
+	#[doc_params("The first tuple.", "The function to apply to the first value.")]
 	///
 	/// ### Returns
 	///
-	/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
+	/// A new tuple where the second values are combined.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     bind::<PairWithSecondBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(x * 2, "b".to_string())),
-	///     Pair(10, "ab".to_string())
+	///     bind::<Tuple2WithSecondBrand<String>, _, _, _>((5, "a".to_string()), |x| (x * 2, "b".to_string())),
+	///     (10, "ab".to_string())
 	/// );
 	/// ```
 	fn bind<'a, A: 'a, B: 'a, Func>(
@@ -941,16 +912,16 @@ where
 	where
 		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	{
-		let Pair(first, second) = ma;
-		let Pair(next_first, next_second) = func(first);
-		Pair(next_first, Semigroup::append(second, next_second))
+		let (first, second) = ma;
+		let (next_first, next_second) = func(first);
+		(next_first, Semigroup::append(second, next_second))
 	}
 }
 
-impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
-	/// Folds the pair from the right (over first).
+impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
+	/// Folds the tuple from the right (over first).
 	///
-	/// This method performs a right-associative fold of the result (over error).
+	/// This method performs a right-associative fold of the tuple (over first).
 	///
 	/// ### Type Signature
 	///
@@ -968,18 +939,18 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
-	/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
+	/// `func(a, initial)`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(fold_right::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, Pair(5, ())), 5);
+	/// assert_eq!(fold_right::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, (5, ())), 5);
 	/// ```
 	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
@@ -993,9 +964,9 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 		func(fa.0, initial)
 	}
 
-	/// Folds the pair from the left (over first).
+	/// Folds the tuple from the left (over first).
 	///
-	/// This method performs a left-associative fold of the result (over error).
+	/// This method performs a left-associative fold of the tuple (over first).
 	///
 	/// ### Type Signature
 	///
@@ -1013,18 +984,18 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
-	/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
+	/// `func(initial, a)`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// assert_eq!(fold_left::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, Pair(5, ())), 5);
+	/// assert_eq!(fold_left::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, (5, ())), 5);
 	/// ```
 	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 		func: F,
@@ -1040,7 +1011,7 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 
 	/// Maps the value to a monoid and returns it (over first).
 	///
-	/// This method maps the element of the result to a monoid and then returns it (over error).
+	/// This method maps the element of the tuple to a monoid and then returns it (over first).
 	///
 	/// ### Type Signature
 	///
@@ -1058,19 +1029,19 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The result to fold.")]
+	#[doc_params("The mapping function.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
-	/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
+	/// `func(a)`.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     fold_map::<RcFnBrand, PairWithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), Pair(5, ())),
+	///     fold_map::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), (5, ())),
 	///     "5".to_string()
 	/// );
 	/// ```
@@ -1087,10 +1058,10 @@ impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 	}
 }
 
-impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
-	/// Traverses the pair with an applicative function (over first).
+impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
+	/// Traverses the tuple with an applicative function (over first).
 	///
-	/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
+	/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over first).
 	///
 	/// ### Type Signature
 	///
@@ -1108,20 +1079,20 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The result to traverse.")]
+	#[doc_params("The function to apply.", "The tuple to traverse.")]
 	///
 	/// ### Returns
 	///
-	/// The result wrapped in the applicative context.
+	/// The tuple wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     traverse::<PairWithSecondBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair(5, ())),
-	///     Some(Pair(10, ()))
+	///     traverse::<Tuple2WithSecondBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), (5, ())),
+	///     Some((10, ()))
 	/// );
 	/// ```
 	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -1132,13 +1103,13 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 	{
-		let Pair(first, second) = ta;
-		F::map(move |b| Pair(b, second.clone()), func(first))
+		let (first, second) = ta;
+		F::map(move |b| (b, second.clone()), func(first))
 	}
 
-	/// Sequences a pair of applicative (over first).
+	/// Sequences a tuple of applicative (over first).
 	///
-	/// This method evaluates the computation inside the result and accumulates the result into an applicative context (over error).
+	/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over first).
 	///
 	/// ### Type Signature
 	///
@@ -1154,20 +1125,20 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The result containing the applicative value.")]
+	#[doc_params("The tuple containing the applicative value.")]
 	///
 	/// ### Returns
 	///
-	/// The result wrapped in the applicative context.
+	/// The tuple wrapped in the applicative context.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// assert_eq!(
-	///     sequence::<PairWithSecondBrand<()>, _, OptionBrand>(Pair(Some(5), ())),
-	///     Some(Pair(5, ()))
+	///     sequence::<Tuple2WithSecondBrand<()>, _, OptionBrand>((Some(5), ())),
+	///     Some((5, ()))
 	/// );
 	/// ```
 	fn sequence<'a, A: 'a + Clone, F: Applicative>(
@@ -1177,15 +1148,15 @@ impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 	{
-		let Pair(first, second) = ta;
-		F::map(move |a| Pair(a, second.clone()), first)
+		let (first, second) = ta;
+		F::map(move |a| (a, second.clone()), first)
 	}
 }
 
-impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
+impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	/// Maps the value to a monoid and returns it in parallel (over first).
 	///
-	/// This method maps the element of the pair to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
+	/// This method maps the element of the tuple to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
 	///
 	/// ### Type Signature
 	///
@@ -1202,7 +1173,7 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The pair to fold.")]
+	#[doc_params("The thread-safe function to map each element to a monoid.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1211,12 +1182,12 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let x = Pair(1, "a".to_string());
+	/// let x = (1, "a".to_string());
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 	/// assert_eq!(
-	///     par_fold_map::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, x),
+	///     par_fold_map::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, x),
 	///     "1".to_string()
 	/// );
 	/// ```
@@ -1232,9 +1203,9 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 		func(fa.0)
 	}
 
-	/// Folds the pair from the right in parallel (over first).
+	/// Folds the tuple from the right in parallel (over first).
 	///
-	/// This method folds the pair by applying a function from right to left, potentially in parallel (over first).
+	/// This method folds the tuple by applying a function from right to left, potentially in parallel (over first).
 	///
 	/// ### Type Signature
 	///
@@ -1254,7 +1225,7 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	#[doc_params(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
-		"The pair to fold."
+		"The tuple to fold."
 	)]
 	///
 	/// ### Returns
@@ -1264,11 +1235,11 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
-	/// let x = Pair(1, "a".to_string());
+	/// let x = (1, "a".to_string());
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
+	/// assert_eq!(par_fold_right::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, 10, x), 11);
 	/// ```
 	fn par_fold_right<'a, FnBrand, A, B>(
 		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
@@ -1292,11 +1263,11 @@ mod tests {
 
 	// Bifunctor Tests
 
-	/// Tests `bimap` on `Pair`.
+	/// Tests `bimap` on `Tuple2`.
 	#[test]
 	fn test_bimap() {
-		let x = Pair(1, 5);
-		assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+		let x = (1, 5);
+		assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
 	}
 
 	// Bifunctor Laws
@@ -1307,8 +1278,8 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let x = Pair(first, second);
-		bimap::<PairBrand, _, _, _, _, _, _>(identity, identity, x.clone()) == x
+		let x = (first, second);
+		bimap::<Tuple2Brand, _, _, _, _, _, _>(identity, identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -1317,17 +1288,17 @@ mod tests {
 		first: i32,
 		second: i32,
 	) -> bool {
-		let x = Pair(first, second);
+		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<PairBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x.clone())
-			== bimap::<PairBrand, _, _, _, _, _, _>(
+		bimap::<Tuple2Brand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x.clone())
+			== bimap::<Tuple2Brand, _, _, _, _, _, _>(
 				f,
 				h,
-				bimap::<PairBrand, _, _, _, _, _, _>(g, i, x),
+				bimap::<Tuple2Brand, _, _, _, _, _, _>(g, i, x),
 			)
 	}
 
@@ -1339,8 +1310,8 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let x = Pair(first, second);
-		map::<PairWithFirstBrand<String>, _, _, _>(identity, x.clone()) == x
+		let x = (first, second);
+		map::<Tuple2WithFirstBrand<String>, _, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1349,13 +1320,13 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let x = Pair(first, second);
+		let x = (first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<PairWithFirstBrand<String>, _, _, _>(compose(f, g), x.clone())
-			== map::<PairWithFirstBrand<String>, _, _, _>(
+		map::<Tuple2WithFirstBrand<String>, _, _, _>(compose(f, g), x.clone())
+			== map::<Tuple2WithFirstBrand<String>, _, _, _>(
 				f,
-				map::<PairWithFirstBrand<String>, _, _, _>(g, x),
+				map::<Tuple2WithFirstBrand<String>, _, _, _>(g, x),
 			)
 	}
 
@@ -1367,9 +1338,9 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let v = Pair(first, second);
-		apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
-			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(identity)),
+		let v = (first, second);
+		apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(
+			pure::<Tuple2WithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(identity)),
 			v.clone(),
 		) == v
 	}
@@ -1378,10 +1349,10 @@ mod tests {
 	#[quickcheck]
 	fn applicative_homomorphism(x: i32) -> bool {
 		let f = |x: i32| x.wrapping_mul(2);
-		apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
-			pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(f)),
-			pure::<PairWithFirstBrand<String>, _>(x),
-		) == pure::<PairWithFirstBrand<String>, _>(f(x))
+		apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(
+			pure::<Tuple2WithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(f)),
+			pure::<Tuple2WithFirstBrand<String>, _>(x),
+		) == pure::<Tuple2WithFirstBrand<String>, _>(f(x))
 	}
 
 	/// Tests the composition law for Applicative.
@@ -1392,17 +1363,17 @@ mod tests {
 		u_seed: i32,
 		v_seed: i32,
 	) -> bool {
-		let w = Pair(w_first, w_second);
+		let w = (w_first, w_second);
 
 		let u_fn = <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_add(u_seed));
-		let u = pure::<PairWithFirstBrand<String>, _>(u_fn);
+		let u = pure::<Tuple2WithFirstBrand<String>, _>(u_fn);
 
 		let v_fn = <RcFnBrand as CloneableFn>::new(move |x: i32| x.wrapping_mul(v_seed));
-		let v = pure::<PairWithFirstBrand<String>, _>(v_fn);
+		let v = pure::<Tuple2WithFirstBrand<String>, _>(v_fn);
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(v.clone(), w.clone());
-		let rhs = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(u.clone(), vw);
+		let vw = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(v.clone(), w.clone());
+		let rhs = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
 		let compose_fn = <RcFnBrand as CloneableFn>::new(|f: std::rc::Rc<dyn Fn(i32) -> i32>| {
@@ -1414,10 +1385,10 @@ mod tests {
 			})
 		});
 
-		let pure_compose = pure::<PairWithFirstBrand<String>, _>(compose_fn);
-		let u_applied = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(pure_compose, u);
-		let uv = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(u_applied, v);
-		let lhs = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(uv, w);
+		let pure_compose = pure::<Tuple2WithFirstBrand<String>, _>(compose_fn);
+		let u_applied = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(pure_compose, u);
+		let uv = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(u_applied, v);
+		let lhs = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(uv, w);
 
 		lhs == rhs
 	}
@@ -1430,17 +1401,17 @@ mod tests {
 	) -> bool {
 		// u <*> pure y = pure ($ y) <*> u
 		let f = move |x: i32| x.wrapping_mul(u_seed);
-		let u = pure::<PairWithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(f));
+		let u = pure::<Tuple2WithFirstBrand<String>, _>(<RcFnBrand as CloneableFn>::new(f));
 
-		let lhs = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
+		let lhs = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(
 			u.clone(),
-			pure::<PairWithFirstBrand<String>, _>(y),
+			pure::<Tuple2WithFirstBrand<String>, _>(y),
 		);
 
 		let rhs_fn =
 			<RcFnBrand as CloneableFn>::new(move |f: std::rc::Rc<dyn Fn(i32) -> i32>| f(y));
-		let rhs = apply::<RcFnBrand, PairWithFirstBrand<String>, _, _>(
-			pure::<PairWithFirstBrand<String>, _>(rhs_fn),
+		let rhs = apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(
+			pure::<Tuple2WithFirstBrand<String>, _>(rhs_fn),
 			u,
 		);
 
@@ -1452,8 +1423,8 @@ mod tests {
 	/// Tests the left identity law for Monad.
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
-		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind::<PairWithFirstBrand<String>, _, _, _>(pure::<PairWithFirstBrand<String>, _>(a), f)
+		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
+		bind::<Tuple2WithFirstBrand<String>, _, _, _>(pure::<Tuple2WithFirstBrand<String>, _>(a), f)
 			== f(a)
 	}
 
@@ -1463,10 +1434,10 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let m = Pair(first, second);
-		bind::<PairWithFirstBrand<String>, _, _, _>(
+		let m = (first, second);
+		bind::<Tuple2WithFirstBrand<String>, _, _, _>(
 			m.clone(),
-			pure::<PairWithFirstBrand<String>, _>,
+			pure::<Tuple2WithFirstBrand<String>, _>,
 		) == m
 	}
 
@@ -1476,56 +1447,56 @@ mod tests {
 		first: String,
 		second: i32,
 	) -> bool {
-		let m = Pair(first, second);
-		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind::<PairWithFirstBrand<String>, _, _, _>(
-			bind::<PairWithFirstBrand<String>, _, _, _>(m.clone(), f),
+		let m = (first, second);
+		let f = |x: i32| ("f".to_string(), x.wrapping_mul(2));
+		let g = |x: i32| ("g".to_string(), x.wrapping_add(1));
+		bind::<Tuple2WithFirstBrand<String>, _, _, _>(
+			bind::<Tuple2WithFirstBrand<String>, _, _, _>(m.clone(), f),
 			g,
-		) == bind::<PairWithFirstBrand<String>, _, _, _>(m, |x| {
-			bind::<PairWithFirstBrand<String>, _, _, _>(f(x), g)
+		) == bind::<Tuple2WithFirstBrand<String>, _, _, _>(m, |x| {
+			bind::<Tuple2WithFirstBrand<String>, _, _, _>(f(x), g)
 		})
 	}
 
-	// ParFoldable Tests for PairWithFirstBrand (Functor over Second)
+	// ParFoldable Tests for Tuple2WithFirstBrand (Functor over Second)
 
-	/// Tests `par_fold_map` on `PairWithFirstBrand`.
+	/// Tests `par_fold_map` on `Tuple2WithFirstBrand`.
 	#[test]
-	fn par_fold_map_pair_with_first() {
-		let x = Pair("a".to_string(), 1);
+	fn par_fold_map_tuple2_with_first() {
+		let x = ("a".to_string(), 1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(
-			par_fold_map::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, x),
+			par_fold_map::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, x),
 			"1".to_string()
 		);
 	}
 
-	/// Tests `par_fold_right` on `PairWithFirstBrand`.
+	/// Tests `par_fold_right` on `Tuple2WithFirstBrand`.
 	#[test]
-	fn par_fold_right_pair_with_first() {
-		let x = Pair("a".to_string(), 1);
+	fn par_fold_right_tuple2_with_first() {
+		let x = ("a".to_string(), 1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(par_fold_right::<ArcFnBrand, PairWithFirstBrand<String>, _, _>(f, 10, x), 11);
+		assert_eq!(par_fold_right::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, 10, x), 11);
 	}
 
-	// ParFoldable Tests for PairWithSecondBrand (Functor over First)
+	// ParFoldable Tests for Tuple2WithSecondBrand (Functor over First)
 
-	/// Tests `par_fold_map` on `PairWithSecondBrand`.
+	/// Tests `par_fold_map` on `Tuple2WithSecondBrand`.
 	#[test]
-	fn par_fold_map_pair_with_second() {
-		let x = Pair(1, "a".to_string());
+	fn par_fold_map_tuple2_with_second() {
+		let x = (1, "a".to_string());
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		assert_eq!(
-			par_fold_map::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, x),
+			par_fold_map::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, x),
 			"1".to_string()
 		);
 	}
 
-	/// Tests `par_fold_right` on `PairWithSecondBrand`.
+	/// Tests `par_fold_right` on `Tuple2WithSecondBrand`.
 	#[test]
-	fn par_fold_right_pair_with_second() {
-		let x = Pair(1, "a".to_string());
+	fn par_fold_right_tuple2_with_second() {
+		let x = (1, "a".to_string());
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		assert_eq!(par_fold_right::<ArcFnBrand, PairWithSecondBrand<String>, _, _>(f, 10, x), 11);
+		assert_eq!(par_fold_right::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, 10, x), 11);
 	}
 }

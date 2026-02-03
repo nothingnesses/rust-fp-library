@@ -31,7 +31,6 @@ use crate::{
 	},
 	impl_kind,
 	kinds::*,
-	types::Pair,
 };
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
@@ -152,8 +151,7 @@ impl CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let head = 1;
 	/// let tail = CatList::singleton(2).snoc(3);
@@ -192,8 +190,7 @@ impl CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2);
 	/// let deconstructed = CatListBrand::deconstruct(&list);
@@ -339,9 +336,7 @@ impl Pointed for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = pure::<CatListBrand, _>(5);
 	/// let vec: Vec<_> = list.into_iter().collect();
@@ -384,7 +379,7 @@ impl Semiapplicative for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::cat_list::CatList};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
 	///     .snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
@@ -430,9 +425,7 @@ impl Semimonad for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2);
 	/// let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
@@ -480,10 +473,7 @@ impl Foldable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{CatListBrand, RcFnBrand};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::foldable::fold_right;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);
@@ -533,10 +523,7 @@ impl Foldable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{CatListBrand, RcFnBrand};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::foldable::fold_left;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
@@ -582,7 +569,7 @@ impl Foldable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::cat_list::CatList, classes::foldable::fold_map};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// assert_eq!(
@@ -636,10 +623,7 @@ impl Traversable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, CatListBrand};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::traversable::traverse;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
@@ -687,10 +671,7 @@ impl Traversable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{OptionBrand, CatListBrand};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::traversable::sequence;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(Some(1)).snoc(Some(2));
 	/// let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
@@ -740,7 +721,7 @@ impl ParFoldable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::cat_list::CatList};
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3);
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -793,10 +774,7 @@ impl Compactable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::compactable::compact;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
 	/// let compacted = compact::<CatListBrand, _>(list);
@@ -824,8 +802,8 @@ impl Compactable for CatListBrand {
 	///
 	#[doc_type_params(
 		"The lifetime of the elements.",
-		"The type of the success value.",
-		"The type of the error value."
+		"The type of the error value.",
+		"The type of the success value."
 	)]
 	///
 	/// ### Parameters
@@ -840,22 +818,20 @@ impl Compactable for CatListBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::compactable::separate;
 	///
 	/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
-	/// let Pair(oks, errs) = separate::<CatListBrand, _, _>(list);
+	/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
 	/// let oks_vec: Vec<_> = oks.into_iter().collect();
 	/// let errs_vec: Vec<_> = errs.into_iter().collect();
 	/// assert_eq!(oks_vec, vec![1, 2]);
 	/// assert_eq!(errs_vec, vec!["error"]);
 	/// ```
-	fn separate<'a, O: 'a, E: 'a>(
+	fn separate<'a, E: 'a, O: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	> {
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) {
 		let mut oks = CatList::empty();
 		let mut errs = CatList::empty();
 		for result in fa {
@@ -864,7 +840,7 @@ impl Compactable for CatListBrand {
 				Err(e) => errs = errs.snoc(e),
 			}
 		}
-		Pair(oks, errs)
+		(errs, oks)
 	}
 }
 
@@ -882,8 +858,8 @@ impl Filterable for CatListBrand {
 	#[doc_type_params(
 		"The lifetime of the elements.",
 		"The type of the input value.",
-		"The type of the success value.",
 		"The type of the error value.",
+		"The type of the success value.",
 		"The type of the function to apply."
 	)]
 	///
@@ -899,23 +875,21 @@ impl Filterable for CatListBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::filterable::partition_map;
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-	/// let Pair(oks, errs) = partition_map::<CatListBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
+	/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
 	/// let oks_vec: Vec<_> = oks.into_iter().collect();
 	/// let errs_vec: Vec<_> = errs.into_iter().collect();
 	/// assert_eq!(oks_vec, vec![2, 4]);
 	/// assert_eq!(errs_vec, vec![1, 3]);
 	/// ```
-	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
+	fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	)
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
@@ -927,7 +901,7 @@ impl Filterable for CatListBrand {
 				Err(e) => errs = errs.snoc(e),
 			}
 		}
-		Pair(oks, errs)
+		(errs, oks)
 	}
 
 	/// Partitions a list based on a predicate.
@@ -958,11 +932,9 @@ impl Filterable for CatListBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::filterable::partition;
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-	/// let Pair(satisfied, not_satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
+	/// let (not_satisfied, satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
 	/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
 	/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
 	/// assert_eq!(sat_vec, vec![2, 4]);
@@ -971,10 +943,10 @@ impl Filterable for CatListBrand {
 	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	>
+	)
 	where
 		Func: Fn(A) -> bool + 'a,
 	{
@@ -987,7 +959,7 @@ impl Filterable for CatListBrand {
 				not_satisfied = not_satisfied.snoc(a);
 			}
 		}
-		Pair(satisfied, not_satisfied)
+		(not_satisfied, satisfied)
 	}
 
 	/// Maps a function over a list and filters out `None` results.
@@ -1018,10 +990,7 @@ impl Filterable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::filterable::filter_map;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 	/// let filtered = filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
@@ -1065,10 +1034,7 @@ impl Filterable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::CatListBrand;
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::filterable::filter;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 	/// let filtered = filter::<CatListBrand, _, _>(|a| a % 2 == 0, list);
@@ -1101,8 +1067,8 @@ impl Witherable for CatListBrand {
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the input value.",
-		"The type of the success value.",
 		"The type of the error value.",
+		"The type of the success value.",
 		"The type of the function to apply."
 	)]
 	///
@@ -1118,38 +1084,36 @@ impl Witherable for CatListBrand {
 	///
 	/// ```
 	/// use fp_library::{brands::*, functions::*, types::*};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::witherable::wilt;
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 	/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), list);
-	/// let Pair(oks, errs) = wilted.unwrap();
+	/// let (errs, oks) = wilted.unwrap();
 	/// let oks_vec: Vec<_> = oks.into_iter().collect();
 	/// let errs_vec: Vec<_> = errs.into_iter().collect();
 	/// assert_eq!(oks_vec, vec![2, 4]);
 	/// assert_eq!(errs_vec, vec![1, 3]);
 	/// ```
-	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
-		Pair<
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		(
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		>,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		),
 	>)
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	{
-		ta.into_iter().fold(M::pure(Pair(CatList::empty(), CatList::empty())), |acc, x| {
+		ta.into_iter().fold(M::pure((CatList::empty(), CatList::empty())), |acc, x| {
 			M::lift2(
 				|mut pair, res| {
 					match res {
-						Ok(o) => pair.0 = pair.0.snoc(o),
-						Err(e) => pair.1 = pair.1.snoc(e),
+						Ok(o) => pair.1 = pair.1.snoc(o),
+						Err(e) => pair.0 = pair.0.snoc(e),
 					}
 					pair
 				},
@@ -1191,10 +1155,7 @@ impl Witherable for CatListBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::brands::{CatListBrand, OptionBrand};
-	/// use fp_library::types::cat_list::CatList;
-	/// use fp_library::classes::witherable::wither;
+	/// use fp_library::{brands::*, functions::*, types::*};
 	///
 	/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 	/// let withered = wither::<CatListBrand, OptionBrand, _, _, _>(|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }), list);
@@ -1249,8 +1210,7 @@ impl<A> Semigroup for CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{functions::*, types::*};
 	///
 	/// let list1 = CatList::singleton(1).snoc(2);
 	/// let list2 = CatList::singleton(3).snoc(4);
@@ -1286,8 +1246,7 @@ impl<A> Monoid for CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::functions::*;
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::{functions::*, types::*};
 	///
 	/// let list = empty::<CatList<i32>>();
 	/// assert!(list.is_empty());
@@ -1315,7 +1274,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list: CatList<i32> = CatList::empty();
 	/// assert!(list.is_empty());
@@ -1346,7 +1305,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list: CatList<i32> = CatList::empty();
 	/// assert!(list.is_empty());
@@ -1377,7 +1336,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list = CatList::singleton(1);
 	/// assert!(!list.is_empty());
@@ -1408,7 +1367,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list = CatList::empty().cons(1);
 	/// ```
@@ -1441,7 +1400,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list = CatList::empty().snoc(1);
 	/// ```
@@ -1477,7 +1436,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list1 = CatList::singleton(1);
 	/// let list2 = CatList::singleton(2);
@@ -1531,7 +1490,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list = CatList::singleton(1);
 	/// let (a, list) = list.uncons().unwrap();
@@ -1585,7 +1544,7 @@ impl<A> CatList<A> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::cat_list::CatList;
+	/// use fp_library::types::*;
 	///
 	/// let list = CatList::singleton(1);
 	/// assert_eq!(list.len(), 1);

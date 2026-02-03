@@ -12,7 +12,6 @@ use crate::{
 	},
 	impl_kind,
 	kinds::*,
-	types::Pair,
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 #[cfg(feature = "rayon")]
@@ -779,8 +778,8 @@ impl Compactable for VecBrand {
 	///
 	#[doc_type_params(
 		"The lifetime of the elements.",
-		"The type of the success value.",
-		"The type of the error value."
+		"The type of the error value.",
+		"The type of the success value."
 	)]
 	///
 	/// ### Parameters
@@ -794,19 +793,19 @@ impl Compactable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = vec![Ok(1), Err("error"), Ok(2)];
-	/// let Pair(oks, errs) = separate::<VecBrand, _, _>(x);
+	/// let (errs, oks) = separate::<VecBrand, _, _>(x);
 	/// assert_eq!(oks, vec![1, 2]);
 	/// assert_eq!(errs, vec!["error"]);
 	/// ```
-	fn separate<'a, O: 'a, E: 'a>(
+	fn separate<'a, E: 'a, O: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	> {
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) {
 		let mut oks = Vec::new();
 		let mut errs = Vec::new();
 		for result in fa {
@@ -815,7 +814,7 @@ impl Compactable for VecBrand {
 				Err(e) => errs.push(e),
 			}
 		}
-		Pair(oks, errs)
+		(errs, oks)
 	}
 }
 
@@ -833,8 +832,8 @@ impl Filterable for VecBrand {
 	#[doc_type_params(
 		"The lifetime of the elements.",
 		"The type of the input value.",
-		"The type of the success value.",
 		"The type of the error value.",
+		"The type of the success value.",
 		"The type of the function to apply."
 	)]
 	///
@@ -849,20 +848,20 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
-	/// let Pair(oks, errs) = partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+	/// let (errs, oks) = partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, vec![2, 4]);
 	/// assert_eq!(errs, vec![1, 3]);
 	/// ```
-	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
+	fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	)
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
@@ -874,7 +873,7 @@ impl Filterable for VecBrand {
 				Err(e) => errs.push(e),
 			}
 		}
-		Pair(oks, errs)
+		(errs, oks)
 	}
 	/// Partitions a vector based on a predicate.
 	///
@@ -903,26 +902,26 @@ impl Filterable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
-	/// let Pair(satisfied, not_satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
+	/// let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
 	/// assert_eq!(satisfied, vec![2, 4]);
 	/// assert_eq!(not_satisfied, vec![1, 3]);
 	/// ```
 	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	>
+	)
 	where
 		Func: Fn(A) -> bool + 'a,
 	{
 		let (satisfied, not_satisfied): (Vec<A>, Vec<A>) =
 			fa.into_iter().partition(|a| func(a.clone()));
-		Pair(satisfied, not_satisfied)
+		(not_satisfied, satisfied)
 	}
 
 	/// Maps a function over a vector and filters out `None` results.
@@ -1030,8 +1029,8 @@ impl Witherable for VecBrand {
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the input value.",
-		"The type of the success value.",
 		"The type of the error value.",
+		"The type of the success value.",
 		"The type of the function to apply."
 	)]
 	///
@@ -1046,33 +1045,33 @@ impl Witherable for VecBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = vec![1, 2, 3, 4];
 	/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), x);
-	/// assert_eq!(y, Some(Pair(vec![2, 4], vec![1, 3])));
+	/// assert_eq!(y, Some((vec![1, 3], vec![2, 4])));
 	/// ```
-	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
-		Pair<
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		(
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		>,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		),
 	>)
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 	{
-		ta.into_iter().fold(M::pure(Pair(Vec::new(), Vec::new())), |acc, x| {
+		ta.into_iter().fold(M::pure((Vec::new(), Vec::new())), |acc, x| {
 			M::lift2(
 				|mut pair, res| {
 					match res {
-						Ok(o) => pair.0.push(o),
-						Err(e) => pair.1.push(e),
+						Ok(o) => pair.1.push(o),
+						Err(e) => pair.0.push(e),
 					}
 					pair
 				},
@@ -1467,14 +1466,14 @@ mod tests {
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
-		let Pair(oks, _) = partition_map::<VecBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<VecBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
-		let Pair(_, errs) = partition_map::<VecBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<VecBrand, _, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -1484,8 +1483,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let Pair(satisfied, not_satisfied) = partition::<VecBrand, _, _>(p, x.clone());
-		let Pair(oks, errs) = partition_map::<VecBrand, _, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(p, x.clone());
+		let (errs, oks) = partition_map::<VecBrand, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -1543,7 +1542,7 @@ mod tests {
 	/// Tests `separate` on an empty vector.
 	#[test]
 	fn separate_empty() {
-		let Pair(oks, errs) = separate::<VecBrand, _, _>(vec![] as Vec<Result<i32, i32>>);
+		let (errs, oks) = separate::<VecBrand, _, _>(vec![] as Vec<Result<i32, i32>>);
 		assert_eq!(oks, vec![]);
 		assert_eq!(errs, vec![]);
 	}
@@ -1551,7 +1550,7 @@ mod tests {
 	/// Tests `separate` on a vector with `Ok` and `Err`.
 	#[test]
 	fn separate_mixed() {
-		let Pair(oks, errs) = separate::<VecBrand, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		let (errs, oks) = separate::<VecBrand, _, _>(vec![Ok(1), Err(2), Ok(3)]);
 		assert_eq!(oks, vec![1, 3]);
 		assert_eq!(errs, vec![2]);
 	}
@@ -1559,8 +1558,7 @@ mod tests {
 	/// Tests `partition_map` on an empty vector.
 	#[test]
 	fn partition_map_empty() {
-		let Pair(oks, errs) =
-			partition_map::<VecBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+		let (errs, oks) = partition_map::<VecBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
 		assert_eq!(oks, vec![]);
 		assert_eq!(errs, vec![]);
 	}
@@ -1568,7 +1566,7 @@ mod tests {
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let Pair(satisfied, not_satisfied) = partition::<VecBrand, _, _>(|x: i32| x > 0, vec![]);
+		let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|x: i32| x > 0, vec![]);
 		assert_eq!(satisfied, vec![]);
 		assert_eq!(not_satisfied, vec![]);
 	}
@@ -1590,7 +1588,7 @@ mod tests {
 	fn wilt_empty() {
 		let res =
 			wilt::<VecBrand, OptionBrand, _, _, _, _>(|x: i32| Some(Ok::<i32, i32>(x)), vec![]);
-		assert_eq!(res, Some(Pair(vec![], vec![])));
+		assert_eq!(res, Some((vec![], vec![])));
 	}
 
 	/// Tests `wither` on an empty vector.

@@ -12,7 +12,6 @@ use crate::{
 	},
 	impl_kind,
 	kinds::*,
-	types::Pair,
 };
 use fp_macros::{doc_params, doc_type_params, hm_signature};
 
@@ -613,8 +612,8 @@ impl Compactable for OptionBrand {
 	///
 	#[doc_type_params(
 		"The lifetime of the values.",
-		"The type of the success value.",
-		"The type of the error value."
+		"The type of the error value.",
+		"The type of the success value."
 	)]
 	///
 	/// ### Parameters
@@ -628,23 +627,23 @@ impl Compactable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-	/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
+	/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn separate<'a, O: 'a, E: 'a>(
+	fn separate<'a, E: 'a, O: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	> {
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) {
 		match fa {
-			Some(Ok(o)) => Pair(Some(o), None),
-			Some(Err(e)) => Pair(None, Some(e)),
-			None => Pair(None, None),
+			Some(Ok(o)) => (None, Some(o)),
+			Some(Err(e)) => (Some(e), None),
+			None => (None, None),
 		}
 	}
 }
@@ -663,8 +662,8 @@ impl Filterable for OptionBrand {
 	#[doc_type_params(
 		"The lifetime of the values.",
 		"The type of the input value.",
-		"The type of the success value.",
 		"The type of the error value.",
+		"The type of the success value.",
 		"The type of the function to apply."
 	)]
 	///
@@ -679,29 +678,29 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
+	fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	)
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
 		match fa {
 			Some(a) => match func(a) {
-				Ok(o) => Pair(Some(o), None),
-				Err(e) => Pair(None, Some(e)),
+				Ok(o) => (None, Some(o)),
+				Err(e) => (Some(e), None),
 			},
-			None => Pair(None, None),
+			None => (None, None),
 		}
 	}
 	/// Partitions an option based on a predicate.
@@ -731,32 +730,32 @@ impl Filterable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
 	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	>
+	)
 	where
 		Func: Fn(A) -> bool + 'a,
 	{
 		match fa {
 			Some(a) => {
 				if func(a.clone()) {
-					Pair(Some(a), None)
+					(None, Some(a))
 				} else {
-					Pair(None, Some(a))
+					(Some(a), None)
 				}
 			}
-			None => Pair(None, None),
+			None => (None, None),
 		}
 	}
 
@@ -865,8 +864,8 @@ impl Witherable for OptionBrand {
 		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
-		"The type of the success values.",
 		"The type of the error values.",
+		"The type of the success values.",
 		"The type of the function to apply."
 	)]
 	///
@@ -884,21 +883,21 @@ impl Witherable for OptionBrand {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*, types::*};
+	/// use fp_library::{functions::*, brands::*};
 	///
 	/// let x = Some(5);
 	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
-	/// assert_eq!(y, Some(Pair(Some(5), None)));
+	/// assert_eq!(y, Some((None, Some(5))));
 	/// ```
-	fn wilt<'a, M: Applicative, A: 'a + Clone, O: 'a + Clone, E: 'a + Clone, Func>(
+	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 		func: Func,
 		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
-		Pair<
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		(
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		>,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		),
 	>)
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
@@ -908,12 +907,12 @@ impl Witherable for OptionBrand {
 		match ta {
 			Some(a) => M::map(
 				|res| match res {
-					Ok(o) => Pair(Some(o), None),
-					Err(e) => Pair(None, Some(e)),
+					Ok(o) => (None, Some(o)),
+					Err(e) => (Some(e), None),
 				},
 				func(a),
 			),
-			None => M::pure(Pair(None, None)),
+			None => M::pure((None, None)),
 		}
 	}
 
@@ -1239,14 +1238,14 @@ mod tests {
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Option<i32>) -> bool {
-		let Pair(oks, _) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Option<i32>) -> bool {
-		let Pair(_, errs) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -1256,8 +1255,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(p, x.clone());
-		let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(p, x.clone());
+		let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -1321,7 +1320,7 @@ mod tests {
 	/// Tests `separate` on `Some(Ok(x))`.
 	#[test]
 	fn separate_some_ok() {
-		let Pair(oks, errs) = separate::<OptionBrand, _, _>(Some(Ok::<i32, &str>(5)));
+		let (errs, oks) = separate::<OptionBrand, _, _>(Some(Ok::<i32, &str>(5)));
 		assert_eq!(oks, Some(5));
 		assert_eq!(errs, None);
 	}
@@ -1329,7 +1328,7 @@ mod tests {
 	/// Tests `separate` on `Some(Err(e))`.
 	#[test]
 	fn separate_some_err() {
-		let Pair(oks, errs) = separate::<OptionBrand, _, _>(Some(Err::<i32, &str>("error")));
+		let (errs, oks) = separate::<OptionBrand, _, _>(Some(Err::<i32, &str>("error")));
 		assert_eq!(oks, None);
 		assert_eq!(errs, Some("error"));
 	}
@@ -1337,7 +1336,7 @@ mod tests {
 	/// Tests `separate` on `None`.
 	#[test]
 	fn separate_none() {
-		let Pair(oks, errs) = separate::<OptionBrand, _, _>(None::<Result<i32, &str>>);
+		let (errs, oks) = separate::<OptionBrand, _, _>(None::<Result<i32, &str>>);
 		assert_eq!(oks, None);
 		assert_eq!(errs, None);
 	}
@@ -1345,7 +1344,7 @@ mod tests {
 	/// Tests `partition_map` on `None`.
 	#[test]
 	fn partition_map_none() {
-		let Pair(oks, errs) =
+		let (errs, oks) =
 			partition_map::<OptionBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), None::<i32>);
 		assert_eq!(oks, None);
 		assert_eq!(errs, None);
@@ -1354,7 +1353,7 @@ mod tests {
 	/// Tests `partition` on `None`.
 	#[test]
 	fn partition_none() {
-		let Pair(satisfied, not_satisfied) =
+		let (not_satisfied, satisfied) =
 			partition::<OptionBrand, _, _>(|x: i32| x > 0, None::<i32>);
 		assert_eq!(satisfied, None);
 		assert_eq!(not_satisfied, None);
@@ -1379,7 +1378,7 @@ mod tests {
 			|x: i32| Some(Ok::<i32, i32>(x)),
 			None::<i32>,
 		);
-		assert_eq!(res, Some(Pair(None, None)));
+		assert_eq!(res, Some((None, None)));
 	}
 
 	/// Tests `wither` on `None`.

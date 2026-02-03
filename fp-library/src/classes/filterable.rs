@@ -14,7 +14,6 @@ use crate::{
 	Apply,
 	classes::{compactable::Compactable, functor::Functor},
 	kinds::*,
-	types::Pair,
 };
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
@@ -50,8 +49,8 @@ pub trait Filterable: Compactable + Functor {
 	#[doc_type_params(
 		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
-		"The type of the success values.",
 		"The type of the error values.",
+		"The type of the success values.",
 		"The type of the function to apply."
 	)]
 	///
@@ -64,29 +63,29 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Returns
 	///
-	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
+	/// A pair of data structures: the first containing the [`Err`] values, and the second containing the [`Ok`] values.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, A: 'a, O: 'a, E: 'a, Func>(
+	fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	)
 	where
 		Func: Fn(A) -> Result<O, E> + 'a,
 	{
-		Self::separate::<O, E>(Self::map::<A, Result<O, E>, Func>(func, fa))
+		Self::separate::<E, O>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
 
 	/// Partitions a data structure based on a predicate.
@@ -115,25 +114,25 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Returns
 	///
-	/// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
+	/// A pair of data structures: the first containing elements that do not satisfy the predicate, and the second containing elements that do.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x = Some(5);
-	/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
 	fn partition<'a, A: 'a + Clone, Func>(
 		func: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Pair<
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	>
+	)
 	where
 		Func: Fn(A) -> bool + 'a,
 	{
@@ -243,8 +242,8 @@ pub trait Filterable: Compactable + Functor {
 	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
-	"The type of the success values.",
 	"The type of the error values.",
+	"The type of the success values.",
 	"The type of the function to apply."
 )]
 ///
@@ -257,29 +256,29 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Returns
 ///
-/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
+/// A pair of data structures: the first containing the [`Err`] values, and the second containing the [`Ok`] values.
 ///
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
-/// let Pair(oks, errs) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn partition_map<'a, Brand: Filterable, A: 'a, O: 'a, E: 'a, Func>(
+pub fn partition_map<'a, Brand: Filterable, A: 'a, E: 'a, O: 'a, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Pair<
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+) -> (
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
->
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+)
 where
 	Func: Fn(A) -> Result<O, E> + 'a,
 {
-	Brand::partition_map::<A, O, E, Func>(func, fa)
+	Brand::partition_map::<A, E, O, Func>(func, fa)
 }
 
 /// Partitions a data structure based on a predicate.
@@ -307,25 +306,25 @@ where
 ///
 /// ### Returns
 ///
-/// A pair of data structures: the first containing elements that satisfy the predicate, and the second containing elements that do not.
+/// A pair of data structures: the first containing elements that do not satisfy the predicate, and the second containing elements that do.
 ///
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x = Some(5);
-/// let Pair(satisfied, not_satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
 /// assert_eq!(satisfied, Some(5));
 /// assert_eq!(not_satisfied, None);
 /// ```
 pub fn partition<'a, Brand: Filterable, A: 'a + Clone, Func>(
 	func: Func,
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Pair<
+) -> (
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
->
+)
 where
 	Func: Fn(A) -> bool + 'a,
 {

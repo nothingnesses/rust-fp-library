@@ -10,7 +10,7 @@
 //! assert_eq!(y, Some(5));
 //! ```
 
-use crate::{Apply, brands::OptionBrand, kinds::*, types::Pair};
+use crate::{Apply, brands::OptionBrand, kinds::*};
 use fp_macros::doc_params;
 use fp_macros::doc_type_params;
 use fp_macros::hm_signature;
@@ -62,7 +62,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 		>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 
-	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Ok`] values and one containing the [`Err`] values.
+	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
 	///
 	/// ### Type Signature
 	///
@@ -72,8 +72,8 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	#[doc_type_params(
 		"The lifetime of the elements.",
-		"The type of the success values.",
-		"The type of the error values."
+		"The type of the error values.",
+		"The type of the success values."
 	)]
 	///
 	/// ### Parameters
@@ -82,29 +82,29 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Returns
 	///
-	/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
+	/// A pair of data structures: the first containing the [`Err`] values, and the second containing the [`Ok`] values.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
-	/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
+	/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	///
 	/// let y: Option<Result<i32, &str>> = Some(Err("error"));
-	/// let Pair(oks2, errs2) = separate::<OptionBrand, _, _>(y);
+	/// let (errs2, oks2) = separate::<OptionBrand, _, _>(y);
 	/// assert_eq!(oks2, None);
 	/// assert_eq!(errs2, Some("error"));
 	/// ```
-	fn separate<'a, O: 'a, E: 'a>(
+	fn separate<'a, E: 'a, O: 'a>(
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
-	) -> Pair<
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	) -> (
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	>;
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	);
 }
 
 /// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
@@ -149,7 +149,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 	Brand::compact(fa)
 }
 
-/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Ok`] values and one containing the [`Err`] values.
+/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::separate`].
 ///
@@ -162,8 +162,8 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 #[doc_type_params(
 	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
-	"The type of the success values.",
-	"The type of the error values."
+	"The type of the error values.",
+	"The type of the success values."
 )]
 ///
 /// ### Parameters
@@ -172,23 +172,23 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Returns
 ///
-/// A pair of data structures: the first containing the [`Ok`] values, and the second containing the [`Err`] values.
+/// A pair of data structures: the first containing the [`Err`] values, and the second containing the [`Ok`] values.
 ///
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{brands::*, functions::*};
 ///
 /// let x: Option<Result<i32, &str>> = Some(Ok(5));
-/// let Pair(oks, errs) = separate::<OptionBrand, _, _>(x);
+/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn separate<'a, Brand: Compactable, O: 'a, E: 'a>(
+pub fn separate<'a, Brand: Compactable, E: 'a, O: 'a>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
-) -> Pair<
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+) -> (
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-> {
-	Brand::separate::<O, E>(fa)
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+) {
+	Brand::separate::<E, O>(fa)
 }
