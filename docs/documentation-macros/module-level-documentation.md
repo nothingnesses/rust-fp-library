@@ -42,17 +42,14 @@ A new module-level procedural macro, `#[document_module]`, that:
 The macro aggregates these findings into a module-wide configuration.
 
 **Collision Handling**:
-If multiple `impl` blocks define the same associated type name for the same Brand (e.g., via different traits), the macro must **error** unless one is marked `#[doc_primary]`. This prevents ambiguity when resolving `Self::Assoc`.
+If multiple `impl` blocks define the same associated type name for the same Brand (e.g., via different traits), the macro must **error** unless one is marked `#[doc_default]`. This prevents ambiguity when resolving `Self::Assoc`.
 
 **Generics Handling**:
 The extraction logic must use **Positional Mapping** to map generic parameters correctly.
 
-- **Parse Definition**: `type Of<A, B>` -> Parameters `[A, B]` (Indices: A=0, B=1).
-- **Parse Target**: `Result<B, A>`.
-- **Build Map**: Map usage based on indices. Target becomes `Result<$1, $0>`.
-- **Apply**: When encountering `Self::Of<X, Y>`, substitute `X` (index 0) and `Y` (index 1) into the target structure -> `Result<Y, X>`.
-
-This ensures that parameter swapping (e.g., `type Of<A, B> = Result<B, A>`), duplication, or omission is handled correctly.
+- **Capture Full Context**: The mapping must be `(Brand, AssocName, AssocGenerics) -> TargetType`. The `TargetType` may refer to generics from the `impl` block.
+- **Scope Awareness**: When substituting, ensure that `impl` generics are treated as "constants" in the scope, while associated type generics are substituted.
+- **Lifetimes and Const Generics**: These should be ignored in the signature documentation to avoid noise.
 
 **Where Clause Handling**:
 The extraction logic must robustly parse `where` clauses on associated types (e.g., `type Of<A> = Foo<A> where A: Clone;`) but **ignore** them for the purpose of building the projection map. The `where` clause is relevant for code validity but not for the structural mapping required for documentation.
@@ -64,14 +61,14 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 **Requirement**: To resolve the concrete type of `Self` (when used bare, e.g., `fn foo(self)`), the macro must support a precedence hierarchy:
 
-1.  **Method Override**: `#[doc_primary = "AssocName"]` on the method.
-2.  **Impl Block Override**: `#[doc_primary = "AssocName"]` on the `impl` block.
-3.  **Module Default**: `#[primary]` (or `#[doc_primary]`) on the associated type definition in `impl_kind!` (or `impl` block).
+1.  **Method Override**: `#[doc_use = "AssocName"]` on the method.
+2.  **Impl Block Override**: `#[doc_use = "AssocName"]` on the `impl` block.
+3.  **Module Default**: `#[doc_default]` on the associated type definition in `impl_kind!` (or `impl` block).
 4.  **Fallback**: Error.
 
     **Rationale**: Relying on implicit defaults (like "the associated type named `Of`") is fragile and "magic". If there are ambiguities (multiple associated types) and no explicit default is marked, the macro should error and force the user to disambiguate. Explicit is better than implicit.
 
-    **Conflict Resolution**: If multiple associated types for the same Brand are marked as `#[doc_primary]` within the same module, the macro will emit a compile-time error. This ambiguity must be resolved by the user.
+    **Conflict Resolution**: If multiple associated types for the same Brand are marked as `#[doc_default]` within the same module, the macro will emit a compile-time error. This ambiguity must be resolved by the user.
 
 ### 3. Automatic Documentation Application
 
@@ -80,34 +77,37 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 - Resolve `Self` usage:
   - **Path/Projected** (`Self::Assoc`): Map using the Context Extraction table (e.g., `Self::SendOf` -> `Arc`).
   - **Bare** (`self`, `Self`): Map using the Hierarchical Default (e.g., `self` -> `Box`).
-    - **Brand Impls**: For `impl` blocks on Brands (e.g., `impl Kind for VecBrand`), the macro must **actively substitute** the `Self` type (which is `VecBrand`) with the concrete type constructor (e.g., `Vec`) found in the mapping. This ensures documentation shows `Vec<A>` instead of `VecBrand`.
-    - **Concrete Impls**: For `impl` blocks on concrete types (e.g., `impl<A> Vec<A>`), `Self` is already concrete and is used as-is.
-- Generate HM signatures and parameter docs respecting these resolutions.
+  - **Apply! Macro**: Explicitly traverse and resolve `Apply!` invocations, substituting `Self` within them.
+- **HM Signature Generation**:
+  - The macro scans for `#[hm_signature]` invocations within the `impl` block.
+  - It replaces the `#[hm_signature]` attribute with the generated type signature documentation.
+  - This behavior is **opt-in**: if `#[hm_signature]` is not present, no signature is generated.
+- **Doc Type Params**:
+  - Support `#[doc_type_params]` to document generic parameters, ensuring feature parity with the previous implementation.
 
 ## Design Decisions
 
 ### 1. Update `impl_kind!` Parser
 
-**Decision**: Modify the `impl_kind!` macro parser to accept and parse attributes (like `#[doc_primary]`) on associated type definitions.
+**Decision**: Modify the `impl_kind!` macro parser to accept and parse attributes (like `#[doc_default]`) on associated type definitions.
 
 **Rationale**:
 
-- **Enabling Configuration**: The current `impl_kind!` parser does not support attributes on associated types. To support "Module Default" configuration via `#[doc_primary]` inside `impl_kind!`, the parser must be updated.
+- **Enabling Configuration**: The current `impl_kind!` parser does not support attributes on associated types. To support "Module Default" configuration via `#[doc_default]` inside `impl_kind!`, the parser must be updated.
 - **Standard Compliance**: This aligns `impl_kind!` syntax closer to standard Rust `impl` blocks, where attributes on associated types are valid.
 - **Implementation**: The macro will parse these attributes to make them available for `document_module` extraction, but will strip them from the generated output to avoid "unused attribute" warnings.
 
-### 2. Syntax: `#[doc_primary]`
+### 2. Syntax: `#[doc_default]` and `#[doc_use]`
 
-**Decision**: Use `#[doc_primary = "Name"]` (attribute with value) or `#[doc_primary]` (marker) to control defaults.
+**Decision**: Split configuration into two attributes:
 
-- **Inside `impl_kind!` / `impl`**: `#[doc_primary]` (marker) on a `type` definition sets the module default for that Brand.
-- **On `impl` / `fn`**: `#[doc_primary = "AssocName"]` overrides the default to use the target of `AssocName`.
+- **Inside `impl_kind!` / `impl`**: `#[doc_default]` (marker) on a `type` definition sets the module default for that Brand.
+- **On `impl` / `fn`**: `#[doc_use = "AssocName"]` overrides the default to use the target of `AssocName`.
 
 **Rationale**:
 
-- **Consistency**: Using a unified attribute name for both marking the default definition and overriding the selection reduces cognitive load.
-- **Clarity**: Explicitly naming the associated type (`AssocName`) ensures that the override points to a valid, defined type mapping, rather than an arbitrary string, preventing typo-induced errors.
-- **Granularity**: Allowing overrides at both the `impl` block and method level handles edge cases where different methods on the same Brand conceptually operate on different concrete representations (e.g., `Box` vs `Rc` contexts).
+- **Clarity**: Separating the definition of a default (`doc_default`) from the usage/selection (`doc_use`) reduces confusion and makes the intent explicit.
+- **Consistency**: Explicitly naming the associated type (`AssocName`) ensures that the override points to a valid, defined type mapping.
 
 ### 3. Macro Type: Attribute Macro
 
