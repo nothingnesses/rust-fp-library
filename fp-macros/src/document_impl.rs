@@ -1,4 +1,5 @@
 use crate::{
+	apply::ApplyInput,
 	doc_utils::{DocArg, GenericArgs, validate_doc_args},
 	function_utils::load_config,
 	hm_signature::generate_signature,
@@ -198,6 +199,30 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 		visit_mut::visit_type_mut(self, i);
 	}
 
+	fn visit_type_macro_mut(
+		&mut self,
+		i: &mut syn::TypeMacro,
+	) {
+		if i.mac.path.is_ident("Apply")
+			&& let Ok(mut apply_input) = syn::parse2::<ApplyInput>(i.mac.tokens.clone())
+		{
+			self.visit_type_mut(&mut apply_input.brand);
+			for arg in apply_input.args.args.iter_mut() {
+				if let syn::GenericArgument::Type(ty) = arg {
+					self.visit_type_mut(ty);
+				}
+			}
+
+			let brand = &apply_input.brand;
+			let kind_input = &apply_input.kind_input;
+			let assoc_name = &apply_input.assoc_name;
+			let args = &apply_input.args;
+
+			i.mac.tokens = quote! { <#brand as Kind!(#kind_input)>::#assoc_name #args };
+		}
+		visit_mut::visit_type_macro_mut(self, i);
+	}
+
 	fn visit_signature_mut(
 		&mut self,
 		i: &mut Signature,
@@ -389,5 +414,22 @@ mod tests {
 		assert!(doc.contains("Semigroup"));
 		assert!(doc.contains("Monoid"));
 		assert!(doc.contains("Functor"));
+	}
+
+	#[test]
+	fn test_self_substitution_in_apply() {
+		let self_ty: Type = parse_quote!(MyBrand);
+		let mut substitutor = SelfSubstitutor { self_ty: &self_ty };
+
+		// Note: The macro invocation tokens must be valid for syn to parse ApplyInput inside our visitor
+		let mut sig: Signature = parse_quote!(
+			fn foo(x: Apply!(<Self as Kind!(type Of<T>;)>::Of<T>))
+		);
+		substitutor.visit_signature_mut(&mut sig);
+
+		let expected: Signature = parse_quote!(
+			fn foo(x: Apply!(<MyBrand as Kind!(type Of<T>;)>::Of<T>))
+		);
+		assert_eq!(quote!(#sig).to_string(), quote!(#expected).to_string());
 	}
 }

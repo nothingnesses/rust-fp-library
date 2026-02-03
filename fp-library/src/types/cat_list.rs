@@ -32,7 +32,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{doc_params, doc_type_params, document_impl, hm_signature};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::{
@@ -1050,6 +1050,7 @@ impl Filterable for CatListBrand {
 	}
 }
 
+#[document_impl]
 impl Witherable for CatListBrand {
 	/// Partitions a list based on a function that returns a result in an applicative context.
 	///

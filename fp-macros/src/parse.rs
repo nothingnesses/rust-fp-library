@@ -3,6 +3,7 @@
 //! This module defines the input structures and parsing logic for the `Kind!` and `def_kind!` macros.
 //! It handles parsing of associated type definitions with generics and bounds.
 
+use quote::ToTokens;
 use syn::{
 	Attribute, Generics, Ident, Token, TypeParamBound,
 	parse::{Parse, ParseStream},
@@ -46,6 +47,36 @@ impl Parse for KindInput {
 			assoc_types.push(input.parse()?);
 		}
 		Ok(KindInput { assoc_types })
+	}
+}
+
+impl ToTokens for KindInput {
+	fn to_tokens(
+		&self,
+		tokens: &mut proc_macro2::TokenStream,
+	) {
+		for assoc in &self.assoc_types {
+			assoc.to_tokens(tokens);
+		}
+	}
+}
+
+impl ToTokens for KindAssocTypeInput {
+	fn to_tokens(
+		&self,
+		tokens: &mut proc_macro2::TokenStream,
+	) {
+		for attr in &self.attrs {
+			attr.to_tokens(tokens);
+		}
+		self._type_token.to_tokens(tokens);
+		self.ident.to_tokens(tokens);
+		self.generics.to_tokens(tokens);
+		if let Some(colon) = &self._colon_token {
+			colon.to_tokens(tokens);
+			self.output_bounds.to_tokens(tokens);
+		}
+		self._semi_token.to_tokens(tokens);
 	}
 }
 
