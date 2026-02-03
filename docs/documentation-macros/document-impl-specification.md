@@ -42,7 +42,7 @@ impl<T: Clone> MyTrait for MyType<T> {
 
 ### 3. Trait Parameter Documentation
 
-**Requirement**: Allow documenting trait-level generic parameters once at the `impl` level, and automatically include them in the documentation for every method.
+**Requirement**: Allow documenting trait-level generic parameters once at the `impl` level, and automatically include them in the documentation for every method. This includes **all** parameters (lifetimes, types, consts).
 **Syntax**: Use **Positional Syntax** (Consistent with existing macros).
 
 ```rust
@@ -66,14 +66,18 @@ impl<T> ...
 **Rationale**:
 
 - `hm_signature` attribute syntax does not support passing arbitrary `where` clauses or complex bounds easily.
-- By performing the expansion directly, `document_impl` can construct a "synthetic" function signature in memory that merges the `impl` generics with the method generics.
-- This synthetic signature is then passed to the shared core logic of `hm_signature`, guaranteeing that the generated string includes all constraints (e.g., `impl` bounds).
+- By performing the expansion directly, `document_impl` can construct a "synthetic" function signature in memory that:
+  1.  Merges the `impl` generics with the method generics.
+  2.  Substitutes `Self` types with the concrete `impl` type (e.g., `CatList<A>`).
+  3.  Injects the trait implementation itself as a bound (e.g., `Semigroup (CatList A)`).
+- This synthetic signature is then passed to the shared core logic of `hm_signature`, guaranteeing that the generated string includes all constraints.
 
 > **Note on Shadowing**: Rust forbids shadowing generic parameters within the same item (error `E0403`). Therefore, the implementation does not need to handle name collisions between `impl` and method generics during the merge process.
 
 ### 2. Shared Core Logic and Simplification
 
 **Decision**:
+
 - Refactor [`hm_signature`](../../fp-macros/src/hm_signature.rs) and [`doc_type_params`](../../fp-macros/src/doc_type_params.rs) to expose their core logic as reusable functions.
 - Modify `hm_signature` to **no longer accept** a trait name argument.
 
@@ -96,7 +100,7 @@ impl<T> ...
 
 **Constraints**:
 
-- **No Skipping**: Documentation is mandatory for all generic parameters. Empty descriptions or skipping parameters is not supported.
+- **No Skipping**: Documentation is mandatory for all generic parameters (types, lifetimes, consts). Empty descriptions or skipping parameters is not supported.
 
 **Rationale**:
 
@@ -114,6 +118,15 @@ impl<T> ...
 - **Opt-in**: Prevents documentation clutter on helper methods that don't explicitly request type parameter docs.
 - **Ordering**: Trait parameters (context) should appear before method parameters (specifics).
 - **Expansion**: The `document_impl` macro will inject `#[doc = "..."]` lines for the trait parameters immediately before the `#[doc_type_params]` attribute. The existing `doc_type_params` attribute remains (or is expanded by the standalone macro) to generate method docs.
+
+### 5. Out of Scope: Associated Type Resolution
+
+**Decision**: Associated types (e.g., `Iterator::Item`) will NOT be resolved to their concrete types in the HM signature. They will appear as `Type::Assoc` (e.g., `CatList::Item`).
+
+**Rationale**:
+
+- **Complexity**: Resolving associated types requires full type inference or deeper analysis of the `impl` block's associated type definitions, which is significant additional complexity.
+- **Acceptability**: Displaying the associated type path is sufficient for documentation purposes in the initial version.
 
 ## Implementation Strategy
 
@@ -137,8 +150,10 @@ impl<T> ...
       - Look for `#[hm_signature]` attribute.
       - If found:
         - Clone the method signature.
-        - Merge `impl` generics into the cloned signature's generics.
-        - Call the shared `generate_signature` function.
+        - **Substitute `Self`**: Recursively replace all occurrences of `Self` (return type, arguments, bounds) with the concrete `impl` type (e.g., `CatList<A>`).
+        - **Synthesize Trait Bound**: Create a bound `ConcreteType: Trait` and add it to the signature's `where` clause.
+        - **Merge Generics**: Merge `impl` generics into the cloned signature's generics, ensuring lifetime parameters precede type parameters.
+        - Call the shared `generate_signature` function (passing `None` for trait name).
         - **Replace** the `#[hm_signature]` attribute with the generated `#[doc = "..."]`.
     - **Doc Params**:
       - Look for `#[doc_type_params]` attribute.
@@ -174,7 +189,7 @@ impl<A: Clone> Semigroup for CatList<A> {
 ```rust
 impl<A: Clone> Semigroup for CatList<A> {
     /// Appends two lists.
-    /// `forall a. Clone a => CatList a -> CatList a -> CatList a`
+    /// `forall a. (Semigroup (CatList a), Clone a) => (CatList a, CatList a) -> CatList a`
     /// Some other documentation
     /// * `A`: The type of the elements.
     /// Some more documentation
