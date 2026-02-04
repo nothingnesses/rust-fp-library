@@ -83,9 +83,21 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
   - It replaces the `#[hm_signature]` attribute with the generated type signature documentation.
   - This behavior is **opt-in**: if `#[hm_signature]` is not present, no signature is generated.
 - **Doc Type Params**:
-  - Support `#[doc_type_params]` to document generic parameters, ensuring feature parity with the previous implementation.
 
-## Design Decisions
+  - Support `#[doc_type_params]` to document generic parameterized documentation, ensuring feature parity with the previous implementation.
+
+  ### 4. Regression Testing & Behavior Parity
+
+  **Requirement**: The implementation of `#[document_module]` must preserve all existing behaviors and edge cases currently handled by the standalone macros.
+
+  1.  **Test Preservation**: Existing tests from `fp-macros/src/hm_signature.rs`, `fp-macros/src/document_impl.rs`, and `fp-macros/src/doc_type_params.rs` must be adapted and maintained. They serve as the baseline for correct signature generation and documentation formatting.
+  2.  **Parity Verification**: The new macro must produce identical (or improved, where explicitly intended) documentation output for all scenarios covered by these tests, including:
+      - Complex `Self` substitution and associated type resolution.
+      - Integration with `Apply!` and `Kind!` macros.
+      - HM signature formatting (forall, constraints, arrows).
+      - Positional mapping of type parameters.
+
+  ## Design Decisions
 
 ### 1. Update `impl_kind!` Parser
 
@@ -198,4 +210,5 @@ Attribute macros run before the expansion of macros inside them. `#[document_mod
     - For each `impl`, check attributes for overrides.
     - For each method, check attributes for overrides.
     - Invoke generation logic.
-5.  **Update `lib.rs`**: Export `document_module` and remove `document_impl`.
+5.  **Test Migration**: Adapt and migrate existing tests from `hm_signature.rs`, `document_impl.rs`, and `doc_type_params.rs` to ensure the new `document_module` macro maintains full behavioral parity.
+6.  **Update `lib.rs`**: Export `document_module` and remove `document_impl`.
