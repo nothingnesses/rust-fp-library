@@ -137,7 +137,8 @@ The extraction logic must use **Positional Mapping** to map generic parameters c
 - **Capture Full Context**: The mapping must be `(Brand, Trait, AssocName, AssocGenerics) -> TargetType`. The `TargetType` may refer to generics from the `impl` block.
 - **Positional Matching**: Generic parameters are matched by position, not name, between `impl_kind!` and trait impls. This allows renamed generics while ensuring correct substitution.
 - **Scope Awareness**: When substituting, ensure that `impl` generics are treated as "constants" in the scope, while associated type generics are substituted.
-- **Lifetimes and Const Generics**: These are **erased** in HM signature documentation to reduce noise and maintain mathematical notation simplicity.
+- **Lifetimes and Const Generics**: These are **erased** in HM signature documentation to reduce noise and maintain mathematical notation simplicity. During extraction, const generics are identified but only type generics are used for positional matching.
+- **Bounds on Associated Type Parameters**: Bounds in associated type definitions (e.g., `type Of<T: Clone>`) are parsed but **erased** for projection purposes. The projection map stores only the type parameter names, not their bounds. This is consistent with HM signature erasure (§1.7) and simplifies the implementation.
 
 **Example of Positional Matching**:
 
@@ -158,6 +159,82 @@ impl<C: LazyConfig + Send> Functor for LazyBrand<C> {
 }
 ```
 
+**Parametric Brand Matching**: When matching parametric brands (e.g., `LazyBrand<Config>` against `LazyBrand<C>`), the macro uses structural matching:
+
+1. Extract the base type path (e.g., `LazyBrand`)
+2. Match generic parameters positionally (position 0: `Config` ↔ `C`)
+3. Validate that trait impl bounds are compatible with (i.e., a superset of or equal to) the bounds in `impl_kind!`
+4. Use the trait impl's generic names in the substitution (e.g., use `C`, not `Config`)
+
+**Example**:
+
+```rust
+// impl_kind! defines: LazyBrand<Config: LazyConfig> with Of<T> = Lazy<T, Config>
+// Trait impl uses: LazyBrand<C: LazyConfig + Send>
+// Match: Position 0 maps Config ↔ C
+// Validation: C's bounds (LazyConfig + Send) are a superset of Config's bounds (LazyConfig) ✅
+// Substitution: Use C in the resolved type: Self::Of<B> → Lazy<B, C>
+```
+
+**Const Generics Handling**: Const generics in associated types are identified during parsing but **erased** from the projection map keys. Only type parameters are used for positional matching.
+
+**Example**:
+
+```rust
+impl_kind! {
+    for ArrayBrand {
+        type Of<const N: usize, T> = [T; N];  // N is const generic
+    }
+}
+
+// Stored in projection map as: (ArrayBrand, None, Of, [T]) -> [T; N]
+// Note: Only T is in the key; N is preserved in the target type but not used for matching
+
+impl Functor for ArrayBrand {
+    fn map<const N: usize, A, B>(...) -> Self::Of<N, B> { ... }
+    // Resolution: Match only type params (B), const generics flow through
+    // Resolves to: [B; N]
+}
+```
+
+**Parametric Brand Matching**: When matching parametric brands (e.g., `LazyBrand<Config>` against `LazyBrand<C>`), the macro uses structural matching:
+
+1. Extract the base type path (e.g., `LazyBrand`)
+2. Match generic parameters positionally (position 0: `Config` ↔ `C`)
+3. Validate that trait impl bounds are compatible with (i.e., a superset of or equal to) the bounds in `impl_kind!`
+4. Use the trait impl's generic names in the substitution (e.g., use `C`, not `Config`)
+
+**Example**:
+
+```rust
+// impl_kind! defines: LazyBrand<Config: LazyConfig> with Of<T> = Lazy<T, Config>
+// Trait impl uses: LazyBrand<C: LazyConfig + Send>
+// Match: Position 0 maps Config ↔ C
+// Validation: C's bounds (LazyConfig + Send) are a superset of Config's bounds (LazyConfig) ✅
+// Substitution: Use C in the resolved type: Self::Of<B> → Lazy<B, C>
+```
+
+**Const Generics Handling**: Const generics in associated types are identified during parsing but **erased** from the projection map keys. Only type parameters are used for positional matching.
+
+**Example**:
+
+```rust
+impl_kind! {
+    for ArrayBrand {
+        type Of<const N: usize, T> = [T; N];  // N is const generic
+    }
+}
+
+// Stored in projection map as: (ArrayBrand, None, Of, [T]) -> [T; N]
+// Note: Only T is in the key; N is preserved in the target type but not used for matching
+
+impl Functor for ArrayBrand {
+    fn map<const N: usize, A, B>(...) -> Self::Of<N, B> { ... }
+    // Resolution: Match only type params (B), const generics flow through
+    // Resolves to: [B; N]
+}
+```
+
 **Validation**: The macro validates that bounds in the trait impl are compatible with (i.e., a superset of or equal to) the bounds in `impl_kind!`.
 
 #### 1.5 Where Clause Handling
@@ -170,14 +247,14 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 
 #### 1.7 Unsized Types and Higher-Ranked Trait Bounds
 
-**Decision**: Erase to simplest representation in HM signatures.
+**Decision**: Erase to simple representation in HM signatures.
 
 **Rationale**: HM signatures are meant to be clean, mathematical abstractions. Full Rust type information (with all markers and bounds) is still available in the actual function signature documentation.
 
 **Rules**:
 
 - `T: ?Sized` → `T` (erase unsized marker)
-- `for<'a> Fn(&'a T)` → `Fn T` (erase HRTB, convert to curried form)
+- `for<'a> Fn(&'a T)` → `Fn &T` (erase HRTB, convert to curried form)
 - `Self::Of<T: Clone>` → `Self::Of T` (erase bounds from type application)
 
 **Example**:
@@ -187,7 +264,7 @@ The macro should **ignore** `cfg` attributes during extraction (i.e., extract ev
 fn foo<T: ?Sized>(x: &T) -> impl for<'a> Fn(&'a T) -> String { ... }
 
 // Generated HM signature:
-// forall T. T -> (T -> String)
+// forall T. &T -> (&T -> String)
 ```
 
 #### 1.8 Type Aliases
@@ -222,14 +299,17 @@ impl_kind! {
 
 #### 2.1 Trait-Scoped Defaults
 
-**Decision**: `#[doc_default]` in a trait `impl` is trait-scoped and only applies to methods of that trait (or traits that inherit from it).
+**Decision**: `#[doc_default]` in a trait `impl` is trait-scoped and only applies to methods of that trait.
+
+**Clarification**: "Trait-scoped" means **impl-block-scoped**. Each `impl Trait for Brand` block is an independent scope. A default marked in `impl Base for Brand` does **not** automatically apply to `impl Derived for Brand`, even if `Derived: Base`. Methods use the default from the impl block they are defined in.
 
 **Rationale**:
 
 - Types like `ArcBrand` implement multiple traits (`Pointer`, `RefCountedPointer`, `SendRefCountedPointer`) with different associated types (`Of`, `CloneableOf`, `SendOf`).
 - Each trait's methods may naturally use a different associated type.
-- Trait-scoped defaults allow setting appropriate defaults per trait without requiring method-level annotations.
+- Impl-block-scoped defaults allow setting appropriate defaults per trait without requiring method-level annotations.
 - Maintains explicitness while providing ergonomic defaults where semantically appropriate.
+- The macro cannot reliably resolve trait hierarchies across module boundaries, so it treats each impl block independently.
 
 **Resolution Algorithm**:
 When resolving bare `Self` in a method within `impl Trait for Brand`:
@@ -291,20 +371,43 @@ impl SendRefCountedPointer for ArcBrand {
 
 - **HM Signature Generation**:
   - The macro scans for `#[hm_signature]` invocations within `impl` blocks.
-  - It replaces the `#[hm_signature]` attribute with the generated type signature documentation.
+  - It replaces the `#[hm_signature]` attribute invocation in-place with the generated type signature documentation.
   - **Opt-in**: If `#[hm_signature]` is not present, no signature is generated.
 - **Doc Type Params**:
   - Support `#[doc_type_params]` to document generic parameters.
+  - Replaces the `#[doc_type_params]` attribute invocation in-place with generated documentation.
   - Only processes methods/functions that have this attribute.
   - Ensures feature parity with the previous implementation.
+
+**Documentation Placement**: Generated documentation is placed exactly where the documentation attribute (`#[hm_signature]`, `#[doc_type_params]`) appears in the source code. The attribute invocation itself is replaced with the generated doc comment. This matches the current behavior of the standalone `#[document_impl]` macro.
+
+**Example**:
+
+```rust
+impl Functor for MyBrand {
+    /// Applies a function to the value inside.
+    ///
+    /// ### Type Signature
+    ///
+    #[hm_signature]  // ← This attribute is replaced in-place
+    ///
+    /// ### Parameters
+    ///
+    /// - `f`: The function to apply
+    ///
+    fn map<A, B>(self, f: impl Fn(A) -> B) -> Self::Of<B> { ... }
+}
+```
+
+After macro expansion, the `#[hm_signature]` line is replaced with the generated HM signature documentation.
 
 **Self Resolution**:
 For methods with documentation attributes, resolve `Self` usage:
 
 - **Path/Projected** (`Self::Assoc`): Map using the Context Extraction table (e.g., `Self::SendOf` -> `Arc`).
 - **Bare** (`self`, `Self`): Map using the Hierarchical Default (following precedence rules).
+- **Nested Self References**: The macro supports nested `Self::` references (e.g., `Self::Of<Self::Of<T>>`) through iterative resolution. The resolution continues until no `Self::` remains, without circular reference detection in nested contexts. The user is responsible for ensuring the types are valid; rustc will catch circular or invalid types.
 - **Apply! Macro**: Explicitly traverse and resolve `Apply!` invocations, substituting `Self` within them.
-- **Circular References**: If `Self` appears in the right-hand side of an associated type definition (e.g., `type Foo<T> = Bar<Self::Other<T>>`), emit a compile-time error with a clear message. This avoids circular dependency resolution complexity.
 
 **Visibility**: All items are processed regardless of visibility (`pub`, `pub(crate)`, private). Internal documentation is valuable for maintainers.
 
@@ -442,11 +545,15 @@ impl SomeTrait for GeneratedBrand {
 
 ### 9. Error Handling Strategy
 
-**Decision**: Use **Hard Errors** (compile errors) for any resolution failures or configuration ambiguities.
+**Decision**: Use **Hard Errors** (compile errors) for any resolution failures or configuration ambiguities. The macro collects all errors during processing and reports them together before failing.
 
-**Rationale**:
+**Error Collection**: The macro processes the entire module and accumulates errors in a collection. After completing both Pass 1 (context extraction) and Pass 2 (documentation generation), if any errors were encountered, they are all reported together and compilation fails. This all-or-nothing approach ensures:
 
-- **Quality Assurance**: Since this is a documentation tool, "silently broken" docs (e.g., missing signatures or incorrect types) are worse than no docs. Failing the build forces the user to fix the configuration, ensuring documentation accuracy.
+- **Complete Feedback**: Developers see all errors at once, not one at a time
+- **Consistent State**: Either all documentation is generated correctly, or none is generated
+- **Quality Assurance**: "Silently broken" docs (e.g., missing signatures or incorrect types) are prevented
+
+**Rationale**: Since this is a documentation tool, broken docs are worse than no docs. Failing the build forces users to fix configuration issues, ensuring documentation accuracy. Collecting all errors before failing provides better developer experience than fail-fast.
 
 ### 10. Processing Model
 
@@ -607,12 +714,16 @@ error: Circular reference detected in associated type definition
    - Test renamed generics (different names, same position)
    - Test bound validation (subset/superset checking)
    - Test complex nested generics
+   - Test parametric brand matching with renamed generics
+   - Test const generic erasure in projection maps
 
 5. **Type Processing**
    - Test unsized type erasure (`?Sized` removal)
    - Test HRTB erasure and currying
    - Test lifetime and const generic erasure
    - Test type alias preservation (no resolution)
+   - Test bound erasure in associated type definitions
+   - Test nested `Self::` resolution (2-level, 3-level)
 
 ### Integration Tests
 
@@ -634,6 +745,9 @@ error: Circular reference detected in associated type definition
    - Modules with only trait impls (no `impl_kind!`)
    - Single-method impls
    - Methods without documentation attributes (should be unchanged)
+   - Nested modules with independent `#![document_module]` scopes
+   - Trait defaults without explicit overrides (should error with helpful message)
+   - Multiple documentation attributes on the same method
 
 ### Regression Tests
 
@@ -659,14 +773,43 @@ error: Circular reference detected in associated type definition
 
 ## Limitations
 
-### 1. Cross-Module Visibility
+### 1. Cross-Module Visibility and Module Scope Isolation
 
-The `#[document_module]` macro can only inspect the tokens within the module it is applied to. If a Brand is defined (via `impl_kind!`) in one module but implemented (via `impl`) in another, applying `#[document_module]` to the implementation module will fail to resolve the Brand mappings because it cannot see the definition.
+The `#[document_module]` macro can only inspect the tokens within the module it is applied to. Each `#![document_module]` invocation creates an **isolated scope**.
 
-**Mitigation**: Enforce the co-location rule strictly. If the macro encounters a Brand that it cannot resolve (because the definition is in another module), it will:
+**Module Nesting**: Nested modules with `#![document_module]` are processed independently. A child module cannot see `impl_kind!` definitions from its parent module, and vice versa.
+
+**Example**:
+
+```rust
+// src/types/my_type.rs
+#![document_module]
+
+impl_kind! {
+    for OuterBrand { type Of<T> = Vec<T>; }
+}
+
+mod inner {
+    #![document_module]  // Independent scope
+
+    impl_kind! {
+        for InnerBrand { type Of<T> = Box<T>; }
+    }
+
+    // ❌ Error: Cannot resolve OuterBrand::Of (not visible in this scope)
+    impl SomeTrait for OuterBrand {
+        #[hm_signature]
+        fn method(&self) -> Self::Of<i32> { ... }
+    }
+}
+```
+
+**Mitigation**: If the macro encounters a Brand that it cannot resolve (because the definition is in another module), it will:
 
 1.  **Check for Manual Overrides**: Look for `#[doc_use = "..."]` on the `impl` block or method.
 2.  **Fallback Error**: If no mapping and no override are found, emit a compile-time error instructing the user to co-locate the definition or provide explicit overrides.
+
+**Rationale**: Proc macros receive module content as a single token stream without parent context. Strict lexical scoping is predictable and easy to reason about. This aligns with the general principle that the macro only operates on information explicitly present in its input.
 
 ### 2. Macro Expansion Order
 
@@ -687,9 +830,56 @@ impl SomeTrait for MyBrand {
 }
 ```
 
+**Note**: This restriction applies only to associated type **definitions**. Methods may freely use nested `Self::` references in their signatures (e.g., `Self::Of<Self::Of<T>>`), which are resolved correctly.
+
 **Rationale**: Resolving this correctly requires topological sorting and dependency analysis. The complexity is not justified given the rarity of this pattern. Users should define types concretely without `Self::` references.
 
-### 4. Performance Considerations
+### 4. Associated Type Defaults in Trait Definitions
+
+The macro only extracts associated type mappings from `impl` blocks, not from trait definitions. If a trait provides a default associated type and the impl doesn't override it, the macro will have no projection for that type.
+
+**Behavior**: Users must explicitly specify associated types in impl blocks, even when the trait provides a default.
+
+**Example**:
+
+```rust
+trait MyTrait {
+    type Of<T> = Vec<T>;  // Trait-provided default
+}
+
+// ❌ Error: If method uses #[hm_signature], no projection found
+impl MyTrait for MyBrand {
+    // No override; uses trait default
+    #[hm_signature]
+    fn method<T>(&self) -> Self::Of<T> { ... }  // Error: Cannot resolve Self::Of
+}
+
+// ✅ Solution: Explicit override
+impl MyTrait for MyBrand {
+    type Of<T> = Vec<T>;  // Explicit, even though trait provides default
+
+    #[hm_signature]
+    fn method<T>(&self) -> Self::Of<T> { ... }  // Works
+}
+```
+
+**Rationale**: Parsing trait definitions across module/crate boundaries is complex and would result in inconsistent behavior (works for local traits, fails for external traits). Requiring explicit overrides keeps the implementation simple, predictable, and makes the code self-documenting.
+
+### 5. Interaction with Other Procedural Macros
+
+**Recommended Usage**: Apply `#![document_module]` as the first inner attribute in the module.
+
+**Compatibility**: Most macros should work fine with `#[document_module]`:
+
+- ✅ **Derive macros** and attribute macros on items (structs, enums, functions)
+- ✅ **Method-level attributes** (e.g., `#[inline]`, `#[cfg(...)]`)
+- ⚠️ **Module-level attribute macros** that transform the entire module may have undefined behavior
+
+**Expansion Order**: `#[document_module]` sees the module content before other macros inside it expand. This means it can see `impl_kind!` invocations but not the code they generate.
+
+**Testing**: If combining with other macros, test your specific combination to ensure documentation is generated as expected.
+
+### 6. Performance Considerations
 
 **Current Priority**: Correctness over performance. The macro will be implemented for correct behavior first. Performance optimizations (if needed) will be addressed in future iterations based on actual measured impact.
 
@@ -698,6 +888,80 @@ impl SomeTrait for MyBrand {
 - If compile-time impact becomes significant, consider caching strategies
 - Measure incremental compilation impact on large modules
 - Optimize if needed, but only after establishing correctness baseline
+
+## Documentation Best Practices
+
+### Organizing Code for Documentation
+
+1. **Co-locate Definitions**: Keep `impl_kind!` and trait implementations in the same module
+2. **Use Section Markers**: Include empty section markers in doc comments where generated content should appear:
+   ```rust
+   /// Method description
+   ///
+   /// ### Type Signature
+   ///
+   #[hm_signature]
+   ///
+   /// ### Parameters
+   /// ...
+   ```
+3. **Explicit Overrides**: For traits with defaults, explicitly override associated types
+4. **Consistent Defaults**: Mark one primary associated type as `#[doc_default]` per brand
+
+### Common Patterns
+
+#### Single Associated Type
+
+```rust
+impl_kind! {
+    for MyBrand {
+        #[doc_default]
+        type Of<T> = MyType<T>;
+    }
+}
+
+impl Functor for MyBrand {
+    #[hm_signature]
+    fn map<A, B>(...) -> Self::Of<B> { ... }  // Uses default
+}
+```
+
+#### Multiple Associated Types with Trait-Scoped Defaults
+
+```rust
+impl Pointer for ArcBrand {
+    #[doc_default]
+    type Of<T> = Arc<T>;
+
+    #[hm_signature]
+    fn new<T>(...) -> Self { ... }  // Uses Of as default
+}
+
+impl SendRefCountedPointer for ArcBrand {
+    #[doc_default]
+    type SendOf<T: Send + Sync> = Arc<T>;
+
+    #[hm_signature]
+    fn send_new<T: Send + Sync>(...) -> Self { ... }  // Uses SendOf as default
+}
+```
+
+#### Explicit Method-Level Override
+
+```rust
+impl ComplexTrait for MyBrand {
+    type Of<T> = Box<T>;
+    type SendOf<T: Send> = Arc<T>;
+
+    #[doc_use = "Of"]
+    #[hm_signature]
+    fn local_method(&self) -> Self { ... }
+
+    #[doc_use = "SendOf"]
+    #[hm_signature]
+    fn thread_safe_method(&self) -> Self { ... }
+}
+```
 
 ## Implementation Plan
 
