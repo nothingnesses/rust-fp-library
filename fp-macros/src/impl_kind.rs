@@ -10,7 +10,7 @@ use crate::{
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	Generics, Ident, Token, Type, TypeParamBound, WhereClause, braced,
+	Attribute, Generics, Ident, Token, Type, TypeParamBound, WhereClause, braced,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
@@ -43,6 +43,8 @@ pub struct ImplKindInput {
 /// Example: `type Of<A> = MyType<A>;`
 #[allow(dead_code)]
 pub struct KindAssocTypeImpl {
+	/// Attributes on the associated type (e.g., `#[doc_default]`).
+	pub attrs: Vec<Attribute>,
 	/// The `type` keyword.
 	pub type_token: Token![type],
 	/// The name of the associated type.
@@ -94,6 +96,7 @@ impl Parse for ImplKindInput {
 
 impl Parse for KindAssocTypeImpl {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let attrs = input.call(Attribute::parse_outer)?;
 		let type_token: Token![type] = input.parse()?;
 		let ident: Ident = input.parse()?;
 		let generics: Generics = input.parse()?;
@@ -125,6 +128,7 @@ impl Parse for KindAssocTypeImpl {
 		let semi_token: Token![;] = input.parse()?;
 
 		Ok(KindAssocTypeImpl {
+			attrs,
 			type_token,
 			ident,
 			generics,
@@ -151,7 +155,7 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		.definitions
 		.iter()
 		.map(|def| KindAssocTypeInput {
-			attrs: Vec::new(),
+			attrs: def.attrs.clone(),
 			_type_token: def.type_token,
 			ident: def.ident.clone(),
 			generics: def.generics.clone(),
@@ -169,8 +173,13 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		let generics = &def.generics;
 		let target = &def.target_type;
 		let where_clause = &def.where_clause;
+		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
+		let attrs = def.attrs.iter().filter(|attr| {
+			!attr.path().is_ident("doc_default") && !attr.path().is_ident("doc_use")
+		});
 
 		quote! {
+			#(#attrs)*
 			type #ident #generics = #target #where_clause;
 		}
 	});

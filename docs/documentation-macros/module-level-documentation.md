@@ -13,7 +13,7 @@ The current `#[document_impl]` macro significantly improves documentation genera
 
 A new module-level procedural macro, `#[document_module]`, that:
 
-- Is applied once to the module (e.g., as `#![document_module]`).
+- Is applied to an inline module containing the file's content (stable Rust workaround for inner attribute limitation).
 - Automatically extracts Brand-to-Concrete type mappings from both `impl_kind!` invocations and standard `impl` blocks (Impl-Scanning).
 - Replaces the manual `#[document_impl]` macro, automatically applying the documentation logic to methods annotated with `#[hm_signature]` or `#[doc_type_params]`, using a hierarchical configuration system to resolve ambiguities.
 
@@ -619,38 +619,42 @@ When resolving bare `Self` in a method within `impl Trait for Brand`:
 **Example**:
 
 ```rust
-impl_kind! {
-    for ArcBrand {
-        #[doc_default]  // Global module default
+#[fp_macros::document_module]
+mod inner {
+    impl_kind! {
+        for ArcBrand {
+            #[doc_default]  // Global module default
+            type Of<T> = Arc<T>;
+        }
+    }
+
+    impl Pointer for ArcBrand {
         type Of<T> = Arc<T>;
+
+        fn new<T>(value: T) -> Self {  // Uses global default: Arc<T> via Of
+            Arc::new(value)
+        }
+    }
+
+    impl RefCountedPointer for ArcBrand {
+        #[doc_default]  // (Type, Trait)-scoped default for (ArcBrand, RefCountedPointer)
+        type CloneableOf<T: ?Sized> = Arc<T>;
+
+        fn new<T>(value: T) -> Self {  // Uses (Type,Trait) default: Arc<T> via CloneableOf
+            Arc::new(value)
+        }
+    }
+
+    impl SendRefCountedPointer for ArcBrand {
+        type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
+
+        #[doc_use = "SendOf"]  // Explicit override needed (no default marked)
+        fn send_new<T: Send + Sync>(value: T) -> Self {
+            Arc::new(value)
+        }
     }
 }
-
-impl Pointer for ArcBrand {
-    type Of<T> = Arc<T>;
-
-    fn new<T>(value: T) -> Self {  // Uses global default: Arc<T> via Of
-        Arc::new(value)
-    }
-}
-
-impl RefCountedPointer for ArcBrand {
-    #[doc_default]  // (Type, Trait)-scoped default for (ArcBrand, RefCountedPointer)
-    type CloneableOf<T: ?Sized> = Arc<T>;
-
-    fn new<T>(value: T) -> Self {  // Uses (Type,Trait) default: Arc<T> via CloneableOf
-        Arc::new(value)
-    }
-}
-
-impl SendRefCountedPointer for ArcBrand {
-    type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
-
-    #[doc_use = "SendOf"]  // Explicit override needed (no default marked)
-    fn send_new<T: Send + Sync>(value: T) -> Self {
-        Arc::new(value)
-    }
-}
+pub use inner::*;
 ```
 
 #### 2.2 Conflict Resolution
@@ -779,19 +783,23 @@ Both sections are generated, appearing where their attributes were placed.
 **Example**:
 
 ```rust
-impl Functor for MyBrand {
-    /// Applies a function to the value inside.
-    ///
-    /// ### Type Signature
-    ///
-    #[hm_signature]  // ← This attribute is replaced in-place
-    ///
-    /// ### Parameters
-    ///
-    /// - `f`: The function to apply
-    ///
-    fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }
+#[fp_macros::document_module]
+mod inner {
+    impl Functor for MyBrand {
+        /// Applies a function to the value inside.
+        ///
+        /// ### Type Signature
+        ///
+        #[hm_signature]  // ← This attribute is replaced in-place
+        ///
+        /// ### Parameters
+        ///
+        /// - `f`: The function to apply
+        ///
+        fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }
+    }
 }
+pub use inner::*;
 ```
 
 After macro expansion, the `#[hm_signature]` line is replaced with the generated HM signature documentation.
@@ -887,11 +895,24 @@ For methods with documentation attributes, resolve `Self` usage:
 
 ### 6. Attribute Placement
 
-**Decision**: Enforce usage as an **inner attribute** (`#![document_module]`) at the top of the file.
+**Decision**: Use **outer attribute** on an inline module wrapper due to inner attribute instability.
+
+**Stable Rust Pattern**:
+
+```rust
+#[fp_macros::document_module]
+mod inner {
+    // All file content here
+}
+pub use inner::*;
+```
 
 **Rationale**:
 
-- **Access to Content**: Inner attributes guarantee that the macro receives the file's content as its input. Outer attributes on `mod foo;` declarations might not have access to the content if it resides in a separate file (unless explicitly loaded, which is complex and non-standard for proc macros).
+- **Stability**: Inner macro attributes (`#![document_module]`) are unstable and require `#![feature(proc_macro_hygiene)]` on nightly Rust.
+- **Workaround**: Wrapping content in an inline module with an outer attribute is the stable alternative.
+- **Ergonomics vs Stability Trade-off**: While more verbose than an inner attribute, this pattern works on stable Rust and is a one-time addition per file.
+- **Access to Content**: The macro receives the complete module content, enabling full context extraction.
 
 ### 7. Macro Expansion Order and Generated Code Limitations
 
@@ -905,40 +926,42 @@ For methods with documentation attributes, resolve `Self` usage:
 **Examples**:
 
 ```rust
-#![document_module]
+#[fp_macros::document_module]
+mod inner {
+    // ✅ Works: Direct impl_kind! invocation
+    impl_kind! {
+        for MyBrand {
+            type Of<A> = Box<A>;
+        }
+    }
 
-// ✅ Works: Direct impl_kind! invocation
-impl_kind! {
-    for MyBrand {
-        type Of<A> = Box<A>;
+    // ❌ Doesn't Work: impl_kind! via macro_rules!
+    macro_rules! generate_impl_kind {
+        ($brand:ty, $target:ty) => {
+            impl_kind! { for $brand { type Of<A> = $target<A>; } }
+        };
+    }
+    generate_impl_kind!(MyBrand, Box);
+    // The macro sees the invocation, not the generated impl_kind!
+
+    // ⚠️ Undefined: Derive-generated impls
+    // Behavior depends on derive macro implementation and expansion order
+    #[derive(Kind)]
+    struct MyType;
+
+    // ❌ Doesn't Work: Included impls from build.rs
+    // The macro cannot see files included via include!()
+    include!(concat!(env!("OUT_DIR"), "/generated_impls.rs"));
+
+    // ✅ Workaround: Manual override for generated code
+    #[doc_use = "Of"]
+    impl SomeTrait for GeneratedBrand {
+        // Methods can still use documentation attributes
+        #[hm_signature]
+        fn method(&self) -> Self { ... }
     }
 }
-
-// ❌ Doesn't Work: impl_kind! via macro_rules!
-macro_rules! generate_impl_kind {
-    ($brand:ty, $target:ty) => {
-        impl_kind! { for $brand { type Of<A> = $target<A>; } }
-    };
-}
-generate_impl_kind!(MyBrand, Box);
-// The macro sees the invocation, not the generated impl_kind!
-
-// ⚠️ Undefined: Derive-generated impls
-// Behavior depends on derive macro implementation and expansion order
-#[derive(Kind)]
-struct MyType;
-
-// ❌ Doesn't Work: Included impls from build.rs
-// The macro cannot see files included via include!()
-include!(concat!(env!("OUT_DIR"), "/generated_impls.rs"));
-
-// ✅ Workaround: Manual override for generated code
-#[doc_use = "Of"]
-impl SomeTrait for GeneratedBrand {
-    // Methods can still use documentation attributes
-    #[hm_signature]
-    fn method(&self) -> Self { ... }
-}
+pub use inner::*;
 ```
 
 ### 8. Coupling to `impl_kind!`
@@ -1322,11 +1345,11 @@ help: Place the attribute where documentation comments are valid
 
 ### 1. Cross-Module Visibility and Module Scope Isolation
 
-The `#[document_module]` macro can only inspect the tokens within the module it is applied to. Each `#![document_module]` invocation creates an **isolated scope**.
+The `#[document_module]` macro can only inspect the tokens within the module it is applied to. Each `#[document_module]` invocation creates an **isolated scope**.
 
-**Behavior**: The `#![document_module]` attribute is **non-recursive**. It only processes items directly within the annotated module.
+**Behavior**: The `#[document_module]` attribute is **non-recursive**. It only processes items directly within the annotated module.
 
-**Inline Submodules**: Nested inline modules (`mod inner { ... }`) are NOT processed unless they have their own `#![document_module]` attribute.
+**Inline Submodules**: Nested inline modules (`mod inner { ... }`) are NOT processed unless they have their own `#[document_module]` attribute.
 
 **Rationale**:
 
@@ -1337,45 +1360,52 @@ The `#[document_module]` macro can only inspect the tokens within the module it 
 **Example**:
 
 ```rust
-#![document_module]
-
-impl_kind! { for OuterBrand { type Of<T> = Vec<T>; } }  // ✅ Processed
-impl Trait for OuterBrand { ... }                        // ✅ Processed
-
+// file.rs
+#[fp_macros::document_module]
 mod inner {
-    impl_kind! { for InnerBrand { type Of<T> = Box<T>; } }  // ❌ NOT processed
-    // To enable processing, add #![document_module] at top of inner module
-}
+    impl_kind! { for OuterBrand { type Of<T> = Vec<T>; } }  // ✅ Processed
+    impl Trait for OuterBrand { ... }                        // ✅ Processed
 
-mod other {
-    #![document_module]  // ✅ Independent scope
-    impl_kind! { for InnerBrand { type Of<T> = Box<T>; } }  // ✅ Processed in this scope
-}
-```
-
-**Nested Module Scope Isolation**: Each `#![document_module]` creates an independent scope. Child modules do NOT inherit parent module's type mappings:
-
-```rust
-#![document_module]
-impl_kind! { for OuterBrand { type Of<T> = Vec<T>; } }
-
-mod inner {
-    #![document_module]
-
-    impl SomeTrait for super::OuterBrand {
-        #[hm_signature]
-        fn method(&self) -> Self { ... }
-        // ❌ Error: No mapping for OuterBrand in this scope
+    mod nested {
+        impl_kind! { for InnerBrand { type Of<T> = Box<T>; } }  // ❌ NOT processed
+        // Nested modules need their own wrapper
     }
 }
+pub use inner::*;
+
+// To process nested module content, it needs its own wrapper:
+#[fp_macros::document_module]
+mod other {
+    impl_kind! { for InnerBrand { type Of<T> = Box<T>; } }  // ✅ Processed in this scope
+}
+pub use other::*;
+```
+
+**Nested Module Scope Isolation**: Each `#[document_module]` creates an independent scope. Child modules do NOT inherit parent module's type mappings:
+
+```rust
+#[fp_macros::document_module]
+mod outer {
+    impl_kind! { for OuterBrand { type Of<T> = Vec<T>; } }
+
+    #[fp_macros::document_module]
+    mod inner {
+        impl SomeTrait for super::OuterBrand {
+            #[hm_signature]
+            fn method(&self) -> Self { ... }
+            // ❌ Error: No mapping for OuterBrand in this scope
+        }
+    }
+    pub use inner::*;
+}
+pub use outer::*;
 ```
 
 **Workaround**: Repeat `impl_kind!` in nested modules or use `#[doc_use]`:
 
 ```rust
+#[fp_macros::document_module]
 mod inner {
-    #![document_module]
-
     #[doc_use = "Of"]  // Explicit override
     impl SomeTrait for super::OuterBrand {
         type Of<T> = Vec<T>;  // Redeclare if needed
@@ -1384,9 +1414,19 @@ mod inner {
         fn method(&self) -> Self { ... }  // ✅ Works
     }
 }
+pub use inner::*;
 ```
 
-**File Modules**: For file modules (`mod foo;` referring to `foo.rs`), the `#![document_module]` attribute must be placed at the top of the file (`foo.rs`), not at the module declaration site.
+**File Modules**: For file modules (`mod foo;` referring to `foo.rs`), use the inline module wrapper pattern in `foo.rs`:
+
+```rust
+// foo.rs
+#[fp_macros::document_module]
+mod inner {
+    // All content here
+}
+pub use inner::*;
+```
 
 **Mitigation**: If the macro encounters a type that it cannot resolve (because the definition is in another module), it will:
 
@@ -1451,27 +1491,31 @@ impl MyTrait for MyBrand {
 
 ### 5. Interaction with Other Procedural Macros
 
-**Recommended Usage**: Apply `#![document_module]` as the first inner attribute in the module.
+**Recommended Usage**: Apply `#[document_module]` to the outermost wrapper module in each file.
 
-**Attribute Ordering**: When multiple attribute macros are applied to a module, Rust processes them in order of appearance. For `#![document_module]` to work correctly:
+**Attribute Ordering**: When multiple attribute macros are applied to a module, Rust processes them in order of appearance. For `#[document_module]` to work correctly:
 
-1. It should be the **first** inner attribute in the module
-2. Other module-level attributes may interfere with extraction if they transform the module structure
+1. It should be applied to the outermost wrapper module
+2. Place it before other module-level attributes if stacking is needed
 
 **Example**:
 
 ```rust
-#![document_module]    // ✅ First - sees original structure
-#![other_macro]        // Processes after document_module
+#[fp_macros::document_module]    // ✅ Outermost attribute
+#[cfg(feature = "unstable")]      // Other attributes after
+mod inner {
+    // Content
+}
+pub use inner::*;
 ```
 
-**Rationale**: Placing `#![document_module]` first ensures it sees the original module structure before other macros transform it. Other ordering may result in incomplete extraction or unexpected behavior.
+**Rationale**: Applying to the outermost wrapper ensures it sees the original module structure before other macros transform it.
 
 **Compatibility**: Most macros should work fine with `#[document_module]`:
 
 - ✅ **Derive macros** and attribute macros on items (structs, enums, functions)
 - ✅ **Method-level attributes** (e.g., `#[inline]`, `#[cfg(...)]`)
-- ⚠️ **Module-level attribute macros** that transform the entire module may have undefined behavior if they run before `document_module`
+- ✅ **Stacked module attributes** on the wrapper module (processed in order)
 
 **Expansion Order**: `#[document_module]` sees the module content before other macros inside it expand. This means it can see `impl_kind!` invocations but not the code they generate.
 
@@ -1539,54 +1583,66 @@ Is treated as if `#[doc_default]` is always present, regardless of active featur
 #### Single Associated Type
 
 ```rust
-impl_kind! {
-    for MyBrand {
-        #[doc_default]
-        type Of<T> = MyType<T>;
+#[fp_macros::document_module]
+mod inner {
+    impl_kind! {
+        for MyBrand {
+            #[doc_default]
+            type Of<T> = MyType<T>;
+        }
+    }
+
+    impl Functor for MyBrand {
+        #[hm_signature]
+        fn map<A, B>(...) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }  // Uses default
     }
 }
-
-impl Functor for MyBrand {
-    #[hm_signature]
-    fn map<A, B>(...) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }  // Uses default
-}
+pub use inner::*;
 ```
 
 #### Multiple Associated Types with (Type, Trait)-Scoped Defaults
 
 ```rust
-impl Pointer for ArcBrand {
-    #[doc_default]
-    type Of<T> = Arc<T>;
+#[fp_macros::document_module]
+mod inner {
+    impl Pointer for ArcBrand {
+        #[doc_default]
+        type Of<T> = Arc<T>;
 
-    #[hm_signature]
-    fn new<T>(...) -> Self { ... }  // Uses Of as default
+        #[hm_signature]
+        fn new<T>(...) -> Self { ... }  // Uses Of as default
+    }
+
+    impl SendRefCountedPointer for ArcBrand {
+        #[doc_default]
+        type SendOf<T: Send + Sync> = Arc<T>;
+
+        #[hm_signature]
+        fn send_new<T: Send + Sync>(...) -> Self { ... }  // Uses SendOf as default
+    }
 }
-
-impl SendRefCountedPointer for ArcBrand {
-    #[doc_default]
-    type SendOf<T: Send + Sync> = Arc<T>;
-
-    #[hm_signature]
-    fn send_new<T: Send + Sync>(...) -> Self { ... }  // Uses SendOf as default
-}
+pub use inner::*;
 ```
 
 #### Explicit Method-Level Override
 
 ```rust
-impl ComplexTrait for MyBrand {
-    type Of<T> = Box<T>;
-    type SendOf<T: Send> = Arc<T>;
+#[fp_macros::document_module]
+mod inner {
+    impl ComplexTrait for MyBrand {
+        type Of<T> = Box<T>;
+        type SendOf<T: Send> = Arc<T>;
 
-    #[doc_use = "Of"]
-    #[hm_signature]
-    fn local_method(&self) -> Self { ... }
+        #[doc_use = "Of"]
+        #[hm_signature]
+        fn local_method(&self) -> Self { ... }
 
-    #[doc_use = "SendOf"]
-    #[hm_signature]
-    fn thread_safe_method(&self) -> Self { ... }
+        #[doc_use = "SendOf"]
+        #[hm_signature]
+        fn thread_safe_method(&self) -> Self { ... }
+    }
 }
+pub use inner::*;
 ```
 
 ## Implementation Plan

@@ -6,7 +6,7 @@ use apply::{ApplyInput, apply_impl};
 use def_kind::def_kind_impl;
 use doc_params::doc_params_impl;
 use doc_type_params::doc_type_params_impl;
-use document_impl::document_impl_impl;
+use document_module::document_module_impl;
 use generate::generate_name;
 use hm_signature::hm_signature_impl;
 use impl_kind::{ImplKindInput, impl_kind_impl};
@@ -22,7 +22,7 @@ pub(crate) mod def_kind;
 pub(crate) mod doc_params;
 pub(crate) mod doc_type_params;
 pub(crate) mod doc_utils;
-pub(crate) mod document_impl;
+pub(crate) mod document_module;
 pub(crate) mod function_utils;
 pub(crate) mod generate;
 pub(crate) mod hm_ast;
@@ -614,48 +614,42 @@ pub fn doc_params(
 	doc_params_impl(attr.into(), item.into()).into()
 }
 
-/// Orchestrates documentation generation for an `impl` block.
+/// Orchestrates documentation generation for an entire module.
 ///
-/// This macro parses the full `impl` context (trait name, generics, bounds) and
-/// automatically generates accurate HM signatures and trait-level parameter documentation
-/// for all methods annotated with `#[hm_signature]` and `#[doc_type_params]`.
+/// This macro scans the module for `impl_kind!` and `impl` blocks to build a projection map,
+/// then automatically generates HM signatures and type parameter documentation for all
+/// methods annotated with `#[hm_signature]` or `#[doc_type_params]`.
 ///
 /// ### Syntax
 ///
+/// Due to inner macro attributes being unstable, use the following wrapper pattern:
+///
 /// ```ignore
-/// #[document_impl(
-///     doc_type_params(
-///         "Description for first trait parameter",
-///         ("OverriddenName", "Description for second trait parameter"),
-///         ...
-///     )
-/// )]
-/// impl<T, ...> Trait for Type<T, ...> { ... }
+/// #[fp_macros::document_module]
+/// mod inner {
+///     impl_kind! {
+///         for MyBrand {
+///             #[doc_default]
+///             type Of<T> = MyType<T>;
+///         }
+///     }
+///
+///     impl Functor for MyBrand {
+///         #[hm_signature]
+///         fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(...) { ... }
+///     }
+/// }
+/// pub use inner::*;
 /// ```
 ///
-/// ### Parameters
+/// ### Attributes
 ///
-/// * `doc_type_params`: Documentation for the `impl` block's generic parameters.
-///   Follows the same syntax as `#[doc_type_params]`.
-///
-/// ### Behavior
-///
-/// For each method in the `impl` block:
-/// 1. If `#[hm_signature]` is present:
-///    - It is replaced with a generated HM signature.
-///    - The signature includes all bounds from the `impl` block and the trait constraint itself.
-///    - `Self` and `self` are correctly substituted with the concrete type and its reference/mutability modes.
-/// 2. If `#[doc_type_params]` is present:
-///    - Documentation for the `impl` parameters is inserted **before** it.
-///    - The existing `#[doc_type_params]` attribute is then expanded normally to document method-level parameters.
-///
-/// ### Configuration
-///
-/// This macro uses the same configuration as `#[hm_signature]`. See [`hm_signature`] for details.
+/// * `#[doc_default]`: Mark an associated type as the default for bare `Self` resolution.
+/// * `#[doc_use = "AssocName"]`: Explicitly specify which associated type to use for a method or impl block.
 #[proc_macro_attribute]
-pub fn document_impl(
+pub fn document_module(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	document_impl_impl(attr.into(), item.into()).into()
+	document_module_impl(attr.into(), item.into()).into()
 }

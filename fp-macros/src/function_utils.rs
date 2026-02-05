@@ -14,6 +14,15 @@ pub struct Config {
 	pub apply_macro_aliases: HashSet<String>,
 	#[serde(default = "default_ignored_traits")]
 	pub ignored_traits: HashSet<String>,
+	/// Projection map: (TypePath, Option<TraitPath>, AssocName) -> (Generics, TargetType)
+	#[serde(skip)]
+	pub projections: HashMap<(String, Option<String>, String), (syn::Generics, syn::Type)>,
+	/// Module-level defaults: TypePath -> AssocName
+	#[serde(skip)]
+	pub module_defaults: HashMap<String, String>,
+	/// (Type, Trait)-scoped defaults: (TypePath, TraitPath) -> AssocName
+	#[serde(skip)]
+	pub scoped_defaults: HashMap<(String, String), String>,
 }
 
 impl Default for Config {
@@ -22,6 +31,9 @@ impl Default for Config {
 			brand_mappings: HashMap::new(),
 			apply_macro_aliases: HashSet::new(),
 			ignored_traits: default_ignored_traits(),
+			projections: HashMap::new(),
+			module_defaults: HashMap::new(),
+			scoped_defaults: HashMap::new(),
 		}
 	}
 }
@@ -238,6 +250,9 @@ pub fn trait_bound_to_hm_arrow(
 ) -> HMType {
 	let segment = trait_bound.path.segments.last().unwrap();
 	if let PathArguments::Parenthesized(args) = &segment.arguments {
+		// Erase HRTB lifetimes from trait bound
+		let _ = &trait_bound.lifetimes;
+
 		let inputs: Vec<HMType> =
 			args.inputs.iter().map(|t| type_to_hm(t, fn_bounds, generic_names, config)).collect();
 		let output = match &args.output {
@@ -474,6 +489,35 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		}
 	}
 
+	fn visit_trait_object(
+		&mut self,
+		trait_object: &syn::TypeTraitObject,
+	) -> Self::Output {
+		// Erase auto traits and lifetimes from trait objects
+		let mut bounds = Vec::new();
+		for bound in &trait_object.bounds {
+			if let syn::TypeParamBound::Trait(trait_bound) = bound {
+				let name = trait_bound.path.segments.last().unwrap().ident.to_string();
+				if !self.config.ignored_traits.contains(&name) {
+					bounds.push(trait_bound_to_hm_type(
+						trait_bound,
+						self.fn_bounds,
+						self.generic_names,
+						self.config,
+					));
+				}
+			}
+		}
+
+		if bounds.is_empty() {
+			HMType::Variable("dyn".to_string())
+		} else if bounds.len() == 1 {
+			bounds[0].clone()
+		} else {
+			HMType::Constructor("dyn".to_string(), bounds)
+		}
+	}
+
 	fn visit_impl_trait(
 		&mut self,
 		impl_trait: &syn::TypeImplTrait,
@@ -491,17 +535,11 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		HMType::Variable("impl_trait".to_string())
 	}
 
-	fn visit_trait_object(
-		&mut self,
-		trait_object: &syn::TypeTraitObject,
-	) -> Self::Output {
-		trait_object_to_hm(trait_object, self.fn_bounds, self.generic_names, self.config)
-	}
-
 	fn visit_bare_fn(
 		&mut self,
 		bare_fn: &syn::TypeBareFn,
 	) -> Self::Output {
+		// Erase unsafe and lifetimes from bare fns
 		let inputs: Vec<HMType> = bare_fn.inputs.iter().map(|arg| self.visit(&arg.ty)).collect();
 		let output = match &bare_fn.output {
 			ReturnType::Default => HMType::Unit,
@@ -550,7 +588,7 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 	}
 }
 
-pub fn trait_object_to_hm(
+pub(crate) fn trait_object_to_hm(
 	trait_object: &TypeTraitObject,
 	fn_bounds: &HashMap<String, HMType>,
 	generic_names: &HashSet<String>,

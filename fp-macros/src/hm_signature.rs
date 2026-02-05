@@ -13,6 +13,8 @@ pub fn hm_signature_impl(
 	attr: proc_macro2::TokenStream,
 	item_tokens: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
+	// If we are inside document_module, this attribute might be processed twice.
+	// But hm_signature_impl is a standalone macro.
 	let mut item = match GenericItem::parse(item_tokens) {
 		Ok(i) => i,
 		Err(e) => return e.to_compile_error(),
@@ -101,9 +103,13 @@ pub fn generate_signature(
 ) -> SignatureData {
 	let (generic_names, fn_bounds) = analyze_generics(sig, config);
 
+	// Erase unsafe modifier
+	let mut sig = sig.clone();
+	sig.unsafety = None;
+
 	let (mut forall, mut constraints) =
 		format_generics(&sig.generics, &fn_bounds, &generic_names, config);
-	let params = format_parameters(sig, &fn_bounds, &generic_names, config);
+	let params = format_parameters(&sig, &fn_bounds, &generic_names, config);
 	let ret = format_return_type(&sig.output, &fn_bounds, &generic_names, config);
 
 	let uses_self = params.iter().any(hm_type_uses_self) || hm_type_uses_self(&ret);
