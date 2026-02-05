@@ -52,12 +52,15 @@ The `document_module` macro is **not responsible for**:
 The macro scans for associated type definitions in the following locations:
 
 **Included**:
+
 1.  **`impl_kind!` Invocations** (top-level in the module):
+
     ```rust
     impl_kind! { for MyBrand { type Of<A> = Box<A>; } }
     ```
+
     Extracts: `(MyBrand, None, Of<A>)` -> `Box<A>`.
-    
+
     The `Trait` is `None` because `impl_kind!` defines global defaults not tied to a specific trait.
 
 2.  **Standard `impl` Blocks** (top-level in the module):
@@ -69,10 +72,11 @@ The macro scans for associated type definitions in the following locations:
     Extracts: `(ArcBrand, Some(Pointer), Of<T>)` -> `Arc<T>`.
 
 **Excluded**:
+
 - Function/method bodies
 - Nested modules (without their own `#![document_module]`)
 - **Trait definitions** (including default associated types and associated type declarations)
-  - Note: While trait *declarations* (`type Of<T>;`) are not extracted for mappings, they are recognized for documentation purposes. However, default associated type *definitions* in traits (`type Of<T> = Vec<T>;`) are excluded. Users must explicitly override these in impl blocks.
+  - Note: While trait _declarations_ (`type Of<T>;`) are not extracted for mappings, they are recognized for documentation purposes. However, default associated type _definitions_ in traits (`type Of<T> = Vec<T>;`) are excluded. Users must explicitly override these in impl blocks.
 - Associated constants
 - Macro-generated code (not visible to the macro - see §7)
 
@@ -185,8 +189,8 @@ impl_kind! {
 
 // In trait impl (renamed generic):
 impl<C: LazyConfig + Send> Functor for LazyBrand<C> {
-    fn map<A, B>(...) -> Self::Of<B> {
-        // Resolution: Self::Of<B> -> Lazy<B, C>
+    fn map<A, B>(...) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) {
+        // Resolution: Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) -> Lazy<B, C>
         // Position 0: Config/C matched by position, uses C (the trait impl's name)
     }
 }
@@ -204,7 +208,7 @@ impl<C: LazyConfig + Send> Functor for LazyBrand<C> {
 // impl_kind! defines: LazyBrand<Config: LazyConfig> with Of<T> = Lazy<T, Config>
 // Trait impl uses: LazyBrand<C: LazyConfig + Send>
 // Match: Position 0 maps Config ↔ C
-// Substitution: Use C in the resolved type: Self::Of<B> → Lazy<B, C>
+// Substitution: Use C in the resolved type: Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) → Lazy<B, C>
 ```
 
 **Const Generics Handling**: Const generics in associated types are identified during parsing but **erased** from the projection map keys. Only type parameters are used for positional matching. Const generics are matched in a separate positional sequence from type generics.
@@ -222,7 +226,7 @@ impl_kind! {
 // Note: Only T is in the key; N is preserved in the target type
 
 impl Functor for ArrayBrand {
-    fn map<const N: usize, A, B>(...) -> Self::Of<N, B> { ... }
+    fn map<const N: usize, A, B>(...) -> Apply!(<Self as Kind!(type Of<const N: usize, T>;)>::Of<N, B>) { ... }
     // Resolution: Match type params positionally (B → T)
     //             Match const params positionally (N → N)
     // Resolves to: [B; N]
@@ -245,7 +249,7 @@ type Of<const N: usize, T, const M: usize, U> = [(T, U); N + M];
 //                                        ^ Position 1 (type)
 
 // In method:
-fn foo<A, B, const X: usize, const Y: usize>() -> Self::Of<X, A, Y, B>
+fn foo<A, B, const X: usize, const Y: usize>() -> Apply!(<Self as Kind!(type Of<const N: usize, T, const M: usize, U>;)>::Of<X, A, Y, B>)
 //     ^ Position 0 (type)
 //        ^ Position 1 (type)
 //              ^^^^^ Position 0 (const)
@@ -301,13 +305,13 @@ The macro follows the rules defined in [`docs/documentation-macros/function-para
 
 - **Uncurried functions** (taking tuples): Documented with tuple syntax
   - `fn foo(x: (A, B)) -> C` → `(A, B) -> C`
-  
-- **Curried functions** (returning `Fn`): Documented with arrow chains  
+- **Curried functions** (returning `Fn`): Documented with arrow chains
   - `fn foo(x: A) -> impl Fn(B) -> C` → `A -> B -> C`
 
 **Detection**: A function is "curried" if its return type is a function trait (`Fn`, `FnMut`, `FnOnce`) or HKT function trait (`CloneableFn`, `SendCloneableFn`, `Function`).
 
 **HRTB Handling**: Higher-ranked trait bounds (`for<'a>`) are erased:
+
 - `fn foo<T>() -> impl for<'a> Fn(&'a T) -> R` → `forall T. &T -> R`
 
 **Lifetimes**: Completely erased from HM signatures (§1.11).
@@ -320,7 +324,7 @@ Method-level trait bounds are shown as constraints using Haskell-style syntax:
 
 ```rust
 // Rust signature:
-fn foo<T: Clone + Debug>(x: T) -> Self::Of<T>
+fn foo<T: Clone + Debug>(x: T) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<T>)
 
 // HM signature:
 // forall T. [Clone T, Debug T] => T -> Self::Of T
@@ -394,7 +398,7 @@ impl SomeTrait for MyBrand {
 ```rust
 // ✅ Valid: Nested Self:: in method signature
 impl Monad for MyBrand {
-    fn join(mma: Self::Of<Self::Of<T>>) -> Self::Of<T> {
+    fn join(mma: Apply!(<Self as Kind!(type Of<T>;)>::Of<Apply!(<Self as Kind!(type Of<T>;)>::Of<T>)>)) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<T>) {
         // If Of<T> = Box<T>, this resolves iteratively to:
         // Box<Box<T>> -> Box<T>
         // Perfectly valid
@@ -423,10 +427,10 @@ impl Monad for MyBrand {
 
 ```rust
 impl Functor for MyBrand {
-    fn map<A, B>(x: Self::Of<A>) -> Apply!(Self, B) {
-        // Apply!(Self, B) is traversed
+    fn map<A, B>(x: Apply!(<Self as Kind!(type Of<T>;)>::Of<A>)) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) {
+        // Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) is traversed
         // Self resolved to MyBrand
-        // Result: Apply!(MyBrand, B)
+        // Result: Apply!(<MyBrand as Kind!(type Of<T>;)>::Of<B>)
     }
 }
 ```
@@ -439,13 +443,15 @@ impl Functor for MyBrand {
 
 **Decision**: Lifetimes are **completely erased** from HM signature documentation.
 
-**Rationale**: 
+**Rationale**:
+
 - HM signatures represent mathematical type relationships
 - Lifetimes are Rust-specific implementation details
 - The actual Rust signature (visible above the HM signature) shows all lifetimes
 - Erasing lifetimes produces cleaner, more readable mathematical notation
 
-**Extraction**: 
+**Extraction**:
+
 - Lifetimes in associated type parameters are not included in projection map keys
 - Lifetimes in target types are present but ignored for matching purposes
 - During HM signature generation, lifetimes are completely erased
@@ -462,7 +468,7 @@ impl_kind! {
 impl Functor for RefBrand {
     // Rust signature (preserved as-is in docs):
     fn map<'a, A, B>(x: &'a A, f: impl Fn(A) -> B) -> &'a B
-    
+
     // HM signature generated (lifetimes erased):
     // forall A B. &A -> (A -> B) -> &B
 }
@@ -580,6 +586,7 @@ impl SendRefCountedPointer for ArcBrand {
 Documentation attributes (`#[hm_signature]`, `#[doc_type_params]`) must be placed **within doc comment sections**, not before the item like standard Rust attributes.
 
 **Valid**:
+
 ```rust
 /// Description
 ///
@@ -592,6 +599,7 @@ fn foo() { ... }
 ```
 
 **Invalid**:
+
 ```rust
 /// Description
 #[hm_signature]  // ❌ Wrong: Outside doc comments
@@ -605,7 +613,7 @@ fn foo() { ... }
 **Multiple Attributes on One Method**: A method may have both `#[hm_signature]` and `#[doc_type_params]` if documentation for both aspects is desired.
 
 - Each attribute is processed independently
-- Each generates its respective documentation section  
+- Each generates its respective documentation section
 - Attributes are replaced in source order
 - This is the current behavior of `document_impl`; preserved for compatibility
 
@@ -642,7 +650,7 @@ impl Functor for MyBrand {
     ///
     /// - `f`: The function to apply
     ///
-    fn map<A, B>(self, f: impl Fn(A) -> B) -> Self::Of<B> { ... }
+    fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }
 }
 ```
 
@@ -802,6 +810,7 @@ impl SomeTrait for GeneratedBrand {
 **Error Collection**: The macro processes Pass 1 (context extraction) and accumulates all errors encountered. If Pass 1 has any errors, all errors are reported together and compilation fails immediately without proceeding to Pass 2 (documentation generation).
 
 **Rationale**:
+
 - **Pass 1 errors often cause cascade failures in Pass 2**: Missing type mappings or ambiguous defaults would generate misleading errors during documentation generation
 - **Clean error messages**: By stopping after Pass 1, we avoid spurious errors from Pass 2 that are merely symptoms of Pass 1 problems
 - **Complete feedback**: Users still see all Pass 1 errors at once, not one at a time
@@ -840,12 +849,14 @@ impl SomeTrait for GeneratedBrand {
 **Decision**: Use **AST-based structural comparison** with generic normalization.
 
 **Algorithm**:
+
 1. Parse both types into AST (can reuse/extend `fp-macros/src/hm_ast.rs`, if applicable)
 2. Normalize generic names positionally (position 0 → `T₀`, position 1 → `T₁`, etc.)
 3. Compare AST nodes recursively for structural equality
 4. Paths, type aliases, and concrete types must match exactly (no resolution)
 
-**Rationale**: 
+**Rationale**:
+
 - AST comparison is more robust than token comparison
 - Generic renaming is essential (same position = same type variable)
 - No semantic analysis (consistent with "out of scope" principle)
@@ -881,11 +892,13 @@ type Of<T> = std::vec::Vec<T>;  // Different paths, not resolved
 When showing "Available associated types" in error messages, the list should be **context-appropriate**:
 
 **For missing projection errors** (`Self::Foo<T>` cannot be resolved):
+
 - Show all associated types for the Brand across all traits
 - If the specific name exists, show which traits define it
 - Otherwise, show all type names available
 
 **For missing default errors** (bare `Self` cannot be resolved):
+
 - Primary: Show types defined in the current impl block
 - Secondary: Show types from other impl blocks for same Brand
 - Mark scope clearly: "(in this impl)" vs "(in other traits)"
@@ -1023,24 +1036,28 @@ help: Place the attribute inside the doc comment where generated docs should app
 ### Coverage Targets
 
 **Minimum Requirements**:
+
 - Unit test coverage: ≥80% of core logic (context extraction, resolution, doc generation)
 - Integration test coverage: ≥90% of user-facing features
 - All error paths must have explicit tests
 - All examples in this specification must have corresponding tests
 
 **Critical Paths** (require 100% coverage):
+
 1. Projection map building (`impl_kind!` and trait impl scanning)
 2. Hierarchical default resolution (method → impl → (Type,Trait) → module → error)
 3. `Self` substitution in all contexts (bare, projected, nested, `Apply!`/`Kind!`)
 4. Error message generation with proper spans and suggestions
 
 **Regression Protection**:
+
 - **ALL** existing tests from `hm_signature.rs`, `document_impl.rs`, `doc_type_params.rs` must be preserved (adapted as needed)
 - Each test must verify identical output OR document intentional changes
 - No behavioral regressions without explicit justification in commit message
 - Baseline: Current macro behavior is the specification for compatibility
 
 **Quality Gates**:
+
 - All tests must pass before merge (no exceptions)
 - No `#[ignore]`'d tests in main branch without issue tracking
 - Compile-fail tests must verify exact error messages (not just "it fails")
@@ -1147,7 +1164,8 @@ The `#[document_module]` macro can only inspect the tokens within the module it 
 
 **Inline Submodules**: Nested inline modules (`mod inner { ... }`) are NOT processed unless they have their own `#![document_module]` attribute.
 
-**Rationale**: 
+**Rationale**:
+
 - Explicit scope control - each module opts in independently
 - Predictable behavior - attribute affects only the annotated module
 - Matches Rust's standard scoping intuitions
@@ -1253,12 +1271,14 @@ impl MyTrait for MyBrand {
 **Priority**: Correctness over performance in initial implementation.
 
 **Known Complexity**:
+
 - Context extraction (Pass 1): O(n×k) where n = impl blocks, k = associated types
 - Collision detection: O(k²) per Brand
 - Documentation generation (Pass 2): O(m) where m = methods with doc attributes
 - Structural comparison: O(t) per type, where t = type AST size
 
 **Practical Limits** (expected ranges):
+
 - Modules with <100 impl blocks: Fast (< 100ms additional compile time)
 - Modules with 100-500 impl blocks: Acceptable (< 500ms)
 - Modules with >500 impl blocks: Consider splitting into smaller modules
@@ -1266,6 +1286,7 @@ impl MyTrait for MyBrand {
 - Brands with >50 associated types: Collision detection may be noticeable
 
 **Future Optimizations** (if needed):
+
 - Caching for repeated structural comparisons
 - Parallel processing of independent impl blocks
 - Incremental compilation improvements
@@ -1305,7 +1326,7 @@ impl_kind! {
 
 impl Functor for MyBrand {
     #[hm_signature]
-    fn map<A, B>(...) -> Self::Of<B> { ... }  // Uses default
+    fn map<A, B>(...) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) { ... }  // Uses default
 }
 ```
 
