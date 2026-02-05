@@ -75,10 +75,13 @@ The macro scans for associated type definitions in the following locations:
 
 - Function/method bodies
 - Nested modules (without their own `#![document_module]`)
+- **Const blocks** (`const _: () = { ... }`) - Impl blocks inside const blocks are not scanned
 - **Trait definitions** (including default associated types and associated type declarations)
   - Note: While trait _declarations_ (`type Of<T>;`) are not extracted for mappings, they are recognized for documentation purposes. However, default associated type _definitions_ in traits (`type Of<T> = Vec<T>;`) are excluded. Users must explicitly override these in impl blocks.
 - Associated constants
 - Macro-generated code (not visible to the macro - see §7)
+
+**Rationale for Const Block Exclusion**: While `const _: () = { ... }` blocks are sometimes used to organize impl blocks, scanning them adds implementation complexity. Users should place impl blocks at the module's top level for documentation extraction.
 
 The macro aggregates these findings into a module-wide configuration.
 
@@ -172,6 +175,20 @@ The extraction logic must use **Positional Mapping** to map generic parameters c
 - **Scope Awareness**: When substituting, ensure that `impl` generics are treated as "constants" in the scope, while associated type generics are substituted.
 - **Lifetimes and Const Generics**: These are **erased** in HM signature documentation to reduce noise and maintain mathematical notation simplicity.
 - **Bounds on Associated Type Parameters**: Bounds in associated type definitions (e.g., `type Of<T: Clone>`) are parsed but **erased** for projection purposes. The projection map stores only the type parameter names, not their bounds. This is consistent with HM signature erasure (§1.7) and simplifies the implementation.
+- **Default Type Parameters**: Default type parameters in associated types (e.g., `type Of<T = String>`) are parsed but **erased** for projection purposes. The projection map stores only the parameter name without its default. This is consistent with bound erasure and simplifies the implementation.
+
+**Example**:
+
+```rust
+impl_kind! {
+    for MyBrand {
+        type Of<T = String> = Vec<T>;  // Default parsed and erased
+    }
+}
+// Projection map stores: Of<T> -> Vec<T>
+```
+
+**Rationale**: Default type parameters are implementation details that don't affect the structural mapping. Erasing them keeps the projection map simple and consistent with other erasure rules.
 
 **Example of Positional Matching**:
 
@@ -296,6 +313,21 @@ impl_kind! { for Brand { type Of<T> = Rc<T>; } }
 - `T: ?Sized` → `T` (erase unsized marker)
 - `for<'a> Fn(&'a T)` → Higher-ranked trait bounds erased (see function type handling below)
 - `Self::Of<T: Clone>` → `Self::Of T` (erase bounds from type application)
+- `unsafe fn` → `fn` (erase unsafe modifier)
+
+**Unsafe Modifier Erasure**: The `unsafe` keyword on functions is **erased** from HM signatures.
+
+**Rationale**: HM signatures represent mathematical type relationships. Safety requirements are Rust-specific details already visible in the actual function signature. Erasing `unsafe` keeps HM signatures clean and focused on types.
+
+**Example**:
+
+```rust
+// Rust signature:
+unsafe fn transmute<A, B>(a: A) -> B
+
+// HM signature:
+// forall A B. A -> B
+```
 
 **Function Types and Currying**:
 
@@ -314,32 +346,49 @@ The macro follows the rules defined in [`docs/documentation-macros/function-para
 
 **Lifetimes**: Completely erased from HM signatures (§1.11).
 
-**Trait Objects**: Trait objects (`dyn Trait`) are preserved in HM signatures to indicate dynamic dispatch, but auto traits are erased:
+**Trait Objects**: Trait objects (`dyn Trait`) are preserved in HM signatures to indicate dynamic dispatch, but auto traits and lifetimes are erased:
 
 - `fn foo() -> Box<dyn Iterator<Item = i32>>` → `forall. () -> Box (dyn Iterator (Item = i32))`
 - `fn bar() -> Box<dyn Trait + Send + 'static>` → `forall. () -> Box (dyn Trait)` (Send and lifetime erased)
 
-**Rationale**: Preserving `dyn` maintains semantic accuracy about dynamic dispatch. Auto traits (`Send`, `Sync`) and lifetimes are erased consistent with other erasure rules (§1.7, §1.11).
+**Auto Trait Erasure**: All auto traits are erased from HM signatures to reduce noise:
 
-**Implementation Note**: Current `hm_signature.rs` already implements this correctly. The logic should be reused/adapted for `document_module`.
+- `Send`, `Sync`
+- `Unpin`
+- `UnwindSafe`, `RefUnwindSafe`
+
+**Rationale**: Auto traits are implementation details. Preserving `dyn` maintains semantic accuracy about dynamic dispatch while erasing auto traits keeps signatures clean. The full Rust signature preserves all auto trait information.
+
+**Example**:
+
+```rust
+fn foo() -> Box<dyn Trait + Send + Sync + Unpin + 'static>
+
+// HM signature:
+// forall. () -> Box (dyn Trait)
+```
+
+**Implementation Note**: Current `hm_signature.rs` already implements trait erasure correctly (see `default_ignored_traits()` in `function_utils.rs` which includes `Send`, `Sync`, `Unpin`). The logic should be reused/adapted for `document_module`.
 
 **Generic Constraints in Method Signatures**:
 
-Method-level trait bounds are shown as constraints using Haskell-style syntax:
+Method-level trait bounds are shown as constraints using Haskell-style syntax. The implementation follows the current behavior in `hm_signature.rs`:
 
 ```rust
 // Rust signature:
 fn foo<T: Clone + Debug>(x: T) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<T>)
 
-// HM signature:
-// forall T. [Clone T, Debug T] => T -> Self::Of T
+// HM signature (current hm_signature behavior):
+// forall T. (Clone T, Debug T) => T -> ResolvedType T
 ```
 
-**Format**: `[Constraint1, Constraint2, ...] =>`
+**Constraint Processing**: The macro processes trait bounds from both generic parameter declarations and where clauses, flattening them into a single constraint list. Auto traits and other ignored traits (see `default_ignored_traits()` in `function_utils.rs`) are filtered out.
+
+**Format**: `(Constraint1, Constraint2, ...)` => or `Constraint =>` (for single constraint)
 
 **Note**: This differs from associated type bounds (§1.4), which are erased because they're part of the type definition. Method constraints are part of the function signature and are therefore documented.
 
-**Implementation Note**: Current `hm_signature` macro already generates this format. Reuse that logic.
+**Implementation Note**: Current `hm_signature` macro already generates this format in `format_generics()` and `format_trait_bound()`. Reuse that exact logic.
 
 **Example**:
 
@@ -364,6 +413,18 @@ fn foo<T: ?Sized>(x: &T) -> impl for<'a> Fn(&'a T) -> String { ... }
 - **Consistency**: Aligns with the "no semantic analysis" principle (§Scope and Responsibilities).
 
 **Multiple definitions**: If the same associated type is defined with different paths (e.g., `Vec<T>` vs `MyAlias<T>` where `MyAlias<T> = Vec<T>`), they are treated as **distinct definitions** and tracked independently. No conflict checking is performed.
+
+**Type Re-exports and Aliases at Brand Position**: The macro matches types by their exact path in the impl declaration. Type aliases are NOT resolved:
+
+```rust
+pub type Alias = ActualBrand;
+
+impl Trait for Alias { ... }        // Tracked under "Alias"
+impl Trait for ActualBrand { ... }  // Tracked under "ActualBrand"
+// These are treated as distinct types for documentation purposes
+```
+
+**Workaround**: Use consistent naming in impl declarations, or duplicate configuration for each alias if documentation is needed for both.
 
 **Example**:
 
@@ -905,6 +966,10 @@ impl SomeTrait for GeneratedBrand {
 - **User Experience**: Complete feedback (all errors at once) is better than iterative fixing (one error at a time).
 - **Quality assurance**: Since this is a documentation tool, broken docs are worse than no docs. Failing the build forces users to fix configuration issues.
 
+**Panic Handling**: The macro uses standard Rust error handling (returning `syn::Error` or similar). If an unexpected panic occurs (indicating an implementation bug), Rust's default panic behavior applies and compilation fails. The macro does not attempt to catch panics - they represent bugs that should be fixed.
+
+**Rationale**: Comprehensive structured error handling covers expected error cases. Panics indicate implementation bugs and should fail loudly. Adding panic handling adds complexity without significant user benefit - users would still see a compilation error either way.
+
 **Example**: If 3 methods have missing defaults and 2 have invalid `#[doc_use]` references, all 5 errors are reported together, not one at a time.
 
 ### 10. Processing Model
@@ -1385,11 +1450,25 @@ impl MyTrait for MyBrand {
 
 **Recommended Usage**: Apply `#![document_module]` as the first inner attribute in the module.
 
+**Attribute Ordering**: When multiple attribute macros are applied to a module, Rust processes them in order of appearance. For `#![document_module]` to work correctly:
+
+1. It should be the **first** inner attribute in the module
+2. Other module-level attributes may interfere with extraction if they transform the module structure
+
+**Example**:
+
+```rust
+#![document_module]    // ✅ First - sees original structure
+#![other_macro]        // Processes after document_module
+```
+
+**Rationale**: Placing `#![document_module]` first ensures it sees the original module structure before other macros transform it. Other ordering may result in incomplete extraction or unexpected behavior.
+
 **Compatibility**: Most macros should work fine with `#[document_module]`:
 
 - ✅ **Derive macros** and attribute macros on items (structs, enums, functions)
 - ✅ **Method-level attributes** (e.g., `#[inline]`, `#[cfg(...)]`)
-- ⚠️ **Module-level attribute macros** that transform the entire module may have undefined behavior
+- ⚠️ **Module-level attribute macros** that transform the entire module may have undefined behavior if they run before `document_module`
 
 **Expansion Order**: `#[document_module]` sees the module content before other macros inside it expand. This means it can see `impl_kind!` invocations but not the code they generate.
 
