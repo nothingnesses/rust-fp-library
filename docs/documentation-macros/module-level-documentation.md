@@ -123,20 +123,17 @@ impl_kind! {
 }
 ```
 
-#### 1.3 Trait Hierarchy Collision Detection
+#### 1.3 Multiple Definitions of Same Associated Type
 
-**Challenge**: When multiple `impl` blocks define the same associated type name for the same Brand via trait inheritance, the macro must distinguish between inheritance (valid) and genuine collisions (error).
+**Behavior**: When multiple `impl` blocks define the same associated type name for the same type, the macro **does not** perform collision detection or structural equivalence checking.
 
-**Strategy**: Use **structural equivalence checking** rather than attempting to resolve trait hierarchies (which would require type system information unavailable to proc macros).
+**Rationale**:
 
-**Behavior**:
+- **Validation is not the macro's responsibility**: The macro generates documentation, not validation. Rustc will catch any genuine type conflicts.
+- **Simplicity**: No need for complex structural comparison logic.
+- **Type aliases**: Avoiding equivalence checking allows type aliases to work seamlessly (§1.8).
 
-- If multiple trait impls for the same Brand define an associated type with the same name:
-  - Check if the target types are syntactically/structurally identical
-  - If yes: Treat as same definition (no collision)
-  - If no: Error unless one is marked `#[doc_default]`
-
-**Rationale**: This approach is implementable without type system access and handles most practical cases. It may require explicit `#[doc_default]` in edge cases where inherited types are re-stated differently.
+**Each definition is tracked independently** and used for documentation generation in its respective context (the specific `impl Trait for Type` block where it appears).
 
 **Example**:
 
@@ -154,18 +151,17 @@ impl Base for MyBrand {
 }
 
 impl Derived for MyBrand {
-    // ✅ Valid: No explicit redefinition, uses inherited Of<T>
+    type Of<T> = Box<T>;  // ✅ No conflict checking performed
+    // Both definitions tracked independently
 }
 
-// ⚠️ Edge case: Explicit re-statement
-impl Base for AnotherBrand {
-    type Of<T> = Box<T>;
-}
-
-impl Derived for AnotherBrand {
-    type Of<T> = Box<T>;  // ✅ Valid: Structurally identical to Base's definition
+// This also works with type aliases:
+impl SomeTrait for MyBrand {
+    type Of<T> = MyAlias<T>;  // ✅ Tracked separately, no equivalence check
 }
 ```
+
+**Note**: If there are genuine conflicts (e.g., incompatible trait implementations), rustc will report them during compilation. The documentation macro focuses solely on extracting and documenting the definitions as written.
 
 #### 1.4 Generics Handling
 
@@ -211,51 +207,50 @@ impl<C: LazyConfig + Send> Functor for LazyBrand<C> {
 // Substitution: Use C in the resolved type: Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) → Lazy<B, C>
 ```
 
-**Const Generics Handling**: Const generics in associated types are identified during parsing but **erased** from the projection map keys. Only type parameters are used for positional matching. Const generics are matched in a separate positional sequence from type generics.
+**Const Generics Handling**: Const generics in associated types are identified during parsing but **erased** from HM signature documentation. Array and const generic expressions are simplified to their base type structure.
+
+**Erasure Rules**:
+
+- `[T; N]` → `[T]` (array with const generic size becomes simple array of T)
+- `[T; N * 2]` → `[T]` (complex const expressions erased)
+- `[(T, U); N + M]` → `[(T, U)]` (tuple arrays simplified)
+- `[T; 42]` → `[T]` (even concrete sizes erased for consistency)
+
+**Rationale**:
+
+- **HM signature simplicity**: Const generics are implementation details, not core to the mathematical type signature
+- **Consistency**: All array sizes are treated uniformly
+- **Rust signature remains**: The full Rust signature (visible above HM signature) shows all const generics
 
 **Example**:
 
 ```rust
 impl_kind! {
     for ArrayBrand {
-        type Of<const N: usize, T> = [T; N];  // N is const generic
+        type Of<const N: usize, T> = [T; N];
     }
 }
 
-// Stored in projection map as: (ArrayBrand, None, Of, [T]) -> [T; N]
-// Note: Only T is in the key; N is preserved in the target type
-
 impl Functor for ArrayBrand {
-    fn map<const N: usize, A, B>(...) -> Apply!(<Self as Kind!(type Of<const N: usize, T>;)>::Of<N, B>) { ... }
-    // Resolution: Match type params positionally (B → T)
-    //             Match const params positionally (N → N)
-    // Resolves to: [B; N]
+    // Rust signature (preserved as-is):
+    fn map<const N: usize, A, B>(arr: [A; N], f: impl Fn(A) -> B) -> [B; N]
+
+    // HM signature generated (const generics erased):
+    // forall A B. [A] -> (A -> B) -> [B]
 }
+
+// Complex expressions also simplified:
+type Of<const N: usize, const M: usize, T> = [(T, T); N + M];
+// HM signature shows: [(T, T)]
 ```
 
-**Positional Matching for Const Generics**: Const generics and type generics are matched in separate positional sequences:
-
-- Type generics: matched by position within type generics
-- Const generics: matched by position within const generics
-- Lifetimes: erased (not matched)
-
-**Example**:
+**Positional Matching**: During resolution, const generics are matched by position for substitution, but the final HM signature erases them:
 
 ```rust
-type Of<const N: usize, T, const M: usize, U> = [(T, U); N + M];
-//      ^^^^^^^^^^^^^^^^^ Position 0 (const)
-//                      ^ Position 0 (type)
-//                         ^^^^^^^^^^^^^^^^^ Position 1 (const)
-//                                        ^ Position 1 (type)
-
-// In method:
-fn foo<A, B, const X: usize, const Y: usize>() -> Apply!(<Self as Kind!(type Of<const N: usize, T, const M: usize, U>;)>::Of<X, A, Y, B>)
-//     ^ Position 0 (type)
-//        ^ Position 1 (type)
-//              ^^^^^ Position 0 (const)
-//                              ^^^^^ Position 1 (const)
-
-// Mapping: X→N, A→T, Y→M, B→U
+fn foo<const X: usize, const Y: usize, A, B>() -> Apply!(<Self as Kind!(type Of<const N: usize, const M: usize, T>;)>::Of<X, Y, B>)
+// Resolution: X→N (position 0 const), Y→M (position 1 const), B→T (position 0 type)
+// Target: [(B, B); X + Y]
+// HM signature: forall A B. [(B, B)]  (const generics erased)
 ```
 
 #### 1.5 Where Clause Handling
@@ -264,13 +259,15 @@ The extraction logic must robustly parse `where` clauses on associated types (e.
 
 #### 1.6 Cfg Handling
 
-**Behavior**: The macro extracts from **all** `cfg` branches to ensure documentation completeness regardless of active feature flags.
+**Behavior**: The macro extracts from **all** `cfg` branches independently, treating each as a separate definition context. No conflict detection is performed across different `cfg` conditions.
 
-**Conflict Detection**: Definitions under mutually exclusive `cfg` attributes (e.g., `#[cfg(feature = "a")]` vs `#[cfg(not(feature = "a"))]`) are **not** treated as conflicts, as they cannot both be active simultaneously.
+**Rationale**:
+
+- **Validation is not the macro's responsibility**: The macro is a documentation generator, not a validator. Rustc will catch any actual conflicts or invalid configurations.
+- **Complete documentation**: Extracting all branches ensures documentation covers all possible feature configurations.
+- **Simplicity**: No boolean logic analysis or mutual exclusivity detection is needed.
 
 **Documentation Generation**: Where possible, the macro adds `#[doc(cfg(...))]` attributes to indicate feature requirements in the generated documentation.
-
-**Trade-off**: Documentation may reference types that don't exist in the current build configuration. This is acceptable for completeness. The code will still compile (or fail with appropriate rustc errors) based on active features.
 
 **Example**:
 
@@ -281,11 +278,12 @@ impl_kind! { for Brand { type Of<T> = Arc<T>; } }
 #[cfg(not(feature = "sync"))]
 impl_kind! { for Brand { type Of<T> = Rc<T>; } }
 
-// ✅ Both extracted, no conflict error
+// ✅ Both extracted independently
+// ✅ No conflict checking (even though both define Of<T>)
 // Documentation shows both variants with cfg annotations where possible
 ```
 
-**Rationale**: Complete documentation is more valuable than configuration-specific documentation. Users can see all available options across features.
+**Implication**: If cfg branches contain genuinely conflicting definitions that could be active simultaneously, rustc will catch the error during compilation. The documentation macro focuses solely on generating complete documentation across all configurations.
 
 #### 1.7 Unsized Types and Higher-Ranked Trait Bounds
 
@@ -315,6 +313,13 @@ The macro follows the rules defined in [`docs/documentation-macros/function-para
 - `fn foo<T>() -> impl for<'a> Fn(&'a T) -> R` → `forall T. &T -> R`
 
 **Lifetimes**: Completely erased from HM signatures (§1.11).
+
+**Trait Objects**: Trait objects (`dyn Trait`) are preserved in HM signatures to indicate dynamic dispatch, but auto traits are erased:
+
+- `fn foo() -> Box<dyn Iterator<Item = i32>>` → `forall. () -> Box (dyn Iterator (Item = i32))`
+- `fn bar() -> Box<dyn Trait + Send + 'static>` → `forall. () -> Box (dyn Trait)` (Send and lifetime erased)
+
+**Rationale**: Preserving `dyn` maintains semantic accuracy about dynamic dispatch. Auto traits (`Send`, `Sync`) and lifetimes are erased consistent with other erasure rules (§1.7, §1.11).
 
 **Implementation Note**: Current `hm_signature.rs` already implements this correctly. The logic should be reused/adapted for `document_module`.
 
@@ -348,11 +353,17 @@ fn foo<T: ?Sized>(x: &T) -> impl for<'a> Fn(&'a T) -> String { ... }
 
 #### 1.8 Type Aliases
 
-**Decision**: No alias resolution.
+**Decision**: No alias resolution. No structural equivalence checking.
 
-**Behavior**: Type aliases are preserved as-is in mappings and HM signatures.
+**Behavior**: Type aliases are preserved as-is in mappings and HM signatures. The macro does not attempt to resolve aliases or check if different type paths refer to the same underlying type.
 
-**Rationale**: Users write aliases for semantic reasons (e.g., `type UserId = String`). Resolving to the underlying type loses that semantic meaning. The alias itself communicates intent.
+**Rationale**:
+
+- **Semantic intent**: Users write aliases for semantic reasons (e.g., `type UserId = String`). Preserving aliases maintains that intent.
+- **Simplicity**: No need for complex type resolution logic.
+- **Consistency**: Aligns with the "no semantic analysis" principle (§Scope and Responsibilities).
+
+**Multiple definitions**: If the same associated type is defined with different paths (e.g., `Vec<T>` vs `MyAlias<T>` where `MyAlias<T> = Vec<T>`), they are treated as **distinct definitions** and tracked independently. No conflict checking is performed.
 
 **Example**:
 
@@ -364,24 +375,39 @@ impl_kind! {
         type Of<T> = MyAlias<T>;  // Preserved as MyAlias, not resolved to Vec
     }
 }
+
+impl SomeTrait for MyBrand {
+    type Of<T> = Vec<T>;  // ✅ Tracked separately, no equivalence check
+}
+
+// Both definitions coexist; rustc validates consistency
 ```
 
-#### 1.9 Circular Reference Handling
+#### 1.9 Self References and Forward References
 
-**Decision**: Different rules apply in different contexts to balance safety and functionality.
+**Decision**: Different rules apply based on context.
 
 **In Associated Type Definitions** (RHS of `type Of<T> = ...`):
 
-- `Self::` references are **forbidden**
-- Emit compile-time error if detected
-- **Rationale**: Prevents genuinely circular type definitions that would be invalid
+**`Self::` references are forbidden**:
+
+- Emit compile-time error if `Self::` appears in the RHS
+- **Rationale**: Prevents circular resolution during documentation generation
+
+**Forward references to other associated types are allowed**:
+
+- `type A<T> = B<T>` where `B<T>` is defined later is valid
+- The macro preserves these references as-is without resolution
+- **Rationale**: These are just type names; rustc validates their correctness
 
 **Example**:
 
 ```rust
-// ❌ Error: Circular reference in associated type definition
 impl SomeTrait for MyBrand {
-    type Assoc<T> = Box<Self::Other<T>>;  // Error: Self:: in definition RHS
+    type A<T> = B<T>;                    // ✅ Forward reference OK
+    type B<T> = Vec<T>;
+    type C<T> = (A<T>, B<T>);            // ✅ Multiple references OK
+    type Bad<T> = Box<Self::Other<T>>;   // ❌ Error: Self:: forbidden
     type Other<T> = Vec<T>;
 }
 ```
@@ -406,15 +432,29 @@ impl Monad for MyBrand {
 }
 ```
 
-**Rationale**: Associated type definitions require strict checking to prevent invalid type definitions. Method signatures can safely delegate validation to rustc, and nested projections are common and necessary in monad operations.
+**Rationale**:
+
+- **Associated type definitions**: Forbidding `Self::` prevents circular resolution during documentation generation
+- **Forward references**: No resolution needed; just preserve the type name
+- **Method signatures**: Nested `Self::` is common and necessary (e.g., monad operations); rustc validates correctness
 
 #### 1.10 HKT Macro Resolution
 
 **Supported Macros**: The macro recognizes and traverses inside certain HKT-related macros to resolve `Self` references:
 
 - `Apply!` - Always recognized
-- `Kind!` - Always recognized
+- `Kind!` - Always recognized (but treated as transparent for documentation)
 - Additional aliases as implemented in existing macros
+
+**Kind! Macro Transparency**: The `Kind!` macro is used for rustc's trait system resolution but is **transparent** to the documentation macro. Only the inner associated type reference and the final `Apply!` parameters are processed:
+
+```rust
+Apply!(<Self as Kind!(type Of<T>;)>::Of<B>)
+//              ^^^^^^^^^^^^^^^^^^^^^^ For rustc trait resolution only
+//                                  ^^ Actual parameters used for documentation
+```
+
+The generic parameters in `Kind!(type Of<...>)` are NOT validated by the documentation macro. Only the parameters in the final application (`::Of<B>`) are used for positional matching and resolution.
 
 **Resolution Process**:
 
@@ -428,9 +468,10 @@ impl Monad for MyBrand {
 ```rust
 impl Functor for MyBrand {
     fn map<A, B>(x: Apply!(<Self as Kind!(type Of<T>;)>::Of<A>)) -> Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) {
-        // Apply!(<Self as Kind!(type Of<T>;)>::Of<B>) is traversed
+        // Apply!(...) is traversed
         // Self resolved to MyBrand
-        // Result: Apply!(<MyBrand as Kind!(type Of<T>;)>::Of<B>)
+        // Kind!(type Of<T>;) is transparent—only ::Of<B> matters
+        // Result: Box<B> (if Of<T> = Box<T>)
     }
 }
 ```
@@ -583,7 +624,7 @@ impl SendRefCountedPointer for ArcBrand {
 
 **Attribute Placement Requirements**:
 
-Documentation attributes (`#[hm_signature]`, `#[doc_type_params]`) must be placed **within doc comment sections**, not before the item like standard Rust attributes.
+Documentation attributes (`#[hm_signature]`, `#[doc_type_params]`) must be placed locations that are valid for documentation blocks.
 
 **Valid**:
 
@@ -598,17 +639,34 @@ Documentation attributes (`#[hm_signature]`, `#[doc_type_params]`) must be place
 fn foo() { ... }
 ```
 
+```rust
+/// Description
+///
+/// ### Type Signature
+///
+#[hm_signature]
+fn foo() { ... }
+```
+
+```rust
+#[hm_signature]
+fn foo() { ... }
+```
+
 **Invalid**:
 
 ```rust
 /// Description
-#[hm_signature]  // ❌ Wrong: Outside doc comments
-fn foo() { ... }
+fn
+#[hm_signature]  // ❌ Wrong: Not a valid location for documentation comments.
+foo() { ... }
 ```
 
-**Rationale**: This is the current behavior of `#[document_impl]`, `#[hm_signature]`, and `#[doc_type_params]`. The attribute marks where in the documentation the generated content should appear, allowing precise control over doc structure.
+The macro processes the item's attributes and doc comments as a sequence, replacing the `#[hm_signature]` or `#[doc_type_params]` attribute with generated documentation content.
 
-**Error Handling**: If attributes are placed outside doc comments (standard Rust position), emit a compile-time error with a suggestion to move them inside the documentation (see Error Message Requirements section).
+**Rationale**: This placement allows precise control over where generated content appears in the final documentation structure. This is the current behavior of `#[document_impl]`, preserved for compatibility.
+
+**Error Handling**: If attributes are placed outside doc comments (standard Rust position), emit a compile-time error with a suggestion to move them (see Error Message Requirements section).
 
 **Multiple Attributes on One Method**: A method may have both `#[hm_signature]` and `#[doc_type_params]` if documentation for both aspects is desired.
 
@@ -616,6 +674,24 @@ fn foo() { ... }
 - Each generates its respective documentation section
 - Attributes are replaced in source order
 - This is the current behavior of `document_impl`; preserved for compatibility
+
+**Multiple `#[doc_use]` Attributes**: Only one `#[doc_use]` attribute is allowed per item (method or impl block). Multiple `#[doc_use]` attributes result in a compile-time error:
+
+```rust
+#[doc_use = "Of"]
+#[doc_use = "SendOf"]  // ❌ Error: Multiple #[doc_use] attributes
+fn foo() -> Self { ... }
+```
+
+**Exception**: Multiple attributes from `cfg_attr` that are mutually exclusive (different cfg conditions) are allowed:
+
+```rust
+#[cfg_attr(unix, doc_use = "UnixOf")]
+#[cfg_attr(windows, doc_use = "WindowsOf")]
+fn foo() -> Self { ... }  // ✅ OK: only one active per configuration
+```
+
+**Rationale**: Multiple overrides on the same item indicate configuration error. Explicit is better than implicit.
 
 **Example**:
 
@@ -664,7 +740,13 @@ For methods with documentation attributes, resolve `Self` usage:
 - **Nested Self References**: The macro supports nested `Self::` references (e.g., `Self::Of<Self::Of<T>>`) through iterative resolution. The resolution continues until no `Self::` remains (see §1.9 for circular reference handling).
 - **Apply! Macro**: Explicitly traverse and resolve `Apply!` and `Kind!` invocations, substituting `Self` within them (§1.10).
 
-**Rationale**: Opt-in design ensures zero overhead for undocumented methods and makes the macro's impact explicit. Users add `#[hm_signature]` only where they want generated documentation.
+**Associated Type Visibility**: The macro extracts and tracks **all** associated types regardless of visibility (`pub`, `pub(crate)`, private). This allows:
+
+- Private helper methods to use `#[hm_signature]` for internal documentation
+- Complete projection maps for all impl blocks
+- Consistent behavior with opt-in principle
+
+**Rationale**: Associated type visibility is a rustc concern, not a documentation concern. Since documentation generation is opt-in via explicit attributes (§3), visibility modifiers are irrelevant. Private types in impl blocks are accessible to methods in that block. Opt-in design ensures zero overhead for undocumented methods and makes the macro's impact explicit.
 
 ### 4. Regression Testing & Behavior Parity
 
@@ -805,16 +887,25 @@ impl SomeTrait for GeneratedBrand {
 
 ### 9. Error Handling Strategy
 
-**Decision**: Use **fail-fast after Pass 1** with comprehensive error collection.
+**Decision**: Use **comprehensive error collection** in both passes.
 
-**Error Collection**: The macro processes Pass 1 (context extraction) and accumulates all errors encountered. If Pass 1 has any errors, all errors are reported together and compilation fails immediately without proceeding to Pass 2 (documentation generation).
+**Pass 1 - Context Extraction**: The macro accumulates all errors encountered during context extraction. If Pass 1 has any errors, all errors are reported together and compilation fails immediately without proceeding to Pass 2.
+
+**Pass 2 - Documentation Generation**: If Pass 1 succeeds, the macro proceeds to Pass 2 and continues processing all methods even if some fail:
+
+1. Documentation generation continues for all remaining methods
+2. All errors are accumulated
+3. All errors are reported together at the end
+4. Compilation fails (no partial documentation generated)
 
 **Rationale**:
 
-- **Pass 1 errors often cause cascade failures in Pass 2**: Missing type mappings or ambiguous defaults would generate misleading errors during documentation generation
-- **Clean error messages**: By stopping after Pass 1, we avoid spurious errors from Pass 2 that are merely symptoms of Pass 1 problems
-- **Complete feedback**: Users still see all Pass 1 errors at once, not one at a time
+- **Pass 1**: Missing type mappings or ambiguous defaults would cause cascade failures in Pass 2. Stopping early provides clean error messages.
+- **Pass 2**: Seeing all documentation generation errors at once allows fixing multiple issues in one iteration.
+- **User Experience**: Complete feedback (all errors at once) is better than iterative fixing (one error at a time).
 - **Quality assurance**: Since this is a documentation tool, broken docs are worse than no docs. Failing the build forces users to fix configuration issues.
+
+**Example**: If 3 methods have missing defaults and 2 have invalid `#[doc_use]` references, all 5 errors are reported together, not one at a time.
 
 ### 10. Processing Model
 
@@ -844,37 +935,23 @@ impl SomeTrait for GeneratedBrand {
 - **Complete Validation**: All references can be validated before any documentation is generated, ensuring atomic success/failure.
 - **Clean Errors**: Fail-fast after Pass 1 prevents cascade errors.
 
-### 11. Structural Equivalence Algorithm
+### 11. Type Tracking and Terminology
 
-**Decision**: Use **AST-based structural comparison** with generic normalization.
+**Decision**: Track all types appearing in trait implementations, without distinguishing "brands" from other types.
 
-**Algorithm**:
+**Terminology**: In the specification and implementation, use "type" rather than "brand" where the distinction doesn't matter:
 
-1. Parse both types into AST (can reuse/extend `fp-macros/src/hm_ast.rs`, if applicable)
-2. Normalize generic names positionally (position 0 → `T₀`, position 1 → `T₁`, etc.)
-3. Compare AST nodes recursively for structural equality
-4. Paths, type aliases, and concrete types must match exactly (no resolution)
+- Projection maps are indexed by type path: `(TypePath, Option<Trait>, AssocName, Generics) -> TargetType`
+- Error messages: "Cannot resolve `Self::Of` for type `MyType`" (not "brand")
+- The macro doesn't need to identify whether a type is a "brand" in the HKT sense
 
 **Rationale**:
 
-- AST comparison is more robust than token comparison
-- Generic renaming is essential (same position = same type variable)
-- No semantic analysis (consistent with "out of scope" principle)
-- `hm_ast.rs` already provides `HMType` AST with `PartialEq` impl; can be extended for this purpose
+- **Generality**: The macro works for any type appearing in trait implementations, whether or not it's used as an HKT brand
+- **Simplicity**: No need for brand identification heuristics (suffix matching, registration, etc.)
+- **Future-proof**: Works with any type pattern
 
-**Example**:
-
-```rust
-// These are structurally equivalent after generic normalization:
-type Of<T> = Vec<T>;
-type Of<U> = Vec<U>;  // U renamed to T₀ → identical AST
-
-// These are NOT equivalent (no path resolution):
-type Of<T> = Vec<T>;
-type Of<T> = std::vec::Vec<T>;  // Different paths, not resolved
-```
-
-**Implementation**: Extend `HMType` in `hm_ast.rs` to support full Rust type syntax needed for comparison, or create a parallel structure if needed.
+**Implementation Note**: Internally, the projection map keys on the type path from `impl Trait for Type`. Any type that appears in that position is tracked for documentation purposes.
 
 ## Error Message Requirements
 
@@ -967,7 +1044,7 @@ help: Or use an explicit override:
 #### Conflicting Defaults
 
 ```rust
-error: Multiple `#[doc_default]` annotations found for brand `MyBrand` within impl block `impl Functor for MyBrand`
+error: Multiple `#[doc_default]` annotations found for type `MyBrand` within impl block `impl Functor for MyBrand`
   --> src/types/mytype.rs:15:9
    |
 15 |         #[doc_default]
@@ -994,41 +1071,57 @@ error: `#[doc_use = "Typo"]` references unknown associated type
 help: Did you mean `Of`?
 ```
 
-#### Circular Reference in Associated Type
+#### Self Reference in Associated Type Definition
 
 ```rust
-error: Circular reference detected in associated type definition
+error: `Self::` reference forbidden in associated type definition
   --> src/types/mytype.rs:25:9
    |
 25 |         type Recursive<T> = Box<Self::Other<T>>;
    |                                 ^^^^^^^^^^^^^^^ `Self::Other` used here
    |
-   = note: Associated type definitions cannot reference other `Self::` types
-   = help: Define concrete types directly without `Self::` references
+   = note: Associated type definitions cannot reference `Self::` to prevent circular resolution
+   = help: Use concrete type names instead
+   |
+   = note: Forward references to other associated types are allowed:
+   |         type A<T> = B<T>;  // OK: B is another associated type
+   |         type B<T> = Vec<T>;
+```
+
+#### Multiple `#[doc_use]` Attributes
+
+```rust
+error: Multiple `#[doc_use]` attributes found on same item
+  --> src/types/mytype.rs:42:5
+   |
+42 |     #[doc_use = "Of"]
+   |     ^^^^^^^^^^^^^^^^^ First override here
+43 |     #[doc_use = "SendOf"]
+   |     ^^^^^^^^^^^^^^^^^^^^^ Second override here
+   |
+   = help: Remove all but one `#[doc_use]` attribute
+   = note: Use a single `#[doc_use]` to specify which associated type to use
 ```
 
 #### Attribute Placement Error
 
 ```rust
-error: Documentation attribute must be placed within doc comments
+error: Documentation attribute must be placed in a valid documentation location
   --> src/types/mytype.rs:10:1
    |
+9  | fn
 10 | #[hm_signature]
-   | ^^^^^^^^^^^^^^^ Used outside doc comments
-11 | fn foo() { ... }
+   | ^^^^^^^^^^^^^^^ Not in a valid documentation location
+11 | foo() { ... }
    |
-help: Place the attribute inside the doc comment where generated docs should appear
+help: Place the attribute where documentation comments are valid
    |
    | /// Description
    | ///
    | /// ### Type Signature
    | ///
    | #[hm_signature]
-   | ///
-   | /// ### Parameters
    | fn foo() { ... }
-   |
-   = note: This follows the current behavior of #[document_impl]
 ```
 
 ## Testing Requirements
@@ -1073,12 +1166,11 @@ help: Place the attribute inside the doc comment where generated docs should app
    - Test multiple `impl_kind!` blocks with merge logic
    - Test structural equivalence collision detection
 
-2. **Collision Detection**
+2. **Default Conflict Detection**
 
-   - Verify errors for duplicate definitions with different targets
-   - Verify acceptance of structurally identical duplicates
-   - Test `#[doc_default]` conflict detection within impl blocks
-   - Test (Type, Trait)-scoped vs. global defaults
+   - Test `#[doc_default]` conflict detection within single impl blocks (multiple defaults = error)
+   - Verify different impl blocks can have different defaults (no cross-impl conflict checking)
+   - Test (Type, Trait)-scoped vs. global defaults precedence
 
 3. **Hierarchical Resolution**
 
@@ -1092,18 +1184,20 @@ help: Place the attribute inside the doc comment where generated docs should app
    - Test renamed generics (different names, same position)
    - Test complex nested generics
    - Test parametric brand matching with renamed generics
-   - Test const generic erasure in projection maps
-   - Test separate positional sequences for type vs const generics
+   - Test const generic erasure in HM signatures (`[T; N]` → `[T]`)
+   - Test complex const expressions erasure (`[(T, U); N + M]` → `[(T, U)]`)
 
 5. **Type Processing**
    - Test unsized type erasure (`?Sized` removal)
    - Test HRTB erasure and function type formatting
    - Test lifetime erasure (complete removal from HM signatures)
    - Test const generic erasure from HM signatures
-   - Test type alias preservation (no resolution)
+   - Test type alias preservation (no resolution, no equivalence checking)
    - Test bound erasure in associated type definitions
-   - Test nested `Self::` resolution (2-level, 3-level)
-   - Test circular reference detection in associated type definitions
+   - Test nested `Self::` resolution (2-level, 3-level) in method signatures
+   - Test circular reference detection in associated type definitions (Self:: forbidden)
+   - Test forward references in associated types (non-Self:: references allowed)
+   - Test trait object preservation with auto-trait erasure
 
 ### Integration Tests
 
@@ -1129,8 +1223,10 @@ help: Place the attribute inside the doc comment where generated docs should app
    - Nested modules with independent `#![document_module]` scopes
    - Missing defaults (should error with helpful message)
    - Multiple documentation attributes on the same method
-   - CFG-conditional type definitions
+   - CFG-conditional type definitions (all branches extracted)
+   - cfg_attr expansion (all conditional attributes expanded)
    - Attribute placement errors
+   - Multiple `#[doc_use]` attributes on same item (should error)
 
 ### Regression Tests
 
@@ -1189,9 +1285,42 @@ mod other {
 }
 ```
 
+**Nested Module Scope Isolation**: Each `#![document_module]` creates an independent scope. Child modules do NOT inherit parent module's type mappings:
+
+```rust
+#![document_module]
+impl_kind! { for OuterBrand { type Of<T> = Vec<T>; } }
+
+mod inner {
+    #![document_module]
+
+    impl SomeTrait for super::OuterBrand {
+        #[hm_signature]
+        fn method(&self) -> Self { ... }
+        // ❌ Error: No mapping for OuterBrand in this scope
+    }
+}
+```
+
+**Workaround**: Repeat `impl_kind!` in nested modules or use `#[doc_use]`:
+
+```rust
+mod inner {
+    #![document_module]
+
+    #[doc_use = "Of"]  // Explicit override
+    impl SomeTrait for super::OuterBrand {
+        type Of<T> = Vec<T>;  // Redeclare if needed
+
+        #[hm_signature]
+        fn method(&self) -> Self { ... }  // ✅ Works
+    }
+}
+```
+
 **File Modules**: For file modules (`mod foo;` referring to `foo.rs`), the `#![document_module]` attribute must be placed at the top of the file (`foo.rs`), not at the module declaration site.
 
-**Mitigation**: If the macro encounters a Brand that it cannot resolve (because the definition is in another module), it will:
+**Mitigation**: If the macro encounters a type that it cannot resolve (because the definition is in another module), it will:
 
 1.  **Check for Manual Overrides**: Look for `#[doc_use = "..."]` on the `impl` block or method.
 2.  **Fallback Error**: If no mapping and no override are found, emit a compile-time error instructing the user to co-locate the definition or provide explicit overrides.
@@ -1263,6 +1392,17 @@ impl MyTrait for MyBrand {
 - ⚠️ **Module-level attribute macros** that transform the entire module may have undefined behavior
 
 **Expansion Order**: `#[document_module]` sees the module content before other macros inside it expand. This means it can see `impl_kind!` invocations but not the code they generate.
+
+**cfg_attr Handling**: The macro conservatively expands all `cfg_attr` conditions for documentation purposes:
+
+```rust
+#[cfg_attr(feature = "docs", doc_default)]
+type Of<T> = Arc<T>;
+```
+
+Is treated as if `#[doc_default]` is always present, regardless of active features. This ensures complete documentation across all configurations.
+
+**Limitation**: Only applies to documentation attributes (`doc_default`, `doc_use`). Other `cfg_attr` usage is passed through unchanged.
 
 **Testing**: If combining with other macros, test your specific combination to ensure documentation is generated as expected.
 
