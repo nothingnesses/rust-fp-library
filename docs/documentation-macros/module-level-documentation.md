@@ -80,6 +80,7 @@ The macro scans for associated type definitions in the following locations:
   - Note: While trait _declarations_ (`type Of<T>;`) are not extracted for mappings, they are recognized for documentation purposes. However, default associated type _definitions_ in traits (`type Of<T> = Vec<T>;`) are excluded. Users must explicitly override these in impl blocks.
 - Associated constants
 - Macro-generated code (not visible to the macro - see §7)
+- Negative Trait Implementations: Negative trait implementations (impl !Trait for Type) are ignored during scanning. They contain no associated types and are not relevant for documentation generation."
 
 **Rationale for Const Block Exclusion**: While `const _: () = { ... }` blocks are sometimes used to organize impl blocks, scanning them adds implementation complexity. Users should place impl blocks at the module's top level for documentation extraction.
 
@@ -129,6 +130,8 @@ impl_kind! {
 #### 1.3 Multiple Definitions of Same Associated Type
 
 **Behavior**: When multiple `impl` blocks define the same associated type name for the same type, the macro **does not** perform collision detection or structural equivalence checking.
+
+**Split Impl Blocks**: Multiple impl blocks for the same (Brand, Trait) pair are merged during extraction. Associated types and `#[doc_default]` annotations are collected across all blocks. If multiple blocks mark different types as `#[doc_default]`, emit an error."
 
 **Rationale**:
 
