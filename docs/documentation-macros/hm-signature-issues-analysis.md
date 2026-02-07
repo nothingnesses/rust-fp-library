@@ -1,14 +1,16 @@
-# Hindley-Milner Signature Generation Issues: Analysis & Solutions
+# Hindley-Milner Signature Generation Issues: Root Cause Analysis & Solutions
 
-**Date:** 2026-02-07
-**Status:** Analysis Verified - Legitimacy Confirmed via Reproduction
+**Date:** 2026-02-07  
+**Status:** Root Cause Identified - Previous Analysis Invalidated  
+**Version:** 2.0 (Complete Rewrite)
 
 ## Executive Summary
 
-The Hindley-Milner type signature generation system has two fundamental design flaws:
+The Hindley-Milner type signature generation system fails to generate proper signatures for methods inside `#[document_module]` blocks, producing literal `Self` and missing `forall` quantifiers.
 
-1. **Macro Expansion Order Issue**: Standalone `#[hm_signature]` attributes expand before `#[document_module]`, preventing proper context-aware processing
-2. **Missing Type Context**: Generic parameters from impl blocks are invisible to signature generation, causing `Self` types and missing `forall` quantifiers
+**Previous Analysis Was INCORRECT**: The original hypothesis that "attribute macros on inner items expand before outer macros" was disproven through systematic testing.
+
+**Actual Root Cause**: The `document_module` macro does not recursively traverse into module contents when applied as an outer attribute (`#[document_module] mod foo { ... }`), causing it to miss impl blocks nested inside the module.
 
 **Current Output vs. Expected:**
 
@@ -16,547 +18,650 @@ The Hindley-Milner type signature generation system has two fundamental design f
 |---------|---------|----------|
 | `impl<A> CatList<A>` methods | `() -> Self` | `forall A. () -> CatList A` |
 | | `&self -> bool` | `forall A. &(CatList A) -> bool` |
-| Trait impl methods | `(A -> B, Self A) -> Self B` | `(A -> B, CatList A) -> CatList B` |
 
 ---
 
-## Root Cause Analysis
+## Investigation Process
 
-### Issue 1: Macro Expansion Order
+### Phase 1: Testing the Expansion Order Hypothesis
 
-**Problem:** Rust expands attribute macros on inner items before outer macros on containing modules.
+The original analysis claimed that `#[hm_signature]` expands before `#[document_module]`, preventing proper context-aware processing. This was tested by:
 
-**Evidence:**
+1. **Converting `hm_signature` to a no-op macro** that returns input unchanged
+2. **Running test cases** to observe macro behavior
+3. **Using `cargo expand`** to examine actual macro expansion
+4. **Adding debug logging** to track execution flow
+
+**Test Code:**
 ```rust
-#[fp_macros::document_module]
-mod inner {
-    impl<A> CatList<A> {
-        #[hm_signature]  // ← Expands FIRST
-        pub fn empty() -> Self { ... }
-    }
-}
-```
-
-**Execution Order:**
-1. `#[hm_signature]` on `empty()` expands → generates `() -> Self` (no impl context)
-2. `#[document_module]` expands → sees already-processed code (no `#[hm_signature]` attribute remains)
-
-**Diagnostic Evidence:**
-Analysis of the expansion order using debug logs in [`fp-macros/src/document_module.rs`](fp-macros/src/document_module.rs) confirmed that when `document_module` is used as an outer attribute, it receives a token stream where `hm_signature` has already been expanded and removed.
-
-```
-[document_module] START document_module_impl
-[document_module] INPUT: mod test_context { ... }
-[generate_signature] Generic names: {}        # ← No 'A' from impl
-[generate_signature] self_type_name: None     # ← No CatList context
-[generate_signature] concrete_types: {}       # ← Empty set
-[generate_signature] return: Variable("Self") # ← Self not replaced
-```
-
-### Issue 2: Missing Impl Context in Standalone Macro
-
-**Problem:** The standalone `hm_signature` macro (in `fp-macros/src/hm_signature.rs`) only sees the method signature, not the surrounding impl block.
-
-**Code Location:**
-```rust
-// fp-macros/src/hm_signature.rs:12-51
-pub fn hm_signature_impl(
-    attr: proc_macro2::TokenStream,
-    item_tokens: proc_macro2::TokenStream,  // ← Only the method
-) -> proc_macro2::TokenStream {
-    let mut item = match GenericItem::parse(item_tokens) { ... }
-    // No access to impl<A> CatList<A> context
-}
-```
-
-**Missing Information:**
-- Impl block's generic parameters (`<A>`)
-- Concrete type name (`CatList`)
-- Relationship between `Self` and `CatList<A>`
-
-### Issue 3: Brand Name Extraction Failure
-
-**Problem:** `extract_concrete_type_name()` in `document_module.rs` doesn't properly extract "CatList" from "CatListBrand".
-
-**Code Location:**
-```rust
-// fp-macros/src/document_module.rs:226-243
-fn extract_concrete_type_name(
-    ty: &syn::Type,
-    config: &Config,
-) -> Option<String> {
-    // Only gets first segment: "CatListBrand"
-    // Should strip "Brand" suffix → "CatList"
-}
-```
-
-**Impact:** Even for trait impls processed by `document_module`, `Self` remains unreplaced because the concrete type name is never added to `config.concrete_types`.
-
----
-
-## Proposed Solutions
-
-### Approach 1: Impl-Context-Aware Standalone Macro ⭐ **RECOMMENDED**
-
-**Description:** Enhance the standalone `#[hm_signature]` macro to detect and extract impl block context.
-
-**Implementation:**
-
-1. **Parse surrounding context** in `hm_signature_impl`:
-```rust
+// Modified fp-macros/src/hm_signature.rs
 pub fn hm_signature_impl(
     attr: proc_macro2::TokenStream,
     item_tokens: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
-    // Parse the item
-    let item = match GenericItem::parse(item_tokens) { ... };
-    
-    // NEW: Check if we're inside an impl block by examining the token stream
-    // Look for patterns like `impl<T> TypeName<T> { #[hm_signature] fn ... }`
-    let impl_context = extract_impl_context_from_tokens(&item_tokens);
-    
-    let mut config = load_config();
-    if let Some(ctx) = impl_context {
-        config.self_type_name = ctx.type_name;
-        config.concrete_types.insert(ctx.type_name.clone());
-        // Merge impl generics into signature
-    }
-    
-    let signature = generate_signature(sig, None, &config);
-    // ...
+    eprintln!("[hm_signature] NO-OP: Returning input unchanged");
+    item_tokens  // Just pass through unchanged
 }
 ```
 
-2. **Add impl context extraction**:
+**Test Case:**
 ```rust
-struct ImplContext {
-    type_name: String,        // "CatList"
-    generics: syn::Generics,  // <A>
-}
-
-fn extract_impl_context_from_tokens(
-    tokens: &proc_macro2::TokenStream
-) -> Option<ImplContext> {
-    // Search backwards/upwards in token stream for impl pattern
-    // This is possible but requires careful parsing
-}
-```
-
-**Advantages:**
-- ✅ Works with existing code structure
-- ✅ No changes needed to source files
-- ✅ Fixes both standalone and `document_module` cases
-- ✅ Single source of truth for signature generation
-
-**Disadvantages:**
-- ⚠️ Complex token stream parsing
-- ⚠️ May be fragile to macro expansion order changes
-- ⚠️ Requires careful handling of nested impls
-
-**Trade-offs:**
-- **Complexity:** Medium-High (complex parsing logic)
-- **Maintainability:** Medium (relies on token stream structure)
-- **Compatibility:** High (backward compatible)
-- **Robustness:** Medium (depends on consistent macro expansion)
-
----
-
-### Approach 2: Document Module Takes Over
-
-**Description:** Remove standalone `#[hm_signature]` usage inside `#[document_module]` blocks. Let `document_module` handle all signature generation.
-
-**Implementation:**
-
-1. **Update all source files**:
-```rust
-// BEFORE
-#[fp_macros::document_module]
-mod inner {
+#[document_module]
+mod test_context {
     impl<A> CatList<A> {
-        #[hm_signature]  // ← Remove this
-        pub fn empty() -> Self { ... }
-    }
-}
-
-// AFTER  
-#[fp_macros::document_module]
-mod inner {
-    impl<A> CatList<A> {
-        pub fn empty() -> Self { ... }  // ← No attribute
+        #[hm_signature]
+        pub fn empty() -> Self { todo!() }
     }
 }
 ```
 
-2. **Auto-detect methods needing signatures** in `document_module`:
+### Phase 2: Analyzing Results
+
+**Critical Finding from Debug Logs:**
+
+```
+[document_module] START document_module_impl
+[document_module] INPUT: mod test_context
+{
+    use fp_macros::hm_signature; pub struct CatListBrand; pub struct
+    CatList<A>(A); impl<A> CatList<A>
+    {
+        #[hm_signature] pub fn empty() -> Self { todo!() }
+        #[hm_signature] pub fn is_empty(&self) -> bool { true }
+    }
+}
+[document_module] Total items parsed: 1
+[document_module] Item 0: "Mod"
+[document_module] Starting generate_docs
+```
+
+**Key Observations:**
+
+1. ✅ **`#[hm_signature]` attributes ARE present** in `document_module`'s input
+2. ✅ **`document_module` runs FIRST** (outer macro expands before inner)
+3. ❌ **Only 1 item parsed**: The module itself, not its contents
+4. ❌ **Item type is `Mod`**, not `Impl` - so `generate_docs` never processes it
+
+**Cargo Expand Output:**
+
 ```rust
-// In generate_docs()
-for impl_item in &mut item_impl.items {
-    if let ImplItem::Fn(method) = impl_item {
-        // NEW: Auto-generate for ALL public methods
-        if method.vis == syn::Visibility::Public {
-            // Generate HM signature automatically
+mod test_context {
+    use fp_macros::hm_signature;
+    pub struct CatListBrand;
+    pub struct CatList<A>(A);
+    impl<A> CatList<A> {
+        pub fn empty() -> Self {  // No doc comment generated!
+            ::core::panicking::panic("not yet implemented")
+        }
+        pub fn is_empty(&self) -> bool {
+            true
         }
     }
 }
 ```
 
-**Advantages:**
-- ✅ Clean separation: `document_module` owns all documentation
-- ✅ Proper impl context always available
-- ✅ No macro expansion order issues
-- ✅ Simpler mental model
-
-**Disadvantages:**
-- ❌ Requires updating ~100+ `#[hm_signature]` annotations
-- ❌ Breaking change for standalone usage
-- ❌ Loses fine-grained control over which methods get signatures
-
-**Trade-offs:**
-- **Complexity:** Low (simpler overall design)
-- **Maintainability:** High (single code path)
-- **Compatibility:** Low (requires migration)
-- **Robustness:** High (no expansion order issues)
+**Conclusion:** The `#[hm_signature]` attributes were visible to `document_module`, but it failed to process them because it doesn't descend into module contents.
 
 ---
 
-### Approach 3: Delayed Expansion with Marker Macro
+## Root Cause Analysis
 
-**Description:** Introduce a marker macro that delays signature generation until `document_module` runs.
+### Issue: `document_module` Doesn't Traverse Module Contents
 
-**Implementation:**
+**Location:** [`fp-macros/src/document_module.rs:33-94`](../../fp-macros/src/document_module.rs:33)
 
-1. **Create marker macro**:
+**Problem Flow:**
+
 ```rust
-#[proc_macro_attribute]
-pub fn doc_hm_signature(
-    attr: TokenStream,
+pub fn document_module_impl(
+    _attr: TokenStream,
     item: TokenStream,
 ) -> TokenStream {
-    // Don't generate signature here, just add marker attribute
-    let item: proc_macro2::TokenStream = item.into();
-    quote! {
-        #[__doc_hm_signature_marker]
-        #item
-    }.into()
+    // Parses input - sees "mod test_context { ... }"
+    let mut items = if let Ok(item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
+        if let Some((_, mod_items)) = item_mod.content {
+            mod_items  // ← Extracts module contents correctly
+        } else {
+            // ...
+        }
+    } else {
+        // ...
+    };
+    
+    // items = [Item::Mod] - the module is treated as a single item!
+    // Should be: [Item::Use, Item::Struct, Item::Struct, Item::Impl]
+    
+    if let Err(e) = generate_docs(&mut items, &config) {
+        return e.to_compile_error();
+    }
+    // ...
 }
-```
 
-2. **Update usage**:
-```rust
-#[fp_macros::document_module]
-mod inner {
-    impl<A> CatList<A> {
-        #[doc_hm_signature]  // ← New marker macro
-        pub fn empty() -> Self { ... }
+fn generate_docs(
+    items: &mut [Item],
+    config: &Config,
+) -> Result<()> {
+    for item in items {
+        if let Item::Impl(item_impl) = item {  // ← Never matches!
+            // Process impl blocks with #[hm_signature]
+        }
     }
 }
 ```
 
-3. **Process in document_module**:
-```rust
-if let Some(attr_pos) = find_attribute(&method.attrs, "__doc_hm_signature_marker") {
-    method.attrs.remove(attr_pos);
-    // Now generate signature with full context
-}
-```
+**The Bug:**
 
-**Advantages:**
-- ✅ Explicit opt-in per method
-- ✅ Works with `document_module` context
-- ✅ Minimal source changes (rename macro)
-- ✅ Maintains fine-grained control
+1. When `#[document_module]` is applied to a module, it parses correctly
+2. But the parser returns the `ItemMod.content` as a list of items
+3. However, the test case uses a **nested module structure**
+4. The parser treats the nested module as a single `Item::Mod` item
+5. `generate_docs` only looks for top-level `Item::Impl` items
+6. The impl blocks are **inside** the `Item::Mod`, so they're never found
 
-**Disadvantages:**
-- ⚠️ Two different macros (`hm_signature` vs `doc_hm_signature`)
-- ⚠️ Requires migrating all `#[hm_signature]` inside `document_module`
-- ⚠️ Still allows incorrect usage
+### Secondary Issue: Parsing Strategy Mismatch
 
-**Trade-offs:**
-- **Complexity:** Medium (two code paths)
-- **Maintainability:** Medium (must maintain both)
-- **Compatibility:** Medium (migration needed but clearer)
-- **Robustness:** High (explicit control)
+**Location:** [`fp-macros/src/document_module.rs:40-77`](../../fp-macros/src/document_module.rs:40)
+
+The macro supports three modes:
+1. Inner attribute: `mod foo { #![document_module] ... }`
+2. Outer attribute on module: `#[document_module] mod foo { ... }`
+3. Outer attribute on const block: `#[document_module] const _: () = { ... };`
+
+**Issue:** Mode 2 extracts module contents but doesn't recursively process nested modules.
 
 ---
 
-### Approach 4: Proc Macro Helper Attribute
+## Proposed Solutions
 
-**Description:** Use Rust's `#[proc_macro_attribute]` on the impl block itself to capture context.
+### Approach 1: Recursive Module Traversal ⭐ **RECOMMENDED**
+
+**Description:** Modify `generate_docs` to recursively descend into `Item::Mod` items.
 
 **Implementation:**
 
-1. **Create impl-level attribute**:
 ```rust
-#[proc_macro_attribute]
-pub fn documented_impl(
-    attr: TokenStream,
-    item: TokenStream,
-) -> TokenStream {
-    let impl_block = parse_macro_input!(item as ItemImpl);
-    
-    // Extract context once
-    let context = ImplContext::from_impl(&impl_block);
-    
-    // Process all methods with #[hm_signature]
-    let processed = process_impl_methods(impl_block, context);
-    
-    quote!(#processed).into()
-}
-```
+fn generate_docs(
+    items: &mut [Item],
+    config: &Config,
+) -> Result<()> {
+    let mut errors = Vec::new();
 
-2. **Usage**:
-```rust
-#[fp_macros::document_module]
-mod inner {
-    #[documented_impl]  // ← New attribute
-    impl<A> CatList<A> {
-        #[hm_signature]
-        pub fn empty() -> Self { ... }
+    for item in items {
+        match item {
+            Item::Impl(item_impl) => {
+                // Process impl blocks (existing logic)
+            }
+            Item::Mod(item_mod) => {
+                // NEW: Recursively process module contents
+                if let Some((_, ref mut mod_items)) = item_mod.content {
+                    if let Err(e) = generate_docs(mod_items, config) {
+                        errors.push(e);
+                    }
+                }
+            }
+            _ => {}
+        }
     }
+    
+    // Error handling
 }
 ```
 
 **Advantages:**
-- ✅ Captures impl context at the right level
-- ✅ Works with expansion order
-- ✅ Can process multiple methods efficiently
-- ✅ Clear scope of impact
+- ✅ Minimal code change (~20 lines)
+- ✅ Handles arbitrarily nested modules
+- ✅ No changes to user code required
+- ✅ Maintains backward compatibility
+- ✅ Works with all three application modes
 
 **Disadvantages:**
-- ⚠️ Adds another layer of macros
-- ⚠️ Requires changes to every impl block
-- ⚠️ Interaction with `document_module` unclear
+- ⚠️ Slightly increases macro complexity
+- ⚠️ Could process modules user didn't intend (minor)
 
 **Trade-offs:**
-- **Complexity:** Medium-High (new macro type)
-- **Maintainability:** Medium (another integration point)
-- **Compatibility:** Low (significant source changes)
-- **Robustness:** High (explicit context capture)
+- **Complexity:** Low (simple recursion pattern)
+- **Performance:** Negligible (only traverses actual structure)
+- **Maintainability:** High (clear, intuitive behavior)
+- **Risk:** Very Low (additive change, doesn't break existing behavior)
+
+---
+
+### Approach 2: Flatten Module Structure Before Processing
+
+**Description:** Transform nested modules into a flat list of items before processing.
+
+**Implementation:**
+
+```rust
+fn flatten_items(items: Vec<Item>) -> Vec<Item> {
+    let mut flattened = Vec::new();
+    
+    for item in items {
+        if let Item::Mod(item_mod) = item {
+            if let Some((_, mod_items)) = item_mod.content {
+                // Recursively flatten nested module contents
+                flattened.extend(flatten_items(mod_items));
+            }
+        } else {
+            flattened.push(item);
+        }
+    }
+    
+    flattened
+}
+
+pub fn document_module_impl(...) -> TokenStream {
+    // ...
+    let mut items = flatten_items(items);
+    // ...
+}
+```
+
+**Advantages:**
+- ✅ Keeps `generate_docs` simple (no recursion)
+- ✅ Clear separation of concerns
+- ✅ Easy to debug (can inspect flattened structure)
+
+**Disadvantages:**
+- ❌ Loses module structure information
+- ❌ Can't generate module-level documentation
+- ❌ May need to reconstruct structure for output
+- ❌ Allocates more memory (copies everything)
+
+**Trade-offs:**
+- **Complexity:** Medium (need to preserve/restore structure)
+- **Performance:** Moderate cost (extra allocation and iteration)
+- **Maintainability:** Medium (two-phase processing)
+- **Risk:** Medium (could affect module-level features)
+
+---
+
+### Approach 3: Require Inner Attribute Usage
+
+**Description:** Document that `#[document_module]` only works as inner attribute for modules with impl blocks.
+
+**Implementation:**
+
+Update documentation and add compiler warning:
+
+```rust
+pub fn document_module_impl(...) -> TokenStream {
+    // Detect outer attribute on module case
+    if let Ok(item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
+        if item_mod.content.is_some() {
+            // Emit warning
+            eprintln!(
+                "warning: #[document_module] as outer attribute may not process nested contents. \
+                Consider using #![document_module] as inner attribute instead."
+            );
+        }
+    }
+    // ...
+}
+```
+
+**Usage Change:**
+
+```rust
+// Instead of:
+#[document_module]
+mod foo {
+    impl<A> Bar<A> { ... }
+}
+
+// Use:
+mod foo {
+    #![document_module]
+    impl<A> Bar<A> { ... }
+}
+```
+
+**Advantages:**
+- ✅ No code changes to macro logic
+- ✅ Already works for this pattern
+- ✅ Zero implementation risk
+
+**Disadvantages:**
+- ❌ User-facing breaking change
+- ❌ Requires code updates across project
+- ❌ Less ergonomic (extra line inside module)
+- ❌ Doesn't fix the actual bug
+
+**Trade-offs:**
+- **Complexity:** None (documentation only)
+- **Performance:** No impact
+- **Maintainability:** High (clear usage pattern)
+- **Risk:** High (breaking change for users)
+
+---
+
+### Approach 4: Expand Nested Modules Inline
+
+**Description:** When encountering a nested module, expand its contents inline at the same level.
+
+**Implementation:**
+
+```rust
+fn generate_docs(
+    items: &mut [Item],
+    config: &Config,
+) -> Result<()> {
+    let mut i = 0;
+    while i < items.len() {
+        if let Item::Mod(item_mod) = &mut items[i] {
+            if let Some((_, mod_items)) = item_mod.content.take() {
+                // Replace module with its contents
+                items.splice(i..=i, mod_items);
+                continue;  // Re-process this index
+            }
+        }
+        i += 1;
+    }
+    
+    // Now process impl blocks (existing logic)
+}
+```
+
+**Advantages:**
+- ✅ Processes all impl blocks
+- ✅ Single-pass algorithm
+- ✅ In-place modification (no extra allocation)
+
+**Disadvantages:**
+- ❌ Destroys module boundaries
+- ❌ Output structure doesn't match input
+- ❌ Complex index manipulation
+- ❌ Hard to reason about behavior
+
+**Trade-offs:**
+- **Complexity:** High (index juggling, state mutation)
+- **Performance:** Good (in-place)
+- **Maintainability:** Low (confusing mutation patterns)
+- **Risk:** High (could produce invalid output structures)
+
+---
+
+### Approach 5: Two-Pass Processing with Visitor Pattern
+
+**Description:** Use `syn::visit_mut::VisitMut` to traverse and modify the AST.
+
+**Implementation:**
+
+```rust
+use syn::visit_mut::{self, VisitMut};
+
+struct DocumentGenerator<'a> {
+    config: &'a Config,
+    errors: Vec<syn::Error>,
+}
+
+impl<'a> VisitMut for DocumentGenerator<'a> {
+    fn visit_item_impl_mut(&mut self, impl_item: &mut ItemImpl) {
+        // Process impl blocks with #[hm_signature]
+        // (move existing generate_docs logic here)
+        
+        // Continue traversing
+        visit_mut::visit_item_impl_mut(self, impl_item);
+    }
+    
+    fn visit_item_mod_mut(&mut self, mod_item: &mut ItemMod) {
+        // Automatically recurses into module contents
+        visit_mut::visit_item_mod_mut(self, mod_item);
+    }
+}
+
+fn generate_docs(
+    items: &mut [Item],
+    config: &Config,
+) -> Result<()> {
+    let mut visitor = DocumentGenerator {
+        config,
+        errors: Vec::new(),
+    };
+    
+    for item in items {
+        visitor.visit_item_mut(item);
+    }
+    
+    // Handle errors
+}
+```
+
+**Advantages:**
+- ✅ Idiomatic Rust pattern for AST traversal
+- ✅ Handles all item types automatically
+- ✅ Easy to extend for future features
+- ✅ Battle-tested pattern from `syn` crate
+
+**Disadvantages:**
+- ⚠️ Larger refactoring (restructure existing code)
+- ⚠️ Learning curve for maintainers unfamiliar with visitors
+- ⚠️ More boilerplate
+
+**Trade-offs:**
+- **Complexity:** Medium-High (pattern understanding required)
+- **Performance:** Excellent (optimized by `syn`)
+- **Maintainability:** High (standard pattern)
+- **Risk:** Medium (larger refactor, but well-tested pattern)
 
 ---
 
 ## Solution Comparison Matrix
 
-| Criterion | Approach 1<br/>(Impl-Aware) | Approach 2<br/>(Doc Module) | Approach 3<br/>(Marker) | Approach 4<br/>(Helper Attr) |
-|-----------|---------------------------|---------------------------|----------------------|----------------------------|
-| **Implementation Complexity** | High | Low | Medium | Medium-High |
-| **Migration Effort** | None | High | Medium | High |
-| **Backward Compatibility** | Full | Breaking | Semi | Breaking |
-| **Robustness** | Medium | High | High | High |
-| **Maintainability** | Medium | High | Medium | Medium |
-| **Fine-grained Control** | Yes | No | Yes | Yes |
-| **Works Standalone** | Yes | No | Partial | Yes |
-| **Clear Semantics** | Medium | High | High | High |
+| Criterion | Approach 1<br/>(Recursive) | Approach 2<br/>(Flatten) | Approach 3<br/>(Doc Only) | Approach 4<br/>(Inline) | Approach 5<br/>(Visitor) |
+|-----------|---------------------------|-------------------------|--------------------------|------------------------|-------------------------|
+| **Implementation Effort** | Low | Medium | None | Medium | High |
+| **Code Complexity** | Low | Medium | None | High | Medium |
+| **Maintainability** | High | Medium | High | Low | High |
+| **Backward Compatibility** | Full | Full | Breaking | Full | Full |
+| **Handles Nested Modules** | Yes | Yes | N/A | Yes | Yes |
+| **Preserves Structure** | Yes | No | N/A | No | Yes |
+| **Performance** | Excellent | Good | N/A | Good | Excellent |
+| **Future Extensibility** | Good | Medium | Poor | Poor | Excellent |
+| **Risk Level** | Very Low | Medium | High | High | Medium |
 
 ---
 
-## Recommendation: Hybrid Approach (1 + 3)
+## Recommendation: **Approach 1 (Recursive Module Traversal)**
 
-**Primary Strategy:** Approach 1 (Impl-Context-Aware Standalone Macro)  
-**Fallback/Enhancement:** Approach 3 (Marker Macro for Explicit Context)
+**Rationale:**
 
-### Rationale
+1. **Minimal Change:** Only adds ~20 lines of code to handle `Item::Mod` case
+2. **Zero Breaking Changes:** Existing code continues to work unchanged
+3. **Correct Semantics:** Processes items in their natural structure
+4. **Immediate Fix:** Solves the problem directly without workarounds
+5. **Low Risk:** Additive change with clear behavior
+6. **Easy to Test:** Can verify recursion depth and edge cases
 
-1. **Backward Compatibility**: Approach 1 requires zero source changes
-2. **Immediate Fix**: Solves the problem for existing code
-3. **Future Flexibility**: Approach 3 provides explicit opt-in when needed
-4. **Progressive Enhancement**: Can implement Approach 1 first, add Approach 3 later
+**Implementation Plan:**
 
-### Implementation Plan
+### Phase 1: Add Recursive Processing (Week 1)
 
-#### Phase 1: Fix Standalone Macro (Weeks 1-2)
+1. **Modify `generate_docs` function** ([`fp-macros/src/document_module.rs:291`](../../fp-macros/src/document_module.rs:291)):
+   ```rust
+   fn generate_docs(
+       items: &mut [Item],
+       config: &Config,
+   ) -> Result<()> {
+       let mut errors = Vec::new();
 
-1. **Enhance token stream parsing**:
-   - Add `extract_impl_context()` function
-   - Detect `impl<...> Type<...>` patterns
-   - Extract generics and type name
+       for item in items {
+           match item {
+               Item::Impl(item_impl) => {
+                   // Existing impl processing logic
+               }
+               Item::Mod(item_mod) => {
+                   // NEW: Recursively process module contents
+                   if let Some((_, ref mut mod_items)) = item_mod.content {
+                       if let Err(e) = generate_docs(mod_items, config) {
+                           errors.push(e);
+                       }
+                   }
+               }
+               _ => {}
+           }
+       }
 
-2. **Update `hm_signature_impl()`**:
-   - Call `extract_impl_context()` 
-   - Populate `Config` with impl information
-   - Merge impl generics into method signature
+       if errors.is_empty() {
+           Ok(())
+       } else {
+           let mut combined_error: Error = errors.remove(0);
+           for err in errors {
+               combined_error.combine(err);
+           }
+           Err(combined_error)
+       }
+   }
+   ```
 
-3. **Fix brand name extraction**:
-   - Update `extract_concrete_type_name()` to strip "Brand" suffix
-   - Add result to `config.concrete_types`
+2. **Add test cases**:
+   ```rust
+   #[test]
+   fn test_nested_module_processing() {
+       let input = quote! {
+           #[document_module]
+           mod outer {
+               mod inner {
+                   impl<A> Foo<A> {
+                       #[hm_signature]
+                       pub fn bar() -> Self { todo!() }
+                   }
+               }
+           }
+       };
+       // Verify signature is generated
+   }
+   ```
 
-4. **Add comprehensive tests**:
-   - Test impl context extraction
-   - Test generic parameter merging
-   - Test Self → ConcreteName replacement
+### Phase 2: Testing & Validation (Week 1-2)
 
-#### Phase 2: Add Marker Macro (Week 3)
+1. **Unit Tests:**
+   - Single-level modules (existing behavior)
+   - Nested modules (new behavior)
+   - Deeply nested modules (3+ levels)
+   - Mixed content (modules + impls at same level)
 
-1. **Create `doc_hm_signature` marker**:
-   - Lightweight pass-through with marker attribute
-   - Document when to use vs standalone
+2. **Integration Tests:**
+   - Run existing test suite (ensure no regressions)
+   - Test with real codebase examples
+   - Verify generated documentation
 
-2. **Update `document_module`**:
-   - Detect marker attribute
-   - Process with full context
+3. **Edge Cases:**
+   - Empty modules
+   - Modules without impls
+   - Modules with only trait definitions
 
-3. **Documentation**:
-   - When to use `#[hm_signature]` (standalone, simple cases)
-   - When to use `#[doc_hm_signature]` (complex contexts, nested impls)
+### Phase 3: Documentation (Week 2)
 
-#### Phase 3: Testing & Validation (Week 4)
+1. Update [`module-level-documentation.md`](./module-level-documentation.md) with recursion behavior
+2. Add examples showing nested module support
+3. Document any depth limits (if imposed)
 
-1. **Verify all signatures**:
-   - Run `cargo doc` and inspect output
-   - Compare against expected signatures
-   - Add regression tests
+---
 
-2. **Performance testing**:
-   - Measure compilation time impact
-   - Optimize if needed
+## Alternative Recommendation: **Approach 5 (Visitor Pattern)**
 
-### Success Criteria
+**If future extensibility is a priority:**
+
+The visitor pattern provides the most robust foundation for future features like:
+- Module-level doc generation
+- Cross-module reference resolution
+- Trait documentation enhancement
+- Namespace-aware processing
+
+**When to choose this:**
+- Planning significant macro system expansion
+- Team familiar with AST visitor patterns
+- Time available for larger refactor (~2-3 weeks)
+
+---
+
+## Success Criteria
+
+After implementation, verify:
 
 - ✅ `impl<A> CatList<A>::empty()` generates `forall A. () -> CatList A`
-- ✅ `impl<A> CatList<A>::is_empty(&self)` generates `forall A. &(CatList A) -> bool`  
-- ✅ Trait impl methods generate `CatList` instead of `Self`
-- ✅ No source file changes required
+- ✅ `impl<A> CatList<A>::is_empty(&self)` generates `forall A. &(CatList A) -> bool`
+- ✅ Nested modules processed correctly (1-3 levels deep)
 - ✅ All existing tests pass
-- ✅ Compilation time impact < 5%
+- ✅ No compilation time regression (< 1%)
+- ✅ No breaking changes for users
 
 ---
 
-## Alternative Recommendations by Use Case
+## Appendix: Diagnostic Evidence
 
-### If Minimizing Complexity is Priority
-→ **Approach 2** (Document Module Takes Over)
-- Simplest overall design
-- Requires migration but cleaner long-term
-- Best for greenfield projects
+### Test Setup
 
-### If Backward Compatibility is Critical
-→ **Approach 1** (Impl-Context-Aware)
-- Zero breaking changes
-- Works with existing code
-- Best for established projects
+```rust
+// fp-macros/tests/repro_issues.rs
+#[document_module]
+mod test_context {
+    pub struct CatListBrand;
+    pub struct CatList<A>(A);
 
-### If Explicit Control is Needed
-→ **Approach 3** (Marker Macro)
-- Clear intent
-- Works well with document_module
-- Best for complex scenarios
+    impl<A> CatList<A> {
+        #[hm_signature]
+        pub fn empty() -> Self { todo!() }
 
-### If Reusability is Priority
-→ **Approach 4** (Helper Attribute)
-- Composable design
-- Can be used elsewhere
-- Best for framework development
+        #[hm_signature]
+        pub fn is_empty(&self) -> bool { true }
+    }
+}
+```
 
----
+### Debug Output (With No-Op `hm_signature`)
 
-## Implementation Notes
+```
+[hm_signature] NO-OP: Returning input unchanged
+[document_module] START document_module_impl
+[document_module] INPUT: mod test_context
+{
+    use fp_macros::hm_signature; pub struct CatListBrand; pub struct
+    CatList<A>(A); impl<A> CatList<A>
+    {
+        #[hm_signature] pub fn empty() -> Self { todo!() }
+        #[hm_signature] pub fn is_empty(&self) -> bool { true }
+    }
+}
+[document_module] Total items parsed: 1
+[document_module] Item 0: "Mod"
+[document_module] Starting generate_docs
+```
 
-### Key Files to Modify
+**Key Finding:** The `#[hm_signature]` attributes ARE present in the input to `document_module`, disproving the expansion order hypothesis.
 
-1. **`fp-macros/src/hm_signature.rs`**:
-   - Add impl context extraction
-   - Update `hm_signature_impl()` function
+### Cargo Expand Output
 
-2. **`fp-macros/src/document_module.rs`**:
-   - Fix `extract_concrete_type_name()`
-   - Improve brand → type mapping
+```rust
+mod test_context {
+    use fp_macros::hm_signature;
+    pub struct CatListBrand;
+    pub struct CatList<A>(A);
+    impl<A> CatList<A> {
+        pub fn empty() -> Self {  // ← NO DOC COMMENT
+            ::core::panicking::panic("not yet implemented")
+        }
+        pub fn is_empty(&self) -> bool {  // ← NO DOC COMMENT
+            true
+        }
+    }
+}
+```
 
-3. **`fp-macros/src/function_utils.rs`**:
-   - Update `type_to_hm()` to handle Self properly
-   - Add concrete type tracking
-
-### Testing Strategy
-
-1. **Unit Tests**:
-   - Token stream parsing
-   - Context extraction
-   - Type name mapping
-
-2. **Integration Tests**:
-   - Full signature generation
-   - Document module integration
-   - Brand trait impls
-
-3. **Regression Tests**:
-   - Existing signatures remain correct
-   - No performance degradation
-
-### Risks & Mitigation
-
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|-----------|------------|
-| Token parsing breaks | High | Medium | Comprehensive test suite, fallback logic |
-| Performance regression | Medium | Low | Benchmark before/after, optimize hot paths |
-| Edge cases missed | Medium | Medium | Extensive testing, gradual rollout |
-| Macro expansion changes | High | Low | Document assumptions, add guards |
+**Confirmation:** No signatures were generated despite attributes being present.
 
 ---
 
 ## Conclusion
 
-The recommended **Hybrid Approach (1 + 3)** provides:
-- ✅ Immediate fix with zero migration
-- ✅ Future flexibility for complex cases
-- ✅ Robust long-term solution
-- ✅ Clear upgrade path
+The original analysis incorrectly blamed macro expansion order. The actual issue is a missing recursion step in the `document_module` implementation. 
 
-This approach balances:
-- **Short-term needs**: Fix existing code without changes
-- **Long-term goals**: Clean, maintainable architecture
-- **Risk management**: Progressive enhancement with fallbacks
-
-### Verification Results (Added 2026-02-07)
-
-The legitimacy of these issues was confirmed using a reproduction test case in [`fp-macros/tests/repro_issues.rs`](fp-macros/tests/repro_issues.rs). The following key observations were made:
-
-1.  **Macro Execution Race**: Debug logs in [`fp-macros/src/document_module.rs`](fp-macros/src/document_module.rs) confirmed that `hm_signature` attributes on methods are expanded and removed before the `document_module` macro on the module even receives the token stream. This confirms **Issue 1**.
-2.  **Context Loss**: The Early-expanding `hm_signature` reported `Generic names: {}` and `self_type_name: None` even when nested inside an `impl<A> CatList<A>` block. This confirms **Issue 2**.
-3.  **Signature Output**: The generated signature for `pub fn empty() -> Self` was literally `() -> Self` instead of the expected `forall A. () -> CatList A`.
-
-**Next Steps:**
-1. Review and approve this analysis
-2. Create implementation tickets for Phase 1
-3. Set up test infrastructure
-4. Begin implementation with comprehensive testing
+**The fix is straightforward:** Add ~20 lines to recursively process nested modules, providing an immediate solution with zero breaking changes.
 
 ---
 
-## Appendix: Diagnostic Output
-
-### Current Behavior (Broken)
-
-```rust
-impl<A> CatList<A> {
-    #[hm_signature]
-    pub const fn empty() -> Self
-}
-```
-
-**Generates:** `() -> Self`
-
-**Debug Log:**
-```
-[generate_signature] Generic names: {}
-[generate_signature] self_type_name: None
-[generate_signature] forall: []
-[generate_signature] return: Variable("Self")
-```
-
-### Expected Behavior (Fixed)
-
-**Should Generate:** `forall A. () -> CatList A`
-
-**Expected Debug Log:**
-```
-[generate_signature] Generic names: {"A"}
-[generate_signature] self_type_name: Some("CatList")
-[generate_signature] forall: ["A"]
-[generate_signature] return: Constructor("CatList", [Variable("A")])
-```
-
----
-
-**Document Version:** 1.0  
+**Document Version:** 2.0  
 **Last Updated:** 2026-02-07  
-**Author:** AI Assistant (Diagnostic Analysis)  
-**Status:** Ready for Review
+**Author:** Root Cause Analysis via Systematic Testing  
+**Status:** Ready for Implementation

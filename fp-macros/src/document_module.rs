@@ -34,8 +34,8 @@ pub fn document_module_impl(
 	_attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	// eprintln!("\n[document_module] START document_module_impl");
-	// eprintln!("[document_module] INPUT: {}", item.to_string());
+	eprintln!("\n[document_module] START document_module_impl");
+	eprintln!("[document_module] INPUT: {}", item.to_string());
 	// Try to parse as a list of items (inner attribute case)
 	let mut items = if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
 		input.items
@@ -77,6 +77,28 @@ pub fn document_module_impl(
 	};
 
 	let mut config = Config::default();
+	
+	eprintln!("[document_module] Total items parsed: {}", items.len());
+	for (i, item) in items.iter().enumerate() {
+		eprintln!("[document_module] Item {}: {:?}", i, match item {
+			Item::Const(_) => "Const",
+			Item::Enum(_) => "Enum",
+			Item::ExternCrate(_) => "ExternCrate",
+			Item::Fn(_) => "Fn",
+			Item::ForeignMod(_) => "ForeignMod",
+			Item::Impl(_) => "Impl",
+			Item::Macro(_) => "Macro",
+			Item::Mod(_) => "Mod",
+			Item::Static(_) => "Static",
+			Item::Struct(_) => "Struct",
+			Item::Trait(_) => "Trait",
+			Item::TraitAlias(_) => "TraitAlias",
+			Item::Type(_) => "Type",
+			Item::Union(_) => "Union",
+			Item::Use(_) => "Use",
+			_ => "Other",
+		});
+	}
 
 	// Pass 1: Context Extraction
 	if let Err(e) = extract_context(&items, &mut config) {
@@ -84,6 +106,7 @@ pub fn document_module_impl(
 	}
 
 	// Pass 2: Documentation Generation
+	eprintln!("[document_module] Starting generate_docs");
 	if let Err(e) = generate_docs(&mut items, &config) {
 		return e.to_compile_error();
 	}
@@ -302,9 +325,9 @@ fn generate_docs(
 			let trait_name = trait_path.map(|p| p.segments.last().unwrap().ident.to_string());
 			let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
 			
-			// eprintln!("\n[document_module] Processing impl block for: {}", self_ty_path);
-			// eprintln!("[document_module] Trait: {:?}", trait_name);
-			// eprintln!("[document_module] Number of impl items: {}", item_impl.items.len());
+			eprintln!("\n[document_module] Processing impl block for: {}", self_ty_path);
+			eprintln!("[document_module] Trait: {:?}", trait_name);
+			eprintln!("[document_module] Number of impl items: {}", item_impl.items.len());
 
 			// for (i, attr) in item_impl.attrs.iter().enumerate() {
 			// 	eprintln!("[document_module] Impl Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
@@ -320,11 +343,11 @@ fn generate_docs(
 
 			for impl_item in &mut item_impl.items {
 				if let ImplItem::Fn(method) = impl_item {
-					// eprintln!("[document_module] Processing method: {}", method.sig.ident);
-					// for (i, attr) in method.attrs.iter().enumerate() {
-					// 	eprintln!("[document_module] Method Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
-					// }
-					// eprintln!("[document_module] Has hm_signature attr: {}", find_attribute(&method.attrs, "hm_signature").is_some());
+					eprintln!("[document_module] Processing method: {}", method.sig.ident);
+					for (i, attr) in method.attrs.iter().enumerate() {
+						eprintln!("[document_module] Method Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
+					}
+					eprintln!("[document_module] Has hm_signature attr: {}", find_attribute(&method.attrs, "hm_signature").is_some());
 					let method_doc_use = match find_attr_value_checked(&method.attrs, "doc_use") {
 						Ok(v) => v,
 						Err(e) => {
