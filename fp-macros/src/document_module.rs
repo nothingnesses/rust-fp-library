@@ -1,7 +1,7 @@
 use crate::{
 	apply::ApplyInput,
 	doc_utils::{DocArg, GenericArgs, validate_doc_args},
-	function_utils::Config,
+	function_utils::{Config, format_brand_name},
 	hm_signature::generate_signature,
 	impl_kind::ImplKindInput,
 };
@@ -34,6 +34,8 @@ pub fn document_module_impl(
 	_attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
+	// eprintln!("\n[document_module] START document_module_impl");
+	// eprintln!("[document_module] INPUT: {}", item.to_string());
 	// Try to parse as a list of items (inner attribute case)
 	let mut items = if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
 		input.items
@@ -86,7 +88,9 @@ pub fn document_module_impl(
 		return e.to_compile_error();
 	}
 
-	quote!(#(#items)*)
+	let result = quote!(#(#items)*);
+	// eprintln!("[document_module] END document_module_impl");
+	result
 }
 
 fn extract_context(
@@ -118,15 +122,28 @@ fn extract_context(
 						}
 
 						// Check for collisions in impl_kind!
-						// The spec says: "The macro extracts from all cfg branches independently, treating each as a separate definition context. No conflict detection is performed across different cfg conditions."
-						// However, within the same context (same cfg, or no cfg), collisions are still errors.
-						// Current implementation is simplified and doesn't track cfg, so we follow the spec by removing this check.
-						// "Validation is not the macro's responsibility: The macro is a documentation generator, not a validator. Rustc will catch any actual conflicts or invalid configurations."
+						// We use normalized types to detect semantic collisions even if generic names differ
+						let normalized_target =
+							normalize_type(def.target_type.clone(), &def.generics);
+						let key = (brand_path.clone(), None, assoc_name.clone());
+						if let Some((prev_generics, prev_type)) = config.projections.get(&key) {
+							let prev_normalized = normalize_type(prev_type.clone(), prev_generics);
+							if quote!(#prev_normalized).to_string()
+								!= quote!(#normalized_target).to_string()
+							{
+								errors.push(Error::new(
+									def.ident.span(),
+									format!(
+										"Conflicting implementation for {}: already defined with different type",
+										assoc_name
+									),
+								));
+							}
+						}
 
-						config.projections.insert(
-							(brand_path.clone(), None, assoc_name.clone()),
-							(def.generics.clone(), def.target_type.clone()),
-						);
+						config
+							.projections
+							.insert(key, (def.generics.clone(), def.target_type.clone()));
 
 						if has_attr(&def.attrs, "doc_default")
 							&& let Some(prev) = config
@@ -210,6 +227,67 @@ fn extract_context(
 	}
 }
 
+/// Extract the concrete type name from a Type for use in HM signatures
+fn extract_concrete_type_name(
+	ty: &syn::Type,
+	config: &Config,
+) -> Option<String> {
+	match ty {
+		syn::Type::Path(type_path) => {
+			if let Some(segment) = type_path.path.segments.first() {
+				let name = segment.ident.to_string();
+				// Apply brand name formatting
+				Some(format_brand_name(&name, config))
+			} else {
+				None
+			}
+		}
+		_ => None,
+	}
+}
+
+/// Extract base type name and generic parameter names from impl self type
+/// For `impl<A> CatList<A>`, returns ("CatList", ["A"])
+fn extract_self_type_info(
+	self_ty: &syn::Type,
+	impl_generics: &syn::Generics,
+) -> (Option<String>, Vec<String>) {
+	let base_name = match self_ty {
+		syn::Type::Path(type_path) => {
+			type_path.path.segments.last().map(|seg| seg.ident.to_string())
+		}
+		_ => None,
+	};
+
+	let generic_names: Vec<String> = impl_generics
+		.params
+		.iter()
+		.filter_map(|p| match p {
+			syn::GenericParam::Type(t) => Some(t.ident.to_string()),
+			_ => None,
+		})
+		.collect();
+
+	(base_name, generic_names)
+}
+
+/// Build a parameterized type from a base name and generic parameters
+/// For ("CatList", ["A"]), returns `CatList<A>`
+fn build_parameterized_type(
+	base_name: &str,
+	generic_params: &[String],
+) -> syn::Type {
+	if generic_params.is_empty() {
+		parse_quote!(#base_name)
+	} else {
+		let params: Vec<syn::Ident> = generic_params
+			.iter()
+			.map(|p| syn::Ident::new(p, proc_macro2::Span::call_site()))
+			.collect();
+		parse_quote!(#base_name<#(#params),*>)
+	}
+}
+
 fn generate_docs(
 	items: &mut [Item],
 	config: &Config,
@@ -223,6 +301,14 @@ fn generate_docs(
 			let trait_path = item_impl.trait_.as_ref().map(|(_, path, _)| path);
 			let trait_name = trait_path.map(|p| p.segments.last().unwrap().ident.to_string());
 			let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
+			
+			// eprintln!("\n[document_module] Processing impl block for: {}", self_ty_path);
+			// eprintln!("[document_module] Trait: {:?}", trait_name);
+			// eprintln!("[document_module] Number of impl items: {}", item_impl.items.len());
+
+			// for (i, attr) in item_impl.attrs.iter().enumerate() {
+			// 	eprintln!("[document_module] Impl Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
+			// }
 
 			let impl_doc_use = match find_attr_value_checked(&item_impl.attrs, "doc_use") {
 				Ok(v) => v,
@@ -234,6 +320,11 @@ fn generate_docs(
 
 			for impl_item in &mut item_impl.items {
 				if let ImplItem::Fn(method) = impl_item {
+					// eprintln!("[document_module] Processing method: {}", method.sig.ident);
+					// for (i, attr) in method.attrs.iter().enumerate() {
+					// 	eprintln!("[document_module] Method Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
+					// }
+					// eprintln!("[document_module] Has hm_signature attr: {}", find_attribute(&method.attrs, "hm_signature").is_some());
 					let method_doc_use = match find_attr_value_checked(&method.attrs, "doc_use") {
 						Ok(v) => v,
 						Err(e) => {
@@ -249,6 +340,17 @@ fn generate_docs(
 
 						let mut synthetic_sig = method.sig.clone();
 
+						// Extract base type name and generic parameters from impl
+						let (base_type_name, impl_generic_params) =
+							extract_self_type_info(self_ty, &item_impl.generics);
+
+						// DEBUG: Log the input state
+						eprintln!("\n=== DEBUG: HM Signature Generation ===");
+						eprintln!("Method: {}", method.sig.ident);
+						eprintln!("Base type: {:?}", base_type_name);
+						eprintln!("Impl generics: {:?}", impl_generic_params);
+						eprintln!("Original return type: {}", quote::quote!(#(&synthetic_sig.output)));
+
 						// Resolve Self
 						let mut substitutor = SelfSubstitutor {
 							self_ty,
@@ -257,8 +359,12 @@ fn generate_docs(
 							doc_use: doc_use.as_deref(),
 							config,
 							errors: Vec::new(),
+							base_type_name: base_type_name.clone(),
+							impl_generic_params: impl_generic_params.clone(),
 						};
 						substitutor.visit_signature_mut(&mut synthetic_sig);
+
+						eprintln!("After substitution return type: {}", quote::quote!(#(&synthetic_sig.output)));
 
 						// Collect any resolution errors
 						errors.extend(substitutor.errors);
@@ -266,14 +372,31 @@ fn generate_docs(
 						// Merge generics
 						merge_generics(&mut synthetic_sig, &item_impl.generics);
 
+						eprintln!("After merge, generics: {:?}", synthetic_sig.generics.params.iter().map(|p| quote::quote!(#p).to_string()).collect::<Vec<_>>());
+
 						// Add trait bound: SelfTy: Trait (only if it's a trait impl)
 						if let Some(trait_path) = trait_path {
 							let where_clause = synthetic_sig.generics.make_where_clause();
 							where_clause.predicates.push(parse_quote!(#self_ty: #trait_path));
 						}
 
+						// Create a modified config with concrete type information
+						let mut sig_config = config.clone();
+
+						// Extract and add the concrete type name
+						if let Some(concrete_type_name) =
+							extract_concrete_type_name(self_ty, config)
+						{
+							sig_config.concrete_types.insert(concrete_type_name.clone());
+							sig_config.self_type_name = Some(concrete_type_name);
+						}
+
 						let signature_data =
-							generate_signature(&synthetic_sig, trait_name.as_deref(), config);
+							generate_signature(&synthetic_sig, trait_name.as_deref(), &sig_config);
+						
+						eprintln!("Generated signature: {}", signature_data);
+						eprintln!("=== END DEBUG ===\n");
+						
 						let doc_comment = format!("`{}`", signature_data);
 						let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 						method.attrs.insert(attr_pos, doc_attr);
@@ -418,6 +541,10 @@ struct SelfSubstitutor<'a> {
 	doc_use: Option<&'a str>,
 	config: &'a Config,
 	errors: Vec<Error>,
+	/// The base type name (e.g., "CatList") extracted from self_ty
+	base_type_name: Option<String>,
+	/// Generic parameter names from the impl block (e.g., ["A"])
+	impl_generic_params: Vec<String>,
 }
 
 impl<'a> VisitMut for SelfSubstitutor<'a> {
@@ -457,28 +584,41 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 								assoc.clone(),
 							))
 						}) {
+						// For bare Self, we don't have generic arguments to substitute,
+						// but we should still respect the definition's generics if any.
+						// Actually, bare Self usually resolves to the primary association.
 						*i = target.clone();
 					} else {
-						// Fallback to self_ty if projection not found
-						*i = self.self_ty.clone();
+						// Fallback: use parameterized concrete type if available
+						if let Some(base_name) = &self.base_type_name {
+							*i = build_parameterized_type(base_name, &self.impl_generic_params);
+						} else {
+							*i = self.self_ty.clone();
+						}
 					}
 				} else {
-					// No default found - report error with available types
-					self.errors.push(create_missing_default_error(
-						tp.span(),
-						self.self_ty_path,
-						self.trait_path,
-						self.config,
-					));
-					// Fallback to self_ty
-					*i = self.self_ty.clone();
+					// No default found - use parameterized concrete type if available
+					if let Some(base_name) = &self.base_type_name {
+						*i = build_parameterized_type(base_name, &self.impl_generic_params);
+					} else {
+						// Report error with available types
+						self.errors.push(create_missing_default_error(
+							tp.span(),
+							self.self_ty_path,
+							self.trait_path,
+							self.config,
+						));
+						// Fallback to self_ty
+						*i = self.self_ty.clone();
+					}
 				}
 			} else if let Some(first) = tp.path.segments.first()
 				&& first.ident == "Self"
 				&& tp.path.segments.len() > 1
 			{
-				let assoc_name = tp.path.segments[1].ident.to_string();
-				if let Some((_generics, target)) = self
+				let segment = &tp.path.segments[1];
+				let assoc_name = segment.ident.to_string();
+				if let Some((generics, target)) = self
 					.config
 					.projections
 					.get(&(
@@ -493,7 +633,11 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 							assoc_name.clone(),
 						))
 					}) {
-					*i = target.clone();
+					if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+						*i = substitute_generics(target.clone(), generics, &args.args);
+					} else {
+						*i = target.clone();
+					}
 				} else {
 					// Report error with available types
 					self.errors.push(create_missing_assoc_type_error(
@@ -529,6 +673,16 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 				}
 			}
 
+			// If the brand resolved to a target type with generics, and Apply! has arguments,
+			// we should perform substitution if possible.
+			// However, document_module's SelfSubstitutor currently only replaces the type.
+			// The HM signature generator will handle the projection if it remains a path.
+			// But if we already replaced it with a concrete type (e.g. CatList),
+			// we might have CatList instead of CatList<A>.
+
+			// Let's check if brand was substituted.
+			// We can use the same logic as visit_type_mut for Self segments.
+
 			let brand = &apply_input.brand;
 			let kind_input = &apply_input.kind_input;
 			let assoc_name = &apply_input.assoc_name;
@@ -545,13 +699,19 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 	) {
 		for input in &mut i.inputs {
 			if let syn::FnArg::Receiver(r) = input {
-				let self_ty = self.self_ty;
+				// Build the concrete parameterized type for the receiver
+				let concrete_ty = if let Some(base_name) = &self.base_type_name {
+					build_parameterized_type(base_name, &self.impl_generic_params)
+				} else {
+					self.self_ty.clone()
+				};
+
 				let attrs = &r.attrs;
 				if let Some(reference) = &r.reference {
 					let lt = &reference.1;
 					if r.mutability.is_some() {
 						let pat: syn::Pat = parse_quote!(self);
-						let ty: syn::Type = parse_quote!(&#lt mut #self_ty);
+						let ty: syn::Type = parse_quote!(&#lt mut #concrete_ty);
 						*input = syn::FnArg::Typed(syn::PatType {
 							attrs: attrs.clone(),
 							pat: Box::new(pat),
@@ -560,7 +720,7 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 						});
 					} else {
 						let pat: syn::Pat = parse_quote!(self);
-						let ty: syn::Type = parse_quote!(&#lt #self_ty);
+						let ty: syn::Type = parse_quote!(&#lt #concrete_ty);
 						*input = syn::FnArg::Typed(syn::PatType {
 							attrs: attrs.clone(),
 							pat: Box::new(pat),
@@ -570,7 +730,7 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 					}
 				} else {
 					let pat: syn::Pat = parse_quote!(self);
-					let ty: syn::Type = parse_quote!(#self_ty);
+					let ty: syn::Type = parse_quote!(#concrete_ty);
 					*input = syn::FnArg::Typed(syn::PatType {
 						attrs: attrs.clone(),
 						pat: Box::new(pat),
@@ -620,14 +780,30 @@ pub(crate) fn substitute_generics(
 	args: &syn::punctuated::Punctuated<syn::GenericArgument, syn::token::Comma>,
 ) -> syn::Type {
 	let mut mapping = HashMap::new();
+	let mut const_mapping = HashMap::new();
+
 	for (param, arg) in generics.params.iter().zip(args.iter()) {
-		if let (syn::GenericParam::Type(tp), syn::GenericArgument::Type(at)) = (param, arg) {
-			mapping.insert(tp.ident.to_string(), at.clone());
+		match (param, arg) {
+			(syn::GenericParam::Type(tp), syn::GenericArgument::Type(at)) => {
+				mapping.insert(tp.ident.to_string(), at.clone());
+			}
+			(syn::GenericParam::Const(cp), syn::GenericArgument::Const(ca)) => {
+				const_mapping.insert(cp.ident.to_string(), ca.clone());
+			}
+			(syn::GenericParam::Const(cp), syn::GenericArgument::Type(syn::Type::Path(tp)))
+				if tp.path.get_ident().is_some() =>
+			{
+				// Sometimes const generics are passed as types in early parsing phases or macros
+				let ident = tp.path.get_ident().unwrap();
+				const_mapping.insert(cp.ident.to_string(), syn::parse_quote!(#ident));
+			}
+			_ => {}
 		}
 	}
 
 	struct SubstitutionVisitor<'a> {
 		mapping: &'a HashMap<String, syn::Type>,
+		const_mapping: &'a HashMap<String, syn::Expr>,
 	}
 	impl VisitMut for SubstitutionVisitor<'_> {
 		fn visit_type_mut(
@@ -643,9 +819,23 @@ pub(crate) fn substitute_generics(
 			}
 			visit_mut::visit_type_mut(self, i);
 		}
+
+		fn visit_expr_mut(
+			&mut self,
+			i: &mut syn::Expr,
+		) {
+			if let syn::Expr::Path(ep) = i
+				&& let Some(ident) = ep.path.get_ident()
+				&& let Some(target) = self.const_mapping.get(&ident.to_string())
+			{
+				*i = target.clone();
+				return;
+			}
+			visit_mut::visit_expr_mut(self, i);
+		}
 	}
 
-	let mut visitor = SubstitutionVisitor { mapping: &mapping };
+	let mut visitor = SubstitutionVisitor { mapping: &mapping, const_mapping: &const_mapping };
 	visitor.visit_type_mut(&mut ty);
 	ty
 }

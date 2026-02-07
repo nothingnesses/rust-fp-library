@@ -3,10 +3,10 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use syn::{
 	GenericArgument, GenericParam, PathArguments, ReturnType, Signature, TraitBound, Type,
-	TypeParamBound, TypeTraitObject, WherePredicate,
+	TypeParamBound, WherePredicate,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
 	#[serde(default)]
 	pub brand_mappings: HashMap<String, String>,
@@ -23,6 +23,13 @@ pub struct Config {
 	/// (Type, Trait)-scoped defaults: (TypePath, TraitPath) -> AssocName
 	#[serde(skip)]
 	pub scoped_defaults: HashMap<(String, String), String>,
+	/// Types that should be preserved as-is (not lowercased)
+	/// Used for concrete types resolved from Self
+	#[serde(skip)]
+	pub concrete_types: HashSet<String>,
+	/// The name of the Self type in the current context
+	#[serde(skip)]
+	pub self_type_name: Option<String>,
 }
 
 impl Default for Config {
@@ -34,6 +41,8 @@ impl Default for Config {
 			projections: HashMap::new(),
 			module_defaults: HashMap::new(),
 			scoped_defaults: HashMap::new(),
+			concrete_types: HashSet::new(),
+			self_type_name: None,
 		}
 	}
 }
@@ -371,8 +380,14 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 				let last = type_path.path.segments.last().unwrap();
 
 				let mut constructor_name = first.ident.to_string();
-				if self.generic_names.contains(&constructor_name) || constructor_name == "Self" {
-					constructor_name = constructor_name.to_lowercase();
+				if self.config.concrete_types.contains(&constructor_name) {
+					// Preserve concrete types as-is (keep original case)
+				} else if self.generic_names.contains(&constructor_name) {
+					// Keep type parameters in original case (uppercase)
+				} else if constructor_name == "Self" {
+					// Use self_type_name if available, otherwise keep as "Self"
+					constructor_name =
+						self.config.self_type_name.clone().unwrap_or_else(|| "Self".to_string());
 				} else {
 					constructor_name = format_brand_name(&constructor_name, self.config);
 				}
@@ -406,17 +421,43 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 				if let HMType::Variable(v) = sig
 					&& v == "fn_brand_marker"
 				{
-					return HMType::Variable(name.to_lowercase());
+					// Keep type parameters in original case
+					return HMType::Variable(name);
 				}
 				return sig.clone();
 			}
 
-			if self.generic_names.contains(&name) {
-				return HMType::Variable(name.to_lowercase());
+			// Check if this is a concrete type that should be preserved
+			if self.config.concrete_types.contains(&name) {
+				// But still process generic arguments if present
+				match &segment.arguments {
+					PathArguments::AngleBracketed(args) => {
+						let mut type_args = Vec::new();
+						for arg in &args.args {
+							if let GenericArgument::Type(inner_ty) = arg {
+								type_args.push(self.visit(inner_ty));
+							}
+						}
+						if type_args.is_empty() {
+							return HMType::Variable(name);
+						} else {
+							return HMType::Constructor(name, type_args);
+						}
+					}
+					_ => return HMType::Variable(name),
+				}
 			}
 
+			// Keep type parameters in original case (uppercase)
+			if self.generic_names.contains(&name) {
+				return HMType::Variable(name);
+			}
+
+			// Handle Self with self_type_name if available
 			if name == "Self" {
-				return HMType::Variable("self".to_string());
+				return HMType::Variable(
+					self.config.self_type_name.clone().unwrap_or_else(|| "Self".to_string()),
+				);
 			}
 
 			let brand_name = format_brand_name(&name, self.config);

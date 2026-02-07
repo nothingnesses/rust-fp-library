@@ -98,45 +98,37 @@ impl std::fmt::Display for SignatureData {
 
 pub fn generate_signature(
 	sig: &syn::Signature,
-	trait_context: Option<&str>,
+	_trait_context: Option<&str>,
 	config: &Config,
 ) -> SignatureData {
 	let (generic_names, fn_bounds) = analyze_generics(sig, config);
+
+	// DEBUG: Log analysis results
+	eprintln!("  [generate_signature] Generic names: {:?}", generic_names);
+	eprintln!("  [generate_signature] Fn bounds: {:?}", fn_bounds.keys().collect::<Vec<_>>());
+	eprintln!("  [generate_signature] self_type_name: {:?}", config.self_type_name);
+	eprintln!("  [generate_signature] concrete_types: {:?}", config.concrete_types);
 
 	// Erase unsafe modifier
 	let mut sig = sig.clone();
 	sig.unsafety = None;
 
-	let (mut forall, mut constraints) =
-		format_generics(&sig.generics, &fn_bounds, &generic_names, config);
+	let (forall, constraints) = format_generics(&sig.generics, &fn_bounds, &generic_names, config);
+	eprintln!("  [generate_signature] forall: {:?}", forall);
+	eprintln!("  [generate_signature] constraints: {:?}", constraints);
+	
 	let params = format_parameters(&sig, &fn_bounds, &generic_names, config);
+	eprintln!("  [generate_signature] params: {:?}", params);
+	
 	let ret = format_return_type(&sig.output, &fn_bounds, &generic_names, config);
+	eprintln!("  [generate_signature] return: {:?}", ret);
 
-	let uses_self = params.iter().any(hm_type_uses_self) || hm_type_uses_self(&ret);
-
-	if uses_self {
-		forall.insert(0, "self".to_string());
-
-		if let Some(trait_name) = trait_context {
-			constraints.insert(0, format!("{} self", trait_name));
-		}
-	}
+	// Note: Self resolution is now handled by document_module before calling this function.
+	// Concrete type names (like CatList) are already in the signature and appear in forall
+	// through the regular generic parameter collection. Trait constraints are also
+	// handled through the normal constraint collection process.
 
 	SignatureData { forall, constraints, params, return_type: ret }
-}
-
-fn hm_type_uses_self(ty: &HMType) -> bool {
-	match ty {
-		HMType::Variable(name) => name == "self",
-		HMType::Constructor(name, args) => name == "self" || args.iter().any(hm_type_uses_self),
-		HMType::Arrow(a, b) => hm_type_uses_self(a) || hm_type_uses_self(b),
-		HMType::Tuple(args) => args.iter().any(hm_type_uses_self),
-		HMType::List(inner) => hm_type_uses_self(inner),
-		HMType::Reference(inner) => hm_type_uses_self(inner),
-		HMType::MutableReference(inner) => hm_type_uses_self(inner),
-		HMType::TraitObject(inner) => hm_type_uses_self(inner),
-		HMType::Unit => false,
-	}
 }
 
 fn format_generics(
@@ -154,16 +146,15 @@ fn format_generics(
 
 			// Only include in forall if it's not a function type variable that we are expanding
 			if !fn_bounds.contains_key(&name) {
-				type_vars.push(name.to_lowercase());
+				// Keep type parameters in original case (uppercase)
+				type_vars.push(name.clone());
 			}
 
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
-					&& let Some(constraint) = format_trait_bound(
-						trait_bound,
-						&HMType::Variable(name.to_lowercase()),
-						config,
-					) {
+					&& let Some(constraint) =
+						format_trait_bound(trait_bound, &HMType::Variable(name.clone()), config)
+				{
 					constraints.push(constraint);
 				}
 			}
@@ -264,7 +255,7 @@ mod tests {
 			fn identity<A>(x: A) -> A { x }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. a -> a");
+		assert_eq!(sig, "forall A. A -> A");
 	}
 
 	#[test]
@@ -273,7 +264,7 @@ mod tests {
 			fn map<A, B>(f: impl Fn(A) -> B, x: A) -> B { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a b. (a -> b, a) -> b");
+		assert_eq!(sig, "forall A B. (A -> B, A) -> B");
 	}
 
 	#[test]
@@ -282,7 +273,7 @@ mod tests {
 			fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall f a b. Functor f => (a -> b, f a) -> f b");
+		assert_eq!(sig, "forall F A B. Functor F => (A -> B, F A) -> F B");
 	}
 
 	#[test]
@@ -291,7 +282,7 @@ mod tests {
 			fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: Apply!(<F as Kind!(type Of<'a, T>: 'a;)>::Of<'a, A>)) -> Apply!(<F as Kind!(type Of<'a, T>: 'a;)>::Of<'a, B>) { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall f a b. Functor f => (a -> b, f a) -> f b");
+		assert_eq!(sig, "forall F A B. Functor F => (A -> B, F A) -> F B");
 	}
 
 	#[test]
@@ -300,7 +291,7 @@ mod tests {
 			fn map<A, B>(x: OptionBrand<A>) -> OptionBrand<B> { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a b. Option a -> Option b");
+		assert_eq!(sig, "forall A B. Option A -> Option B");
 	}
 
 	#[test]
@@ -311,7 +302,7 @@ mod tests {
 			{ todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall f a b. Functor f => (a -> b, f a) -> f b");
+		assert_eq!(sig, "forall F A B. Functor F => (A -> B, F A) -> F B");
 	}
 
 	#[test]
@@ -322,7 +313,7 @@ mod tests {
 			{ todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a b. (a -> b, a) -> b");
+		assert_eq!(sig, "forall A B. (A -> B, A) -> B");
 	}
 
 	#[test]
@@ -348,9 +339,11 @@ mod tests {
 		};
 		let sig =
 			generate_signature(&input.sig, Some("Witherable"), &Config::default()).to_string();
+		// Note: Self should be resolved by document_module before calling this.
+		// In standalone usage, Self stays as-is.
 		assert_eq!(
 			sig,
-			"forall self m a o e. (Witherable self, Applicative m) => (a -> m (Result o e), self a) -> m (Pair (self o) (self e))"
+			"forall M A O E. Applicative M => (A -> M (Result O E), Self A) -> M (Pair (Self O) (Self E))"
 		);
 	}
 
@@ -397,8 +390,8 @@ mod tests {
 		};
 		let sig =
 			generate_signature(&input.sig, Some("ParFoldable"), &Config::default()).to_string();
-		// Expected: forall self a b. ParFoldable self => ((a, b) -> b, b, self a) -> b
-		assert_eq!(sig, "forall self a b. ParFoldable self => ((a, b) -> b, b, self a) -> b");
+		// Note: Self should be resolved by document_module, in standalone it stays as Self
+		assert_eq!(sig, "forall A B. ((A, B) -> B, B, Self A) -> B");
 	}
 
 	#[test]
@@ -474,7 +467,7 @@ mod tests {
 			fn foo<A>(x: A, p: std::marker::PhantomData<A>) -> A { x }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. a -> a");
+		assert_eq!(sig, "forall A. A -> A");
 	}
 
 	#[test]
@@ -483,7 +476,7 @@ mod tests {
 			fn foo<A>(x: (A, std::marker::PhantomData<A>)) -> A { x.0 }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. a -> a");
+		assert_eq!(sig, "forall A. A -> A");
 	}
 
 	#[test]
@@ -493,7 +486,7 @@ mod tests {
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
 		// Vec expects an arg, so Vec () is appropriate if PhantomData maps to ()
-		assert_eq!(sig, "forall a. Vec () -> ()");
+		assert_eq!(sig, "forall A. Vec () -> ()");
 	}
 
 	#[test]
@@ -502,7 +495,7 @@ mod tests {
 			fn foo<'a, const N: usize, A: 'a>(x: &'a [A; N]) -> A { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. &[a] -> a");
+		assert_eq!(sig, "forall A. &[A] -> A");
 	}
 
 	#[test]
@@ -513,7 +506,7 @@ mod tests {
 			{ todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall f a. (Functor f, Foldable f) => f a -> ()");
+		assert_eq!(sig, "forall F A. (Functor F, Foldable F) => F A -> ()");
 	}
 
 	#[test]
@@ -522,7 +515,7 @@ mod tests {
 			fn foo<B, A, C>(a: A, b: B, c: C) { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall b a c. (a, b, c) -> ()");
+		assert_eq!(sig, "forall B A C. (A, B, C) -> ()");
 	}
 
 	#[test]
@@ -533,7 +526,7 @@ mod tests {
 			{ todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall p a b c d. Bifunctor p => (a -> b, c -> d, p a c) -> p b d");
+		assert_eq!(sig, "forall P A B C D. Bifunctor P => (A -> B, C -> D, P A C) -> P B D");
 	}
 
 	#[test]
@@ -542,7 +535,7 @@ mod tests {
 			fn foo<Input, Output>(x: Input) -> Output { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall input output. input -> output");
+		assert_eq!(sig, "forall Input Output. Input -> Output");
 	}
 
 	#[test]
@@ -556,7 +549,7 @@ mod tests {
 			}
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a b c. ((a, b) -> c) -> (b, a) -> c");
+		assert_eq!(sig, "forall A B C. ((A, B) -> C) -> (B, A) -> C");
 	}
 
 	#[test]
@@ -565,7 +558,8 @@ mod tests {
 			fn is_empty(self) -> bool { true }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall self. self -> bool");
+		// Note: self receiver stays lowercase, document_module resolves to concrete type
+		assert_eq!(sig, "self -> bool");
 	}
 
 	#[test]
@@ -574,7 +568,8 @@ mod tests {
 			fn is_empty(&self) -> bool { true }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall self. &self -> bool");
+		// Note: self receiver stays lowercase, document_module resolves to concrete type
+		assert_eq!(sig, "&self -> bool");
 	}
 
 	#[test]
@@ -583,7 +578,8 @@ mod tests {
 			fn is_empty(&mut self) -> bool { true }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall self. &mut self -> bool");
+		// Note: self receiver stays lowercase, document_module resolves to concrete type
+		assert_eq!(sig, "&mut self -> bool");
 	}
 
 	#[test]
@@ -592,6 +588,6 @@ mod tests {
 			fn empty<A>() -> CatList<A> { todo!() }
 		};
 		let sig = generate_signature(&input.sig, None, &Config::default()).to_string();
-		assert_eq!(sig, "forall a. () -> CatList a");
+		assert_eq!(sig, "forall A. () -> CatList A");
 	}
 }
