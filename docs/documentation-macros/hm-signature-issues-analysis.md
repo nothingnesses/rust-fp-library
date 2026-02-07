@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-07  
 **Status:** Root Cause Identified - Previous Analysis Invalidated  
-**Version:** 2.0 (Complete Rewrite)
+**Version:** 2.1 (Updated with Existing Pattern Analysis)
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ The Hindley-Milner type signature generation system fails to generate proper sig
 
 **Previous Analysis Was INCORRECT**: The original hypothesis that "attribute macros on inner items expand before outer macros" was disproven through systematic testing.
 
-**Actual Root Cause**: The `document_module` macro does not recursively traverse into module contents when applied as an outer attribute (`#[document_module] mod foo { ... }`), causing it to miss impl blocks nested inside the module.
+**Actual Root Cause**: The `document_module` macro already uses a **two-pass architecture** and **visitor patterns**, but neither pass recursively traverses into nested module contents. Both [`extract_context`](../../fp-macros/src/document_module.rs:119) (Pass 1) and [`generate_docs`](../../fp-macros/src/document_module.rs:314) (Pass 2) only process top-level items.
 
 **Current Output vs. Expected:**
 
@@ -106,90 +106,256 @@ mod test_context {
 
 ## Root Cause Analysis
 
-### Issue: `document_module` Doesn't Traverse Module Contents
+### Existing Architecture Analysis
 
-**Location:** [`fp-macros/src/document_module.rs:33-94`](../../fp-macros/src/document_module.rs:33)
+**Key Discovery:** The codebase already implements sophisticated patterns that were overlooked in the initial analysis.
 
-**Problem Flow:**
+#### 1. Two-Pass Architecture (Already Exists)
+
+**Location:** [`fp-macros/src/document_module.rs:103-112`](../../fp-macros/src/document_module.rs:103)
 
 ```rust
-pub fn document_module_impl(
-    _attr: TokenStream,
-    item: TokenStream,
-) -> TokenStream {
-    // Parses input - sees "mod test_context { ... }"
-    let mut items = if let Ok(item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
-        if let Some((_, mod_items)) = item_mod.content {
-            mod_items  // ← Extracts module contents correctly
-        } else {
-            // ...
-        }
-    } else {
-        // ...
-    };
-    
-    // items = [Item::Mod] - the module is treated as a single item!
-    // Should be: [Item::Use, Item::Struct, Item::Struct, Item::Impl]
-    
-    if let Err(e) = generate_docs(&mut items, &config) {
-        return e.to_compile_error();
-    }
-    // ...
+// Pass 1: Context Extraction
+if let Err(e) = extract_context(&items, &mut config) {
+    return e.to_compile_error();
 }
 
-fn generate_docs(
-    items: &mut [Item],
-    config: &Config,
-) -> Result<()> {
+// Pass 2: Documentation Generation
+if let Err(e) = generate_docs(&mut items, &config) {
+    return e.to_compile_error();
+}
+```
+
+**What They Do:**
+- **Pass 1 ([`extract_context`](../../fp-macros/src/document_module.rs:119))**: Collects type projections from `impl_kind!` macros and trait impls, builds configuration context
+- **Pass 2 ([`generate_docs`](../../fp-macros/src/document_module.rs:314))**: Processes `#[hm_signature]` and `#[doc_type_params]` attributes to generate documentation
+
+**The Bug:** Both passes only iterate over `items: &[Item]` without recursing into nested modules!
+
+#### 2. Visitor Pattern (Already Extensively Used)
+
+The codebase already uses `syn::visit_mut::VisitMut` in multiple places:
+
+**Location:** [`fp-macros/src/document_module.rs`](../../fp-macros/src/document_module.rs:16)
+
+| Visitor | Purpose | Location |
+|---------|---------|----------|
+| [`SelfSubstitutor`](../../fp-macros/src/document_module.rs:573) | Replaces `Self` with concrete types in signatures | Line 573 |
+| [`SubstitutionVisitor`](../../fp-macros/src/document_module.rs:831) | Generic type parameter substitution | Line 831 |
+| [`NormalizationVisitor`](../../fp-macros/src/document_module.rs:881) | Normalizes types for comparison | Line 881 |
+| [`SelfAssocVisitor`](../../fp-macros/src/document_module.rs:781) | Detects `Self::` references (uses `Visit`, not `VisitMut`) | Line 781 |
+
+**Example:**
+```rust
+impl<'a> VisitMut for SelfSubstitutor<'a> {
+    fn visit_type_mut(&mut self, i: &mut Type) {
+        // Transform Self types
+        // ...
+        visit_mut::visit_type_mut(self, i); // Continue recursion
+    }
+}
+```
+
+#### 3. Custom TypeVisitor (Unrelated)
+
+**Location:** [`fp-macros/src/function_utils.rs:93`](../../fp-macros/src/function_utils.rs:93)
+
+This is a **custom trait** for converting Rust types to Hindley-Milner types, NOT related to AST traversal:
+
+```rust
+pub trait TypeVisitor {
+    type Output;
+    fn visit(&mut self, ty: &Type) -> Self::Output;
+    // Methods for different type variants
+}
+```
+
+**Not relevant** to the module traversal issue.
+
+### The Actual Bug: Missing Module Recursion
+
+**Both passes fail to handle `Item::Mod`:**
+
+```rust
+fn extract_context(items: &[Item], config: &mut Config) -> Result<()> {
     for item in items {
-        if let Item::Impl(item_impl) = item {  // ← Never matches!
-            // Process impl blocks with #[hm_signature]
+        match item {
+            Item::Macro(m) if m.mac.path.is_ident("impl_kind") => { /* ... */ }
+            Item::Impl(item_impl) => { /* ... */ }
+            _ => {}  // ← Item::Mod is ignored!
+        }
+    }
+}
+
+fn generate_docs(items: &mut [Item], config: &Config) -> Result<()> {
+    for item in items {
+        if let Item::Impl(item_impl) = item {  // ← Never matches nested modules
+            // Process impl blocks
         }
     }
 }
 ```
 
-**The Bug:**
-
-1. When `#[document_module]` is applied to a module, it parses correctly
-2. But the parser returns the `ItemMod.content` as a list of items
-3. However, the test case uses a **nested module structure**
-4. The parser treats the nested module as a single `Item::Mod` item
-5. `generate_docs` only looks for top-level `Item::Impl` items
-6. The impl blocks are **inside** the `Item::Mod`, so they're never found
-
-### Secondary Issue: Parsing Strategy Mismatch
-
-**Location:** [`fp-macros/src/document_module.rs:40-77`](../../fp-macros/src/document_module.rs:40)
-
-The macro supports three modes:
-1. Inner attribute: `mod foo { #![document_module] ... }`
-2. Outer attribute on module: `#[document_module] mod foo { ... }`
-3. Outer attribute on const block: `#[document_module] const _: () = { ... };`
-
-**Issue:** Mode 2 extracts module contents but doesn't recursively process nested modules.
+**Impact:**
+- Impl blocks inside nested modules are never seen
+- `impl_kind!` macros inside nested modules don't populate config
+- All documentation generation is skipped for nested content
 
 ---
 
 ## Proposed Solutions
 
-### Approach 1: Recursive Module Traversal ⭐ **RECOMMENDED**
+### Approach 1: Leverage Existing Visitor Infrastructure ⭐ **RECOMMENDED**
 
-**Description:** Modify `generate_docs` to recursively descend into `Item::Mod` items.
+**Description:** Create module-traversing visitors that integrate with the existing two-pass architecture using the already-proven `VisitMut` pattern.
+
+**Implementation:**
+
+#### Step 1: Create Context Extraction Visitor
+
+```rust
+struct ContextExtractorVisitor<'a> {
+    config: &'a mut Config,
+    errors: Vec<syn::Error>,
+}
+
+impl<'a> syn::visit_mut::VisitMut for ContextExtractorVisitor<'a> {
+    fn visit_item_mod_mut(&mut self, module: &mut ItemMod) {
+        if let Some((_, ref mut items)) = module.content {
+            // Extract context from this module's items
+            if let Err(e) = extract_context(items, self.config) {
+                self.errors.push(e);
+            }
+            
+            // Recursively process nested modules
+            syn::visit_mut::visit_item_mod_mut(self, module);
+        }
+    }
+}
+```
+
+#### Step 2: Create Documentation Generator Visitor
+
+```rust
+struct DocGeneratorVisitor<'a> {
+    config: &'a Config,
+    errors: Vec<syn::Error>,
+}
+
+impl<'a> syn::visit_mut::VisitMut for DocGeneratorVisitor<'a> {
+    fn visit_item_mod_mut(&mut self, module: &mut ItemMod) {
+        if let Some((_, ref mut items)) = module.content {
+            // Generate docs for this module's items
+            if let Err(e) = generate_docs(items, self.config) {
+                self.errors.push(e);
+            }
+            
+            // Recursively process nested modules
+            syn::visit_mut::visit_item_mod_mut(self, module);
+        }
+    }
+}
+```
+
+#### Step 3: Update Main Function
+
+```rust
+pub fn document_module_impl(...) -> TokenStream {
+    // ... existing parsing logic ...
+    
+    let mut config = Config::default();
+    
+    // Pass 1: Context Extraction (now recursive!)
+    let mut extractor = ContextExtractorVisitor {
+        config: &mut config,
+        errors: Vec::new(),
+    };
+    for item in &mut items {
+        extractor.visit_item_mut(item);
+    }
+    if !extractor.errors.is_empty() {
+        return combine_errors(extractor.errors).to_compile_error();
+    }
+    
+    // Pass 2: Documentation Generation (now recursive!)
+    let mut generator = DocGeneratorVisitor {
+        config: &config,
+        errors: Vec::new(),
+    };
+    for item in &mut items {
+        generator.visit_item_mut(item);
+    }
+    if !generator.errors.is_empty() {
+        return combine_errors(generator.errors).to_compile_error();
+    }
+    
+    quote!(#(#items)*)
+}
+```
+
+**Advantages:**
+- ✅ Consistent with existing codebase patterns
+- ✅ Leverages battle-tested `syn::visit_mut` infrastructure
+- ✅ Fixes both passes simultaneously
+- ✅ Handles arbitrarily nested modules
+- ✅ Easy to extend for future features
+- ✅ Minimal changes to existing `extract_context` and `generate_docs` logic
+- ✅ Clear separation of concerns
+
+**Disadvantages:**
+- ⚠️ Adds ~60-80 lines of code (two visitor structs)
+- ⚠️ Slightly more complex than simple recursion
+- ⚠️ Requires understanding visitor pattern
+
+**Trade-offs:**
+- **Complexity:** Medium (visitor pattern, but already used extensively)
+- **Performance:** Excellent (optimized by `syn`)
+- **Maintainability:** High (idiomatic pattern, consistent with codebase)
+- **Risk:** Low (proven pattern already used in 4+ places)
+- **Extensibility:** Excellent (easy to add more visitor methods)
+
+---
+
+### Approach 2: Simple Recursive Calls
+
+**Description:** Add direct recursive calls to both `extract_context` and `generate_docs` to handle `Item::Mod`.
 
 **Implementation:**
 
 ```rust
-fn generate_docs(
-    items: &mut [Item],
-    config: &Config,
-) -> Result<()> {
+fn extract_context(items: &[Item], config: &mut Config) -> Result<()> {
     let mut errors = Vec::new();
+    
+    for item in items {
+        match item {
+            Item::Macro(m) if m.mac.path.is_ident("impl_kind") => {
+                // existing logic
+            }
+            Item::Impl(item_impl) => {
+                // existing logic
+            }
+            Item::Mod(item_mod) => {
+                // NEW: Recursively process module contents
+                if let Some((_, ref items)) = item_mod.content {
+                    if let Err(e) = extract_context(items, config) {
+                        errors.push(e);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    
+    // Error handling
+}
 
+fn generate_docs(items: &mut [Item], config: &Config) -> Result<()> {
+    let mut errors = Vec::new();
+    
     for item in items {
         match item {
             Item::Impl(item_impl) => {
-                // Process impl blocks (existing logic)
+                // existing logic
             }
             Item::Mod(item_mod) => {
                 // NEW: Recursively process module contents
@@ -208,27 +374,29 @@ fn generate_docs(
 ```
 
 **Advantages:**
-- ✅ Minimal code change (~20 lines)
-- ✅ Handles arbitrarily nested modules
-- ✅ No changes to user code required
-- ✅ Maintains backward compatibility
-- ✅ Works with all three application modes
+- ✅ Minimal code change (~20-30 lines total)
+- ✅ Simple to understand
+- ✅ Direct fix to the problem
+- ✅ No new abstractions needed
 
 **Disadvantages:**
-- ⚠️ Slightly increases macro complexity
-- ⚠️ Could process modules user didn't intend (minor)
+- ❌ Inconsistent with existing visitor-based patterns
+- ❌ Adds pattern matching complexity to existing functions
+- ❌ Less extensible (need to modify both functions for any new pass)
+- ❌ Doesn't leverage existing infrastructure
 
 **Trade-offs:**
-- **Complexity:** Low (simple recursion pattern)
-- **Performance:** Negligible (only traverses actual structure)
-- **Maintainability:** High (clear, intuitive behavior)
-- **Risk:** Very Low (additive change, doesn't break existing behavior)
+- **Complexity:** Low (simple recursion)
+- **Performance:** Excellent (minimal overhead)
+- **Maintainability:** Medium (deviates from established patterns)
+- **Risk:** Very Low (straightforward change)
+- **Extensibility:** Low (requires modifying multiple functions)
 
 ---
 
-### Approach 2: Flatten Module Structure Before Processing
+### Approach 3: Flatten Module Structure Before Processing
 
-**Description:** Transform nested modules into a flat list of items before processing.
+**Description:** Transform nested modules into a flat list of items before the two-pass processing.
 
 **Implementation:**
 
@@ -237,11 +405,12 @@ fn flatten_items(items: Vec<Item>) -> Vec<Item> {
     let mut flattened = Vec::new();
     
     for item in items {
-        if let Item::Mod(item_mod) = item {
-            if let Some((_, mod_items)) = item_mod.content {
+        if let Item::Mod(mut item_mod) = item {
+            if let Some((_, mod_items)) = item_mod.content.take() {
                 // Recursively flatten nested module contents
                 flattened.extend(flatten_items(mod_items));
             }
+            // Add the now-empty module (or skip it)
         } else {
             flattened.push(item);
         }
@@ -251,48 +420,56 @@ fn flatten_items(items: Vec<Item>) -> Vec<Item> {
 }
 
 pub fn document_module_impl(...) -> TokenStream {
-    // ...
+    // Parse items
+    let items = /* ... */;
+    
+    // NEW: Flatten before processing
     let mut items = flatten_items(items);
+    
+    // Existing two-pass logic works unchanged
+    extract_context(&items, &mut config);
+    generate_docs(&mut items, &config);
+    
     // ...
 }
 ```
 
 **Advantages:**
-- ✅ Keeps `generate_docs` simple (no recursion)
-- ✅ Clear separation of concerns
+- ✅ No changes needed to existing `extract_context` or `generate_docs`
+- ✅ Clear preprocessing step
 - ✅ Easy to debug (can inspect flattened structure)
 
 **Disadvantages:**
-- ❌ Loses module structure information
+- ❌ Destroys module structure (output doesn't match input)
+- ❌ Loses module boundaries in generated code
 - ❌ Can't generate module-level documentation
-- ❌ May need to reconstruct structure for output
-- ❌ Allocates more memory (copies everything)
+- ❌ Allocates new vectors (memory overhead)
+- ❌ Would need to reconstruct structure for output
 
 **Trade-offs:**
-- **Complexity:** Medium (need to preserve/restore structure)
-- **Performance:** Moderate cost (extra allocation and iteration)
-- **Maintainability:** Medium (two-phase processing)
-- **Risk:** Medium (could affect module-level features)
+- **Complexity:** Medium (need to handle structure preservation)
+- **Performance:** Moderate cost (extra allocation)
+- **Maintainability:** Medium (preprocessing step)
+- **Risk:** Medium-High (output structure mismatch)
+- **Extensibility:** Poor (fundamentally incompatible with module-scoped features)
 
 ---
 
-### Approach 3: Require Inner Attribute Usage
+### Approach 4: Require Inner Attribute Usage
 
-**Description:** Document that `#[document_module]` only works as inner attribute for modules with impl blocks.
+**Description:** Document that `#[document_module]` only works correctly as an inner attribute for modules containing impl blocks.
 
 **Implementation:**
 
-Update documentation and add compiler warning:
+Add compiler warning:
 
 ```rust
 pub fn document_module_impl(...) -> TokenStream {
-    // Detect outer attribute on module case
     if let Ok(item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
         if item_mod.content.is_some() {
-            // Emit warning
             eprintln!(
                 "warning: #[document_module] as outer attribute may not process nested contents. \
-                Consider using #![document_module] as inner attribute instead."
+                Use #![document_module] as inner attribute instead."
             );
         }
     }
@@ -300,8 +477,7 @@ pub fn document_module_impl(...) -> TokenStream {
 }
 ```
 
-**Usage Change:**
-
+Update documentation:
 ```rust
 // Instead of:
 #[document_module]
@@ -317,262 +493,107 @@ mod foo {
 ```
 
 **Advantages:**
-- ✅ No code changes to macro logic
-- ✅ Already works for this pattern
-- ✅ Zero implementation risk
+- ✅ Zero code changes to macro logic
+- ✅ Already works for inner attribute pattern
+- ✅ No implementation risk
 
 **Disadvantages:**
 - ❌ User-facing breaking change
-- ❌ Requires code updates across project
-- ❌ Less ergonomic (extra line inside module)
-- ❌ Doesn't fix the actual bug
+- ❌ Requires updating all usage sites
+- ❌ Less ergonomic
+- ❌ Doesn't actually fix the bug
+- ❌ Still fails for nested modules even with inner attribute
 
 **Trade-offs:**
 - **Complexity:** None (documentation only)
 - **Performance:** No impact
-- **Maintainability:** High (clear usage pattern)
-- **Risk:** High (breaking change for users)
-
----
-
-### Approach 4: Expand Nested Modules Inline
-
-**Description:** When encountering a nested module, expand its contents inline at the same level.
-
-**Implementation:**
-
-```rust
-fn generate_docs(
-    items: &mut [Item],
-    config: &Config,
-) -> Result<()> {
-    let mut i = 0;
-    while i < items.len() {
-        if let Item::Mod(item_mod) = &mut items[i] {
-            if let Some((_, mod_items)) = item_mod.content.take() {
-                // Replace module with its contents
-                items.splice(i..=i, mod_items);
-                continue;  // Re-process this index
-            }
-        }
-        i += 1;
-    }
-    
-    // Now process impl blocks (existing logic)
-}
-```
-
-**Advantages:**
-- ✅ Processes all impl blocks
-- ✅ Single-pass algorithm
-- ✅ In-place modification (no extra allocation)
-
-**Disadvantages:**
-- ❌ Destroys module boundaries
-- ❌ Output structure doesn't match input
-- ❌ Complex index manipulation
-- ❌ Hard to reason about behavior
-
-**Trade-offs:**
-- **Complexity:** High (index juggling, state mutation)
-- **Performance:** Good (in-place)
-- **Maintainability:** Low (confusing mutation patterns)
-- **Risk:** High (could produce invalid output structures)
-
----
-
-### Approach 5: Two-Pass Processing with Visitor Pattern
-
-**Description:** Use `syn::visit_mut::VisitMut` to traverse and modify the AST.
-
-**Implementation:**
-
-```rust
-use syn::visit_mut::{self, VisitMut};
-
-struct DocumentGenerator<'a> {
-    config: &'a Config,
-    errors: Vec<syn::Error>,
-}
-
-impl<'a> VisitMut for DocumentGenerator<'a> {
-    fn visit_item_impl_mut(&mut self, impl_item: &mut ItemImpl) {
-        // Process impl blocks with #[hm_signature]
-        // (move existing generate_docs logic here)
-        
-        // Continue traversing
-        visit_mut::visit_item_impl_mut(self, impl_item);
-    }
-    
-    fn visit_item_mod_mut(&mut self, mod_item: &mut ItemMod) {
-        // Automatically recurses into module contents
-        visit_mut::visit_item_mod_mut(self, mod_item);
-    }
-}
-
-fn generate_docs(
-    items: &mut [Item],
-    config: &Config,
-) -> Result<()> {
-    let mut visitor = DocumentGenerator {
-        config,
-        errors: Vec::new(),
-    };
-    
-    for item in items {
-        visitor.visit_item_mut(item);
-    }
-    
-    // Handle errors
-}
-```
-
-**Advantages:**
-- ✅ Idiomatic Rust pattern for AST traversal
-- ✅ Handles all item types automatically
-- ✅ Easy to extend for future features
-- ✅ Battle-tested pattern from `syn` crate
-
-**Disadvantages:**
-- ⚠️ Larger refactoring (restructure existing code)
-- ⚠️ Learning curve for maintainers unfamiliar with visitors
-- ⚠️ More boilerplate
-
-**Trade-offs:**
-- **Complexity:** Medium-High (pattern understanding required)
-- **Performance:** Excellent (optimized by `syn`)
-- **Maintainability:** High (standard pattern)
-- **Risk:** Medium (larger refactor, but well-tested pattern)
+- **Maintainability:** High (clearer usage pattern)
+- **Risk:** High (breaking change, doesn't fully solve problem)
+- **Extensibility:** None
 
 ---
 
 ## Solution Comparison Matrix
 
-| Criterion | Approach 1<br/>(Recursive) | Approach 2<br/>(Flatten) | Approach 3<br/>(Doc Only) | Approach 4<br/>(Inline) | Approach 5<br/>(Visitor) |
-|-----------|---------------------------|-------------------------|--------------------------|------------------------|-------------------------|
-| **Implementation Effort** | Low | Medium | None | Medium | High |
-| **Code Complexity** | Low | Medium | None | High | Medium |
-| **Maintainability** | High | Medium | High | Low | High |
-| **Backward Compatibility** | Full | Full | Breaking | Full | Full |
-| **Handles Nested Modules** | Yes | Yes | N/A | Yes | Yes |
-| **Preserves Structure** | Yes | No | N/A | No | Yes |
-| **Performance** | Excellent | Good | N/A | Good | Excellent |
-| **Future Extensibility** | Good | Medium | Poor | Poor | Excellent |
-| **Risk Level** | Very Low | Medium | High | High | Medium |
+| Criterion | Approach 1<br/>(Visitor) | Approach 2<br/>(Simple Recursion) | Approach 3<br/>(Flatten) | Approach 4<br/>(Doc Only) |
+|-----------|-------------------------|----------------------------------|------------------------|--------------------------|
+| **Consistency with Codebase** | Excellent | Poor | Fair | N/A |
+| **Implementation Effort** | Medium | Low | Medium | None |
+| **Code Complexity** | Medium | Low | Medium | None |
+| **Maintainability** | High | Medium | Medium | High |
+| **Fixes Both Passes** | Yes | Yes | Yes | No |
+| **Preserves Structure** | Yes | Yes | No | N/A |
+| **Performance** | Excellent | Excellent | Good | N/A |
+| **Extensibility** | Excellent | Low | Poor | None |
+| **Risk Level** | Low | Very Low | Medium | High |
+| **Pattern Consistency** | ✅ Uses existing VisitMut | ❌ Adds ad-hoc recursion | ⚠️ New pattern | N/A |
 
 ---
 
-## Recommendation: **Approach 1 (Recursive Module Traversal)**
+## Recommendation: **Approach 1 (Leverage Existing Visitor Infrastructure)**
 
 **Rationale:**
 
-1. **Minimal Change:** Only adds ~20 lines of code to handle `Item::Mod` case
-2. **Zero Breaking Changes:** Existing code continues to work unchanged
-3. **Correct Semantics:** Processes items in their natural structure
-4. **Immediate Fix:** Solves the problem directly without workarounds
-5. **Low Risk:** Additive change with clear behavior
-6. **Easy to Test:** Can verify recursion depth and edge cases
+1. **Architectural Consistency:** Aligns with existing visitor-based patterns (`SelfSubstitutor`, `SubstitutionVisitor`, `NormalizationVisitor`, `SelfAssocVisitor`)
+2. **Proven Infrastructure:** `syn::visit_mut` is battle-tested and already used extensively
+3. **Both Passes Fixed:** Handles context extraction AND documentation generation
+4. **Future-Proof:** Easy to extend for module-level features or additional passes
+5. **Maintainable:** Clear, idiomatic pattern that other Rust macro developers will recognize
+6. **Low Risk:** Leverages existing, proven infrastructure
+
+**Why Not Approach 2 (Simple Recursion)?**
+
+While Approach 2 requires less code (~30 lines vs ~70 lines), it:
+- Breaks the established pattern of using visitors for AST traversal
+- Makes the codebase inconsistent (some traversal uses visitors, some uses manual recursion)
+- Is harder to extend (requires modifying multiple functions for new features)
+- Doesn't leverage the robust error handling and traversal logic built into `syn::visit_mut`
 
 **Implementation Plan:**
 
-### Phase 1: Add Recursive Processing (Week 1)
+### Phase 1: Implement Visitors (Week 1)
 
-1. **Modify `generate_docs` function** ([`fp-macros/src/document_module.rs:291`](../../fp-macros/src/document_module.rs:291)):
-   ```rust
-   fn generate_docs(
-       items: &mut [Item],
-       config: &Config,
-   ) -> Result<()> {
-       let mut errors = Vec::new();
+1. **Create `ContextExtractorVisitor`**:
+   - Implement `VisitMut` trait
+   - Call `extract_context` for each module
+   - Collect errors
 
-       for item in items {
-           match item {
-               Item::Impl(item_impl) => {
-                   // Existing impl processing logic
-               }
-               Item::Mod(item_mod) => {
-                   // NEW: Recursively process module contents
-                   if let Some((_, ref mut mod_items)) = item_mod.content {
-                       if let Err(e) = generate_docs(mod_items, config) {
-                           errors.push(e);
-                       }
-                   }
-               }
-               _ => {}
-           }
-       }
+2. **Create `DocGeneratorVisitor`**:
+   - Implement `VisitMut` trait
+   - Call `generate_docs` for each module
+   - Collect errors
 
-       if errors.is_empty() {
-           Ok(())
-       } else {
-           let mut combined_error: Error = errors.remove(0);
-           for err in errors {
-               combined_error.combine(err);
-           }
-           Err(combined_error)
-       }
-   }
-   ```
+3. **Update `document_module_impl`**:
+   - Replace direct calls with visitor pattern
+   - Handle collected errors
 
-2. **Add test cases**:
-   ```rust
-   #[test]
-   fn test_nested_module_processing() {
-       let input = quote! {
-           #[document_module]
-           mod outer {
-               mod inner {
-                   impl<A> Foo<A> {
-                       #[hm_signature]
-                       pub fn bar() -> Self { todo!() }
-                   }
-               }
-           }
-       };
-       // Verify signature is generated
-   }
-   ```
-
-### Phase 2: Testing & Validation (Week 1-2)
+### Phase 2: Testing (Week 1-2)
 
 1. **Unit Tests:**
-   - Single-level modules (existing behavior)
+   - Single-level modules (verify no regression)
    - Nested modules (new behavior)
    - Deeply nested modules (3+ levels)
    - Mixed content (modules + impls at same level)
-
-2. **Integration Tests:**
-   - Run existing test suite (ensure no regressions)
-   - Test with real codebase examples
-   - Verify generated documentation
-
-3. **Edge Cases:**
    - Empty modules
    - Modules without impls
-   - Modules with only trait definitions
+
+2. **Integration Tests:**
+   - Run existing test suite
+   - Test with real codebase examples
+   - Verify `impl_kind!` context extraction in nested modules
+   - Verify `#[hm_signature]` generation in nested modules
+
+3. **Edge Cases:**
+   - Module re-exports
+   - Conditional compilation (`#[cfg]`)
+   - Macro-generated modules
 
 ### Phase 3: Documentation (Week 2)
 
-1. Update [`module-level-documentation.md`](./module-level-documentation.md) with recursion behavior
+1. Update [`module-level-documentation.md`](./module-level-documentation.md)
 2. Add examples showing nested module support
-3. Document any depth limits (if imposed)
-
----
-
-## Alternative Recommendation: **Approach 5 (Visitor Pattern)**
-
-**If future extensibility is a priority:**
-
-The visitor pattern provides the most robust foundation for future features like:
-- Module-level doc generation
-- Cross-module reference resolution
-- Trait documentation enhancement
-- Namespace-aware processing
-
-**When to choose this:**
-- Planning significant macro system expansion
-- Team familiar with AST visitor patterns
-- Time available for larger refactor (~2-3 weeks)
+3. Document visitor pattern usage
+4. Add inline documentation for new visitors
 
 ---
 
@@ -582,14 +603,68 @@ After implementation, verify:
 
 - ✅ `impl<A> CatList<A>::empty()` generates `forall A. () -> CatList A`
 - ✅ `impl<A> CatList<A>::is_empty(&self)` generates `forall A. &(CatList A) -> bool`
-- ✅ Nested modules processed correctly (1-3 levels deep)
+- ✅ Nested modules processed correctly (1-5 levels deep)
+- ✅ `impl_kind!` macros in nested modules populate context
 - ✅ All existing tests pass
-- ✅ No compilation time regression (< 1%)
+- ✅ No compilation time regression (< 2%)
 - ✅ No breaking changes for users
+- ✅ Visitor pattern consistent with existing code
 
 ---
 
-## Appendix: Diagnostic Evidence
+## Appendix A: Existing Visitor Pattern Examples
+
+### Example 1: SelfSubstitutor
+
+**Location:** [`fp-macros/src/document_module.rs:573`](../../fp-macros/src/document_module.rs:573)
+
+```rust
+impl<'a> VisitMut for SelfSubstitutor<'a> {
+    fn visit_type_mut(&mut self, i: &mut Type) {
+        match i {
+            Type::Path(type_path) => {
+                // Replace Self with concrete type
+                if let Some(first) = type_path.path.segments.first()
+                    && first.ident == "Self"
+                {
+                    *i = self.self_ty.clone();
+                    return;
+                }
+            }
+            _ => {}
+        }
+        visit_mut::visit_type_mut(self, i);
+    }
+}
+```
+
+**Usage Pattern:**
+```rust
+let mut substitutor = SelfSubstitutor { /* ... */ };
+substitutor.visit_signature_mut(&mut synthetic_sig);
+```
+
+### Example 2: SubstitutionVisitor
+
+**Location:** [`fp-macros/src/document_module.rs:831`](../../fp-macros/src/document_module.rs:831)
+
+```rust
+impl VisitMut for SubstitutionVisitor<'_> {
+    fn visit_type_mut(&mut self, i: &mut Type) {
+        if let Type::Path(type_path) = i {
+            // Perform generic parameter substitution
+            // ...
+        }
+        visit_mut::visit_type_mut(self, i);
+    }
+}
+```
+
+These examples demonstrate the established pattern that Approach 1 follows.
+
+---
+
+## Appendix B: Diagnostic Evidence
 
 ### Test Setup
 
@@ -655,13 +730,13 @@ mod test_context {
 
 ## Conclusion
 
-The original analysis incorrectly blamed macro expansion order. The actual issue is a missing recursion step in the `document_module` implementation. 
+The original analysis incorrectly blamed macro expansion order. The actual issue is that the already-sophisticated two-pass architecture with visitor patterns doesn't handle nested modules.
 
-**The fix is straightforward:** Add ~20 lines to recursively process nested modules, providing an immediate solution with zero breaking changes.
+**The fix leverages existing patterns:** Use the proven `VisitMut` infrastructure (already used in 4+ places) to add module traversal to both passes, maintaining architectural consistency and providing a robust, extensible solution.
 
 ---
 
-**Document Version:** 2.0  
+**Document Version:** 2.1  
 **Last Updated:** 2026-02-07  
-**Author:** Root Cause Analysis via Systematic Testing  
+**Author:** Root Cause Analysis via Systematic Testing + Codebase Pattern Analysis  
 **Status:** Ready for Implementation
