@@ -199,12 +199,20 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 ///
 /// An implementation of the appropriate `Kind` trait for the brand.
 ///
+/// ### Attributes
+///
+/// Inside the `impl_kind!` block, you can use documentation-specific attributes on associated types:
+///
+/// * `#[doc_default]`: Marks this associated type as the default for resolving bare `Self` in
+///   the generated documentation for this brand within the module.
+///
 /// ### Examples
 ///
 /// ```ignore
 /// // Invocation
 /// impl_kind! {
 ///     for OptionBrand {
+///         #[doc_default]
 ///         type Of<A> = Option<A>;
 ///     }
 /// }
@@ -419,7 +427,10 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// Generates a Hindley-Milner style type signature for a function.
 ///
 /// This macro analyzes the function signature and generates a documentation comment
-/// containing the corresponding HM type signature.
+/// containing the corresponding Hindley-Milner type signature.
+///
+/// When used within a module annotated with [`#[document_module]`](macro@document_module),
+/// it automatically resolves `Self` and associated types based on the module's projection map.
 ///
 /// ### Syntax
 ///
@@ -498,6 +509,10 @@ pub fn hm_signature(
 ///
 /// This macro analyzes the function signature and generates a documentation comment
 /// list based on the provided descriptions.
+///
+/// When used within a module annotated with [`#[document_module]`](macro@document_module),
+/// it benefits from automatic `Self` resolution and is applied as part of the module-level
+/// documentation pass.
 ///
 /// ### Syntax
 ///
@@ -616,9 +631,14 @@ pub fn doc_params(
 
 /// Orchestrates documentation generation for an entire module.
 ///
-/// This macro scans the module for `impl_kind!` and `impl` blocks to build a projection map,
-/// then automatically generates HM signatures and type parameter documentation for all
-/// methods annotated with `#[hm_signature]` or `#[doc_type_params]`.
+/// This macro provides a centralized way to handle documentation for Higher-Kinded Type (HKT)
+/// implementations. It performs a two-pass analysis of the module:
+///
+/// 1. **Context Extraction**: It scans for `impl_kind!` invocations and standard `impl` blocks
+///    to build a comprehensive mapping of associated types (a "projection map").
+/// 2. **Documentation Generation**: It processes all methods annotated with [`#[hm_signature]`](macro@hm_signature)
+///    or [`#[doc_type_params]`](macro@doc_type_params), resolving `Self` and associated types
+///    using the collected context.
 ///
 /// ### Syntax
 ///
@@ -627,25 +647,88 @@ pub fn doc_params(
 /// ```ignore
 /// #[fp_macros::document_module]
 /// mod inner {
+///     // ... module content ...
+/// }
+/// pub use inner::*;
+/// ```
+///
+/// ### Generates
+///
+/// In-place replacement of [`#[hm_signature]`](macro@hm_signature) and
+/// [`#[doc_type_params]`](macro@doc_type_params) attributes with generated documentation
+/// comments. It also resolves `Self` and `Self::AssocType` references to their concrete
+/// types based on the module's projection map.
+///
+/// ### Attributes
+///
+/// The macro supports several documentation-specific attributes for configuration:
+///
+/// * `#[doc_default]`: (Used inside `impl` or `impl_kind!`) Marks an associated type as the
+///   default to use when resolving bare `Self` references.
+/// * `#[doc_use = "AssocName"]`: (Used on `impl` or `fn`) Explicitly specifies which
+///   associated type definition to use for resolution within that scope.
+///
+/// ### Hierarchical Configuration
+///
+/// When resolving the concrete type of `Self`, the macro follows this precedence:
+///
+/// 1. **Method Override**: `#[doc_use = "AssocName"]` on the method.
+/// 2. **Impl Block Override**: `#[doc_use = "AssocName"]` on the `impl` block.
+/// 3. **(Type, Trait)-Scoped Default**: `#[doc_default]` on the associated type definition
+///    in a trait `impl` block.
+/// 4. **Module Default**: `#[doc_default]` on the associated type definition in `impl_kind!`.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[fp_macros::document_module]
+/// mod inner {
+///     use super::*;
+///
 ///     impl_kind! {
 ///         for MyBrand {
 ///             #[doc_default]
-///             type Of<T> = MyType<T>;
+///             type Of<'a, T: 'a>: 'a = MyType<T>;
 ///         }
 ///     }
 ///
 ///     impl Functor for MyBrand {
 ///         #[hm_signature]
-///         fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(...) { ... }
+///         fn map<'a, A: 'a, B: 'a, Func>(
+///             f: Func,
+///             fa: Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
+///         ) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+///         where
+///             Func: Fn(A) -> B + 'a
+///         {
+///             todo!()
+///         }
+///     }
+/// }
+/// pub use inner::*;
+///
+/// // Expanded code
+/// mod inner {
+///     use super::*;
+///
+///     // ... generated Kind implementations ...
+///
+///     impl Functor for MyBrand {
+///         /// `forall a b. (a -> b, MyType a) -> MyType b`
+///         fn map<'a, A: 'a, B: 'a, Func>(
+///             f: Func,
+///             fa: Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
+///         ) -> Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, B>)
+///         where
+///             Func: Fn(A) -> B + 'a
+///         {
+///             todo!()
+///         }
 ///     }
 /// }
 /// pub use inner::*;
 /// ```
-///
-/// ### Attributes
-///
-/// * `#[doc_default]`: Mark an associated type as the default for bare `Self` resolution.
-/// * `#[doc_use = "AssocName"]`: Explicitly specify which associated type to use for a method or impl block.
 #[proc_macro_attribute]
 pub fn document_module(
 	attr: TokenStream,

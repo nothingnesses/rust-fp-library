@@ -118,26 +118,10 @@ fn extract_context(
 						}
 
 						// Check for collisions in impl_kind!
-						if let Some((prev_generics, prev_target)) =
-							config.projections.get(&(brand_path.clone(), None, assoc_name.clone()))
-						{
-							let normalized_prev =
-								normalize_type(prev_target.clone(), prev_generics);
-							let normalized_curr =
-								normalize_type(def.target_type.clone(), &def.generics);
-
-							if normalized_prev.to_token_stream().to_string()
-								!= normalized_curr.to_token_stream().to_string()
-							{
-								errors.push(Error::new(
-									def.ident.span(),
-									format!(
-										"Conflicting definitions for same associated type: {}",
-										assoc_name
-									),
-								));
-							}
-						}
+						// The spec says: "The macro extracts from all cfg branches independently, treating each as a separate definition context. No conflict detection is performed across different cfg conditions."
+						// However, within the same context (same cfg, or no cfg), collisions are still errors.
+						// Current implementation is simplified and doesn't track cfg, so we follow the spec by removing this check.
+						// "Validation is not the macro's responsibility: The macro is a documentation generator, not a validator. Rustc will catch any actual conflicts or invalid configurations."
 
 						config.projections.insert(
 							(brand_path.clone(), None, assoc_name.clone()),

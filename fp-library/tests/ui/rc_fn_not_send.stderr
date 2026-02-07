@@ -7,8 +7,8 @@ error[E0277]: the trait bound `RcBrand: SendUnsizedCoercible` is not satisfied
 help: the trait `SendUnsizedCoercible` is implemented for `ArcBrand`
  --> src/types/arc_ptr.rs
   |
-  | impl SendUnsizedCoercible for ArcBrand {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |     impl SendUnsizedCoercible for ArcBrand {
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = note: required for `FnBrand<RcBrand>` to implement `SendCloneableFn`
 
 error[E0277]: the trait bound `RcBrand: SendUnsizedCoercible` is not satisfied
@@ -20,6 +20,6 @@ error[E0277]: the trait bound `RcBrand: SendUnsizedCoercible` is not satisfied
 help: the trait `SendUnsizedCoercible` is implemented for `ArcBrand`
  --> src/types/arc_ptr.rs
   |
-  | impl SendUnsizedCoercible for ArcBrand {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |     impl SendUnsizedCoercible for ArcBrand {
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   = note: required for `FnBrand<RcBrand>` to implement `SendCloneableFn`

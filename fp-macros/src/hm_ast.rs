@@ -10,6 +10,7 @@ pub enum HMType {
 	Reference(Box<HMType>),
 	MutableReference(Box<HMType>),
 	Unit,
+	TraitObject(Box<HMType>),
 }
 
 impl fmt::Display for HMType {
@@ -30,7 +31,8 @@ impl HMType {
 			| HMType::List(_)
 			| HMType::Tuple(_)
 			| HMType::Reference(_)
-			| HMType::MutableReference(_) => 3,
+			| HMType::MutableReference(_)
+			| HMType::TraitObject(_) => 3,
 			// Application: binds tight
 			HMType::Constructor(_, args) => {
 				if args.is_empty() {
@@ -96,6 +98,10 @@ impl HMType {
 				write!(f, " -> ")?;
 				// Right child is right-associative, so it can be an Arrow without parens.
 				output.fmt_with_precedence(f, 1)?;
+			}
+			HMType::TraitObject(inner) => {
+				write!(f, "dyn ")?;
+				inner.fmt_with_precedence(f, 3)?;
 			}
 		}
 

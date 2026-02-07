@@ -510,11 +510,10 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		}
 
 		if bounds.is_empty() {
-			HMType::Variable("dyn".to_string())
-		} else if bounds.len() == 1 {
-			bounds[0].clone()
+			HMType::TraitObject(Box::new(HMType::Variable("_".to_string())))
 		} else {
-			HMType::Constructor("dyn".to_string(), bounds)
+			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HMType::Tuple(bounds) };
+			HMType::TraitObject(Box::new(inner))
 		}
 	}
 
@@ -586,20 +585,6 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 	) -> Self::Output {
 		HMType::Variable("_".to_string())
 	}
-}
-
-pub(crate) fn trait_object_to_hm(
-	trait_object: &TypeTraitObject,
-	fn_bounds: &HashMap<String, HMType>,
-	generic_names: &HashSet<String>,
-	config: &Config,
-) -> HMType {
-	for bound in &trait_object.bounds {
-		if let TypeParamBound::Trait(trait_bound) = bound {
-			return trait_bound_to_hm_type(trait_bound, fn_bounds, generic_names, config);
-		}
-	}
-	HMType::Variable("dyn".to_string())
 }
 
 pub fn trait_bound_to_hm_type(
