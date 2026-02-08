@@ -1,19 +1,21 @@
-use fp_macros::{document_module, hm_signature};
+use fp_macros::document_module;
 
 #[document_module]
 mod test_context {
-	use fp_macros::hm_signature;
-
+	#[allow(dead_code)]
 	pub struct CatListBrand;
+	#[allow(dead_code)]
 	pub struct CatList<A>(A);
 
 	impl<A> CatList<A> {
 		#[hm_signature]
+		#[allow(dead_code)]
 		pub fn empty() -> Self {
 			todo!()
 		}
 
 		#[hm_signature]
+		#[allow(dead_code)]
 		pub fn is_empty(&self) -> bool {
 			true
 		}

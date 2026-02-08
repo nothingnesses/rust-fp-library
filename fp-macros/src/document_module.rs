@@ -34,7 +34,6 @@ pub fn document_module_impl(
 	_attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-
 	// Track if we need to reconstruct a module wrapper
 	let mut module_wrapper: Option<(syn::ItemMod, syn::token::Brace)> = None;
 
@@ -114,15 +113,14 @@ pub fn document_module_impl(
 	}
 
 	// Reconstruct module wrapper if needed (outer attribute case)
-	let result = if let Some((mut module, brace)) = module_wrapper {
+	if let Some((mut module, brace)) = module_wrapper {
 		module.content = Some((brace, items));
 		let output = quote!(#module);
 		output
 	} else {
 		let output = quote!(#(#items)*);
 		output
-	};
-	result
+	}
 }
 
 fn extract_context(
@@ -140,6 +138,10 @@ fn extract_context(
 	for item in items {
 		match item {
 			Item::Macro(m) if m.mac.path.is_ident("impl_kind") => {
+				// Check if this macro has cfg attributes - skip conflict detection if present
+				// since cfg evaluation happens after macro expansion
+				let has_cfg = m.attrs.iter().any(|attr| attr.path().is_ident("cfg"));
+
 				if let Ok(impl_kind) = m.mac.parse_body::<ImplKindInput>() {
 					let brand_path = impl_kind.brand.to_token_stream().to_string();
 					for def in &impl_kind.definitions {
@@ -153,23 +155,26 @@ fn extract_context(
 							));
 						}
 
-						// Check for collisions in impl_kind!
+						// Check for collisions in impl_kind! only if not cfg-gated
 						// We use normalized types to detect semantic collisions even if generic names differ
-						let normalized_target =
-							normalize_type(def.target_type.clone(), &def.generics);
 						let key = (brand_path.clone(), None, assoc_name.clone());
-						if let Some((prev_generics, prev_type)) = config.projections.get(&key) {
-							let prev_normalized = normalize_type(prev_type.clone(), prev_generics);
-							if quote!(#prev_normalized).to_string()
-								!= quote!(#normalized_target).to_string()
-							{
-								errors.push(Error::new(
-									def.ident.span(),
-									format!(
-										"Conflicting implementation for {}: already defined with different type",
-										assoc_name
-									),
-								));
+						if !has_cfg {
+							let normalized_target =
+								normalize_type(def.target_type.clone(), &def.generics);
+							if let Some((prev_generics, prev_type)) = config.projections.get(&key) {
+								let prev_normalized =
+									normalize_type(prev_type.clone(), prev_generics);
+								if quote!(#prev_normalized).to_string()
+									!= quote!(#normalized_target).to_string()
+								{
+									errors.push(Error::new(
+										def.ident.span(),
+										format!(
+											"Conflicting implementation for {}: already defined with different type",
+											assoc_name
+										),
+									));
+								}
 							}
 						}
 

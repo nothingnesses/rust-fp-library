@@ -15,8 +15,6 @@ pub fn test_fn<T: Clone, ERR>(x: T) -> impl Fn(i32) -> T {
 
 #[document_module]
 mod test_mod {
-	use super::*;
-
 	#[allow(dead_code)]
 	pub trait MyTrait<T> {
 		fn foo(

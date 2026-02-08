@@ -34,7 +34,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{doc_params, doc_type_params, hm_signature};
+	use fp_macros::doc_params;
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 	use std::{

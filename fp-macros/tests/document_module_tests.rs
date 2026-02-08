@@ -1,4 +1,4 @@
-use fp_macros::{def_kind, document_module, hm_signature, impl_kind};
+use fp_macros::{def_kind, document_module, impl_kind};
 
 #[document_module]
 mod test_mod {
@@ -69,8 +69,11 @@ mod test_collision {
 	#[fp_macros::document_module]
 	mod test_cfg_no_conflict {
 		use fp_macros::impl_kind;
+		#[allow(dead_code)]
 		pub struct Brand;
+		#[allow(dead_code)]
 		pub struct SyncType<T>(T);
+		#[allow(dead_code)]
 		pub struct AsyncType<T>(T);
 
 		#[cfg(feature = "sync")]
@@ -89,6 +92,7 @@ mod test_collision {
 
 		// Add a manual impl of the Kind trait to satisfy the compiler
 		// This allows document_module to scan it without erroring on missing trait
+		#[allow(dead_code, non_camel_case_types)]
 		trait Kind_ad6c20556a82a1f0 {
 			type Of<T>;
 		}
@@ -97,10 +101,13 @@ mod test_collision {
 	#[fp_macros::document_module]
 	mod test_dyn_formatting {
 		use fp_macros::hm_signature;
+		#[allow(dead_code)]
 		pub trait MyTrait {}
 
+		#[allow(dead_code)]
 		pub struct Brand;
 
+		#[allow(dead_code)]
 		pub trait TestTrait {
 			#[hm_signature]
 			fn foo() -> Box<dyn MyTrait>;
