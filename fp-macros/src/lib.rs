@@ -7,6 +7,7 @@ use quote::quote;
 use syn::parse_macro_input;
 
 // Modular architecture
+pub(crate) mod error;
 pub(crate) mod common;
 pub(crate) mod config;
 pub(crate) mod hkt;
@@ -89,7 +90,10 @@ use documentation::{hm_signature_impl, doc_params_impl, doc_type_params_impl, do
 #[allow(non_snake_case)]
 pub fn Kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as KindInput);
-	let name = generate_name(&input);
+	let name = match generate_name(&input) {
+		Ok(name) => name,
+		Err(e) => return syn::Error::from(e).to_compile_error().into(),
+	};
 	quote!(#name).into()
 }
 

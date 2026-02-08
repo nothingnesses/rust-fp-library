@@ -7,8 +7,10 @@
 //! - Resolution errors
 
 pub mod context;
-pub mod resolver;
 pub mod errors;
+pub mod projection_key;
+pub mod resolver;
 
 pub use context::extract_context;
 pub use errors::ErrorCollector;
+pub use projection_key::ProjectionKey;

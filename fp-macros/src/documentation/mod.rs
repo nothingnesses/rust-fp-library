@@ -11,6 +11,7 @@ pub mod doc_params;
 pub mod doc_type_params;
 pub mod document_module;
 pub mod generation;
+pub mod templates;
 
 pub use hm_signature::hm_signature_impl;
 pub use doc_params::doc_params_impl;

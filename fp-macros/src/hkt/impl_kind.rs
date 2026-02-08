@@ -170,7 +170,10 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		.collect();
 
 	let kind_input = KindInput { assoc_types: assoc_types_input };
-	let kind_trait_name = generate_name(&kind_input);
+	let kind_trait_name = match generate_name(&kind_input) {
+		Ok(name) => name,
+		Err(e) => return syn::Error::from(e).to_compile_error(),
+	};
 
 	let assoc_types_impl = input.definitions.iter().map(|def| {
 		let ident = &def.ident;

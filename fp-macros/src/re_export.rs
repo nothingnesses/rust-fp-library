@@ -6,6 +6,13 @@ use syn::{
 	{Ident, Item, LitStr, Result, Token, Visibility, braced, parse_file},
 };
 
+/// The kind of item to re-export
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ItemKind {
+	Function,
+	Trait,
+}
+
 pub struct ReexportInput {
 	path: LitStr,
 	aliases: HashMap<String, Ident>,
@@ -60,13 +67,16 @@ fn detect_reexport_pattern(file: &syn::File) -> Option<String> {
 	None
 }
 
-/// Collects public items from a file, handling both top-level and nested module patterns.
-fn collect_public_items<F>(
+/// Collects items from a file, handling both top-level and nested module patterns.
+/// Applies both a visibility filter and an item filter.
+fn collect_items<V, F>(
 	file: &syn::File,
 	reexport_module: Option<&str>,
-	mut filter: F,
+	mut visibility_filter: V,
+	mut item_filter: F,
 ) -> Vec<String>
 where
+	V: FnMut(&Item) -> bool,
 	F: FnMut(&Item) -> Option<String>,
 {
 	if let Some(module_name) = reexport_module {
@@ -78,7 +88,13 @@ where
 					&& mod_item.ident == module_name
 					&& let Some((_, items)) = &mod_item.content
 				{
-					return Some(items.iter().filter_map(&mut filter).collect::<Vec<_>>());
+					return Some(
+						items
+							.iter()
+							.filter(|item| visibility_filter(item))
+							.filter_map(&mut item_filter)
+							.collect::<Vec<_>>(),
+					);
 				}
 				None
 			})
@@ -86,8 +102,47 @@ where
 			.collect()
 	} else {
 		// Collect items from top level
-		file.items.iter().filter_map(filter).collect()
+		file.items
+			.iter()
+			.filter(|item| visibility_filter(item))
+			.filter_map(item_filter)
+			.collect()
 	}
+}
+
+/// Extracts the visibility from any item type.
+fn is_public_item(item: &Item) -> bool {
+	match item {
+		Item::Const(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Enum(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::ExternCrate(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Fn(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::ForeignMod(_) => false, // Foreign modules don't have visibility
+		Item::Impl(_) => false, // Impl blocks don't have visibility
+		Item::Macro(_) => false, // Macros don't have visibility in the same way
+		Item::Mod(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Static(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Struct(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Trait(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::TraitAlias(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Type(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Union(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Use(i) => matches!(i.vis, Visibility::Public(_)),
+		Item::Verbatim(_) => false, // Cannot determine visibility
+		_ => false, // Future-proofing for new syn variants
+	}
+}
+
+/// Collects public items from a file, handling both top-level and nested module patterns.
+fn collect_public_items<F>(
+	file: &syn::File,
+	reexport_module: Option<&str>,
+	item_filter: F,
+) -> Vec<String>
+where
+	F: FnMut(&Item) -> Option<String>,
+{
+	collect_items(file, reexport_module, is_public_item, item_filter)
 }
 
 /// Generic function to scan a directory and collect re-exports.
@@ -136,77 +191,83 @@ where
 	re_exports
 }
 
-pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
-	let re_exports = scan_directory_and_collect(&input, |file_stem, file, reexport_module| {
-		// Collect public functions
-		let functions = collect_public_items(file, reexport_module, |item| {
-			if let Item::Fn(func) = item
-				&& matches!(func.vis, Visibility::Public(_))
-			{
-				return Some(func.sig.ident.to_string());
+/// Unified implementation for generating re-exports.
+/// This function handles both function and trait re-exports based on the `kind` parameter.
+fn generate_re_exports_impl(input: &ReexportInput, kind: ItemKind) -> TokenStream {
+	let re_exports = scan_directory_and_collect(input, |file_stem, file, reexport_module| {
+		// Collect public items based on kind (visibility is already filtered by collect_public_items)
+		let items = collect_public_items(file, reexport_module, |item| match kind {
+			ItemKind::Function => {
+				if let Item::Fn(func) = item {
+					return Some(func.sig.ident.to_string());
+				}
+				None
 			}
-			None
+			ItemKind::Trait => {
+				if let Item::Trait(trait_item) = item {
+					return Some(trait_item.ident.to_string());
+				}
+				None
+			}
 		});
 
-		// Generate re-export tokens for each function
-		functions
+		// Generate re-export tokens based on kind
+		items
 			.into_iter()
-			.map(|fn_name| {
-				let fn_ident = Ident::new(&fn_name, proc_macro2::Span::call_site());
+			.map(|item_name| {
+				let item_ident = Ident::new(&item_name, proc_macro2::Span::call_site());
 				let module_name = Ident::new(file_stem, proc_macro2::Span::call_site());
-				let full_name = format!("{file_stem}::{fn_name}");
 
-				let tokens = if let Some(alias) =
-					input.aliases.get(&full_name).or_else(|| input.aliases.get(&fn_name))
-				{
-					quote! { #module_name::#fn_ident as #alias }
-				} else {
-					quote! { #module_name::#fn_ident }
+				let tokens = match kind {
+					ItemKind::Function => {
+						// Functions support both full qualified name and short name aliases
+						let full_name = format!("{file_stem}::{item_name}");
+						if let Some(alias) =
+							input.aliases.get(&full_name).or_else(|| input.aliases.get(&item_name))
+						{
+							quote! { #module_name::#item_ident as #alias }
+						} else {
+							quote! { #module_name::#item_ident }
+						}
+					}
+					ItemKind::Trait => {
+						// Traits only support short name aliases and include `pub use` per item
+						if let Some(alias) = input.aliases.get(&item_name) {
+							quote! { pub use #module_name::#item_ident as #alias; }
+						} else {
+							quote! { pub use #module_name::#item_ident; }
+						}
+					}
 				};
 
-				(fn_name, tokens)
+				(item_name, tokens)
 			})
 			.collect()
 	});
 
-	quote! {
-		pub use crate::classes::{
-			#(#re_exports),*
-		};
+	// Format the final output based on kind
+	match kind {
+		ItemKind::Function => {
+			// Functions are grouped in a single `pub use` statement
+			quote! {
+				pub use crate::classes::{
+					#(#re_exports),*
+				};
+			}
+		}
+		ItemKind::Trait => {
+			// Traits have individual `pub use` statements
+			quote! {
+				#(#re_exports)*
+			}
+		}
 	}
 }
 
+pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
+	generate_re_exports_impl(&input, ItemKind::Function)
+}
+
 pub fn generate_trait_re_exports_impl(input: ReexportInput) -> TokenStream {
-	let re_exports = scan_directory_and_collect(&input, |file_stem, file, reexport_module| {
-		// Collect public traits
-		let traits = collect_public_items(file, reexport_module, |item| {
-			if let Item::Trait(trait_item) = item
-				&& matches!(trait_item.vis, Visibility::Public(_))
-			{
-				return Some(trait_item.ident.to_string());
-			}
-			None
-		});
-
-		// Generate re-export tokens for each trait
-		traits
-			.into_iter()
-			.map(|trait_name| {
-				let trait_ident = Ident::new(&trait_name, proc_macro2::Span::call_site());
-				let module_name = Ident::new(file_stem, proc_macro2::Span::call_site());
-
-				let tokens = if let Some(alias) = input.aliases.get(&trait_name) {
-					quote! { pub use #module_name::#trait_ident as #alias; }
-				} else {
-					quote! { pub use #module_name::#trait_ident; }
-				};
-
-				(trait_name, tokens)
-			})
-			.collect()
-	});
-
-	quote! {
-		#(#re_exports)*
-	}
+	generate_re_exports_impl(&input, ItemKind::Trait)
 }

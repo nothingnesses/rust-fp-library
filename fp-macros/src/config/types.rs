@@ -1,5 +1,6 @@
 //! Configuration types for the macro system.
 
+use crate::resolution::ProjectionKey;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
@@ -42,9 +43,9 @@ pub struct Config {
 	/// User-provided configuration (cacheable, serializable)
 	pub user_config: UserConfig,
 
-	/// Projection map: (TypePath, Option<TraitPath>, AssocName) -> (Generics, TargetType)
+	/// Projection map: ProjectionKey -> (Generics, TargetType)
 	/// Populated by scanning impl blocks and impl_kind! macros
-	pub projections: HashMap<(String, Option<String>, String), (syn::Generics, syn::Type)>,
+	pub projections: HashMap<ProjectionKey, (syn::Generics, syn::Type)>,
 
 	/// Module-level defaults: TypePath -> AssocName
 	/// Used when no explicit #[doc(use = "...")] is provided

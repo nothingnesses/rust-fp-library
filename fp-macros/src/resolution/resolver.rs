@@ -233,6 +233,7 @@ use crate::common::errors::known_types;
 use crate::config::Config;
 use crate::analysis::format_brand_name;
 use crate::analysis::GenericAnalyzer;
+use crate::resolution::ProjectionKey;
 use quote::quote;
 use std::collections::HashMap;
 use syn::{
@@ -395,20 +396,26 @@ impl<'a> SelfSubstitutor<'a> {
 		&self,
 		assoc_name: &str,
 	) -> Option<&(syn::Generics, syn::Type)> {
-		self.config
-			.projections
-			.get(&(
-				self.self_ty_path.to_string(),
-				self.trait_path.map(|s| s.to_string()),
-				assoc_name.to_string(),
+		// Try (Type, Trait, AssocName) scoped lookup first
+		let scoped_key = if let Some(trait_path) = self.trait_path {
+			Some(ProjectionKey::scoped(
+				self.self_ty_path,
+				trait_path,
+				assoc_name,
 			))
-			.or_else(|| {
-				self.config.projections.get(&(
-					self.self_ty_path.to_string(),
-					None,
-					assoc_name.to_string(),
-				))
-			})
+		} else {
+			None
+		};
+		
+		if let Some(key) = scoped_key {
+			if let Some(result) = self.config.projections.get(&key) {
+				return Some(result);
+			}
+		}
+		
+		// Fall back to module-level (Type, AssocName) lookup
+		let module_key = ProjectionKey::new(self.self_ty_path, assoc_name);
+		self.config.projections.get(&module_key)
 	}
 
 	/// Build a fallback type using the base type name and impl generic parameters.
@@ -755,14 +762,14 @@ fn get_available_types_for_brand(
 	let mut in_this_impl = Vec::new();
 	let mut in_other_traits = Vec::new();
 
-	for (brand, trait_opt, assoc_name) in config.projections.keys() {
-		if brand == self_ty_path {
-			match (&trait_opt, trait_path) {
+	for key in config.projections.keys() {
+		if key.type_path() == self_ty_path {
+			match (key.trait_path(), trait_path) {
 				(Some(t), Some(current)) if t == current => {
-					in_this_impl.push(assoc_name.clone());
+					in_this_impl.push(key.assoc_name().to_string());
 				}
 				(Some(_), _) | (None, _) => {
-					in_other_traits.push(assoc_name.clone());
+					in_other_traits.push(key.assoc_name().to_string());
 				}
 			}
 		}

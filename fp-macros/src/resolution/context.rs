@@ -2,6 +2,7 @@ use crate::common::attributes::has_attr;
 use crate::common::errors::known_attrs;
 use crate::config::Config;
 use crate::hkt::ImplKindInput;
+use crate::resolution::ProjectionKey;
 use quote::ToTokens;
 use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
 
@@ -43,7 +44,7 @@ pub fn extract_context(
 
 						// Check for collisions in impl_kind! only if not cfg-gated
 						// We use normalized types to detect semantic collisions even if generic names differ
-						let key = (brand_path.clone(), None, assoc_name.clone());
+						let key = ProjectionKey::new(&brand_path, &assoc_name);
 						if !has_cfg {
 							let normalized_target =
 								normalize_type(def.target_type.clone(), &def.generics);
@@ -99,8 +100,13 @@ pub fn extract_context(
 						let assoc_name = assoc_type.ident.to_string();
 
 						// Store projection (multiple impl blocks can define same assoc type)
+						let key = if let Some(ref t_path) = trait_path {
+							ProjectionKey::scoped(&self_ty_path, t_path, &assoc_name)
+						} else {
+							ProjectionKey::new(&self_ty_path, &assoc_name)
+						};
 						config.projections.insert(
-							(self_ty_path.clone(), trait_path.clone(), assoc_name.clone()),
+							key,
 							(assoc_type.generics.clone(), assoc_type.ty.clone()),
 						);
 

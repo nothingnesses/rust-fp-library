@@ -5,10 +5,16 @@
 //! - FnBrand pattern detection and extraction
 //! - Apply! macro pattern detection and extraction
 
-use crate::{hkt::ApplyInput, config::Config, common::errors::known_types};
+use crate::{
+	hkt::ApplyInput,
+	config::Config,
+	common::errors::known_types,
+	error::{Error, UnsupportedFeature},
+};
+use proc_macro2::Span;
 use quote::ToTokens;
 use syn::{
-	Attribute, GenericArgument, Generics, Ident, PathArguments, Token, TypeParamBound,
+	Attribute, GenericArgument, GenericParam, Generics, Ident, PathArguments, Token, TypeParamBound,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
@@ -47,10 +53,32 @@ pub struct KindAssocTypeInput {
 
 impl Parse for KindInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut assoc_types = Vec::new();
+		let mut assoc_types: Vec<KindAssocTypeInput> = Vec::new();
 		while !input.is_empty() {
 			assoc_types.push(input.parse()?);
 		}
+		
+		// Validation: non-empty
+		if assoc_types.is_empty() {
+			return Err(Error::validation(
+				Span::call_site(),
+				"Kind definition must have at least one associated type"
+			).into());
+		}
+		
+		// Validation: no const generics
+		for assoc in &assoc_types {
+			for param in &assoc.generics.params {
+				if let GenericParam::Const(const_param) = param {
+					return Err(Error::Unsupported(
+						UnsupportedFeature::ConstGenerics {
+							span: const_param.ident.span()
+						}
+					).into());
+				}
+			}
+		}
+		
 		Ok(KindInput { assoc_types })
 	}
 }
@@ -251,5 +279,47 @@ mod tests {
 		let assoc2 = &parsed.assoc_types[1];
 		assert_eq!(assoc2.ident.to_string(), "SendOf");
 		assert_eq!(assoc2.generics.params.len(), 1);
+	}
+
+	/// Tests that empty Kind input is rejected with a validation error.
+	#[test]
+	fn test_parse_kind_input_empty() {
+		let input = "";
+		let result: syn::Result<KindInput> = parse_str(input);
+		assert!(result.is_err(), "Empty input should be rejected");
+		let err_msg = result.unwrap_err().to_string();
+		assert!(
+			err_msg.contains("at least one associated type"),
+			"Error message should mention requirement for associated types"
+		);
+	}
+
+	/// Tests that const generics are rejected with an unsupported feature error.
+	#[test]
+	fn test_parse_kind_input_const_generics() {
+		let input = "type Of<const N: usize>;";
+		let result: syn::Result<KindInput> = parse_str(input);
+		assert!(result.is_err(), "Const generics should be rejected");
+		let err_msg = result.unwrap_err().to_string();
+		assert!(
+			err_msg.contains("Const generic parameters are not supported"),
+			"Error message should mention const generics not being supported"
+		);
+	}
+
+	/// Tests that const generics in the second associated type are also caught.
+	#[test]
+	fn test_parse_kind_input_const_generics_in_second() {
+		let input = "
+			type Of<T>;
+			type Array<const N: usize>;
+		";
+		let result: syn::Result<KindInput> = parse_str(input);
+		assert!(result.is_err(), "Const generics should be rejected");
+		let err_msg = result.unwrap_err().to_string();
+		assert!(
+			err_msg.contains("Const generic parameters are not supported"),
+			"Error message should mention const generics not being supported"
+		);
 	}
 }

@@ -70,7 +70,10 @@ impl Parse for ApplyInput {
 /// Generates the implementation for the `Apply!` macro.
 pub fn apply_impl(input: ApplyInput) -> TokenStream {
 	let brand = &input.brand;
-	let kind_name = generate_name(&input.kind_input);
+	let kind_name = match generate_name(&input.kind_input) {
+		Ok(name) => name,
+		Err(e) => return syn::Error::from(e).to_compile_error(),
+	};
 	let assoc_name = &input.assoc_name;
 	let args = &input.args;
 

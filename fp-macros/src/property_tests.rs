@@ -172,8 +172,8 @@ fn prop_hash_determinism_simple() {
 
 		match (result1, result2) {
 			(Ok(input1), Ok(input2)) => {
-				let name1 = generate_name(&input1);
-				let name2 = generate_name(&input2);
+				let name1 = generate_name(&input1).unwrap();
+				let name2 = generate_name(&input2).unwrap();
 				name1 == name2
 			}
 			_ => true, // Skip unparseable inputs
@@ -192,12 +192,12 @@ fn prop_hash_determinism_repeated() {
 
 		let first_name = {
 			let input: KindInput = syn::parse_str(input_str).unwrap();
-			generate_name(&input).to_string()
+			generate_name(&input).unwrap().to_string()
 		};
 
 		for _ in 0..iterations {
 			let input: KindInput = syn::parse_str(input_str).unwrap();
-			let name = generate_name(&input).to_string();
+			let name = generate_name(&input).unwrap().to_string();
 			if name != first_name {
 				return false;
 			}
@@ -246,8 +246,8 @@ fn prop_bound_order_independence() {
 				bounds2.push(b2_parsed);
 				bounds2.push(b1_parsed);
 
-				let canonical1 = canon.canonicalize_bounds(&bounds1);
-				let canonical2 = canon.canonicalize_bounds(&bounds2);
+				let canonical1 = canon.canonicalize_bounds(&bounds1).unwrap();
+				let canonical2 = canon.canonicalize_bounds(&bounds2).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true, // Skip unparseable
@@ -286,8 +286,8 @@ fn prop_bound_permutation_independence() {
 					reversed.push(b.clone());
 				}
 
-				let canonical_original = canon.canonicalize_bounds(&original);
-				let canonical_reversed = canon.canonicalize_bounds(&reversed);
+				let canonical_original = canon.canonicalize_bounds(&original).unwrap();
+				let canonical_reversed = canon.canonicalize_bounds(&reversed).unwrap();
 				canonical_original == canonical_reversed
 			}
 			_ => true,
@@ -327,8 +327,8 @@ fn prop_lifetime_name_independence() {
 		let bound1: TypeParamBound = syn::parse_str(&format!("'{}", lt1.name)).unwrap();
 		let bound2: TypeParamBound = syn::parse_str(&format!("'{}", lt2.name)).unwrap();
 
-		let canonical1 = canon1.canonicalize_bound(&bound1);
-		let canonical2 = canon2.canonicalize_bound(&bound2);
+		let canonical1 = canon1.canonicalize_bound(&bound1).unwrap();
+		let canonical2 = canon2.canonicalize_bound(&bound2).unwrap();
 
 		canonical1 == canonical2 && canonical1 == "l0"
 	}
@@ -351,7 +351,7 @@ fn prop_multiple_lifetime_positions() {
 		// Verify each lifetime maps to the correct index
 		for (i, name) in lts.names.iter().enumerate() {
 			let bound: TypeParamBound = syn::parse_str(&format!("'{}", name)).unwrap();
-			let canonical = canon.canonicalize_bound(&bound);
+			let canonical = canon.canonicalize_bound(&bound).unwrap();
 			let expected = format!("l{}", i);
 			if canonical != expected {
 				return false;
@@ -383,7 +383,7 @@ fn prop_generated_name_format() {
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				// Should start with Kind_ and have exactly 16 hex chars after
 				name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
 			}
@@ -417,7 +417,7 @@ fn prop_generated_name_valid_identifier() {
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				// Check valid Rust identifier: starts with letter/underscore,
 				// contains only alphanumeric and underscore
 				name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
@@ -444,8 +444,8 @@ fn prop_adding_bound_changes_name() {
 
 		match input_with {
 			Ok(input) => {
-				let name_without = generate_name(&input_without);
-				let name_with = generate_name(&input);
+				let name_without = generate_name(&input_without).unwrap();
+				let name_with = generate_name(&input).unwrap();
 				name_without != name_with
 			}
 			_ => true,
@@ -465,8 +465,8 @@ fn prop_adding_lifetime_changes_name() {
 
 		match input_with {
 			Ok(input) => {
-				let name_without = generate_name(&input_without);
-				let name_with = generate_name(&input);
+				let name_without = generate_name(&input_without).unwrap();
+				let name_with = generate_name(&input).unwrap();
 				name_without != name_with
 			}
 			_ => true,
@@ -492,8 +492,8 @@ fn prop_canonicalization_idempotent() {
 
 		match parsed {
 			Ok(b) => {
-				let canonical1 = canon.canonicalize_bound(&b);
-				let canonical2 = canon.canonicalize_bound(&b);
+				let canonical1 = canon.canonicalize_bound(&b).unwrap();
+				let canonical2 = canon.canonicalize_bound(&b).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -524,8 +524,8 @@ fn prop_canonicalize_bounds_idempotent() {
 					punctuated.push(b);
 				}
 
-				let canonical1 = canon.canonicalize_bounds(&punctuated);
-				let canonical2 = canon.canonicalize_bounds(&punctuated);
+				let canonical1 = canon.canonicalize_bounds(&punctuated).unwrap();
+				let canonical2 = canon.canonicalize_bounds(&punctuated).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -558,8 +558,8 @@ fn prop_output_bounds_order_independence() {
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				name1 == name2
 			}
 			_ => true,
@@ -603,8 +603,8 @@ fn prop_fn_bound_determinism() {
 
 		match bound {
 			Ok(b) => {
-				let canonical1 = canon.canonicalize_bound(&b);
-				let canonical2 = canon.canonicalize_bound(&b);
+				let canonical1 = canon.canonicalize_bound(&b).unwrap();
+				let canonical2 = canon.canonicalize_bound(&b).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -634,7 +634,7 @@ fn prop_path_preservation() {
 
 		for (input_path, expected) in paths {
 			let bound: TypeParamBound = syn::parse_str(input_path).unwrap();
-			let canonical = canon.canonicalize_bound(&bound);
+			let canonical = canon.canonicalize_bound(&bound).unwrap();
 			if canonical != expected {
 				return false;
 			}
@@ -655,7 +655,7 @@ fn prop_path_preservation() {
 fn prop_empty_inputs_valid() {
 	fn property() -> bool {
 		let input: KindInput = syn::parse_str("type Of;").unwrap();
-		let name = generate_name(&input).to_string();
+		let name = generate_name(&input).unwrap().to_string();
 
 		// Should still be a valid name with Kind_ prefix
 		name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
@@ -673,7 +673,7 @@ fn prop_single_lifetime_valid() {
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
 			}
 			_ => true,
@@ -706,8 +706,8 @@ fn prop_type_param_bounds_consistent() {
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				name1 == name2
 			}
 			_ => true,
@@ -742,8 +742,8 @@ fn prop_hash_collision_resistance() {
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				// Different inputs should produce different names
 				name1 != name2
 			}
@@ -767,8 +767,8 @@ fn prop_nested_generics_determinism() {
 
 		// Test nested generics
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<String>>);
-		let canonical1 = canon.canonicalize_bound(&bound);
-		let canonical2 = canon.canonicalize_bound(&bound);
+		let canonical1 = canon.canonicalize_bound(&bound).unwrap();
+		let canonical2 = canon.canonicalize_bound(&bound).unwrap();
 
 		canonical1 == canonical2 && canonical1.contains("Iterator") && canonical1.contains("Option")
 	}
@@ -785,8 +785,8 @@ fn prop_reference_lifetime_canonicalization() {
 
 		// The implementation canonicalizes reference types, test that it's consistent
 		let bound: TypeParamBound = parse_quote!(AsRef<&'a str>);
-		let canonical1 = canon.canonicalize_bound(&bound);
-		let canonical2 = canon.canonicalize_bound(&bound);
+		let canonical1 = canon.canonicalize_bound(&bound).unwrap();
+		let canonical2 = canon.canonicalize_bound(&bound).unwrap();
 
 		canonical1 == canonical2
 	}
