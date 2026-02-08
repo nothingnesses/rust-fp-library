@@ -437,7 +437,7 @@ fn generate_docs(
 								.iter()
 								.map(|p| match p {
 									GenericParam::Type(t) => t.ident.to_string(),
-									GenericParam::Lifetime(l) => l.lifetime.ident.to_string(),
+									GenericParam::Lifetime(l) => l.lifetime.to_string(),
 									GenericParam::Const(c) => c.ident.to_string(),
 								})
 								.collect();
