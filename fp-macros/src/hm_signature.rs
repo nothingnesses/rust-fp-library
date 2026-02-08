@@ -103,25 +103,15 @@ pub fn generate_signature(
 ) -> SignatureData {
 	let (generic_names, fn_bounds) = analyze_generics(sig, config);
 
-	// DEBUG: Log analysis results
-	eprintln!("  [generate_signature] Generic names: {:?}", generic_names);
-	eprintln!("  [generate_signature] Fn bounds: {:?}", fn_bounds.keys().collect::<Vec<_>>());
-	eprintln!("  [generate_signature] self_type_name: {:?}", config.self_type_name);
-	eprintln!("  [generate_signature] concrete_types: {:?}", config.concrete_types);
-
 	// Erase unsafe modifier
 	let mut sig = sig.clone();
 	sig.unsafety = None;
 
 	let (forall, constraints) = format_generics(&sig.generics, &fn_bounds, &generic_names, config);
-	eprintln!("  [generate_signature] forall: {:?}", forall);
-	eprintln!("  [generate_signature] constraints: {:?}", constraints);
-	
+
 	let params = format_parameters(&sig, &fn_bounds, &generic_names, config);
-	eprintln!("  [generate_signature] params: {:?}", params);
-	
+
 	let ret = format_return_type(&sig.output, &fn_bounds, &generic_names, config);
-	eprintln!("  [generate_signature] return: {:?}", ret);
 
 	// Note: Self resolution is now handled by document_module before calling this function.
 	// Concrete type names (like CatList) are already in the signature and appear in forall

@@ -34,14 +34,18 @@ pub fn document_module_impl(
 	_attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	eprintln!("\n[document_module] START document_module_impl");
-	eprintln!("[document_module] INPUT: {}", item.to_string());
-	// Try to parse as a list of items (inner attribute case)
-	let mut items = if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
-		input.items
-	} else if let Ok(item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
+
+	// Track if we need to reconstruct a module wrapper
+	let mut module_wrapper: Option<(syn::ItemMod, syn::token::Brace)> = None;
+
+	// Try to parse as ItemMod first (more specific), then fall back to DocumentModuleInput
+	// This is critical: ItemMod must be checked first, otherwise `#[document_module] mod inner { ... }`
+	// would be parsed as DocumentModuleInput containing a single module item, losing the wrapper.
+	let mut items = if let Ok(mut item_mod) = syn::parse2::<syn::ItemMod>(item.clone()) {
 		// Outer attribute on a module case
-		if let Some((_, mod_items)) = item_mod.content {
+		if let Some((brace, mod_items)) = item_mod.content.take() {
+			// Store the module wrapper and brace token to reconstruct later
+			module_wrapper = Some((item_mod, brace));
 			mod_items
 		} else {
 			// mod foo; case - we can't see the content easily
@@ -50,6 +54,9 @@ pub fn document_module_impl(
 				"document_module cannot see the content of file modules when used as an outer attribute. Use an inner attribute #![document_module] instead, or wrap the content in a mod block.",
 			).to_compile_error();
 		}
+	} else if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
+		// Inner attribute case or direct items
+		input.items
 	} else if let Ok(item_const) = syn::parse2::<syn::ItemConst>(item) {
 		// Outer attribute on a const block case: const _: () = { ... };
 		if let syn::Expr::Block(expr_block) = *item_const.expr {
@@ -77,42 +84,44 @@ pub fn document_module_impl(
 	};
 
 	let mut config = Config::default();
-	
-	eprintln!("[document_module] Total items parsed: {}", items.len());
-	for (i, item) in items.iter().enumerate() {
-		eprintln!("[document_module] Item {}: {:?}", i, match item {
-			Item::Const(_) => "Const",
-			Item::Enum(_) => "Enum",
-			Item::ExternCrate(_) => "ExternCrate",
-			Item::Fn(_) => "Fn",
-			Item::ForeignMod(_) => "ForeignMod",
-			Item::Impl(_) => "Impl",
-			Item::Macro(_) => "Macro",
-			Item::Mod(_) => "Mod",
-			Item::Static(_) => "Static",
-			Item::Struct(_) => "Struct",
-			Item::Trait(_) => "Trait",
-			Item::TraitAlias(_) => "TraitAlias",
-			Item::Type(_) => "Type",
-			Item::Union(_) => "Union",
-			Item::Use(_) => "Use",
-			_ => "Other",
-		});
-	}
 
-	// Pass 1: Context Extraction
+	// Pass 1: Context Extraction (handles both top-level and nested)
 	if let Err(e) = extract_context(&items, &mut config) {
 		return e.to_compile_error();
 	}
 
-	// Pass 2: Documentation Generation
-	eprintln!("[document_module] Starting generate_docs");
+	// Also recursively extract from nested modules
+	let mut extractor = ContextExtractorVisitor { config: &mut config, errors: Vec::new() };
+	for item in &mut items {
+		extractor.visit_item_mut(item);
+	}
+	if !extractor.errors.is_empty() {
+		return combine_errors(extractor.errors).to_compile_error();
+	}
+
+	// Pass 2: Documentation Generation (handles both top-level and nested)
 	if let Err(e) = generate_docs(&mut items, &config) {
 		return e.to_compile_error();
 	}
 
-	let result = quote!(#(#items)*);
-	// eprintln!("[document_module] END document_module_impl");
+	// Also recursively generate docs for nested modules
+	let mut generator = DocGeneratorVisitor { config: &config, errors: Vec::new() };
+	for item in &mut items {
+		generator.visit_item_mut(item);
+	}
+	if !generator.errors.is_empty() {
+		return combine_errors(generator.errors).to_compile_error();
+	}
+
+	// Reconstruct module wrapper if needed (outer attribute case)
+	let result = if let Some((mut module, brace)) = module_wrapper {
+		module.content = Some((brace, items));
+		let output = quote!(#module);
+		output
+	} else {
+		let output = quote!(#(#items)*);
+		output
+	};
 	result
 }
 
@@ -300,14 +309,15 @@ fn build_parameterized_type(
 	base_name: &str,
 	generic_params: &[String],
 ) -> syn::Type {
+	let base_ident = syn::Ident::new(base_name, proc_macro2::Span::call_site());
 	if generic_params.is_empty() {
-		parse_quote!(#base_name)
+		parse_quote!(#base_ident)
 	} else {
 		let params: Vec<syn::Ident> = generic_params
 			.iter()
 			.map(|p| syn::Ident::new(p, proc_macro2::Span::call_site()))
 			.collect();
-		parse_quote!(#base_name<#(#params),*>)
+		parse_quote!(#base_ident<#(#params),*>)
 	}
 }
 
@@ -324,14 +334,6 @@ fn generate_docs(
 			let trait_path = item_impl.trait_.as_ref().map(|(_, path, _)| path);
 			let trait_name = trait_path.map(|p| p.segments.last().unwrap().ident.to_string());
 			let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
-			
-			eprintln!("\n[document_module] Processing impl block for: {}", self_ty_path);
-			eprintln!("[document_module] Trait: {:?}", trait_name);
-			eprintln!("[document_module] Number of impl items: {}", item_impl.items.len());
-
-			// for (i, attr) in item_impl.attrs.iter().enumerate() {
-			// 	eprintln!("[document_module] Impl Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
-			// }
 
 			let impl_doc_use = match find_attr_value_checked(&item_impl.attrs, "doc_use") {
 				Ok(v) => v,
@@ -343,11 +345,6 @@ fn generate_docs(
 
 			for impl_item in &mut item_impl.items {
 				if let ImplItem::Fn(method) = impl_item {
-					eprintln!("[document_module] Processing method: {}", method.sig.ident);
-					for (i, attr) in method.attrs.iter().enumerate() {
-						eprintln!("[document_module] Method Attr {}: {:?}", i, attr.path().to_token_stream().to_string());
-					}
-					eprintln!("[document_module] Has hm_signature attr: {}", find_attribute(&method.attrs, "hm_signature").is_some());
 					let method_doc_use = match find_attr_value_checked(&method.attrs, "doc_use") {
 						Ok(v) => v,
 						Err(e) => {
@@ -367,13 +364,6 @@ fn generate_docs(
 						let (base_type_name, impl_generic_params) =
 							extract_self_type_info(self_ty, &item_impl.generics);
 
-						// DEBUG: Log the input state
-						eprintln!("\n=== DEBUG: HM Signature Generation ===");
-						eprintln!("Method: {}", method.sig.ident);
-						eprintln!("Base type: {:?}", base_type_name);
-						eprintln!("Impl generics: {:?}", impl_generic_params);
-						eprintln!("Original return type: {}", quote::quote!(#(&synthetic_sig.output)));
-
 						// Resolve Self
 						let mut substitutor = SelfSubstitutor {
 							self_ty,
@@ -387,15 +377,11 @@ fn generate_docs(
 						};
 						substitutor.visit_signature_mut(&mut synthetic_sig);
 
-						eprintln!("After substitution return type: {}", quote::quote!(#(&synthetic_sig.output)));
-
 						// Collect any resolution errors
 						errors.extend(substitutor.errors);
 
 						// Merge generics
 						merge_generics(&mut synthetic_sig, &item_impl.generics);
-
-						eprintln!("After merge, generics: {:?}", synthetic_sig.generics.params.iter().map(|p| quote::quote!(#p).to_string()).collect::<Vec<_>>());
 
 						// Add trait bound: SelfTy: Trait (only if it's a trait impl)
 						if let Some(trait_path) = trait_path {
@@ -416,10 +402,7 @@ fn generate_docs(
 
 						let signature_data =
 							generate_signature(&synthetic_sig, trait_name.as_deref(), &sig_config);
-						
-						eprintln!("Generated signature: {}", signature_data);
-						eprintln!("=== END DEBUG ===\n");
-						
+
 						let doc_comment = format!("`{}`", signature_data);
 						let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 						method.attrs.insert(attr_pos, doc_attr);
@@ -495,6 +478,61 @@ fn generate_docs(
 		}
 		Err(combined_error)
 	}
+}
+
+/// Visitor for recursively extracting context from nested modules (Pass 1)
+struct ContextExtractorVisitor<'a> {
+	config: &'a mut Config,
+	errors: Vec<Error>,
+}
+
+impl<'a> VisitMut for ContextExtractorVisitor<'a> {
+	fn visit_item_mod_mut(
+		&mut self,
+		module: &mut syn::ItemMod,
+	) {
+		if let Some((_, ref items)) = module.content {
+			// Extract context from this module's items
+			if let Err(e) = extract_context(items, self.config) {
+				self.errors.push(e);
+			}
+
+			// Recursively process nested modules
+			visit_mut::visit_item_mod_mut(self, module);
+		}
+	}
+}
+
+/// Visitor for recursively generating documentation in nested modules (Pass 2)
+struct DocGeneratorVisitor<'a> {
+	config: &'a Config,
+	errors: Vec<Error>,
+}
+
+impl<'a> VisitMut for DocGeneratorVisitor<'a> {
+	fn visit_item_mod_mut(
+		&mut self,
+		module: &mut syn::ItemMod,
+	) {
+		if let Some((_, ref mut items)) = module.content {
+			// Generate docs for this module's items
+			if let Err(e) = generate_docs(items, self.config) {
+				self.errors.push(e);
+			}
+
+			// Recursively process nested modules
+			visit_mut::visit_item_mod_mut(self, module);
+		}
+	}
+}
+
+/// Helper function to combine multiple errors into a single error
+fn combine_errors(mut errors: Vec<Error>) -> Error {
+	let mut combined_error = errors.remove(0);
+	for err in errors {
+		combined_error.combine(err);
+	}
+	combined_error
 }
 
 fn find_attribute(
