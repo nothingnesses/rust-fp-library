@@ -107,12 +107,16 @@ where
 		for entry in entries.flatten() {
 			let path = entry.path();
 			if path.extension().and_then(|s| s.to_str()) == Some("rs") {
-				let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap();
+				let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) else {
+					continue; // Skip files with invalid UTF-8 names
+				};
 				if file_stem == "mod" {
 					continue;
 				}
 
-				let content = fs::read_to_string(&path).expect("Failed to read file");
+				let Ok(content) = fs::read_to_string(&path) else {
+					continue; // Skip files that can't be read
+				};
 				if let Ok(file) = parse_file(&content) {
 					let reexport_module = detect_reexport_pattern(&file);
 					let items = item_collector(file_stem, &file, reexport_module.as_deref());

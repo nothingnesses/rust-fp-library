@@ -1,1273 +1,858 @@
-# Architectural Analysis of Documentation Generation Macros
+# Architectural Analysis of fp-macros
 
-**Date**: 2026-02-08  
-**Scope**: Documentation generation macros in `fp-macros/src/`
+**Date**: 2026-02-08 (Complete Rewrite)
+**Last Analysis**: 2026-02-08
+**Scope**: All procedural macros in `fp-macros/src/`
 
-This document provides a comprehensive analysis of the documentation macro system, identifying fundamental architectural issues, code quality problems, and adherence to best practices.
+This document provides a comprehensive architectural analysis of the entire macro system in `fp-macros`, identifying code quality issues, architectural concerns, and opportunities for improvement.
+
+---
+
+## Executive Summary
+
+The `fp-macros` crate demonstrates **strong architectural foundations** with excellent modular design, comprehensive testing, and well-documented APIs. The implementation is fundamentally sound and production-ready.
+
+**Current State: 8.5/10** - High quality implementation with addressable technical debt.
+
+**Key Findings:**
+- ✅ **0 Critical Issues**: No security vulnerabilities or data corruption bugs
+- 🔴 **3 High Priority Issues**: Error handling patterns, input validation, feature completeness
+- 🟡 **5 Medium Priority Issues**: Code duplication, maintainability concerns
+- 🟢 **2 Low Priority Issues**: Documentation generation, magic constants
+
+**Major Strengths:**
+- ✅ Excellent modular architecture (hkt, hm_conversion, documentation, analysis, resolution)
+- ✅ Comprehensive test coverage throughout
+- ✅ Deterministic hash-based Kind trait naming
+- ✅ Well-documented public APIs
+- ✅ Performance optimizations (config caching)
 
 ---
 
 ## Table of Contents
 
-- [Critical Architectural Issues](#critical-architectural-issues)
-- [Code Quality Issues](#code-quality-issues)
-- [Design and Best Practice Issues](#design-and-best-practice-issues)
-- [Performance Concerns](#performance-concerns)
-- [Testing Gaps](#testing-gaps)
+- [High Priority Issues](#high-priority-issues)
+- [Medium Priority Issues](#medium-priority-issues)
+- [Low Priority Issues](#low-priority-issues)
 - [Positive Aspects](#positive-aspects)
-- [Recommended Refactoring Priority](#recommended-refactoring-priority)
+- [Recommended Actions](#recommended-actions)
 
 ---
 
-## Critical Architectural Issues
+## High Priority Issues
 
-### 1. Repeated Config Loading from Disk
+### 1. Error Handling Anti-patterns
 
-**Location**: `fp-macros/src/function_utils.rs:171`
+**Location**: [`fp-macros/src/hm_conversion/transformations.rs`](fp-macros/src/hm_conversion/transformations.rs)
 
 **Problem**:
-- `load_config()` reads and parses `Cargo.toml` from disk on EVERY macro invocation
-- Called in:
-  - `hm_signature_impl` (line 42 in `hm_signature.rs`)
-  - `doc_params_impl` (line 11 in `doc_params.rs`)
-  - Multiple other locations
+The canonicalization system uses `panic!()` for unsupported cases instead of proper `syn::Error` returns:
 
-**Impact**: 
-- Severe performance degradation in large codebases
-- Each annotated function incurs a disk I/O penalty
-- Identical config loaded hundreds or thousands of times
-
-**Solution**:
 ```rust
-use once_cell::sync::Lazy;
+// Line 119
+TypeParamBound::Trait(tr) => { ... }
+_ => panic!("Unsupported bound type"),  // ❌ Panics at compile time
 
-static CONFIG: Lazy<Config> = Lazy::new(|| {
-    // Load config once
-    load_config_from_disk()
-});
+// Line 150
+GenericArgument::Const(expr) => quote!(#expr).to_string().replace(" ", ""),
+_ => panic!("Unsupported generic argument"),  // ❌ Panics at compile time
 
-pub fn load_config() -> &'static Config {
-    &CONFIG
-}
-```
-
-**Priority**: HIGH - Easy fix with significant performance improvement
-
----
-
-### 2. Inefficient Double-Pass Traversal
-
-**Location**: `fp-macros/src/document_module.rs:33-123`
-
-**Problem**:
-- Two separate visitors traverse the SAME AST:
-  - `ContextExtractorVisitor` (Pass 1) - lines 488-508
-  - `DocGeneratorVisitor` (Pass 2) - lines 511-531
-- Both recursively visit all nested modules
-- O(2n) complexity instead of O(n)
-
-**Current Flow**:
-```
-Parse Items → Extract Context (visit all) → Generate Docs (visit all) → Output
+// Line 233
+Type::Infer(_) => "_".to_string(),
+_ => panic!("Unsupported type in canonicalization"),  // ❌ Panics at compile time
 ```
 
 **Impact**:
-- Doubled traversal time
-- More cache misses
-- Unnecessary memory allocations
+- **User Experience**: Poor error messages with cryptic panic output
+- **Correctness**: Proc macros should return compilation errors, not panic
+- **Robustness**: Crashes on valid but unsupported Rust syntax
 
-**Solution Options**:
-
-**Option A**: Single-pass visitor with state machine
+**Example User Experience**:
 ```rust
-struct UnifiedVisitor {
-    mode: Pass,
-    config: Config,
-}
+// User writes valid Rust code
+def_kind!(type Of<const N: usize>;);
 
-enum Pass {
-    ExtractingContext,
-    GeneratingDocs,
+// Gets unhelpful panic:
+// thread 'main' panicked at 'Unsupported bound type'
+```
+
+**Recommendation**:
+Return proper syn::Error with helpful messages:
+```rust
+use syn::Error;
+
+fn canonicalize_bound(&self, bound: &TypeParamBound) -> Result<String, Error> {
+    match bound {
+        TypeParamBound::Lifetime(lt) => { ... }
+        TypeParamBound::Trait(tr) => { ... }
+        TypeParamBound::Verbatim(_) => {
+            Err(Error::new(
+                bound.span(),
+                "Unsupported bound syntax. Please use standard trait or lifetime bounds."
+            ))
+        }
+        _ => {
+            Err(Error::new(
+                bound.span(),
+                "Unsupported bound type in Kind definition"
+            ))
+        }
+    }
 }
 ```
 
-**Option B**: Collect references during first pass
-```rust
-struct ContextExtractor {
-    config: Config,
-    items_to_document: Vec<&mut Item>,
-}
-```
-
-**Priority**: MEDIUM - Noticeable impact on large modules
+**Estimated Effort**: 3-4 hours  
+**Priority**: HIGH - User experience and correctness
 
 ---
 
-### 3. String-Based Type System
+### 2. Incomplete Feature Implementation
 
-**Location**: Throughout, especially `function_utils.rs:19`
+**Location**: [`fp-macros/src/hm_conversion/transformations.rs:56-59`](fp-macros/src/hm_conversion/transformations.rs:56)
 
 **Problem**:
-- Heavy reliance on string comparisons for type matching
-- Projection map uses `(String, Option<String>, String)` as keys
-- Type identity checked via string equality:
-  - `ident == "Self"` (multiple locations)
-  - `name == "PhantomData"` (line 373, 687)
-  - `segment.ident == "Apply"` (line 488)
+Const generic parameters are silently ignored in canonicalization:
 
-**Examples**:
 ```rust
-// Current fragile approach
-let key = (brand_path.clone(), trait_path.clone(), assoc_name.clone());
-if brand == self_ty_path { /* ... */ }
-
-// String comparison for type resolution
-if quote!(#prev_normalized).to_string() != quote!(#normalized_target).to_string() {
-    // Report error
+GenericParam::Const(_) => {
+    // Const parameters are not currently supported for canonicalization mapping
+    // They will be treated as literal values in bounds
 }
 ```
 
 **Impact**:
-- Fragile: whitespace changes break equality
-- No compile-time type checking
-- Easy to introduce bugs
-- Hard to refactor
+- **Silent Bugs**: No error or warning when using const generics
+- **Incorrect Behavior**: Different const generic signatures may produce same Kind trait
+- **Misleading**: Users don't know this limitation exists
 
-**Solution**:
+**Example**:
 ```rust
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct TypePath {
-    segments: Vec<String>,
-    // Normalized representation
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ProjectionKey {
-    brand: TypePath,
-    trait_path: Option<TypePath>,
-    assoc_name: Ident,
-}
-
-// Custom equality that ignores formatting
+// Both of these might generate the same Kind trait name!
+def_kind!(type Of<const N: usize>;);
+def_kind!(type Of<const M: usize>;);
 ```
 
-**Priority**: MEDIUM - Reduces bugs but requires significant refactoring
+**Recommendation**:
+**Option A** - Emit warning:
+```rust
+GenericParam::Const(c) => {
+    proc_macro_error::emit_warning!(
+        c.ident.span(),
+        "Const generics are not fully supported in Kind trait name generation";
+        note = "Different const generic names may produce the same Kind trait"
+    );
+    // Don't increment any counter - consts are skipped
+}
+```
+
+**Option B** - Return error:
+```rust
+GenericParam::Const(c) => {
+    return Err(Error::new(
+        c.ident.span(),
+        "Const generic parameters are not yet supported in Kind definitions"
+    ));
+}
+```
+
+**Estimated Effort**: 2-3 hours  
+**Priority**: HIGH - Feature completeness and correctness
 
 ---
 
-## Code Quality Issues
+### 3. Lack of Input Validation
 
-### 4. Dead Code
-
-**Locations**:
-- `LogicalParam::Implicit` - `function_utils.rs:702` - marked with `#[allow(dead_code)]`
-- `_trait_context` parameter - `hm_signature.rs:101` - prefixed with underscore
+**Location**: [`fp-macros/src/hm_conversion/patterns.rs:48-55`](fp-macros/src/hm_conversion/patterns.rs:48)
 
 **Problem**:
-- Unclear if code is:
-  - Temporarily disabled
-  - Planned for future use
-  - Truly obsolete
-
-**Impact**:
-- Maintenance burden
-- Confuses contributors
-- May indicate incomplete features
-
-**Solution**:
-1. If truly unused: **Remove it**
-2. If planned: Add TODO comment with ticket reference
-3. If conditionally used: Document the conditions
-
-**Priority**: LOW - No functional impact but improves code clarity
-
----
-
-### 5. Massive Functions with Too Many Responsibilities
-
-**Locations**:
-
-#### `generate_docs` (document_module.rs:329-485)
-- **156 lines**
-- Handles:
-  - Attribute finding
-  - Doc generation
-  - Error collection
-  - Type resolution
-  - Generic merging
-
-#### `extract_context` (document_module.rs:126-265)
-- **139 lines**
-- Manages:
-  - Projection extraction
-  - Default tracking
-  - Conflict detection
-  - Error accumulation
-  - Circular reference checks
-
-#### `SelfSubstitutor::visit_type_mut` (document_module.rs:616-725)
-- **109 lines**
-- Deep nesting (4-5 levels)
-- Multiple concerns:
-  - Bare Self resolution
-  - Associated type resolution
-  - Fallback chain logic
-  - Error reporting
-
-**Impact**:
-- Hard to test individual concerns
-- Difficult to understand control flow
-- Challenging to modify without breaking things
-- High cognitive load
-
-**Solution**:
-Extract into focused functions:
+Parser accepts empty associated type lists without validation:
 
 ```rust
-// For generate_docs
-fn process_method_hm_signature(...) -> Result<()> { }
-fn process_method_doc_type_params(...) -> Result<()> { }
-fn resolve_self_in_signature(...) -> Result<Signature> { }
-
-// For extract_context
-fn extract_impl_kind_projections(...) -> Result<()> { }
-fn extract_impl_projections(...) -> Result<()> { }
-fn validate_scoped_defaults(...) -> Result<()> { }
-
-// For SelfSubstitutor
-fn resolve_bare_self(&self, span: Span) -> Result<Type> { }
-fn resolve_self_assoc_type(&self, name: &str, span: Span) -> Result<Type> { }
-fn apply_resolution_fallback(...) -> Type { }
-```
-
-**Priority**: HIGH - Improves maintainability significantly
-
----
-
-### 6. Repeated Logic Patterns
-
-#### A. Attribute Finding (duplicated 3+ times)
-
-**Locations**:
-- `find_attribute` - line 542
-- `has_attr` - line 812
-- Similar logic scattered throughout
-
-**Problem**: Same pattern reimplemented multiple times
-
-**Solution**:
-```rust
-mod attr_utils {
-    pub fn find_attr(attrs: &[Attribute], name: &str) -> Option<(usize, &Attribute)> {
-        attrs.iter().enumerate().find(|(_, attr)| attr.path().is_ident(name))
-    }
-    
-    pub fn has_attr(attrs: &[Attribute], name: &str) -> bool {
-        find_attr(attrs, name).is_some()
-    }
-    
-    pub fn get_attr_string_value(attrs: &[Attribute], name: &str) -> Result<Option<String>> {
-        // Unified implementation with error checking
+impl Parse for KindInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut assoc_types = Vec::new();
+        while !input.is_empty() {
+            assoc_types.push(input.parse()?);
+        }
+        Ok(KindInput { assoc_types })  // ✅ Empty vec is valid
     }
 }
 ```
 
----
+**Impact**:
+- **Invalid Output**: Generates meaningless empty Kind traits
+- **Confusing Errors**: Downstream errors are unclear
+- **User Experience**: No clear feedback on invalid input
 
-#### B. Error Accumulation Pattern (repeated 5+ times)
-
-**Locations**:
-- Lines 256-264 in `document_module.rs`
-- Lines 476-484 in `document_module.rs`
-- Lines 534-539 in `document_module.rs`
-- Similar patterns in other files
-
-**Current Pattern**:
+**Example**:
 ```rust
-let mut errors = Vec::new();
-// ... collect errors
-if errors.is_empty() {
-    Ok(())
-} else {
-    let mut combined = errors.remove(0);
-    for err in errors {
-        combined.combine(err);
-    }
-    Err(combined)
+// User accidentally writes empty macro invocation
+def_kind!();  // Parses successfully but generates invalid code
+
+// Generates:
+pub trait Kind_0000000000000000 {
+    // Empty trait - invalid/useless
 }
 ```
 
-**Solution**:
+**Recommendation**:
+Add validation in Parse implementation:
 ```rust
-mod error_utils {
-    pub struct ErrorCollector {
-        errors: Vec<Error>,
+impl Parse for KindInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut assoc_types = Vec::new();
+        while !input.is_empty() {
+            assoc_types.push(input.parse()?);
+        }
+        
+        if assoc_types.is_empty() {
+            return Err(Error::new(
+                Span::call_site(),
+                "Kind definition must have at least one associated type"
+            ));
+        }
+        
+        Ok(KindInput { assoc_types })
     }
-    
-    impl ErrorCollector {
-        pub fn new() -> Self { Self { errors: Vec::new() } }
-        pub fn push(&mut self, error: Error) { self.errors.push(error); }
-        pub fn finish(self) -> Result<()> {
-            if self.errors.is_empty() {
-                Ok(())
-            } else {
-                Err(combine_errors(self.errors))
+}
+```
+
+**Estimated Effort**: 1-2 hours  
+**Priority**: HIGH - Input validation and user experience
+
+---
+
+## Medium Priority Issues
+
+### 4. Code Duplication in Re-export Generation
+
+**Location**: [`fp-macros/src/re_export.rs:139-212`](fp-macros/src/re_export.rs:139)
+
+**Problem**:
+`generate_function_re_exports_impl` and `generate_trait_re_exports_impl` share ~70% identical code:
+
+```rust
+pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
+    let re_exports = scan_directory_and_collect(&input, |file_stem, file, reexport_module| {
+        // Collect public functions
+        let functions = collect_public_items(file, reexport_module, |item| {
+            if let Item::Fn(func) = item && matches!(func.vis, Visibility::Public(_)) {
+                return Some(func.sig.ident.to_string());
             }
-        }
-    }
-    
-    fn combine_errors(mut errors: Vec<Error>) -> Error {
-        let mut combined = errors.remove(0);
-        for err in errors {
-            combined.combine(err);
-        }
-        combined
-    }
+            None
+        });
+        
+        // Generate re-export tokens (nearly identical to trait version)
+        functions.into_iter().map(|fn_name| { ... }).collect()
+    });
+    quote! { pub use crate::classes::{ #(#re_exports),* }; }
+}
+
+pub fn generate_trait_re_exports_impl(input: ReexportInput) -> TokenStream {
+    let re_exports = scan_directory_and_collect(&input, |file_stem, file, reexport_module| {
+        // Collect public traits (pattern same as functions)
+        let traits = collect_public_items(file, reexport_module, |item| {
+            if let Item::Trait(trait_item) = item && matches!(trait_item.vis, Visibility::Public(_)) {
+                return Some(trait_item.ident.to_string());
+            }
+            None
+        });
+        
+        // Generate re-export tokens (nearly identical to function version)
+        traits.into_iter().map(|trait_name| { ... }).collect()
+    });
+    quote! { #(#re_exports)* }
 }
 ```
 
-**Usage**:
+**Impact**:
+- **Maintenance**: Bug fixes must be applied twice
+- **Inconsistency**: Logic can easily diverge
+- **Code Smell**: Violation of DRY principle
+
+**Recommendation**:
+Extract unified implementation:
 ```rust
-let mut errs = ErrorCollector::new();
-// ... collect
-errs.push(some_error);
-errs.finish()
-```
+enum ItemKind {
+    Function,
+    Trait,
+}
 
----
-
-#### C. Generic Parameter Extraction (duplicated with variations)
-
-**Locations**:
-- Lines 299-306 in `document_module.rs` (`extract_self_type_info`)
-- Lines 434-442 in `document_module.rs` (inline in `generate_docs`)
-
-**Problem**: Same logic reimplemented with slight variations
-
-**Solution**:
-```rust
-mod generic_utils {
-    pub fn extract_type_params(generics: &Generics) -> Vec<String> {
-        generics.params
-            .iter()
-            .filter_map(|p| match p {
-                GenericParam::Type(t) => Some(t.ident.to_string()),
-                _ => None,
-            })
-            .collect()
-    }
+fn generate_re_exports_impl(
+    input: ReexportInput,
+    kind: ItemKind
+) -> TokenStream {
+    let item_filter: Box<dyn Fn(&Item) -> Option<String>> = match kind {
+        ItemKind::Function => Box::new(|item| {
+            if let Item::Fn(func) = item && matches!(func.vis, Visibility::Public(_)) {
+                Some(func.sig.ident.to_string())
+            } else { None }
+        }),
+        ItemKind::Trait => Box::new(|item| {
+            if let Item::Trait(t) = item && matches!(t.vis, Visibility::Public(_)) {
+                Some(t.ident.to_string())
+            } else { None }
+        }),
+    };
     
-    pub fn extract_all_param_names(generics: &Generics) -> Vec<String> {
-        generics.params
-            .iter()
-            .map(|p| match p {
-                GenericParam::Type(t) => t.ident.to_string(),
-                GenericParam::Lifetime(l) => l.lifetime.to_string(),
-                GenericParam::Const(c) => c.ident.to_string(),
-            })
-            .collect()
+    let re_exports = scan_directory_and_collect(&input, |file_stem, file, reexport_module| {
+        let items = collect_public_items(file, reexport_module, &*item_filter);
+        generate_tokens(items, file_stem, &input.aliases, kind)
+    });
+    
+    match kind {
+        ItemKind::Function => quote! { pub use crate::classes::{ #(#re_exports),* }; },
+        ItemKind::Trait => quote! { #(#re_exports)* },
     }
+}
+
+pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
+    generate_re_exports_impl(input, ItemKind::Function)
+}
+
+pub fn generate_trait_re_exports_impl(input: ReexportInput) -> TokenStream {
+    generate_re_exports_impl(input, ItemKind::Trait)
 }
 ```
 
-**Priority**: MEDIUM - Reduces duplication and improves testability
+**Estimated Effort**: 3-4 hours  
+**Priority**: MEDIUM - Code quality and maintainability
 
 ---
 
-### 7. Type Substitution Logic Duplication
+### 5. Fragile String Manipulation
 
-**Locations**:
-- `substitute_generics` (document_module.rs:842-906)
-- `normalize_type` (document_module.rs:908-942)
+**Location**: [`fp-macros/src/hkt/kind.rs:44-45, 58-63`](fp-macros/src/hkt/kind.rs:44)
 
 **Problem**:
-Both create similar visitor structures:
-- `SubstitutionVisitor` and `NormalizationVisitor`
-- Nearly identical visitor patterns
-- Same traversal logic with different transformations
+Post-processes `quote!()` output with string replacements for documentation:
 
-**Solution**:
 ```rust
-mod type_transform {
-    trait TypeTransform {
-        fn transform_type(&mut self, ident: &Ident) -> Option<Type>;
-        fn transform_const(&mut self, ident: &Ident) -> Option<Expr>;
-    }
-    
-    struct GenericTransformVisitor<T: TypeTransform> {
-        transformer: T,
-    }
-    
-    impl<T: TypeTransform> VisitMut for GenericTransformVisitor<T> {
-        fn visit_type_mut(&mut self, i: &mut Type) {
-            if let Type::Path(tp) = i {
-                if let Some(ident) = tp.path.get_ident() {
-                    if let Some(target) = self.transformer.transform_type(ident) {
-                        *i = target;
-                        return;
-                    }
-                }
-            }
-            visit_mut::visit_type_mut(self, i);
+// Line 44-45
+let s = quote!(#ident #generics #output_bounds_tokens).to_string();
+let cleaned = s.replace(" < ", "<").replace(" >", ">")
+    .replace(" , ", ", ").replace(" : ", ": ");
+
+// Line 58-63
+let s = quote!(type #ident #generics = ConcreteType;).to_string();
+s.replace(" < ", "<")
+    .replace(" >", ">")
+    .replace(" , ", ", ")
+    .replace(" ;", ";")
+    .replace(" :", ":")
+```
+
+**Impact**:
+- **Brittleness**: Could break if `quote!` internal formatting changes
+- **Maintenance**: String manipulation is error-prone
+- **Correctness**: Might mangle complex type expressions
+
+**Recommendation**:
+**Option A** - Accept quote's formatting:
+```rust
+// Just use quote! output directly
+let summary = quote!(#ident #generics #output_bounds_tokens).to_string();
+```
+
+**Option B** - Custom Display implementation:
+```rust
+impl Display for KindAssocTypeInput {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.ident)?;
+        // Format generics manually without spaces
+        if !self.generics.params.is_empty() {
+            write!(f, "<")?;
+            // ... custom formatting
         }
-        // ... const handling
+        Ok(())
     }
+}
+```
+
+**Estimated Effort**: 2-3 hours  
+**Priority**: MEDIUM - Robustness
+
+---
+
+### 6. Hardcoded Module Path
+
+**Location**: [`fp-macros/src/re_export.rs:173`](fp-macros/src/re_export.rs:173)
+
+**Problem**:
+Hardcoded `crate::classes` path reduces reusability:
+
+```rust
+pub fn generate_function_re_exports_impl(input: ReexportInput) -> TokenStream {
+    // ...
+    quote! {
+        pub use crate::classes::{  // ❌ Hardcoded path
+            #(#re_exports),*
+        };
+    }
+}
+```
+
+**Impact**:
+- **Reusability**: Can't use macro for other modules
+- **Flexibility**: Tightly coupled to fp-library structure
+
+**Recommendation**:
+Accept base path as parameter:
+```rust
+pub struct ReexportInput {
+    path: LitStr,           // Directory to scan
+    base_module: LitStr,    // NEW: Module to re-export from
+    aliases: HashMap<String, Ident>,
 }
 
 // Usage:
-struct Substitution { mapping: HashMap<String, Type> }
-impl TypeTransform for Substitution { /* ... */ }
-
-struct Normalization { counter: usize }
-impl TypeTransform for Normalization { /* ... */ }
+generate_function_re_exports!("src/classes", "crate::classes", {
+    identity: category_identity,
+});
 ```
 
-**Priority**: LOW - Nice to have but low impact
+**Estimated Effort**: 2 hours  
+**Priority**: MEDIUM - Flexibility and reusability
 
 ---
 
-## Design and Best Practice Issues
+### 7. File I/O in Proc Macros
 
-### 8. Mixed Concerns in document_module
-
-**Location**: `fp-macros/src/document_module.rs`
-
-**Problem**: Single file handles too many responsibilities:
-- Context extraction (projections, defaults)
-- Type resolution (Self, associated types)
-- Documentation generation (HM signatures, type params)
-- Error management
-- Module parsing (wrapper detection)
-- Visitor coordination
-
-**Current Structure**:
-```
-document_module.rs (1035 lines)
-├── Parsing (ItemMod, DocumentModuleInput, const blocks)
-├── Context extraction (extract_context, visitors)
-├── Type resolution (SelfSubstitutor, substitute_generics)
-├── Doc generation (generate_docs, attribute processing)
-└── Error handling (combine_errors, error creation)
-```
-
-**Proposed Structure**:
-```
-document_module/
-├── mod.rs              (public API, coordination)
-├── context.rs          (extract_context, projections)
-├── resolution.rs       (SelfSubstitutor, type substitution)
-├── generation.rs       (generate_docs, attribute processing)
-├── visitors.rs         (ContextExtractor, DocGenerator)
-└── utils.rs           (helpers, error handling)
-```
-
-**Benefits**:
-- Clear separation of concerns
-- Easier to test individual components
-- Reduces cognitive load
-- Better encapsulation
-
-**Priority**: MEDIUM - Improves maintainability
-
----
-
-### 9. Poor Error Context
-
-**Problem**: Frequent use of `proc_macro2::Span::call_site()` as fallback
-
-**Locations**:
-- `doc_utils.rs:211` - `insert_doc_comment`
-- `hm_signature.rs:46` - signature generation
-- Multiple other locations
-
-**Impact**:
-- Loses source location information
-- Error messages point to macro invocation, not actual error
-- Makes debugging user errors difficult
-
-**Example of poor error**:
-```
-error: Cannot resolve `Self::Of`
-  --> src/lib.rs:10:1
-   |
-10 | #[document_module]
-   | ^^^^^^^^^^^^^^^^^^
-```
-
-**Should be**:
-```
-error: Cannot resolve `Self::Of`
-  --> src/lib.rs:45:28
-   |
-45 |     fn map(fa: Self::Of<A>) -> Self::Of<B> { ... }
-   |                    ^^^^^^^^
-```
-
-**Solution**:
-- Always preserve original span
-- Only use `call_site()` as last resort
-- Thread spans through transformations
-- Use `Spanned` trait consistently
-
-**Priority**: MEDIUM - Significantly improves user experience
-
----
-
-### 10. Magic Strings Without Constants
-
-**Problem**: Hardcoded strings scattered throughout codebase
-
-**Examples**:
-- `"Self"` - used in ~10 places
-- `"PhantomData"` - used in 5+ places
-- `"Apply"` - used in multiple locations
-- `"fn_brand_marker"` - used in 3 places
-- `"doc_default"` - used in 5+ places
-- `"doc_use"` - used in 4+ places
-
-**Impact**:
-- Typo bugs
-- Hard to refactor
-- Inconsistent naming
-- No single source of truth
-
-**Solution**:
-```rust
-// In a new constants.rs or at module top
-mod known_types {
-    pub const SELF: &str = "Self";
-    pub const PHANTOM_DATA: &str = "PhantomData";
-    pub const APPLY_MACRO: &str = "Apply";
-    pub const FN_BRAND_MARKER: &str = "fn_brand_marker";
-}
-
-mod known_attrs {
-    pub const DOC_DEFAULT: &str = "doc_default";
-    pub const DOC_USE: &str = "doc_use";
-    pub const HM_SIGNATURE: &str = "hm_signature";
-    pub const DOC_TYPE_PARAMS: &str = "doc_type_params";
-    pub const DOC_PARAMS: &str = "doc_params";
-}
-```
-
-**Priority**: LOW - Easy fix, prevents future bugs
-
----
-
-### 11. Config Struct Has Too Many Responsibilities
-
-**Location**: `fp-macros/src/function_utils.rs:10-33`
-
-**Problem**: Single struct mixes multiple concerns:
-
-```rust
-pub struct Config {
-    // User configuration (from Cargo.toml)
-    pub brand_mappings: HashMap<String, String>,
-    pub apply_macro_aliases: HashSet<String>,
-    pub ignored_traits: HashSet<String>,
-    
-    // Runtime projection state
-    pub projections: HashMap<(String, Option<String>, String), (syn::Generics, syn::Type)>,
-    pub module_defaults: HashMap<String, String>,
-    pub scoped_defaults: HashMap<(String, String), String>,
-    
-    // Context-specific state
-    pub concrete_types: HashSet<String>,
-    pub self_type_name: Option<String>,
-}
-```
-
-**Impact**:
-- Hard to reason about state changes
-- Unclear ownership and lifecycle
-- Difficult to test
-- Mixes immutable config with mutable state
-
-**Solution**:
-```rust
-// Immutable user configuration
-#[derive(Clone)]
-pub struct UserConfig {
-    pub brand_mappings: HashMap<String, String>,
-    pub apply_macro_aliases: HashSet<String>,
-    pub ignored_traits: HashSet<String>,
-}
-
-// Module-level projection information
-pub struct ProjectionMap {
-    projections: HashMap<ProjectionKey, (syn::Generics, syn::Type)>,
-    module_defaults: HashMap<String, String>,
-    scoped_defaults: HashMap<(String, String), String>,
-}
-
-// Resolution context for current item
-pub struct ResolutionContext<'a> {
-    config: &'a UserConfig,
-    projections: &'a ProjectionMap,
-    concrete_types: HashSet<String>,
-    self_type_name: Option<String>,
-}
-```
-
-**Benefits**:
-- Clear ownership
-- Better testability
-- Immutable config can be shared
-- Context is explicitly scoped
-
-**Priority**: MEDIUM - Improves design clarity
-
----
-
-### 12. Unsafe String Manipulation
-
-**Problem**: Pattern appears throughout: `quote!(#something).to_string()`
-
-**Locations**:
-- Line 168 in `document_module.rs` - comparing normalized types
-- Line 338 in `document_module.rs` - self type path
-- Many other locations
-
-**Example**:
-```rust
-if quote!(#prev_normalized).to_string() != quote!(#normalized_target).to_string() {
-    // Report conflict
-}
-```
-
-**Issues**:
-- Whitespace sensitive
-- Formatting dependent
-- No semantic comparison
-- Expensive (allocation + stringification)
-
-**Solution**:
-Use proper AST comparison:
-
-```rust
-// For simple cases, syn provides PartialEq
-if prev_normalized == normalized_target {
-    // Same type
-}
-
-// For complex cases, implement custom comparison
-fn types_equivalent(a: &Type, b: &Type) -> bool {
-    match (a, b) {
-        (Type::Path(ap), Type::Path(bp)) => paths_equivalent(&ap.path, &bp.path),
-        // ... other cases
-        _ => false,
-    }
-}
-```
-
-**Priority**: MEDIUM - Reduces fragility
-
----
-
-### 13. Heavy Clone Usage
-
-**Problem**: Excessive cloning of large AST structures
-
-**Locations**:
-- Line 107 in `hm_signature.rs` - entire signature cloned
-- Line 183 in `document_module.rs` - generics cloned
-- Line 216 in `document_module.rs` - type cloned
-- Line 426 in `document_module.rs` - params repeatedly cloned
-
-**Example**:
-```rust
-let mut sig = sig.clone();  // Clone entire signature
-sig.unsafety = None;        // Just to clear one field
-```
-
-**Impact**:
-- Memory allocations
-- Performance overhead
-- Cache pressure
-
-**Solution**:
-```rust
-// Use references where possible
-fn analyze_signature(sig: &Signature) -> SignatureData {
-    // Work with references
-}
-
-// Clone only specific parts
-fn erase_unsafe(sig: &Signature) -> Signature {
-    let mut result = sig.clone();
-    result.unsafety = None;
-    result
-}
-
-// Or use Cow for conditional cloning
-use std::borrow::Cow;
-fn process_sig<'a>(sig: Cow<'a, Signature>) -> Cow<'a, Signature> {
-    if sig.unsafety.is_none() {
-        sig  // No clone needed
-    } else {
-        let mut owned = sig.into_owned();
-        owned.unsafety = None;
-        Cow::Owned(owned)
-    }
-}
-```
-
-**Priority**: LOW - Micro-optimization, but adds up
-
----
-
-### 14. Complex Fallback Chain
-
-**Location**: `SelfSubstitutor::visit_type_mut` (document_module.rs:616-680)
-
-**Problem**: Multi-level fallback logic for resolving bare `Self`:
-
-```rust
-// Resolution priority:
-1. doc_use (explicit override)
-2. scoped_defaults (trait-specific)
-3. module_defaults (type-level)
-4. concrete_types (impl generics)
-5. self_ty (original)
-6. error
-```
-
-**Current Implementation**: Deeply nested if-let-else chain
-
-**Impact**:
-- Hard to debug when resolution fails
-- Not clear which step failed
-- Difficult to test each fallback level
-- Error messages don't indicate which strategies were tried
-
-**Solution**:
-```rust
-enum ResolutionStrategy {
-    ExplicitDocUse,
-    ScopedDefault,
-    ModuleDefault,
-    ConcreteType,
-    FallbackToSelfTy,
-}
-
-struct ResolutionAttempt {
-    strategy: ResolutionStrategy,
-    result: Option<Type>,
-}
-
-impl SelfSubstitutor {
-    fn resolve_bare_self_with_trace(&self, span: Span) -> Result<Type> {
-        let mut attempts = Vec::new();
-        
-        // Try each strategy explicitly
-        attempts.push(self.try_doc_use());
-        attempts.push(self.try_scoped_default());
-        attempts.push(self.try_module_default());
-        attempts.push(self.try_concrete_type());
-        
-        // Find first success
-        for attempt in &attempts {
-            if let Some(ty) = &attempt.result {
-                return Ok(ty.clone());
-            }
-        }
-        
-        // Create detailed error with all attempts
-        Err(self.create_resolution_error(span, attempts))
-    }
-    
-    fn try_doc_use(&self) -> ResolutionAttempt { /* ... */ }
-    fn try_scoped_default(&self) -> ResolutionAttempt { /* ... */ }
-    // ... etc
-}
-```
-
-**Benefits**:
-- Each strategy is testable
-- Clear error messages showing what was tried
-- Easy to add new strategies
-- Explicit priority ordering
-
-**Priority**: MEDIUM - Improves debuggability
-
----
-
-### 15. Empty Visitor Methods
-
-**Location**: `CurriedParamExtractor` (function_utils.rs:749-860)
-
-**Problem**: 5 empty implementations at lines 841-859:
-
-```rust
-fn visit_tuple(&mut self, _tuple: &syn::TypeTuple) -> Self::Output { }
-fn visit_array(&mut self, _array: &syn::TypeArray) -> Self::Output { }
-fn visit_slice(&mut self, _slice: &syn::TypeSlice) -> Self::Output { }
-fn visit_other(&mut self, _ty: &syn::Type) -> Self::Output { }
-```
-
-**Impact**:
-- Suggests Visitor pattern might not be optimal fit
-- Boilerplate code
-- Easy to forget to implement needed cases
-
-**Solution Options**:
-
-**Option A**: Use enum-based recursion instead of visitor
-```rust
-fn extract_curried_params(ty: &Type) -> Vec<LogicalParam> {
-    match ty {
-        Type::ImplTrait(it) => extract_from_impl_trait(it),
-        Type::TraitObject(to) => extract_from_trait_object(to),
-        Type::BareFn(bf) => extract_from_bare_fn(bf),
-        Type::Path(tp) if is_fn_brand(tp) => extract_from_fn_brand(tp),
-        _ => Vec::new(),  // Explicitly ignore other cases
-    }
-}
-```
-
-**Option B**: Provide default no-op implementations in trait
-```rust
-trait TypeVisitor {
-    type Output: Default;
-    
-    fn visit(&mut self, ty: &Type) -> Self::Output { /* ... */ }
-    
-    // Provide default implementations
-    fn visit_tuple(&mut self, _: &syn::TypeTuple) -> Self::Output {
-        Self::Output::default()
-    }
-    // ... etc
-}
-```
-
-**Priority**: LOW - Cosmetic issue
-
----
-
-## Performance Concerns
-
-### 16. Inefficient Type Normalization
-
-**Location**: `normalize_type` (document_module.rs:908-942)
+**Location**: [`fp-macros/src/re_export.rs:101-132`](fp-macros/src/re_export.rs:101)
 
 **Problem**:
-- Creates temporary types just for comparison
-- Allocates new types
-- Traverses entire AST
-- Converts to strings for final comparison
-
-**Current Flow**:
-```
-Type → normalize → new Type → quote! → to_string() → compare strings
-```
-
-**Impact**:
-- Multiple allocations per type comparison
-- String comparison overhead
-- Unnecessary traversals
-
-**Solution**:
-Implement structural equality directly:
+Reads files from disk during macro expansion without caching:
 
 ```rust
-fn types_structurally_equal(
-    a: &Type,
-    b: &Type,
-    a_generics: &Generics,
-    b_generics: &Generics,
-) -> bool {
-    // Build mappings
-    let a_map = build_generic_mapping(a_generics);
-    let b_map = build_generic_mapping(b_generics);
+fn scan_directory_and_collect<F>(...) -> Vec<TokenStream> {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect(...);
+    let base_path = Path::new(&manifest_dir).join(input.path.value());
     
-    // Compare with normalization
-    compare_with_generic_normalization(a, b, &a_map, &b_map)
-}
-
-fn compare_with_generic_normalization(
-    a: &Type,
-    b: &Type,
-    a_map: &HashMap<&str, usize>,
-    b_map: &HashMap<&str, usize>,
-) -> bool {
-    match (a, b) {
-        (Type::Path(ap), Type::Path(bp)) => {
-            // Compare paths with generic position mapping
-            compare_paths_normalized(ap, bp, a_map, b_map)
+    if let Ok(entries) = fs::read_dir(&base_path) {  // ❌ File I/O
+        for entry in entries.flatten() {
+            let content = fs::read_to_string(&path) else { continue; };  // ❌ File I/O
+            // ...
         }
-        // ... other cases
-        _ => false,
     }
 }
-```
-
-**Priority**: LOW - Optimization, not correctness issue
-
----
-
-### 17. String Allocations Everywhere
-
-**Problem**: Type names converted to strings repeatedly
-
-**Example Pattern**:
-```rust
-let name = segment.ident.to_string();  // Allocation
-if name == "Self" { /* ... */ }
-let formatted = format_brand_name(&name, config);  // More allocations
 ```
 
 **Impact**:
-- Same type might be stringified dozens of times
-- Each function call allocates
-- Garbage collection pressure
+- **Performance**: Re-reads files on every macro expansion
+- **Incremental Compilation**: Might not trigger rebuilds when files change
+- **Best Practices**: Proc macros typically avoid direct file I/O
 
-**Solution Options**:
-
-**Option A**: String interning
+**Recommendation**:
+**Option A** - Use build script:
 ```rust
-use string_cache::DefaultAtom as Atom;
-
-// Store as atoms
-struct TypeCache {
-    cache: HashMap<Atom, TypeInfo>,
-}
-
-// Compare atoms (cheap pointer comparison)
-if name == Atom::from("Self") { /* ... */ }
-```
-
-**Option B**: Use `Ident` directly
-```rust
-// Keep as Ident, compare directly
-if segment.ident == "Self" { /* ... */ }
-
-// Use Ident in keys
-type ProjectionKey = (Ident, Option<Path>, Ident);
-```
-
-**Option C**: Lazy stringification
-```rust
-enum TypeName<'a> {
-    Ident(&'a Ident),
-    String(String),
-}
-
-impl TypeName<'_> {
-    fn as_str(&self) -> Cow<str> {
-        match self {
-            TypeName::Ident(id) => Cow::Borrowed(id.to_string()),
-            TypeName::String(s) => Cow::Borrowed(s),
-        }
-    }
+// build.rs
+fn main() {
+    // Generate re-exports at build time
+    // Emit cargo:rerun-if-changed directives
 }
 ```
 
-**Priority**: LOW - Micro-optimization
+**Option B** - Add caching with file tracking:
+```rust
+use std::sync::LazyLock;
+
+static FILE_CACHE: LazyLock<DashMap<PathBuf, syn::File>> = 
+    LazyLock::new(DashMap::new);
+
+fn scan_directory_and_collect<F>(...) -> Vec<TokenStream> {
+    // Check cache first
+    // Emit proc_macro::tracked_path for dependency tracking
+}
+```
+
+**Estimated Effort**: 4-5 hours  
+**Priority**: MEDIUM - Performance and best practices
 
 ---
 
-## Testing Gaps
+### 8. Complex Nested Logic
 
-### Current Test Coverage
+**Location**: [`fp-macros/src/re_export.rs:45-91`](fp-macros/src/re_export.rs:45)
 
-The macro system has tests, but significant gaps exist:
+**Problem**:
+Deep nesting with extensive let-chains:
 
-**Well-tested**:
-- ✅ Happy path for `hm_signature` (hm_signature.rs:243-583)
-- ✅ Basic `doc_params` functionality (doc_params.rs:39-129)
-- ✅ Basic `doc_type_params` functionality (doc_type_params.rs:23-86)
-- ✅ HM type formatting (hm_ast.rs has Display impl)
-
-**Under-tested**:
-- ❌ Error conditions for all macros
-- ❌ Edge cases in type resolution
-- ❌ Interaction between document_module passes
-- ❌ Config loading failure modes
-- ❌ Complex nested module structures
-- ❌ Cfg-gated code interactions
-- ❌ Split impl block merging
-- ❌ Conflicting default detection
-- ❌ Circular reference detection
-
-### Specific Testing Needs
-
-#### 1. Error Condition Testing
-
-**Missing tests for**:
-- Invalid `doc_use` attribute values
-- Missing projections for Self resolution
-- Conflicting `#[doc_default]` annotations
-- Invalid Cargo.toml config
-- Malformed macro invocations
-
-**Suggested tests**:
 ```rust
-#[test]
-fn test_missing_projection_error() {
-    let input = quote! {
-        impl MyTrait for MyType {
-            #[hm_signature]
-            fn foo() -> Self::NonExistent<A> { }
-        }
-    };
-    let result = document_module_impl(quote!(), input);
-    assert!(result.to_string().contains("Cannot resolve `Self::NonExistent`"));
-}
-
-#[test]
-fn test_conflicting_defaults_error() {
-    let input = quote! {
-        impl_kind! {
-            for Brand {
-                #[doc_default]
-                type Of<T> = Vec<T>;
-                #[doc_default]  // Conflict!
-                type SendOf<T> = Vec<T>;
+fn detect_reexport_pattern(file: &syn::File) -> Option<String> {
+    for item in &file.items {
+        if let Item::Use(use_item) = item
+            && matches!(use_item.vis, Visibility::Public(_))
+        {
+            if let syn::UseTree::Path(path) = &use_item.tree
+                && let syn::UseTree::Glob(_) = &*path.tree
+            {
+                return Some(path.ident.to_string());
             }
         }
-    };
-    // Should error
+    }
+    None
 }
-```
 
-#### 2. Integration Testing
-
-**Missing**:
-- Two-pass visitor interaction tests
-- Context extraction → doc generation pipeline
-- Nested module handling
-
-**Suggested tests**:
-```rust
-#[test]
-fn test_nested_module_context_extraction() {
-    let input = quote! {
-        mod outer {
-            impl_kind! { for Brand { type Of<T> = Vec<T>; } }
-            
-            mod inner {
-                impl Trait for Brand {
-                    #[hm_signature]
-                    fn foo() -> Self::Of<i32> { }
+fn collect_public_items<F>(...) -> Vec<String> {
+    if let Some(module_name) = reexport_module {
+        file.items
+            .iter()
+            .filter_map(|item| {
+                if let Item::Mod(mod_item) = item
+                    && mod_item.ident == module_name
+                    && let Some((_, items)) = &mod_item.content
+                {
+                    return Some(items.iter().filter_map(&mut filter).collect::<Vec<_>>());
                 }
-            }
-        }
-    };
-    // Should resolve Self::Of correctly
+                None
+            })
+            .flatten()
+            .collect()
+    } else {
+        file.items.iter().filter_map(filter).collect()
+    }
 }
 ```
 
-#### 3. Property-Based Testing
+**Impact**:
+- **Readability**: Hard to follow the logic
+- **Maintenance**: Difficult to modify
+- **Cognitive Load**: Dense let-chain patterns
 
-**Missing invariants to test**:
-- Type substitution is idempotent
-- Normalization preserves semantic equality
-- Resolution always terminates (no infinite loops)
-- Error combining is associative
-
-**Suggested using proptest**:
+**Recommendation**:
+Extract helper methods:
 ```rust
-proptest! {
-    #[test]
-    fn substitution_idempotent(ty: ArbitraryType, generics: ArbitraryGenerics) {
-        let once = substitute_generics(ty.clone(), &generics, &args);
-        let twice = substitute_generics(once.clone(), &generics, &args);
-        assert_eq!(once, twice);
+fn detect_reexport_pattern(file: &syn::File) -> Option<String> {
+    file.items
+        .iter()
+        .find_map(|item| {
+            let Item::Use(use_item) = item else { return None };
+            if !matches!(use_item.vis, Visibility::Public(_)) {
+                return None;
+            }
+            extract_glob_path(&use_item.tree)
+        })
+}
+
+fn extract_glob_path(tree: &syn::UseTree) -> Option<String> {
+    let syn::UseTree::Path(path) = tree else { return None };
+    if matches!(&*path.tree, syn::UseTree::Glob(_)) {
+        Some(path.ident.to_string())
+    } else {
+        None
+    }
+}
+
+fn collect_public_items<F>(...) -> Vec<String> {
+    match reexport_module {
+        Some(module_name) => collect_from_nested_module(file, module_name, filter),
+        None => file.items.iter().filter_map(filter).collect(),
+    }
+}
+
+fn collect_from_nested_module<F>(...) -> Vec<String> {
+    file.items
+        .iter()
+        .find_map(|item| {
+            let Item::Mod(mod_item) = item else { return None };
+            if mod_item.ident != module_name { return None };
+            let Some((_, items)) = &mod_item.content else { return None };
+            Some(items.iter().filter_map(&mut filter).collect())
+        })
+        .unwrap_or_default()
+}
+```
+
+**Estimated Effort**: 2-3 hours  
+**Priority**: MEDIUM - Code readability
+
+---
+
+## Low Priority Issues
+
+### 9. Large Documentation String Building
+
+**Location**: [`fp-macros/src/hkt/kind.rs:126-159`](fp-macros/src/hkt/kind.rs:126)
+
+**Problem**:
+Complex 30+ line string formatting for generated trait documentation:
+
+```rust
+let doc_string = format!(
+    r#"{header}
+
+Higher-Kinded Type (HKT) trait auto-generated by [`def_kind!`](crate::def_kind!), representing
+type constructors that can be applied to generic parameters to produce
+concrete types.
+
+# Associated Types
+
+{assoc_types_doc}
+
+# Implementation
+
+To implement this trait for your type constructor, use the [`impl_kind!`](crate::impl_kind!) macro:
+
+```ignore
+impl_kind! {{
+    for BrandType {{
+        {impl_example_body}
+    }}
+}}
+```
+
+# Naming
+
+The trait name `{name}` is a deterministic hash of the canonical signature,
+ensuring that semantically equivalent signatures always map to the same trait.
+
+# See Also
+
+* [`Kind!`](crate::Kind!) - Macro to generate the name of a Kind trait
+* [`impl_kind!`](crate::impl_kind!) - Macro to implement a Kind trait for a brand
+* [`Apply!`](crate::Apply!) - Macro to apply a Kind to generic arguments"#
+);
+```
+
+**Impact**:
+- **Maintenance**: Hard to modify documentation format
+- **Testing**: Difficult to test documentation output
+- **Readability**: Template logic mixed with code
+
+**Recommendation**:
+Use template struct or builder pattern:
+```rust
+struct KindTraitDocBuilder {
+    name: Ident,
+    assoc_types: Vec<KindAssocTypeInput>,
+}
+
+impl KindTraitDocBuilder {
+    fn build(self) -> String {
+        let header = self.build_header();
+        let assoc_doc = self.build_assoc_types_doc();
+        let impl_example = self.build_impl_example();
+        
+        format!(
+            "{header}\n\n{}\n\n# Associated Types\n\n{assoc_doc}\n\n{}",
+            Self::OVERVIEW,
+            self.build_impl_section(&impl_example)
+        )
     }
     
-    #[test]
-    fn resolution_terminates(ty: ArbitraryType, config: ArbitraryConfig) {
-        // Should not hang
-        let _ = resolve_type_with_timeout(ty, config, Duration::from_secs(1));
-    }
+    const OVERVIEW: &'static str = 
+        "Higher-Kinded Type (HKT) trait auto-generated...";
+    
+    fn build_header(&self) -> String { ... }
+    fn build_assoc_types_doc(&self) -> String { ... }
+    // ...
 }
 ```
 
-#### 4. Cfg-Gated Code Testing
+**Estimated Effort**: 2-3 hours  
+**Priority**: LOW - Code organization
 
-**Missing**:
-- Tests for cfg-gated impl_kind blocks
-- Interaction with conditional compilation
+---
 
-**Suggested**:
+### 10. Undocumented Magic Constants
+
+**Location**: [`fp-macros/src/hm_conversion/transformations.rs:245`](fp-macros/src/hm_conversion/transformations.rs:245)
+
+**Problem**:
+Hash seed value without explanation:
+
 ```rust
-#[test]
-fn test_cfg_gated_impl_kind() {
-    let input = quote! {
-        #[cfg(feature = "std")]
-        impl_kind! {
-            for Brand { type Of<T> = Vec<T>; }
-        }
-        
-        #[cfg(not(feature = "std"))]
-        impl_kind! {
-            for Brand { type Of<T> = &'static [T]; }
-        }
-    };
-    // Should not report conflicts
-}
+const RAPID_SECRETS: rapidhash::v3::RapidSecrets =
+    rapidhash::v3::RapidSecrets::seed(0x1234567890abcdef);  // ❌ Why this value?
 ```
 
-**Priority**: HIGH - Testing prevents regressions
+**Impact**:
+- **Maintenance**: Unclear if value has significance
+- **Documentation**: No explanation of why this seed
+
+**Recommendation**:
+Add documentation:
+```rust
+/// Fixed seed for deterministic hashing across compilations.
+/// 
+/// This arbitrary value was chosen to ensure:
+/// 1. Deterministic Kind trait names across builds
+/// 2. No collision with other hash uses in the crate
+/// 3. Reproducible builds
+/// 
+/// Changing this value will cause ALL Kind trait names to change,
+/// breaking backward compatibility.
+const RAPID_SECRETS: rapidhash::v3::RapidSecrets =
+    rapidhash::v3::RapidSecrets::seed(0x1234567890abcdef);
+```
+
+**Estimated Effort**: 15 minutes  
+**Priority**: LOW - Documentation
 
 ---
 
 ## Positive Aspects
 
-Despite the issues identified, the macro system has several strengths:
+The macro system has many strengths:
 
-### Strengths
+### Architectural Strengths
 
-1. **Comprehensive Public API Documentation**
-   - `lib.rs` has detailed documentation for each macro
-   - Examples provided for each macro
-   - Clear explanation of syntax and usage
+1. **Excellent Modular Design** ✅
+   - Clean separation: `hkt/`, `hm_conversion/`, `documentation/`, `analysis/`, `resolution/`, `common/`, `config/`
+   - Each module has clear, focused responsibilities
+   - Good re-export structure in `mod.rs` files
 
-2. **Good Test Coverage for Core Functionality**
-   - 20+ tests in `hm_signature.rs`
-   - Tests cover various type patterns
-   - Good examples of expected output
+2. **Comprehensive Testing** ✅
+   - Unit tests in every module
+   - Integration tests in `tests/`
+   - Property-based tests for canonicalization
+   - UI tests for error messages
 
-3. **Proper Error Messages**
-   - Helpful error messages with context
-   - Examples: lines 973-1001 in `document_module.rs`
-   - Suggests fixes to users
+3. **Performance Optimizations** ✅
+   - Config caching with `LazyLock`
+   - Deterministic hashing for fast lookups
+   - Efficient visitor patterns
 
-4. **Handles Complex Edge Cases**
-   - Split impl blocks (lines 209-230 in `document_module.rs`)
-   - Cfg attributes (lines 142-143)
-   - Circular reference detection (lines 151-156)
+### Code Quality
 
-5. **Clean Separation: Parsing vs Implementation**
-   - `parse.rs` handles syntax
-   - `*_impl` functions handle logic
-   - Good separation of concerns at module level
+4. **Well-Documented APIs** ✅
+   - Comprehensive macro documentation in [`lib.rs`](fp-macros/src/lib.rs:1)
+   - Clear examples for each macro
+   - Module-level documentation
 
-6. **Extensible Design**
-   - Config system allows user customization
-   - Visitor pattern enables extension
-   - Well-defined internal APIs
+5. **Clean Abstractions** ✅
+   - `TypeVisitor` trait for extensible traversal
+   - `Canonicalizer` for signature normalization
+   - `KindInput` and related parsing structures
 
-### Well-Implemented Components
+6. **Deterministic Behavior** ✅
+   - Hash-based Kind trait naming is consistent
+   - Canonicalization ensures signature equivalence
+   - Order-independent bound processing
 
-- **HM AST**: Clean, well-formatted Display implementation
-- **doc_utils**: Reusable documentation utilities
-- **function_utils**: Comprehensive type analysis
-- **Attribute handling**: Consistent pattern across macros
+### Implementation Quality
+
+7. **Good Error Messages** ✅
+   - Context-rich errors in many places
+   - Structured error types
+   - `ErrorCollector` pattern for aggregation
+
+8. **Handles Edge Cases** ✅
+   - FnBrand pattern detection
+   - Apply! macro parsing
+   - PhantomData handling
+   - Multiple associated types
 
 ---
 
-## Recommended Refactoring Priority
+## Recommended Actions
 
-### High Priority (Do First)
+### High Priority (Address First)
 
-1. **Cache config loading** 
+1. **Replace panic!() with syn::Error** (Issue #1)
+   - **Effort**: 3-4 hours
+   - **Impact**: User experience and correctness
+   - **Action**: Convert all panic! calls to proper error returns in transformations.rs
+
+2. **Add Const Generic Handling** (Issue #2)
+   - **Effort**: 2-3 hours
+   - **Impact**: Feature completeness
+   - **Action**: Emit warning or error for const generic parameters
+
+3. **Add Input Validation** (Issue #3)
    - **Effort**: 1-2 hours
-   - **Impact**: Major performance improvement
-   - **Risk**: Low
-   - Implementation: Use `once_cell` or `lazy_static`
+   - **Impact**: User experience
+   - **Action**: Validate non-empty associated type lists
 
-2. **Extract repeated error handling pattern**
-   - **Effort**: 2-4 hours
-   - **Impact**: Reduces code duplication by ~100 lines
-   - **Risk**: Low
-   - Implementation: Create `ErrorCollector` utility
+**Total High Priority**: 6-9 hours
 
-3. **Split large functions**
-   - **Effort**: 1-2 days
-   - **Impact**: Major maintainability improvement
-   - **Risk**: Medium (needs careful refactoring)
-   - Focus on: `generate_docs`, `extract_context`, `visit_type_mut`
+### Medium Priority (Next Phase)
 
-### Medium Priority (Do Next)
+4. **Refactor Re-export Duplication** (Issue #4)
+   - **Effort**: 3-4 hours
+   - **Impact**: Maintainability
+   - **Action**: Extract unified implementation
 
-4. **Consolidate duplicate visitor logic**
-   - **Effort**: 4-8 hours
-   - **Impact**: Reduces duplication, improves consistency
-   - **Risk**: Medium
-   - Implementation: Generic visitor infrastructure
+5. **Replace String Manipulation** (Issue #5)
+   - **Effort**: 2-3 hours
+   - **Impact**: Robustness
+   - **Action**: Use custom Display or accept quote! formatting
 
-5. **Split document_module into submodules**
-   - **Effort**: 1 day
-   - **Impact**: Better organization, easier navigation
-   - **Risk**: Low
-   - Implementation: Move to `document_module/` directory
+6. **Make Module Path Configurable** (Issue #6)
+   - **Effort**: 2 hours
+   - **Impact**: Flexibility
+   - **Action**: Add base_module parameter
 
-6. **Improve error context preservation**
-   - **Effort**: 4-6 hours
-   - **Impact**: Better user experience
-   - **Risk**: Low
-   - Implementation: Thread spans properly
+7. **Optimize File I/O** (Issue #7)
+   - **Effort**: 4-5 hours
+   - **Impact**: Performance
+   - **Action**: Add caching or move to build script
 
-7. **Refactor Config structure**
-   - **Effort**: 1 day
-   - **Impact**: Better testability, clearer ownership
-   - **Risk**: High (touches many files)
-   - Implementation: Split into UserConfig, ProjectionMap, ResolutionContext
+8. **Simplify Nested Logic** (Issue #8)
+   - **Effort**: 2-3 hours
+   - **Impact**: Readability
+   - **Action**: Extract helper functions
 
-### Low Priority (Nice to Have)
+**Total Medium Priority**: 13-17 hours
 
-8. **Replace magic strings with constants**
-   - **Effort**: 1-2 hours
-   - **Impact**: Prevents future bugs
-   - **Risk**: Low
-   - Implementation: Create constants module
+### Low Priority (Polish)
 
-9. **Remove dead code**
-   - **Effort**: 1 hour
-   - **Impact**: Code clarity
-   - **Risk**: Low
-   - Implementation: Delete or document unused code
+9. **Refactor Documentation Builder** (Issue #9)
+   - **Effort**: 2-3 hours
+   - **Impact**: Organization
 
-10. **Optimize type comparison**
-    - **Effort**: 4-8 hours
-    - **Impact**: Minor performance improvement
-    - **Risk**: Medium
-    - Implementation: Structural equality instead of string comparison
+10. **Document Magic Constants** (Issue #10)
+    - **Effort**: 15 minutes
+    - **Impact**: Documentation
 
-11. **Optimize string allocations**
-    - **Effort**: 8-16 hours
-    - **Impact**: Minor performance improvement
-    - **Risk**: High (pervasive change)
-    - Implementation: String interning or Cow usage
-
-### Testing Priorities
-
-- **High**: Add error condition tests
-- **Medium**: Add integration tests for two-pass system
-- **Low**: Add property-based tests
+**Total Low Priority**: 2-3 hours
 
 ---
 
 ## Summary
 
-### By the Numbers
+### Current State
 
-- **Critical Issues**: 3
-- **Code Quality Issues**: 4
-- **Design Issues**: 8
-- **Performance Issues**: 2
-- **Total Lines Affected**: ~1000+ lines
-- **Estimated Refactoring Effort**: 2-3 weeks
+**Score: 8.5/10** - High quality with addressable technical debt
 
-### Key Takeaways
+**Strengths:**
+- ✅ Excellent modular architecture
+- ✅ Comprehensive test coverage
+- ✅ Well-documented public APIs
+- ✅ Performance optimizations
+- ✅ Clean abstractions
+- ✅ Deterministic behavior
+- ✅ Production-ready implementation
 
-1. **Config loading is the #1 performance issue** - Easy fix, big impact
-2. **Large functions need splitting** - Major maintainability issue
-3. **Error handling pattern is repeated 5+ times** - Extract utility
-4. **Type system relies too heavily on strings** - Architectural concern
-5. **Testing gaps in error conditions** - Risk of regressions
+**Areas for Improvement:**
+- 3 high-priority issues (error handling, validation, feature completeness)
+- 5 medium-priority issues (code duplication, maintainability)
+- 2 low-priority issues (documentation, polish)
 
-### Recommendation
+**No Security Issues**: No vulnerabilities or data corruption bugs identified.
 
-Start with high-priority items that have low risk and high impact:
-1. Cache config loading (1-2 hours, major performance win)
-2. Extract error handling utility (2-4 hours, reduces duplication)
-3. Then tackle function splitting (improves maintainability)
+### Next Steps
 
-The codebase is **functional and well-tested for happy paths**, but suffers from **architectural debt** that makes it harder to maintain and extend. The core algorithms are sound; the implementation needs refactoring for better structure and performance.
+**Immediate (High Priority)**: 6-9 hours
+1. Convert panic! to syn::Error (3-4 hours)
+2. Handle const generics properly (2-3 hours)
+3. Add input validation (1-2 hours)
 
----
+**Short-term (Medium Priority)**: 13-17 hours
+4. Refactor re-export duplication (3-4 hours)
+5. Fix string manipulation (2-3 hours)
+6. Make paths configurable (2 hours)
+7. Optimize file I/O (4-5 hours)
+8. Simplify nested logic (2-3 hours)
 
-**Next Steps**: Create issues for high-priority items and begin incremental refactoring while maintaining test coverage.
+**Long-term (Polish)**: 2-3 hours
+9. Refactor doc generation (2-3 hours)
+10. Document constants (15 min)
+
+**Total Estimated Effort**: 21-29 hours
+
+### Conclusion
+
+The `fp-macros` system is **architecturally sound and production-ready**. The identified issues are primarily about improving error handling, reducing technical debt, and enhancing maintainability. None of the issues are blocking or critical.
+
+**Recommended Approach**: Address high-priority error handling issues first (6-9 hours), then tackle medium-priority code quality improvements incrementally. The system can continue to be used in production while these improvements are implemented.

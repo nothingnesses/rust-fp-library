@@ -2,37 +2,28 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
-use apply::{ApplyInput, apply_impl};
-use def_kind::def_kind_impl;
-use doc_params::doc_params_impl;
-use doc_type_params::doc_type_params_impl;
-use document_module::document_module_impl;
-use generate::generate_name;
-use hm_signature::hm_signature_impl;
-use impl_kind::{ImplKindInput, impl_kind_impl};
-use parse::KindInput;
 use proc_macro::TokenStream;
 use quote::quote;
-use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
 use syn::parse_macro_input;
 
-pub(crate) mod apply;
-pub(crate) mod canonicalize;
-pub(crate) mod def_kind;
-pub(crate) mod doc_params;
-pub(crate) mod doc_type_params;
-pub(crate) mod doc_utils;
-pub(crate) mod document_module;
-pub(crate) mod function_utils;
-pub(crate) mod generate;
-pub(crate) mod hm_ast;
-pub(crate) mod hm_signature;
-pub(crate) mod impl_kind;
-pub(crate) mod parse;
+// Modular architecture
+pub(crate) mod common;
+pub(crate) mod config;
+pub(crate) mod hkt;
+pub(crate) mod hm_conversion;
+pub(crate) mod analysis;
+pub(crate) mod resolution;
+pub(crate) mod documentation;
 pub(crate) mod re_export;
 
 #[cfg(test)]
 mod property_tests;
+
+// Imports from new structure
+use hkt::{ApplyInput, apply_impl, def_kind_impl, ImplKindInput, impl_kind_impl};
+use hm_conversion::{generate_name, KindInput};
+use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
+use documentation::{hm_signature_impl, doc_params_impl, doc_type_params_impl, document_module_impl};
 
 /// Generates the name of a `Kind` trait based on its signature.
 ///
@@ -85,7 +76,7 @@ mod property_tests;
 /// let name = Kind_...; // Unique hash based on signature
 /// ```
 ///
-/// # Limitations
+/// ### Limitations
 ///
 /// Due to Rust syntax restrictions, this macro cannot be used directly in positions where a
 /// concrete path is expected by the parser, such as:

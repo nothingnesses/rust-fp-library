@@ -6,7 +6,7 @@
 //! - **Bound Order Independence**: Order of bounds doesn't affect the result
 //! - **Lifetime Name Independence**: Lifetime names don't affect canonical representation
 
-use crate::{canonicalize::Canonicalizer, generate::generate_name, parse::KindInput};
+use crate::hm_conversion::{Canonicalizer, generate_name, KindInput};
 use quickcheck::{Arbitrary, Gen, quickcheck};
 use syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated};
 

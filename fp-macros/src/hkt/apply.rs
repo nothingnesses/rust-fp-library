@@ -3,7 +3,7 @@
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 
-use crate::{generate::generate_name, parse::KindInput};
+use crate::hm_conversion::{generate_name, KindInput};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{

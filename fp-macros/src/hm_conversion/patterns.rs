@@ -1,14 +1,19 @@
-//! Input parsing for `Kind` macros.
+//! Pattern detection and parsing for HM type conversion.
 //!
-//! This module defines the input structures and parsing logic for the `Kind!` and `def_kind!` macros.
-//! It handles parsing of associated type definitions with generics and bounds.
+//! This module handles:
+//! - `Kind!` and `def_kind!` macro input parsing
+//! - FnBrand pattern detection and extraction
+//! - Apply! macro pattern detection and extraction
 
+use crate::{hkt::ApplyInput, config::Config, common::errors::known_types};
 use quote::ToTokens;
 use syn::{
-	Attribute, Generics, Ident, Token, TypeParamBound,
+	Attribute, GenericArgument, Generics, Ident, PathArguments, Token, TypeParamBound,
 	parse::{Parse, ParseStream},
 	punctuated::Punctuated,
 };
+
+use crate::analysis::traits::{TraitCategory, classify_trait};
 
 /// Represents the parsed input for a `Kind` signature.
 ///
@@ -118,6 +123,79 @@ impl Parse for KindAssocTypeInput {
 			_semi_token: semi_token,
 		})
 	}
+}
+
+// ============================================================================
+// FnBrand and Apply! Pattern Detection
+// ============================================================================
+
+/// Helper structure to hold the result of FnBrand detection from a TypePath.
+///
+/// FnBrands (like CloneableFn, SendCloneableFn, Function) encode function types
+/// using associated type syntax. This structure contains the extracted type arguments.
+pub struct FnBrandInfo {
+	/// Type arguments extracted from the FnBrand (excluding the return type)
+	pub inputs: Vec<syn::Type>,
+	/// The return type (last type argument)
+	pub output: syn::Type,
+}
+
+/// Attempts to extract FnBrand information from a TypePath with QSelf.
+///
+/// FnBrands use the pattern `<Brand as Trait>::Apply<Input1, Input2, ..., Output>`
+/// where the last type argument is the return type and earlier arguments are inputs.
+///
+/// ### Returns
+/// `Some(FnBrandInfo)` if this is a valid FnBrand pattern, `None` otherwise.
+pub fn extract_fn_brand_info(
+	type_path: &syn::TypePath,
+	config: &Config,
+) -> Option<FnBrandInfo> {
+	if let Some(_qself) = &type_path.qself
+		&& type_path.path.segments.len() >= 2
+	{
+		let trait_name = type_path.path.segments[0].ident.to_string();
+		if let TraitCategory::FnBrand = classify_trait(&trait_name, config) {
+			let last_segment = type_path.path.segments.last()?;
+			if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
+				let mut type_args: Vec<_> = args
+					.args
+					.iter()
+					.filter_map(|arg| {
+						if let GenericArgument::Type(t) = arg { Some(t.clone()) } else { None }
+					})
+					.collect();
+
+				if !type_args.is_empty() {
+					let output = type_args.pop()?;
+					return Some(FnBrandInfo { inputs: type_args, output });
+				}
+			}
+		}
+	}
+	None
+}
+
+/// Attempts to parse an Apply! macro invocation and extract its arguments.
+///
+/// ### Returns
+/// `Some((brand, args))` if this is a valid Apply! macro, `None` otherwise.
+pub fn extract_apply_macro_info(type_macro: &syn::TypeMacro) -> Option<(syn::Type, Vec<syn::Type>)> {
+	if type_macro.mac.path.is_ident(known_types::APPLY_MACRO)
+		&& let Ok(apply_input) = syn::parse2::<ApplyInput>(type_macro.mac.tokens.clone())
+	{
+		let brand = apply_input.brand;
+		let args: Vec<_> = apply_input
+			.args
+			.args
+			.iter()
+			.filter_map(|arg| {
+				if let syn::GenericArgument::Type(t) = arg { Some(t.clone()) } else { None }
+			})
+			.collect();
+		return Some((brand, args));
+	}
+	None
 }
 
 #[cfg(test)]

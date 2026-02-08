@@ -2,7 +2,7 @@
 //!
 //! This module handles the generation of a new `Kind` trait based on a signature.
 
-use crate::{generate::generate_name, parse::KindInput};
+use crate::hm_conversion::{generate_name, KindInput};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::GenericParam;

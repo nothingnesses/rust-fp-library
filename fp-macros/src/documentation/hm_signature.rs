@@ -1,11 +1,10 @@
-use crate::{
-	doc_utils::{GenericItem, insert_doc_comment},
-	function_utils::{
-		Config, TraitCategory, analyze_generics, classify_trait, format_brand_name,
-		is_phantom_data, load_config, type_to_hm,
-	},
-	hm_ast::HMType,
+use crate::common::syntax::{GenericItem, insert_doc_comment};
+use crate::config::{Config, load_config};
+use crate::analysis::{
+	TraitCategory, analyze_generics, classify_trait, format_brand_name,
 };
+use crate::common::is_phantom_data;
+use crate::hm_conversion::{HMType, type_to_hm};
 use std::collections::{HashMap, HashSet};
 use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
@@ -96,6 +95,13 @@ impl std::fmt::Display for SignatureData {
 	}
 }
 
+/// Generates a Hindley-Milner type signature from a Rust function signature.
+///
+/// ### Parameters
+///
+/// * `sig` - The Rust function signature to convert
+/// * `_trait_context` - Optional trait name for context (reserved for future use to improve type resolution)
+/// * `config` - Configuration for type resolution and formatting
 pub fn generate_signature(
 	sig: &syn::Signature,
 	_trait_context: Option<&str>,
@@ -175,12 +181,14 @@ fn format_trait_bound(
 	type_var: &HMType,
 	config: &Config,
 ) -> Option<String> {
-	let trait_name = bound.path.segments.last().unwrap().ident.to_string();
+	// Safely get the last segment of the trait path
+	let segment = bound.path.segments.last()?;
+	let trait_name = segment.ident.to_string();
 
 	match classify_trait(&trait_name, config) {
 		TraitCategory::FnTrait | TraitCategory::FnBrand => None,
 		TraitCategory::Other(name) => {
-			if config.ignored_traits.contains(&name) {
+			if config.ignored_traits().contains(&name) {
 				None
 			} else {
 				let name = format_brand_name(&name, config);
@@ -356,8 +364,8 @@ mod tests {
 		assert_eq!(input_fn.attrs.len(), 3);
 
 		// Use helper from doc_utils, need to import it or use full path
-		// Since we are in a test module inside the crate, we can access crate::doc_utils
-		use crate::doc_utils::get_doc;
+		// Since we are in a test module inside the crate, we can access crate::common::syntax
+		use crate::common::syntax::get_doc;
 
 		assert_eq!(get_doc(&input_fn.attrs[0]), "First");
 		assert_eq!(get_doc(&input_fn.attrs[1]), "Signature");
@@ -423,7 +431,7 @@ mod tests {
 	#[test]
 	fn test_config_mapping() {
 		let mut config = Config::default();
-		config.brand_mappings.insert("CustomBrand".to_string(), "Custom".to_string());
+		config.user_config.brand_mappings.insert("CustomBrand".to_string(), "Custom".to_string());
 
 		let input: ItemFn = parse_quote! {
 			fn foo(x: CustomBrand<i32>) -> CustomBrand<u32> { todo!() }

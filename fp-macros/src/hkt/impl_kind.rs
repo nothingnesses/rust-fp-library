@@ -3,10 +3,8 @@
 //! This module handles the parsing and expansion of the `impl_kind!` macro, which is used
 //! to implement a generated `Kind` trait for a specific brand type.
 
-use crate::{
-	generate::generate_name,
-	parse::{KindAssocTypeInput, KindInput},
-};
+use crate::common::errors::known_attrs;
+use crate::hm_conversion::{generate_name, KindAssocTypeInput, KindInput};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -24,6 +22,9 @@ use syn::{
 ///     type SendOf<B> = MySendType<B>;
 /// }
 /// ```
+///
+/// Note: Marked `#[allow(dead_code)]` because fields are used via `Parse` implementation
+/// and token generation, which the compiler doesn't recognize as "usage".
 #[allow(dead_code)]
 pub struct ImplKindInput {
 	/// Generics for the impl block (e.g., `impl<T>`).
@@ -41,6 +42,9 @@ pub struct ImplKindInput {
 /// Represents a single associated type definition inside `impl_kind!`.
 ///
 /// Example: `type Of<A> = MyType<A>;`
+///
+/// Note: Marked `#[allow(dead_code)]` because fields are used via `Parse` implementation
+/// and token generation, which the compiler doesn't recognize as "usage".
 #[allow(dead_code)]
 pub struct KindAssocTypeImpl {
 	/// Attributes on the associated type (e.g., `#[doc_default]`).
@@ -175,7 +179,8 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		let where_clause = &def.where_clause;
 		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
 		let attrs = def.attrs.iter().filter(|attr| {
-			!attr.path().is_ident("doc_default") && !attr.path().is_ident("doc_use")
+			!attr.path().is_ident(known_attrs::DOC_DEFAULT)
+				&& !attr.path().is_ident(known_attrs::DOC_USE)
 		});
 
 		quote! {

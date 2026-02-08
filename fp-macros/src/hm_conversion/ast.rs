@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum HMType {
 	Variable(String),
 	Constructor(String, Vec<HMType>),
@@ -9,6 +9,7 @@ pub enum HMType {
 	List(Box<HMType>), // For [T]
 	Reference(Box<HMType>),
 	MutableReference(Box<HMType>),
+	#[default]
 	Unit,
 	TraitObject(Box<HMType>),
 }

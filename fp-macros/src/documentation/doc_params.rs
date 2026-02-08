@@ -1,4 +1,5 @@
-use crate::function_utils::{LogicalParam, get_logical_params, load_config};
+use crate::common::{LogicalParam, get_logical_params};
+use crate::config::load_config;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::Error;
@@ -7,7 +8,7 @@ pub fn doc_params_impl(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> TokenStream {
-	crate::doc_utils::generate_doc_comments(attr, item_tokens, |generic_item| {
+	crate::common::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
 		let config = load_config();
 
 		let sig = match generic_item.sig() {
@@ -38,7 +39,7 @@ pub fn doc_params_impl(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::doc_utils::get_doc;
+	use crate::common::syntax::get_doc;
 	use quote::quote;
 	use syn::ItemFn;
 
