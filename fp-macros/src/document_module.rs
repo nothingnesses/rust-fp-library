@@ -388,11 +388,10 @@ fn generate_docs(
 						// Merge generics
 						merge_generics(&mut synthetic_sig, &item_impl.generics);
 
-						// Add trait bound: SelfTy: Trait (only if it's a trait impl)
-						if let Some(trait_path) = trait_path {
-							let where_clause = synthetic_sig.generics.make_where_clause();
-							where_clause.predicates.push(parse_quote!(#self_ty: #trait_path));
-						}
+						// Note: We don't add `SelfTy: Trait` bounds here because:
+						// 1. We're inside the implementation that *defines* this trait for the type
+						// 2. The HM signature should reflect actual function requirements
+						// 3. The implementation doesn't recursively require the trait it's implementing
 
 						// Create a modified config with concrete type information
 						let mut sig_config = config.clone();
