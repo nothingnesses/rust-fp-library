@@ -1,13 +1,15 @@
+use crate::{
+	analysis::traits::{TraitCategory, classify_trait},
+	conversion::patterns::extract_fn_brand_info,
+	core::{config::Config, constants::known_types},
+	support::type_visitor::TypeVisitor,
+};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-	Attribute, Error, Expr, ExprTuple, ImplItemFn, ItemFn, LitStr, PathArguments, ReturnType, Signature, Token, TraitItemFn, TraitBound, Type, TypeParamBound,
-	parse_quote, spanned::Spanned,
+	Attribute, Error, Expr, ExprTuple, ImplItemFn, ItemFn, LitStr, PathArguments, ReturnType,
+	Signature, Token, TraitBound, TraitItemFn, Type, TypeParamBound, parse_quote, spanned::Spanned,
 };
-
-use crate::{config::Config, common::errors::known_types};
-use crate::analysis::traits::{TraitCategory, classify_trait};
-use crate::hm_conversion::patterns::extract_fn_brand_info;
 
 pub enum GenericItem {
 	Fn(ItemFn),
@@ -328,20 +330,13 @@ struct CurriedParamExtractor<'a> {
 	config: &'a Config,
 }
 
-impl<'a> CurriedParamExtractor<'a> {
-	fn visit(&mut self, ty: &Type) {
-		match ty {
-			Type::Path(p) => self.visit_path(p),
-			Type::Macro(m) => self.visit_macro(m),
-			Type::Reference(_) => {}, // Do nothing for references
-			Type::ImplTrait(i) => self.visit_impl_trait(i),
-			Type::TraitObject(t) => self.visit_trait_object(t),
-			Type::BareFn(f) => self.visit_bare_fn(f),
-			_ => {}, // Other types don't contribute parameters
-		}
-	}
+impl<'a> TypeVisitor for CurriedParamExtractor<'a> {
+	type Output = ();
 
-	fn visit_path(&mut self, type_path: &syn::TypePath) {
+	fn visit_path(
+		&mut self,
+		type_path: &syn::TypePath,
+	) {
 		// Check for FnBrand pattern using shared helper
 		if let Some(fn_brand_info) = extract_fn_brand_info(type_path, self.config) {
 			// Add all input types as implicit parameters
@@ -353,14 +348,20 @@ impl<'a> CurriedParamExtractor<'a> {
 		}
 	}
 
-	fn visit_macro(&mut self, type_macro: &syn::TypeMacro) {
+	fn visit_macro(
+		&mut self,
+		type_macro: &syn::TypeMacro,
+	) {
 		// Apply! macro support is handled by extracting its info, but we don't
 		// currently extract curried parameters from Apply! projections.
 		// This could be enhanced in the future if needed.
-		let _ = crate::hm_conversion::patterns::extract_apply_macro_info(type_macro);
+		let _ = crate::conversion::patterns::extract_apply_macro_info(type_macro);
 	}
 
-	fn visit_impl_trait(&mut self, impl_trait: &syn::TypeImplTrait) {
+	fn visit_impl_trait(
+		&mut self,
+		impl_trait: &syn::TypeImplTrait,
+	) {
 		for bound in &impl_trait.bounds {
 			if let TypeParamBound::Trait(trait_bound) = bound {
 				self.visit_trait_bound_helper(trait_bound);
@@ -368,7 +369,10 @@ impl<'a> CurriedParamExtractor<'a> {
 		}
 	}
 
-	fn visit_trait_object(&mut self, trait_obj: &syn::TypeTraitObject) {
+	fn visit_trait_object(
+		&mut self,
+		trait_obj: &syn::TypeTraitObject,
+	) {
 		for bound in &trait_obj.bounds {
 			if let TypeParamBound::Trait(trait_bound) = bound {
 				self.visit_trait_bound_helper(trait_bound);
@@ -376,7 +380,10 @@ impl<'a> CurriedParamExtractor<'a> {
 		}
 	}
 
-	fn visit_bare_fn(&mut self, bare_fn: &syn::TypeBareFn) {
+	fn visit_bare_fn(
+		&mut self,
+		bare_fn: &syn::TypeBareFn,
+	) {
 		for input in &bare_fn.inputs {
 			self.params.push(LogicalParam::Implicit(input.ty.clone()));
 		}
@@ -384,8 +391,13 @@ impl<'a> CurriedParamExtractor<'a> {
 			self.visit(ty);
 		}
 	}
+}
 
-	fn visit_trait_bound_helper(&mut self, trait_bound: &TraitBound) {
+impl<'a> CurriedParamExtractor<'a> {
+	fn visit_trait_bound_helper(
+		&mut self,
+		trait_bound: &TraitBound,
+	) {
 		let Some(segment) = last_path_segment(&trait_bound.path) else {
 			return; // Skip malformed trait bounds
 		};

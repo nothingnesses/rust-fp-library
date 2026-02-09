@@ -6,7 +6,7 @@
 //! - **Bound Order Independence**: Order of bounds doesn't affect the result
 //! - **Lifetime Name Independence**: Lifetime names don't affect canonical representation
 
-use crate::hm_conversion::{Canonicalizer, generate_name, KindInput};
+use crate::hkt::{AssociatedTypes, Canonicalizer, generate_name};
 use quickcheck::{Arbitrary, Gen, quickcheck};
 use syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated};
 
@@ -167,8 +167,8 @@ fn prop_hash_determinism_simple() {
 		let input_str = format!("type Of<{}>;", params_str);
 
 		// Parse twice and compare
-		let result1: Result<KindInput, _> = syn::parse_str(&input_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match (result1, result2) {
 			(Ok(input1), Ok(input2)) => {
@@ -191,12 +191,12 @@ fn prop_hash_determinism_repeated() {
 		let input_str = "type Of<'a, A: 'a>;";
 
 		let first_name = {
-			let input: KindInput = syn::parse_str(input_str).unwrap();
+			let input: AssociatedTypes = syn::parse_str(input_str).unwrap();
 			generate_name(&input).unwrap().to_string()
 		};
 
 		for _ in 0..iterations {
-			let input: KindInput = syn::parse_str(input_str).unwrap();
+			let input: AssociatedTypes = syn::parse_str(input_str).unwrap();
 			let name = generate_name(&input).unwrap().to_string();
 			if name != first_name {
 				return false;
@@ -379,7 +379,7 @@ fn prop_generated_name_format() {
 		};
 
 		let input_str = format!("type Of<{}>;", bounds_str);
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
@@ -413,7 +413,7 @@ fn prop_generated_name_valid_identifier() {
 		}
 
 		let input_str = format!("type Of<{}>;", params.join(", "));
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
@@ -438,8 +438,8 @@ fn prop_generated_name_valid_identifier() {
 #[test]
 fn prop_adding_bound_changes_name() {
 	fn property(bound: ArbTraitBound) -> bool {
-		let input_without: KindInput = syn::parse_str("type Of<A>;").unwrap();
-		let input_with: Result<KindInput, _> =
+		let input_without: AssociatedTypes = syn::parse_str("type Of<A>;").unwrap();
+		let input_with: Result<AssociatedTypes, _> =
 			syn::parse_str(&format!("type Of<A: {}>;", bound.name));
 
 		match input_with {
@@ -459,8 +459,8 @@ fn prop_adding_bound_changes_name() {
 #[test]
 fn prop_adding_lifetime_changes_name() {
 	fn property(lt: ArbLifetime) -> bool {
-		let input_without: KindInput = syn::parse_str("type Of<A>;").unwrap();
-		let input_with: Result<KindInput, _> =
+		let input_without: AssociatedTypes = syn::parse_str("type Of<A>;").unwrap();
+		let input_with: Result<AssociatedTypes, _> =
 			syn::parse_str(&format!("type Of<'{}, A: '{}>;", lt.name, lt.name));
 
 		match input_with {
@@ -553,8 +553,8 @@ fn prop_output_bounds_order_independence() {
 		let input1_str = format!("type Of<A>: {} + {};", b1.name, b2.name);
 		let input2_str = format!("type Of<A>: {} + {};", b2.name, b1.name);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input1_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input2_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input1_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input2_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
@@ -654,7 +654,7 @@ fn prop_path_preservation() {
 #[test]
 fn prop_empty_inputs_valid() {
 	fn property() -> bool {
-		let input: KindInput = syn::parse_str("type Of;").unwrap();
+		let input: AssociatedTypes = syn::parse_str("type Of;").unwrap();
 		let name = generate_name(&input).unwrap().to_string();
 
 		// Should still be a valid name with Kind_ prefix
@@ -669,7 +669,7 @@ fn prop_empty_inputs_valid() {
 fn prop_single_lifetime_valid() {
 	fn property(lt: ArbLifetime) -> bool {
 		let input_str = format!("type Of<'{} >;", lt.name);
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
@@ -701,8 +701,8 @@ fn prop_type_param_bounds_consistent() {
 		let bounds_str = bounds.bounds.join(" + ");
 		let input_str = format!("type Of<{}: {}>;", type_name.name, bounds_str);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
@@ -737,8 +737,8 @@ fn prop_hash_collision_resistance() {
 		let input1_str = format!("type Of<A: {}>;", b1.name);
 		let input2_str = format!("type Of<A: {}>;", b2.name);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input1_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input2_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input1_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input2_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {

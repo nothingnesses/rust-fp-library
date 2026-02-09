@@ -2,30 +2,31 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::parse_macro_input;
-
-// Modular architecture
-pub(crate) mod error;
-pub(crate) mod common;
-pub(crate) mod config;
-pub(crate) mod core;
-pub(crate) mod hkt;
-pub(crate) mod hm_conversion;
-pub(crate) mod analysis;
-pub(crate) mod resolution;
-pub(crate) mod documentation;
-pub(crate) mod re_export;
+// Modular architecture - Clean-room redesign completed
+pub(crate) mod analysis; // Type and trait analysis
+pub(crate) mod codegen; // Code generation (includes re-exports)
+pub(crate) mod conversion; // Hindley-Milner type conversion (renamed from hm_conversion)
+pub(crate) mod core; // Core infrastructure (config, error, result) - CONSOLIDATED
+pub(crate) mod documentation; // Documentation generation macros
+pub(crate) mod hkt; // Higher-Kinded Type macros
+pub(crate) mod resolution; // Type resolution
+pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 
 #[cfg(test)]
 mod property_tests;
 
-// Imports from new structure
-use hkt::{ApplyInput, apply_impl, def_kind_impl, ImplKindInput, impl_kind_impl};
-use hm_conversion::{generate_name, KindInput};
-use re_export::{ReexportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
-use documentation::{hm_signature_impl, doc_params_impl, doc_type_params_impl, document_module_impl};
+use crate::core::ToCompileError;
+use codegen::{ReExportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
+use documentation::{
+	doc_params_impl, doc_type_params_impl, document_module_impl, hm_signature_impl,
+};
+use hkt::{
+	ApplyInput, AssociatedTypes, ImplKindInput, apply_impl, def_kind_impl, generate_name,
+	impl_kind_impl,
+};
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::parse_macro_input;
 
 /// Generates the name of a `Kind` trait based on its signature.
 ///
@@ -90,7 +91,7 @@ use documentation::{hm_signature_impl, doc_params_impl, doc_type_params_impl, do
 #[proc_macro]
 #[allow(non_snake_case)]
 pub fn Kind(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as KindInput);
+	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_name(&input) {
 		Ok(name) => name,
 		Err(e) => return syn::Error::from(e).to_compile_error().into(),
@@ -156,8 +157,11 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 pub fn def_kind(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as KindInput);
-	def_kind_impl(input).into()
+	let input = parse_macro_input!(input as AssociatedTypes);
+	match def_kind_impl(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Implements a `Kind` trait for a brand.
@@ -267,7 +271,10 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ImplKindInput);
-	impl_kind_impl(input).into()
+	match impl_kind_impl(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Applies a brand to type arguments.
@@ -334,7 +341,10 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 #[allow(non_snake_case)]
 pub fn Apply(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ApplyInput);
-	apply_impl(input).into()
+	match apply_impl(input) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Generates re-exports for all public free functions in a directory.
@@ -376,7 +386,7 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as ReexportInput);
+	let input = parse_macro_input!(input as ReExportInput);
 	generate_function_re_exports_impl(input).into()
 }
 
@@ -416,7 +426,7 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
-	let input = parse_macro_input!(input as ReexportInput);
+	let input = parse_macro_input!(input as ReExportInput);
 	generate_trait_re_exports_impl(input).into()
 }
 
@@ -498,7 +508,10 @@ pub fn hm_signature(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	hm_signature_impl(attr.into(), item.into()).into()
+	match hm_signature_impl(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Generates documentation for a function's type parameters.

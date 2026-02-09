@@ -1,4 +1,4 @@
-//! Error handling infrastructure for the macro system.
+//! Constants used throughout the crate.
 
 /// Known type names used throughout the macro system
 pub mod known_types {
@@ -27,4 +27,36 @@ pub mod known_attrs {
 	/// Attribute for function parameter documentation
 	#[allow(dead_code)] // Part of public API, not all constants used yet
 	pub const DOC_PARAMS: &str = "doc_params";
+}
+
+/// Default traits to ignore in trait objects and bounds
+pub mod default_traits {
+	/// Default list of traits to ignore in trait objects and bounds.
+	/// These are common marker traits that don't affect the functional signature.
+	pub const DEFAULT_IGNORED_TRAITS: &[&str] = &[
+		"Clone",
+		"Copy",
+		"Debug",
+		"Display",
+		"PartialEq",
+		"Eq",
+		"PartialOrd",
+		"Ord",
+		"Hash",
+		"Default",
+		"Send",
+		"Sync",
+		"Sized",
+		"Unpin",
+	];
+}
+
+/// Configuration file and environment variable names
+pub mod config_names {
+	/// Environment variable for Cargo manifest directory
+	pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
+	/// Cargo manifest filename
+	pub const CARGO_TOML: &str = "Cargo.toml";
+	/// Configuration section name in Cargo.toml metadata
+	pub const CONFIG_SECTION: &str = "hm_signature";
 }

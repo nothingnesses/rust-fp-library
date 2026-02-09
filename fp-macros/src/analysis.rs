@@ -3,9 +3,7 @@
 //! This module provides utilities for analyzing:
 //! - Generic parameters (lifetimes, types, consts)
 //! - Trait bounds and classifications
-//! - Function trait bounds
 
-pub mod bounds;
 pub mod generics;
 pub mod traits;
 

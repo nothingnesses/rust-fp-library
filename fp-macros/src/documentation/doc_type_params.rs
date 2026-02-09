@@ -5,7 +5,7 @@ pub fn doc_type_params_impl(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> TokenStream {
-	crate::common::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
+	crate::support::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
 		let generics = generic_item.generics();
 		Ok(generics
 			.params
@@ -22,7 +22,7 @@ pub fn doc_type_params_impl(
 #[cfg(test)]
 mod doc_type_params_tests {
 	use super::*;
-	use crate::common::syntax::get_doc;
+	use crate::support::syntax::get_doc;
 	use quote::quote;
 	use syn::ItemFn;
 

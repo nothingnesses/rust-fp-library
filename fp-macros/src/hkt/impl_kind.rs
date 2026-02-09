@@ -3,8 +3,11 @@
 //! This module handles the parsing and expansion of the `impl_kind!` macro, which is used
 //! to implement a generated `Kind` trait for a specific brand type.
 
-use crate::core::attributes::DocAttributeFilter;
-use crate::hm_conversion::{generate_name, KindAssocTypeInput, KindInput};
+use super::{AssociatedType, AssociatedTypes, generate_name};
+use crate::{
+	core::Result,
+	support::attributes::DocAttributeFilter,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -150,18 +153,18 @@ impl Parse for KindAssocTypeImpl {
 ///
 /// This function takes the parsed input, determines the correct `Kind` trait based on
 /// the signature of the associated types, and generates the `impl` block.
-pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
+pub fn impl_kind_impl(input: ImplKindInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let impl_generics = &input.impl_generics;
 
 	// Convert to KindInput for name generation
-	let assoc_types_input: Vec<KindAssocTypeInput> = input
+	let assoc_types_input: Vec<AssociatedType> = input
 		.definitions
 		.iter()
-		.map(|def| KindAssocTypeInput {
-			attrs: def.attrs.clone(),
+		.map(|def| AssociatedType {
+			attributes: def.attrs.clone(),
 			_type_token: def.type_token,
-			ident: def.ident.clone(),
+			name: def.ident.clone(),
 			generics: def.generics.clone(),
 			_colon_token: def.colon_token,
 			output_bounds: def.bounds.clone(),
@@ -169,11 +172,8 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		})
 		.collect();
 
-	let kind_input = KindInput { assoc_types: assoc_types_input };
-	let kind_trait_name = match generate_name(&kind_input) {
-		Ok(name) => name,
-		Err(e) => return syn::Error::from(e).to_compile_error(),
-	};
+	let kind_input = AssociatedTypes { associated_types: assoc_types_input };
+	let kind_trait_name = generate_name(&kind_input)?;
 
 	let assoc_types_impl = input.definitions.iter().map(|def| {
 		let ident = &def.ident;
@@ -195,12 +195,12 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 
 	let (impl_generics_impl, _, impl_generics_where) = impl_generics.split_for_impl();
 
-	quote! {
+	Ok(quote! {
 		#[doc = #doc_comment]
 		impl #impl_generics_impl #kind_trait_name for #brand #impl_generics_where {
 			#(#assoc_types_impl)*
 		}
-	}
+	})
 }
 
 #[cfg(test)]
@@ -238,7 +238,7 @@ mod tests {
 		let input = "for OptionBrand { type Of<'a, A: 'a>: 'a = Option<A>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl Kind_"));
@@ -255,7 +255,7 @@ mod tests {
 		let input = "impl<E> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E > Kind_"));
@@ -267,7 +267,7 @@ mod tests {
 		let input = "impl<E: Clone, F: Send> for MyBrand<E, F> { type Of<A> = MyType<A, E, F>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E : Clone , F : Send > Kind_"));
@@ -279,7 +279,7 @@ mod tests {
 		let input = "impl<E: std::fmt::Debug> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E : std :: fmt :: Debug > Kind_"));
@@ -296,7 +296,7 @@ mod tests {
 			"impl<E> for ResultBrand<E> where E: std::fmt::Debug { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E > Kind_"));
@@ -309,7 +309,7 @@ mod tests {
 		let input = "impl<E, F> for MyBrand<E, F> where E: Clone, F: Send { type Of<A> = MyType<A, E, F>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed);
+		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E , F >"));

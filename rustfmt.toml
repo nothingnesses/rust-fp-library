@@ -12,6 +12,7 @@ imports_granularity = "One"
 match_arm_blocks = false
 reorder_impl_items = true
 reorder_imports = true
+reorder_modules = true
 spaces_around_ranges = true
 struct_lit_single_line = false
 use_field_init_shorthand = true

@@ -1,19 +1,20 @@
 //! HM type transformation visitor.
 //!
-//! This module contains the HMTypeBuilder, which implements the TypeVisitor trait
+//! This module contains the HMASTBuilder, which implements the TypeVisitor trait
 //! to transform Rust types into Hindley-Milner representations.
 
 use crate::{
 	analysis::traits::format_brand_name,
-	common::last_path_segment,
-	config::Config,
-	common::errors::known_types,
-	hm_conversion::{
-		HMType, converter::{
-			TypeVisitor, extract_smart_pointer_inner, is_phantom_data_path, is_smart_pointer, trait_bound_to_hm_type,
+	conversion::{
+		HMAST,
+		converter::{
+			extract_smart_pointer_inner, is_phantom_data_path, is_smart_pointer,
+			trait_bound_to_hm_type,
 		},
 		extract_apply_macro_info, extract_fn_brand_info,
 	},
+	core::{config::Config, constants::known_types},
+	support::{TypeVisitor, last_path_segment},
 };
 use std::collections::{HashMap, HashSet};
 use syn::{GenericArgument, PathArguments, ReturnType, TypeParamBound};
@@ -21,15 +22,15 @@ use syn::{GenericArgument, PathArguments, ReturnType, TypeParamBound};
 /// Visitor that builds HM type representations from Rust types.
 ///
 /// This is the main type transformation engine. It implements TypeVisitor
-/// to traverse Rust type syntax trees and produce HMType representations.
-pub struct HMTypeBuilder<'a> {
-	pub fn_bounds: &'a HashMap<String, HMType>,
+/// to traverse Rust type syntax trees and produce HMAST representations.
+pub struct HMASTBuilder<'a> {
+	pub fn_bounds: &'a HashMap<String, HMAST>,
 	pub generic_names: &'a HashSet<String>,
 	pub config: &'a Config,
 }
 
-impl<'a> TypeVisitor for HMTypeBuilder<'a> {
-	type Output = HMType;
+impl<'a> TypeVisitor for HMASTBuilder<'a> {
+	type Output = HMAST;
 
 	fn visit_path(
 		&mut self,
@@ -42,20 +43,20 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 			let output_hm = self.visit(&fn_brand_info.output);
 
 			let input = if input_hm_types.is_empty() {
-				HMType::Unit
+				HMAST::Unit
 			} else if input_hm_types.len() == 1 {
 				input_hm_types[0].clone()
 			} else {
-				HMType::Tuple(input_hm_types)
+				HMAST::Tuple(input_hm_types)
 			};
-			return HMType::Arrow(Box::new(input), Box::new(output_hm));
+			return HMAST::Arrow(Box::new(input), Box::new(output_hm));
 		}
 
 		if let Some(type_path_inner) = &type_path.qself {
 			let constructor_type = self.visit(&type_path_inner.ty);
 			let Some(last_segment) = last_path_segment(&type_path.path) else {
 				// Defensive fallback for malformed qualified paths
-				return HMType::Variable("unknown".to_string());
+				return HMAST::Variable("unknown".to_string());
 			};
 
 			let mut args_list = Vec::new();
@@ -70,35 +71,35 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 
 			// Merge constructor and args
 			match constructor_type {
-				HMType::Variable(name) => {
+				HMAST::Variable(name) => {
 					if args_list.is_empty() {
-						HMType::Variable(name)
+						HMAST::Variable(name)
 					} else {
-						HMType::Constructor(name, args_list)
+						HMAST::Constructor(name, args_list)
 					}
 				}
-				HMType::Constructor(name, mut prev_args) => {
+				HMAST::Constructor(name, mut prev_args) => {
 					prev_args.extend(args_list);
-					HMType::Constructor(name, prev_args)
+					HMAST::Constructor(name, prev_args)
 				}
 				_ => {
 					// Fallback: treat the constructor as a string variable if possible, or just fail/print
 					// For now, convert to string
 					let name = format!("{}", constructor_type);
-					HMType::Constructor(name, args_list)
+					HMAST::Constructor(name, args_list)
 				}
 			}
 		} else {
 			// No QSelf
 			if is_phantom_data_path(type_path) {
-				return HMType::Unit;
+				return HMAST::Unit;
 			}
 
 			if type_path.path.segments.len() >= 2 {
 				let first = &type_path.path.segments[0];
 				let Some(last) = last_path_segment(&type_path.path) else {
 					// Should be unreachable given the len() >= 2 check, but handle defensively
-					return HMType::Variable("unknown".to_string());
+					return HMAST::Variable("unknown".to_string());
 				};
 
 				let mut constructor_name = first.ident.to_string();
@@ -125,16 +126,16 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 						}
 					}
 					if !type_args.is_empty() {
-						return HMType::Constructor(constructor_name, type_args);
+						return HMAST::Constructor(constructor_name, type_args);
 					}
 				}
-				return HMType::Variable(constructor_name);
+				return HMAST::Variable(constructor_name);
 			}
 
 			// Simple path or Single segment
 			let Some(segment) = last_path_segment(&type_path.path) else {
 				// Defensive fallback for empty paths (shouldn't happen with valid Rust)
-				return HMType::Variable("unknown".to_string());
+				return HMAST::Variable("unknown".to_string());
 			};
 			let name = segment.ident.to_string();
 
@@ -145,11 +146,11 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 			}
 
 			if let Some(sig) = self.fn_bounds.get(&name) {
-				if let HMType::Variable(v) = sig
+				if let HMAST::Variable(v) = sig
 					&& v == known_types::FN_BRAND_MARKER
 				{
 					// Keep type parameters in original case
-					return HMType::Variable(name);
+					return HMAST::Variable(name);
 				}
 				return sig.clone();
 			}
@@ -166,23 +167,23 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 							}
 						}
 						if type_args.is_empty() {
-							return HMType::Variable(name);
+							return HMAST::Variable(name);
 						} else {
-							return HMType::Constructor(name, type_args);
+							return HMAST::Constructor(name, type_args);
 						}
 					}
-					_ => return HMType::Variable(name),
+					_ => return HMAST::Variable(name),
 				}
 			}
 
 			// Keep type parameters in original case (uppercase)
 			if self.generic_names.contains(&name) {
-				return HMType::Variable(name);
+				return HMAST::Variable(name);
 			}
 
 			// Handle Self with self_type_name if available
 			if name == known_types::SELF {
-				return HMType::Variable(
+				return HMAST::Variable(
 					self.config
 						.self_type_name
 						.clone()
@@ -201,12 +202,12 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 						}
 					}
 					if type_args.is_empty() {
-						HMType::Variable(brand_name)
+						HMAST::Variable(brand_name)
 					} else {
-						HMType::Constructor(brand_name, type_args)
+						HMAST::Constructor(brand_name, type_args)
 					}
 				}
-				_ => HMType::Variable(brand_name),
+				_ => HMAST::Variable(brand_name),
 			}
 		}
 	}
@@ -221,24 +222,24 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 			let type_args: Vec<_> = args.iter().map(|ty| self.visit(ty)).collect();
 
 			match constructor_type {
-				HMType::Variable(name) => {
+				HMAST::Variable(name) => {
 					if type_args.is_empty() {
-						HMType::Variable(name)
+						HMAST::Variable(name)
 					} else {
-						HMType::Constructor(name, type_args)
+						HMAST::Constructor(name, type_args)
 					}
 				}
-				HMType::Constructor(name, mut prev_args) => {
+				HMAST::Constructor(name, mut prev_args) => {
 					prev_args.extend(type_args);
-					HMType::Constructor(name, prev_args)
+					HMAST::Constructor(name, prev_args)
 				}
 				_ => {
 					let name = format!("{}", constructor_type);
-					HMType::Constructor(name, type_args)
+					HMAST::Constructor(name, type_args)
 				}
 			}
 		} else {
-			HMType::Variable("macro".to_string())
+			HMAST::Variable("macro".to_string())
 		}
 	}
 
@@ -248,9 +249,9 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 	) -> Self::Output {
 		let inner = self.visit(&type_ref.elem);
 		if type_ref.mutability.is_some() {
-			HMType::MutableReference(Box::new(inner))
+			HMAST::MutableReference(Box::new(inner))
 		} else {
-			HMType::Reference(Box::new(inner))
+			HMAST::Reference(Box::new(inner))
 		}
 	}
 
@@ -278,10 +279,10 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		}
 
 		if bounds.is_empty() {
-			HMType::TraitObject(Box::new(HMType::Variable("_".to_string())))
+			HMAST::TraitObject(Box::new(HMAST::Variable("_".to_string())))
 		} else {
-			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HMType::Tuple(bounds) };
-			HMType::TraitObject(Box::new(inner))
+			let inner = if bounds.len() == 1 { bounds[0].clone() } else { HMAST::Tuple(bounds) };
+			HMAST::TraitObject(Box::new(inner))
 		}
 	}
 
@@ -299,7 +300,7 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 				);
 			}
 		}
-		HMType::Variable("impl_trait".to_string())
+		HMAST::Variable("impl_trait".to_string())
 	}
 
 	fn visit_bare_fn(
@@ -307,27 +308,31 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		bare_fn: &syn::TypeBareFn,
 	) -> Self::Output {
 		// Erase unsafe and lifetimes from bare fns
-		let inputs: Vec<HMType> = bare_fn.inputs.iter().map(|arg| self.visit(&arg.ty)).collect();
+		let inputs: Vec<HMAST> = bare_fn.inputs.iter().map(|arg| self.visit(&arg.ty)).collect();
 		let output = match &bare_fn.output {
-			ReturnType::Default => HMType::Unit,
+			ReturnType::Default => HMAST::Unit,
 			ReturnType::Type(_, ty) => self.visit(ty),
 		};
-		let input_ty = if inputs.len() == 1 { inputs[0].clone() } else { HMType::Tuple(inputs) };
-		HMType::Arrow(Box::new(input_ty), Box::new(output))
+		let input_ty = if inputs.len() == 1 { inputs[0].clone() } else { HMAST::Tuple(inputs) };
+		HMAST::Arrow(Box::new(input_ty), Box::new(output))
 	}
 
 	fn visit_tuple(
 		&mut self,
 		tuple: &syn::TypeTuple,
 	) -> Self::Output {
-		let types: Vec<HMType> =
-			tuple.elems.iter().filter(|t| !crate::common::is_phantom_data(t)).map(|t| self.visit(t)).collect();
+		let types: Vec<HMAST> = tuple
+			.elems
+			.iter()
+			.filter(|t| !crate::support::is_phantom_data(t))
+			.map(|t| self.visit(t))
+			.collect();
 		if types.is_empty() {
-			HMType::Unit
+			HMAST::Unit
 		} else if types.len() == 1 {
 			types[0].clone()
 		} else {
-			HMType::Tuple(types)
+			HMAST::Tuple(types)
 		}
 	}
 
@@ -336,7 +341,7 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		array: &syn::TypeArray,
 	) -> Self::Output {
 		let inner = self.visit(&array.elem);
-		HMType::List(Box::new(inner))
+		HMAST::List(Box::new(inner))
 	}
 
 	fn visit_slice(
@@ -344,13 +349,13 @@ impl<'a> TypeVisitor for HMTypeBuilder<'a> {
 		slice: &syn::TypeSlice,
 	) -> Self::Output {
 		let inner = self.visit(&slice.elem);
-		HMType::List(Box::new(inner))
+		HMAST::List(Box::new(inner))
 	}
 
 	fn visit_other(
 		&mut self,
 		_ty: &syn::Type,
 	) -> Self::Output {
-		HMType::Variable("_".to_string())
+		HMAST::Variable("_".to_string())
 	}
 }

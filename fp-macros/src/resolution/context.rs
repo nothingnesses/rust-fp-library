@@ -1,13 +1,12 @@
-use crate::common::attributes::has_attr;
-use crate::common::errors::known_attrs;
-use crate::config::Config;
-use crate::hkt::ImplKindInput;
-use crate::resolution::ProjectionKey;
+use super::resolver::{normalize_type, type_uses_self_assoc};
+use crate::{
+	core::{config::Config, constants::known_attrs,error_handling::ErrorCollector},
+	hkt::ImplKindInput,
+	resolution::ProjectionKey,
+	support::attributes::has_attr,
+};
 use quote::ToTokens;
 use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
-
-use super::errors::ErrorCollector;
-use super::resolver::{normalize_type, type_uses_self_assoc};
 
 /// Extract context from items (projections, defaults, etc.)
 pub fn extract_context(
@@ -105,10 +104,9 @@ pub fn extract_context(
 						} else {
 							ProjectionKey::new(&self_ty_path, &assoc_name)
 						};
-						config.projections.insert(
-							key,
-							(assoc_type.generics.clone(), assoc_type.ty.clone()),
-						);
+						config
+							.projections
+							.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
 
 						// Track doc_default across split impl blocks
 						if has_attr(&assoc_type.attrs, known_attrs::DOC_DEFAULT)

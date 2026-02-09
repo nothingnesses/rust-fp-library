@@ -1,59 +1,59 @@
-use crate::common::syntax::{GenericItem, insert_doc_comment};
-use crate::config::{Config, load_config};
-use crate::analysis::{
-	TraitCategory, analyze_generics, classify_trait, format_brand_name,
+use crate::{
+	analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
+	conversion::{HMAST, type_to_hm},
+	core::{
+		config::{Config, get_config},
+		{Error, Result},
+	},
+	support::attributes::AttributeParser,
+	support::{
+		is_phantom_data,
+		syntax::{GenericItem, insert_doc_comment},
+	},
 };
-use crate::common::is_phantom_data;
-use crate::hm_conversion::{HMType, type_to_hm};
+use proc_macro2::TokenStream;
 use std::collections::{HashMap, HashSet};
 use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
 pub fn hm_signature_impl(
-	attr: proc_macro2::TokenStream,
-	item_tokens: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
-	// If we are inside document_module, this attribute might be processed twice.
-	// But hm_signature_impl is a standalone macro.
-	let mut item = match GenericItem::parse(item_tokens) {
-		Ok(i) => i,
-		Err(e) => return e.to_compile_error(),
-	};
+	attr: TokenStream,
+	item_tokens: TokenStream,
+) -> Result<TokenStream> {
+	// Validate that no attributes are provided
+	let parser = AttributeParser::new(&[]);
+	parser.validate_empty(attr)?;
 
-	let sig = match item.sig() {
-		Some(s) => s,
-		None => {
-			return syn::Error::new(
-				proc_macro2::Span::call_site(),
-				"hm_signature can only be used on functions or methods",
-			)
-			.to_compile_error();
-		}
-	};
+	// Parse the item
+	let mut item = GenericItem::parse(item_tokens).map_err(|e| Error::Parse(e))?;
 
-	if !attr.is_empty() {
-		return syn::Error::new(
+	// Get the function signature
+	let sig = item.sig().ok_or_else(|| {
+		Error::validation(
 			proc_macro2::Span::call_site(),
-			"hm_signature does not accept arguments",
+			"hm_signature can only be used on functions or methods",
 		)
-		.to_compile_error();
-	}
+	})?;
 
-	let config = load_config();
-	let signature = generate_signature(sig, &config);
+	// Get configuration
+	let cfg = get_config();
+
+	// Generate the Hindley-Milner signature
+	let signature = generate_signature(sig, &cfg);
 	let doc_comment = format!("`{}`", signature);
 
+	// Insert the documentation comment
 	insert_doc_comment(item.attrs(), doc_comment, proc_macro2::Span::call_site());
 
-	quote::quote! {
+	Ok(quote::quote! {
 		#item
-	}
+	})
 }
 
 pub struct SignatureData {
 	pub forall: Vec<String>,
 	pub constraints: Vec<String>,
-	pub params: Vec<HMType>,
-	pub return_type: HMType,
+	pub params: Vec<HMAST>,
+	pub return_type: HMAST,
 }
 
 impl std::fmt::Display for SignatureData {
@@ -78,15 +78,15 @@ impl std::fmt::Display for SignatureData {
 
 		let func_sig = if self.params.is_empty() {
 			let func_type =
-				HMType::Arrow(Box::new(HMType::Unit), Box::new(self.return_type.clone()));
+				HMAST::Arrow(Box::new(HMAST::Unit), Box::new(self.return_type.clone()));
 			format!("{}", func_type)
 		} else {
 			let input_type = if self.params.len() == 1 {
 				self.params[0].clone()
 			} else {
-				HMType::Tuple(self.params.clone())
+				HMAST::Tuple(self.params.clone())
 			};
-			let func_type = HMType::Arrow(Box::new(input_type), Box::new(self.return_type.clone()));
+			let func_type = HMAST::Arrow(Box::new(input_type), Box::new(self.return_type.clone()));
 			format!("{}", func_type)
 		};
 		parts.push(func_sig);
@@ -132,7 +132,7 @@ pub fn generate_signature(
 
 fn format_generics(
 	generics: &syn::Generics,
-	fn_bounds: &HashMap<String, HMType>,
+	fn_bounds: &HashMap<String, HMAST>,
 	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> (Vec<String>, Vec<String>) {
@@ -152,7 +152,7 @@ fn format_generics(
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
 					&& let Some(constraint) =
-						format_trait_bound(trait_bound, &HMType::Variable(name.clone()), config)
+						format_trait_bound(trait_bound, &HMAST::Variable(name.clone()), config)
 				{
 					constraints.push(constraint);
 				}
@@ -181,7 +181,7 @@ fn format_generics(
 
 fn format_trait_bound(
 	bound: &syn::TraitBound,
-	type_var: &HMType,
+	type_var: &HMAST,
 	config: &Config,
 ) -> Option<String> {
 	// Safely get the last segment of the trait path
@@ -204,20 +204,20 @@ fn format_trait_bound(
 
 fn format_parameters(
 	sig: &syn::Signature,
-	fn_bounds: &HashMap<String, HMType>,
+	fn_bounds: &HashMap<String, HMAST>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> Vec<HMType> {
+) -> Vec<HMAST> {
 	let mut params = Vec::new();
 	for input in &sig.inputs {
 		match input {
 			syn::FnArg::Receiver(receiver) => {
-				let self_ty = HMType::Variable("self".to_string());
+				let self_ty = HMAST::Variable("self".to_string());
 				if receiver.reference.is_some() {
 					if receiver.mutability.is_some() {
-						params.push(HMType::MutableReference(Box::new(self_ty)));
+						params.push(HMAST::MutableReference(Box::new(self_ty)));
 					} else {
-						params.push(HMType::Reference(Box::new(self_ty)));
+						params.push(HMAST::Reference(Box::new(self_ty)));
 					}
 				} else {
 					params.push(self_ty);
@@ -235,12 +235,12 @@ fn format_parameters(
 
 fn format_return_type(
 	output: &ReturnType,
-	fn_bounds: &HashMap<String, HMType>,
+	fn_bounds: &HashMap<String, HMAST>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> HMType {
+) -> HMAST {
 	match output {
-		ReturnType::Default => HMType::Unit, // Unit type
+		ReturnType::Default => HMAST::Unit, // Unit type
 		ReturnType::Type(_, ty) => type_to_hm(ty, fn_bounds, generic_names, config),
 	}
 }
@@ -338,8 +338,7 @@ mod tests {
 				todo!()
 			}
 		};
-		let sig =
-			generate_signature(&input.sig, &Config::default()).to_string();
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
 		// Note: Self should be resolved by document_module before calling this.
 		// In standalone usage, Self stays as-is.
 		assert_eq!(
@@ -367,8 +366,8 @@ mod tests {
 		assert_eq!(input_fn.attrs.len(), 3);
 
 		// Use helper from doc_utils, need to import it or use full path
-		// Since we are in a test module inside the crate, we can access crate::common::syntax
-		use crate::common::syntax::get_doc;
+		// Since we are in a test module inside the crate, we can access crate::support::syntax
+		use crate::support::syntax::get_doc;
 
 		assert_eq!(get_doc(&input_fn.attrs[0]), "First");
 		assert_eq!(get_doc(&input_fn.attrs[1]), "Signature");
@@ -389,8 +388,7 @@ mod tests {
 				FnBrand: 'a + SendCloneableFn,
 			{ todo!() }
 		};
-		let sig =
-			generate_signature(&input.sig, &Config::default()).to_string();
+		let sig = generate_signature(&input.sig, &Config::default()).to_string();
 		// Note: Self should be resolved by document_module, in standalone it stays as Self
 		assert_eq!(sig, "forall A B. ((A, B) -> B, B, Self A) -> B");
 	}

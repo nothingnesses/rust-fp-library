@@ -720,7 +720,7 @@ impl ParFoldable for VecBrand {
 		}
 		#[cfg(not(feature = "rayon"))]
 		{
-			#[allow(clippy::redundant_closure)]
+			#[allow(clippy::redundant_closure)] // Required for move semantics
 			fa.into_iter().map(|a| func(a)).fold(M::empty(), |acc, m| M::append(acc, m))
 		}
 	}

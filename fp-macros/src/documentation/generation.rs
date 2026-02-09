@@ -1,16 +1,20 @@
-use crate::common::attributes::{find_attr_value_checked, find_attribute};
-use crate::common::errors::known_attrs;
-use crate::common::syntax::{DocArg, GenericArgs, validate_doc_args};
-use crate::config::Config;
-use crate::analysis::GenericAnalyzer;
-use crate::documentation::hm_signature::generate_signature;
+use crate::{
+	analysis::GenericAnalyzer,
+	core::{config::Config, constants::known_attrs},
+	documentation::hm_signature::generate_signature,
+	core::error_handling::ErrorCollector,
+	resolution::{
+		resolver::{
+			SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
+		},
+	},
+	support::{
+		attributes::{find_attr_value_checked, find_attribute},
+		syntax::{DocArg, GenericArgs, validate_doc_args},
+	},
+};
 use quote::quote;
 use syn::{Error, ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut};
-
-use crate::resolution::ErrorCollector;
-use crate::resolution::resolver::{
-	SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
-};
 
 /// Process the `#[hm_signature]` attribute on a method.
 #[allow(clippy::too_many_arguments)]
@@ -19,7 +23,7 @@ pub(super) fn process_hm_signature(
 	attr_pos: usize,
 	self_ty: &syn::Type,
 	self_ty_path: &str,
-	trait_name: Option<&str>,
+	_trait_name: Option<&str>,
 	trait_path_str: Option<&str>,
 	doc_use: Option<&str>,
 	item_impl_generics: &syn::Generics,
@@ -136,7 +140,7 @@ pub(super) fn generate_docs(
 			{
 				Ok(v) => v,
 				Err(e) => {
-					errors.push(e);
+					errors.push(syn::Error::from(e));
 					None
 				}
 			};
@@ -147,7 +151,7 @@ pub(super) fn generate_docs(
 						match find_attr_value_checked(&method.attrs, known_attrs::DOC_USE) {
 							Ok(v) => v,
 							Err(e) => {
-								errors.push(e);
+								errors.push(syn::Error::from(e));
 								None
 							}
 						};

@@ -228,12 +228,12 @@
 //! Errors are collected in [`SelfSubstitutor::errors`] and can be reported
 //! to the user with proper span information.
 
-use crate::hkt::ApplyInput;
-use crate::common::errors::known_types;
-use crate::config::Config;
-use crate::analysis::format_brand_name;
-use crate::analysis::GenericAnalyzer;
-use crate::resolution::ProjectionKey;
+use crate::{
+	analysis::{GenericAnalyzer, format_brand_name},
+	core::{config::Config, constants::known_types},
+	hkt::ApplyInput,
+	resolution::ProjectionKey,
+};
 use quote::quote;
 use std::collections::HashMap;
 use syn::{
@@ -398,21 +398,17 @@ impl<'a> SelfSubstitutor<'a> {
 	) -> Option<&(syn::Generics, syn::Type)> {
 		// Try (Type, Trait, AssocName) scoped lookup first
 		let scoped_key = if let Some(trait_path) = self.trait_path {
-			Some(ProjectionKey::scoped(
-				self.self_ty_path,
-				trait_path,
-				assoc_name,
-			))
+			Some(ProjectionKey::scoped(self.self_ty_path, trait_path, assoc_name))
 		} else {
 			None
 		};
-		
+
 		if let Some(key) = scoped_key {
 			if let Some(result) = self.config.projections.get(&key) {
 				return Some(result);
 			}
 		}
-		
+
 		// Fall back to module-level (Type, AssocName) lookup
 		let module_key = ProjectionKey::new(self.self_ty_path, assoc_name);
 		self.config.projections.get(&module_key)

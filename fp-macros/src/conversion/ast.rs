@@ -1,20 +1,20 @@
 use std::fmt;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub enum HMType {
+pub enum HMAST {
 	Variable(String),
-	Constructor(String, Vec<HMType>),
-	Arrow(Box<HMType>, Box<HMType>),
-	Tuple(Vec<HMType>),
-	List(Box<HMType>), // For [T]
-	Reference(Box<HMType>),
-	MutableReference(Box<HMType>),
+	Constructor(String, Vec<HMAST>),
+	Arrow(Box<HMAST>, Box<HMAST>),
+	Tuple(Vec<HMAST>),
+	List(Box<HMAST>), // For [T]
+	Reference(Box<HMAST>),
+	MutableReference(Box<HMAST>),
 	#[default]
 	Unit,
-	TraitObject(Box<HMType>),
+	TraitObject(Box<HMAST>),
 }
 
-impl fmt::Display for HMType {
+impl fmt::Display for HMAST {
 	fn fmt(
 		&self,
 		f: &mut fmt::Formatter<'_>,
@@ -23,19 +23,19 @@ impl fmt::Display for HMType {
 	}
 }
 
-impl HMType {
+impl HMAST {
 	fn precedence(&self) -> u8 {
 		match self {
 			// Atoms: always safe
-			HMType::Variable(_)
-			| HMType::Unit
-			| HMType::List(_)
-			| HMType::Tuple(_)
-			| HMType::Reference(_)
-			| HMType::MutableReference(_)
-			| HMType::TraitObject(_) => 3,
+			HMAST::Variable(_)
+			| HMAST::Unit
+			| HMAST::List(_)
+			| HMAST::Tuple(_)
+			| HMAST::Reference(_)
+			| HMAST::MutableReference(_)
+			| HMAST::TraitObject(_) => 3,
 			// Application: binds tight
-			HMType::Constructor(_, args) => {
+			HMAST::Constructor(_, args) => {
 				if args.is_empty() {
 					3
 				} else {
@@ -43,7 +43,7 @@ impl HMType {
 				}
 			}
 			// Arrow: binds loose
-			HMType::Arrow(_, _) => 1,
+			HMAST::Arrow(_, _) => 1,
 		}
 	}
 
@@ -60,18 +60,18 @@ impl HMType {
 		}
 
 		match self {
-			HMType::Variable(name) => write!(f, "{}", name)?,
-			HMType::Unit => write!(f, "()")?,
-			HMType::List(inner) => write!(f, "[{}]", inner)?,
-			HMType::Reference(inner) => {
+			HMAST::Variable(name) => write!(f, "{}", name)?,
+			HMAST::Unit => write!(f, "()")?,
+			HMAST::List(inner) => write!(f, "[{}]", inner)?,
+			HMAST::Reference(inner) => {
 				write!(f, "&")?;
 				inner.fmt_with_precedence(f, 2)?;
 			}
-			HMType::MutableReference(inner) => {
+			HMAST::MutableReference(inner) => {
 				write!(f, "&mut ")?;
 				inner.fmt_with_precedence(f, 2)?;
 			}
-			HMType::Tuple(args) => {
+			HMAST::Tuple(args) => {
 				write!(f, "(")?;
 				for (i, arg) in args.iter().enumerate() {
 					if i > 0 {
@@ -82,7 +82,7 @@ impl HMType {
 				}
 				write!(f, ")")?;
 			}
-			HMType::Constructor(name, args) => {
+			HMAST::Constructor(name, args) => {
 				write!(f, "{}", name)?;
 				for arg in args {
 					write!(f, " ")?;
@@ -91,7 +91,7 @@ impl HMType {
 					arg.fmt_with_precedence(f, 3)?;
 				}
 			}
-			HMType::Arrow(input, output) => {
+			HMAST::Arrow(input, output) => {
 				// Input needs to be higher precedence than Arrow (1), or wrapped.
 				// A -> B -> C parses as A -> (B -> C).
 				// So left child needs parens if it is an Arrow.
@@ -100,7 +100,7 @@ impl HMType {
 				// Right child is right-associative, so it can be an Arrow without parens.
 				output.fmt_with_precedence(f, 1)?;
 			}
-			HMType::TraitObject(inner) => {
+			HMAST::TraitObject(inner) => {
 				write!(f, "dyn ")?;
 				inner.fmt_with_precedence(f, 3)?;
 			}

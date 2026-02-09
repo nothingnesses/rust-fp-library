@@ -1,6 +1,8 @@
-// Use legacy imports during migration
-use crate::config::Config;
-use crate::resolution::{extract_context, ErrorCollector};
+use super::generation::generate_docs;
+use crate::{
+	core::{config::Config, error_handling::ErrorCollector},
+	resolution::extract_context,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -9,8 +11,6 @@ use syn::{
 	spanned::Spanned,
 	visit_mut::{self, VisitMut},
 };
-
-use super::generation::generate_docs;
 
 pub struct DocumentModuleInput {
 	pub items: Vec<Item>,

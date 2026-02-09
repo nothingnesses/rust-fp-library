@@ -491,7 +491,7 @@ impl Semiapplicative for ThunkBrand {
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		ff.bind(move |f| {
 			fa.map(
-				#[allow(clippy::redundant_closure)]
+				#[allow(clippy::redundant_closure)] // Required for move semantics
 				move |a| f(a),
 			)
 		})

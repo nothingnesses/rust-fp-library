@@ -1,8 +1,6 @@
 //! Trait classification and analysis.
-//!
-//! Extracted from function_utils.rs
 
-use crate::config::Config;
+use crate::core::config::Config;
 
 #[derive(Debug, PartialEq)]
 pub enum TraitCategory {

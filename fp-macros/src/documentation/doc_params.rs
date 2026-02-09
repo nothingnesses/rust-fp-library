@@ -1,25 +1,23 @@
-use crate::common::{LogicalParam, get_logical_params};
-use crate::config::load_config;
+use crate::{
+	core::config::get_config,
+	support::{LogicalParam, get_logical_params},
+};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::Error;
 
 pub fn doc_params_impl(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> TokenStream {
-	crate::common::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
-		let config = load_config();
+	crate::support::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
+		let config = get_config();
 
-		let sig = match generic_item.sig() {
-			Some(s) => s,
-			None => {
-				return Err(Error::new(
-					proc_macro2::Span::call_site(),
-					"doc_params can only be used on functions",
-				));
-			}
-		};
+		let sig = generic_item.sig().ok_or_else(|| {
+			syn::Error::new(
+				proc_macro2::Span::call_site(),
+				"doc_params can only be used on functions",
+			)
+		})?;
 
 		let logical_params = get_logical_params(sig, &config);
 
@@ -39,7 +37,7 @@ pub fn doc_params_impl(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::common::syntax::get_doc;
+	use crate::support::syntax::get_doc;
 	use quote::quote;
 	use syn::ItemFn;
 

@@ -3,7 +3,11 @@
 //! This module handles the parsing and expansion of the `Apply!` macro, which is used
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 
-use crate::hm_conversion::{generate_name, KindInput};
+use super::AssociatedTypes;
+use crate::{
+	core::Result,
+	generate_name,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -19,7 +23,7 @@ pub struct ApplyInput {
 	/// The brand type (e.g., `OptionBrand`).
 	pub brand: Type,
 	/// The `Kind` signature definition.
-	pub kind_input: KindInput,
+	pub kind_input: AssociatedTypes,
 	/// The associated type name to project (e.g., `Of`).
 	pub assoc_name: Ident,
 	/// The generic arguments for the projection (e.g., `<T, U>`).
@@ -49,7 +53,7 @@ impl Parse for ApplyInput {
 		// Parse `(...)` containing KindInput
 		let content;
 		syn::parenthesized!(content in input);
-		let kind_input: KindInput = content.parse()?;
+		let kind_input: AssociatedTypes = content.parse()?;
 
 		// Parse `>`
 		input.parse::<Token![>]>()?;
@@ -68,18 +72,15 @@ impl Parse for ApplyInput {
 }
 
 /// Generates the implementation for the `Apply!` macro.
-pub fn apply_impl(input: ApplyInput) -> TokenStream {
+pub fn apply_impl(input: ApplyInput) -> Result<TokenStream> {
 	let brand = &input.brand;
-	let kind_name = match generate_name(&input.kind_input) {
-		Ok(name) => name,
-		Err(e) => return syn::Error::from(e).to_compile_error(),
-	};
+	let kind_name = generate_name(&input.kind_input)?;
 	let assoc_name = &input.assoc_name;
 	let args = &input.args;
 
-	quote! {
+	Ok(quote! {
 		<#brand as #kind_name>::#assoc_name #args
-	}
+	})
 }
 
 #[cfg(test)]
@@ -93,7 +94,7 @@ mod tests {
 		let parsed: ApplyInput = parse_str(input).expect("Failed to parse ApplyInput");
 
 		assert_eq!(parsed.assoc_name.to_string(), "Of");
-		assert_eq!(parsed.kind_input.assoc_types.len(), 1);
+		assert_eq!(parsed.kind_input.associated_types.len(), 1);
 		assert_eq!(parsed.args.args.len(), 2);
 	}
 
@@ -102,7 +103,7 @@ mod tests {
 		let input = "<OptionBrand as Kind!(type Of<'a, T>: 'a;)>::Of<'static, i32>";
 		let parsed: ApplyInput = parse_str(input).expect("Failed to parse ApplyInput");
 
-		let output = apply_impl(parsed);
+		let output = apply_impl(parsed).expect("apply_impl failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("< OptionBrand as Kind_"));

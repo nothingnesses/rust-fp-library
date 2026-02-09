@@ -11,8 +11,7 @@
 //! - Recursively canonicalizing nested types and generic arguments.
 //! - Generating unique, deterministic identifiers for `Kind` traits.
 
-use super::patterns::KindInput;
-use crate::error::{Error, UnsupportedFeature};
+use crate::{AssociatedTypes, core::error_handling::{Error, UnsupportedFeature}};
 use quote::{format_ident, quote};
 use std::collections::BTreeMap;
 use syn::{
@@ -78,7 +77,8 @@ impl Canonicalizer {
 	) -> Result<String> {
 		match bound {
 			TypeParamBound::Lifetime(lt) => {
-				let idx = self.lifetime_map
+				let idx = self
+					.lifetime_map
 					.get(&lt.ident.to_string())
 					.ok_or_else(|| Error::internal(format!("Unknown lifetime: {}", lt.ident)))?;
 				Ok(format!("l{idx}"))
@@ -122,12 +122,10 @@ impl Canonicalizer {
 					span: proc_macro2::Span::call_site(),
 				}))
 			}
-			_ => {
-				Err(Error::Unsupported(UnsupportedFeature::BoundType {
-					description: "Unknown bound type variant".to_string(),
-					span: proc_macro2::Span::call_site(),
-				}))
-			}
+			_ => Err(Error::Unsupported(UnsupportedFeature::BoundType {
+				description: "Unknown bound type variant".to_string(),
+				span: proc_macro2::Span::call_site(),
+			})),
 		}
 	}
 
@@ -160,21 +158,17 @@ impl Canonicalizer {
 			GenericArgument::AssocType(assoc) => {
 				Ok(format!("{}={}", assoc.ident, self.canonicalize_type(&assoc.ty)?))
 			}
-			GenericArgument::Const(expr) => {
-				Ok(quote!(#expr).to_string().replace(" ", ""))
-			}
+			GenericArgument::Const(expr) => Ok(quote!(#expr).to_string().replace(" ", "")),
 			GenericArgument::AssocConst(_) | GenericArgument::Constraint(_) => {
 				Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
 					description: "Associated const or constraint".to_string(),
 					span: proc_macro2::Span::call_site(),
 				}))
 			}
-			_ => {
-				Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
-					description: "Unknown generic argument variant".to_string(),
-					span: proc_macro2::Span::call_site(),
-				}))
-			}
+			_ => Err(Error::Unsupported(UnsupportedFeature::GenericArgument {
+				description: "Unknown generic argument variant".to_string(),
+				span: proc_macro2::Span::call_site(),
+			})),
 		}
 	}
 
@@ -242,9 +236,7 @@ impl Canonicalizer {
 				let elems = elems_vec.join(",");
 				Ok(format!("({elems})"))
 			}
-			Type::Slice(slice) => {
-				Ok(format!("[{}]", self.canonicalize_type(&slice.elem)?))
-			}
+			Type::Slice(slice) => Ok(format!("[{}]", self.canonicalize_type(&slice.elem)?)),
 			Type::Array(array) => {
 				let len = quote!(#array.len).to_string().replace(" ", "");
 				Ok(format!("[{};{len}]", self.canonicalize_type(&array.elem)?))
@@ -257,12 +249,10 @@ impl Canonicalizer {
 					span: proc_macro2::Span::call_site(),
 				}))
 			}
-			_ => {
-				Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
-					description: "Unknown type variant in canonicalization".to_string(),
-					span: proc_macro2::Span::call_site(),
-				}))
-			}
+			_ => Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
+				description: "Unknown type variant in canonicalization".to_string(),
+				span: proc_macro2::Span::call_site(),
+			})),
 		}
 	}
 }
@@ -309,10 +299,10 @@ fn rapidhash(data: &[u8]) -> u64 {
 ///    - Canonicalized bounds on type parameters
 ///    - Canonicalized output bounds
 /// 3. Joining these strings with `__`.
-pub fn generate_name(input: &KindInput) -> Result<Ident> {
-	let mut assoc_types: Vec<_> = input.assoc_types.iter().collect();
+pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
+	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
-	assoc_types.sort_by(|a, b| a.ident.to_string().cmp(&b.ident.to_string()));
+	assoc_types.sort_by(|a, b| a.name.to_string().cmp(&b.name.to_string()));
 
 	let mut canonical_parts = Vec::new();
 
@@ -338,7 +328,7 @@ pub fn generate_name(input: &KindInput) -> Result<Ident> {
 			}
 		}
 
-		let mut parts = vec![assoc.ident.to_string(), format!("L{l_count}"), format!("T{t_count}")];
+		let mut parts = vec![assoc.name.to_string(), format!("L{l_count}"), format!("T{t_count}")];
 		parts.extend(type_bounds_parts);
 
 		if !assoc.output_bounds.is_empty() {
@@ -424,7 +414,10 @@ mod tests {
 		let bounds1: Punctuated<TypeParamBound, Token![+]> = parse_quote!(Clone + std::fmt::Debug);
 		let bounds2: Punctuated<TypeParamBound, Token![+]> = parse_quote!(std::fmt::Debug + Clone);
 
-		assert_eq!(canon.canonicalize_bounds(&bounds1).unwrap(), canon.canonicalize_bounds(&bounds2).unwrap());
+		assert_eq!(
+			canon.canonicalize_bounds(&bounds1).unwrap(),
+			canon.canonicalize_bounds(&bounds2).unwrap()
+		);
 	}
 
 	// ===========================================================================
@@ -589,7 +582,10 @@ mod tests {
 		let bound1: TypeParamBound = parse_quote!('a);
 		let bound2: TypeParamBound = parse_quote!('x);
 
-		assert_eq!(canon1.canonicalize_bound(&bound1).unwrap(), canon2.canonicalize_bound(&bound2).unwrap());
+		assert_eq!(
+			canon1.canonicalize_bound(&bound1).unwrap(),
+			canon2.canonicalize_bound(&bound2).unwrap()
+		);
 	}
 
 	// ===========================================================================
@@ -597,7 +593,7 @@ mod tests {
 	// ===========================================================================
 
 	/// Helper function to parse a KindInput from a string.
-	fn parse_kind_input(input: &str) -> KindInput {
+	fn parse_kind_input(input: &str) -> AssociatedTypes {
 		syn::parse_str(input).expect("Failed to parse KindInput")
 	}
 
