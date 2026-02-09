@@ -3,7 +3,7 @@
 //! This module handles the parsing and expansion of the `impl_kind!` macro, which is used
 //! to implement a generated `Kind` trait for a specific brand type.
 
-use crate::common::errors::known_attrs;
+use crate::core::attributes::DocAttributeFilter;
 use crate::hm_conversion::{generate_name, KindAssocTypeInput, KindInput};
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -181,10 +181,7 @@ pub fn impl_kind_impl(input: ImplKindInput) -> TokenStream {
 		let target = &def.target_type;
 		let where_clause = &def.where_clause;
 		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
-		let attrs = def.attrs.iter().filter(|attr| {
-			!attr.path().is_ident(known_attrs::DOC_DEFAULT)
-				&& !attr.path().is_ident(known_attrs::DOC_USE)
-		});
+		let attrs = DocAttributeFilter::filter_doc_attrs(&def.attrs);
 
 		quote! {
 			#(#attrs)*

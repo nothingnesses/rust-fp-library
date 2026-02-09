@@ -142,7 +142,30 @@ impl Error {
                 message: format!("{}: {}", context, message),
                 span,
             },
-            other => other,
+            Error::Resolution { message, span, available_types } => Error::Resolution {
+                message: format!("{}: {}", context, message),
+                span,
+                available_types,
+            },
+            Error::Parse(e) => {
+                // Create new error with context and combine
+                let ctx_error = syn::Error::new(
+                    e.span(),
+                    format!("{}: {}", context, e)
+                );
+                Error::Parse(ctx_error)
+            }
+            Error::Unsupported(u) => {
+                // Unsupported features maintain original message
+                // but we note the context by wrapping in Internal
+                Error::Internal(format!(
+                    "{}: Unsupported feature: {}",
+                    context, u
+                ))
+            }
+            Error::Io(io) => Error::Internal(
+                format!("{}: I/O error: {}", context, io)
+            ),
         }
     }
 }

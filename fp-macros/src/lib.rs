@@ -10,6 +10,7 @@ use syn::parse_macro_input;
 pub(crate) mod error;
 pub(crate) mod common;
 pub(crate) mod config;
+pub(crate) mod core;
 pub(crate) mod hkt;
 pub(crate) mod hm_conversion;
 pub(crate) mod analysis;

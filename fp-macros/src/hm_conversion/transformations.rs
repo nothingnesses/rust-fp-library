@@ -273,6 +273,21 @@ impl Canonicalizer {
 
 // Deterministic hashing setup
 // Using a fixed seed for reproducibility across builds
+/// Fixed seed for deterministic hash generation.
+///
+/// This seed value MUST remain constant across all versions to ensure that
+/// Kind trait names are stable between compilations and across different
+/// machines. Changing this value will break all existing Kind implementations.
+///
+/// The specific value `0x1234567890abcdef` was chosen arbitrarily but serves
+/// to distinguish our hashes from other hash functions that might use
+/// default seeds (typically 0 or random values).
+///
+/// # Stability Guarantee
+///
+/// This constant is part of the public API surface (indirectly, through generated
+/// trait names) and must never be changed in any release, as it would cause
+/// a breaking change for all users of the `Kind!` macro.
 const RAPID_SECRETS: rapidhash::v3::RapidSecrets =
 	rapidhash::v3::RapidSecrets::seed(0x1234567890abcdef);
 

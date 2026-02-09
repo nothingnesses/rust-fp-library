@@ -183,7 +183,15 @@ where
 			}
 		}
 	} else {
-		panic!("Failed to read directory: {:?}", base_path);
+		// Generate a compile error instead of panicking
+		let path_str = input.path.value();
+		return vec![quote! {
+			compile_error!(concat!(
+				"Failed to read directory for re-export generation: '",
+				#path_str,
+				"'. Please ensure the path exists and is accessible."
+			));
+		}];
 	}
 
 	// Sort re_exports for deterministic output

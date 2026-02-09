@@ -60,7 +60,7 @@ pub(super) fn process_hm_signature(
 		sig_config.self_type_name = Some(concrete_type_name);
 	}
 
-	let signature_data = generate_signature(&synthetic_sig, trait_name, &sig_config);
+	let signature_data = generate_signature(&synthetic_sig, &sig_config);
 
 	let doc_comment = format!("`{}`", signature_data);
 	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
