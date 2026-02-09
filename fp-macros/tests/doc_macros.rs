@@ -1,14 +1,16 @@
-use fp_macros::{doc_params, doc_type_params, document_module, hm_signature};
+use fp_macros::{
+	document_module, document_parameters, document_signature, document_type_parameters,
+};
 
-#[doc_type_params(
+#[document_type_parameters(
     "The type of the elements.",
     ("E", "The error type.")
 )]
-#[doc_params(
+#[document_parameters(
     "The input value.",
     ("y", "The second input value (curried).")
 )]
-#[hm_signature]
+#[document_signature]
 pub fn test_fn<T: Clone, ERR>(x: T) -> impl Fn(i32) -> T {
 	move |_| x.clone()
 }
@@ -27,7 +29,7 @@ mod test_mod {
 	pub struct MyType<T>(T);
 
 	impl<T: Clone> MyTrait<T> for MyType<T> {
-		#[hm_signature]
+		#[document_signature]
 		fn foo(
 			&self,
 			x: T,
@@ -39,7 +41,7 @@ mod test_mod {
 
 /// Integration test to verify that `document_impl` generates valid Rust code that compiles.
 /// - Defines a trait and a struct.
-/// - Applies `#[document_impl]` with `#[hm_signature]` and `#[doc_type_params]`.
+/// - Applies `#[document_impl]` with `#[document_signature]` and `#[document_type_parameters]`.
 /// - This ensures that the macro expansion produces syntactically valid code (e.g., valid paths, no duplicate lifetimes)
 ///   and that the compiler accepts the transformed AST.
 #[test]

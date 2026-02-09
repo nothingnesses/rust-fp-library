@@ -2,13 +2,17 @@ use crate::{
 	analysis::traits::{TraitCategory, classify_trait},
 	conversion::patterns::extract_fn_brand_info,
 	core::{config::Config, constants::known_types},
-	support::type_visitor::TypeVisitor,
+	support::{parsing::parse_first, type_visitor::TypeVisitor},
 };
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
 	Attribute, Error, Expr, ExprTuple, ImplItemFn, ItemFn, LitStr, PathArguments, ReturnType,
-	Signature, Token, TraitBound, TraitItemFn, Type, TypeParamBound, parse_quote, spanned::Spanned,
+	Signature, Token, TraitBound, TraitItemFn, Type, TypeParamBound,
+	parse::{Parse, ParseStream},
+	parse_quote,
+	punctuated::Punctuated,
+	spanned::Spanned,
 };
 
 pub enum GenericItem {
@@ -24,28 +28,20 @@ pub enum GenericItem {
 
 impl GenericItem {
 	pub fn parse(item: TokenStream) -> syn::Result<Self> {
-		if let Ok(f) = syn::parse2::<ItemFn>(item.clone()) {
-			Ok(GenericItem::Fn(f))
-		} else if let Ok(f) = syn::parse2::<TraitItemFn>(item.clone()) {
-			Ok(GenericItem::TraitFn(f))
-		} else if let Ok(f) = syn::parse2::<ImplItemFn>(item.clone()) {
-			Ok(GenericItem::ImplFn(f))
-		} else if let Ok(f) = syn::parse2::<syn::ItemStruct>(item.clone()) {
-			Ok(GenericItem::Struct(f))
-		} else if let Ok(f) = syn::parse2::<syn::ItemEnum>(item.clone()) {
-			Ok(GenericItem::Enum(f))
-		} else if let Ok(f) = syn::parse2::<syn::ItemUnion>(item.clone()) {
-			Ok(GenericItem::Union(f))
-		} else if let Ok(f) = syn::parse2::<syn::ItemTrait>(item.clone()) {
-			Ok(GenericItem::Trait(f))
-		} else if let Ok(f) = syn::parse2::<syn::ItemType>(item) {
-			Ok(GenericItem::Type(f))
-		} else {
-			Err(Error::new(
-				proc_macro2::Span::call_site(),
-				"Unsupported item type for documentation macros",
-			))
-		}
+		parse_first(
+			item,
+			vec![
+				|i| syn::parse2::<ItemFn>(i).map(GenericItem::Fn),
+				|i| syn::parse2::<TraitItemFn>(i).map(GenericItem::TraitFn),
+				|i| syn::parse2::<ImplItemFn>(i).map(GenericItem::ImplFn),
+				|i| syn::parse2::<syn::ItemStruct>(i).map(GenericItem::Struct),
+				|i| syn::parse2::<syn::ItemEnum>(i).map(GenericItem::Enum),
+				|i| syn::parse2::<syn::ItemUnion>(i).map(GenericItem::Union),
+				|i| syn::parse2::<syn::ItemTrait>(i).map(GenericItem::Trait),
+				|i| syn::parse2::<syn::ItemType>(i).map(GenericItem::Type),
+			],
+			"Unsupported item type for documentation macros",
+		)
 	}
 
 	pub fn attrs(&mut self) -> &mut Vec<Attribute> {
@@ -107,8 +103,8 @@ pub enum DocArg {
 	Override(LitStr, LitStr),
 }
 
-impl syn::parse::Parse for DocArg {
-	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+impl Parse for DocArg {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
 		if input.peek(syn::token::Paren) {
 			let tuple: ExprTuple = input.parse()?;
 			if tuple.elems.len() != 2 {
@@ -144,12 +140,12 @@ impl syn::parse::Parse for DocArg {
 }
 
 pub struct GenericArgs {
-	pub entries: syn::punctuated::Punctuated<DocArg, Token![,]>,
+	pub entries: Punctuated<DocArg, Token![,]>,
 }
 
-impl syn::parse::Parse for GenericArgs {
-	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-		Ok(GenericArgs { entries: syn::punctuated::Punctuated::parse_terminated(input)? })
+impl Parse for GenericArgs {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		Ok(GenericArgs { entries: Punctuated::parse_terminated(input)? })
 	}
 }
 
@@ -157,30 +153,19 @@ pub fn generate_doc_comments<F>(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 	get_targets: F,
-) -> TokenStream
+) -> crate::core::Result<TokenStream>
 where
 	F: FnOnce(&GenericItem) -> Result<Vec<String>, Error>,
 {
-	let mut generic_item = match GenericItem::parse(item_tokens) {
-		Ok(i) => i,
-		Err(e) => return e.to_compile_error(),
-	};
+	let mut generic_item = GenericItem::parse(item_tokens).map_err(crate::core::Error::Parse)?;
 
-	let args = match syn::parse2::<GenericArgs>(attr.clone()) {
-		Ok(a) => a,
-		Err(e) => return e.to_compile_error(),
-	};
+	let args = syn::parse2::<GenericArgs>(attr.clone()).map_err(crate::core::Error::Parse)?;
 
-	let targets = match get_targets(&generic_item) {
-		Ok(t) => t,
-		Err(e) => return e.to_compile_error(),
-	};
+	let targets = get_targets(&generic_item)?;
 
 	let entries: Vec<_> = args.entries.into_iter().collect();
 
-	if let Err(e) = validate_doc_args(targets.len(), entries.len(), attr.span()) {
-		return e.to_compile_error();
-	}
+	validate_doc_args(targets.len(), entries.len(), attr.span())?;
 
 	for (name_from_target, entry) in targets.iter().zip(entries) {
 		let (name, desc) = match entry {
@@ -192,9 +177,9 @@ where
 		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
 	}
 
-	quote::quote! {
+	Ok(quote::quote! {
 		#generic_item
-	}
+	})
 }
 
 pub fn validate_doc_args(
@@ -255,7 +240,7 @@ pub enum LogicalParam {
 	/// A parameter that is implicit from trait bounds or other context (e.g., from Fn trait bounds)
 	///
 	/// Note: Marked `#[allow(dead_code)]` but is actively used in curried parameter extraction
-	/// and documentation generation (see `doc_params.rs` line 32).
+	/// and documentation generation.
 	#[allow(dead_code)]
 	Implicit(syn::Type),
 }

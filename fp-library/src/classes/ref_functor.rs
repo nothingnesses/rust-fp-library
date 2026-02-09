@@ -14,9 +14,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for types that can be mapped over, returning references.
 ///
@@ -27,11 +27,11 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the value(s) inside the functor.",
 		"The type of the result(s) of applying the function.",
@@ -40,7 +40,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the value(s) inside the functor.",
 		"The functor instance containing the value(s)."
 	)]
@@ -75,11 +75,11 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the values.",
 	"The brand of the functor.",
 	"The type of the value(s) inside the functor.",
@@ -89,7 +89,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to the value(s) inside the functor.",
 	"The functor instance containing the value(s)."
 )]

@@ -16,31 +16,6 @@ impl ToCompileError for Error {
 	}
 }
 
-impl<T> ToCompileError for Result<T> {
-	fn to_compile_error(self) -> TokenStream {
-		match self {
-			Ok(_) => panic!("Called to_compile_error on Ok value"),
-			Err(e) => e.to_compile_error(),
-		}
-	}
-}
-
-/// Extension trait for Result with macro-specific operations
-#[allow(dead_code)] // For future use
-pub trait ResultExt<T> {
-	/// Convert Result to TokenStream, returning output on success or error on failure
-	fn into_token_stream(self) -> TokenStream;
-}
-
-impl<T: quote::ToTokens> ResultExt<T> for Result<T> {
-	fn into_token_stream(self) -> TokenStream {
-		match self {
-			Ok(value) => quote::quote!(#value),
-			Err(e) => e.to_compile_error(),
-		}
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -52,12 +27,5 @@ mod tests {
 		let token_stream = err.to_compile_error();
 		let output = token_stream.to_string();
 		assert!(!output.is_empty());
-	}
-
-	#[test]
-	#[should_panic(expected = "Called to_compile_error on Ok value")]
-	fn test_result_ok_to_compile_error_panics() {
-		let result: Result<i32> = Ok(42);
-		let _ = result.to_compile_error();
 	}
 }

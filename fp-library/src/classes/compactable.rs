@@ -11,9 +11,9 @@
 //! ```
 
 use crate::{Apply, brands::OptionBrand, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for data structures that can be compacted and separated.
 ///
@@ -25,18 +25,18 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the [`Option`]."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The data structure containing [`Option`] values.")]
+	#[document_parameters("The data structure containing [`Option`] values.")]
 	///
 	/// ### Returns
 	///
@@ -66,11 +66,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the error values.",
 		"The type of the success values."
@@ -78,7 +78,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The data structure containing [`Result`] values.")]
+	#[document_parameters("The data structure containing [`Result`] values.")]
 	///
 	/// ### Returns
 	///
@@ -113,11 +113,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the elements in the [`Option`]."
@@ -125,7 +125,7 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Parameters
 ///
-#[doc_params("The data structure containing [`Option`] values.")]
+#[document_parameters("The data structure containing [`Option`] values.")]
 ///
 /// ### Returns
 ///
@@ -155,11 +155,11 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the error values.",
@@ -168,7 +168,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// ### Parameters
 ///
-#[doc_params("The data structure containing [`Result`] values.")]
+#[document_parameters("The data structure containing [`Result`] values.")]
 ///
 /// ### Returns
 ///

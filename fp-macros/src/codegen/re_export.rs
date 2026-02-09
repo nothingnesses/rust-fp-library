@@ -302,7 +302,7 @@ fn scan_directory_and_collect(
 }
 
 /// Unified implementation for generating re-exports using a formatter and base path.
-fn generate_re_exports_impl(
+fn generate_re_exports_worker(
 	input: &ReExportInput,
 	formatter: &dyn ReExportFormatter,
 	base_path: syn::Path,
@@ -311,16 +311,16 @@ fn generate_re_exports_impl(
 	formatter.format_output(re_exports, &base_path)
 }
 
-pub fn generate_function_re_exports_impl(input: ReExportInput) -> TokenStream {
+pub fn generate_function_re_exports_worker(input: ReExportInput) -> TokenStream {
 	// Parse base path from the input directory path
 	let base_path = parse_base_path_from_input(&input);
-	generate_re_exports_impl(&input, &FunctionFormatter, base_path)
+	generate_re_exports_worker(&input, &FunctionFormatter, base_path)
 }
 
-pub fn generate_trait_re_exports_impl(input: ReExportInput) -> TokenStream {
+pub fn generate_trait_re_exports_worker(input: ReExportInput) -> TokenStream {
 	// Parse base path from the input directory path
 	let base_path = parse_base_path_from_input(&input);
-	generate_re_exports_impl(&input, &TraitFormatter, base_path)
+	generate_re_exports_worker(&input, &TraitFormatter, base_path)
 }
 
 /// Parses the base crate path from the input directory path.

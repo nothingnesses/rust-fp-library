@@ -1,22 +1,47 @@
 //! Common parsing patterns and input validation helpers.
 
 use crate::core::{Error, Result};
-use proc_macro2::Span;
-use syn::{GenericParam, Generics, Token};
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
+use proc_macro2::{Span, TokenStream};
+use syn::{
+	GenericParam, Generics,
+	parse::{Parse, ParseStream},
+};
 
-/// Parse a comma-separated list of items
-#[allow(dead_code)] // For future use
-pub fn parse_comma_separated<T: Parse>(input: ParseStream) -> syn::Result<Vec<T>> {
-	let punctuated = Punctuated::<T, Token![,]>::parse_terminated(input)?;
-	Ok(punctuated.into_iter().collect())
+/// Parse a stream of items until it's empty.
+pub fn parse_many<T: Parse>(input: ParseStream) -> syn::Result<Vec<T>> {
+	let mut items = Vec::new();
+	while !input.is_empty() {
+		items.push(input.parse()?);
+	}
+	Ok(items)
 }
 
-/// Parse an optional item
-#[allow(dead_code)] // For future use
-pub fn parse_optional<T: Parse>(input: ParseStream) -> syn::Result<Option<T>> {
-	if input.is_empty() { Ok(None) } else { Ok(Some(input.parse()?)) }
+/// Validates that a collection is not empty, returning the collection if valid.
+pub fn parse_non_empty<T>(
+	items: Vec<T>,
+	message: &str,
+) -> Result<Vec<T>> {
+	if items.is_empty() {
+		return Err(Error::validation(Span::call_site(), message));
+	}
+	Ok(items)
+}
+
+/// Helper to try parsing multiple types and return the first successful one.
+pub fn parse_first<T, F>(
+	item: TokenStream,
+	parsers: Vec<F>,
+	error_msg: &str,
+) -> syn::Result<T>
+where
+	F: Fn(TokenStream) -> syn::Result<T>,
+{
+	for parser in parsers {
+		if let Ok(val) = parser(item.clone()) {
+			return Ok(val);
+		}
+	}
+	Err(syn::Error::new(Span::call_site(), error_msg))
 }
 
 /// Parse generics to ensure these don't contain unsupported features
@@ -33,62 +58,33 @@ pub fn parse_generics(generics: &Generics) -> Result<&Generics> {
 	Ok(generics)
 }
 
-/// Parse a list to ensure it is non-empty
-#[allow(dead_code)] // For future use
-pub fn parse_non_empty<'a, T>(
-	items: &'a [T],
-	span: Span,
-	what: &str,
-) -> Result<&'a [T]> {
-	if items.is_empty() {
-		return Err(Error::validation(span, format!("{} must not be empty", what)));
-	}
-	Ok(items)
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use syn::Ident;
 
 	#[test]
-	fn test_parse_comma_separated() {
+	fn test_parse_many() {
 		use syn::parse::Parser;
-		let parser = |input: ParseStream| parse_comma_separated::<Ident>(input);
-		let result: Vec<Ident> = parser.parse_str("a, b, c").unwrap();
-		assert_eq!(result.len(), 3);
-		assert_eq!(result[0].to_string(), "a");
-		assert_eq!(result[1].to_string(), "b");
-		assert_eq!(result[2].to_string(), "c");
-	}
+		let input = "u32 i32 f64";
+		let parser = |input: ParseStream| parse_many::<syn::Type>(input);
+		let result = parser.parse_str(input);
 
-	#[test]
-	fn test_parse_optional_some() {
-		use syn::parse::Parser;
-		let parser = |input: ParseStream| parse_optional::<Ident>(input);
-		let result: Option<Ident> = parser.parse_str("test").unwrap();
-		assert!(result.is_some());
-		assert_eq!(result.unwrap().to_string(), "test");
-	}
-
-	#[test]
-	fn test_parse_optional_none() {
-		use syn::parse::Parser;
-		let parser = |input: ParseStream| parse_optional::<Ident>(input);
-		let result: Option<Ident> = parser.parse_str("").unwrap();
-		assert!(result.is_none());
+		assert!(result.is_ok());
+		let items = result.unwrap();
+		assert_eq!(items.len(), 3);
 	}
 
 	#[test]
 	fn test_parse_non_empty() {
-		let items: Vec<i32> = vec![];
-		let result = parse_non_empty(&items, Span::call_site(), "Items");
-		assert!(result.is_err());
-
 		let items = vec![1, 2, 3];
-		let result = parse_non_empty(&items, Span::call_site(), "Items");
+		let result = parse_non_empty(items, "Error");
 		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), &[1, 2, 3]);
+		assert_eq!(result.unwrap().len(), 3);
+
+		let empty: Vec<i32> = vec![];
+		let result = parse_non_empty(empty, "Should not be empty");
+		assert!(result.is_err());
+		assert_eq!(result.unwrap_err().to_string(), "Validation error: Should not be empty");
 	}
 
 	#[test]

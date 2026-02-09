@@ -246,7 +246,7 @@
 
 use crate::{
 	analysis::traits::{TraitCategory, classify_trait},
-	conversion::HMAST,
+	conversion::HmAst,
 	conversion::converter::trait_bound_to_hm_arrow,
 	core::{config::Config, constants::known_types},
 	support::last_path_segment,
@@ -426,7 +426,7 @@ impl GenericAnalyzer {
 	pub fn fn_bounds(
 		sig: &Signature,
 		config: &Config,
-	) -> HashMap<String, HMAST> {
+	) -> HashMap<String, HmAst> {
 		let mut fn_bounds = HashMap::new();
 		let generic_names = Self::type_params_set(&sig.generics);
 
@@ -479,7 +479,7 @@ impl GenericAnalyzer {
 pub fn analyze_generics(
 	sig: &syn::Signature,
 	config: &Config,
-) -> (std::collections::HashSet<String>, std::collections::HashMap<String, HMAST>) {
+) -> (std::collections::HashSet<String>, std::collections::HashMap<String, HmAst>) {
 	// Use the unified GenericAnalyzer for consistent generic parameter handling
 	let generic_names = GenericAnalyzer::type_params_set(&sig.generics);
 	let fn_bounds = GenericAnalyzer::fn_bounds(sig, config);
@@ -493,17 +493,17 @@ pub fn analyze_generics(
 /// None otherwise.
 pub fn get_fn_type(
 	trait_bound: &syn::TraitBound,
-	fn_bounds: &std::collections::HashMap<String, HMAST>,
+	fn_bounds: &std::collections::HashMap<String, HmAst>,
 	generic_names: &std::collections::HashSet<String>,
 	config: &Config,
-) -> Option<HMAST> {
+) -> Option<HmAst> {
 	let segment = last_path_segment(&trait_bound.path)?;
 	let name = segment.ident.to_string();
 	match classify_trait(&name, config) {
 		TraitCategory::FnTrait => {
 			Some(trait_bound_to_hm_arrow(trait_bound, fn_bounds, generic_names, config))
 		}
-		TraitCategory::FnBrand => Some(HMAST::Variable(known_types::FN_BRAND_MARKER.to_string())),
+		TraitCategory::FnBrand => Some(HmAst::Variable(known_types::FN_BRAND_MARKER.to_string())),
 		_ => None,
 	}
 }

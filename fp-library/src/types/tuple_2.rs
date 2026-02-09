@@ -13,7 +13,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 impl_kind! {
 	for Tuple2Brand {
@@ -34,11 +34,11 @@ impl Bifunctor for Tuple2Brand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the mapped first value.",
@@ -50,7 +50,7 @@ impl Bifunctor for Tuple2Brand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the first value.",
 		"The function to apply to the second value.",
 		"The tuple to map over."
@@ -96,11 +96,11 @@ impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the second value.",
 		"The type of the result of applying the function.",
@@ -109,7 +109,7 @@ impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the second value.", "The tuple to map over.")]
+	#[document_parameters("The function to apply to the second value.", "The tuple to map over.")]
 	///
 	/// ### Returns
 	///
@@ -143,11 +143,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first second value.",
 		"The type of the second second value.",
@@ -157,7 +157,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply to the second values.",
 		"The first tuple.",
 		"The second tuple."
@@ -202,15 +202,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -241,11 +241,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -254,7 +254,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The tuple containing the function.", "The tuple containing the value.")]
+	#[document_parameters("The tuple containing the function.", "The tuple containing the value.")]
 	///
 	/// ### Returns
 	///
@@ -286,11 +286,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -299,7 +299,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first tuple.", "The function to apply to the second value.")]
+	#[document_parameters("The first tuple.", "The function to apply to the second value.")]
 	///
 	/// ### Returns
 	///
@@ -335,11 +335,11 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -349,7 +349,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -380,11 +380,11 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -394,7 +394,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The tuple to fold."
@@ -429,11 +429,11 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -443,7 +443,7 @@ impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The tuple to fold.")]
+	#[document_parameters("The mapping function.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -479,11 +479,11 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -493,7 +493,7 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The tuple to traverse."
 	)]
@@ -529,11 +529,11 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -541,7 +541,7 @@ impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The tuple containing the applicative value.")]
+	#[document_parameters("The tuple containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -576,11 +576,11 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -589,7 +589,10 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The tuple to fold.")]
+	#[document_parameters(
+		"The thread-safe function to map each element to a monoid.",
+		"The tuple to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -625,11 +628,11 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -638,7 +641,7 @@ impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The tuple to fold."
@@ -686,11 +689,11 @@ impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the result of applying the function.",
@@ -699,7 +702,7 @@ impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the first value.", "The tuple to map over.")]
+	#[document_parameters("The function to apply to the first value.", "The tuple to map over.")]
 	///
 	/// ### Returns
 	///
@@ -733,11 +736,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first first value.",
 		"The type of the second first value.",
@@ -747,7 +750,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply to the first values.",
 		"The first tuple.",
 		"The second tuple."
@@ -792,15 +795,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -831,11 +834,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -844,7 +847,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The tuple containing the function.", "The tuple containing the value.")]
+	#[document_parameters("The tuple containing the function.", "The tuple containing the value.")]
 	///
 	/// ### Returns
 	///
@@ -876,11 +879,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -889,7 +892,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first tuple.", "The function to apply to the first value.")]
+	#[document_parameters("The first tuple.", "The function to apply to the first value.")]
 	///
 	/// ### Returns
 	///
@@ -925,11 +928,11 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -939,7 +942,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -970,11 +973,11 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -984,7 +987,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The tuple to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1015,11 +1018,11 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1029,7 +1032,7 @@ impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The tuple to fold.")]
+	#[document_parameters("The mapping function.", "The tuple to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1065,11 +1068,11 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -1079,7 +1082,7 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The tuple to traverse.")]
+	#[document_parameters("The function to apply.", "The tuple to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -1113,11 +1116,11 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -1125,7 +1128,7 @@ impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The tuple containing the applicative value.")]
+	#[document_parameters("The tuple containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -1160,11 +1163,11 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1173,7 +1176,10 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The tuple to fold.")]
+	#[document_parameters(
+		"The thread-safe function to map each element to a monoid.",
+		"The tuple to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1209,11 +1215,11 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1222,7 +1228,7 @@ impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The tuple to fold."

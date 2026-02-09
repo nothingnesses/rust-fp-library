@@ -8,13 +8,13 @@ mod test_context {
 	pub struct CatList<A>(A);
 
 	impl<A> CatList<A> {
-		#[hm_signature]
+		#[document_signature]
 		#[allow(dead_code)]
 		pub fn empty() -> Self {
 			todo!()
 		}
 
-		#[hm_signature]
+		#[document_signature]
 		#[allow(dead_code)]
 		pub fn is_empty(&self) -> bool {
 			true

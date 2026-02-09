@@ -1,20 +1,20 @@
 use std::fmt;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub enum HMAST {
+pub enum HmAst {
 	Variable(String),
-	Constructor(String, Vec<HMAST>),
-	Arrow(Box<HMAST>, Box<HMAST>),
-	Tuple(Vec<HMAST>),
-	List(Box<HMAST>), // For [T]
-	Reference(Box<HMAST>),
-	MutableReference(Box<HMAST>),
+	Constructor(String, Vec<HmAst>),
+	Arrow(Box<HmAst>, Box<HmAst>),
+	Tuple(Vec<HmAst>),
+	List(Box<HmAst>), // For [T]
+	Reference(Box<HmAst>),
+	MutableReference(Box<HmAst>),
 	#[default]
 	Unit,
-	TraitObject(Box<HMAST>),
+	TraitObject(Box<HmAst>),
 }
 
-impl fmt::Display for HMAST {
+impl fmt::Display for HmAst {
 	fn fmt(
 		&self,
 		f: &mut fmt::Formatter<'_>,
@@ -23,19 +23,19 @@ impl fmt::Display for HMAST {
 	}
 }
 
-impl HMAST {
+impl HmAst {
 	fn precedence(&self) -> u8 {
 		match self {
 			// Atoms: always safe
-			HMAST::Variable(_)
-			| HMAST::Unit
-			| HMAST::List(_)
-			| HMAST::Tuple(_)
-			| HMAST::Reference(_)
-			| HMAST::MutableReference(_)
-			| HMAST::TraitObject(_) => 3,
+			HmAst::Variable(_)
+			| HmAst::Unit
+			| HmAst::List(_)
+			| HmAst::Tuple(_)
+			| HmAst::Reference(_)
+			| HmAst::MutableReference(_)
+			| HmAst::TraitObject(_) => 3,
 			// Application: binds tight
-			HMAST::Constructor(_, args) => {
+			HmAst::Constructor(_, args) => {
 				if args.is_empty() {
 					3
 				} else {
@@ -43,7 +43,7 @@ impl HMAST {
 				}
 			}
 			// Arrow: binds loose
-			HMAST::Arrow(_, _) => 1,
+			HmAst::Arrow(_, _) => 1,
 		}
 	}
 
@@ -60,18 +60,18 @@ impl HMAST {
 		}
 
 		match self {
-			HMAST::Variable(name) => write!(f, "{}", name)?,
-			HMAST::Unit => write!(f, "()")?,
-			HMAST::List(inner) => write!(f, "[{}]", inner)?,
-			HMAST::Reference(inner) => {
+			HmAst::Variable(name) => write!(f, "{}", name)?,
+			HmAst::Unit => write!(f, "()")?,
+			HmAst::List(inner) => write!(f, "[{}]", inner)?,
+			HmAst::Reference(inner) => {
 				write!(f, "&")?;
 				inner.fmt_with_precedence(f, 2)?;
 			}
-			HMAST::MutableReference(inner) => {
+			HmAst::MutableReference(inner) => {
 				write!(f, "&mut ")?;
 				inner.fmt_with_precedence(f, 2)?;
 			}
-			HMAST::Tuple(args) => {
+			HmAst::Tuple(args) => {
 				write!(f, "(")?;
 				for (i, arg) in args.iter().enumerate() {
 					if i > 0 {
@@ -82,7 +82,7 @@ impl HMAST {
 				}
 				write!(f, ")")?;
 			}
-			HMAST::Constructor(name, args) => {
+			HmAst::Constructor(name, args) => {
 				write!(f, "{}", name)?;
 				for arg in args {
 					write!(f, " ")?;
@@ -91,7 +91,7 @@ impl HMAST {
 					arg.fmt_with_precedence(f, 3)?;
 				}
 			}
-			HMAST::Arrow(input, output) => {
+			HmAst::Arrow(input, output) => {
 				// Input needs to be higher precedence than Arrow (1), or wrapped.
 				// A -> B -> C parses as A -> (B -> C).
 				// So left child needs parens if it is an Arrow.
@@ -100,7 +100,7 @@ impl HMAST {
 				// Right child is right-associative, so it can be an Arrow without parens.
 				output.fmt_with_precedence(f, 1)?;
 			}
-			HMAST::TraitObject(inner) => {
+			HmAst::TraitObject(inner) => {
 				write!(f, "dyn ")?;
 				inner.fmt_with_precedence(f, 3)?;
 			}

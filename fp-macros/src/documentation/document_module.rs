@@ -1,12 +1,13 @@
 use super::generation::generate_docs;
 use crate::{
-	core::{config::Config, error_handling::ErrorCollector},
+	core::{Result as OurResult, config::Config, error_handling::ErrorCollector},
 	resolution::extract_context,
+	support::parsing::{parse_many, parse_non_empty},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	Item, Result,
+	Item,
 	parse::{Parse, ParseStream},
 	spanned::Spanned,
 	visit_mut::{self, VisitMut},
@@ -17,19 +18,17 @@ pub struct DocumentModuleInput {
 }
 
 impl Parse for DocumentModuleInput {
-	fn parse(input: ParseStream) -> Result<Self> {
-		let mut items = Vec::new();
-		while !input.is_empty() {
-			items.push(input.parse()?);
-		}
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let items = parse_many(input)?;
+		let items = parse_non_empty(items, "Module documentation must contain at least one item")?;
 		Ok(DocumentModuleInput { items })
 	}
 }
 
-pub fn document_module_impl(
+pub fn document_module_worker(
 	_attr: TokenStream,
 	item: TokenStream,
-) -> TokenStream {
+) -> OurResult<TokenStream> {
 	// Track if we need to reconstruct a module wrapper
 	let mut module_wrapper: Option<(syn::ItemMod, syn::token::Brace)> = None;
 
@@ -44,10 +43,10 @@ pub fn document_module_impl(
 			mod_items
 		} else {
 			// mod foo; case - we can't see the content easily
-			return syn::Error::new(
+			return Err(syn::Error::new(
 				item_mod.span(),
 				"document_module cannot see the content of file modules when used as an outer attribute. Use an inner attribute #![document_module] instead, or wrap the content in a mod block.",
-			).to_compile_error();
+			).into());
 		}
 	} else if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
 		// Inner attribute case or direct items
@@ -65,25 +64,22 @@ pub fn document_module_impl(
 				})
 				.collect()
 		} else {
-			return syn::Error::new(
+			return Err(syn::Error::new(
 				item_const.span(),
 				"document_module on a const item requires a block expression: const _: () = { ... };",
-			)
-			.to_compile_error();
+			).into());
 		}
 	} else {
-		return syn::Error::new(
+		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
 			"document_module must be applied to a module, a const block, or used as an inner attribute in a module.",
-		).to_compile_error();
+		).into());
 	};
 
 	let mut config = Config::default();
 
 	// Pass 1: Context Extraction (handles both top-level and nested)
-	if let Err(e) = extract_context(&items, &mut config) {
-		return e.to_compile_error();
-	}
+	extract_context(&items, &mut config)?;
 
 	// Also recursively extract from nested modules
 	let mut extractor =
@@ -91,32 +87,26 @@ pub fn document_module_impl(
 	for item in &mut items {
 		extractor.visit_item_mut(item);
 	}
-	if let Err(e) = extractor.errors.finish() {
-		return e.to_compile_error();
-	}
+	extractor.errors.finish()?;
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
-	if let Err(e) = generate_docs(&mut items, &config) {
-		return e.to_compile_error();
-	}
+	generate_docs(&mut items, &config)?;
 
 	// Also recursively generate docs for nested modules
 	let mut generator = DocGeneratorVisitor { config: &config, errors: ErrorCollector::new() };
 	for item in &mut items {
 		generator.visit_item_mut(item);
 	}
-	if let Err(e) = generator.errors.finish() {
-		return e.to_compile_error();
-	}
+	generator.errors.finish()?;
 
 	// Reconstruct module wrapper if needed (outer attribute case)
 	if let Some((mut module, brace)) = module_wrapper {
 		module.content = Some((brace, items));
 		let output = quote!(#module);
-		output
+		Ok(output)
 	} else {
 		let output = quote!(#(#items)*);
-		output
+		Ok(output)
 	}
 }
 

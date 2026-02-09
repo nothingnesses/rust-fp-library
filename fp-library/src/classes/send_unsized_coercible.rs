@@ -10,9 +10,9 @@
 //! ```
 
 use super::{SendRefCountedPointer, UnsizedCoercible};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
@@ -20,11 +20,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -32,7 +32,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to coerce.")]
+	#[document_parameters("The closure to coerce.")]
 	///
 	/// ### Returns
 	///
@@ -57,11 +57,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the closure.",
 	"The brand of the pointer.",
 	"The input type of the function.",
@@ -71,7 +71,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to coerce.")]
+#[document_parameters("The closure to coerce.")]
 ///
 /// ### Returns
 ///

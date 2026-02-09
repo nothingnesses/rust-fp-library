@@ -1,6 +1,6 @@
 use super::resolver::{normalize_type, type_uses_self_assoc};
 use crate::{
-	core::{config::Config, constants::known_attrs,error_handling::ErrorCollector},
+	core::{config::Config, constants::known_attrs, error_handling::ErrorCollector},
 	hkt::ImplKindInput,
 	resolution::ProjectionKey,
 	support::attributes::has_attr,
@@ -31,7 +31,7 @@ pub fn extract_context(
 				if let Ok(impl_kind) = m.mac.parse_body::<ImplKindInput>() {
 					let brand_path = impl_kind.brand.to_token_stream().to_string();
 					for def in &impl_kind.definitions {
-						let assoc_name = def.ident.to_string();
+						let assoc_name = def.signature.name.to_string();
 
 						// Check for circular references (Self:: forbidden in RHS)
 						if type_uses_self_assoc(&def.target_type) {
@@ -46,7 +46,7 @@ pub fn extract_context(
 						let key = ProjectionKey::new(&brand_path, &assoc_name);
 						if !has_cfg {
 							let normalized_target =
-								normalize_type(def.target_type.clone(), &def.generics);
+								normalize_type(def.target_type.clone(), &def.signature.generics);
 							if let Some((prev_generics, prev_type)) = config.projections.get(&key) {
 								let prev_normalized =
 									normalize_type(prev_type.clone(), prev_generics);
@@ -56,7 +56,7 @@ pub fn extract_context(
 								// (generics replaced with T0, T1, etc.), this comparison is semantically correct.
 								if prev_normalized != normalized_target {
 									errors.push(Error::new(
-										def.ident.span(),
+										def.signature.name.span(),
 										format!(
 											"Conflicting implementation for {}: already defined with different type",
 											assoc_name
@@ -68,15 +68,15 @@ pub fn extract_context(
 
 						config
 							.projections
-							.insert(key, (def.generics.clone(), def.target_type.clone()));
+							.insert(key, (def.signature.generics.clone(), def.target_type.clone()));
 
-						if has_attr(&def.attrs, known_attrs::DOC_DEFAULT)
+						if has_attr(&def.signature.attributes, known_attrs::DOCUMENT_DEFAULT)
 							&& let Some(prev) = config
 								.module_defaults
 								.insert(brand_path.clone(), assoc_name.clone())
 						{
 							errors.push(Error::new(
-								def.ident.span(),
+								def.signature.name.span(),
 								format!(
 									"Conflicting module default for {}: {} and {}",
 									brand_path, prev, assoc_name
@@ -108,8 +108,8 @@ pub fn extract_context(
 							.projections
 							.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
 
-						// Track doc_default across split impl blocks
-						if has_attr(&assoc_type.attrs, known_attrs::DOC_DEFAULT)
+						// Track document_default across split impl blocks
+						if has_attr(&assoc_type.attrs, known_attrs::DOCUMENT_DEFAULT)
 							&& let Some(t_path) = &trait_path
 						{
 							let key = (self_ty_path.clone(), t_path.clone());
@@ -133,7 +133,7 @@ pub fn extract_context(
 				errors.push(Error::new(
 					*span,
 					format!(
-						"Multiple #[doc_default] annotations for ({}, {}): {}",
+						"Multiple #[document_default] annotations for ({}, {}): {}",
 						self_ty,
 						trait_path,
 						names.join(", ")

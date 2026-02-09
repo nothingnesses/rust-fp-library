@@ -11,9 +11,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
@@ -27,11 +27,11 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computations.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -40,7 +40,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The first computation.",
 		"The function to apply to the result of the first computation."
 	)]
@@ -72,11 +72,11 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computations.",
 	"The brand of the semimonad.",
 	"The type of the result of the first computation.",
@@ -86,7 +86,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The first computation.",
 	"The function to apply to the result of the first computation."
 )]

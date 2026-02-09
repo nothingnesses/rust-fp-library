@@ -18,7 +18,7 @@ use crate::{
 	classes::Deferrable,
 	types::{Lazy, LazyConfig, Trampoline, TryLazy},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A lazy, stack-safe computation that may fail with an error.
 ///
@@ -48,7 +48,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -57,7 +57,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The success value.")]
+	#[document_parameters("The success value.")]
 	///
 	/// ### Returns
 	///
@@ -79,7 +79,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -88,7 +88,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The error value.")]
+	#[document_parameters("The error value.")]
 	///
 	/// ### Returns
 	///
@@ -110,15 +110,15 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the closure.")]
+	#[document_type_parameters("The type of the closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to execute.")]
+	#[document_parameters("The closure to execute.")]
 	///
 	/// ### Returns
 	///
@@ -145,15 +145,15 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that returns the next step.")]
+	#[document_parameters("A thunk that returns the next step.")]
 	///
 	/// ### Returns
 	///
@@ -197,18 +197,18 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the new success value.",
 		("F", "The type of the mapping function.")
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the success value.")]
+	#[document_parameters("The function to apply to the success value.")]
 	///
 	/// ### Returns
 	///
@@ -236,18 +236,18 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the new error value.",
 		("F", "The type of the mapping function.")
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error value.")]
+	#[document_parameters("The function to apply to the error value.")]
 	///
 	/// ### Returns
 	///
@@ -276,15 +276,18 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the new success value.", "The type of the binding function.")]
+	#[document_type_parameters(
+		"The type of the new success value.",
+		"The type of the binding function."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the success value.")]
+	#[document_parameters("The function to apply to the success value.")]
 	///
 	/// ### Returns
 	///
@@ -315,15 +318,15 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the recovery function.")]
+	#[document_type_parameters("The type of the recovery function.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error value.")]
+	#[document_parameters("The function to apply to the error value.")]
 	///
 	/// ### Returns
 	///
@@ -355,7 +358,7 @@ impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -415,15 +418,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the value.")]
+	#[document_parameters("A thunk that produces the value.")]
 	///
 	/// ### Returns
 	///

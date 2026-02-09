@@ -7,7 +7,7 @@ use crate::{
 	classes::{Category, Monoid, Semigroup},
 	kinds::*,
 };
-use fp_macros::{doc_params, hm_signature};
+use fp_macros::{document_parameters, document_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -53,7 +53,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -62,7 +62,7 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The morphism to wrap.")]
+	#[document_parameters("The morphism to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -164,11 +164,11 @@ impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The second morphism to apply (the outer function).",
 		"The first morphism to apply (the inner function)."
 	)]
@@ -204,7 +204,7 @@ impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///

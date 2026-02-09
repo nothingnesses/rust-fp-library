@@ -19,7 +19,7 @@ use crate::{
 	classes::Deferrable,
 	types::{Free, Lazy, LazyConfig, Step, Thunk},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A lazy, stack-safe computation that produces a value of type `A`.
 ///
@@ -86,7 +86,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -94,7 +94,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -123,15 +123,15 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the closure.")]
+	#[document_type_parameters("The type of the closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to execute.")]
+	#[document_parameters("The closure to execute.")]
 	///
 	/// ### Returns
 	///
@@ -166,15 +166,15 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the closure.")]
+	#[document_type_parameters("The type of the closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that produces a `Trampoline`.")]
+	#[document_parameters("The closure that produces a `Trampoline`.")]
 	///
 	/// ### Returns
 	///
@@ -212,18 +212,18 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the new task.",
 		"The type of the binding function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of this task.")]
+	#[document_parameters("The function to apply to the result of this task.")]
 	///
 	/// ### Returns
 	///
@@ -255,18 +255,18 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the mapping function.",
 		"The type of the mapping function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of this task.")]
+	#[document_parameters("The function to apply to the result of this task.")]
 	///
 	/// ### Returns
 	///
@@ -298,7 +298,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -320,11 +320,11 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the second task's result.",
 		"The type of the combined result.",
 		"The type of the combining function."
@@ -332,7 +332,7 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The second task.", "The function to combine the results.")]
+	#[document_parameters("The second task.", "The function to combine the results.")]
 	///
 	/// ### Returns
 	///
@@ -363,15 +363,15 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the second task's result.")]
+	#[document_type_parameters("The type of the second task's result.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The second task.")]
+	#[document_parameters("The second task.")]
 	///
 	/// ### Returns
 	///
@@ -407,15 +407,18 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the state.", "The type of the step function.")]
+	#[document_type_parameters("The type of the state.", "The type of the step function.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function that performs one step of the recursion.", "The initial state.")]
+	#[document_parameters(
+		"The function that performs one step of the recursion.",
+		"The initial state."
+	)]
 	///
 	/// ### Returns
 	///
@@ -472,15 +475,18 @@ impl<A: 'static + Send> Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the state.", "The type of the step function.")]
+	#[document_type_parameters("The type of the state.", "The type of the step function.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function that performs one step of the recursion.", "The initial state.")]
+	#[document_parameters(
+		"The function that performs one step of the recursion.",
+		"The initial state."
+	)]
 	///
 	/// ### Returns
 	///
@@ -533,15 +539,15 @@ impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the trampoline.")]
+	#[document_parameters("A thunk that produces the trampoline.")]
 	///
 	/// ### Returns
 	///

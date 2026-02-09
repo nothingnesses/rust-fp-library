@@ -20,7 +20,7 @@ mod inner {
 			UnsizedCoercible,
 		},
 	};
-	use fp_macros::doc_params;
+	use fp_macros::document_parameters;
 	use std::sync::Arc;
 
 	impl Pointer for ArcBrand {
@@ -30,15 +30,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the value to wrap.")]
+		#[document_type_parameters("The type of the value to wrap.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The value to wrap.")]
+		#[document_parameters("The value to wrap.")]
 		///
 		/// ### Returns
 		///
@@ -64,15 +64,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the value to wrap.")]
+		#[document_type_parameters("The type of the value to wrap.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The value to wrap.")]
+		#[document_parameters("The value to wrap.")]
 		///
 		/// ### Returns
 		///
@@ -94,15 +94,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the wrapped value.")]
+		#[document_type_parameters("The type of the wrapped value.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The pointer to attempt to unwrap.")]
+		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
 		/// ### Returns
 		///
@@ -128,15 +128,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the value to wrap.")]
+		#[document_type_parameters("The type of the value to wrap.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The value to wrap.")]
+		#[document_parameters("The value to wrap.")]
 		///
 		/// ### Returns
 		///
@@ -160,11 +160,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
@@ -172,7 +172,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The closure to coerce.")]
+		#[document_parameters("The closure to coerce.")]
 		///
 		/// ### Returns
 		///
@@ -196,11 +196,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
@@ -208,7 +208,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The closure to coerce.")]
+		#[document_parameters("The closure to coerce.")]
 		///
 		/// ### Returns
 		///

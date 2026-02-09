@@ -15,9 +15,9 @@ use crate::{
 	classes::{compactable::Compactable, functor::Functor},
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for data structures that can be filtered and partitioned.
 ///
@@ -42,11 +42,11 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the error values.",
@@ -56,7 +56,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a [`Result`].",
 		"The data structure to partition."
 	)]
@@ -98,11 +98,11 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
@@ -110,7 +110,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate function.", "The data structure to partition.")]
+	#[document_parameters("The predicate function.", "The data structure to partition.")]
 	///
 	/// ### Returns
 	///
@@ -146,11 +146,11 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Type Signature
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
@@ -190,11 +190,11 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
@@ -202,7 +202,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate function.", "The data structure to filter.")]
+	#[document_parameters("The predicate function.", "The data structure to filter.")]
 	///
 	/// ### Returns
 	///
@@ -234,11 +234,11 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
@@ -249,7 +249,7 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element, returning a [`Result`].",
 	"The data structure to partition."
 )]
@@ -289,11 +289,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
@@ -302,7 +302,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params("The predicate function.", "The data structure to partition.")]
+#[document_parameters("The predicate function.", "The data structure to partition.")]
 ///
 /// ### Returns
 ///
@@ -337,11 +337,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
@@ -351,7 +351,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element, returning an [`Option`].",
 	"The data structure to filter and map."
 )]
@@ -385,11 +385,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
@@ -398,7 +398,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params("The predicate function.", "The data structure to filter.")]
+#[document_parameters("The predicate function.", "The data structure to filter.")]
 ///
 /// ### Returns
 ///

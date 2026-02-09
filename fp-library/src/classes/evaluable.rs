@@ -13,9 +13,9 @@
 //! ```
 
 use crate::{Apply, classes::functor::Functor, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A functor whose effects can be evaluated to produce the inner value.
 ///
@@ -26,15 +26,18 @@ pub trait Evaluable: Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value inside the functor.")]
+	#[document_type_parameters(
+		"The lifetime of the value.",
+		"The type of the value inside the functor."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The functor instance to evaluate.")]
+	#[document_parameters("The functor instance to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -57,11 +60,11 @@ pub trait Evaluable: Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the value.",
 	"The evaluable functor.",
 	"The type of the value inside the functor."
@@ -69,7 +72,7 @@ pub trait Evaluable: Functor {
 ///
 /// ### Parameters
 ///
-#[doc_params("The functor instance to evaluable.")]
+#[document_parameters("The functor instance to evaluable.")]
 ///
 /// ### Returns
 ///

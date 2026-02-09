@@ -25,7 +25,7 @@ impl<'a> DocumentationBuilder<'a> {
 
 	/// Build the complete documentation string.
 	pub fn build(self) -> String {
-		let sections = vec![
+		let sections = [
 			self.build_summary(),
 			self.build_overview(),
 			self.build_associated_types_section(),
@@ -43,9 +43,9 @@ impl<'a> DocumentationBuilder<'a> {
 			.assoc_types
 			.iter()
 			.map(|assoc| {
-				let ident = &assoc.name;
-				let generics = &assoc.generics;
-				let output_bounds = &assoc.output_bounds;
+				let ident = &assoc.signature.name;
+				let generics = &assoc.signature.generics;
+				let output_bounds = &assoc.signature.output_bounds;
 				let output_bounds_tokens =
 					if output_bounds.is_empty() { quote!() } else { quote!(: #output_bounds) };
 
@@ -95,14 +95,14 @@ impl<'a> DocumentationBuilder<'a> {
 		&self,
 		assoc: &AssociatedType,
 	) -> String {
-		let ident = &assoc.name;
+		let ident = &assoc.signature.name;
 
 		let mut l_count = 0;
 		let mut t_count = 0;
 		let mut lifetimes_doc = Vec::new();
 		let mut types_doc = Vec::new();
 
-		for param in &assoc.generics.params {
+		for param in &assoc.signature.generics.params {
 			match param {
 				GenericParam::Lifetime(lt) => {
 					l_count += 1;
@@ -122,7 +122,7 @@ impl<'a> DocumentationBuilder<'a> {
 			}
 		}
 
-		let output_bounds = &assoc.output_bounds;
+		let output_bounds = &assoc.signature.output_bounds;
 		let output_bounds_doc = if output_bounds.is_empty() {
 			"None".to_string()
 		} else {
@@ -142,8 +142,8 @@ impl<'a> DocumentationBuilder<'a> {
 			.assoc_types
 			.iter()
 			.map(|assoc| {
-				let ident = &assoc.name;
-				let generics = &assoc.generics;
+				let ident = &assoc.signature.name;
+				let generics = &assoc.signature.generics;
 				let s = quote!(type #ident #generics = ConcreteType;).to_string();
 				s.replace(" < ", "<")
 					.replace(" >", ">")

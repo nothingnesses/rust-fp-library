@@ -6,7 +6,7 @@
 //!
 //! ## Overview
 //!
-//! When generating HM-style documentation with `#[hm_signature]`, the macro needs to resolve
+//! When generating HM-style documentation with `#[document_signature]`, the macro needs to resolve
 //! references to `Self` and its associated types (e.g., `Self::Map`). The resolution system
 //! follows a four-level hierarchy to determine which concrete type to use.
 //!
@@ -14,7 +14,7 @@
 //!
 //! The algorithm tries each level in order until a resolution is found:
 //!
-//! ### 1. Method-Level Override: `#[doc_use = "AssocName"]`
+//! ### 1. Method-Level Override: `#[document_use = "AssocName"]`
 //!
 //! The highest precedence is given to explicit annotations on individual methods.
 //! This allows per-method customization of how `Self` projections are resolved.
@@ -22,8 +22,8 @@
 //! **Example:**
 //! ```rust,ignore
 //! impl MyBrand {
-//!     #[doc_use = "Of"]  // ← Method-level override
-//!     #[hm_signature]
+//!     #[document_use = "Of"]  // ← Method-level override
+//!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
 //!         // When resolving <Self as Kind>::Of, use "Of" association
 //!         // from the impl_kind! projection for MyBrand
@@ -34,41 +34,41 @@
 //! In this example, when resolving `<Self as Kind>::Of<B>`, the system looks up the
 //! `Of` associated type defined for `MyBrand` in the `impl_kind!` macro.
 //!
-//! ### 2. Impl-Level Override: `#[doc_use = "AssocName"]`
+//! ### 2. Impl-Level Override: `#[document_use = "AssocName"]`
 //!
 //! The second level is an annotation on the entire impl block. This applies
 //! to all methods in the block that don't have their own method-level override.
 //!
 //! **Example:**
 //! ```rust,ignore
-//! #[doc_use = "Of"]  // ← Impl-level override
+//! #[document_use = "Of"]  // ← Impl-level override
 //! impl Functor for MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
 //!         // All methods in this impl use "Of" unless overridden
 //!     }
 //!
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn fmap<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
 //!         // Also uses "Of" from impl-level
 //!     }
 //! }
 //! ```
 //!
-//! ### 3. (Type, Trait)-Scoped Default: `#[doc_default]` in impl
+//! ### 3. (Type, Trait)-Scoped Default: `#[document_default]` in impl
 //!
 //! The third level is a scoped default specific to a (Type, Trait) pair.
-//! This is set using `#[doc_default]` on an associated type declaration
+//! This is set using `#[document_default]` on an associated type declaration
 //! within a trait implementation.
 //!
 //! **Example:**
 //! ```rust,ignore
 //! impl Functor for MyBrand {
-//!     #[doc_default]  // ← Scoped default for (MyBrand, Functor)
+//!     #[document_default]  // ← Scoped default for (MyBrand, Functor)
 //!     type Map = MyType<T>;
 //!     type Item = OtherType<T>;
 //!
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Self::Map {
 //!         // Uses the Map associated type as default
 //!     }
@@ -78,7 +78,7 @@
 //! This default only applies to `MyBrand` when implementing `Functor`,
 //! allowing different defaults for different trait implementations.
 //!
-//! ### 4. Module-Level Default: `#[doc_default]` in `impl_kind!`
+//! ### 4. Module-Level Default: `#[document_default]` in `impl_kind!`
 //!
 //! The lowest precedence is given to module-wide defaults declared using
 //! the `impl_kind!` macro. This sets a fallback for any type that doesn't
@@ -88,15 +88,15 @@
 //! ```rust,ignore
 //! impl_kind! {
 //!     for MyBrand {
-//!         #[doc_default]  // ← Module-level default for MyBrand
+//!         #[document_default]  // ← Module-level default for MyBrand
 //!         type Of<T> = MyType<T>;
 //!         type Other<T> = OtherType<T>;
 //!     }
 //! }
 //!
-//! // Later in an impl without explicit doc_use:
+//! // Later in an impl without explicit document_use:
 //! impl Functor for MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn map<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Of<B>) {
 //!         // Falls back to module-level default: Of -> MyType<B>
 //!     }
@@ -112,13 +112,13 @@
 //! ```rust,ignore
 //! impl_kind! {
 //!     for MyBrand {
-//!         #[doc_default]
+//!         #[document_default]
 //!         type Of<T> = MyType<T>;
 //!     }
 //! }
 //!
 //! impl MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn create<A>(value: A) -> Apply!(<Self as Kind>::Of<A>) {
 //!         // Resolves to: MyType<A>
 //!     }
@@ -132,15 +132,15 @@
 //! ```rust,ignore
 //! impl_kind! {
 //!     for MyBrand {
-//!         #[doc_default]
+//!         #[document_default]
 //!         type Of<T> = MyType<T>;
 //!         type Other<T> = OtherType<T>;
 //!     }
 //! }
 //!
-//! #[doc_use = "Other"]  // ← Override for this entire impl
+//! #[document_use = "Other"]  // ← Override for this entire impl
 //! impl Monad for MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn bind<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Other<B>) {
 //!         // Resolves to: OtherType<B>
 //!     }
@@ -153,13 +153,13 @@
 //!
 //! ```rust,ignore
 //! impl Applicative for MyBrand {
-//!     #[doc_use = "Other"]  // ← Method-level override
-//!     #[hm_signature]
+//!     #[document_use = "Other"]  // ← Method-level override
+//!     #[document_signature]
 //!     fn apply<A, B>(self, f: impl Fn(A) -> B) -> Apply!(<Self as Kind>::Other<B>) {
 //!         // Resolves to: OtherType<B>
 //!     }
 //!
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn pure<A>(value: A) -> Apply!(<Self as Kind>::Of<A>) {
 //!         // Uses module-level default: MyType<A>
 //!     }
@@ -172,7 +172,7 @@
 //!
 //! ```rust,ignore
 //! impl MyTrait for MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn method(self) -> Apply!(<Self as Kind>::Of<i32>) {
 //!         // System extracts "Kind" trait and "Of" association
 //!         // Looks up (MyBrand, Kind, Of) in projections map
@@ -190,7 +190,7 @@
 //!
 //! ```rust,ignore
 //! impl SomeTrait for MyBrand {
-//!     #[hm_signature]
+//!     #[document_signature]
 //!     fn returns_self(self) -> Self {
 //!         // Resolves to MyBrand (the concrete self type)
 //!         // If impl has generics like impl<A> SomeTrait for MyType<A>,
@@ -343,7 +343,7 @@ pub struct SelfSubstitutor<'a> {
 	self_ty: &'a syn::Type,
 	self_ty_path: &'a str,
 	trait_path: Option<&'a str>,
-	doc_use: Option<&'a str>,
+	document_use: Option<&'a str>,
 	config: &'a Config,
 	pub errors: Vec<Error>,
 	/// The base type name (e.g., "CatList") extracted from self_ty
@@ -357,7 +357,7 @@ impl<'a> SelfSubstitutor<'a> {
 		self_ty: &'a syn::Type,
 		self_ty_path: &'a str,
 		trait_path: Option<&'a str>,
-		doc_use: Option<&'a str>,
+		document_use: Option<&'a str>,
 		config: &'a Config,
 		base_type_name: Option<String>,
 		impl_generic_params: Vec<String>,
@@ -366,7 +366,7 @@ impl<'a> SelfSubstitutor<'a> {
 			self_ty,
 			self_ty_path,
 			trait_path,
-			doc_use,
+			document_use,
 			config,
 			errors: Vec::new(),
 			base_type_name,
@@ -375,9 +375,9 @@ impl<'a> SelfSubstitutor<'a> {
 	}
 
 	/// Resolve the default associated type name for bare `Self`.
-	/// Tries doc_use, then scoped_defaults, then module_defaults.
+	/// Tries document_use, then scoped_defaults, then module_defaults.
 	fn resolve_default_assoc_name(&self) -> Option<String> {
-		self.doc_use
+		self.document_use
 			.map(|s| s.to_string())
 			.or_else(|| {
 				self.trait_path.and_then(|tp| {
@@ -397,16 +397,14 @@ impl<'a> SelfSubstitutor<'a> {
 		assoc_name: &str,
 	) -> Option<&(syn::Generics, syn::Type)> {
 		// Try (Type, Trait, AssocName) scoped lookup first
-		let scoped_key = if let Some(trait_path) = self.trait_path {
-			Some(ProjectionKey::scoped(self.self_ty_path, trait_path, assoc_name))
-		} else {
-			None
-		};
+		let scoped_key = self
+			.trait_path
+			.map(|trait_path| ProjectionKey::scoped(self.self_ty_path, trait_path, assoc_name));
 
-		if let Some(key) = scoped_key {
-			if let Some(result) = self.config.projections.get(&key) {
-				return Some(result);
-			}
+		if let Some(key) = scoped_key
+			&& let Some(result) = self.config.projections.get(&key)
+		{
+			return Some(result);
 		}
 
 		// Fall back to module-level (Type, AssocName) lookup
@@ -804,7 +802,7 @@ fn create_missing_default_error(
 	}
 
 	message.push_str(
-		"\n  = help: Mark one as default with #[doc_default], or use explicit #[doc_use = \"AssocName\"]",
+		"\n  = help: Mark one as default with #[document_default], or use explicit #[document_use = \"AssocName\"]",
 	);
 
 	Error::new(span, message)

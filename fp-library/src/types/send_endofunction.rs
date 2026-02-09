@@ -6,7 +6,7 @@ use crate::{
 	classes::{Monoid, Semigroup, SendCloneableFn},
 	functions::identity,
 };
-use fp_macros::{doc_params, hm_signature};
+use fp_macros::{document_parameters, document_signature};
 use std::{
 	fmt::{self, Debug, Formatter},
 	hash::Hash,
@@ -51,7 +51,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -60,7 +60,7 @@ impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to wrap.")]
+	#[document_parameters("The function to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -161,11 +161,11 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The second function to apply (the outer function).",
 		"The first function to apply (the inner function)."
 	)]
@@ -206,7 +206,7 @@ impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///

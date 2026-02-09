@@ -10,9 +10,9 @@
 //! ```
 
 use super::RefCountedPointer;
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 use std::ops::Deref;
 
 /// Extension trait for thread-safe reference-counted pointers.
@@ -29,15 +29,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the value to wrap.")]
+	#[document_type_parameters("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -60,15 +60,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+#[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-#[doc_params("The value to wrap.")]
+#[document_parameters("The value to wrap.")]
 ///
 /// ### Returns
 ///

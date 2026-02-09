@@ -10,8 +10,8 @@
 //! ```
 
 use super::semigroup::Semigroup;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for types that have an identity element and an associative binary operation.
 ///
@@ -27,7 +27,7 @@ pub trait Monoid: Semigroup {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -50,11 +50,11 @@ pub trait Monoid: Semigroup {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The type of the monoid.")]
+#[document_type_parameters("The type of the monoid.")]
 ///
 /// ### Returns
 ///

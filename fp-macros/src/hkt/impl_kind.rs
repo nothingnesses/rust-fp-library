@@ -3,17 +3,21 @@
 //! This module handles the parsing and expansion of the `impl_kind!` macro, which is used
 //! to implement a generated `Kind` trait for a specific brand type.
 
-use super::{AssociatedType, AssociatedTypes, generate_name};
+use super::{
+	AssociatedType as AssociatedTypeInput, AssociatedTypeBase, AssociatedTypes, generate_name,
+};
 use crate::{
 	core::Result,
-	support::attributes::DocAttributeFilter,
+	support::{
+		attributes::DocAttributeFilter,
+		parsing::{parse_many, parse_non_empty},
+	},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-	Attribute, Generics, Ident, Token, Type, TypeParamBound, WhereClause, braced,
+	Generics, Token, Type, WhereClause, braced,
 	parse::{Parse, ParseStream},
-	punctuated::Punctuated,
 };
 
 /// Input structure for the `impl_kind!` macro.
@@ -25,45 +29,27 @@ use syn::{
 ///     type SendOf<B> = MySendType<B>;
 /// }
 /// ```
-///
-/// Note: Marked `#[allow(dead_code)]` because fields are used via `Parse` implementation
-/// and token generation, which the compiler doesn't recognize as "usage".
-#[allow(dead_code)]
 pub struct ImplKindInput {
 	/// Generics for the impl block (e.g., `impl<T>`).
 	pub impl_generics: Generics,
 	/// The `for` keyword.
-	pub for_token: Token![for],
+	pub _for_token: Token![for],
 	/// The brand type being implemented (e.g., `MyBrand`).
 	pub brand: Type,
 	/// The brace token surrounding the associated type definitions.
-	pub brace_token: syn::token::Brace,
+	pub _brace_token: syn::token::Brace,
 	/// The associated type definitions inside the braces.
-	pub definitions: Vec<KindAssocTypeImpl>,
+	pub definitions: Vec<AssociatedType>,
 }
 
 /// Represents a single associated type definition inside `impl_kind!`.
 ///
 /// Example: `type Of<A> = MyType<A>;`
-///
-/// Note: Marked `#[allow(dead_code)]` because fields are used via `Parse` implementation
-/// and token generation, which the compiler doesn't recognize as "usage".
-#[allow(dead_code)]
-pub struct KindAssocTypeImpl {
-	/// Attributes on the associated type (e.g., `#[doc_default]`).
-	pub attrs: Vec<Attribute>,
-	/// The `type` keyword.
-	pub type_token: Token![type],
-	/// The name of the associated type.
-	pub ident: Ident,
-	/// Generics for the associated type (e.g., `<A>`).
-	pub generics: Generics,
-	/// Optional colon for bounds.
-	pub colon_token: Option<Token![:]>,
-	/// Bounds on the associated type.
-	pub bounds: Punctuated<TypeParamBound, Token![+]>,
+pub struct AssociatedType {
+	/// The common signature parts.
+	pub signature: AssociatedTypeBase,
 	/// The `=` token.
-	pub eq_token: Token![=],
+	pub _eq_token: Token![=],
 	/// The concrete type being assigned (e.g., `MyType<A>`).
 	pub target_type: Type,
 	/// Optional where clause.
@@ -92,39 +78,24 @@ impl Parse for ImplKindInput {
 		let content;
 		let brace_token = braced!(content in input);
 
-		let mut definitions = Vec::new();
-		while !content.is_empty() {
-			definitions.push(content.parse()?);
-		}
+		let definitions = parse_many(&content)?;
+		let definitions = parse_non_empty(definitions, "Kind implementation must have at least one associated type definition")?;
 
-		Ok(ImplKindInput { impl_generics, for_token, brand, brace_token, definitions })
+		Ok(ImplKindInput {
+			impl_generics,
+			_for_token: for_token,
+			brand,
+			_brace_token: brace_token,
+			definitions,
+		})
 	}
 }
 
-impl Parse for KindAssocTypeImpl {
+impl Parse for AssociatedType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let attrs = input.call(Attribute::parse_outer)?;
-		let type_token: Token![type] = input.parse()?;
-		let ident: Ident = input.parse()?;
-		let generics: Generics = input.parse()?;
-
-		let mut colon_token: Option<Token![:]> = None;
-		let mut bounds = Punctuated::new();
-
-		if input.peek(Token![:]) {
-			colon_token = Some(input.parse()?);
-			loop {
-				if input.peek(Token![=]) || input.peek(Token![;]) {
-					break;
-				}
-				bounds.push_value(input.parse()?);
-				if input.peek(Token![+]) {
-					bounds.push_punct(input.parse()?);
-				} else {
-					break;
-				}
-			}
-		}
+		let signature = AssociatedTypeBase::parse_signature(input, |i| {
+			i.peek(Token![=]) || i.peek(Token![;])
+		})?;
 
 		let eq_token: Token![=] = input.parse()?;
 		let target_type: Type = input.parse()?;
@@ -134,14 +105,9 @@ impl Parse for KindAssocTypeImpl {
 
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(KindAssocTypeImpl {
-			attrs,
-			type_token,
-			ident,
-			generics,
-			colon_token,
-			bounds,
-			eq_token,
+		Ok(AssociatedType {
+			signature,
+			_eq_token: eq_token,
 			target_type,
 			where_clause,
 			semi_token,
@@ -153,22 +119,17 @@ impl Parse for KindAssocTypeImpl {
 ///
 /// This function takes the parsed input, determines the correct `Kind` trait based on
 /// the signature of the associated types, and generates the `impl` block.
-pub fn impl_kind_impl(input: ImplKindInput) -> Result<TokenStream> {
+pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let impl_generics = &input.impl_generics;
 
 	// Convert to KindInput for name generation
-	let assoc_types_input: Vec<AssociatedType> = input
+	let assoc_types_input: Vec<AssociatedTypeInput> = input
 		.definitions
 		.iter()
-		.map(|def| AssociatedType {
-			attributes: def.attrs.clone(),
-			_type_token: def.type_token,
-			name: def.ident.clone(),
-			generics: def.generics.clone(),
-			_colon_token: def.colon_token,
-			output_bounds: def.bounds.clone(),
-			_semi_token: def.semi_token,
+		.map(|def| AssociatedTypeInput {
+			signature: def.signature.clone(),
+			semi_token: def.semi_token,
 		})
 		.collect();
 
@@ -176,12 +137,12 @@ pub fn impl_kind_impl(input: ImplKindInput) -> Result<TokenStream> {
 	let kind_trait_name = generate_name(&kind_input)?;
 
 	let assoc_types_impl = input.definitions.iter().map(|def| {
-		let ident = &def.ident;
-		let generics = &def.generics;
+		let ident = &def.signature.name;
+		let generics = &def.signature.generics;
 		let target = &def.target_type;
 		let where_clause = &def.where_clause;
 		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
-		let attrs = DocAttributeFilter::filter_doc_attrs(&def.attrs);
+		let attrs = DocAttributeFilter::filter_doc_attrs(&def.signature.attributes);
 
 		quote! {
 			#(#attrs)*
@@ -217,20 +178,20 @@ mod tests {
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
 		assert_eq!(parsed.definitions.len(), 1);
-		assert_eq!(parsed.definitions[0].ident.to_string(), "Of");
+		assert_eq!(parsed.definitions[0].signature.name.to_string(), "Of");
 	}
 
 	#[test]
 	fn test_parse_impl_kind_multiple() {
-		let input = "for MyBrand { 
+		let input = "for MyBrand {
 			type Of<A> = MyType<A>;
 			type SendOf<B> = MySendType<B>;
 		}";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
 		assert_eq!(parsed.definitions.len(), 2);
-		assert_eq!(parsed.definitions[0].ident.to_string(), "Of");
-		assert_eq!(parsed.definitions[1].ident.to_string(), "SendOf");
+		assert_eq!(parsed.definitions[0].signature.name.to_string(), "Of");
+		assert_eq!(parsed.definitions[1].signature.name.to_string(), "SendOf");
 	}
 
 	#[test]
@@ -238,7 +199,7 @@ mod tests {
 		let input = "for OptionBrand { type Of<'a, A: 'a>: 'a = Option<A>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl Kind_"));
@@ -255,7 +216,7 @@ mod tests {
 		let input = "impl<E> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E > Kind_"));
@@ -267,7 +228,7 @@ mod tests {
 		let input = "impl<E: Clone, F: Send> for MyBrand<E, F> { type Of<A> = MyType<A, E, F>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E : Clone , F : Send > Kind_"));
@@ -279,7 +240,7 @@ mod tests {
 		let input = "impl<E: std::fmt::Debug> for ResultBrand<E> { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E : std :: fmt :: Debug > Kind_"));
@@ -296,7 +257,7 @@ mod tests {
 			"impl<E> for ResultBrand<E> where E: std::fmt::Debug { type Of<A> = Result<A, E>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E > Kind_"));
@@ -309,7 +270,7 @@ mod tests {
 		let input = "impl<E, F> for MyBrand<E, F> where E: Clone, F: Send { type Of<A> = MyType<A, E, F>; }";
 		let parsed: ImplKindInput = syn::parse_str(input).expect("Failed to parse ImplKindInput");
 
-		let output = impl_kind_impl(parsed).expect("impl_kind_impl failed");
+		let output = impl_kind_worker(parsed).expect("impl_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("impl < E , F >"));

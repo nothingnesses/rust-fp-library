@@ -11,7 +11,10 @@
 //! - Recursively canonicalizing nested types and generic arguments.
 //! - Generating unique, deterministic identifiers for `Kind` traits.
 
-use crate::{AssociatedTypes, core::error_handling::{Error, UnsupportedFeature}};
+use crate::{
+	AssociatedTypes,
+	core::error_handling::{Error, UnsupportedFeature},
+};
 use quote::{format_ident, quote};
 use std::collections::BTreeMap;
 use syn::{
@@ -302,18 +305,18 @@ fn rapidhash(data: &[u8]) -> u64 {
 pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
-	assoc_types.sort_by(|a, b| a.name.to_string().cmp(&b.name.to_string()));
+	assoc_types.sort_by(|a, b| a.signature.name.to_string().cmp(&b.signature.name.to_string()));
 
 	let mut canonical_parts = Vec::new();
 
 	for assoc in assoc_types {
-		let canon = Canonicalizer::new(&assoc.generics);
+		let canon = Canonicalizer::new(&assoc.signature.generics);
 
 		let mut l_count = 0;
 		let mut t_count = 0;
 		let mut type_bounds_parts = Vec::new();
 
-		for param in &assoc.generics.params {
+		for param in &assoc.signature.generics.params {
 			match param {
 				GenericParam::Lifetime(_) => l_count += 1,
 				GenericParam::Type(ty) => {
@@ -328,11 +331,12 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 			}
 		}
 
-		let mut parts = vec![assoc.name.to_string(), format!("L{l_count}"), format!("T{t_count}")];
+		let mut parts =
+			vec![assoc.signature.name.to_string(), format!("L{l_count}"), format!("T{t_count}")];
 		parts.extend(type_bounds_parts);
 
-		if !assoc.output_bounds.is_empty() {
-			let bounds_str = canon.canonicalize_bounds(&assoc.output_bounds)?;
+		if !assoc.signature.output_bounds.is_empty() {
+			let bounds_str = canon.canonicalize_bounds(&assoc.signature.output_bounds)?;
 			parts.push(format!("O{bounds_str}"));
 		}
 

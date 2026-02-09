@@ -9,7 +9,7 @@ use crate::{
 	kinds::*,
 	types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A lazily-computed, memoized value that may fail.
 ///
@@ -51,7 +51,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -79,15 +79,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the initializer closure.")]
+	#[document_type_parameters("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that produces the result.")]
+	#[document_parameters("The closure that produces the result.")]
 	///
 	/// ### Returns
 	///
@@ -153,15 +153,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the initializer closure.")]
+	#[document_type_parameters("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that might panic.")]
+	#[document_parameters("The closure that might panic.")]
 	///
 	/// ### Returns
 	///
@@ -205,15 +205,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the initializer closure.")]
+	#[document_type_parameters("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that produces the result.")]
+	#[document_parameters("The closure that produces the result.")]
 	///
 	/// ### Returns
 	///
@@ -247,15 +247,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that produces the lazy value.")]
+	#[document_parameters("The thunk that produces the lazy value.")]
 	///
 	/// ### Returns
 	///
@@ -296,15 +296,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that produces the lazy value.")]
+	#[document_parameters("The thunk that produces the lazy value.")]
 	///
 	/// ### Returns
 	///

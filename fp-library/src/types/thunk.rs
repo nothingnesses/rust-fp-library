@@ -13,7 +13,7 @@ use crate::{
 	kinds::*,
 	types::{Lazy, LazyConfig, Step},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A deferred computation that produces a value of type `A`.
 ///
@@ -68,15 +68,15 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk to wrap.")]
+	#[document_parameters("The thunk to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -101,11 +101,11 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -130,15 +130,15 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that returns a `Thunk`.")]
+	#[document_parameters("The thunk that returns a `Thunk`.")]
 	///
 	/// ### Returns
 	///
@@ -166,18 +166,18 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the new computation.",
 		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of the computation.")]
+	#[document_parameters("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -209,18 +209,18 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the transformation.",
 		"The type of the transformation function."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of the computation.")]
+	#[document_parameters("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -248,7 +248,7 @@ impl<'a, A: 'a> Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -288,15 +288,15 @@ impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the thunk.")]
+	#[document_parameters("A thunk that produces the thunk.")]
 	///
 	/// ### Returns
 	///
@@ -324,11 +324,11 @@ impl Functor for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value inside the `Thunk`.",
 		"The type of the result of the transformation.",
@@ -337,7 +337,7 @@ impl Functor for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the result of the computation.",
 		"The `Thunk` instance."
 	)]
@@ -371,15 +371,18 @@ impl Pointed for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value to wrap.")]
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value to wrap."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -403,11 +406,11 @@ impl Lift for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the first value.",
 		"The type of the second value.",
@@ -417,7 +420,11 @@ impl Lift for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first `Thunk`.", "The second `Thunk`.")]
+	#[document_parameters(
+		"The binary function to apply.",
+		"The first `Thunk`.",
+		"The second `Thunk`."
+	)]
 	///
 	/// ### Returns
 	///
@@ -456,11 +463,11 @@ impl Semiapplicative for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input.",
@@ -469,7 +476,10 @@ impl Semiapplicative for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The `Thunk` containing the function.", "The `Thunk` containing the value.")]
+	#[document_parameters(
+		"The `Thunk` containing the function.",
+		"The `Thunk` containing the value."
+	)]
 	///
 	/// ### Returns
 	///
@@ -503,11 +513,11 @@ impl Semimonad for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the result of the first computation.",
 		"The type of the result of the new computation.",
@@ -516,7 +526,10 @@ impl Semimonad for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first `Thunk`.", "The function to apply to the result of the computation.")]
+	#[document_parameters(
+		"The first `Thunk`.",
+		"The function to apply to the result of the computation."
+	)]
 	///
 	/// ### Returns
 	///
@@ -547,11 +560,11 @@ impl MonadRec for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
@@ -560,7 +573,7 @@ impl MonadRec for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step function.", "The initial value.")]
+	#[document_parameters("The step function.", "The initial value.")]
 	///
 	/// ### Returns
 	///
@@ -603,18 +616,18 @@ impl Evaluable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value inside the thunk."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The eval to run.")]
+	#[document_parameters("The eval to run.")]
 	///
 	/// ### Returns
 	///
@@ -638,11 +651,11 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -652,7 +665,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The `Thunk` to fold."
@@ -687,11 +700,11 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -701,7 +714,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The `Thunk` to fold."
@@ -736,11 +749,11 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -750,7 +763,7 @@ impl Foldable for ThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The Thunk to fold.")]
+	#[document_parameters("The mapping function.", "The Thunk to fold.")]
 	///
 	/// ### Returns
 	///
@@ -783,11 +796,11 @@ impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first `Thunk`.", "The second `Thunk`.")]
+	#[document_parameters("The first `Thunk`.", "The second `Thunk`.")]
 	///
 	/// ### Returns
 	///
@@ -816,7 +829,7 @@ impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///

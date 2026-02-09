@@ -11,9 +11,9 @@
 //! ```
 
 use super::Pointer;
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 use std::ops::Deref;
 
 /// Extension trait for reference-counted pointers with shared ownership.
@@ -30,15 +30,15 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the value to wrap.")]
+	#[document_type_parameters("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -60,15 +60,15 @@ pub trait RefCountedPointer: Pointer {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the wrapped value.")]
+	#[document_type_parameters("The type of the wrapped value.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The pointer to attempt to unwrap.")]
+	#[document_parameters("The pointer to attempt to unwrap.")]
 	///
 	/// ### Returns
 	///
@@ -95,15 +95,15 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The pointer brand.", "The type of the wrapped value.")]
+#[document_type_parameters("The pointer brand.", "The type of the wrapped value.")]
 ///
 /// ### Parameters
 ///
-#[doc_params("The pointer to attempt to unwrap.")]
+#[document_parameters("The pointer to attempt to unwrap.")]
 ///
 /// ### Returns
 ///
@@ -129,15 +129,15 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+#[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-#[doc_params("The value to wrap.")]
+#[document_parameters("The value to wrap.")]
 ///
 /// ### Returns
 ///

@@ -12,7 +12,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// Wraps a value.
 ///
@@ -51,11 +51,11 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the value.",
 		"The type of the value inside the identity.",
 		"The type of the result of applying the function.",
@@ -64,7 +64,7 @@ impl Functor for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The identity to map over.")]
+	#[document_parameters("The function to apply.", "The identity to map over.")]
 	///
 	/// ### Returns
 	///
@@ -97,11 +97,11 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first identity's value.",
 		"The type of the second identity's value.",
@@ -111,7 +111,11 @@ impl Lift for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first identity.", "The second identity.")]
+	#[document_parameters(
+		"The binary function to apply.",
+		"The first identity.",
+		"The second identity."
+	)]
 	///
 	/// ### Returns
 	///
@@ -149,15 +153,15 @@ impl Pointed for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -186,11 +190,11 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -199,7 +203,10 @@ impl Semiapplicative for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The identity containing the function.", "The identity containing the value.")]
+	#[document_parameters(
+		"The identity containing the function.",
+		"The identity containing the value."
+	)]
 	///
 	/// ### Returns
 	///
@@ -230,11 +237,11 @@ impl Semimonad for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -243,7 +250,10 @@ impl Semimonad for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first identity.", "The function to apply to the value inside the identity.")]
+	#[document_parameters(
+		"The first identity.",
+		"The function to apply to the value inside the identity."
+	)]
 	///
 	/// ### Returns
 	///
@@ -276,11 +286,11 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -290,7 +300,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The identity to fold."
@@ -327,11 +337,11 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -341,7 +351,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
@@ -378,11 +388,11 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -392,7 +402,7 @@ impl Foldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The identity to fold.")]
+	#[document_parameters("The mapping function.", "The identity to fold.")]
 	///
 	/// ### Returns
 	///
@@ -427,11 +437,11 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -441,7 +451,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The identity to traverse."
 	)]
@@ -475,11 +485,11 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -487,7 +497,7 @@ impl Traversable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The identity containing the applicative value.")]
+	#[document_parameters("The identity containing the applicative value.")]
 	///
 	/// # Returns
 	///
@@ -520,11 +530,11 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -533,7 +543,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The identity to fold.")]
+	#[document_parameters("The mapping function.", "The identity to fold.")]
 	///
 	/// ### Returns
 	///
@@ -567,11 +577,11 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -580,7 +590,7 @@ impl ParFoldable for IdentityBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The identity to fold."

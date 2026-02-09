@@ -5,7 +5,7 @@
 
 use crate::{
 	analysis::traits::format_brand_name,
-	conversion::{HMAST, hm_ast_builder::HMASTBuilder},
+	conversion::{HmAst, hm_ast_builder::HmAstBuilder},
 	core::{config::Config, constants::known_types},
 	support::{TypeVisitor, last_path_segment},
 };
@@ -22,15 +22,11 @@ use syn::{GenericArgument, PathArguments, ReturnType, TraitBound, Type};
 /// visitor and uses it to transform the type.
 pub fn type_to_hm(
 	ty: &Type,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> HMAST {
-	let mut visitor = HMASTBuilder {
-		fn_bounds,
-		generic_names,
-		config,
-	};
+) -> HmAst {
+	let mut visitor = HmAstBuilder { fn_bounds, generic_names, config };
 	visitor.visit(ty)
 }
 
@@ -67,13 +63,13 @@ pub(crate) fn extract_smart_pointer_inner(segment: &syn::PathSegment) -> Option<
 /// This is used for processing trait bounds in impl trait and trait object types.
 pub fn trait_bound_to_hm_type(
 	trait_bound: &TraitBound,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> HMAST {
+) -> HmAst {
 	let Some(segment) = last_path_segment(&trait_bound.path) else {
 		// Defensive fallback for malformed trait bounds
-		return HMAST::Variable("trait".to_string());
+		return HmAst::Variable("trait".to_string());
 	};
 	let name = segment.ident.to_string();
 
@@ -101,45 +97,45 @@ pub fn trait_bound_to_hm_type(
 			}
 		}
 		if !arg_types.is_empty() {
-			return HMAST::Constructor(name, arg_types);
+			return HmAst::Constructor(name, arg_types);
 		}
 	}
 
-	HMAST::Variable(name)
+	HmAst::Variable(name)
 }
 
 /// Convert a trait bound with parenthesized syntax (Fn/FnMut/FnOnce) to an arrow type.
 pub fn trait_bound_to_hm_arrow(
 	trait_bound: &TraitBound,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> HMAST {
+) -> HmAst {
 	let Some(segment) = last_path_segment(&trait_bound.path) else {
 		// Defensive fallback for malformed input (should never occur with valid Rust)
-		return HMAST::Variable("fn".to_string());
+		return HmAst::Variable("fn".to_string());
 	};
 	if let PathArguments::Parenthesized(args) = &segment.arguments {
 		// Erase HRTB lifetimes from trait bound
 		let _ = &trait_bound.lifetimes;
 
-		let inputs: Vec<HMAST> =
+		let inputs: Vec<HmAst> =
 			args.inputs.iter().map(|t| type_to_hm(t, fn_bounds, generic_names, config)).collect();
 		let output = match &args.output {
-			ReturnType::Default => HMAST::Unit,
+			ReturnType::Default => HmAst::Unit,
 			ReturnType::Type(_, ty) => type_to_hm(ty, fn_bounds, generic_names, config),
 		};
 
 		let input_ty = if inputs.is_empty() {
-			HMAST::Unit
+			HmAst::Unit
 		} else if inputs.len() == 1 {
 			inputs[0].clone()
 		} else {
-			HMAST::Tuple(inputs)
+			HmAst::Tuple(inputs)
 		};
 
-		HMAST::Arrow(Box::new(input_ty), Box::new(output))
+		HmAst::Arrow(Box::new(input_ty), Box::new(output))
 	} else {
-		HMAST::Variable("fn".to_string())
+		HmAst::Variable("fn".to_string())
 	}
 }

@@ -12,7 +12,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 impl_kind! {
 	for ResultBrand {
@@ -33,11 +33,11 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the error value.",
 		"The type of the mapped error value.",
@@ -49,7 +49,7 @@ impl Bifunctor for ResultBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the error.",
 		"The function to apply to the success.",
 		"The result to map over."
@@ -101,11 +101,11 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the value inside the result.",
 		"The type of the result of applying the function.",
@@ -114,7 +114,7 @@ impl<E: 'static> Functor for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The result to map over.")]
+	#[document_parameters("The function to apply.", "The result to map over.")]
 	///
 	/// ### Returns
 	///
@@ -146,11 +146,11 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
@@ -160,7 +160,11 @@ impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first result.", "The second result.")]
+	#[document_parameters(
+		"The binary function to apply.",
+		"The first result.",
+		"The second result."
+	)]
 	///
 	/// ### Returns
 	///
@@ -214,15 +218,15 @@ impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -251,11 +255,11 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -264,7 +268,10 @@ impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The result containing the function.", "The result containing the value.")]
+	#[document_parameters(
+		"The result containing the function.",
+		"The result containing the value."
+	)]
 	///
 	/// ### Returns
 	///
@@ -302,11 +309,11 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -315,7 +322,10 @@ impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first result.", "The function to apply to the value inside the result.")]
+	#[document_parameters(
+		"The first result.",
+		"The function to apply to the value inside the result."
+	)]
 	///
 	/// ### Returns
 	///
@@ -358,11 +368,11 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -372,7 +382,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -407,11 +417,11 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -421,7 +431,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -456,11 +466,11 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -470,7 +480,7 @@ impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The result to fold.")]
+	#[document_parameters("The mapping function.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -513,11 +523,11 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -527,7 +537,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The result to traverse.")]
+	#[document_parameters("The function to apply.", "The result to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -572,11 +582,11 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -584,7 +594,7 @@ impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The result containing the applicative value.")]
+	#[document_parameters("The result containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -638,11 +648,11 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the error value inside the result.",
 		"The type of the result of applying the function.",
@@ -651,7 +661,7 @@ impl<T: 'static> Functor for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error.", "The result to map over.")]
+	#[document_parameters("The function to apply to the error.", "The result to map over.")]
 	///
 	/// ### Returns
 	///
@@ -686,11 +696,11 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first error value.",
 		"The type of the second error value.",
@@ -700,7 +710,7 @@ impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply to the errors.",
 		"The first result.",
 		"The second result."
@@ -758,15 +768,15 @@ impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -795,11 +805,11 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -808,7 +818,7 @@ impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The result containing the function (in Err).",
 		"The result containing the value (in Err)."
 	)]
@@ -849,11 +859,11 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -862,7 +872,7 @@ impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first result.", "The function to apply to the error value.")]
+	#[document_parameters("The first result.", "The function to apply to the error value.")]
 	///
 	/// ### Returns
 	///
@@ -908,11 +918,11 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -922,7 +932,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -957,11 +967,11 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -971,7 +981,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The result to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1006,11 +1016,11 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1020,7 +1030,7 @@ impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The result to fold.")]
+	#[document_parameters("The mapping function.", "The result to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1063,11 +1073,11 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -1077,7 +1087,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The result to traverse.")]
+	#[document_parameters("The function to apply.", "The result to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -1122,11 +1132,11 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -1134,7 +1144,7 @@ impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The result containing the applicative value.")]
+	#[document_parameters("The result containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -1180,11 +1190,11 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1193,7 +1203,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to map each element to a monoid.",
 		"The result to fold."
 	)]
@@ -1235,11 +1245,11 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1248,7 +1258,7 @@ impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The result to fold."
@@ -1294,11 +1304,11 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1307,7 +1317,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to map each element to a monoid.",
 		"The result to fold."
 	)]
@@ -1349,11 +1359,11 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1362,7 +1372,7 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The result to fold."

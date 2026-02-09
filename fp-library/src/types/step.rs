@@ -27,7 +27,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// Represents the result of a single step in a tail-recursive computation.
 ///
@@ -64,7 +64,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -87,7 +87,7 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -110,15 +110,15 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The new loop type.")]
+	#[document_type_parameters("The new loop type.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the loop value.")]
+	#[document_parameters("The function to apply to the loop value.")]
 	///
 	/// ### Returns
 	///
@@ -147,15 +147,15 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The new done type.")]
+	#[document_type_parameters("The new done type.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the done value.")]
+	#[document_parameters("The function to apply to the done value.")]
 	///
 	/// ### Returns
 	///
@@ -184,15 +184,15 @@ impl<A, B> Step<A, B> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The new loop type.", "The new done type.")]
+	#[document_type_parameters("The new loop type.", "The new done type.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the loop value.",
 		"The function to apply to the done value."
 	)]
@@ -241,11 +241,11 @@ impl Bifunctor for StepBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the loop value.",
 		"The type of the mapped loop value.",
@@ -257,7 +257,7 @@ impl Bifunctor for StepBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the loop value.",
 		"The function to apply to the done value.",
 		"The step to map over."
@@ -303,11 +303,11 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the done value.",
 		"The type of the result of applying the function.",
@@ -316,7 +316,7 @@ impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the done value.", "The step to map over.")]
+	#[document_parameters("The function to apply to the done value.", "The step to map over.")]
 	///
 	/// ### Returns
 	///
@@ -347,11 +347,11 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
@@ -361,7 +361,7 @@ impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first step.", "The second step.")]
+	#[document_parameters("The binary function to apply.", "The first step.", "The second step.")]
 	///
 	/// ### Returns
 	///
@@ -407,15 +407,15 @@ impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -443,11 +443,11 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -456,7 +456,7 @@ impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> 
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step containing the function.", "The step containing the value.")]
+	#[document_parameters("The step containing the function.", "The step containing the value.")]
 	///
 	/// ### Returns
 	///
@@ -489,11 +489,11 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -502,7 +502,7 @@ impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first step.", "The function to apply to the value inside the step.")]
+	#[document_parameters("The first step.", "The function to apply to the value inside the step.")]
 	///
 	/// ### Returns
 	///
@@ -539,11 +539,11 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -553,7 +553,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -588,11 +588,11 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -602,7 +602,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -637,11 +637,11 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -651,7 +651,7 @@ impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The step to fold.")]
+	#[document_parameters("The mapping function.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -694,11 +694,11 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -708,7 +708,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The step to traverse.")]
+	#[document_parameters("The function to apply.", "The step to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -748,11 +748,11 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -760,7 +760,7 @@ impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step containing the applicative value.")]
+	#[document_parameters("The step containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -801,11 +801,11 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -814,7 +814,10 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
+	#[document_parameters(
+		"The thread-safe function to map each element to a monoid.",
+		"The step to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -853,11 +856,11 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -866,7 +869,7 @@ impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The step to fold."
@@ -920,11 +923,11 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the loop value.",
 		"The type of the result of applying the function.",
@@ -933,7 +936,7 @@ impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the loop value.", "The step to map over.")]
+	#[document_parameters("The function to apply to the loop value.", "The step to map over.")]
 	///
 	/// ### Returns
 	///
@@ -964,11 +967,11 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first loop value.",
 		"The type of the second loop value.",
@@ -978,7 +981,7 @@ impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply to the loops.",
 		"The first step.",
 		"The second step."
@@ -1028,15 +1031,15 @@ impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -1064,11 +1067,11 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -1077,7 +1080,7 @@ impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> 
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The step containing the function (in Loop).",
 		"The step containing the value (in Loop)."
 	)]
@@ -1113,11 +1116,11 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -1126,7 +1129,7 @@ impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first step.", "The function to apply to the loop value.")]
+	#[document_parameters("The first step.", "The function to apply to the loop value.")]
 	///
 	/// ### Returns
 	///
@@ -1163,11 +1166,11 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1177,7 +1180,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1212,11 +1215,11 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1226,7 +1229,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1261,11 +1264,11 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1275,7 +1278,7 @@ impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The step to fold.")]
+	#[document_parameters("The mapping function.", "The step to fold.")]
 	///
 	/// ### Returns
 	///
@@ -1318,11 +1321,11 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -1332,7 +1335,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The step to traverse.")]
+	#[document_parameters("The function to apply.", "The step to traverse.")]
 	///
 	/// ### Returns
 	///
@@ -1372,11 +1375,11 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -1384,7 +1387,7 @@ impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step containing the applicative value.")]
+	#[document_parameters("The step containing the applicative value.")]
 	///
 	/// ### Returns
 	///
@@ -1425,11 +1428,11 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1438,7 +1441,10 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
+	#[document_parameters(
+		"The thread-safe function to map each element to a monoid.",
+		"The step to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -1477,11 +1483,11 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -1490,7 +1496,7 @@ impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value.",
 		"The step to fold."

@@ -13,7 +13,7 @@ use crate::{
 	kinds::*,
 	types::{Lazy, LazyConfig, Step, Thunk, TryLazy},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A deferred computation that may fail with error type `E`.
 ///
@@ -50,15 +50,15 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk to wrap.")]
+	#[document_parameters("The thunk to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -83,11 +83,11 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -112,15 +112,15 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that returns a `TryThunk`.")]
+	#[document_parameters("The thunk that returns a `TryThunk`.")]
 	///
 	/// ### Returns
 	///
@@ -147,11 +147,11 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -176,11 +176,11 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The error to wrap.")]
+	#[document_parameters("The error to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -205,18 +205,18 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the new computation.",
 		"The type of the function to apply."
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of the computation.")]
+	#[document_parameters("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -247,18 +247,18 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The type of the result of the transformation.",
 		("F", "The type of the transformation function.")
 	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of the computation.")]
+	#[document_parameters("The function to apply to the result of the computation.")]
 	///
 	/// ### Returns
 	///
@@ -286,15 +286,18 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the new error.", "The type of the transformation function.")]
+	#[document_type_parameters(
+		"The type of the new error.",
+		"The type of the transformation function."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error.")]
+	#[document_parameters("The function to apply to the error.")]
 	///
 	/// ### Returns
 	///
@@ -322,15 +325,15 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the recovery function.")]
+	#[document_type_parameters("The type of the recovery function.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error value.")]
+	#[document_parameters("The function to apply to the error value.")]
 	///
 	/// ### Returns
 	///
@@ -362,7 +365,7 @@ impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -418,15 +421,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the try thunk.")]
+	#[document_parameters("A thunk that produces the try thunk.")]
 	///
 	/// ### Returns
 	///
@@ -460,11 +463,11 @@ impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value inside the `TryThunk`.",
 		"The type of the result of the transformation.",
@@ -473,7 +476,7 @@ impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the result of the computation.",
 		"The `TryThunk` instance."
 	)]
@@ -507,15 +510,18 @@ impl<E: 'static> Pointed for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value to wrap.")]
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value to wrap."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -539,11 +545,11 @@ impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the first value.",
 		"The type of the second value.",
@@ -553,7 +559,7 @@ impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply.",
 		"The first `TryThunk`.",
 		"The second `TryThunk`."
@@ -596,11 +602,11 @@ impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input.",
@@ -609,7 +615,10 @@ impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The `TryThunk` containing the function.", "The `TryThunk` containing the value.")]
+	#[document_parameters(
+		"The `TryThunk` containing the function.",
+		"The `TryThunk` containing the value."
+	)]
 	///
 	/// ### Returns
 	///
@@ -643,11 +652,11 @@ impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the result of the first computation.",
 		"The type of the result of the new computation.",
@@ -656,7 +665,7 @@ impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The first `TryThunk`.",
 		"The function to apply to the result of the computation."
 	)]
@@ -690,11 +699,11 @@ impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
@@ -703,7 +712,7 @@ impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step function.", "The initial value.")]
+	#[document_parameters("The step function.", "The initial value.")]
 	///
 	/// ### Returns
 	///
@@ -747,11 +756,11 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -761,7 +770,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The `TryThunk` to fold."
@@ -799,11 +808,11 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -813,7 +822,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The `TryThunk` to fold."
@@ -851,11 +860,11 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -865,7 +874,7 @@ impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The Thunk to fold.")]
+	#[document_parameters("The mapping function.", "The Thunk to fold.")]
 	///
 	/// ### Returns
 	///
@@ -901,11 +910,11 @@ impl<'a, A: Semigroup + 'a, E: 'a> Semigroup for TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first `TryThunk`.", "The second `TryThunk`.")]
+	#[document_parameters("The first `TryThunk`.", "The second `TryThunk`.")]
 	///
 	/// ### Returns
 	///
@@ -938,7 +947,7 @@ impl<'a, A: Monoid + 'a, E: 'a> Monoid for TryThunk<'a, A, E> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -970,11 +979,11 @@ impl Bifunctor for TryThunkBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the error value.",
 		"The type of the mapped error value.",
@@ -986,7 +995,7 @@ impl Bifunctor for TryThunkBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the error.",
 		"The function to apply to the success.",
 		"The `TryThunk` to map over."
@@ -1034,11 +1043,11 @@ impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the error value inside the `TryThunk`.",
 		"The type of the result of the transformation.",
@@ -1047,7 +1056,7 @@ impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the error.", "The `TryThunk` instance.")]
+	#[document_parameters("The function to apply to the error.", "The `TryThunk` instance.")]
 	///
 	/// ### Returns
 	///
@@ -1078,15 +1087,18 @@ impl<A: 'static> Pointed for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value to wrap.")]
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value to wrap."
+	)]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -1110,11 +1122,11 @@ impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the first error value.",
 		"The type of the second error value.",
@@ -1124,7 +1136,7 @@ impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The binary function to apply to the errors.",
 		"The first `TryThunk`.",
 		"The second `TryThunk`."
@@ -1171,11 +1183,11 @@ impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input error.",
@@ -1184,7 +1196,7 @@ impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The `TryThunk` containing the function (in Err).",
 		"The `TryThunk` containing the value (in Err)."
 	)]
@@ -1220,11 +1232,11 @@ impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the result of the first computation (error).",
 		"The type of the result of the new computation (error).",
@@ -1233,7 +1245,7 @@ impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The first `TryThunk`.",
 		"The function to apply to the error result of the computation."
 	)]
@@ -1270,11 +1282,11 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1284,7 +1296,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The `TryThunk` to fold."
@@ -1322,11 +1334,11 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1336,7 +1348,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The `TryThunk` to fold."
@@ -1374,11 +1386,11 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -1388,7 +1400,7 @@ impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The Thunk to fold.")]
+	#[document_parameters("The mapping function.", "The Thunk to fold.")]
 	///
 	/// ### Returns
 	///

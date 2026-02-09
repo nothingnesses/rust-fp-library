@@ -17,9 +17,9 @@ use crate::{
 	kinds::*,
 	types::Endofunction,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for structures that can be folded to a single value.
 ///
@@ -41,11 +41,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -55,7 +55,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
@@ -102,11 +102,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -116,7 +116,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
@@ -171,11 +171,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -185,7 +185,10 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to map each element to a monoid.", "The structure to fold.")]
+	#[document_parameters(
+		"The function to map each element to a monoid.",
+		"The structure to fold."
+	)]
 	///
 	/// ### Returns
 	///
@@ -219,11 +222,11 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
@@ -234,7 +237,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element and the accumulator.",
 	"The initial value of the accumulator.",
 	"The structure to fold."
@@ -271,11 +274,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
@@ -286,7 +289,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to the accumulator and each element.",
 	"The initial value of the accumulator.",
 	"The structure to fold."
@@ -323,11 +326,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the cloneable function to use.",
 	"The brand of the foldable structure.",
@@ -338,7 +341,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params("The function to map each element to a monoid.", "The structure to fold.")]
+#[document_parameters("The function to map each element to a monoid.", "The structure to fold.")]
 ///
 /// ### Returns
 ///

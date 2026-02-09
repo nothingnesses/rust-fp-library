@@ -13,9 +13,9 @@
 
 use super::lift::Lift;
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
@@ -28,11 +28,11 @@ pub trait ApplySecond: Lift {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the value in the first context.",
 		"The type of the value in the second context."
@@ -40,7 +40,7 @@ pub trait ApplySecond: Lift {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first context.", "The second context.")]
+	#[document_parameters("The first context.", "The second context.")]
 	///
 	/// ### Returns
 	///
@@ -70,11 +70,11 @@ pub trait ApplySecond: Lift {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the values.",
 	"The brand of the context.",
 	"The type of the value in the first context.",
@@ -83,7 +83,7 @@ pub trait ApplySecond: Lift {
 ///
 /// ### Parameters
 ///
-#[doc_params("The first context.", "The second context.")]
+#[document_parameters("The first context.", "The second context.")]
 ///
 /// ### Returns
 ///

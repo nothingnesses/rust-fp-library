@@ -214,30 +214,17 @@ impl From<Error> for syn::Error {
 		}
 
 		// Add available alternatives for Resolution errors
-		if let Error::Resolution { available_types, .. } = &err {
-			if !available_types.is_empty() {
-				message = format!(
-					"{}\nnote: available alternatives: {}",
-					message,
-					available_types.join(", ")
-				);
-			}
+		if let Error::Resolution { available_types, .. } = &err
+			&& !available_types.is_empty()
+		{
+			message = format!(
+				"{}\nnote: available alternatives: {}",
+				message,
+				available_types.join(", ")
+			);
 		}
 
 		syn::Error::new(span, message)
-	}
-}
-
-/// Helper trait for converting Results
-#[allow(dead_code)] // For future use
-pub trait ResultExt<T> {
-	/// Convert to a syn::Error result for proc macro output
-	fn into_syn_result(self) -> std::result::Result<T, syn::Error>;
-}
-
-impl<T> ResultExt<T> for Result<T> {
-	fn into_syn_result(self) -> std::result::Result<T, syn::Error> {
-		self.map_err(|e| e.into())
 	}
 }
 
@@ -252,20 +239,22 @@ impl ErrorCollector {
 		Self { errors: Vec::new() }
 	}
 
-	pub fn push(&mut self, error: syn::Error) {
+	pub fn push(
+		&mut self,
+		error: syn::Error,
+	) {
 		self.errors.push(error);
 	}
 
-	pub fn extend(&mut self, other_errors: Vec<syn::Error>) {
+	pub fn extend(
+		&mut self,
+		other_errors: Vec<syn::Error>,
+	) {
 		self.errors.extend(other_errors);
 	}
 
 	pub fn finish(self) -> syn::Result<()> {
-		if self.errors.is_empty() {
-			Ok(())
-		} else {
-			Err(Self::combine_errors(self.errors))
-		}
+		if self.errors.is_empty() { Ok(()) } else { Err(Self::combine_errors(self.errors)) }
 	}
 
 	fn combine_errors(mut errors: Vec<syn::Error>) -> syn::Error {

@@ -12,9 +12,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for semigroupoids.
 ///
@@ -32,11 +32,11 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the morphisms.",
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
@@ -45,7 +45,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The second morphism to apply (from C to D).",
 		"The first morphism to apply (from B to C)."
 	)]
@@ -76,11 +76,11 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the morphisms.",
 	"The brand of the semigroupoid.",
 	"The source type of the first morphism.",
@@ -90,7 +90,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The second morphism to apply (from C to D).",
 	"The first morphism to apply (from B to C)."
 )]

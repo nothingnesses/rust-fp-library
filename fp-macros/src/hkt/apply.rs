@@ -4,10 +4,7 @@
 //! to apply a Higher-Kinded Type (HKT) "brand" to a set of generic arguments.
 
 use super::AssociatedTypes;
-use crate::{
-	core::Result,
-	generate_name,
-};
+use crate::{core::Result, generate_name};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -72,7 +69,7 @@ impl Parse for ApplyInput {
 }
 
 /// Generates the implementation for the `Apply!` macro.
-pub fn apply_impl(input: ApplyInput) -> Result<TokenStream> {
+pub fn apply_worker(input: ApplyInput) -> Result<TokenStream> {
 	let brand = &input.brand;
 	let kind_name = generate_name(&input.kind_input)?;
 	let assoc_name = &input.assoc_name;
@@ -103,7 +100,7 @@ mod tests {
 		let input = "<OptionBrand as Kind!(type Of<'a, T>: 'a;)>::Of<'static, i32>";
 		let parsed: ApplyInput = parse_str(input).expect("Failed to parse ApplyInput");
 
-		let output = apply_impl(parsed).expect("apply_impl failed");
+		let output = apply_worker(parsed).expect("apply_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("< OptionBrand as Kind_"));

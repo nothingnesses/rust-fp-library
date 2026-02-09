@@ -66,7 +66,7 @@ use crate::{
 	kinds::*,
 	types::{CatList, Thunk},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 use std::{any::Any, marker::PhantomData};
 
 /// A type-erased value for internal use.
@@ -182,11 +182,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -208,11 +208,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The functor value containing the next step.")]
+	#[document_parameters("The functor value containing the next step.")]
 	///
 	/// ### Returns
 	///
@@ -239,7 +239,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Implementation
 	///
@@ -249,7 +249,7 @@ where
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The functor value to lift.")]
+	#[document_parameters("The functor value to lift.")]
 	///
 	/// ### Returns
 	///
@@ -280,15 +280,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The result type of the new computation.")]
+	#[document_type_parameters("The result type of the new computation.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the result of this computation.")]
+	#[document_parameters("The function to apply to the result of this computation.")]
 	///
 	/// ### Returns
 	///
@@ -375,7 +375,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -463,15 +463,15 @@ impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the free computation.")]
+	#[document_parameters("A thunk that produces the free computation.")]
 	///
 	/// ### Returns
 	///

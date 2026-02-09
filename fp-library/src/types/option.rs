@@ -13,7 +13,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 impl_kind! {
 	for OptionBrand {
@@ -28,11 +28,11 @@ impl Functor for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the value.",
 		"The type of the value inside the option.",
 		"The type of the result of applying the function.",
@@ -41,7 +41,7 @@ impl Functor for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to the value.", "The option to map over.")]
+	#[document_parameters("The function to apply to the value.", "The option to map over.")]
 	///
 	/// ### Returns
 	///
@@ -74,11 +74,11 @@ impl Lift for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first option's value.",
 		"The type of the second option's value.",
@@ -88,7 +88,11 @@ impl Lift for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first option.", "The second option.")]
+	#[document_parameters(
+		"The binary function to apply.",
+		"The first option.",
+		"The second option."
+	)]
 	///
 	/// ### Returns
 	///
@@ -126,15 +130,15 @@ impl Pointed for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -164,11 +168,11 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -177,7 +181,10 @@ impl Semiapplicative for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The option containing the function.", "The option containing the value.")]
+	#[document_parameters(
+		"The option containing the function.",
+		"The option containing the value."
+	)]
 	///
 	/// ### Returns
 	///
@@ -211,11 +218,11 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the result of the first computation.",
 		"The type of the result of the second computation.",
@@ -224,7 +231,10 @@ impl Semimonad for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first option.", "The function to apply to the value inside the option.")]
+	#[document_parameters(
+		"The first option.",
+		"The function to apply to the value inside the option."
+	)]
 	///
 	/// ### Returns
 	///
@@ -258,11 +268,11 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -272,7 +282,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The option to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -308,11 +318,11 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -322,7 +332,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The option to fold."
@@ -362,11 +372,11 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the structure.",
@@ -376,7 +386,7 @@ impl Foldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The option to fold.")]
+	#[document_parameters("The mapping function.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -414,11 +424,11 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -428,7 +438,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The option to traverse."
 	)]
@@ -466,11 +476,11 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -478,7 +488,7 @@ impl Traversable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The option containing the applicative value.")]
+	#[document_parameters("The option containing the applicative value.")]
 	///
 	/// # Returns
 	///
@@ -515,11 +525,11 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -528,7 +538,7 @@ impl ParFoldable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The option to fold.")]
+	#[document_parameters("The mapping function.", "The option to fold.")]
 	///
 	/// ### Returns
 	///
@@ -567,15 +577,15 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the values.", "The type of the elements.")]
+	#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The nested option.")]
+	#[document_parameters("The nested option.")]
 	///
 	/// ### Returns
 	///
@@ -606,11 +616,11 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the error value.",
 		"The type of the success value."
@@ -618,7 +628,7 @@ impl Compactable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The option of result.")]
+	#[document_parameters("The option of result.")]
 	///
 	/// ### Returns
 	///
@@ -655,11 +665,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the input value.",
 		"The type of the error value.",
@@ -669,7 +679,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The option to partition.")]
+	#[document_parameters("The function to apply.", "The option to partition.")]
 	///
 	/// ### Returns
 	///
@@ -709,11 +719,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements.",
 		"The type of the predicate."
@@ -721,7 +731,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate.", "The option to partition.")]
+	#[document_parameters("The predicate.", "The option to partition.")]
 	///
 	/// ### Returns
 	///
@@ -765,11 +775,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the input value.",
 		"The type of the result of applying the function.",
@@ -778,7 +788,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The option to filter and map.")]
+	#[document_parameters("The function to apply.", "The option to filter and map.")]
 	///
 	/// ### Returns
 	///
@@ -810,11 +820,11 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the elements.",
 		"The type of the predicate."
@@ -822,7 +832,7 @@ impl Filterable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate.", "The option to filter.")]
+	#[document_parameters("The predicate.", "The option to filter.")]
 	///
 	/// ### Returns
 	///
@@ -856,11 +866,11 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
@@ -871,7 +881,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a `Result` in an applicative context.",
 		"The option to partition."
 	)]
@@ -922,11 +932,11 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
@@ -936,7 +946,7 @@ impl Witherable for OptionBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning an `Option` in an applicative context.",
 		"The option to filter and map."
 	)]

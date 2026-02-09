@@ -3,16 +3,12 @@
 //! This module handles parsing of `Kind!` and `def_kind!` macro input,
 //! defining the syntax for Kind trait signatures with associated types.
 
-use crate::{
-	core::error_handling::Error,
-	support::parsing::parse_generics,
-};
-use proc_macro2::Span;
+use super::AssociatedTypeBase;
+use crate::support::parsing::{parse_generics, parse_many, parse_non_empty};
 use quote::ToTokens;
 use syn::{
-	Attribute, Generics, Ident, Token, TypeParamBound,
+	Token,
 	parse::{Parse, ParseStream},
-	punctuated::Punctuated,
 };
 
 /// Represents the parsed input for a `Kind` signature.
@@ -29,41 +25,22 @@ pub struct AssociatedTypes {
 /// Example: `type Of<'a, T: 'a>: Display;`
 #[derive(Debug)]
 pub struct AssociatedType {
-	/// Attributes (e.g., doc comments).
-	pub attributes: Vec<Attribute>,
-	/// The `type` keyword.
-	pub _type_token: Token![type],
-	/// The name of the associated type (e.g., `Of`).
-	pub name: Ident,
-	/// Generics for the associated type (e.g., `<'a, T: 'a>`).
-	pub generics: Generics,
-	/// Optional colon for output bounds.
-	pub _colon_token: Option<Token![:]>,
-	/// Bounds on the associated type output (e.g., `Display`).
-	pub output_bounds: Punctuated<TypeParamBound, Token![+]>,
+	/// The common signature parts.
+	pub signature: AssociatedTypeBase,
 	/// The semicolon terminating the definition.
-	pub _semi_token: Token![;],
+	pub semi_token: Token![;],
 }
 
 impl Parse for AssociatedTypes {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut assoc_types: Vec<AssociatedType> = Vec::new();
-		while !input.is_empty() {
-			assoc_types.push(input.parse()?);
-		}
+		let assoc_types: Vec<AssociatedType> = parse_many(input)?;
 
 		// Validation: non-empty
-		if assoc_types.is_empty() {
-			return Err(Error::validation(
-				Span::call_site(),
-				"Kind definition must have at least one associated type",
-			)
-			.into());
-		}
+		let assoc_types = parse_non_empty(assoc_types, "Kind definition must have at least one associated type")?;
 
 		// Validation: no const generics (using centralized validation)
 		for assoc in &assoc_types {
-			parse_generics(&assoc.generics)?;
+			parse_generics(&assoc.signature.generics)?;
 		}
 
 		Ok(AssociatedTypes { associated_types: assoc_types })
@@ -86,57 +63,17 @@ impl ToTokens for AssociatedType {
 		&self,
 		tokens: &mut proc_macro2::TokenStream,
 	) {
-		for attr in &self.attributes {
-			attr.to_tokens(tokens);
-		}
-		self._type_token.to_tokens(tokens);
-		self.name.to_tokens(tokens);
-		self.generics.to_tokens(tokens);
-		if let Some(colon) = &self._colon_token {
-			colon.to_tokens(tokens);
-			self.output_bounds.to_tokens(tokens);
-		}
-		self._semi_token.to_tokens(tokens);
+		self.signature.to_tokens(tokens);
+		self.semi_token.to_tokens(tokens);
 	}
 }
 
 impl Parse for AssociatedType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let attrs = input.call(Attribute::parse_outer)?;
-		let type_token: Token![type] = input.parse()?;
-		let ident: Ident = input.parse()?;
-		let generics: Generics = input.parse()?;
-
-		let mut colon_token: Option<Token![:]> = None;
-		let mut output_bounds = Punctuated::new();
-
-		if input.peek(Token![:]) {
-			colon_token = Some(input.parse()?);
-			// Parse bounds separated by `+` until `;`
-			loop {
-				if input.peek(Token![;]) {
-					break;
-				}
-				output_bounds.push_value(input.parse()?);
-				if input.peek(Token![+]) {
-					output_bounds.push_punct(input.parse()?);
-				} else {
-					break;
-				}
-			}
-		}
-
+		let signature = AssociatedTypeBase::parse_signature(input, |i| i.peek(Token![;]))?;
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(AssociatedType {
-			attributes: attrs,
-			_type_token: type_token,
-			name: ident,
-			generics,
-			_colon_token: colon_token,
-			output_bounds,
-			_semi_token: semi_token,
-		})
+		Ok(AssociatedType { signature, semi_token })
 	}
 }
 
@@ -160,13 +97,13 @@ mod tests {
 		let assoc = &parsed.associated_types[0];
 
 		// Check identifier
-		assert_eq!(assoc.name.to_string(), "Of");
+		assert_eq!(assoc.signature.name.to_string(), "Of");
 
 		// Check generics: 'a and T
-		assert_eq!(assoc.generics.params.len(), 2);
+		assert_eq!(assoc.signature.generics.params.len(), 2);
 
 		// Check output bounds: Display
-		assert_eq!(assoc.output_bounds.len(), 1);
+		assert_eq!(assoc.signature.output_bounds.len(), 1);
 	}
 
 	/// Tests parsing of a `Kind` signature with multiple associated types.
@@ -186,13 +123,13 @@ mod tests {
 
 		// Check first associated type
 		let assoc1 = &parsed.associated_types[0];
-		assert_eq!(assoc1.name.to_string(), "Of");
-		assert_eq!(assoc1.generics.params.len(), 2);
+		assert_eq!(assoc1.signature.name.to_string(), "Of");
+		assert_eq!(assoc1.signature.generics.params.len(), 2);
 
 		// Check second associated type
 		let assoc2 = &parsed.associated_types[1];
-		assert_eq!(assoc2.name.to_string(), "SendOf");
-		assert_eq!(assoc2.generics.params.len(), 1);
+		assert_eq!(assoc2.signature.name.to_string(), "SendOf");
+		assert_eq!(assoc2.signature.generics.params.len(), 1);
 	}
 
 	/// Tests that empty Kind input is rejected with a validation error.

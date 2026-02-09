@@ -1,6 +1,6 @@
 use crate::{
 	analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
-	conversion::{HMAST, type_to_hm},
+	conversion::{HmAst, type_to_hm},
 	core::{
 		config::{Config, get_config},
 		{Error, Result},
@@ -15,7 +15,7 @@ use proc_macro2::TokenStream;
 use std::collections::{HashMap, HashSet};
 use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
-pub fn hm_signature_impl(
+pub fn document_signature_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> Result<TokenStream> {
@@ -24,13 +24,13 @@ pub fn hm_signature_impl(
 	parser.validate_empty(attr)?;
 
 	// Parse the item
-	let mut item = GenericItem::parse(item_tokens).map_err(|e| Error::Parse(e))?;
+	let mut item = GenericItem::parse(item_tokens).map_err(Error::Parse)?;
 
 	// Get the function signature
 	let sig = item.sig().ok_or_else(|| {
 		Error::validation(
 			proc_macro2::Span::call_site(),
-			"hm_signature can only be used on functions or methods",
+			"document_signature can only be used on functions or methods",
 		)
 	})?;
 
@@ -52,8 +52,8 @@ pub fn hm_signature_impl(
 pub struct SignatureData {
 	pub forall: Vec<String>,
 	pub constraints: Vec<String>,
-	pub params: Vec<HMAST>,
-	pub return_type: HMAST,
+	pub params: Vec<HmAst>,
+	pub return_type: HmAst,
 }
 
 impl std::fmt::Display for SignatureData {
@@ -77,16 +77,15 @@ impl std::fmt::Display for SignatureData {
 		}
 
 		let func_sig = if self.params.is_empty() {
-			let func_type =
-				HMAST::Arrow(Box::new(HMAST::Unit), Box::new(self.return_type.clone()));
+			let func_type = HmAst::Arrow(Box::new(HmAst::Unit), Box::new(self.return_type.clone()));
 			format!("{}", func_type)
 		} else {
 			let input_type = if self.params.len() == 1 {
 				self.params[0].clone()
 			} else {
-				HMAST::Tuple(self.params.clone())
+				HmAst::Tuple(self.params.clone())
 			};
-			let func_type = HMAST::Arrow(Box::new(input_type), Box::new(self.return_type.clone()));
+			let func_type = HmAst::Arrow(Box::new(input_type), Box::new(self.return_type.clone()));
 			format!("{}", func_type)
 		};
 		parts.push(func_sig);
@@ -132,7 +131,7 @@ pub fn generate_signature(
 
 fn format_generics(
 	generics: &syn::Generics,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> (Vec<String>, Vec<String>) {
@@ -152,7 +151,7 @@ fn format_generics(
 			for bound in &type_param.bounds {
 				if let TypeParamBound::Trait(trait_bound) = bound
 					&& let Some(constraint) =
-						format_trait_bound(trait_bound, &HMAST::Variable(name.clone()), config)
+						format_trait_bound(trait_bound, &HmAst::Variable(name.clone()), config)
 				{
 					constraints.push(constraint);
 				}
@@ -181,7 +180,7 @@ fn format_generics(
 
 fn format_trait_bound(
 	bound: &syn::TraitBound,
-	type_var: &HMAST,
+	type_var: &HmAst,
 	config: &Config,
 ) -> Option<String> {
 	// Safely get the last segment of the trait path
@@ -204,20 +203,20 @@ fn format_trait_bound(
 
 fn format_parameters(
 	sig: &syn::Signature,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> Vec<HMAST> {
+) -> Vec<HmAst> {
 	let mut params = Vec::new();
 	for input in &sig.inputs {
 		match input {
 			syn::FnArg::Receiver(receiver) => {
-				let self_ty = HMAST::Variable("self".to_string());
+				let self_ty = HmAst::Variable("self".to_string());
 				if receiver.reference.is_some() {
 					if receiver.mutability.is_some() {
-						params.push(HMAST::MutableReference(Box::new(self_ty)));
+						params.push(HmAst::MutableReference(Box::new(self_ty)));
 					} else {
-						params.push(HMAST::Reference(Box::new(self_ty)));
+						params.push(HmAst::Reference(Box::new(self_ty)));
 					}
 				} else {
 					params.push(self_ty);
@@ -235,12 +234,12 @@ fn format_parameters(
 
 fn format_return_type(
 	output: &ReturnType,
-	fn_bounds: &HashMap<String, HMAST>,
+	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
 	config: &Config,
-) -> HMAST {
+) -> HmAst {
 	match output {
-		ReturnType::Default => HMAST::Unit, // Unit type
+		ReturnType::Default => HmAst::Unit, // Unit type
 		ReturnType::Type(_, ty) => type_to_hm(ty, fn_bounds, generic_names, config),
 	}
 }

@@ -5,7 +5,7 @@
 // Modular architecture - Clean-room redesign completed
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
-pub(crate) mod conversion; // Hindley-Milner type conversion (renamed from hm_conversion)
+pub(crate) mod conversion; // Hindley-Milner type conversion
 pub(crate) mod core; // Core infrastructure (config, error, result) - CONSOLIDATED
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
@@ -16,13 +16,14 @@ pub(crate) mod support; // Support utilities (attributes, syntax, validation, er
 mod property_tests;
 
 use crate::core::ToCompileError;
-use codegen::{ReExportInput, generate_function_re_exports_impl, generate_trait_re_exports_impl};
+use codegen::{ReExportInput, generate_function_re_exports_worker, generate_trait_re_exports_worker};
 use documentation::{
-	doc_params_impl, doc_type_params_impl, document_module_impl, hm_signature_impl,
+	document_module_worker, document_parameters_worker, document_signature_worker,
+	document_type_parameters_worker,
 };
 use hkt::{
-	ApplyInput, AssociatedTypes, ImplKindInput, apply_impl, def_kind_impl, generate_name,
-	impl_kind_impl,
+	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, def_kind_worker, generate_name,
+	impl_kind_worker,
 };
 use proc_macro::TokenStream;
 use quote::quote;
@@ -94,7 +95,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
 	let name = match generate_name(&input) {
 		Ok(name) => name,
-		Err(e) => return syn::Error::from(e).to_compile_error().into(),
+		Err(e) => return e.to_compile_error().into(),
 	};
 	quote!(#name).into()
 }
@@ -158,7 +159,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn def_kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
-	match def_kind_impl(input) {
+	match def_kind_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -203,7 +204,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 ///
 /// Inside the `impl_kind!` block, you can use documentation-specific attributes on associated types:
 ///
-/// * `#[doc_default]`: Marks this associated type as the default for resolving bare `Self` in
+/// * `#[document_default]`: Marks this associated type as the default for resolving bare `Self` in
 ///   the generated documentation for this brand within the module.
 ///
 /// ### Examples
@@ -212,7 +213,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 /// // Invocation
 /// impl_kind! {
 ///     for OptionBrand {
-///         #[doc_default]
+///         #[document_default]
 ///         type Of<A> = Option<A>;
 ///     }
 /// }
@@ -271,7 +272,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn impl_kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ImplKindInput);
-	match impl_kind_impl(input) {
+	match impl_kind_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -341,7 +342,7 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 #[allow(non_snake_case)]
 pub fn Apply(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ApplyInput);
-	match apply_impl(input) {
+	match apply_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -387,7 +388,7 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReExportInput);
-	generate_function_re_exports_impl(input).into()
+	generate_function_re_exports_worker(input).into()
 }
 
 /// Generates re-exports for all public traits in a directory.
@@ -427,7 +428,7 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReExportInput);
-	generate_trait_re_exports_impl(input).into()
+	generate_trait_re_exports_worker(input).into()
 }
 
 /// Generates a Hindley-Milner style type signature for a function.
@@ -441,7 +442,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// ### Syntax
 ///
 /// ```ignore
-/// #[hm_signature]
+/// #[document_signature]
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
 /// ```
 ///
@@ -456,7 +457,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// #[hm_signature]
+/// #[document_signature]
 /// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
 ///
 /// // Expanded code
@@ -466,7 +467,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// #[hm_signature]
+/// #[document_signature]
 /// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
 ///
 /// // Expanded code
@@ -477,7 +478,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// ```ignore
 /// // Invocation
 /// trait Functor {
-///     #[hm_signature]
+///     #[document_signature]
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
 ///
@@ -490,7 +491,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///
 /// ### Configuration
 ///
-/// This macro can be configured via `Cargo.toml` under `[package.metadata.hm_signature]`.
+/// This macro can be configured via `Cargo.toml` under `[package.metadata.document_signature]`.
 ///
 /// * `brand_mappings`: A map of brand struct names to their display names in the signature.
 /// * `apply_macro_aliases`: A list of macro names that should be treated as `Apply!`.
@@ -498,17 +499,17 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///
 /// Example:
 /// ```toml
-/// [package.metadata.hm_signature]
+/// [package.metadata.document_signature]
 /// brand_mappings = { "OptionBrand" = "Option", "VecBrand" = "Vec" }
 /// apply_macro_aliases = ["MyApply"]
 /// ignored_traits = ["Clone", "Debug"]
 /// ```
 #[proc_macro_attribute]
-pub fn hm_signature(
+pub fn document_signature(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	match hm_signature_impl(attr.into(), item.into()) {
+	match document_signature_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -526,7 +527,7 @@ pub fn hm_signature(
 /// ### Syntax
 ///
 /// ```ignore
-/// #[doc_type_params(
+/// #[document_type_parameters(
 ///     "Description for first parameter",
 ///     ("OverriddenName", "Description for second parameter"),
 ///     ...
@@ -548,7 +549,7 @@ pub fn hm_signature(
 ///
 /// ```ignore
 /// // Invocation
-/// #[doc_type_params(
+/// #[document_type_parameters(
 ///     "The type of the elements.",
 ///     ("E", "The error type.")
 /// )]
@@ -565,11 +566,14 @@ pub fn hm_signature(
 /// * The number of arguments must exactly match the number of generic parameters
 ///   (including lifetimes, types, and const generics) in the function signature.
 #[proc_macro_attribute]
-pub fn doc_type_params(
+pub fn document_type_parameters(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	doc_type_params_impl(attr.into(), item.into()).into()
+	match document_type_parameters_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Generates documentation for a function's parameters.
@@ -580,7 +584,7 @@ pub fn doc_type_params(
 /// ### Syntax
 ///
 /// ```ignore
-/// #[doc_params(
+/// #[document_parameters(
 ///     "Description for first parameter",
 ///     ("overridden_name", "Description for second parameter"),
 ///     ...
@@ -602,7 +606,7 @@ pub fn doc_type_params(
 ///
 /// ```ignore
 /// // Invocation
-/// #[doc_params(
+/// #[document_parameters(
 ///     "The first input value.",
 ///     ("y", "The second input value.")
 /// )]
@@ -621,21 +625,24 @@ pub fn doc_type_params(
 ///
 /// ### Configuration
 ///
-/// This macro can be configured via `Cargo.toml` under `[package.metadata.hm_signature]`.
+/// This macro can be configured via `Cargo.toml` under `[package.metadata.document_signature]`.
 ///
 /// * `apply_macro_aliases`: A list of macro names that should be treated as `Apply!` for curried parameter extraction.
 ///
 /// Example:
 /// ```toml
-/// [package.metadata.hm_signature]
+/// [package.metadata.document_signature]
 /// apply_macro_aliases = ["MyApply"]
 /// ```
 #[proc_macro_attribute]
-pub fn doc_params(
+pub fn document_parameters(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	doc_params_impl(attr.into(), item.into()).into()
+	match document_parameters_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }
 
 /// Orchestrates documentation generation for an entire module.
@@ -645,8 +652,8 @@ pub fn doc_params(
 ///
 /// 1. **Context Extraction**: It scans for `impl_kind!` invocations and standard `impl` blocks
 ///    to build a comprehensive mapping of associated types (a "projection map").
-/// 2. **Documentation Generation**: It processes all methods annotated with [`#[hm_signature]`](macro@hm_signature)
-///    or [`#[doc_type_params]`](macro@doc_type_params), resolving `Self` and associated types
+/// 2. **Documentation Generation**: It processes all methods annotated with [`#[document_signature]`](macro@document_signature)
+///    or [`#[document_type_parameters]`](macro@document_type_parameters), resolving `Self` and associated types
 ///    using the collected context.
 ///
 /// ### Syntax
@@ -663,8 +670,8 @@ pub fn doc_params(
 ///
 /// ### Generates
 ///
-/// In-place replacement of [`#[hm_signature]`](macro@hm_signature) and
-/// [`#[doc_type_params]`](macro@doc_type_params) attributes with generated documentation
+/// In-place replacement of [`#[document_signature]`](macro@document_signature) and
+/// [`#[document_type_parameters]`](macro@document_type_parameters) attributes with generated documentation
 /// comments. It also resolves `Self` and `Self::AssocType` references to their concrete
 /// types based on the module's projection map.
 ///
@@ -672,20 +679,20 @@ pub fn doc_params(
 ///
 /// The macro supports several documentation-specific attributes for configuration:
 ///
-/// * `#[doc_default]`: (Used inside `impl` or `impl_kind!`) Marks an associated type as the
+/// * `#[document_default]`: (Used inside `impl` or `impl_kind!`) Marks an associated type as the
 ///   default to use when resolving bare `Self` references.
-/// * `#[doc_use = "AssocName"]`: (Used on `impl` or `fn`) Explicitly specifies which
+/// * `#[document_use = "AssocName"]`: (Used on `impl` or `fn`) Explicitly specifies which
 ///   associated type definition to use for resolution within that scope.
 ///
 /// ### Hierarchical Configuration
 ///
 /// When resolving the concrete type of `Self`, the macro follows this precedence:
 ///
-/// 1. **Method Override**: `#[doc_use = "AssocName"]` on the method.
-/// 2. **Impl Block Override**: `#[doc_use = "AssocName"]` on the `impl` block.
-/// 3. **(Type, Trait)-Scoped Default**: `#[doc_default]` on the associated type definition
+/// 1. **Method Override**: `#[document_use = "AssocName"]` on the method.
+/// 2. **Impl Block Override**: `#[document_use = "AssocName"]` on the `impl` block.
+/// 3. **(Type, Trait)-Scoped Default**: `#[document_default]` on the associated type definition
 ///    in a trait `impl` block.
-/// 4. **Module Default**: `#[doc_default]` on the associated type definition in `impl_kind!`.
+/// 4. **Module Default**: `#[document_default]` on the associated type definition in `impl_kind!`.
 ///
 /// ### Examples
 ///
@@ -697,13 +704,13 @@ pub fn doc_params(
 ///
 ///     impl_kind! {
 ///         for MyBrand {
-///             #[doc_default]
+///             #[document_default]
 ///             type Of<'a, T: 'a>: 'a = MyType<T>;
 ///         }
 ///     }
 ///
 ///     impl Functor for MyBrand {
-///         #[hm_signature]
+///         #[document_signature]
 ///         fn map<'a, A: 'a, B: 'a, Func>(
 ///             f: Func,
 ///             fa: Apply!(<Self as Kind!(type Of<'a, T: 'a>: 'a;)>::Of<'a, A>),
@@ -743,5 +750,8 @@ pub fn document_module(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	document_module_impl(attr.into(), item.into()).into()
+	match document_module_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
 }

@@ -34,7 +34,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::doc_params;
+	use fp_macros::document_parameters;
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 	use std::{
@@ -134,15 +134,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the elements in the list.")]
+		#[document_type_parameters("The type of the elements in the list.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("A value to prepend to the list.", "A list to prepend the value to.")]
+		#[document_parameters("A value to prepend to the list.", "A list to prepend the value to.")]
 		///
 		/// ### Returns
 		///
@@ -172,15 +172,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The type of the elements in the list.")]
+		#[document_type_parameters("The type of the elements in the list.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The list to deconstruct.")]
+		#[document_parameters("The list to deconstruct.")]
 		///
 		/// ### Returns
 		///
@@ -214,11 +214,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the list.",
 			"The type of the elements in the resulting list.",
@@ -227,7 +227,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The function to apply to each element.", "The list to map over.")]
+		#[document_parameters("The function to apply to each element.", "The list to map over.")]
 		///
 		/// ### Returns
 		///
@@ -261,11 +261,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the first list.",
 			"The type of the elements in the second list.",
@@ -275,7 +275,11 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The binary function to apply.", "The first list.", "The second list.")]
+		#[document_parameters(
+			"The binary function to apply.",
+			"The first list.",
+			"The second list."
+		)]
 		///
 		/// ### Returns
 		///
@@ -319,15 +323,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The value to wrap.")]
+		#[document_parameters("The value to wrap.")]
 		///
 		/// ### Returns
 		///
@@ -357,11 +361,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function wrapper.",
 			"The type of the input values.",
@@ -370,7 +374,10 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The list containing the functions.", "The list containing the values.")]
+		#[document_parameters(
+			"The list containing the functions.",
+			"The list containing the values."
+		)]
 		///
 		/// ### Returns
 		///
@@ -403,11 +410,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the input list.",
 			"The type of the elements in the output list.",
@@ -416,7 +423,10 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The first list.", "The function to apply to each element, returning a list.")]
+		#[document_parameters(
+			"The first list.",
+			"The function to apply to each element, returning a list."
+		)]
 		///
 		/// ### Returns
 		///
@@ -450,11 +460,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
@@ -464,7 +474,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The folding function.", "The initial value.", "The list to fold.")]
+		#[document_parameters("The folding function.", "The initial value.", "The list to fold.")]
 		///
 		/// ### Returns
 		///
@@ -500,11 +510,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
@@ -514,7 +524,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params(
+		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
 			"The initial value of the accumulator.",
 			"The list to fold."
@@ -550,11 +560,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the list.",
@@ -564,7 +574,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The mapping function.", "The list to fold.")]
+		#[document_parameters("The mapping function.", "The list to fold.")]
 		///
 		/// ### Returns
 		///
@@ -601,11 +611,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
@@ -615,7 +625,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params(
+		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
 			"The list to traverse."
 		)]
@@ -654,11 +664,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
@@ -666,7 +676,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The list containing the applicative values.")]
+		#[document_parameters("The list containing the applicative values.")]
 		///
 		/// ### Returns
 		///
@@ -703,11 +713,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The brand of the cloneable function wrapper.",
 			"The element type.",
@@ -716,7 +726,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params(
+		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
 			"The list to fold."
 		)]
@@ -764,15 +774,15 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params("The lifetime of the elements.", "The type of the elements.")]
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The list of options.")]
+		#[document_parameters("The list of options.")]
 		///
 		/// ### Returns
 		///
@@ -803,11 +813,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the error value.",
 			"The type of the success value."
@@ -815,7 +825,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The list of results.")]
+		#[document_parameters("The list of results.")]
 		///
 		/// ### Returns
 		///
@@ -858,11 +868,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the error value.",
@@ -872,7 +882,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The function to apply.", "The list to partition.")]
+		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
 		/// ### Returns
 		///
@@ -917,11 +927,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
@@ -929,7 +939,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The predicate.", "The list to partition.")]
+		#[document_parameters("The predicate.", "The list to partition.")]
 		///
 		/// ### Returns
 		///
@@ -975,11 +985,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the result of applying the function.",
@@ -988,7 +998,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The function to apply.", "The list to filter and map.")]
+		#[document_parameters("The function to apply.", "The list to filter and map.")]
 		///
 		/// ### Returns
 		///
@@ -1020,11 +1030,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
@@ -1032,7 +1042,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The predicate.", "The list to filter.")]
+		#[document_parameters("The predicate.", "The list to filter.")]
 		///
 		/// ### Returns
 		///
@@ -1066,11 +1076,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The applicative context.",
 			"The type of the input value.",
@@ -1081,7 +1091,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The function to apply.", "The list to partition.")]
+		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
 		/// ### Returns
 		///
@@ -1137,11 +1147,11 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
-		#[doc_type_params(
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
@@ -1151,7 +1161,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params(
+		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
 			"The list to filter and map."
 		)]
@@ -1201,7 +1211,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1209,7 +1219,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The first list.", "The second list.")]
+		#[document_parameters("The first list.", "The second list.")]
 		///
 		/// ### Returns
 		///
@@ -1241,7 +1251,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1269,7 +1279,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1296,7 +1306,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1327,7 +1337,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1335,7 +1345,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The element to put in the list.")]
+		#[document_parameters("The element to put in the list.")]
 		///
 		/// ### Returns
 		///
@@ -1358,7 +1368,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1366,7 +1376,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The element to append.")]
+		#[document_parameters("The element to append.")]
 		///
 		/// ### Returns
 		///
@@ -1391,7 +1401,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1399,7 +1409,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The element to append.")]
+		#[document_parameters("The element to append.")]
 		///
 		/// ### Returns
 		///
@@ -1427,7 +1437,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1435,7 +1445,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[doc_params("The second list.")]
+		#[document_parameters("The second list.")]
 		///
 		/// ### Returns
 		///
@@ -1481,7 +1491,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///
@@ -1535,7 +1545,7 @@ mod inner {
 		///
 		/// ### Type Signature
 		///
-		#[hm_signature]
+		#[document_signature]
 		///
 		/// ### Type Parameters
 		///

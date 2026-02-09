@@ -1,7 +1,7 @@
 //! Attribute parsing and filtering utilities.
 //!
 //! This module provides utilities for parsing, filtering, and working with attributes,
-//! including documentation-specific attributes like `doc_default` and `doc_use`.
+//! including documentation-specific attributes like `document_default` and `document_use`.
 
 use crate::core::{Error, Result};
 use proc_macro2::{Span, TokenStream};
@@ -10,13 +10,13 @@ use syn::{Attribute, spanned::Spanned};
 
 /// Parser for macro attributes with validation
 pub struct AttributeParser {
-	allowed: HashSet<&'static str>,
+	_allowed: HashSet<&'static str>,
 }
 
 impl AttributeParser {
 	/// Create a new AttributeParser with allowed attribute names
 	pub fn new(allowed: &[&'static str]) -> Self {
-		AttributeParser { allowed: allowed.iter().copied().collect() }
+		AttributeParser { _allowed: allowed.iter().copied().collect() }
 	}
 
 	/// Validate that a token stream is empty (no attributes)
@@ -60,8 +60,8 @@ pub struct DocAttributeFilter;
 impl DocAttributeFilter {
 	/// Returns true if the attribute should be kept in generated code.
 	///
-	/// This filters out documentation-specific attributes like `doc_default`
-	/// and `doc_use` which are processed by the macro system but should not
+	/// This filters out documentation-specific attributes like `document_default`
+	/// and `document_use` which are processed by the macro system but should not
 	/// appear in the final generated code.
 	///
 	/// # Examples
@@ -69,7 +69,7 @@ impl DocAttributeFilter {
 	/// ```ignore
 	/// use syn::parse_quote;
 	///
-	/// let attr: Attribute = parse_quote!(#[doc_default]);
+	/// let attr: Attribute = parse_quote!(#[document_default]);
 	/// assert!(!DocAttributeFilter::should_keep(&attr));
 	///
 	/// let attr: Attribute = parse_quote!(#[derive(Debug)]);
@@ -82,22 +82,22 @@ impl DocAttributeFilter {
 	/// Returns true if the attribute is documentation-specific.
 	///
 	/// Documentation-specific attributes include:
-	/// - `doc_default`: Marks an associated type as the default for resolution
-	/// - `doc_use`: Specifies which associated type to use for documentation
+	/// - `document_default`: Marks an associated type as the default for resolution
+	/// - `document_use`: Specifies which associated type to use for documentation
 	///
 	/// # Examples
 	///
 	/// ```ignore
 	/// use syn::parse_quote;
 	///
-	/// let attr: Attribute = parse_quote!(#[doc_default]);
+	/// let attr: Attribute = parse_quote!(#[document_default]);
 	/// assert!(DocAttributeFilter::is_doc_specific(&attr));
 	///
-	/// let attr: Attribute = parse_quote!(#[doc_use = "Of"]);
+	/// let attr: Attribute = parse_quote!(#[document_use = "Of"]);
 	/// assert!(DocAttributeFilter::is_doc_specific(&attr));
 	/// ```
 	pub fn is_doc_specific(attr: &Attribute) -> bool {
-		attr.path().is_ident("doc_default") || attr.path().is_ident("doc_use")
+		attr.path().is_ident("document_default") || attr.path().is_ident("document_use")
 	}
 
 	/// Filters out documentation-specific attributes from a slice.
@@ -111,9 +111,9 @@ impl DocAttributeFilter {
 	/// use syn::{Attribute, parse_quote};
 	///
 	/// let attrs: Vec<Attribute> = vec![
-	///     parse_quote!(#[doc_default]),
+	///     parse_quote!(#[document_default]),
 	///     parse_quote!(#[derive(Debug)]),
-	///     parse_quote!(#[doc_use = "Of"]),
+	///     parse_quote!(#[document_use = "Of"]),
 	/// ];
 	///
 	/// let filtered: Vec<_> = DocAttributeFilter::filter_doc_attrs(&attrs).collect();
@@ -126,7 +126,7 @@ impl DocAttributeFilter {
 
 /// Finds a string value from a name-value attribute, with duplicate checking.
 ///
-/// For example, this extracts `"SomeType"` from `#[doc_use = "SomeType"]`.
+/// For example, this extracts `"SomeType"` from `#[document_use = "SomeType"]`.
 pub fn find_attr_value_checked(
 	attrs: &[Attribute],
 	name: &str,
@@ -140,10 +140,10 @@ pub fn find_attr_value_checked(
 					format!("Multiple `#[{}]` attributes found on same item", name),
 				));
 			}
-			if let syn::Meta::NameValue(nv) = &attr.meta {
-				if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value {
-					found = Some(s.value());
-				}
+			if let syn::Meta::NameValue(nv) = &attr.meta
+				&& let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value
+			{
+				found = Some(s.value());
 			}
 		}
 	}
@@ -170,10 +170,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_filter_doc_default() {
+	fn test_filter_document_default() {
 		use syn::parse_quote;
 		let attrs: Vec<Attribute> =
-			vec![parse_quote!(#[doc_default]), parse_quote!(#[derive(Debug)])];
+			vec![parse_quote!(#[document_default]), parse_quote!(#[derive(Debug)])];
 
 		let filtered: Vec<_> = DocAttributeFilter::filter_doc_attrs(&attrs).collect();
 
@@ -182,9 +182,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_filter_doc_use() {
+	fn test_filter_document_use() {
 		use syn::parse_quote;
-		let attrs: Vec<Attribute> = vec![parse_quote!(#[doc_use = "Of"]), parse_quote!(#[inline])];
+		let attrs: Vec<Attribute> =
+			vec![parse_quote!(#[document_use = "Of"]), parse_quote!(#[inline])];
 
 		let filtered: Vec<_> = DocAttributeFilter::filter_doc_attrs(&attrs).collect();
 
@@ -195,22 +196,22 @@ mod tests {
 	#[test]
 	fn test_is_doc_specific() {
 		use syn::parse_quote;
-		let doc_default: Attribute = parse_quote!(#[doc_default]);
-		let doc_use: Attribute = parse_quote!(#[doc_use = "Of"]);
+		let document_default: Attribute = parse_quote!(#[document_default]);
+		let document_use: Attribute = parse_quote!(#[document_use = "Of"]);
 		let derive: Attribute = parse_quote!(#[derive(Debug)]);
 
-		assert!(DocAttributeFilter::is_doc_specific(&doc_default));
-		assert!(DocAttributeFilter::is_doc_specific(&doc_use));
+		assert!(DocAttributeFilter::is_doc_specific(&document_default));
+		assert!(DocAttributeFilter::is_doc_specific(&document_use));
 		assert!(!DocAttributeFilter::is_doc_specific(&derive));
 	}
 
 	#[test]
 	fn test_should_keep() {
 		use syn::parse_quote;
-		let doc_default: Attribute = parse_quote!(#[doc_default]);
+		let document_default: Attribute = parse_quote!(#[document_default]);
 		let derive: Attribute = parse_quote!(#[derive(Debug)]);
 
-		assert!(!DocAttributeFilter::should_keep(&doc_default));
+		assert!(!DocAttributeFilter::should_keep(&document_default));
 		assert!(DocAttributeFilter::should_keep(&derive));
 	}
 
@@ -225,7 +226,7 @@ mod tests {
 	fn test_filter_all_doc_attrs() {
 		use syn::parse_quote;
 		let attrs: Vec<Attribute> =
-			vec![parse_quote!(#[doc_default]), parse_quote!(#[doc_use = "Of"])];
+			vec![parse_quote!(#[document_default]), parse_quote!(#[document_use = "Of"])];
 
 		let filtered: Vec<_> = DocAttributeFilter::filter_doc_attrs(&attrs).collect();
 		assert_eq!(filtered.len(), 0);

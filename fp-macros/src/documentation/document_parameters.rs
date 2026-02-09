@@ -1,21 +1,21 @@
 use crate::{
-	core::config::get_config,
+	core::{Result, config::get_config},
 	support::{LogicalParam, get_logical_params},
 };
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 
-pub fn doc_params_impl(
+pub fn document_parameters_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
-) -> TokenStream {
+) -> Result<TokenStream> {
 	crate::support::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
 		let config = get_config();
 
 		let sig = generic_item.sig().ok_or_else(|| {
 			syn::Error::new(
 				proc_macro2::Span::call_site(),
-				"doc_params can only be used on functions",
+				"document_parameters can only be used on functions",
 			)
 		})?;
 
@@ -48,7 +48,7 @@ mod tests {
 			fn foo(a: i32, b: String) {}
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 2);
@@ -63,7 +63,7 @@ mod tests {
 			fn foo(a: i32);
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: syn::TraitItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 1);
@@ -77,7 +77,7 @@ mod tests {
 			fn foo(a: i32, b: String) {}
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 2);
@@ -92,7 +92,7 @@ mod tests {
 			fn foo(a: i32) -> impl Fn(i32) -> i32 { todo!() }
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 2);
@@ -107,7 +107,7 @@ mod tests {
 			fn foo(a: i32, b: i32) {}
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
 		assert!(error.contains("Expected 2 description arguments, found 1."));
 	}
@@ -119,7 +119,7 @@ mod tests {
 			fn foo(&self, a: i32) {}
 		};
 
-		let output = doc_params_impl(attr, item);
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 1);

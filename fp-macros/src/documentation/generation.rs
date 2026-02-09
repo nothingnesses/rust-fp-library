@@ -1,12 +1,13 @@
 use crate::{
 	analysis::GenericAnalyzer,
-	core::{config::Config, constants::known_attrs},
-	documentation::hm_signature::generate_signature,
-	core::error_handling::ErrorCollector,
-	resolution::{
-		resolver::{
-			SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
-		},
+	core::{
+		config::Config,
+		constants::known_attrs::{self, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS},
+		error_handling::ErrorCollector,
+	},
+	documentation::document_signature::generate_signature,
+	resolution::resolver::{
+		SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
 	},
 	support::{
 		attributes::{find_attr_value_checked, find_attribute},
@@ -16,16 +17,16 @@ use crate::{
 use quote::quote;
 use syn::{Error, ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut};
 
-/// Process the `#[hm_signature]` attribute on a method.
+/// Process the `#[document_signature]` attribute on a method.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn process_hm_signature(
+pub(super) fn process_document_signature(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
 	self_ty: &syn::Type,
 	self_ty_path: &str,
 	_trait_name: Option<&str>,
 	trait_path_str: Option<&str>,
-	doc_use: Option<&str>,
+	document_use: Option<&str>,
 	item_impl_generics: &syn::Generics,
 	config: &Config,
 ) -> Vec<Error> {
@@ -42,7 +43,7 @@ pub(super) fn process_hm_signature(
 		self_ty,
 		self_ty_path,
 		trait_path_str,
-		doc_use,
+		document_use,
 		config,
 		base_type_name.clone(),
 		impl_generic_params.clone(),
@@ -73,7 +74,7 @@ pub(super) fn process_hm_signature(
 	errors
 }
 
-/// Process the `#[doc_type_params]` attribute on a method.
+/// Process the `#[document_type_parameters]` attribute on a method.
 pub(super) fn process_doc_type_params(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
@@ -115,7 +116,7 @@ pub(super) fn process_doc_type_params(
 			}
 		}
 	} else {
-		errors.push(Error::new(attr.span(), "Failed to parse doc_type_params arguments"));
+		errors.push(Error::new(attr.span(), "Failed to parse document_type_parameters arguments"));
 	}
 
 	errors
@@ -136,37 +137,37 @@ pub(super) fn generate_docs(
 				trait_path.and_then(|p| p.segments.last().map(|s| s.ident.to_string()));
 			let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
 
-			let impl_doc_use = match find_attr_value_checked(&item_impl.attrs, known_attrs::DOC_USE)
-			{
-				Ok(v) => v,
-				Err(e) => {
-					errors.push(syn::Error::from(e));
-					None
-				}
-			};
+			let impl_document_use =
+				match find_attr_value_checked(&item_impl.attrs, known_attrs::DOCUMENT_USE) {
+					Ok(v) => v,
+					Err(e) => {
+						errors.push(syn::Error::from(e));
+						None
+					}
+				};
 
 			for impl_item in &mut item_impl.items {
 				if let ImplItem::Fn(method) = impl_item {
-					let method_doc_use =
-						match find_attr_value_checked(&method.attrs, known_attrs::DOC_USE) {
+					let method_document_use =
+						match find_attr_value_checked(&method.attrs, known_attrs::DOCUMENT_USE) {
 							Ok(v) => v,
 							Err(e) => {
 								errors.push(syn::Error::from(e));
 								None
 							}
 						};
-					let doc_use = method_doc_use.or_else(|| impl_doc_use.clone());
+					let document_use = method_document_use.or_else(|| impl_document_use.clone());
 
 					// 1. Handle HM Signature
-					if let Some(attr_pos) = find_attribute(&method.attrs, "hm_signature") {
-						let method_errors = process_hm_signature(
+					if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
+						let method_errors = process_document_signature(
 							method,
 							attr_pos,
 							self_ty,
 							&self_ty_path,
 							trait_name.as_deref(),
 							trait_path_str.as_deref(),
-							doc_use.as_deref(),
+							document_use.as_deref(),
 							&item_impl.generics,
 							config,
 						);
@@ -174,7 +175,8 @@ pub(super) fn generate_docs(
 					}
 
 					// 2. Handle Doc Type Params
-					if let Some(attr_pos) = find_attribute(&method.attrs, "doc_type_params") {
+					if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS)
+					{
 						let method_errors =
 							process_doc_type_params(method, attr_pos, &item_impl.generics);
 						errors.extend(method_errors);

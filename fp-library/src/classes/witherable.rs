@@ -15,9 +15,9 @@ use crate::{
 	classes::{Applicative, Filterable, Traversable},
 	kinds::*,
 };
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for data structures that can be traversed and filtered.
 ///
@@ -37,11 +37,11 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
@@ -52,7 +52,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a [`Result`] in an applicative context.",
 		"The data structure to partition."
 	)]
@@ -97,11 +97,11 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
@@ -111,7 +111,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning an [`Option`] in an applicative context.",
 		"The data structure to filter and map."
 	)]
@@ -151,11 +151,11 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
@@ -167,7 +167,7 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element, returning a [`Result`] in an applicative context.",
 	"The data structure to partition."
 )]
@@ -209,11 +209,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
@@ -224,7 +224,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element, returning an [`Option`] in an applicative context.",
 	"The data structure to filter and map."
 )]

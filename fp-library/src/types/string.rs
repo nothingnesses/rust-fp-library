@@ -7,7 +7,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, hm_signature};
+use fp_macros::{document_parameters, document_signature};
 
 impl_kind! {
 	for String {
@@ -22,11 +22,11 @@ impl Semigroup for String {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first string.", "The second string.")]
+	#[document_parameters("The first string.", "The second string.")]
 	///
 	/// ### Returns
 	///
@@ -57,7 +57,7 @@ impl Monoid for String {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///

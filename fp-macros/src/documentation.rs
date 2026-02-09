@@ -1,19 +1,19 @@
 //! Documentation generation subsystem.
 //!
 //! This module provides macros for generating documentation:
-//! - #[hm_signature] - Hindley-Milner signatures
-//! - #[doc_params] - Parameter documentation
-//! - #[doc_type_params] - Type parameter documentation
+//! - #[document_signature] - Hindley-Milner signatures
+//! - #[document_parameters] - Parameter documentation
+//! - #[document_type_parameters] - Type parameter documentation
 //! - #[document_module] - Module-level orchestration
 
-pub mod doc_params;
-pub mod doc_type_params;
 pub mod document_module;
+pub mod document_parameters;
+pub mod document_signature;
+pub mod document_type_parameters;
 pub mod generation;
-pub mod hm_signature;
 pub mod templates;
 
-pub use doc_params::doc_params_impl;
-pub use doc_type_params::doc_type_params_impl;
-pub use document_module::document_module_impl;
-pub use hm_signature::hm_signature_impl;
+pub use document_module::document_module_worker;
+pub use document_parameters::document_parameters_worker;
+pub use document_signature::document_signature_worker;
+pub use document_type_parameters::document_type_parameters_worker;

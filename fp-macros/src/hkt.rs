@@ -11,12 +11,14 @@ pub mod canonicalizer;
 pub mod impl_kind;
 pub mod input;
 pub mod kind;
+pub mod associated_type;
 
-pub use apply::{ApplyInput, apply_impl};
+pub use apply::{ApplyInput, apply_worker};
 pub use canonicalizer::generate_name;
-pub use impl_kind::{ImplKindInput, impl_kind_impl};
+pub use impl_kind::{ImplKindInput, impl_kind_worker};
 pub use input::{AssociatedType, AssociatedTypes};
-pub use kind::def_kind_impl;
+pub use kind::def_kind_worker;
+pub use associated_type::AssociatedTypeBase;
 
 // Only needed for tests
 #[cfg(test)]

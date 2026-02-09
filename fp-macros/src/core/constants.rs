@@ -15,18 +15,16 @@ pub mod known_types {
 /// Known attribute names used by the documentation macros
 pub mod known_attrs {
 	/// Attribute to specify the default associated type for a type
-	pub const DOC_DEFAULT: &str = "doc_default";
+	pub const DOCUMENT_DEFAULT: &str = "document_default";
 	/// Attribute to specify which associated type to use for documentation
-	pub const DOC_USE: &str = "doc_use";
+	pub const DOCUMENT_USE: &str = "document_use";
 	/// Attribute for Hindley-Milner signature generation
-	#[allow(dead_code)] // Part of public API, not all constants used yet
-	pub const HM_SIGNATURE: &str = "hm_signature";
+	pub const DOCUMENT_SIGNATURE: &str = "document_signature";
 	/// Attribute for type parameter documentation
-	#[allow(dead_code)] // Part of public API, not all constants used yet
-	pub const DOC_TYPE_PARAMS: &str = "doc_type_params";
+	pub const DOCUMENT_TYPE_PARAMETERS: &str = "document_type_parameters";
 	/// Attribute for function parameter documentation
-	#[allow(dead_code)] // Part of public API, not all constants used yet
-	pub const DOC_PARAMS: &str = "doc_params";
+	#[allow(dead_code)]
+	pub const DOCUMENT_PARAMETERS: &str = "document_parameters";
 }
 
 /// Default traits to ignore in trait objects and bounds
@@ -58,5 +56,5 @@ pub mod config_names {
 	/// Cargo manifest filename
 	pub const CARGO_TOML: &str = "Cargo.toml";
 	/// Configuration section name in Cargo.toml metadata
-	pub const CONFIG_SECTION: &str = "hm_signature";
+	pub const CONFIG_SECTION: &str = "document_signature";
 }

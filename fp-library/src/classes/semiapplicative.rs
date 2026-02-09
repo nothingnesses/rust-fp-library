@@ -13,9 +13,9 @@
 
 use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for applying functions within a context to values within a context.
 ///
@@ -38,11 +38,11 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
@@ -51,7 +51,10 @@ pub trait Semiapplicative: Lift + Functor {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The context containing the function(s).", "The context containing the value(s).")]
+	#[document_parameters(
+		"The context containing the function(s).",
+		"The context containing the value(s)."
+	)]
 	///
 	/// ### Returns
 	///
@@ -79,11 +82,11 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the values.",
 	"The brand of the cloneable function wrapper.",
 	"The brand of the context.",
@@ -93,7 +96,10 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// ### Parameters
 ///
-#[doc_params("The context containing the function(s).", "The context containing the value(s).")]
+#[document_parameters(
+	"The context containing the function(s).",
+	"The context containing the value(s)."
+)]
 ///
 /// ### Returns
 ///

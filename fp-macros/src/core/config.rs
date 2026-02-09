@@ -5,7 +5,10 @@
 //! - Configuration types and validation
 //! - Runtime configuration state
 
-use crate::{resolution::ProjectionKey,core::constants::{config_names, default_traits}};
+use crate::{
+	core::constants::{config_names, default_traits},
+	resolution::ProjectionKey,
+};
 use serde::Deserialize;
 use std::{
 	collections::{HashMap, HashSet},
@@ -105,17 +108,14 @@ impl From<UserConfig> for Config {
 }
 
 fn default_ignored_traits() -> HashSet<String> {
-	default_traits::DEFAULT_IGNORED_TRAITS
-		.iter()
-		.map(|s| s.to_string())
-		.collect()
+	default_traits::DEFAULT_IGNORED_TRAITS.iter().map(|s| s.to_string()).collect()
 }
 
 // ==================== Configuration Loading ====================
 
 #[derive(Debug, Deserialize)]
 struct CargoMetadata {
-	hm_signature: Option<UserConfig>,
+	document_signature: Option<UserConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -137,7 +137,7 @@ struct PackageMetadata {
 /// When configuration loading fails, diagnostic warnings are emitted to stderr to help
 /// users understand why their settings aren't being applied.
 static USER_CONFIG_CACHE: LazyLock<UserConfig> = LazyLock::new(|| {
-	match load_user_config_impl() {
+	match load_user_config_worker() {
 		Ok(config) => config,
 		Err(ConfigLoadError::NotFound) => {
 			// Silently use defaults when no config is present - this is expected
@@ -193,8 +193,9 @@ impl std::fmt::Display for ConfigLoadError {
 ///
 /// This function attempts to load configuration from Cargo.toml and returns
 /// detailed errors for any failures, allowing the caller to decide how to handle them.
-fn load_user_config_impl() -> Result<UserConfig, ConfigLoadError> {
-	let manifest_dir = std::env::var(config_names::CARGO_MANIFEST_DIR).unwrap_or_else(|_| ".".to_string());
+fn load_user_config_worker() -> Result<UserConfig, ConfigLoadError> {
+	let manifest_dir =
+		std::env::var(config_names::CARGO_MANIFEST_DIR).unwrap_or_else(|_| ".".to_string());
 	let manifest_path = std::path::Path::new(&manifest_dir).join(config_names::CARGO_TOML);
 
 	// Read the file
@@ -217,14 +218,14 @@ fn load_user_config_impl() -> Result<UserConfig, ConfigLoadError> {
 
 	let metadata = package.metadata.ok_or(ConfigLoadError::NotFound)?; // No metadata is expected, not an error
 
-	let user_config = metadata.hm_signature.ok_or(ConfigLoadError::NotFound)?; // No hm_signature section is expected, not an error
+	let user_config = metadata.document_signature.ok_or(ConfigLoadError::NotFound)?; // No document_signature section is expected, not an error
 
 	Ok(user_config)
 }
 
 /// Loads user configuration from Cargo.toml (cached).
 ///
-/// This reads the `[package.metadata.hm_signature]` section and returns a cached UserConfig.
+/// This reads the `[package.metadata.document_signature]` section and returns a cached UserConfig.
 /// The configuration is loaded only once per compilation, improving performance.
 /// The returned UserConfig can then be converted to a full Config using `Config::from()`.
 ///

@@ -1,11 +1,12 @@
+use crate::{core::Result, support::syntax::generate_doc_comments};
 use proc_macro2::TokenStream;
 use syn::GenericParam;
 
-pub fn doc_type_params_impl(
+pub fn document_type_parameters_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
-) -> TokenStream {
-	crate::support::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
+) -> Result<TokenStream> {
+	generate_doc_comments(attr, item_tokens, |generic_item| {
 		let generics = generic_item.generics();
 		Ok(generics
 			.params
@@ -33,7 +34,7 @@ mod doc_type_params_tests {
 			fn foo<A, B>(a: A, b: B) {}
 		};
 
-		let output = doc_type_params_impl(attr, item);
+		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 2);
@@ -48,7 +49,7 @@ mod doc_type_params_tests {
 			fn foo<A, B>(a: A, b: B) {}
 		};
 
-		let output = doc_type_params_impl(attr, item);
+		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 2);
@@ -63,7 +64,7 @@ mod doc_type_params_tests {
 			fn foo<'a, T, const N: usize>() {}
 		};
 
-		let output = doc_type_params_impl(attr, item);
+		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		assert_eq!(output_fn.attrs.len(), 3);
@@ -79,7 +80,7 @@ mod doc_type_params_tests {
 			fn foo<A, B>() {}
 		};
 
-		let output = doc_type_params_impl(attr, item);
+		let output = document_type_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
 		assert!(error.contains("Expected 2 description arguments, found 1."));
 	}

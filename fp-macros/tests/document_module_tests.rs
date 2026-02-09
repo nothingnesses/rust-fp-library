@@ -15,7 +15,7 @@ mod test_mod {
 
 	impl_kind! {
 		for MyBrand {
-			#[doc_default]
+			#[document_default]
 			type Of<T> = MyType<T>;
 		}
 	}
@@ -29,7 +29,7 @@ mod test_mod {
 	}
 
 	impl Functor for MyBrand {
-		#[hm_signature]
+		#[document_signature]
 		fn map<A, B>(
 			self,
 			_f: impl Fn(A) -> B,
@@ -100,7 +100,7 @@ mod test_collision {
 
 	#[fp_macros::document_module]
 	mod test_dyn_formatting {
-		use fp_macros::hm_signature;
+		use fp_macros::document_signature;
 		#[allow(dead_code)]
 		pub trait MyTrait {}
 
@@ -109,7 +109,7 @@ mod test_collision {
 
 		#[allow(dead_code)]
 		pub trait TestTrait {
-			#[hm_signature]
+			#[document_signature]
 			fn foo() -> Box<dyn MyTrait>;
 		}
 	}
@@ -122,12 +122,12 @@ mod test_collision {
 
 #[document_module]
 mod test_erasure {
-	use fp_macros::hm_signature;
+	use fp_macros::document_signature;
 	#[allow(dead_code)]
 	pub struct Brand;
 	#[allow(dead_code)]
 	pub trait MyTrait {
-		#[hm_signature]
+		#[document_signature]
 		unsafe fn foo<'a, T: ?Sized>(x: &'a T) -> &'a T;
 	}
 }

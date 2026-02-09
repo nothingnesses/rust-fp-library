@@ -11,6 +11,6 @@ pub mod converter;
 pub mod hm_ast_builder;
 pub mod patterns;
 
-pub use ast::HMAST;
+pub use ast::HmAst;
 pub use converter::type_to_hm;
-pub use patterns::{FnBrandInfo, extract_apply_macro_info, extract_fn_brand_info};
+pub use patterns::{extract_apply_macro_info, extract_fn_brand_info};

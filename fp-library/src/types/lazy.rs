@@ -10,7 +10,7 @@ use crate::{
 	kinds::*,
 	types::{Thunk, Trampoline},
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 use std::{
 	cell::LazyCell,
 	rc::Rc,
@@ -44,15 +44,15 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
+	#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -72,11 +72,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value.",
 		"The type of the error."
@@ -84,7 +84,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -104,11 +104,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value."
@@ -116,7 +116,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The lazy cell to evaluate.")]
+	#[document_parameters("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -136,11 +136,11 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value.",
@@ -149,7 +149,7 @@ pub trait LazyConfig: 'static {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The fallible lazy cell to evaluate.")]
+	#[document_parameters("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -184,15 +184,15 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
+	#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -214,11 +214,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value.",
 		"The type of the error."
@@ -226,7 +226,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -248,11 +248,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value."
@@ -260,7 +260,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The lazy cell to evaluate.")]
+	#[document_parameters("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -282,11 +282,11 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value.",
@@ -295,7 +295,7 @@ impl LazyConfig for RcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The fallible lazy cell to evaluate.")]
+	#[document_parameters("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -332,15 +332,15 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the computation.", "The type of the value.")]
+	#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -362,11 +362,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value.",
 		"The type of the error."
@@ -374,7 +374,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The initializer thunk.")]
+	#[document_parameters("The initializer thunk.")]
 	///
 	/// ### Returns
 	///
@@ -396,11 +396,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value."
@@ -408,7 +408,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The lazy cell to evaluate.")]
+	#[document_parameters("The lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -430,11 +430,11 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The lifetime of the reference.",
 		"The type of the value.",
@@ -443,7 +443,7 @@ impl LazyConfig for ArcLazyConfig {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The fallible lazy cell to evaluate.")]
+	#[document_parameters("The fallible lazy cell to evaluate.")]
 	///
 	/// ### Returns
 	///
@@ -513,7 +513,7 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Returns
 	///
@@ -540,15 +540,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the initializer closure.")]
+	#[document_type_parameters("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that produces the value.")]
+	#[document_parameters("The closure that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -575,11 +575,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The pre-computed value to wrap.")]
+	#[document_parameters("The pre-computed value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -621,15 +621,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the initializer closure.")]
+	#[document_type_parameters("The type of the initializer closure.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure that produces the value.")]
+	#[document_parameters("The closure that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -657,11 +657,11 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The pre-computed value to wrap.")]
+	#[document_parameters("The pre-computed value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -706,15 +706,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that produces the lazy value.")]
+	#[document_parameters("The thunk that produces the lazy value.")]
 	///
 	/// ### Returns
 	///
@@ -748,15 +748,15 @@ where
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The thunk that produces the lazy value.")]
+	#[document_parameters("The thunk that produces the lazy value.")]
 	///
 	/// ### Returns
 	///
@@ -784,11 +784,11 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the value.",
 		"The type of the result.",
@@ -797,7 +797,7 @@ impl RefFunctor for LazyBrand<RcLazyConfig> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The memoized value.")]
+	#[document_parameters("The function to apply.", "The memoized value.")]
 	///
 	/// ### Returns
 	///

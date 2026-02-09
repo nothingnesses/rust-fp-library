@@ -13,8 +13,8 @@
 
 use super::semigroupoid::Semigroupoid;
 use crate::{Apply, kinds::*};
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for categories, which are semigroupoids with an identity element.
 ///
@@ -31,11 +31,11 @@ pub trait Category: Semigroupoid {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
+	#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -58,11 +58,11 @@ pub trait Category: Semigroupoid {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the morphism.",
 	"The brand of the category.",
 	"The type of the object."

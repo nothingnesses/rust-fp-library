@@ -13,7 +13,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
@@ -30,15 +30,15 @@ impl VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the elements in the vector.")]
+	#[document_type_parameters("The type of the elements in the vector.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A value to prepend to the vector.", "A vector to prepend the value to.")]
+	#[document_parameters("A value to prepend to the vector.", "A vector to prepend the value to.")]
 	///
 	/// ### Returns
 	///
@@ -74,15 +74,15 @@ impl VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the elements in the vector.")]
+	#[document_type_parameters("The type of the elements in the vector.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The vector slice to deconstruct.")]
+	#[document_parameters("The vector slice to deconstruct.")]
 	///
 	/// ### Returns
 	///
@@ -119,11 +119,11 @@ impl Functor for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the vector.",
 		"The type of the elements in the resulting vector.",
@@ -132,7 +132,7 @@ impl Functor for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply to each element.", "The vector to map over.")]
+	#[document_parameters("The function to apply to each element.", "The vector to map over.")]
 	///
 	/// ### Returns
 	///
@@ -163,11 +163,11 @@ impl Lift for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the first vector.",
 		"The type of the elements in the second vector.",
@@ -177,7 +177,11 @@ impl Lift for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The binary function to apply.", "The first vector.", "The second vector.")]
+	#[document_parameters(
+		"The binary function to apply.",
+		"The first vector.",
+		"The second vector."
+	)]
 	///
 	/// ### Returns
 	///
@@ -215,15 +219,15 @@ impl Pointed for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -252,11 +256,11 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input values.",
@@ -265,7 +269,10 @@ impl Semiapplicative for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The vector containing the functions.", "The vector containing the values.")]
+	#[document_parameters(
+		"The vector containing the functions.",
+		"The vector containing the values."
+	)]
 	///
 	/// ### Returns
 	///
@@ -297,11 +304,11 @@ impl Semimonad for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the input vector.",
 		"The type of the elements in the output vector.",
@@ -310,7 +317,10 @@ impl Semimonad for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first vector.", "The function to apply to each element, returning a vector.")]
+	#[document_parameters(
+		"The first vector.",
+		"The function to apply to each element, returning a vector."
+	)]
 	///
 	/// ### Returns
 	///
@@ -345,11 +355,11 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the vector.",
@@ -359,7 +369,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The folding function.", "The initial value.", "The vector to fold.")]
+	#[document_parameters("The folding function.", "The initial value.", "The vector to fold.")]
 	///
 	/// ### Returns
 	///
@@ -390,11 +400,11 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the vector.",
@@ -404,7 +414,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
 		"The initial value of the accumulator.",
 		"The vector to fold."
@@ -439,11 +449,11 @@ impl Foldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function to use.",
 		"The type of the elements in the vector.",
@@ -453,7 +463,7 @@ impl Foldable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The mapping function.", "The vector to fold.")]
+	#[document_parameters("The mapping function.", "The vector to fold.")]
 	///
 	/// ### Returns
 	///
@@ -489,11 +499,11 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -503,7 +513,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The vector to traverse."
 	)]
@@ -550,11 +560,11 @@ impl Traversable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -562,7 +572,7 @@ impl Traversable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The vector containing the applicative values.")]
+	#[document_parameters("The vector containing the applicative values.")]
 	///
 	/// ### Returns
 	///
@@ -607,7 +617,7 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -615,7 +625,7 @@ impl<A: Clone> Semigroup for Vec<A> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The first vector.", "The second vector.")]
+	#[document_parameters("The first vector.", "The second vector.")]
 	///
 	/// ### Returns
 	///
@@ -643,7 +653,7 @@ impl<A: Clone> Monoid for Vec<A> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
@@ -674,11 +684,11 @@ impl ParFoldable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the cloneable function wrapper.",
 		"The element type.",
@@ -687,7 +697,7 @@ impl ParFoldable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to map each element to a monoid.",
 		"The vector to fold."
 	)]
@@ -733,15 +743,15 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the elements.", "The type of the elements.")]
+	#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The vector of options.")]
+	#[document_parameters("The vector of options.")]
 	///
 	/// ### Returns
 	///
@@ -772,11 +782,11 @@ impl Compactable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the error value.",
 		"The type of the success value."
@@ -784,7 +794,7 @@ impl Compactable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The vector of results.")]
+	#[document_parameters("The vector of results.")]
 	///
 	/// ### Returns
 	///
@@ -825,11 +835,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the input value.",
 		"The type of the error value.",
@@ -839,7 +849,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The vector to partition.")]
+	#[document_parameters("The function to apply.", "The vector to partition.")]
 	///
 	/// ### Returns
 	///
@@ -881,11 +891,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements.",
 		"The type of the predicate."
@@ -893,7 +903,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate.", "The vector to partition.")]
+	#[document_parameters("The predicate.", "The vector to partition.")]
 	///
 	/// ### Returns
 	///
@@ -930,11 +940,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the input value.",
 		"The type of the result of applying the function.",
@@ -943,7 +953,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The vector to filter and map.")]
+	#[document_parameters("The function to apply.", "The vector to filter and map.")]
 	///
 	/// ### Returns
 	///
@@ -975,11 +985,11 @@ impl Filterable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements.",
 		"The type of the predicate."
@@ -987,7 +997,7 @@ impl Filterable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The predicate.", "The vector to filter.")]
+	#[document_parameters("The predicate.", "The vector to filter.")]
 	///
 	/// ### Returns
 	///
@@ -1021,11 +1031,11 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the input value.",
@@ -1036,7 +1046,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function to apply.", "The vector to partition.")]
+	#[document_parameters("The function to apply.", "The vector to partition.")]
 	///
 	/// ### Returns
 	///
@@ -1087,11 +1097,11 @@ impl Witherable for VecBrand {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
@@ -1101,7 +1111,7 @@ impl Witherable for VecBrand {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning an `Option` in an applicative context.",
 		"The vector to filter and map."
 	)]

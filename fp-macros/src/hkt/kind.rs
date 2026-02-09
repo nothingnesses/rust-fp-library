@@ -3,11 +3,7 @@
 //! This module handles the generation of a new `Kind` trait based on a signature.
 
 use super::AssociatedTypes;
-use crate::{
-	core::Result,
-	documentation::templates::DocumentationBuilder,
-	generate_name,
-};
+use crate::{core::Result, documentation::templates::DocumentationBuilder, generate_name};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -15,14 +11,14 @@ use quote::quote;
 ///
 /// This function takes the parsed input and generates a trait definition
 /// for a Higher-Kinded Type signature with multiple associated types.
-pub fn def_kind_impl(input: AssociatedTypes) -> Result<TokenStream> {
+pub fn def_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
-		let ident = &assoc.name;
-		let generics = &assoc.generics;
-		let output_bounds = &assoc.output_bounds;
-		let attrs = &assoc.attributes;
+		let ident = &assoc.signature.name;
+		let generics = &assoc.signature.generics;
+		let output_bounds = &assoc.signature.output_bounds;
+		let attrs = &assoc.signature.attributes;
 		let output_bounds_tokens =
 			if output_bounds.is_empty() { quote!() } else { quote!(: #output_bounds) };
 
@@ -61,7 +57,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_simple() {
 		let input = parse_kind_input("type Of<A>;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("pub trait Kind_"));
@@ -77,7 +73,7 @@ mod tests {
 			type SendOf<U>: Send;
 		",
 		);
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("pub trait Kind_"));
@@ -89,7 +85,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_complex() {
 		let input = parse_kind_input("type Of<'a, T: 'a + Clone>: Debug + Display;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("type Of < 'a , T : 'a + Clone > : Debug + Display ;"));
@@ -101,7 +97,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_doc_type_param_bounds() {
 		let input = parse_kind_input("type Of<'a, A: 'a>: 'a;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify the documentation contains correct type parameter bounds
@@ -128,7 +124,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_doc_type_param_no_bounds() {
 		let input = parse_kind_input("type Of<A>;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Type parameter without bounds should just show the identifier
@@ -143,7 +139,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_doc_impl_example() {
 		let input = parse_kind_input("type Of<'a, T>; type SendOf<U>;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify the documentation contains the correct impl_kind! example
@@ -168,7 +164,7 @@ mod tests {
 	#[test]
 	fn test_def_kind_doc_multiple_type_params() {
 		let input = parse_kind_input("type Of<'a, T: Clone, U: 'a + Send>: Debug;");
-		let output = def_kind_impl(input).expect("def_kind_impl failed");
+		let output = def_kind_worker(input).expect("def_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify lifetimes doc

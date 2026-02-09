@@ -12,7 +12,7 @@ use crate::{
 	impl_kind,
 	kinds::*,
 };
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 impl_kind! {
 	impl<P: UnsizedCoercible> for FnBrand<P> {
@@ -29,11 +29,11 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -41,7 +41,7 @@ impl<P: UnsizedCoercible> Function for FnBrand<P> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "The input value to the function.")]
+	#[document_parameters("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -68,11 +68,11 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -80,7 +80,7 @@ impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "The input value to the function.")]
+	#[document_parameters("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped cloneable function.
@@ -105,11 +105,11 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the morphisms.",
 		"The source type of the first morphism.",
 		"The target type of the first morphism and the source type of the second morphism.",
@@ -118,7 +118,7 @@ impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The second morphism to apply (from C to D).",
 		"The first morphism to apply (from B to C)."
 	)]
@@ -152,11 +152,11 @@ impl<P: UnsizedCoercible> Category for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The lifetime of the morphism.", "The type of the object.")]
+	#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -184,11 +184,11 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -196,7 +196,7 @@ impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.")]
+	#[document_parameters("The closure to wrap.")]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.
