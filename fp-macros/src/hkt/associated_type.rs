@@ -3,9 +3,7 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-	Attribute, Generics, Ident, Token, TypeParamBound,
-	parse::{ParseStream},
-	punctuated::Punctuated,
+	Attribute, Generics, Ident, Token, TypeParamBound, parse::ParseStream, punctuated::Punctuated,
 };
 
 /// Common components of an associated type definition used across HKT macros.

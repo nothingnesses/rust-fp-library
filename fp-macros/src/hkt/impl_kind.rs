@@ -79,7 +79,10 @@ impl Parse for ImplKindInput {
 		let brace_token = braced!(content in input);
 
 		let definitions = parse_many(&content)?;
-		let definitions = parse_non_empty(definitions, "Kind implementation must have at least one associated type definition")?;
+		let definitions = parse_non_empty(
+			definitions,
+			"Kind implementation must have at least one associated type definition",
+		)?;
 
 		Ok(ImplKindInput {
 			impl_generics,
@@ -93,9 +96,8 @@ impl Parse for ImplKindInput {
 
 impl Parse for AssociatedType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let signature = AssociatedTypeBase::parse_signature(input, |i| {
-			i.peek(Token![=]) || i.peek(Token![;])
-		})?;
+		let signature =
+			AssociatedTypeBase::parse_signature(input, |i| i.peek(Token![=]) || i.peek(Token![;]))?;
 
 		let eq_token: Token![=] = input.parse()?;
 		let target_type: Type = input.parse()?;
@@ -105,13 +107,7 @@ impl Parse for AssociatedType {
 
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(AssociatedType {
-			signature,
-			_eq_token: eq_token,
-			target_type,
-			where_clause,
-			semi_token,
-		})
+		Ok(AssociatedType { signature, _eq_token: eq_token, target_type, where_clause, semi_token })
 	}
 }
 

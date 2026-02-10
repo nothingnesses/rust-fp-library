@@ -36,7 +36,8 @@ impl Parse for AssociatedTypes {
 		let assoc_types: Vec<AssociatedType> = parse_many(input)?;
 
 		// Validation: non-empty
-		let assoc_types = parse_non_empty(assoc_types, "Kind definition must have at least one associated type")?;
+		let assoc_types =
+			parse_non_empty(assoc_types, "Kind definition must have at least one associated type")?;
 
 		// Validation: no const generics (using centralized validation)
 		for assoc in &assoc_types {

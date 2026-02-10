@@ -67,7 +67,8 @@ pub fn document_module_worker(
 			return Err(syn::Error::new(
 				item_const.span(),
 				"document_module on a const item requires a block expression: const _: () = { ... };",
-			).into());
+			)
+			.into());
 		}
 	} else {
 		return Err(syn::Error::new(

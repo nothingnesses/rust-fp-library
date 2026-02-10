@@ -16,7 +16,9 @@ pub(crate) mod support; // Support utilities (attributes, syntax, validation, er
 mod property_tests;
 
 use crate::core::ToCompileError;
-use codegen::{ReExportInput, generate_function_re_exports_worker, generate_trait_re_exports_worker};
+use codegen::{
+	ReExportInput, generate_function_re_exports_worker, generate_trait_re_exports_worker,
+};
 use documentation::{
 	document_module_worker, document_parameters_worker, document_signature_worker,
 	document_type_parameters_worker,

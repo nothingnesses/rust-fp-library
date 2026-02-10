@@ -32,6 +32,10 @@ pub struct HmAstBuilder<'a> {
 impl<'a> TypeVisitor for HmAstBuilder<'a> {
 	type Output = HmAst;
 
+	fn default_output(&self) -> Self::Output {
+		HmAst::Unit
+	}
+
 	fn visit_path(
 		&mut self,
 		type_path: &syn::TypePath,

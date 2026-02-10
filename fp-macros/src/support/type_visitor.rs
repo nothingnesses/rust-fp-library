@@ -74,9 +74,14 @@ pub trait TypeVisitor {
 	/// - Custom type representation (e.g., `HMType`)
 	/// - `()` for side-effect-only visitors
 	/// - `Option<T>` for optional extraction
+	/// - `Result<T, E>` for fallible transformations
+	type Output;
+
+	/// Default value returned by unimplemented visitor methods.
 	///
-	/// The `Default` bound enables all visitor methods to have default no-op implementations.
-	type Output: Default;
+	/// This allows the trait to work with both types that implement `Default`
+	/// and those that don't (like `Result<T, E>`).
+	fn default_output(&self) -> Self::Output;
 
 	/// Main entry point for visiting a type.
 	///
@@ -113,12 +118,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_type_path: &syn::TypePath,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a type macro invocation (e.g., `Apply!(Brand, T, U)`, `vec![T]`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Higher-kinded type applications (`Apply!`)
@@ -128,12 +133,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_type_macro: &syn::TypeMacro,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a reference type (e.g., `&T`, `&mut T`, `&'a T`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Immutable references
@@ -143,12 +148,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_type_ref: &syn::TypeReference,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit an impl trait type (e.g., `impl Trait`, `impl FnOnce(T) -> U`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Return position impl trait
@@ -158,12 +163,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_impl_trait: &syn::TypeImplTrait,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a trait object type (e.g., `dyn Trait`, `dyn Fn(T) -> U + Send`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Dynamic dispatch types
@@ -173,12 +178,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_trait_obj: &syn::TypeTraitObject,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a bare function pointer type (e.g., `fn(T) -> U`, `unsafe fn()`, `extern "C" fn()`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Function pointers
@@ -188,12 +193,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_bare_fn: &syn::TypeBareFn,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a tuple type (e.g., `()`, `(T,)`, `(T, U)`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Unit type `()`
@@ -203,12 +208,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_tuple: &syn::TypeTuple,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit an array type (e.g., `[T; N]`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Fixed-size arrays
@@ -217,12 +222,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_array: &syn::TypeArray,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit a slice type (e.g., `[T]`).
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// Override this to handle:
 	/// - Dynamically-sized slices
@@ -230,12 +235,12 @@ pub trait TypeVisitor {
 		&mut self,
 		_slice: &syn::TypeSlice,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 
 	/// Visit any other type variant not covered by specialized methods.
 	///
-	/// **Default:** Returns `Default::default()` (no-op)
+	/// **Default:** Returns `self.default_output()` (no-op)
 	///
 	/// This catches:
 	/// - `Type::Ptr` (raw pointers)
@@ -249,6 +254,6 @@ pub trait TypeVisitor {
 		&mut self,
 		_ty: &syn::Type,
 	) -> Self::Output {
-		Default::default()
+		self.default_output()
 	}
 }

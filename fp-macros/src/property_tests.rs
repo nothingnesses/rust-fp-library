@@ -228,7 +228,7 @@ fn prop_bound_order_independence() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse individual bounds and create punctuated list
 		let bound1: Result<TypeParamBound, _> = syn::parse_str(&b1.name);
@@ -266,7 +266,7 @@ fn prop_bound_permutation_independence() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse all bounds
 		let parsed_bounds: Result<Vec<TypeParamBound>, _> =
@@ -318,10 +318,10 @@ fn prop_lifetime_name_independence() {
 
 		// Create two canonicalizers with different lifetime names
 		let generics1: Generics = syn::parse_str(&format!("<'{}>", lt1.name)).unwrap();
-		let canon1 = Canonicalizer::new(&generics1);
+		let mut canon1 = Canonicalizer::new(&generics1);
 
 		let generics2: Generics = syn::parse_str(&format!("<'{}>", lt2.name)).unwrap();
-		let canon2 = Canonicalizer::new(&generics2);
+		let mut canon2 = Canonicalizer::new(&generics2);
 
 		// Both should canonicalize their respective lifetimes to "l0"
 		let bound1: TypeParamBound = syn::parse_str(&format!("'{}", lt1.name)).unwrap();
@@ -346,7 +346,7 @@ fn prop_multiple_lifetime_positions() {
 
 		let lts_str = lts.names.iter().map(|n| format!("'{}", n)).collect::<Vec<_>>().join(", ");
 		let generics: Generics = syn::parse_str(&format!("<{}>", lts_str)).unwrap();
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Verify each lifetime maps to the correct index
 		for (i, name) in lts.names.iter().enumerate() {
@@ -485,7 +485,7 @@ fn prop_adding_lifetime_changes_name() {
 fn prop_canonicalization_idempotent() {
 	fn property(bound: ArbTraitBound) -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound_str = &bound.name;
 		let parsed: Result<TypeParamBound, _> = syn::parse_str(bound_str);
@@ -511,7 +511,7 @@ fn prop_canonicalize_bounds_idempotent() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse all bounds
 		let parsed_bounds: Result<Vec<TypeParamBound>, _> =
@@ -596,7 +596,7 @@ fn prop_fn_bound_determinism() {
 		output_type: ArbSimpleType,
 	) -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound_str = format!("Fn({}) -> {}", input_type.name, output_type.name);
 		let bound: Result<TypeParamBound, _> = syn::parse_str(&bound_str);
@@ -623,7 +623,7 @@ fn prop_fn_bound_determinism() {
 fn prop_path_preservation() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test various paths
 		let paths = vec![
@@ -763,7 +763,7 @@ fn prop_hash_collision_resistance() {
 fn prop_nested_generics_determinism() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test nested generics
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<String>>);
@@ -781,7 +781,7 @@ fn prop_nested_generics_determinism() {
 fn prop_reference_lifetime_canonicalization() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<'a>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// The implementation canonicalizes reference types, test that it's consistent
 		let bound: TypeParamBound = parse_quote!(AsRef<&'a str>);

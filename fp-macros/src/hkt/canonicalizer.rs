@@ -14,6 +14,7 @@
 use crate::{
 	AssociatedTypes,
 	core::error_handling::{Error, UnsupportedFeature},
+	support::type_visitor::TypeVisitor,
 };
 use quote::{format_ident, quote};
 use std::collections::BTreeMap;
@@ -75,7 +76,7 @@ impl Canonicalizer {
 	/// - Type parameters are replaced by their index (e.g., `T0`).
 	/// - Traits are represented by their full path with generic arguments.
 	pub fn canonicalize_bound(
-		&self,
+		&mut self,
 		bound: &TypeParamBound,
 	) -> Result<String> {
 		match bound {
@@ -134,7 +135,7 @@ impl Canonicalizer {
 
 	/// Canonicalizes a list of bounds, sorting them to ensure determinism.
 	pub fn canonicalize_bounds(
-		&self,
+		&mut self,
 		bounds: &Punctuated<TypeParamBound, Token![+]>,
 	) -> Result<String> {
 		let mut parts: Vec<String> = Vec::new();
@@ -146,7 +147,7 @@ impl Canonicalizer {
 	}
 
 	fn canonicalize_generic_arg(
-		&self,
+		&mut self,
 		arg: &GenericArgument,
 	) -> Result<String> {
 		match arg {
@@ -174,76 +175,109 @@ impl Canonicalizer {
 			})),
 		}
 	}
+}
 
-	fn canonicalize_type(
-		&self,
-		ty: &Type,
-	) -> Result<String> {
-		match ty {
-			Type::Path(type_path) => {
-				// Check if it's a type parameter
-				if let Some(ident) = type_path.path.get_ident()
-					&& let Some(idx) = self.type_map.get(&ident.to_string())
-				{
-					return Ok(format!("T{idx}"));
-				}
+impl TypeVisitor for Canonicalizer {
+	type Output = Result<String>;
 
-				let mut path_parts = Vec::new();
-				for seg in &type_path.path.segments {
-					let ident = seg.ident.to_string();
-					let segment_str = match &seg.arguments {
-						PathArguments::None => ident,
-						PathArguments::AngleBracketed(args) => {
-							let mut args_vec = Vec::new();
-							for a in &args.args {
-								args_vec.push(self.canonicalize_generic_arg(a)?);
-							}
-							let args_str = args_vec.join(",");
-							format!("{ident}<{args_str}>")
-						}
-						PathArguments::Parenthesized(args) => {
-							let mut inputs_vec = Vec::new();
-							for t in &args.inputs {
-								inputs_vec.push(self.canonicalize_type(t)?);
-							}
-							let inputs = inputs_vec.join(",");
-							let output = match &args.output {
-								ReturnType::Default => "()".to_string(),
-								ReturnType::Type(_, ty) => self.canonicalize_type(ty)?,
-							};
-							format!("{ident}({inputs})->{output}")
-						}
-					};
-					path_parts.push(segment_str);
-				}
-				Ok(path_parts.join("::"))
-			}
-			Type::Reference(type_ref) => {
-				let lt = if let Some(lt) = &type_ref.lifetime {
-					if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
-						format!("l{idx} ")
-					} else {
-						format!("{} ", lt.ident)
+	fn default_output(&self) -> Self::Output {
+		Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
+			description: "Unsupported type variant in canonicalization".to_string(),
+			span: proc_macro2::Span::call_site(),
+		}))
+	}
+
+	fn visit_path(
+		&mut self,
+		type_path: &syn::TypePath,
+	) -> Self::Output {
+		// Check if it's a type parameter
+		if let Some(ident) = type_path.path.get_ident()
+			&& let Some(idx) = self.type_map.get(&ident.to_string())
+		{
+			return Ok(format!("T{idx}"));
+		}
+
+		let mut path_parts = Vec::new();
+		for seg in &type_path.path.segments {
+			let ident = seg.ident.to_string();
+			let segment_str = match &seg.arguments {
+				PathArguments::None => ident,
+				PathArguments::AngleBracketed(args) => {
+					let mut args_vec = Vec::new();
+					for a in &args.args {
+						args_vec.push(self.canonicalize_generic_arg(a)?);
 					}
-				} else {
-					"".to_string()
-				};
-				let mutability = if type_ref.mutability.is_some() { "mut " } else { "" };
-				Ok(format!("&{lt}{mutability}{}", self.canonicalize_type(&type_ref.elem)?))
-			}
-			Type::Tuple(tuple) => {
-				let mut elems_vec = Vec::new();
-				for t in &tuple.elems {
-					elems_vec.push(self.canonicalize_type(t)?);
+					let args_str = args_vec.join(",");
+					format!("{ident}<{args_str}>")
 				}
-				let elems = elems_vec.join(",");
-				Ok(format!("({elems})"))
+				PathArguments::Parenthesized(args) => {
+					let mut inputs_vec = Vec::new();
+					for t in &args.inputs {
+						inputs_vec.push(self.visit(t)?);
+					}
+					let inputs = inputs_vec.join(",");
+					let output = match &args.output {
+						ReturnType::Default => "()".to_string(),
+						ReturnType::Type(_, ty) => self.visit(ty)?,
+					};
+					format!("{ident}({inputs})->{output}")
+				}
+			};
+			path_parts.push(segment_str);
+		}
+		Ok(path_parts.join("::"))
+	}
+
+	fn visit_reference(
+		&mut self,
+		type_ref: &syn::TypeReference,
+	) -> Self::Output {
+		let lt = if let Some(lt) = &type_ref.lifetime {
+			if let Some(idx) = self.lifetime_map.get(&lt.ident.to_string()) {
+				format!("l{idx} ")
+			} else {
+				format!("{} ", lt.ident)
 			}
-			Type::Slice(slice) => Ok(format!("[{}]", self.canonicalize_type(&slice.elem)?)),
-			Type::Array(array) => {
-				let len = quote!(#array.len).to_string().replace(" ", "");
-				Ok(format!("[{};{len}]", self.canonicalize_type(&array.elem)?))
-			}
+		} else {
+			"".to_string()
+		};
+		let mutability = if type_ref.mutability.is_some() { "mut " } else { "" };
+		Ok(format!("&{lt}{mutability}{}", self.visit(&type_ref.elem)?))
+	}
+
+	fn visit_tuple(
+		&mut self,
+		tuple: &syn::TypeTuple,
+	) -> Self::Output {
+		let mut elems_vec = Vec::new();
+		for t in &tuple.elems {
+			elems_vec.push(self.visit(t)?);
+		}
+		let elems = elems_vec.join(",");
+		Ok(format!("({elems})"))
+	}
+
+	fn visit_slice(
+		&mut self,
+		slice: &syn::TypeSlice,
+	) -> Self::Output {
+		Ok(format!("[{}]", self.visit(&slice.elem)?))
+	}
+
+	fn visit_array(
+		&mut self,
+		array: &syn::TypeArray,
+	) -> Self::Output {
+		let len = quote!(#array.len).to_string().replace(" ", "");
+		Ok(format!("[{};{len}]", self.visit(&array.elem)?))
+	}
+
+	fn visit_other(
+		&mut self,
+		ty: &syn::Type,
+	) -> Self::Output {
+		match ty {
 			Type::Never(_) => Ok("!".to_string()),
 			Type::Infer(_) => Ok("_".to_string()),
 			Type::BareFn(_) | Type::ImplTrait(_) | Type::TraitObject(_) => {
@@ -252,11 +286,17 @@ impl Canonicalizer {
 					span: proc_macro2::Span::call_site(),
 				}))
 			}
-			_ => Err(Error::Unsupported(UnsupportedFeature::ComplexTypes {
-				description: "Unknown type variant in canonicalization".to_string(),
-				span: proc_macro2::Span::call_site(),
-			})),
+			_ => self.default_output(),
 		}
+	}
+}
+
+impl Canonicalizer {
+	fn canonicalize_type(
+		&mut self,
+		ty: &Type,
+	) -> Result<String> {
+		self.visit(ty)
 	}
 }
 
@@ -310,7 +350,7 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut canonical_parts = Vec::new();
 
 	for assoc in assoc_types {
-		let canon = Canonicalizer::new(&assoc.signature.generics);
+		let mut canon = Canonicalizer::new(&assoc.signature.generics);
 
 		let mut l_count = 0;
 		let mut t_count = 0;
@@ -363,7 +403,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_simple_bound() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Clone);
 		assert_eq!(canon.canonicalize_bound(&bound).unwrap(), "tClone");
@@ -373,7 +413,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_path_bound() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(std::fmt::Debug);
 		assert_eq!(canon.canonicalize_bound(&bound).unwrap(), "tstd::fmt::Debug");
@@ -383,7 +423,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_generic_bound() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = String>);
 		assert_eq!(canon.canonicalize_bound(&bound).unwrap(), "tIterator<Item=String>");
@@ -393,7 +433,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_fn_bound() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Fn(i32) -> bool);
 		assert_eq!(canon.canonicalize_bound(&bound).unwrap(), "tFn(i32)->bool");
@@ -403,7 +443,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_lifetime_bound() {
 		let generics: Generics = parse_quote!(<'a>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!('a);
 		assert_eq!(canon.canonicalize_bound(&bound).unwrap(), "l0");
@@ -413,7 +453,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_bounds_sorting() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bounds1: Punctuated<TypeParamBound, Token![+]> = parse_quote!(Clone + std::fmt::Debug);
 		let bounds2: Punctuated<TypeParamBound, Token![+]> = parse_quote!(std::fmt::Debug + Clone);
@@ -432,7 +472,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_type_param_mapping() {
 		let generics: Generics = parse_quote!(<T, U>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// T should be mapped to T0
 		let bound_t: TypeParamBound = parse_quote!(AsRef<T>);
@@ -448,11 +488,11 @@ mod tests {
 	fn test_canonicalize_type_param_independence() {
 		// <A> vs <B> should produce same canonical form for same bounds
 		let generics1: Generics = parse_quote!(<A>);
-		let canon1 = Canonicalizer::new(&generics1);
+		let mut canon1 = Canonicalizer::new(&generics1);
 		let bound1: TypeParamBound = parse_quote!(AsRef<A>);
 
 		let generics2: Generics = parse_quote!(<B>);
-		let canon2 = Canonicalizer::new(&generics2);
+		let mut canon2 = Canonicalizer::new(&generics2);
 		let bound2: TypeParamBound = parse_quote!(AsRef<B>);
 
 		assert_eq!(canon1.canonicalize_bound(&bound1).unwrap(), "tAsRef<T0>");
@@ -467,7 +507,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_nested_generic() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test with nested Option<Vec<String>>
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<Vec<String>>>);
@@ -481,7 +521,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_deeply_nested_with_params() {
 		let generics: Generics = parse_quote!(<T>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test with deeply nested types involving T
 		let bound: TypeParamBound = parse_quote!(AsRef<Vec<Option<T>>>);
@@ -494,7 +534,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_multiple_generic_params() {
 		let generics: Generics = parse_quote!(<E>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test with multiple type parameters
 		let bound: TypeParamBound = parse_quote!(Into<Result<String, E>>);
@@ -511,7 +551,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_fn_complex() {
 		let generics: Generics = parse_quote!(<T>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Fn(T, String) -> Option<T>);
 		let result = canon.canonicalize_bound(&bound).unwrap();
@@ -523,7 +563,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_fn_no_return() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(Fn(i32));
 		let result = canon.canonicalize_bound(&bound).unwrap();
@@ -535,7 +575,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_fnmut() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(FnMut(String) -> i32);
 		let result = canon.canonicalize_bound(&bound).unwrap();
@@ -547,7 +587,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_fnonce() {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound: TypeParamBound = parse_quote!(FnOnce() -> String);
 		let result = canon.canonicalize_bound(&bound).unwrap();
@@ -563,7 +603,7 @@ mod tests {
 	#[test]
 	fn test_canonicalize_multiple_lifetimes() {
 		let generics: Generics = parse_quote!(<'a, 'b, 'c>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound_a: TypeParamBound = parse_quote!('a);
 		let bound_b: TypeParamBound = parse_quote!('b);
@@ -578,10 +618,10 @@ mod tests {
 	#[test]
 	fn test_canonicalize_lifetime_independence() {
 		let generics1: Generics = parse_quote!(<'a>);
-		let canon1 = Canonicalizer::new(&generics1);
+		let mut canon1 = Canonicalizer::new(&generics1);
 
 		let generics2: Generics = parse_quote!(<'x>);
-		let canon2 = Canonicalizer::new(&generics2);
+		let mut canon2 = Canonicalizer::new(&generics2);
 
 		let bound1: TypeParamBound = parse_quote!('a);
 		let bound2: TypeParamBound = parse_quote!('x);

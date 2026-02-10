@@ -318,6 +318,8 @@ struct CurriedParamExtractor<'a> {
 impl<'a> TypeVisitor for CurriedParamExtractor<'a> {
 	type Output = ();
 
+	fn default_output(&self) -> Self::Output {}
+
 	fn visit_path(
 		&mut self,
 		type_path: &syn::TypePath,
