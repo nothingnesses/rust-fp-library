@@ -68,7 +68,6 @@ mod inner {
 		kinds::*,
 		types::{CatList, Thunk},
 	};
-	use fp_macros::document_parameters;
 	use std::{any::Any, marker::PhantomData};
 
 	/// A type-erased value for internal use.
@@ -176,6 +175,7 @@ mod inner {
 		A: 'static;
 
 	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
 		F: Functor + 'static,

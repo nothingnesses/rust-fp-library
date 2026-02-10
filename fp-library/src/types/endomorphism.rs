@@ -4,12 +4,13 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
+	use fp_macros::document_type_parameters;
+
+use crate::{
 		Apply,
 		classes::{Category, Monoid, Semigroup},
 		kinds::*,
 	};
-	use fp_macros::document_parameters;
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,
@@ -29,8 +30,11 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The category of the morphism.
-	/// * `A`: The object of the morphism.
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	///
 	/// ### Fields
 	///

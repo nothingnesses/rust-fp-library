@@ -14,7 +14,6 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		impl<P: UnsizedCoercible> for FnBrand<P> {

@@ -4,7 +4,7 @@ use crate::{
 	core::{
 		config::Config,
 		constants::{
-			attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
+			attributes::{DOCUMENT_DEFAULT, DOCUMENT_PARAMETERS, DOCUMENT_TYPE_PARAMETERS},
 			macros::IMPL_KIND_MACRO,
 		},
 		error_handling::ErrorCollector,
@@ -180,6 +180,75 @@ fn process_impl_type_parameter_documentation(
 	}
 }
 
+/// Extract impl-level parameter (receiver) documentation from attributes.
+fn process_impl_parameter_documentation(
+	item_impl: &syn::ItemImpl,
+	self_ty_path: &str,
+	trait_path: Option<&str>,
+	config: &mut Config,
+	errors: &mut ErrorCollector,
+) {
+	// Extract impl-level parameter documentation for receiver
+	for attr in &item_impl.attrs {
+		if attr.path().is_ident(DOCUMENT_PARAMETERS) {
+			// Parse the single argument (receiver description)
+			if let Ok(args) = attr.parse_args::<GenericArgs>() {
+				let entries: Vec<_> = args.entries.iter().collect();
+
+				// Should have exactly one entry for the receiver
+				if entries.len() != 1 {
+					errors.push(Error::new(
+						attr.span(),
+						format!(
+							"{DOCUMENT_PARAMETERS} on impl blocks must have exactly one description for the receiver parameter, found {}",
+							entries.len()
+						),
+					));
+					continue;
+				}
+
+				// Extract the description
+				let receiver_desc = match &entries[0] {
+					DocArg::Desc(d) => d.value(),
+					DocArg::Override(_, d) => d.value(),
+				};
+
+				// Check if any methods in the impl block have receivers
+				let has_receiver_methods = item_impl.items.iter().any(|item| {
+					if let ImplItem::Fn(method) = item {
+						method
+							.sig
+							.inputs
+							.iter()
+							.any(|input| matches!(input, syn::FnArg::Receiver(_)))
+					} else {
+						false
+					}
+				});
+
+				if !has_receiver_methods {
+					errors.push(Error::new(
+						attr.span(),
+						format!(
+							"{DOCUMENT_PARAMETERS} cannot be used on impl blocks with no methods that have receiver parameters"
+						),
+					));
+					continue;
+				}
+
+				// Store in config
+				let impl_key = ImplKey::from_paths(self_ty_path, trait_path);
+				config.impl_receiver_docs.insert(impl_key, receiver_desc);
+			} else {
+				errors.push(Error::new(
+					attr.span(),
+					format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
+				));
+			}
+		}
+	}
+}
+
 /// Process associated types within an impl block.
 fn process_impl_associated_types(
 	item_impl: &syn::ItemImpl,
@@ -230,6 +299,15 @@ fn process_impl_block(
 
 	// Extract impl-level type parameter documentation
 	process_impl_type_parameter_documentation(
+		item_impl,
+		&self_ty_path,
+		trait_path.as_deref(),
+		config,
+		errors,
+	);
+
+	// Extract impl-level parameter (receiver) documentation
+	process_impl_parameter_documentation(
 		item_impl,
 		&self_ty_path,
 		trait_path.as_deref(),

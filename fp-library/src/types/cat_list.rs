@@ -34,7 +34,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::document_parameters;
+	use fp_macros::document_type_parameters;
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 	use std::{
@@ -59,7 +59,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the list.
+	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Examples
 	///
@@ -1275,6 +1275,7 @@ mod inner {
 	/// ### Type Parameters
 	///
 	#[document_type_parameters("The type of the elements in the list")]
+	#[document_parameters("The list to operate on")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
 		///
@@ -1304,6 +1305,10 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters]
 		///
 		/// ### Returns
 		///
@@ -1355,10 +1360,6 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the element.
-		///
 		/// ### Parameters
 		///
 		#[document_parameters("The element to append.")]
@@ -1387,10 +1388,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the element.
 		///
 		/// ### Parameters
 		///
@@ -1423,10 +1420,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements.
 		///
 		/// ### Parameters
 		///
@@ -1478,13 +1471,9 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements.
-		///
 		/// ### Parameters
 		///
-		/// * `self`: The list.
+		#[document_parameters]
 		///
 		/// ### Returns
 		///
@@ -1532,13 +1521,9 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements.
-		///
 		/// ### Parameters
 		///
-		/// * `self`: The list.
+		#[document_parameters]
 		///
 		/// ### Returns
 		///
@@ -1575,7 +1560,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the elements in the list.
+	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Fields
 	///

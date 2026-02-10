@@ -20,7 +20,6 @@ mod inner {
 			UnsizedCoercible,
 		},
 	};
-	use fp_macros::document_parameters;
 	use std::sync::Arc;
 
 	impl Pointer for ArcBrand {
@@ -233,7 +232,6 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use crate::{
 		brands::ArcBrand,
 		classes::{

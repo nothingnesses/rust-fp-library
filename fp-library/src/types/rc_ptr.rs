@@ -17,7 +17,6 @@ mod inner {
 		brands::RcBrand,
 		classes::{Pointer, RefCountedPointer, UnsizedCoercible},
 	};
-	use fp_macros::document_parameters;
 	use std::rc::Rc;
 
 	impl Pointer for RcBrand {

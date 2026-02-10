@@ -8,7 +8,6 @@ mod inner {
 		classes::{Monoid, Semigroup, SendCloneableFn},
 		functions::identity,
 	};
-	use fp_macros::document_parameters;
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,

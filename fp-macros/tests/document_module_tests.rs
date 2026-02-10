@@ -133,3 +133,74 @@ mod test_erasure {
 		unsafe fn foo<'a, T: ?Sized>(x: &'a T) -> &'a T;
 	}
 }
+
+#[document_module]
+mod test_impl_level_document_parameters {
+	#[allow(dead_code)]
+	pub struct MyList<T>(Vec<T>);
+
+	/// Test impl-level document_parameters with receiver-only method
+	#[document_type_parameters("The type of elements in the list")]
+	#[document_parameters("The list instance")]
+	impl<T> MyList<T> {
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters]
+		pub fn len(&self) -> usize {
+			self.0.len()
+		}
+
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters]
+		pub fn is_empty(&self) -> bool {
+			self.0.is_empty()
+		}
+
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters("The element to append")]
+		pub fn push(
+			&mut self,
+			item: T,
+		) {
+			self.0.push(item)
+		}
+
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters("The element to prepend")]
+		pub fn cons(
+			self,
+			item: T,
+		) -> Self {
+			let mut new_vec = vec![item];
+			new_vec.extend(self.0);
+			MyList(new_vec)
+		}
+
+		// Static method (no receiver) should work without impl-level receiver doc
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters("The initial capacity")]
+		pub fn with_capacity(capacity: usize) -> Self {
+			MyList(Vec::with_capacity(capacity))
+		}
+	}
+
+	/// Test multiple impl blocks for the same type
+	#[document_parameters("The list to operate on")]
+	impl<T: Clone> MyList<T> {
+		#[allow(dead_code)]
+		#[document_signature]
+		#[document_parameters]
+		pub fn clone_list(&self) -> Self {
+			MyList(self.0.clone())
+		}
+	}
+}
+
+#[test]
+fn test_impl_level_document_parameters_integration() {
+	// Compile-time test to ensure impl-level document_parameters works
+}
