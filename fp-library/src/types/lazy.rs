@@ -100,7 +100,9 @@ mod inner {
 		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E>;
+		fn try_lazy_new<'a, A: 'a, E: 'a>(
+			f: Box<Self::TryThunk<'a, A, E>>
+		) -> Self::TryLazy<'a, A, E>;
 
 		/// Forces evaluation and returns a reference.
 		///
@@ -242,7 +244,9 @@ mod inner {
 		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
 		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
+		fn try_lazy_new<'a, A: 'a, E: 'a>(
+			f: Box<Self::TryThunk<'a, A, E>>
+		) -> Self::TryLazy<'a, A, E> {
 			Rc::new(LazyCell::new(f))
 		}
 
@@ -390,7 +394,9 @@ mod inner {
 		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
 		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
 		/// ```
-		fn try_lazy_new<'a, A: 'a, E: 'a>(f: Box<Self::TryThunk<'a, A, E>>) -> Self::TryLazy<'a, A, E> {
+		fn try_lazy_new<'a, A: 'a, E: 'a>(
+			f: Box<Self::TryThunk<'a, A, E>>
+		) -> Self::TryLazy<'a, A, E> {
 			Arc::new(LazyLock::new(f))
 		}
 

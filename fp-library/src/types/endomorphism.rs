@@ -9,7 +9,7 @@ mod inner {
 		classes::{Category, Monoid, Semigroup},
 		kinds::*,
 	};
-	use fp_macros::{document_parameters};
+	use fp_macros::document_parameters;
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,

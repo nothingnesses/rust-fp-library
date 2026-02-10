@@ -17,7 +17,7 @@ mod inner {
 		brands::RcBrand,
 		classes::{Pointer, RefCountedPointer, UnsizedCoercible},
 	};
-	use fp_macros::{document_parameters};
+	use fp_macros::document_parameters;
 	use std::rc::Rc;
 
 	impl Pointer for RcBrand {
@@ -161,7 +161,9 @@ pub use inner::*;
 mod tests {
 	use super::inner::*;
 	use crate::brands::RcBrand;
-	use crate::classes::{Pointer, RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new};
+	use crate::classes::{
+		Pointer, RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new,
+	};
 
 	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.
 	#[test]

@@ -68,7 +68,7 @@ mod inner {
 		kinds::*,
 		types::{CatList, Thunk},
 	};
-	use fp_macros::{document_parameters};
+	use fp_macros::document_parameters;
 	use std::{any::Any, marker::PhantomData};
 
 	/// A type-erased value for internal use.

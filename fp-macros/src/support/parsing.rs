@@ -1,6 +1,9 @@
 //! Common parsing patterns and input validation helpers.
 
-use crate::core::{Error, Result};
+use crate::{
+	core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
+	support::syntax::DocArg,
+};
 use proc_macro2::{Span, TokenStream};
 use syn::{
 	GenericParam, Generics,
@@ -91,6 +94,48 @@ pub fn parse_unique_attr_value(
 		}
 	}
 	Ok(found)
+}
+
+/// Parses and validates parameter documentation pairs.
+///
+/// Takes parameter names (targets) and their documentation entries, validates they match,
+/// and returns the paired data.
+///
+/// Returns the validated pairs of (parameter_name, documentation_entry) if successful.
+///
+/// # Errors
+/// - No documentable parameters exist (including self-only functions)
+/// - Number of descriptions doesn't match number of parameters
+pub fn parse_parameter_documentation_pairs(
+	targets: Vec<String>,
+	entries: Vec<DocArg>,
+	span: Span,
+) -> Result<Vec<(String, DocArg)>> {
+	let expected = targets.len();
+	let found = entries.len();
+
+	// Error when using the macro on functions with no documentable parameters
+	if expected == 0 {
+		return Err(Error::validation(
+			span,
+			format!(
+				r"Cannot use #[{DOCUMENT_PARAMETERS}] on functions with no parameters to document.
+  Note: `self` parameters (including `&self` and `&mut self`) are not considered documentable parameters. Remove this attribute or add parameters to the function."
+			),
+		));
+	}
+
+	if expected != found {
+		return Err(Error::validation(
+			span,
+			format!(
+				"Expected {expected} description argument{}, found {found}.",
+				if expected == 1 { "" } else { "s" }
+			),
+		));
+	}
+
+	Ok(targets.into_iter().zip(entries).collect())
 }
 
 #[cfg(test)]

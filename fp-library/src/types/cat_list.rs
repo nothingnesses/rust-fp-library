@@ -1204,6 +1204,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
 		///
@@ -1212,10 +1215,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the list.
 		///
 		/// ### Parameters
 		///
@@ -1244,6 +1243,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list")]
 	impl<A> Monoid for CatList<A> {
 		/// Returns an empty list.
 		///
@@ -1252,10 +1254,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the list.
 		///
 		/// ### Returns
 		///
@@ -1274,16 +1272,15 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
 		///
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the list.
 		///
 		/// ### Returns
 		///
@@ -1308,14 +1305,6 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the list.
-		///
-		/// ### Parameters
-		///
-		/// * `self`: The list to check.
-		///
 		/// ### Returns
 		///
 		/// `true` if the list is empty, `false` otherwise.
@@ -1338,10 +1327,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the element.
 		///
 		/// ### Parameters
 		///

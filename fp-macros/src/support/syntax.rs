@@ -2,7 +2,10 @@ use crate::{
 	analysis::traits::{TraitCategory, classify_trait},
 	conversion::patterns::extract_fn_brand_info,
 	core::{config::Config, constants::types},
-	support::{parsing::parse_first, type_visitor::TypeVisitor},
+	support::{
+		parsing::{parse_first, parse_parameter_documentation_pairs},
+		type_visitor::TypeVisitor,
+	},
 };
 use proc_macro2::TokenStream;
 use quote::ToTokens;
@@ -167,15 +170,15 @@ where
 	let args = syn::parse2::<GenericArgs>(attr.clone()).map_err(crate::core::Error::Parse)?;
 
 	let targets = get_targets(&generic_item)?;
-
 	let entries: Vec<_> = args.entries.into_iter().collect();
 
-	validate_doc_args(targets.len(), entries.len(), attr.span())?;
+	// Parse and validate using the new function in parsing.rs
+	let pairs = parse_parameter_documentation_pairs(targets, entries, attr.span())?;
 
-	for (name_from_target, entry) in targets.iter().zip(entries) {
+	for (name_from_target, entry) in pairs {
 		let (name, desc) = match entry {
 			DocArg::Override(n, d) => (n.value(), d.value()),
-			DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+			DocArg::Desc(d) => (name_from_target, d.value()),
 		};
 
 		let doc_comment = format_parameter_doc(&name, &desc);
@@ -185,20 +188,6 @@ where
 	Ok(quote::quote! {
 		#generic_item
 	})
-}
-
-pub fn validate_doc_args(
-	expected: usize,
-	found: usize,
-	span: proc_macro2::Span,
-) -> Result<(), Error> {
-	if expected != found {
-		return Err(Error::new(
-			span,
-			format!("Expected {expected} description arguments, found {found}."),
-		));
-	}
-	Ok(())
 }
 
 /// Format a parameter documentation comment.

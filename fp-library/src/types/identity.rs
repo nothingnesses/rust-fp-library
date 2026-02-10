@@ -14,7 +14,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters};
+	use fp_macros::document_parameters;
 
 	/// Wraps a value.
 	///

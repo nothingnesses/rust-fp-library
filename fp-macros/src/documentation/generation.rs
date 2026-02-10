@@ -14,8 +14,8 @@ use crate::{
 	},
 	support::{
 		attributes::find_attribute,
-		parsing::parse_unique_attr_value,
-		syntax::{DocArg, GenericArgs, format_parameter_doc, validate_doc_args},
+		parsing::{parse_parameter_documentation_pairs, parse_unique_attr_value},
+		syntax::{DocArg, GenericArgs, format_parameter_doc},
 	},
 };
 use quote::quote;
@@ -105,22 +105,23 @@ pub(super) fn process_document_type_parameters(
 	let args_result = attr.parse_args::<GenericArgs>();
 
 	if let Ok(args) = args_result {
-		let entries: Vec<_> = args.entries.iter().collect();
+		let entries: Vec<_> = args.entries.into_iter().collect();
 
-		// Validate and emit method-level docs only
-		if let Err(e) = validate_doc_args(method_param_names.len(), entries.len(), attr.span()) {
-			errors.push(e);
-		} else {
-			for (i, (name_from_target, entry)) in method_param_names.iter().zip(entries).enumerate()
-			{
-				let (name, desc) = match entry {
-					DocArg::Override(n, d) => (n.value(), d.value()),
-					DocArg::Desc(d) => (name_from_target.clone(), d.value()),
-				};
+		match parse_parameter_documentation_pairs(method_param_names, entries, attr.span()) {
+			Ok(pairs) => {
+				for (i, (name_from_target, entry)) in pairs.into_iter().enumerate() {
+					let (name, desc) = match entry {
+						DocArg::Override(n, d) => (n.value(), d.value()),
+						DocArg::Desc(d) => (name_from_target, d.value()),
+					};
 
-				let doc_comment = format_parameter_doc(&name, &desc);
-				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-				method.attrs.insert(attr_pos + i, doc_attr);
+					let doc_comment = format_parameter_doc(&name, &desc);
+					let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+					method.attrs.insert(attr_pos + i, doc_attr);
+				}
+			}
+			Err(e) => {
+				errors.push(e.into());
 			}
 		}
 	} else {
