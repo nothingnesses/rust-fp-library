@@ -99,11 +99,23 @@ pub fn extract_context(
 				// Note: We don't remove the attribute here; it will be removed during generation phase
 				for attr in &item_impl.attrs {
 					if attr.path().is_ident(attributes::DOCUMENT_TYPE_PARAMETERS) {
+						// Get impl generics
+						let targets = extract_all_params(&item_impl.generics);
+
+						// Error if impl has no type parameters
+						if targets.is_empty() {
+							errors.push(Error::new(
+								attr.span(),
+								format!(
+									"{} cannot be used on impl blocks with no type parameters",
+									attributes::DOCUMENT_TYPE_PARAMETERS
+								),
+							));
+							continue;
+						}
+
 						// Parse the arguments
 						if let Ok(args) = attr.parse_args::<GenericArgs>() {
-							// Get impl generics
-							let targets = extract_all_params(&item_impl.generics);
-
 							let entries: Vec<_> = args.entries.iter().collect();
 							if entries.len() != targets.len() {
 								errors.push(Error::new(

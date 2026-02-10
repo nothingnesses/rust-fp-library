@@ -62,10 +62,6 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters]
-		///
 		/// ### Parameters
 		///
 		#[document_parameters("The morphism to wrap.")]

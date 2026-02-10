@@ -187,10 +187,6 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters]
-		///
 		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
@@ -216,10 +212,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters]
 		///
 		/// ### Parameters
 		///
@@ -251,10 +243,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters]
 		///
 		/// ### Implementation
 		///
@@ -391,10 +379,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		#[document_type_parameters]
 		///
 		/// ### Returns
 		///

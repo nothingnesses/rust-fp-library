@@ -1,6 +1,9 @@
-use crate::{core::Result, support::syntax::generate_doc_comments};
+use crate::{
+	core::{Result, constants::attributes::DOCUMENT_TYPE_PARAMETERS},
+	support::syntax::generate_doc_comments,
+};
 use proc_macro2::TokenStream;
-use syn::GenericParam;
+use syn::{GenericParam, spanned::Spanned};
 
 pub fn document_type_parameters_worker(
 	attr: TokenStream,
@@ -8,6 +11,17 @@ pub fn document_type_parameters_worker(
 ) -> Result<TokenStream> {
 	generate_doc_comments(attr, item_tokens, |generic_item| {
 		let generics = generic_item.generics();
+
+		// Error if there are no type parameters
+		if generics.params.is_empty() {
+			return Err(syn::Error::new(
+				generics.span(),
+				format!(
+					"{DOCUMENT_TYPE_PARAMETERS} cannot be used on items with no type parameters"
+				),
+			));
+		}
+
 		Ok(generics
 			.params
 			.iter()
@@ -83,5 +97,49 @@ mod doc_type_params_tests {
 		let output = document_type_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
 		assert!(error.contains("Expected 2 description arguments, found 1."));
+	}
+
+	#[test]
+	fn test_doc_type_params_no_type_parameters() {
+		let attr = quote! {};
+		let item = quote! {
+			fn foo() {}
+		};
+
+		let output = document_type_parameters_worker(attr, item).unwrap_err();
+		let error = output.to_string();
+		assert!(error.contains("cannot be used on items with no type parameters"));
+	}
+
+	#[test]
+	fn test_doc_type_params_on_impl() {
+		let attr = quote! { "The base functor.", "The result type." };
+		let item = quote! {
+			impl<F, A> MyType<F, A> {
+				fn foo(&self) {}
+			}
+		};
+
+		let output = document_type_parameters_worker(attr, item).unwrap();
+		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
+
+		assert_eq!(output_impl.attrs.len(), 2);
+		assert_eq!(get_doc(&output_impl.attrs[0]), "* `F`: The base functor.");
+		assert_eq!(get_doc(&output_impl.attrs[1]), "* `A`: The result type.");
+	}
+
+	#[test]
+	fn test_doc_type_params_on_method_only_shows_method_params() {
+		let attr = quote! { "The new result type." };
+		let item = quote! {
+			fn bind<B>(self) -> Free<F, B> {}
+		};
+
+		let output = document_type_parameters_worker(attr, item).unwrap();
+		let output_fn: ItemFn = syn::parse2(output).unwrap();
+
+		// Only method-level type parameter B should be documented
+		assert_eq!(output_fn.attrs.len(), 1);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "* `B`: The new result type.");
 	}
 }
