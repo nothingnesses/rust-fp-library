@@ -134,6 +134,18 @@ pub(super) fn process_document_type_parameters(
 	errors
 }
 
+/// Helper to parse an attribute value, collecting errors instead of propagating them.
+fn parse_attr_or_none(
+	attrs: &[syn::Attribute],
+	name: &str,
+	errors: &mut ErrorCollector,
+) -> Option<String> {
+	parse_unique_attr_value(attrs, name).unwrap_or_else(|e| {
+		errors.push(syn::Error::from(e));
+		None
+	})
+}
+
 /// Process method-level documentation (signatures and type parameters).
 fn process_method_documentation(
 	method: &mut syn::ImplItemFn,
@@ -146,13 +158,7 @@ fn process_method_documentation(
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
-	let method_document_use = match parse_unique_attr_value(&method.attrs, DOCUMENT_USE) {
-		Ok(v) => v,
-		Err(e) => {
-			errors.push(syn::Error::from(e));
-			None
-		}
-	};
+	let method_document_use = parse_attr_or_none(&method.attrs, DOCUMENT_USE, errors);
 	let document_use = method_document_use.or_else(|| impl_document_use.map(String::from));
 
 	// 1. Handle HM Signature
@@ -194,7 +200,7 @@ fn process_impl_block(
 	if let Some(attr_pos) = find_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS) {
 		// Create impl key and process in one go to avoid borrow conflicts
 		let impl_key = ImplKey::from_paths(&self_ty_path, trait_path_str.as_deref());
-		
+
 		// Get the stored impl-level docs from config
 		if let Some(impl_docs) = config.impl_type_param_docs.get(&impl_key) {
 			// Remove the attribute
@@ -214,13 +220,7 @@ fn process_impl_block(
 	}
 
 	// Parse impl-level document_use attribute
-	let impl_document_use = match parse_unique_attr_value(&item_impl.attrs, DOCUMENT_USE) {
-		Ok(v) => v,
-		Err(e) => {
-			errors.push(syn::Error::from(e));
-			None
-		}
-	};
+	let impl_document_use = parse_attr_or_none(&item_impl.attrs, DOCUMENT_USE, errors);
 
 	// Process each method in the impl block
 	for impl_item in &mut item_impl.items {

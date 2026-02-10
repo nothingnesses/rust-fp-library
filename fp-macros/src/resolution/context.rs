@@ -1,7 +1,14 @@
 use super::resolver::{normalize_type, type_uses_self_assoc};
 use crate::{
 	analysis::extract_all_params,
-	core::{config::Config, constants::{attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS}, macros::IMPL_KIND_MACRO}, error_handling::ErrorCollector},
+	core::{
+		config::Config,
+		constants::{
+			attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
+			macros::IMPL_KIND_MACRO,
+		},
+		error_handling::ErrorCollector,
+	},
 	hkt::ImplKindInput,
 	resolution::{ImplKey, ProjectionKey},
 	support::{
@@ -13,7 +20,38 @@ use quote::ToTokens;
 use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
 
 /// Type alias for tracking scoped defaults
-type ScopedDefaultsTracker = std::collections::HashMap<(String, String), Vec<(String, proc_macro2::Span)>>;
+type ScopedDefaultsTracker =
+	std::collections::HashMap<(String, String), Vec<(String, proc_macro2::Span)>>;
+
+/// Helper to register a module-level default with immediate conflict detection.
+///
+/// Returns true if the default was registered successfully, false if there was a conflict.
+fn register_module_default(
+	config: &mut Config,
+	brand_path: String,
+	assoc_name: String,
+	span: proc_macro2::Span,
+	errors: &mut ErrorCollector,
+) {
+	if let Some(prev) = config.module_defaults.insert(brand_path.clone(), assoc_name.clone()) {
+		errors.push(Error::new(
+			span,
+			format!("Conflicting module default for {brand_path}: {prev} and {assoc_name}"),
+		));
+	}
+}
+
+/// Helper to track a scoped default for later validation.
+fn track_scoped_default(
+	scoped_defaults_tracker: &mut ScopedDefaultsTracker,
+	self_ty_path: &str,
+	trait_path: &str,
+	assoc_name: String,
+	span: proc_macro2::Span,
+) {
+	let key = (self_ty_path.to_string(), trait_path.to_string());
+	scoped_defaults_tracker.entry(key).or_default().push((assoc_name, span));
+}
 
 /// Process a single `impl_kind!` macro invocation.
 fn process_impl_kind_macro(
@@ -27,7 +65,7 @@ fn process_impl_kind_macro(
 
 	if let Ok(impl_kind) = item_macro.mac.parse_body::<ImplKindInput>() {
 		let brand_path = impl_kind.brand.to_token_stream().to_string();
-		
+
 		for def in &impl_kind.definitions {
 			let assoc_name = def.signature.name.to_string();
 
@@ -66,17 +104,15 @@ fn process_impl_kind_macro(
 				.projections
 				.insert(key, (def.signature.generics.clone(), def.target_type.clone()));
 
-			if has_attr(&def.signature.attributes, DOCUMENT_DEFAULT)
-				&& let Some(prev) = config
-					.module_defaults
-					.insert(brand_path.clone(), assoc_name.clone())
-			{
-				errors.push(Error::new(
+			// Register module-level default with immediate conflict detection
+			if has_attr(&def.signature.attributes, DOCUMENT_DEFAULT) {
+				register_module_default(
+					config,
+					brand_path.clone(),
+					assoc_name.clone(),
 					def.signature.name.span(),
-					format!(
-						"Conflicting module default for {brand_path}: {prev} and {assoc_name}"
-					),
-				));
+					errors,
+				);
 			}
 		}
 	}
@@ -137,9 +173,7 @@ fn process_impl_type_parameter_documentation(
 			} else {
 				errors.push(Error::new(
 					attr.span(),
-					format!(
-						"Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"
-					),
+					format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
 				));
 			}
 		}
@@ -165,19 +199,19 @@ fn process_impl_associated_types(
 			} else {
 				ProjectionKey::new(self_ty_path, &assoc_name)
 			};
-			config
-				.projections
-				.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
+			config.projections.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
 
-			// Track document_default across split impl blocks
+			// Track document_default across split impl blocks for deferred validation
 			if has_attr(&assoc_type.attrs, DOCUMENT_DEFAULT)
 				&& let Some(t_path) = trait_path
 			{
-				let key = (self_ty_path.to_string(), t_path.to_string());
-				scoped_defaults_tracker
-					.entry(key)
-					.or_default()
-					.push((assoc_name.clone(), assoc_type.ident.span()));
+				track_scoped_default(
+					scoped_defaults_tracker,
+					self_ty_path,
+					t_path,
+					assoc_name.clone(),
+					assoc_type.ident.span(),
+				);
 			}
 		}
 	}
@@ -191,10 +225,8 @@ fn process_impl_block(
 	errors: &mut ErrorCollector,
 ) {
 	let self_ty_path = item_impl.self_ty.to_token_stream().to_string();
-	let trait_path = item_impl
-		.trait_
-		.as_ref()
-		.map(|(_, path, _)| path.to_token_stream().to_string());
+	let trait_path =
+		item_impl.trait_.as_ref().map(|(_, path, _)| path.to_token_stream().to_string());
 
 	// Extract impl-level type parameter documentation
 	process_impl_type_parameter_documentation(

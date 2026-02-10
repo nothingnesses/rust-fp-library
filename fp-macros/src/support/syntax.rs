@@ -269,6 +269,7 @@ pub enum LogicalParam {
 	/// Note: The `syn::Type` field is currently not accessed during matching, but is preserved
 	/// for potential future use in generating more detailed documentation. This causes a
 	/// compiler warning about unused fields, which is expected and acceptable.
+	#[allow(dead_code)]
 	Implicit(syn::Type),
 }
 
