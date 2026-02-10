@@ -45,7 +45,7 @@ pub(crate) fn is_phantom_data_path(type_path: &syn::TypePath) -> bool {
 
 /// Helper function to check if a type name is a smart pointer (Box, Arc, Rc)
 pub(crate) fn is_smart_pointer(name: &str) -> bool {
-	matches!(name, "Box" | "Arc" | "Rc")
+	known_types::SMART_POINTERS.contains(&name)
 }
 
 /// Helper function to extract the inner type from a smart pointer if present
@@ -73,7 +73,7 @@ pub fn trait_bound_to_hm_type(
 	};
 	let name = segment.ident.to_string();
 
-	if name == "Fn" || name == "FnMut" || name == "FnOnce" {
+	if known_types::FN_TRAITS.contains(&name.as_str()) {
 		return trait_bound_to_hm_arrow(trait_bound, fn_bounds, generic_names, config);
 	}
 

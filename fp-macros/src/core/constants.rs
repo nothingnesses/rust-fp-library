@@ -10,6 +10,22 @@ pub mod known_types {
 	pub const APPLY_MACRO: &str = "Apply";
 	/// Internal marker for function brand types
 	pub const FN_BRAND_MARKER: &str = "fn_brand_marker";
+	/// Rust's Box smart pointer
+	pub const BOX: &str = "Box";
+	/// Rust's Arc smart pointer
+	pub const ARC: &str = "Arc";
+	/// Rust's Rc smart pointer
+	pub const RC: &str = "Rc";
+	/// Rust's Fn trait
+	pub const FN: &str = "Fn";
+	/// Rust's FnMut trait
+	pub const FN_MUT: &str = "FnMut";
+	/// Rust's FnOnce trait
+	pub const FN_ONCE: &str = "FnOnce";
+	/// List of supported smart pointers
+	pub const SMART_POINTERS: &[&str] = &[BOX, ARC, RC];
+	/// List of supported Fn traits
+	pub const FN_TRAITS: &[&str] = &[FN, FN_MUT, FN_ONCE];
 }
 
 /// Known attribute names used by the documentation macros

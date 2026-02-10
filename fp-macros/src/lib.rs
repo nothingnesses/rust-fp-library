@@ -2,11 +2,10 @@
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
 
-// Modular architecture - Clean-room redesign completed
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
 pub(crate) mod conversion; // Hindley-Milner type conversion
-pub(crate) mod core; // Core infrastructure (config, error, result) - CONSOLIDATED
+pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
 pub(crate) mod resolution; // Type resolution
