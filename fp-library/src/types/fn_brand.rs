@@ -22,6 +22,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
@@ -36,7 +37,6 @@ mod inner {
 		/// ### Type Parameters
 		///
 		#[document_type_parameters(
-			"The reference-counted pointer type.",
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
@@ -62,6 +62,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
 
@@ -76,7 +77,6 @@ mod inner {
 		/// ### Type Parameters
 		///
 		#[document_type_parameters(
-			"The reference-counted pointer type.",
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
@@ -102,6 +102,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
@@ -114,7 +115,6 @@ mod inner {
 		/// ### Type Parameters
 		///
 		#[document_type_parameters(
-			"The reference-counted pointer type.",
 			"The lifetime of the morphisms.",
 			"The source type of the first morphism.",
 			"The target type of the first morphism and the source type of the second morphism.",
@@ -150,6 +150,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Category for FnBrand<P> {
 		/// Returns the identity morphism.
 		///
@@ -161,11 +162,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The reference-counted pointer type.",
-			"The lifetime of the morphism.",
-			"The type of the object."
-		)]
+		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 		///
 		/// ### Returns
 		///
@@ -184,6 +181,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 		type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
 
@@ -198,7 +196,6 @@ mod inner {
 		/// ### Type Parameters
 		///
 		#[document_type_parameters(
-			"The reference-counted pointer type.",
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."

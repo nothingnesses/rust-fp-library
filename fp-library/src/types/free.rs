@@ -175,10 +175,7 @@ mod inner {
 		F: Functor + 'static,
 		A: 'static;
 
-	#[document_type_parameters(
-		"The base functor.",
-		"The result type."
-	)]
+	#[document_type_parameters("The base functor.", "The result type.")]
 	impl<F, A> Free<F, A>
 	where
 		F: Functor + 'static,
@@ -478,6 +475,7 @@ mod inner {
 		}
 	}
 
+	#[document_type_parameters("The result type.")]
 	impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
 		/// Creates a `Free` computation from a thunk.
 		///
@@ -489,10 +487,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The result type.",
-			"The type of the thunk."
-		)]
+		#[document_type_parameters("The type of the thunk.")]
 		///
 		/// ### Parameters
 		///

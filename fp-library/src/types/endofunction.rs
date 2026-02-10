@@ -42,8 +42,15 @@ mod inner {
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct Endofunction<'a, FnBrand: CloneableFn, A>(pub <FnBrand as CloneableFn>::Of<'a, A, A>);
+	pub struct Endofunction<'a, FnBrand: CloneableFn, A>(
+		pub <FnBrand as CloneableFn>::Of<'a, A, A>,
+	);
 
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
 	impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
 		/// Creates a new `Endofunction`.
 		///
@@ -55,11 +62,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
-			"The brand of the function (e.g., `RcFnBrand`).",
-			"The input and output type of the function."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Parameters
 		///

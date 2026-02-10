@@ -48,6 +48,11 @@ mod inner {
 		pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
 	);
 
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 		/// Creates a new `Endomorphism`.
 		///
@@ -59,11 +64,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
-			"The category of the morphism.",
-			"The object of the morphism."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Parameters
 		///

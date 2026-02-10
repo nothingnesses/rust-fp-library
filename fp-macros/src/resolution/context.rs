@@ -103,7 +103,7 @@ pub fn extract_context(
 						if let Ok(args) = attr.parse_args::<GenericArgs>() {
 							// Get impl generics
 							let targets = extract_all_params(&item_impl.generics);
-							
+
 							let entries: Vec<_> = args.entries.iter().collect();
 							if entries.len() != targets.len() {
 								errors.push(Error::new(
@@ -123,7 +123,7 @@ pub fn extract_context(
 									};
 									docs.push((name_from_target.clone(), desc));
 								}
-								
+
 								// Store in config
 								let impl_key = if let Some(ref t_path) = trait_path {
 									ImplKey::with_trait(&self_ty_path, t_path)
@@ -135,7 +135,10 @@ pub fn extract_context(
 						} else {
 							errors.push(Error::new(
 								attr.span(),
-								format!("Failed to parse {} arguments", attributes::DOCUMENT_TYPE_PARAMETERS),
+								format!(
+									"Failed to parse {} arguments",
+									attributes::DOCUMENT_TYPE_PARAMETERS
+								),
 							));
 						}
 					}
