@@ -1,3 +1,4 @@
+use crate::core::constants::{configuration, re_export};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::{collections::HashMap, fs, path::Path};
@@ -241,7 +242,8 @@ fn scan_directory_and_collect(
 	input: &ReExportInput,
 	formatter: &dyn ReExportFormatter,
 ) -> Vec<TokenStream> {
-	let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+	let manifest_dir =
+		std::env::var(configuration::CARGO_MANIFEST_DIR).expect("CARGO_MANIFEST_DIR not set");
 	let base_path = Path::new(&manifest_dir).join(input.path.value());
 
 	let mut re_exports = Vec::new();
@@ -249,11 +251,11 @@ fn scan_directory_and_collect(
 	if let Ok(entries) = fs::read_dir(&base_path) {
 		for entry in entries.flatten() {
 			let path = entry.path();
-			if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+			if path.extension().and_then(|s| s.to_str()) == Some(re_export::RS_EXTENSION) {
 				let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) else {
 					continue; // Skip files with invalid UTF-8 names
 				};
-				if file_stem == "mod" {
+				if file_stem == re_export::MOD_FILE_STEM {
 					continue;
 				}
 
@@ -333,12 +335,13 @@ fn parse_base_path_from_input(input: &ReExportInput) -> syn::Path {
 	// Extract the module path from the directory path
 	// e.g., "src/classes" -> "crate::classes"
 	// or "fp-library/src/types" -> "crate::types"
-	let parts: Vec<&str> = path_str.split('/').filter(|p| *p != "src" && !p.is_empty()).collect();
+	let parts: Vec<&str> =
+		path_str.split('/').filter(|p| *p != re_export::SRC_DIR && !p.is_empty()).collect();
 
 	// Build the path starting with crate::
 	let mut segments = syn::punctuated::Punctuated::new();
 	segments.push(syn::PathSegment {
-		ident: Ident::new("crate", proc_macro2::Span::call_site()),
+		ident: Ident::new(re_export::CRATE_KEYWORD, proc_macro2::Span::call_site()),
 		arguments: syn::PathArguments::None,
 	});
 

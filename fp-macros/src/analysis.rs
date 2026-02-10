@@ -7,5 +7,5 @@
 pub mod generics;
 pub mod traits;
 
-pub use generics::{GenericAnalyzer, analyze_generics};
+pub use generics::{analyze_generics, extract_all_params, extract_type_params};
 pub use traits::{TraitCategory, classify_trait, format_brand_name};

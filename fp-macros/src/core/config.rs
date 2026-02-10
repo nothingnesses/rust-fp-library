@@ -6,7 +6,10 @@
 //! - Runtime configuration state
 
 use crate::{
-	core::constants::{config_names, default_traits},
+	core::constants::{
+		configuration::{self, CONFIG_SECTION},
+		traits,
+	},
 	resolution::ProjectionKey,
 };
 use serde::Deserialize;
@@ -108,7 +111,7 @@ impl From<UserConfig> for Config {
 }
 
 fn default_ignored_traits() -> HashSet<String> {
-	default_traits::DEFAULT_IGNORED_TRAITS.iter().map(|s| s.to_string()).collect()
+	traits::DEFAULT_IGNORED_TRAITS.iter().map(|s| s.to_string()).collect()
 }
 
 // ==================== Configuration Loading ====================
@@ -146,14 +149,11 @@ static USER_CONFIG_CACHE: LazyLock<UserConfig> = LazyLock::new(|| {
 		Err(e) => {
 			// Emit warning for actual errors so users know their config is being ignored
 			eprintln!(
-				"warning: Failed to load [package.metadata.{}] configuration: {}",
-				config_names::CONFIG_SECTION,
-				e
+				"warning: Failed to load [package.metadata.{CONFIG_SECTION}] configuration: {e}"
 			);
 			eprintln!("         Using default configuration instead.");
 			eprintln!(
-				"         Check your Cargo.toml for syntax errors in the [package.metadata.{}] section.",
-				config_names::CONFIG_SECTION
+				"         Check your Cargo.toml for syntax errors in the [package.metadata.{CONFIG_SECTION}] section."
 			);
 			UserConfig::default()
 		}
@@ -180,10 +180,10 @@ impl std::fmt::Display for ConfigLoadError {
 	) -> std::fmt::Result {
 		match self {
 			ConfigLoadError::NotFound => write!(f, "configuration not found"),
-			ConfigLoadError::IoError(e) => write!(f, "failed to read Cargo.toml: {}", e),
-			ConfigLoadError::TomlError(e) => write!(f, "invalid TOML syntax: {}", e),
+			ConfigLoadError::IoError(e) => write!(f, "failed to read Cargo.toml: {e}"),
+			ConfigLoadError::TomlError(e) => write!(f, "invalid TOML syntax: {e}"),
 			ConfigLoadError::InvalidStructure(msg) => {
-				write!(f, "invalid configuration structure: {}", msg)
+				write!(f, "invalid configuration structure: {msg}")
 			}
 		}
 	}
@@ -195,8 +195,8 @@ impl std::fmt::Display for ConfigLoadError {
 /// detailed errors for any failures, allowing the caller to decide how to handle them.
 fn load_user_config_worker() -> Result<UserConfig, ConfigLoadError> {
 	let manifest_dir =
-		std::env::var(config_names::CARGO_MANIFEST_DIR).unwrap_or_else(|_| ".".to_string());
-	let manifest_path = std::path::Path::new(&manifest_dir).join(config_names::CARGO_TOML);
+		std::env::var(configuration::CARGO_MANIFEST_DIR).unwrap_or_else(|_| ".".to_string());
+	let manifest_path = std::path::Path::new(&manifest_dir).join(configuration::CARGO_TOML);
 
 	// Read the file
 	let content = std::fs::read_to_string(&manifest_path).map_err(|e| {

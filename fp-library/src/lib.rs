@@ -15,7 +15,7 @@
 //! ## Features
 //!
 //! - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
-//! - **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
+//! - **Macros:** Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
@@ -197,5 +197,5 @@ pub mod types;
 
 pub use fp_macros::Apply;
 pub use fp_macros::Kind;
-pub use fp_macros::def_kind;
 pub use fp_macros::impl_kind;
+pub use fp_macros::trait_kind;

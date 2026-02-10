@@ -3,11 +3,12 @@ use crate::{
 	conversion::{HmAst, type_to_hm},
 	core::{
 		config::{Config, get_config},
+		constants::attributes::DOCUMENT_SIGNATURE,
 		{Error, Result},
 	},
-	support::attributes::AttributeParser,
 	support::{
 		is_phantom_data,
+		parsing::parse_empty_attributes,
 		syntax::{GenericItem, insert_doc_comment},
 	},
 };
@@ -20,8 +21,7 @@ pub fn document_signature_worker(
 	item_tokens: TokenStream,
 ) -> Result<TokenStream> {
 	// Validate that no attributes are provided
-	let parser = AttributeParser::new(&[]);
-	parser.validate_empty(attr)?;
+	parse_empty_attributes(attr)?;
 
 	// Parse the item
 	let mut item = GenericItem::parse(item_tokens).map_err(Error::Parse)?;
@@ -30,7 +30,7 @@ pub fn document_signature_worker(
 	let sig = item.sig().ok_or_else(|| {
 		Error::validation(
 			proc_macro2::Span::call_site(),
-			"document_signature can only be used on functions or methods",
+			format!("{DOCUMENT_SIGNATURE} can only be used on functions or methods"),
 		)
 	})?;
 
@@ -39,7 +39,7 @@ pub fn document_signature_worker(
 
 	// Generate the Hindley-Milner signature
 	let signature = generate_signature(sig, &cfg);
-	let doc_comment = format!("`{}`", signature);
+	let doc_comment = format!("`{signature}`");
 
 	// Insert the documentation comment
 	insert_doc_comment(item.attrs(), doc_comment, proc_macro2::Span::call_site());
@@ -73,12 +73,12 @@ impl std::fmt::Display for SignatureData {
 			} else {
 				format!("({})", self.constraints.join(", "))
 			};
-			parts.push(format!("{} =>", s));
+			parts.push(format!("{s} =>"));
 		}
 
 		let func_sig = if self.params.is_empty() {
 			let func_type = HmAst::Arrow(Box::new(HmAst::Unit), Box::new(self.return_type.clone()));
-			format!("{}", func_type)
+			func_type.to_string()
 		} else {
 			let input_type = if self.params.len() == 1 {
 				self.params[0].clone()
@@ -86,7 +86,7 @@ impl std::fmt::Display for SignatureData {
 				HmAst::Tuple(self.params.clone())
 			};
 			let func_type = HmAst::Arrow(Box::new(input_type), Box::new(self.return_type.clone()));
-			format!("{}", func_type)
+			func_type.to_string()
 		};
 		parts.push(func_sig);
 
@@ -194,7 +194,7 @@ fn format_trait_bound(
 				None
 			} else {
 				let name = format_brand_name(&name, config);
-				Some(format!("{} {}", name, type_var))
+				Some(format!("{name} {type_var}"))
 			}
 		}
 		_ => None,

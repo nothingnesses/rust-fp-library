@@ -9,7 +9,7 @@ use super::{
 use crate::{
 	core::Result,
 	support::{
-		attributes::DocAttributeFilter,
+		attributes,
 		parsing::{parse_many, parse_non_empty},
 	},
 };
@@ -138,7 +138,7 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		let target = &def.target_type;
 		let where_clause = &def.where_clause;
 		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
-		let attrs = DocAttributeFilter::filter_doc_attrs(&def.signature.attributes);
+		let attrs = attributes::filter_doc_attrs(&def.signature.attributes);
 
 		quote! {
 			#(#attrs)*

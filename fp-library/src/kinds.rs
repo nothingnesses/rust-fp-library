@@ -33,39 +33,39 @@
 //! with a single type parameter (e.g., `Foo<A>`). A type `Foo<A>` would have a
 //! higher-kinded representation `FooBrand` which implements [`Kind_ad6c20556a82a1f0`].
 
-use fp_macros::def_kind;
+use fp_macros::trait_kind;
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<A>;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<A, B>;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<'a>;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<'a, A>;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<'a, A, B>;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<'a, A: 'a>: 'a;
 }
 
-def_kind! {
+trait_kind! {
 	/// The applied type.
 	type Of<'a, A: 'a, B: 'a>: 'a;
 }

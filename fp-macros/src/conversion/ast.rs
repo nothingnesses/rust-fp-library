@@ -60,9 +60,9 @@ impl HmAst {
 		}
 
 		match self {
-			HmAst::Variable(name) => write!(f, "{}", name)?,
+			HmAst::Variable(name) => write!(f, "{name}")?,
 			HmAst::Unit => write!(f, "()")?,
-			HmAst::List(inner) => write!(f, "[{}]", inner)?,
+			HmAst::List(inner) => write!(f, "[{inner}]")?,
 			HmAst::Reference(inner) => {
 				write!(f, "&")?;
 				inner.fmt_with_precedence(f, 2)?;
@@ -83,7 +83,7 @@ impl HmAst {
 				write!(f, ")")?;
 			}
 			HmAst::Constructor(name, args) => {
-				write!(f, "{}", name)?;
+				write!(f, "{name}")?;
 				for arg in args {
 					write!(f, " ")?;
 					// Function application (Constructor arg)

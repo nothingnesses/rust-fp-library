@@ -6,7 +6,10 @@
 use crate::{
 	analysis::traits::format_brand_name,
 	conversion::{HmAst, hm_ast_builder::HmAstBuilder},
-	core::{config::Config, constants::known_types},
+	core::{
+		config::Config,
+		constants::{traits, types},
+	},
 	support::{TypeVisitor, last_path_segment},
 };
 use std::collections::{HashMap, HashSet};
@@ -37,7 +40,7 @@ pub fn type_to_hm(
 /// Helper function to check if a type path is PhantomData
 pub(crate) fn is_phantom_data_path(type_path: &syn::TypePath) -> bool {
 	if let Some(segment) = type_path.path.segments.last() {
-		segment.ident == known_types::PHANTOM_DATA
+		segment.ident == types::PHANTOM_DATA
 	} else {
 		false
 	}
@@ -45,7 +48,7 @@ pub(crate) fn is_phantom_data_path(type_path: &syn::TypePath) -> bool {
 
 /// Helper function to check if a type name is a smart pointer (Box, Arc, Rc)
 pub(crate) fn is_smart_pointer(name: &str) -> bool {
-	known_types::SMART_POINTERS.contains(&name)
+	types::SMART_POINTERS.contains(&name)
 }
 
 /// Helper function to extract the inner type from a smart pointer if present
@@ -73,11 +76,11 @@ pub fn trait_bound_to_hm_type(
 	};
 	let name = segment.ident.to_string();
 
-	if known_types::FN_TRAITS.contains(&name.as_str()) {
+	if traits::FN_TRAITS.contains(&name.as_str()) {
 		return trait_bound_to_hm_arrow(trait_bound, fn_bounds, generic_names, config);
 	}
 
-	let name = if generic_names.contains(&name) || name == known_types::SELF {
+	let name = if generic_names.contains(&name) || name == types::SELF {
 		name.to_lowercase()
 	} else {
 		format_brand_name(&name, config)

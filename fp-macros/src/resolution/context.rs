@@ -1,6 +1,6 @@
 use super::resolver::{normalize_type, type_uses_self_assoc};
 use crate::{
-	core::{config::Config, constants::known_attrs, error_handling::ErrorCollector},
+	core::{config::Config, constants::attributes, error_handling::ErrorCollector},
 	hkt::ImplKindInput,
 	resolution::ProjectionKey,
 	support::attributes::has_attr,
@@ -58,8 +58,7 @@ pub fn extract_context(
 									errors.push(Error::new(
 										def.signature.name.span(),
 										format!(
-											"Conflicting implementation for {}: already defined with different type",
-											assoc_name
+											"Conflicting implementation for {assoc_name}: already defined with different type"
 										),
 									));
 								}
@@ -70,7 +69,7 @@ pub fn extract_context(
 							.projections
 							.insert(key, (def.signature.generics.clone(), def.target_type.clone()));
 
-						if has_attr(&def.signature.attributes, known_attrs::DOCUMENT_DEFAULT)
+						if has_attr(&def.signature.attributes, attributes::DOCUMENT_DEFAULT)
 							&& let Some(prev) = config
 								.module_defaults
 								.insert(brand_path.clone(), assoc_name.clone())
@@ -78,8 +77,7 @@ pub fn extract_context(
 							errors.push(Error::new(
 								def.signature.name.span(),
 								format!(
-									"Conflicting module default for {}: {} and {}",
-									brand_path, prev, assoc_name
+									"Conflicting module default for {brand_path}: {prev} and {assoc_name}"
 								),
 							));
 						}
@@ -109,7 +107,7 @@ pub fn extract_context(
 							.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
 
 						// Track document_default across split impl blocks
-						if has_attr(&assoc_type.attrs, known_attrs::DOCUMENT_DEFAULT)
+						if has_attr(&assoc_type.attrs, attributes::DOCUMENT_DEFAULT)
 							&& let Some(t_path) = &trait_path
 						{
 							let key = (self_ty_path.clone(), t_path.clone());
@@ -133,9 +131,7 @@ pub fn extract_context(
 				errors.push(Error::new(
 					*span,
 					format!(
-						"Multiple #[document_default] annotations for ({}, {}): {}",
-						self_ty,
-						trait_path,
+						"Multiple #[document_default] annotations for ({self_ty}, {trait_path}): {}",
 						names.join(", ")
 					),
 				));

@@ -229,8 +229,11 @@
 //! to the user with proper span information.
 
 use crate::{
-	analysis::{GenericAnalyzer, format_brand_name},
-	core::{config::Config, constants::known_types},
+	analysis::{extract_type_params, format_brand_name},
+	core::{
+		config::Config,
+		constants::{macros, types},
+	},
 	hkt::ApplyInput,
 	resolution::ProjectionKey,
 };
@@ -274,7 +277,7 @@ pub fn extract_self_type_info(
 		_ => None,
 	};
 
-	let generic_names = GenericAnalyzer::type_params(impl_generics);
+	let generic_names = extract_type_params(impl_generics);
 
 	(base_name, generic_names)
 }
@@ -488,11 +491,11 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 		i: &mut syn::Type,
 	) {
 		if let syn::Type::Path(tp) = i {
-			if tp.path.is_ident(known_types::SELF) {
+			if tp.path.is_ident(types::SELF) {
 				// Resolve bare Self
 				*i = self.resolve_bare_self(tp);
 			} else if let Some(first) = tp.path.segments.first()
-				&& first.ident == known_types::SELF
+				&& first.ident == types::SELF
 				&& tp.path.segments.len() > 1
 			{
 				// Resolve Self::AssocType<Args>
@@ -507,7 +510,7 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 		&mut self,
 		i: &mut syn::TypeMacro,
 	) {
-		if i.mac.path.is_ident(known_types::APPLY_MACRO)
+		if i.mac.path.is_ident(macros::APPLY_MACRO)
 			&& let Ok(mut apply_input) = syn::parse2::<ApplyInput>(i.mac.tokens.clone())
 		{
 			self.visit_type_mut(&mut apply_input.brand);
@@ -598,7 +601,7 @@ pub fn type_uses_self_assoc(ty: &syn::Type) -> bool {
 			i: &syn::TypePath,
 		) {
 			if let Some(first) = i.path.segments.first()
-				&& first.ident == known_types::SELF
+				&& first.ident == types::SELF
 				&& i.path.segments.len() > 1
 			{
 				self.found = true;
@@ -719,7 +722,7 @@ pub fn normalize_type(
 	let mut mapping = HashMap::new();
 	for (i, param) in generics.params.iter().enumerate() {
 		if let syn::GenericParam::Type(tp) = param {
-			let ident = quote::format_ident!("T{}", i);
+			let ident = quote::format_ident!("T{i}");
 			mapping.insert(tp.ident.to_string(), parse_quote!(#ident));
 		}
 	}
@@ -787,22 +790,27 @@ fn create_missing_default_error(
 		get_available_types_for_brand(config, self_ty_path, trait_path);
 
 	let mut message =
-		format!("Cannot resolve bare `Self` for type `{}` - no default specified", self_ty_path);
+		format!("Cannot resolve bare `Self` for type `{self_ty_path}` - no default specified");
 
 	if !in_this_impl.is_empty() {
-		message
-			.push_str(&format!("\n  = note: Available in this impl: {}", in_this_impl.join(", ")));
+		message.push_str(&format!(
+			r#"
+  = note: Available in this impl: {}"#,
+			in_this_impl.join(", ")
+		));
 	}
 
 	if !in_other_traits.is_empty() {
 		message.push_str(&format!(
-			"\n  = note: Available in other traits: {}",
+			r#"
+  = note: Available in other traits: {}"#,
 			in_other_traits.join(", ")
 		));
 	}
 
 	message.push_str(
-		"\n  = help: Mark one as default with #[document_default], or use explicit #[document_use = \"AssocName\"]",
+		r#"
+  = help: Mark one as default with #[document_default], or use explicit #[document_use = "AssocName"]"#,
 	);
 
 	Error::new(span, message)
@@ -818,23 +826,32 @@ fn create_missing_assoc_type_error(
 	let (in_this_impl, in_other_traits) =
 		get_available_types_for_brand(config, self_ty_path, trait_path);
 
-	let mut message = format!("Cannot resolve `Self::{}` for type `{}`", assoc_name, self_ty_path);
+	let mut message = format!("Cannot resolve `Self::{assoc_name}` for type `{self_ty_path}`");
 
 	let all_available: Vec<String> =
 		in_this_impl.iter().chain(in_other_traits.iter()).cloned().collect();
 
 	if !all_available.is_empty() {
 		message.push_str(&format!(
-			"\n  = note: Available associated types: {}",
+			r#"
+  = note: Available associated types: {}"#,
 			all_available.join(", ")
 		));
 	} else {
-		message.push_str("\n  = note: No associated types found for this type");
+		message.push_str(
+			r#"
+  = note: No associated types found for this type"#,
+		);
 	}
 
 	message.push_str(&format!(
-		"\n  = help: Add an associated type definition:\n    impl_kind! {{\n        for {} {{\n            type {}<T> = YourType<T>;\n        }}\n    }}",
-		self_ty_path, assoc_name
+		r#"
+  = help: Add an associated type definition:
+    impl_kind! {{{{
+        for {self_ty_path} {{{{
+            type {assoc_name}<T> = YourType<T>;
+        }}}}
+    }}}}"#,
 	));
 
 	Error::new(span, message)

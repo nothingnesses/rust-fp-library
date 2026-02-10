@@ -13,7 +13,10 @@ use crate::{
 		},
 		extract_apply_macro_info, extract_fn_brand_info,
 	},
-	core::{config::Config, constants::known_types},
+	core::{
+		config::Config,
+		constants::{markers, types},
+	},
 	support::{TypeVisitor, last_path_segment},
 };
 use std::collections::{HashMap, HashSet};
@@ -89,7 +92,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 				_ => {
 					// Fallback: treat the constructor as a string variable if possible, or just fail/print
 					// For now, convert to string
-					let name = format!("{}", constructor_type);
+					let name = format!("{constructor_type}");
 					HmAst::Constructor(name, args_list)
 				}
 			}
@@ -111,13 +114,13 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 					// Preserve concrete types as-is (keep original case)
 				} else if self.generic_names.contains(&constructor_name) {
 					// Keep type parameters in original case (uppercase)
-				} else if constructor_name == known_types::SELF {
+				} else if constructor_name == types::SELF {
 					// Use self_type_name if available, otherwise keep as "Self"
 					constructor_name = self
 						.config
 						.self_type_name
 						.clone()
-						.unwrap_or_else(|| known_types::SELF.to_string());
+						.unwrap_or_else(|| types::SELF.to_string());
 				} else {
 					constructor_name = format_brand_name(&constructor_name, self.config);
 				}
@@ -151,7 +154,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 
 			if let Some(sig) = self.fn_bounds.get(&name) {
 				if let HmAst::Variable(v) = sig
-					&& v == known_types::FN_BRAND_MARKER
+					&& v == markers::FN_BRAND_MARKER
 				{
 					// Keep type parameters in original case
 					return HmAst::Variable(name);
@@ -186,12 +189,9 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			}
 
 			// Handle Self with self_type_name if available
-			if name == known_types::SELF {
+			if name == types::SELF {
 				return HmAst::Variable(
-					self.config
-						.self_type_name
-						.clone()
-						.unwrap_or_else(|| known_types::SELF.to_string()),
+					self.config.self_type_name.clone().unwrap_or_else(|| types::SELF.to_string()),
 				);
 			}
 
@@ -238,7 +238,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 					HmAst::Constructor(name, prev_args)
 				}
 				_ => {
-					let name = format!("{}", constructor_type);
+					let name = format!("{constructor_type}");
 					HmAst::Constructor(name, type_args)
 				}
 			}

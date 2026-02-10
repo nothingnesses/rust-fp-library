@@ -1,10 +1,10 @@
-use fp_macros::{def_kind, document_module, impl_kind};
+use fp_macros::{document_module, impl_kind, trait_kind};
 
 #[document_module]
 mod test_mod {
 	use super::*;
 
-	def_kind!(
+	trait_kind!(
 		type Of<T>;
 	);
 
@@ -52,8 +52,8 @@ fn test_positional_matching() {
 
 #[document_module]
 mod test_collision {
-	use fp_macros::{def_kind, impl_kind};
-	def_kind!(
+	use fp_macros::{impl_kind, trait_kind};
+	trait_kind!(
 		type Of<T>;
 	);
 	#[allow(dead_code)]
@@ -67,6 +67,7 @@ mod test_collision {
 	}
 
 	#[fp_macros::document_module]
+	#[allow(unexpected_cfgs)]
 	mod test_cfg_no_conflict {
 		use fp_macros::impl_kind;
 		#[allow(dead_code)]
@@ -128,6 +129,7 @@ mod test_erasure {
 	#[allow(dead_code)]
 	pub trait MyTrait {
 		#[document_signature]
+		#[allow(clippy::needless_lifetimes)]
 		unsafe fn foo<'a, T: ?Sized>(x: &'a T) -> &'a T;
 	}
 }

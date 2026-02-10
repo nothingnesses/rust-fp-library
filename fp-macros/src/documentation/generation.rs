@@ -1,8 +1,8 @@
 use crate::{
-	analysis::GenericAnalyzer,
+	analysis::extract_all_params,
 	core::{
 		config::Config,
-		constants::known_attrs::{self, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS},
+		constants::attributes::{DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE},
 		error_handling::ErrorCollector,
 	},
 	documentation::document_signature::generate_signature,
@@ -10,7 +10,8 @@ use crate::{
 		SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
 	},
 	support::{
-		attributes::{find_attr_value_checked, find_attribute},
+		attributes::find_attribute,
+		parsing::parse_unique_attr_value,
 		syntax::{DocArg, GenericArgs, validate_doc_args},
 	},
 };
@@ -67,7 +68,7 @@ pub(super) fn process_document_signature(
 
 	let signature_data = generate_signature(&synthetic_sig, &sig_config);
 
-	let doc_comment = format!("`{}`", signature_data);
+	let doc_comment = format!("`{signature_data}`");
 	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 	method.attrs.insert(attr_pos, doc_attr);
 
@@ -98,7 +99,7 @@ pub(super) fn process_doc_type_params(
 			all_generics.params.push(param.clone());
 		}
 
-		let targets = GenericAnalyzer::all_params(&all_generics);
+		let targets = extract_all_params(&all_generics);
 
 		let entries: Vec<_> = args.entries.iter().collect();
 		if let Err(e) = validate_doc_args(targets.len(), entries.len(), attr.span()) {
@@ -110,13 +111,16 @@ pub(super) fn process_doc_type_params(
 					DocArg::Desc(d) => (name_from_target.clone(), d.value()),
 				};
 
-				let doc_comment = format!("* `{}`: {}", name, desc);
+				let doc_comment = format!("* `{name}`: {desc}");
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 				method.attrs.insert(attr_pos + i, doc_attr);
 			}
 		}
 	} else {
-		errors.push(Error::new(attr.span(), "Failed to parse document_type_parameters arguments"));
+		errors.push(Error::new(
+			attr.span(),
+			format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
+		));
 	}
 
 	errors
@@ -137,19 +141,18 @@ pub(super) fn generate_docs(
 				trait_path.and_then(|p| p.segments.last().map(|s| s.ident.to_string()));
 			let trait_path_str = trait_path.map(|p| quote!(#p).to_string());
 
-			let impl_document_use =
-				match find_attr_value_checked(&item_impl.attrs, known_attrs::DOCUMENT_USE) {
-					Ok(v) => v,
-					Err(e) => {
-						errors.push(syn::Error::from(e));
-						None
-					}
-				};
+			let impl_document_use = match parse_unique_attr_value(&item_impl.attrs, DOCUMENT_USE) {
+				Ok(v) => v,
+				Err(e) => {
+					errors.push(syn::Error::from(e));
+					None
+				}
+			};
 
 			for impl_item in &mut item_impl.items {
 				if let ImplItem::Fn(method) = impl_item {
 					let method_document_use =
-						match find_attr_value_checked(&method.attrs, known_attrs::DOCUMENT_USE) {
+						match parse_unique_attr_value(&method.attrs, DOCUMENT_USE) {
 							Ok(v) => v,
 							Err(e) => {
 								errors.push(syn::Error::from(e));

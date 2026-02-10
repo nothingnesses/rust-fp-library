@@ -1,7 +1,7 @@
 use crate::{
 	analysis::traits::{TraitCategory, classify_trait},
 	conversion::patterns::extract_fn_brand_info,
-	core::{config::Config, constants::known_types},
+	core::{config::Config, constants::types},
 	support::{parsing::parse_first, type_visitor::TypeVisitor},
 };
 use proc_macro2::TokenStream;
@@ -173,7 +173,7 @@ where
 			DocArg::Desc(d) => (name_from_target.clone(), d.value()),
 		};
 
-		let doc_comment = format!("* `{}`: {}", name, desc);
+		let doc_comment = format!("* `{name}`: {desc}");
 		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
 	}
 
@@ -190,7 +190,7 @@ pub fn validate_doc_args(
 	if expected != found {
 		return Err(Error::new(
 			span,
-			format!("Expected {} description arguments, found {}.", expected, found),
+			format!("Expected {expected} description arguments, found {found}."),
 		));
 	}
 	Ok(())
@@ -250,7 +250,7 @@ pub fn is_phantom_data(ty: &Type) -> bool {
 	match ty {
 		Type::Path(type_path) => {
 			if let Some(segment) = type_path.path.segments.last() {
-				return segment.ident == known_types::PHANTOM_DATA;
+				return segment.ident == types::PHANTOM_DATA;
 			}
 			false
 		}

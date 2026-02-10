@@ -1,5 +1,5 @@
 use crate::{
-	core::{Result, config::get_config},
+	core::{Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS},
 	support::{LogicalParam, get_logical_params},
 };
 use proc_macro2::TokenStream;
@@ -15,7 +15,7 @@ pub fn document_parameters_worker(
 		let sig = generic_item.sig().ok_or_else(|| {
 			syn::Error::new(
 				proc_macro2::Span::call_site(),
-				"document_parameters can only be used on functions",
+				format!("{DOCUMENT_PARAMETERS} can only be used on functions"),
 			)
 		})?;
 

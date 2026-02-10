@@ -6,7 +6,7 @@
 
 use crate::{
 	analysis::traits::{TraitCategory, classify_trait},
-	core::{config::Config, constants::known_types},
+	core::{config::Config, constants::macros},
 	hkt::ApplyInput,
 };
 use syn::{GenericArgument, PathArguments};
@@ -69,7 +69,7 @@ pub fn extract_fn_brand_info(
 pub fn extract_apply_macro_info(
 	type_macro: &syn::TypeMacro
 ) -> Option<(syn::Type, Vec<syn::Type>)> {
-	if type_macro.mac.path.is_ident(known_types::APPLY_MACRO)
+	if type_macro.mac.path.is_ident(macros::APPLY_MACRO)
 		&& let Ok(apply_input) = syn::parse2::<ApplyInput>(type_macro.mac.tokens.clone())
 	{
 		let brand = apply_input.brand;

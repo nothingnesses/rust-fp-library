@@ -1,6 +1,9 @@
 use super::generation::generate_docs;
 use crate::{
-	core::{Result as OurResult, config::Config, error_handling::ErrorCollector},
+	core::{
+		Result as OurResult, config::Config, constants::attributes::DOCUMENT_MODULE,
+		error_handling::ErrorCollector,
+	},
 	resolution::extract_context,
 	support::parsing::{parse_many, parse_non_empty},
 };
@@ -45,7 +48,9 @@ pub fn document_module_worker(
 			// mod foo; case - we can't see the content easily
 			return Err(syn::Error::new(
 				item_mod.span(),
-				"document_module cannot see the content of file modules when used as an outer attribute. Use an inner attribute #![document_module] instead, or wrap the content in a mod block.",
+				format!(
+					"{DOCUMENT_MODULE} cannot see the content of file modules when used as an outer attribute. Use an inner attribute #![{DOCUMENT_MODULE}] instead, or wrap the content in a mod block.",
+				),
 			).into());
 		}
 	} else if let Ok(input) = syn::parse2::<DocumentModuleInput>(item.clone()) {
@@ -66,14 +71,18 @@ pub fn document_module_worker(
 		} else {
 			return Err(syn::Error::new(
 				item_const.span(),
-				"document_module on a const item requires a block expression: const _: () = { ... };",
+				format!(
+					"{DOCUMENT_MODULE} on a const item requires a block expression: const _: () = {{ ... }};"
+				),
 			)
 			.into());
 		}
 	} else {
 		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
-			"document_module must be applied to a module, a const block, or used as an inner attribute in a module.",
+			format!(
+				"{DOCUMENT_MODULE} must be applied to a module, a const block, or used as an inner attribute in a module."
+			),
 		).into());
 	};
 

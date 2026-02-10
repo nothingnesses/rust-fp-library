@@ -1,6 +1,6 @@
 //! Kind input parsing for HKT macros.
 //!
-//! This module handles parsing of `Kind!` and `def_kind!` macro input,
+//! This module handles parsing of `Kind!` and `trait_kind!` macro input,
 //! defining the syntax for Kind trait signatures with associated types.
 
 use super::AssociatedTypeBase;

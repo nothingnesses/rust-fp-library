@@ -1,4 +1,4 @@
-//! Implementation of the `def_kind!` macro.
+//! Implementation of the `trait_kind!` macro.
 //!
 //! This module handles the generation of a new `Kind` trait based on a signature.
 
@@ -7,11 +7,11 @@ use crate::{core::Result, documentation::templates::DocumentationBuilder, genera
 use proc_macro2::TokenStream;
 use quote::quote;
 
-/// Generates the implementation for the `def_kind!` macro.
+/// Generates the implementation for the `trait_kind!` macro.
 ///
 /// This function takes the parsed input and generates a trait definition
 /// for a Higher-Kinded Type signature with multiple associated types.
-pub fn def_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
+pub fn trait_kind_worker(input: AssociatedTypes) -> Result<TokenStream> {
 	let name = generate_name(&input)?;
 
 	let assoc_types_tokens = input.associated_types.iter().map(|assoc| {
@@ -50,30 +50,30 @@ mod tests {
 	}
 
 	// ===========================================================================
-	// def_kind! Tests
+	// trait_kind! Tests
 	// ===========================================================================
 
-	/// Tests def_kind! with a single associated type.
+	/// Tests trait_kind! with a single associated type.
 	#[test]
-	fn test_def_kind_simple() {
+	fn test_trait_kind_simple() {
 		let input = parse_kind_input("type Of<A>;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("pub trait Kind_"));
 		assert!(output_str.contains("type Of < A > ;"));
 	}
 
-	/// Tests def_kind! with multiple associated types.
+	/// Tests trait_kind! with multiple associated types.
 	#[test]
-	fn test_def_kind_multiple() {
+	fn test_trait_kind_multiple() {
 		let input = parse_kind_input(
 			"
 			type Of<'a, T>: Display;
 			type SendOf<U>: Send;
 		",
 		);
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("pub trait Kind_"));
@@ -81,11 +81,11 @@ mod tests {
 		assert!(output_str.contains("type SendOf < U > : Send ;"));
 	}
 
-	/// Tests def_kind! with complex bounds.
+	/// Tests trait_kind! with complex bounds.
 	#[test]
-	fn test_def_kind_complex() {
+	fn test_trait_kind_complex() {
 		let input = parse_kind_input("type Of<'a, T: 'a + Clone>: Debug + Display;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		assert!(output_str.contains("type Of < 'a , T : 'a + Clone > : Debug + Display ;"));
@@ -95,23 +95,21 @@ mod tests {
 	/// This specifically tests for the bug where `#ty.bounds` was incorrectly
 	/// used in quote!, resulting in output like "A: A : 'a.bounds" instead of "A: 'a".
 	#[test]
-	fn test_def_kind_doc_type_param_bounds() {
+	fn test_trait_kind_doc_type_param_bounds() {
 		let input = parse_kind_input("type Of<'a, A: 'a>: 'a;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify the documentation contains correct type parameter bounds
 		assert!(
 			output_str.contains(r#"**Type parameters** (1): `A: 'a`"#),
-			"Expected documentation to contain 'Type parameters (1): `A: 'a`', got: {}",
-			output_str
+			"Expected documentation to contain 'Type parameters (1): `A: 'a`', got: {output_str}"
 		);
 
 		// Ensure the buggy output is not present
 		assert!(
 			!output_str.contains(".bounds"),
-			"Documentation should not contain '.bounds', got: {}",
-			output_str
+			"Documentation should not contain '.bounds', got: {output_str}"
 		);
 		assert!(
 			!output_str.contains("A: A"),
@@ -122,9 +120,9 @@ mod tests {
 
 	/// Tests documentation for type parameters without bounds.
 	#[test]
-	fn test_def_kind_doc_type_param_no_bounds() {
+	fn test_trait_kind_doc_type_param_no_bounds() {
 		let input = parse_kind_input("type Of<A>;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Type parameter without bounds should just show the identifier
@@ -137,9 +135,9 @@ mod tests {
 
 	/// Tests that documentation correctly renders the impl_kind! example.
 	#[test]
-	fn test_def_kind_doc_impl_example() {
+	fn test_trait_kind_doc_impl_example() {
 		let input = parse_kind_input("type Of<'a, T>; type SendOf<U>;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify the documentation contains the correct impl_kind! example
@@ -162,9 +160,9 @@ mod tests {
 
 	/// Tests documentation for multiple type parameters with various bounds.
 	#[test]
-	fn test_def_kind_doc_multiple_type_params() {
+	fn test_trait_kind_doc_multiple_type_params() {
 		let input = parse_kind_input("type Of<'a, T: Clone, U: 'a + Send>: Debug;");
-		let output = def_kind_worker(input).expect("def_kind_worker failed");
+		let output = trait_kind_worker(input).expect("trait_kind_worker failed");
 		let output_str = output.to_string();
 
 		// Verify lifetimes doc

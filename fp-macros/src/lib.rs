@@ -23,8 +23,8 @@ use documentation::{
 	document_type_parameters_worker,
 };
 use hkt::{
-	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, def_kind_worker, generate_name,
-	impl_kind_worker,
+	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
+	trait_kind_worker,
 };
 use proc_macro::TokenStream;
 use quote::quote;
@@ -108,7 +108,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// ### Syntax
 ///
 /// ```ignore
-/// def_kind!(
+/// trait_kind!(
 ///     type AssocName<Params>: Bounds;
 ///     // ...
 /// )
@@ -126,7 +126,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// def_kind!(type Of<T>;);
+/// trait_kind!(type Of<T>;);
 ///
 /// // Expanded code
 /// pub trait Kind_... { // e.g., Kind_a1b2c3d4e5f67890
@@ -136,7 +136,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// def_kind!(type Of<'a, T: Display>: Debug;);
+/// trait_kind!(type Of<'a, T: Display>: Debug;);
 ///
 /// // Expanded code
 /// pub trait Kind_... {
@@ -146,7 +146,7 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// def_kind!(
+/// trait_kind!(
 ///     type Of<T>;
 ///     type SendOf<T>: Send;
 /// );
@@ -158,9 +158,9 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro]
-pub fn def_kind(input: TokenStream) -> TokenStream {
+pub fn trait_kind(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as AssociatedTypes);
-	match def_kind_worker(input) {
+	match trait_kind_worker(input) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
@@ -173,7 +173,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 /// of the associated types provided in the block.
 ///
 /// The signature (names, parameters, and bounds) of the associated types must match
-/// the definition used in [`def_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
+/// the definition used in [`trait_kind!`] or [`Kind!`] to ensure the correct trait is implemented.
 ///
 /// ### Syntax
 ///
@@ -257,7 +257,7 @@ pub fn def_kind(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// // Invocation
-/// // Corresponds to: def_kind!(type Of<T: Display>;);
+/// // Corresponds to: trait_kind!(type Of<T: Display>;);
 /// impl_kind! {
 ///     for DisplayBrand {
 ///         // Bounds here are used to infer the correct `Kind` trait name

@@ -157,26 +157,26 @@ impl Error {
 		context: impl fmt::Display,
 	) -> Self {
 		match self {
-			Error::Internal(msg) => Error::Internal(format!("{}: {}", context, msg)),
+			Error::Internal(msg) => Error::Internal(format!("{context}: {msg}")),
 			Error::Validation { message, span, suggestion } => {
-				Error::Validation { message: format!("{}: {}", context, message), span, suggestion }
+				Error::Validation { message: format!("{context}: {message}"), span, suggestion }
 			}
 			Error::Resolution { message, span, available_types } => Error::Resolution {
-				message: format!("{}: {}", context, message),
+				message: format!("{context}: {message}"),
 				span,
 				available_types,
 			},
 			Error::Parse(e) => {
 				// Create new error with context and combine
-				let ctx_error = syn::Error::new(e.span(), format!("{}: {}", context, e));
+				let ctx_error = syn::Error::new(e.span(), format!("{context}: {e}"));
 				Error::Parse(ctx_error)
 			}
 			Error::Unsupported(u) => {
 				// Unsupported features maintain original message
 				// but we note the context by wrapping in Internal
-				Error::Internal(format!("{}: Unsupported feature: {}", context, u))
+				Error::Internal(format!("{context}: Unsupported feature: {u}"))
 			}
-			Error::Io(io) => Error::Internal(format!("{}: I/O error: {}", context, io)),
+			Error::Io(io) => Error::Internal(format!("{context}: I/O error: {io}")),
 		}
 	}
 
@@ -210,18 +210,15 @@ impl From<Error> for syn::Error {
 
 		// Add suggestion directly to the message for Validation errors
 		if let Error::Validation { suggestion: Some(s), .. } = &err {
-			message = format!("{}\nhelp: {}", message, s);
+			message = format!("{message}\nhelp: {s}");
 		}
 
 		// Add available alternatives for Resolution errors
 		if let Error::Resolution { available_types, .. } = &err
 			&& !available_types.is_empty()
 		{
-			message = format!(
-				"{}\nnote: available alternatives: {}",
-				message,
-				available_types.join(", ")
-			);
+			message =
+				format!("{message}\nnote: available alternatives: {}", available_types.join(", "));
 		}
 
 		syn::Error::new(span, message)
@@ -296,7 +293,7 @@ mod tests {
 		let err = Error::validation(span, "invalid input").with_suggestion("try this instead");
 		let syn_err: syn::Error = err.into();
 		let err_str = syn_err.to_string();
-		eprintln!("Error string: '{}'", err_str);
+		eprintln!("Error string: '{err_str}'");
 		eprintln!("Contains 'invalid input': {}", err_str.contains("invalid input"));
 		eprintln!("Contains 'try this instead': {}", err_str.contains("try this instead"));
 		assert!(err_str.contains("invalid input"));
