@@ -15,6 +15,9 @@ pub struct ImplKey {
 	trait_path: Option<String>,
 }
 
+// Complete API provided for consistency with ProjectionKey and future extensibility.
+// Not all accessor methods are currently used in production code.
+#[allow(dead_code)]
 impl ImplKey {
 	/// Create a new impl key for an inherent impl.
 	///
