@@ -16,7 +16,7 @@ mod property_tests;
 
 use crate::core::ToCompileError;
 use codegen::{
-	ReExportInput, generate_function_re_exports_worker, generate_trait_re_exports_worker,
+	FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker,
 };
 use documentation::{
 	document_module_worker, document_parameters_worker, document_signature_worker,
@@ -389,7 +389,7 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReExportInput);
-	generate_function_re_exports_worker(input).into()
+	generate_re_exports_worker(&input, &FunctionFormatter).into()
 }
 
 /// Generates re-exports for all public traits in a directory.
@@ -429,7 +429,7 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 	let input = parse_macro_input!(input as ReExportInput);
-	generate_trait_re_exports_worker(input).into()
+	generate_re_exports_worker(&input, &TraitFormatter).into()
 }
 
 /// Generates a Hindley-Milner style type signature for a function.

@@ -11,7 +11,7 @@ use syn::{
 ///
 /// This trait abstracts the differences between function and trait re-export formatting,
 /// eliminating code duplication through polymorphism.
-trait ReExportFormatter {
+pub trait ReExportFormatter {
 	/// Formats a single re-export statement for an item.
 	fn format_item(
 		&self,
@@ -35,7 +35,7 @@ trait ReExportFormatter {
 }
 
 /// Formatter for function re-exports.
-struct FunctionFormatter;
+pub struct FunctionFormatter;
 
 impl ReExportFormatter for FunctionFormatter {
 	fn format_item(
@@ -73,7 +73,7 @@ impl ReExportFormatter for FunctionFormatter {
 }
 
 /// Formatter for trait re-exports.
-struct TraitFormatter;
+pub struct TraitFormatter;
 
 impl ReExportFormatter for TraitFormatter {
 	fn format_item(
@@ -304,25 +304,13 @@ fn scan_directory_and_collect(
 }
 
 /// Unified implementation for generating re-exports using a formatter and base path.
-fn generate_re_exports_worker(
+pub fn generate_re_exports_worker(
 	input: &ReExportInput,
 	formatter: &dyn ReExportFormatter,
-	base_path: syn::Path,
 ) -> TokenStream {
+	let base_path = parse_base_path_from_input(input);
 	let re_exports = scan_directory_and_collect(input, formatter);
 	formatter.format_output(re_exports, &base_path)
-}
-
-pub fn generate_function_re_exports_worker(input: ReExportInput) -> TokenStream {
-	// Parse base path from the input directory path
-	let base_path = parse_base_path_from_input(&input);
-	generate_re_exports_worker(&input, &FunctionFormatter, base_path)
-}
-
-pub fn generate_trait_re_exports_worker(input: ReExportInput) -> TokenStream {
-	// Parse base path from the input directory path
-	let base_path = parse_base_path_from_input(&input);
-	generate_re_exports_worker(&input, &TraitFormatter, base_path)
 }
 
 /// Parses the base crate path from the input directory path.

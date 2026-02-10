@@ -6,5 +6,5 @@
 pub mod re_export;
 
 pub use re_export::{
-	ReExportInput, generate_function_re_exports_worker, generate_trait_re_exports_worker,
+	FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker,
 };
