@@ -2,58 +2,54 @@
 //!
 //! Can be used as a bifunctor over both values, or as a functor/monad by fixing either the first value [`PairWithFirstBrand`] or second value [`PairWithSecondBrand`].
 
-use crate::{
-	Apply,
-	brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
-	classes::{
-		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
-		Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad, SendCloneableFn,
-		Traversable,
-	},
-	impl_kind,
-	kinds::*,
-};
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		brands::{PairBrand, PairWithFirstBrand, PairWithSecondBrand},
+		classes::{
+			Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
+			Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad, SendCloneableFn,
+			Traversable,
+		},
+		impl_kind,
+		kinds::*,
+	};
+	use fp_macros::{document_parameters};
 
-/// Wraps two values.
-///
-/// A simple tuple struct that holds two values of potentially different types.
-///
-/// ### Type Parameters
-///
-/// * `First`: The type of the first value.
-/// * `Second`: The type of the second value.
-///
-/// ### Fields
-///
-/// * `0`: The first value.
-/// * `1`: The second value.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::types::*;
-///
-/// let p = Pair(1, "hello");
-/// assert_eq!(p.0, 1);
-/// assert_eq!(p.1, "hello");
-/// ```
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Pair<First, Second>(pub First, pub Second);
+	/// Wraps two values.
+	///
+	/// A simple tuple struct that holds two values of potentially different types.
+	///
+	/// ### Type Parameters
+	///
+	/// * `First`: The type of the first value.
+	/// * `Second`: The type of the second value.
+	///
+	/// ### Fields
+	///
+	/// * `0`: The first value.
+	/// * `1`: The second value.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::types::*;
+	///
+	/// let p = Pair(1, "hello");
+	/// assert_eq!(p.0, 1);
+	/// assert_eq!(p.1, "hello");
+	/// ```
+	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+	pub struct Pair<First, Second>(pub First, pub Second);
 
-impl_kind! {
-	for PairBrand {
-		type Of<First, Second> = Pair<First, Second>;
+	impl_kind! {
+		for PairBrand {
+			type Of<'a, First: 'a, Second: 'a>: 'a = Pair<First, Second>;
+		}
 	}
-}
 
-impl_kind! {
-	for PairBrand {
-		type Of<'a, First: 'a, Second: 'a>: 'a = Pair<First, Second>;
-	}
-}
-
-impl Bifunctor for PairBrand {
+	impl Bifunctor for PairBrand {
 	/// Maps functions over the values in the pair.
 	///
 	/// This method applies one function to the first value and another to the second value.
@@ -1289,11 +1285,13 @@ impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 		func((fa.0, initial))
 	}
 }
+}
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{brands::*, classes::bifunctor::*, functions::*};
+	use super::inner::*;
+	use crate::{brands::*, classes::{bifunctor::*, CloneableFn}, functions::*};
 	use quickcheck_macros::quickcheck;
 
 	// Bifunctor Tests

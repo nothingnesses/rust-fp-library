@@ -8,7 +8,7 @@ mod inner {
 		classes::{CloneableFn, Monoid, Semigroup},
 		functions::identity,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::{document_parameters};
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,

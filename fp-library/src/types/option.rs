@@ -2,26 +2,28 @@
 //!
 //! Extends `Option` with [`Functor`], [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`], [`Traversable`], [`Filterable`], and [`Witherable`] instances.
 
-use crate::{
-	Apply,
-	brands::OptionBrand,
-	classes::{
-		Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
-		Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
-		Traversable, Witherable,
-	},
-	impl_kind,
-	kinds::*,
-};
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		brands::OptionBrand,
+		classes::{
+			Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
+			Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
+			Traversable, Witherable,
+		},
+		impl_kind,
+		kinds::*,
+	};
+	use fp_macros::{document_parameters};
 
-impl_kind! {
-	for OptionBrand {
-		type Of<'a, A: 'a>: 'a = Option<A>;
+	impl_kind! {
+		for OptionBrand {
+			type Of<'a, A: 'a>: 'a = Option<A>;
+		}
 	}
-}
 
-impl Functor for OptionBrand {
+	impl Functor for OptionBrand {
 	/// Maps a function over the value in the option.
 	///
 	/// This method applies a function to the value inside the option, producing a new option with the transformed value. If the option is `None`, it returns `None`.
@@ -982,11 +984,13 @@ impl Witherable for OptionBrand {
 		}
 	}
 }
+}
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{brands::*, functions::*};
+	use super::inner::*;
+	use crate::{brands::*, classes::CloneableFn, functions::*};
 	use quickcheck_macros::quickcheck;
 
 	// Functor Laws

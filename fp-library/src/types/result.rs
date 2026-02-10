@@ -2,31 +2,27 @@
 //!
 //! Extends `Result` with dual functor/monad instances: [`ResultWithErrBrand`] (standard Result monad) functors over the success value, while [`ResultWithOkBrand`] functors over the error value.
 
-use crate::{
-	Apply,
-	brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
-	classes::{
-		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
-		Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
-	},
-	impl_kind,
-	kinds::*,
-};
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
+		classes::{
+			Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
+			Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+		},
+		impl_kind,
+		kinds::*,
+	};
+	use fp_macros::{document_parameters};
 
-impl_kind! {
-	for ResultBrand {
-		type Of<A, B> = Result<B, A>;
+	impl_kind! {
+		for ResultBrand {
+			type Of<'a, A: 'a, B: 'a>: 'a = Result<B, A>;
+		}
 	}
-}
 
-impl_kind! {
-	for ResultBrand {
-		type Of<'a, A: 'a, B: 'a>: 'a = Result<B, A>;
-	}
-}
-
-impl Bifunctor for ResultBrand {
+	impl Bifunctor for ResultBrand {
 	/// Maps functions over the values in the result.
 	///
 	/// This method applies one function to the error value and another to the success value.
@@ -1409,12 +1405,15 @@ impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 			Ok(_) => initial,
 		}
 	}
+	}
 }
+
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{brands::*, classes::bifunctor::*, functions::*};
+	use super::inner::*;
+	use crate::{brands::*, classes::{bifunctor::*, CloneableFn}, functions::*};
 	use quickcheck_macros::quickcheck;
 
 	// Bifunctor Tests
