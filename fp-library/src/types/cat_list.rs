@@ -34,7 +34,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::document_type_parameters;
+	use fp_macros::{document_fields, document_type_parameters};
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 	use std::{
@@ -1552,7 +1552,7 @@ mod inner {
 		type IntoIter = CatListIterator<A>;
 
 		fn into_iter(self) -> Self::IntoIter {
-			CatListIterator { list: self }
+			CatListIterator(self)
 		}
 	}
 
@@ -1563,18 +1563,16 @@ mod inner {
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Fields
-	///
-	/// * `list`: The list being iterated over.
-	pub struct CatListIterator<A> {
-		list: CatList<A>,
-	}
+	/// 
+	#[document_fields("The list being iterated over.")]
+	pub struct CatListIterator<A>(CatList<A>);
 
 	impl<A> Iterator for CatListIterator<A> {
 		type Item = A;
 
 		fn next(&mut self) -> Option<Self::Item> {
-			let (head, tail) = std::mem::take(&mut self.list).uncons()?;
-			self.list = tail;
+			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
+			self.0 = tail;
 			Some(head)
 		}
 	}

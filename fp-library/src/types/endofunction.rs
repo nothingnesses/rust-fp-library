@@ -4,9 +4,9 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use fp_macros::document_type_parameters;
+	use fp_macros::{document_fields, document_type_parameters};
 
-use crate::{
+	use crate::{
 		classes::{CloneableFn, Monoid, Semigroup},
 		functions::identity,
 	};
@@ -35,8 +35,8 @@ use crate::{
 	)]
 	///
 	/// ### Fields
-	///
-	/// * `0`: The wrapped function.
+	/// 
+	#[document_fields("The wrapped function.")]
 	///
 	/// ### Examples
 	///

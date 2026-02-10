@@ -4,9 +4,9 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use fp_macros::document_type_parameters;
+	use fp_macros::{document_fields, document_type_parameters};
 
-use crate::{
+	use crate::{
 		Apply,
 		classes::{Category, Monoid, Semigroup},
 		kinds::*,
@@ -37,8 +37,8 @@ use crate::{
 	)]
 	///
 	/// ### Fields
-	///
-	/// * `0`: The wrapped morphism.
+	/// 
+	#[document_fields("The wrapped morphism.")]
 	///
 	/// ### Examples
 	///

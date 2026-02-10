@@ -17,8 +17,8 @@ mod property_tests;
 use crate::core::ToCompileError;
 use codegen::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker};
 use documentation::{
-	document_module_worker, document_parameters_worker, document_signature_worker,
-	document_type_parameters_worker,
+	document_fields_worker, document_module_worker, document_parameters_worker,
+	document_signature_worker, document_type_parameters_worker,
 };
 use hkt::{
 	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
@@ -639,6 +639,101 @@ pub fn document_parameters(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_parameters_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Generates documentation for struct fields.
+///
+/// This macro analyzes a struct and generates documentation comments for its fields.
+/// It can be used on both named structs and tuple structs.
+///
+/// ### Syntax
+///
+/// For named structs:
+/// ```ignore
+/// #[document_fields(
+///     field_name: "Description for field_name",
+///     other_field: "Description for other_field",
+///     ...
+/// )]
+/// pub struct MyStruct {
+///     pub field_name: Type1,
+///     pub other_field: Type2,
+/// }
+/// ```
+///
+/// For tuple structs:
+/// ```ignore
+/// #[document_fields(
+///     "Description for first field",
+///     "Description for second field",
+///     ...
+/// )]
+/// pub struct MyTuple(Type1, Type2);
+/// ```
+///
+/// ### Parameters
+///
+/// * For named structs: A comma-separated list of `field_ident: "description"` pairs.
+/// * For tuple structs: A comma-separated list of string literal descriptions, in order.
+///
+/// ### Generates
+///
+/// A list of documentation comments, one for each field, prepended to the struct definition.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation (named struct)
+/// #[document_fields(
+///     x: "The x coordinate",
+///     y: "The y coordinate"
+/// )]
+/// pub struct Point {
+///     pub x: i32,
+///     pub y: i32,
+/// }
+///
+/// // Expanded code
+/// /// * `x`: The x coordinate
+/// /// * `y`: The y coordinate
+/// pub struct Point {
+///     pub x: i32,
+///     pub y: i32,
+/// }
+/// ```
+///
+/// ```ignore
+/// // Invocation (tuple struct)
+/// #[document_fields(
+///     "The wrapped morphism"
+/// )]
+/// pub struct Endomorphism<'a, C, A>(
+///     pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
+/// );
+///
+/// // Expanded code
+/// /// * `0`: The wrapped morphism
+/// pub struct Endomorphism<'a, C, A>(
+///     pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
+/// );
+/// ```
+///
+/// ### Constraints
+///
+/// * All fields must be documented - the macro will error if any field is missing documentation.
+/// * The macro cannot be used on zero-sized types (unit structs or structs with no fields).
+/// * For named structs, you must use the `field_name: "description"` syntax.
+/// * For tuple structs, you must use just `"description"` (no field names).
+/// * The macro will error if the wrong syntax is used for the struct type.
+#[proc_macro_attribute]
+pub fn document_fields(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	match document_fields_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}
