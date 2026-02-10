@@ -178,7 +178,7 @@ where
 			DocArg::Desc(d) => (name_from_target.clone(), d.value()),
 		};
 
-		let doc_comment = format!("* `{name}`: {desc}");
+		let doc_comment = format_parameter_doc(&name, &desc);
 		insert_doc_comment(generic_item.attrs(), doc_comment, proc_macro2::Span::call_site());
 	}
 
@@ -199,6 +199,25 @@ pub fn validate_doc_args(
 		));
 	}
 	Ok(())
+}
+
+/// Format a parameter documentation comment.
+///
+/// Creates a standardized documentation comment for a parameter with its description.
+///
+/// # Example
+/// ```
+/// # fn format_parameter_doc(name: &str, description: &str) -> String {
+/// #     format!("* `{name}`: {description}")
+/// # }
+/// let doc = format_parameter_doc("T", "The element type");
+/// assert_eq!(doc, "* `T`: The element type");
+/// ```
+pub fn format_parameter_doc(
+	name: &str,
+	description: &str,
+) -> String {
+	format!("* `{name}`: {description}")
 }
 
 pub fn insert_doc_comment(
@@ -244,9 +263,12 @@ pub enum LogicalParam {
 	Explicit(syn::Pat),
 	/// A parameter that is implicit from trait bounds or other context (e.g., from Fn trait bounds)
 	///
-	/// Note: Marked `#[allow(dead_code)]` but is actively used in curried parameter extraction
-	/// and documentation generation.
-	#[allow(dead_code)]
+	/// This variant is constructed during curried parameter extraction and matched in
+	/// documentation generation to represent implicit parameters as `_` in signatures.
+	///
+	/// Note: The `syn::Type` field is currently not accessed during matching, but is preserved
+	/// for potential future use in generating more detailed documentation. This causes a
+	/// compiler warning about unused fields, which is expected and acceptable.
 	Implicit(syn::Type),
 }
 

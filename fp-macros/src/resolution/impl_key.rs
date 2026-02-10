@@ -41,6 +41,31 @@ impl ImplKey {
 		Self { type_path: type_path.into(), trait_path: Some(trait_path.into()) }
 	}
 
+	/// Create an impl key from type and optional trait paths.
+	///
+	/// This is a convenience method that dispatches to either `new` or `with_trait`
+	/// based on whether a trait path is provided.
+	///
+	/// # Example
+	/// ```ignore
+	/// // Inherent impl
+	/// let key = ImplKey::from_paths("Free<F, A>", None);
+	/// // Equivalent to: ImplKey::new("Free<F, A>")
+	///
+	/// // Trait impl
+	/// let key = ImplKey::from_paths("Free<F, A>", Some("Functor"));
+	/// // Equivalent to: ImplKey::with_trait("Free<F, A>", "Functor")
+	/// ```
+	pub fn from_paths(
+		type_path: impl Into<String>,
+		trait_path: Option<impl Into<String>>,
+	) -> Self {
+		match trait_path {
+			Some(t) => Self::with_trait(type_path, t),
+			None => Self::new(type_path),
+		}
+	}
+
 	/// Get the type path component.
 	pub fn type_path(&self) -> &str {
 		&self.type_path
@@ -114,5 +139,34 @@ mod tests {
 		let mut set = HashSet::new();
 		set.insert(key1.clone());
 		assert!(set.contains(&key2));
+	}
+
+	#[test]
+	fn test_from_paths_with_trait() {
+		let key = ImplKey::from_paths("Free<F, A>", Some("Functor"));
+		assert_eq!(key.type_path(), "Free<F, A>");
+		assert_eq!(key.trait_path(), Some("Functor"));
+		assert!(key.is_trait_impl());
+		assert!(!key.is_inherent());
+	}
+
+	#[test]
+	fn test_from_paths_without_trait() {
+		let key = ImplKey::from_paths("Free<F, A>", None::<&str>);
+		assert_eq!(key.type_path(), "Free<F, A>");
+		assert_eq!(key.trait_path(), None);
+		assert!(key.is_inherent());
+		assert!(!key.is_trait_impl());
+	}
+
+	#[test]
+	fn test_from_paths_equivalence() {
+		let key1 = ImplKey::from_paths("MyType", Some("MyTrait"));
+		let key2 = ImplKey::with_trait("MyType", "MyTrait");
+		assert_eq!(key1, key2);
+
+		let key3 = ImplKey::from_paths("MyType", None::<&str>);
+		let key4 = ImplKey::new("MyType");
+		assert_eq!(key3, key4);
 	}
 }

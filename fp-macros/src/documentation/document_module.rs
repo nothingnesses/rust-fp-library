@@ -1,4 +1,4 @@
-use super::generation::generate_docs;
+use super::generation::generate_documentation;
 use crate::{
 	core::{
 		Result as OurResult, config::Config, constants::attributes::DOCUMENT_MODULE,
@@ -100,7 +100,7 @@ pub fn document_module_worker(
 	extractor.errors.finish()?;
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
-	generate_docs(&mut items, &config)?;
+	generate_documentation(&mut items, &config)?;
 
 	// Also recursively generate docs for nested modules
 	let mut generator = DocGeneratorVisitor { config: &config, errors: ErrorCollector::new() };
@@ -156,7 +156,7 @@ impl<'a> VisitMut for DocGeneratorVisitor<'a> {
 	) {
 		if let Some((_, ref mut items)) = module.content {
 			// Generate docs for this module's items
-			if let Err(e) = generate_docs(items, self.config) {
+			if let Err(e) = generate_documentation(items, self.config) {
 				self.errors.push(e);
 			}
 
