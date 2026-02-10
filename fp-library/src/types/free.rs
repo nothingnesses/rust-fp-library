@@ -175,6 +175,10 @@ mod inner {
 		F: Functor + 'static,
 		A: 'static;
 
+	#[document_type_parameters(
+		"The base functor.",
+		"The result type."
+	)]
 	impl<F, A> Free<F, A>
 	where
 		F: Functor + 'static,
@@ -188,10 +192,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The base functor.",
-			"The result type."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Parameters
 		///
@@ -221,10 +222,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The base functor.",
-			"The result type."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Parameters
 		///
@@ -259,10 +257,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The base functor.",
-			"The result type."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Implementation
 		///
@@ -307,11 +302,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The base functor.",
-			"The current result type.",
-			"The result type of the new computation."
-		)]
+		#[document_type_parameters("The result type of the new computation.")]
 		///
 		/// ### Parameters
 		///
@@ -406,10 +397,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters(
-			"The base functor.",
-			"The result type."
-		)]
+		#[document_type_parameters]
 		///
 		/// ### Returns
 		///

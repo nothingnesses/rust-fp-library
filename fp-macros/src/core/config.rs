@@ -10,7 +10,7 @@ use crate::{
 		configuration::{self, CONFIG_SECTION},
 		traits,
 	},
-	resolution::ProjectionKey,
+	resolution::{ImplKey, ProjectionKey},
 };
 use serde::Deserialize;
 use std::{
@@ -77,6 +77,10 @@ pub struct Config {
 
 	/// The name of the Self type in the current context
 	pub self_type_name: Option<String>,
+
+	/// Impl-level type parameter documentation: ImplKey -> Vec<(ParamName, Description)>
+	/// Stores documentation for generic parameters defined at the impl level
+	pub impl_type_param_docs: HashMap<ImplKey, Vec<(String, String)>>,
 }
 
 /// Accessor methods for backward compatibility
@@ -106,6 +110,7 @@ impl From<UserConfig> for Config {
 			scoped_defaults: HashMap::new(),
 			concrete_types: HashSet::new(),
 			self_type_name: None,
+			impl_type_param_docs: HashMap::new(),
 		}
 	}
 }

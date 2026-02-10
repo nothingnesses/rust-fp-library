@@ -6,8 +6,11 @@ use crate::{
 		error_handling::ErrorCollector,
 	},
 	documentation::document_signature::generate_signature,
-	resolution::resolver::{
-		SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
+	resolution::{
+		ImplKey,
+		resolver::{
+			SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
+		},
 	},
 	support::{
 		attributes::find_attribute,
@@ -80,47 +83,124 @@ pub(super) fn process_doc_type_params(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
 	item_impl_generics: &syn::Generics,
+	impl_key: &ImplKey,
+	config: &Config,
 ) -> Vec<Error> {
 	let attr = method.attrs.remove(attr_pos);
 	let mut errors = Vec::new();
 
-	// Parse the arguments from the attribute
-	if let Ok(args) = attr.parse_args::<GenericArgs>() {
-		// Get all generics: impl generics + method generics
-		let mut all_generics = syn::Generics::default();
+	// Get impl-level type parameter docs if they exist
+	let impl_docs = config.impl_type_param_docs.get(impl_key);
+	
+	// Extract impl generic parameter names
+	let impl_param_names: Vec<String> = extract_all_params(item_impl_generics);
 
-		// Add impl generics first
-		for param in &item_impl_generics.params {
-			all_generics.params.push(param.clone());
-		}
-
-		// Add method generics
-		for param in &method.sig.generics.params {
-			all_generics.params.push(param.clone());
-		}
-
-		let targets = extract_all_params(&all_generics);
+	// Try to parse the arguments from the attribute
+	// If parsing fails and the attribute is empty, we'll handle it specially
+	let args_result = attr.parse_args::<GenericArgs>();
+	
+	if let Ok(args) = args_result {
+		// Get method-only generics (not including impl generics)
+		let method_param_names: Vec<String> = extract_all_params(&method.sig.generics);
 
 		let entries: Vec<_> = args.entries.iter().collect();
-		if let Err(e) = validate_doc_args(targets.len(), entries.len(), attr.span()) {
-			errors.push(e);
-		} else {
-			for (i, (name_from_target, entry)) in targets.iter().zip(entries).enumerate() {
-				let (name, desc) = match entry {
-					DocArg::Override(n, d) => (n.value(), d.value()),
-					DocArg::Desc(d) => (name_from_target.clone(), d.value()),
-				};
-
-				let doc_comment = format!("* `{name}`: {desc}");
+		
+		// Validate: method attribute should only document method-level parameters
+		// if impl-level parameters are already documented
+		if let Some(impl_docs_vec) = impl_docs {
+			// Check if any method entries try to redocument impl parameters
+			if entries.len() > method_param_names.len() {
+				let impl_param_list = impl_param_names.join(", ");
+				errors.push(Error::new(
+					attr.span(),
+					format!(
+						"Method documents {} parameters but only has {} method-level generic parameters. \
+						Impl-level parameters ({}) are already documented at the impl level and should not be redocumented here.",
+						entries.len(),
+						method_param_names.len(),
+						impl_param_list
+					),
+				));
+				return errors;
+			}
+			
+			// Now emit docs: impl docs first, then method docs
+			let mut doc_index = 0;
+			
+			// Emit impl-level docs
+			for (param_name, desc) in impl_docs_vec {
+				let doc_comment = format!("* `{param_name}`: {desc}");
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-				method.attrs.insert(attr_pos + i, doc_attr);
+				method.attrs.insert(attr_pos + doc_index, doc_attr);
+				doc_index += 1;
+			}
+			
+			// Emit method-level docs
+			if let Err(e) = validate_doc_args(method_param_names.len(), entries.len(), attr.span()) {
+				errors.push(e);
+			} else {
+				for (name_from_target, entry) in method_param_names.iter().zip(entries) {
+					let (name, desc) = match entry {
+						DocArg::Override(n, d) => (n.value(), d.value()),
+						DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+					};
+
+					let doc_comment = format!("* `{name}`: {desc}");
+					let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+					method.attrs.insert(attr_pos + doc_index, doc_attr);
+					doc_index += 1;
+				}
+			}
+		} else {
+			// No impl-level docs, use old behavior: document all generics
+			let mut all_generics = syn::Generics::default();
+
+			// Add impl generics first
+			for param in &item_impl_generics.params {
+				all_generics.params.push(param.clone());
+			}
+
+			// Add method generics
+			for param in &method.sig.generics.params {
+				all_generics.params.push(param.clone());
+			}
+
+			let targets = extract_all_params(&all_generics);
+
+			if let Err(e) = validate_doc_args(targets.len(), entries.len(), attr.span()) {
+				errors.push(e);
+			} else {
+				for (i, (name_from_target, entry)) in targets.iter().zip(entries).enumerate() {
+					let (name, desc) = match entry {
+						DocArg::Override(n, d) => (n.value(), d.value()),
+						DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+					};
+
+					let doc_comment = format!("* `{name}`: {desc}");
+					let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+					method.attrs.insert(attr_pos + i, doc_attr);
+				}
 			}
 		}
 	} else {
-		errors.push(Error::new(
-			attr.span(),
-			format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
-		));
+		// Parse failed - check if this is because the attribute is empty
+		// In that case, just emit impl-level docs if they exist
+		if let Some(impl_docs_vec) = impl_docs {
+			for (i, (param_name, desc)) in impl_docs_vec.iter().enumerate() {
+				let doc_comment = format!("* `{param_name}`: {desc}");
+				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+				method.attrs.insert(attr_pos + i, doc_attr);
+			}
+		} else {
+			// No impl docs and parsing failed - this is an error
+			errors.push(Error::new(
+				attr.span(),
+				format!(
+					"Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments. \
+					Either provide type parameter descriptions or add impl-level documentation."
+				),
+			));
+		}
 	}
 
 	errors
@@ -134,6 +214,9 @@ pub(super) fn generate_docs(
 
 	for item in items {
 		if let Item::Impl(item_impl) = item {
+			// Remove impl-level document_type_parameters attribute if present
+			item_impl.attrs.retain(|attr| !attr.path().is_ident(DOCUMENT_TYPE_PARAMETERS));
+			
 			let self_ty = &*item_impl.self_ty;
 			let self_ty_path = quote!(#self_ty).to_string();
 			let trait_path = item_impl.trait_.as_ref().map(|(_, path, _)| path);
@@ -180,8 +263,15 @@ pub(super) fn generate_docs(
 					// 2. Handle Doc Type Params
 					if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS)
 					{
+						// Create impl key for looking up impl-level docs
+						let impl_key = if let Some(ref t_path) = trait_path_str {
+							ImplKey::with_trait(&self_ty_path, t_path)
+						} else {
+							ImplKey::new(&self_ty_path)
+						};
+						
 						let method_errors =
-							process_doc_type_params(method, attr_pos, &item_impl.generics);
+							process_doc_type_params(method, attr_pos, &item_impl.generics, &impl_key, config);
 						errors.extend(method_errors);
 					}
 				}

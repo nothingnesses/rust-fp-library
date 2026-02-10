@@ -1,9 +1,13 @@
 use super::resolver::{normalize_type, type_uses_self_assoc};
 use crate::{
+	analysis::extract_all_params,
 	core::{config::Config, constants::attributes, error_handling::ErrorCollector},
 	hkt::ImplKindInput,
-	resolution::ProjectionKey,
-	support::attributes::has_attr,
+	resolution::{ImplKey, ProjectionKey},
+	support::{
+		attributes::has_attr,
+		syntax::{DocArg, GenericArgs},
+	},
 };
 use quote::ToTokens;
 use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
@@ -90,6 +94,52 @@ pub fn extract_context(
 					.trait_
 					.as_ref()
 					.map(|(_, path, _)| path.to_token_stream().to_string());
+
+				// Extract impl-level type parameter documentation
+				// Note: We don't remove the attribute here; it will be removed during generation phase
+				for attr in &item_impl.attrs {
+					if attr.path().is_ident(attributes::DOCUMENT_TYPE_PARAMETERS) {
+						// Parse the arguments
+						if let Ok(args) = attr.parse_args::<GenericArgs>() {
+							// Get impl generics
+							let targets = extract_all_params(&item_impl.generics);
+							
+							let entries: Vec<_> = args.entries.iter().collect();
+							if entries.len() != targets.len() {
+								errors.push(Error::new(
+									attr.span(),
+									format!(
+										"Expected {} description arguments for impl generics, found {}.",
+										targets.len(),
+										entries.len()
+									),
+								));
+							} else {
+								let mut docs = Vec::new();
+								for (name_from_target, entry) in targets.iter().zip(entries) {
+									let (_name, desc) = match entry {
+										DocArg::Override(n, d) => (n.value(), d.value()),
+										DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+									};
+									docs.push((name_from_target.clone(), desc));
+								}
+								
+								// Store in config
+								let impl_key = if let Some(ref t_path) = trait_path {
+									ImplKey::with_trait(&self_ty_path, t_path)
+								} else {
+									ImplKey::new(&self_ty_path)
+								};
+								config.impl_type_param_docs.insert(impl_key, docs);
+							}
+						} else {
+							errors.push(Error::new(
+								attr.span(),
+								format!("Failed to parse {} arguments", attributes::DOCUMENT_TYPE_PARAMETERS),
+							));
+						}
+					}
+				}
 
 				// Split impl block merging: merge associated types across multiple impl blocks
 				for item in &item_impl.items {
