@@ -56,9 +56,7 @@ pub fn validate_named_entries(
 		if !provided.contains_key(expected_name) {
 			return Err(CoreError::Parse(syn::Error::new(
 				span,
-				format!(
-					"Missing documentation for {context} `{expected_name}`. All {context}s must be documented."
-				),
+				format_missing_doc_error(context, &expected_name.to_string()),
 			)));
 		}
 	}
@@ -68,10 +66,10 @@ pub fn validate_named_entries(
 		if !expected.iter().any(|e| e == provided_name) {
 			return Err(CoreError::Parse(syn::Error::new(
 				provided_name.span(),
-				format!(
-					"{} `{provided_name}` does not exist. Available {context}s: {}",
-					capitalize_first(context),
-					expected.iter().map(|f| format!("`{f}`")).collect::<Vec<_>>().join(", ")
+				format_nonexistent_item_error(
+					context,
+					&provided_name.to_string(),
+					&expected.iter().map(|e| e.to_string()).collect::<Vec<_>>(),
 				),
 			)));
 		}
@@ -100,7 +98,7 @@ pub fn check_duplicate_entry<T>(
 	if existing_value.is_some() {
 		return Err(CoreError::Parse(syn::Error::new(
 			name.span(),
-			format!("Duplicate documentation for {context} `{name}`"),
+			format_duplicate_doc_error(context, &name.to_string()),
 		)));
 	}
 	Ok(())
@@ -141,6 +139,57 @@ fn capitalize_first(s: &str) -> String {
 		None => String::new(),
 		Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
 	}
+}
+
+/// Format a missing documentation error message.
+///
+/// # Parameters
+/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
+/// - `name`: The name of the item missing documentation
+///
+/// # Returns
+/// A formatted error message string
+pub fn format_missing_doc_error(
+	context: &str,
+	name: &str,
+) -> String {
+	format!("Missing documentation for {context} `{name}`. All {context}s must be documented.")
+}
+
+/// Format a duplicate documentation error message.
+///
+/// # Parameters
+/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
+/// - `name`: The name of the item with duplicate documentation
+///
+/// # Returns
+/// A formatted error message string
+pub fn format_duplicate_doc_error(
+	context: &str,
+	name: &str,
+) -> String {
+	format!("Duplicate documentation for {context} `{name}`")
+}
+
+/// Format a non-existent item error message.
+///
+/// # Parameters
+/// - `context`: A string describing what is being validated (e.g., "field", "parameter")
+/// - `name`: The name of the non-existent item
+/// - `available`: List of available item names
+///
+/// # Returns
+/// A formatted error message string
+pub fn format_nonexistent_item_error(
+	context: &str,
+	name: &str,
+	available: &[impl std::fmt::Display],
+) -> String {
+	format!(
+		"{} `{name}` does not exist. Available {context}s: {}",
+		capitalize_first(context),
+		available.iter().map(|f| format!("`{f}`")).collect::<Vec<_>>().join(", ")
+	)
 }
 
 #[cfg(test)]

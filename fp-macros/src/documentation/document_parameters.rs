@@ -3,8 +3,11 @@ use crate::{
 		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
 	},
 	support::{
-		LogicalParam, attributes::find_attribute, get_logical_params,
-		syntax::insert_doc_comments_batch, validation,
+		LogicalParam,
+		attributes::{find_attribute, remove_attribute_tokens},
+		get_logical_params,
+		syntax::insert_doc_comments_batch,
+		validation,
 	},
 };
 use proc_macro2::TokenStream;
@@ -35,7 +38,8 @@ fn process_method_in_impl(
 		return Ok(());
 	};
 
-	let attr = method.attrs.remove(attr_pos);
+	// Remove the attribute and get its tokens
+	let attr_tokens = remove_attribute_tokens(&mut method.attrs, attr_pos)?;
 
 	// Get logical params (excluding receiver)
 	let logical_params = get_logical_params(&method.sig, config);
@@ -47,7 +51,7 @@ fn process_method_in_impl(
 	// Error if no parameters at all
 	if logical_params.is_empty() && !has_receiver {
 		return Err(CoreError::Parse(syn::Error::new(
-			attr.span(),
+			method.sig.ident.span(),
 			format!(
 				"{DOCUMENT_PARAMETERS} cannot be used on method '{}' with no parameters",
 				method.sig.ident
@@ -56,7 +60,7 @@ fn process_method_in_impl(
 	}
 
 	// Parse the arguments from the attribute (may be empty for receiver-only docs)
-	let parse_result = attr.parse_args::<crate::support::syntax::GenericArgs>();
+	let parse_result = syn::parse2::<crate::support::syntax::GenericArgs>(attr_tokens.clone());
 
 	// Get entries, which may be empty if only documenting receiver
 	let entries: Vec<_> = if let Ok(args) = parse_result {
@@ -68,7 +72,7 @@ fn process_method_in_impl(
 			Vec::new()
 		} else {
 			return Err(CoreError::Parse(syn::Error::new(
-				attr.span(),
+				attr_tokens.span(),
 				format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
 			)));
 		}
@@ -78,7 +82,7 @@ fn process_method_in_impl(
 	validation::validate_entry_count(
 		logical_params.len(),
 		entries.len(),
-		attr.span(),
+		attr_tokens.span(),
 		"method parameter",
 	)?;
 

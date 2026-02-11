@@ -79,7 +79,7 @@ A lifetime becomes early bound when it appears in:
 
 ## Test Results
 
-All tests in [`lifetime_turbofish_test.rs`](../fp-library/tests/lifetime_turbofish_test.rs) pass successfully:
+All tests in [`lifetime_turbofish_test.rs`](../../fp-library/tests/lifetime_turbofish_test.rs) pass successfully:
 
 ```
 running 12 tests

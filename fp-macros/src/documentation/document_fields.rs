@@ -149,6 +149,7 @@ mod tests {
 		let result = document_fields_worker(attr, item);
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
+		eprintln!("Actual error: {}", error);
 		assert!(error.contains("Field `z` does not exist"));
 	}
 

@@ -5,7 +5,7 @@ use crate::{
 		error_handling::ErrorCollector,
 	},
 	resolution::extract_context,
-	support::parsing::{parse_many, parse_non_empty},
+	support::parsing::{parse_many, parse_non_empty, try_parse_one_of},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -88,25 +88,25 @@ fn parse_document_module_input(item: TokenStream) -> Result<ParsedInput, syn::Er
 	// Try to parse as ItemMod first (more specific), then fall back to DocumentModuleInput
 	// This is critical: ItemMod must be checked first, otherwise `#[document_module] mod inner { ... }`
 	// would be parsed as DocumentModuleInput containing a single module item, losing the wrapper.
-	if let Some(parsed) = try_parse_module_wrapper(item.clone()) {
-		return Ok(parsed);
-	}
-
-	if let Some(parsed) = try_parse_direct_items(item.clone()) {
-		return Ok(parsed);
-	}
-
-	// Last attempt: const block
-	if let Ok(parsed) = try_parse_const_block(item) {
-		return Ok(parsed);
-	}
-
-	Err(syn::Error::new(
-		proc_macro2::Span::call_site(),
-		format!(
+	try_parse_one_of(
+		item,
+		vec![
+			Box::new(|tokens| {
+				try_parse_module_wrapper(tokens).ok_or_else(|| {
+					syn::Error::new(proc_macro2::Span::call_site(), "Not a module wrapper")
+				})
+			}),
+			Box::new(|tokens| {
+				try_parse_direct_items(tokens).ok_or_else(|| {
+					syn::Error::new(proc_macro2::Span::call_site(), "Not direct items")
+				})
+			}),
+			Box::new(try_parse_const_block),
+		],
+		&format!(
 			"{DOCUMENT_MODULE} must be applied to a module or a const block (e.g., const _: () = {{ ... }})."
 		),
-	))
+	)
 }
 
 pub fn document_module_worker(

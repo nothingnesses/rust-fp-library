@@ -48,6 +48,40 @@ where
 	Err(syn::Error::new(Span::call_site(), error_msg))
 }
 
+/// Try parsing as multiple types, calling a different handler for each successful parse.
+///
+/// This is useful for documentation macros that can apply to different item types
+/// (e.g., structs vs enums, functions vs impl blocks) where each type needs different handling.
+///
+/// # Parameters
+/// - `tokens`: The token stream to parse
+/// - `attempts`: A vector of (parser, handler) pairs to try in order
+/// - `error_msg`: Error message to return if all parsing attempts fail
+///
+/// # Example
+/// ```ignore
+/// try_parse_one_of(
+///     item_tokens,
+///     vec![
+///         Box::new(|t| syn::parse2::<ItemEnum>(t).map(|e| handle_enum(attr.clone(), e))),
+///         Box::new(|t| syn::parse2::<ItemStruct>(t).map(|s| handle_struct(attr.clone(), s))),
+///     ],
+///     "Expected struct or enum"
+/// )
+/// ```
+pub fn try_parse_one_of<T>(
+	tokens: TokenStream,
+	attempts: Vec<Box<dyn Fn(TokenStream) -> syn::Result<T>>>,
+	error_msg: &str,
+) -> syn::Result<T> {
+	for attempt in attempts {
+		if let Ok(result) = attempt(tokens.clone()) {
+			return Ok(result);
+		}
+	}
+	Err(syn::Error::new(Span::call_site(), error_msg))
+}
+
 /// Parse generics to ensure these don't contain unsupported features
 pub fn parse_generics(generics: &Generics) -> Result<&Generics> {
 	for param in &generics.params {
