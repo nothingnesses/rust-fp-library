@@ -24,10 +24,11 @@ mod inner {
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
 	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the value produced by the computation on success.
-	/// * `E`: The type of the error produced by the computation on failure.
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation on success.",
+		"The type of the error produced by the computation on failure."
+	)]
 	///
 	/// ### Fields
 	///

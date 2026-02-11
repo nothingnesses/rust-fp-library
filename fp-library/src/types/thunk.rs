@@ -45,7 +45,10 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value produced by the computation.
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
 	///
 	/// ### Fields
 	///
@@ -76,7 +79,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters("The type of the thunk.")]
+		#[document_type_parameters("The type of the closure.")]
 		///
 		/// ### Parameters
 		///
@@ -138,7 +141,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters("The type of the thunk.")]
+		#[document_type_parameters("The type of the closure.")]
 		///
 		/// ### Parameters
 		///
@@ -296,7 +299,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters("The type of the thunk.")]
+		#[document_type_parameters("The type of the closure.")]
 		///
 		/// ### Parameters
 		///

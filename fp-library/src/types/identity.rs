@@ -14,7 +14,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_fields, document_parameters};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// Wraps a value.
 	///
@@ -23,7 +23,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the wrapped value.
+	#[document_type_parameters("The type of the wrapped value.")]
 	///
 	/// ### Fields
 	///

@@ -624,10 +624,6 @@ mod inner {
 		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the vector.
-		///
 		/// ### Parameters
 		///
 		#[document_parameters("The first vector.", "The second vector.")]
@@ -659,10 +655,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the elements in the vector.
 		///
 		/// ### Returns
 		///

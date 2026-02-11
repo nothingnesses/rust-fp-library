@@ -62,7 +62,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the value produced by the task.
+	#[document_type_parameters("The type of the value produced by the task.")]
 	///
 	/// ### Fields
 	///
@@ -91,10 +91,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the value.
 		///
 		/// ### Parameters
 		///
@@ -547,7 +543,7 @@ mod inner {
 		///
 		/// ### Type Parameters
 		///
-		#[document_type_parameters("The type of the thunk.")]
+		#[document_type_parameters("The type of the closure.")]
 		///
 		/// ### Parameters
 		///

@@ -68,7 +68,7 @@ mod inner {
 		kinds::*,
 		types::{CatList, Thunk},
 	};
-	use fp_macros::{document_fields, document_parameters};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	use std::{any::Any, marker::PhantomData};
 
 	/// A type-erased value for internal use.
@@ -85,7 +85,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The base functor.
+	#[document_type_parameters("The base functor.")]
 	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
 	/// The internal representation of the [`Free`] monad.
@@ -95,9 +95,10 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The base functor (must implement [`Functor`]).
-	/// * `A`: The result type.
-	///
+	#[document_type_parameters(
+		"The base functor (must implement [`Functor`]).",
+		"The result type."
+	)]
 	#[document_fields]
 	pub enum FreeInner<F, A>
 	where
@@ -164,8 +165,10 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `F`: The base functor (must implement [`Functor`]).
-	/// * `A`: The result type.
+	#[document_type_parameters(
+		"The base functor (must implement [`Functor`]).",
+		"The result type."
+	)]
 	///
 	/// ### Examples
 	///

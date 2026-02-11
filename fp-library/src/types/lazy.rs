@@ -481,8 +481,11 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the computed value.
-	/// * `Config`: The memoization configuration (determines Rc vs Arc).
+	#[document_type_parameters(
+		"The lifetime of the reference.",
+		"The type of the computed value.",
+		"The memoization configuration (determines Rc vs Arc)."
+	)]
 	///
 	/// ### Fields
 	///

@@ -15,16 +15,13 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_fields, document_parameters};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// Wraps two values.
 	///
 	/// A simple tuple struct that holds two values of potentially different types.
 	///
-	/// ### Type Parameters
-	///
-	/// * `First`: The type of the first value.
-	/// * `Second`: The type of the second value.
+	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
 	///
 	/// ### Fields
 	///

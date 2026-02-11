@@ -20,11 +20,12 @@ mod inner {
 	/// The computation runs at most once. If it succeeds, the value is cached.
 	/// If it fails, the error is cached. Subsequent accesses return the cached result.
 	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The type of the computed value.
-	/// * `E`: The type of the error.
-	/// * `Config`: The memoization configuration.
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
 	///
 	/// ### Fields
 	///

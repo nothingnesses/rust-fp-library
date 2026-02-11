@@ -8,7 +8,7 @@ mod inner {
 		classes::{Monoid, Semigroup, SendCloneableFn},
 		functions::identity,
 	};
-	use fp_macros::{document_fields, document_parameters};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,
@@ -27,8 +27,11 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `FnBrand`: The brand of the thread-safe cloneable function wrapper.
-	/// * `A`: The input and output type of the function.
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the thread-safe cloneable function wrapper.",
+		"The input and output type of the function."
+	)]
 	///
 	/// ### Fields
 	///
@@ -54,11 +57,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `FnBrand`: The brand of the function (e.g., `ArcFnBrand`).
-		/// * `A`: The input and output type of the function.
 		///
 		/// ### Parameters
 		///

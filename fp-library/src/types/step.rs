@@ -35,10 +35,10 @@ mod inner {
 	///
 	/// This type is fundamental to stack-safe recursion via `MonadRec`.
 	///
-	/// ### Type Parameters
-	///
-	/// * `A`: The "loop" type - when we return `Loop(a)`, we continue with `a`.
-	/// * `B`: The "done" type - when we return `Done(b)`, we're finished.
+	#[document_type_parameters(
+		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
+		r#"The "done" type - when we return `Done(b)`, we're finished."#
+	)]
 	///
 	/// ### Variants
 	///

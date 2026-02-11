@@ -30,8 +30,7 @@ mod inner {
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the success value.
-	/// * `E`: The type of the error value.
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
 	/// ### Fields
 	///
@@ -53,11 +52,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the success value.
-		/// * `E`: The type of the error value.
 		///
 		/// ### Parameters
 		///
@@ -84,11 +78,6 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
-		/// * `A`: The type of the success value.
-		/// * `E`: The type of the error value.
 		///
 		/// ### Parameters
 		///
