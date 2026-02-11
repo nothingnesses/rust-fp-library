@@ -1,6 +1,6 @@
 use crate::{
 	core::{Result, constants::attributes::DOCUMENT_TYPE_PARAMETERS},
-	support::syntax::generate_doc_comments,
+	support::{syntax::generate_doc_comments, validation},
 };
 use proc_macro2::TokenStream;
 use syn::{GenericParam, spanned::Spanned};
@@ -13,14 +13,12 @@ pub fn document_type_parameters_worker(
 		let generics = generic_item.generics();
 
 		// Error if there are no type parameters
-		if generics.params.is_empty() {
-			return Err(syn::Error::new(
-				generics.span(),
-				format!(
-					"{DOCUMENT_TYPE_PARAMETERS} cannot be used on items with no type parameters"
-				),
-			));
-		}
+		validation::validate_has_documentable_items(
+			generics.params.len(),
+			generics.span(),
+			DOCUMENT_TYPE_PARAMETERS,
+			"items with no type parameters",
+		)?;
 
 		Ok(generics
 			.params
@@ -108,7 +106,11 @@ mod doc_type_params_tests {
 
 		let output = document_type_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(error.contains("cannot be used on items with no type parameters"));
+		assert!(
+			error.contains(
+				"Cannot use #[document_type_parameters] on items with no type parameters"
+			)
+		);
 	}
 
 	#[test]

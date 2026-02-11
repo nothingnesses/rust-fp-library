@@ -2,7 +2,7 @@
 
 use crate::{
 	core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
-	support::syntax::DocArg,
+	support::{syntax::DocArg, validation},
 };
 use proc_macro2::{Span, TokenStream};
 use syn::{
@@ -122,25 +122,16 @@ pub fn parse_parameter_documentation_pairs(
 	let found = entries.len();
 
 	// Error when using the macro on functions with no documentable parameters
-	if expected == 0 {
-		return Err(Error::validation(
-			span,
-			format!(
-				r"Cannot use #[{DOCUMENT_PARAMETERS}] on functions with no parameters to document.
-  Note: `self` parameters (including `&self` and `&mut self`) are not considered documentable parameters. Remove this attribute or add parameters to the function."
-			),
-		));
-	}
+	validation::validate_has_documentable_items(
+		expected,
+		span,
+		DOCUMENT_PARAMETERS,
+		r#"functions with no parameters to document.
+	 Note: `self` parameters (including `&self` and `&mut self`) are not considered documentable parameters. Remove this attribute or add parameters to the function."#,
+	)?;
 
-	if expected != found {
-		return Err(Error::validation(
-			span,
-			format!(
-				"Expected {expected} description argument{}, found {found}.",
-				if expected == 1 { "" } else { "s" }
-			),
-		));
-	}
+	// Validate counts match
+	validation::validate_parameter_doc_count(expected, found, span)?;
 
 	Ok(targets.into_iter().zip(entries).collect())
 }

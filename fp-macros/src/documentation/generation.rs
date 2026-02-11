@@ -16,6 +16,7 @@ use crate::{
 		attributes::{AttributeExt, find_attribute},
 		parsing::parse_parameter_documentation_pairs,
 		syntax::{DocArg, GenericArgs, format_parameter_doc},
+		validation,
 	},
 };
 use quote::quote;
@@ -90,14 +91,13 @@ pub(super) fn process_document_type_parameters(
 	let method_param_names: Vec<String> = extract_all_params(&method.sig.generics);
 
 	// Error if method has no type parameters
-	if method_param_names.is_empty() {
-		errors.push(Error::new(
-			attr.span(),
-			format!(
-				"{DOCUMENT_TYPE_PARAMETERS} cannot be used on method '{}' with no type parameters",
-				method.sig.ident
-			),
-		));
+	if let Err(e) = validation::validate_has_documentable_items(
+		method_param_names.len(),
+		attr.span(),
+		DOCUMENT_TYPE_PARAMETERS,
+		&format!("method '{}' with no type parameters", method.sig.ident),
+	) {
+		errors.push(e.into());
 		return errors;
 	}
 

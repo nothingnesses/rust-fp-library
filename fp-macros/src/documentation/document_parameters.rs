@@ -50,13 +50,12 @@ fn process_method_in_impl(
 
 	// Error if no parameters at all
 	if logical_params.is_empty() && !has_receiver {
-		return Err(CoreError::Parse(syn::Error::new(
+		validation::validate_has_documentable_items(
+			0, // Explicit 0 to trigger error
 			method.sig.ident.span(),
-			format!(
-				"{DOCUMENT_PARAMETERS} cannot be used on method '{}' with no parameters",
-				method.sig.ident
-			),
-		)));
+			DOCUMENT_PARAMETERS,
+			&format!("method '{}' with no parameters", method.sig.ident),
+		)?;
 	}
 
 	// Parse the arguments from the attribute (may be empty for receiver-only docs)
@@ -79,11 +78,10 @@ fn process_method_in_impl(
 	};
 
 	// Validate entry count matches logical params (not including receiver)
-	validation::validate_entry_count(
+	validation::validate_parameter_doc_count(
 		logical_params.len(),
 		entries.len(),
 		attr_tokens.span(),
-		"method parameter",
 	)?;
 
 	// Generate parameter names for all params including receiver

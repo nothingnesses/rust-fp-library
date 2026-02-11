@@ -132,6 +132,67 @@ pub fn validate_not_zero_sized(
 	Ok(())
 }
 
+/// Validates that documentation arguments are provided (not empty).
+///
+/// This is used to check that a macro requiring documentation is not used
+/// on items with nothing to document (e.g., functions with no parameters).
+///
+/// # Parameters
+/// - `count`: The number of items to document
+/// - `span`: The span for error reporting
+/// - `attr_name`: The name of the attribute (e.g., "document_parameters")
+/// - `item_description`: A description of what cannot be documented
+///
+/// # Returns
+/// - `Ok(())` if count > 0
+/// - `Err` with a descriptive error if count == 0
+pub fn validate_has_documentable_items(
+	count: usize,
+	span: proc_macro2::Span,
+	attr_name: &str,
+	item_description: &str,
+) -> Result<(), CoreError> {
+	if count == 0 {
+		return Err(CoreError::Parse(syn::Error::new(
+			span,
+			format!("Cannot use #[{attr_name}] on {item_description}"),
+		)));
+	}
+	Ok(())
+}
+
+/// Validates parameter documentation count with a standardized error message.
+///
+/// This is a specialized version of `validate_entry_count` with error messages
+/// tailored for parameter documentation.
+///
+/// # Parameters
+/// - `expected`: The expected number of parameters
+/// - `provided`: The actual number of descriptions provided
+/// - `span`: The span for error reporting
+///
+/// # Returns
+/// - `Ok(())` if counts match
+/// - `Err` with a descriptive error if counts don't match
+pub fn validate_parameter_doc_count(
+	expected: usize,
+	provided: usize,
+	span: proc_macro2::Span,
+) -> Result<(), CoreError> {
+	if expected != provided {
+		return Err(CoreError::Parse(syn::Error::new(
+			span,
+			format!(
+				"Expected {} description argument{}, found {}.",
+				expected,
+				if expected == 1 { "" } else { "s" },
+				provided
+			),
+		)));
+	}
+	Ok(())
+}
+
 /// Helper function to capitalize the first character of a string.
 fn capitalize_first(s: &str) -> String {
 	let mut chars = s.chars();
@@ -289,5 +350,54 @@ mod tests {
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
 		assert!(error.contains("zero-sized types"));
+	}
+
+	#[test]
+	fn test_validate_has_documentable_items_ok() {
+		let result = validate_has_documentable_items(
+			1,
+			proc_macro2::Span::call_site(),
+			"document_parameters",
+			"functions with no parameters",
+		);
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn test_validate_has_documentable_items_zero() {
+		let result = validate_has_documentable_items(
+			0,
+			proc_macro2::Span::call_site(),
+			"document_parameters",
+			"functions with no parameters",
+		);
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("Cannot use #[document_parameters]"));
+		assert!(error.contains("functions with no parameters"));
+	}
+
+	#[test]
+	fn test_validate_parameter_doc_count_matches() {
+		let result = validate_parameter_doc_count(2, 2, proc_macro2::Span::call_site());
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn test_validate_parameter_doc_count_mismatch() {
+		let result = validate_parameter_doc_count(3, 1, proc_macro2::Span::call_site());
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("Expected 3 description arguments"));
+		assert!(error.contains("found 1"));
+	}
+
+	#[test]
+	fn test_validate_parameter_doc_count_singular() {
+		let result = validate_parameter_doc_count(1, 2, proc_macro2::Span::call_site());
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("Expected 1 description argument")); // singular
+		assert!(!error.contains("arguments")); // not plural
 	}
 }
