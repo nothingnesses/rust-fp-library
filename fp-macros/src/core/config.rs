@@ -81,11 +81,6 @@ pub struct Config {
 	/// Impl-level type parameter documentation: ImplKey -> Vec<(ParamName, Description)>
 	/// Stores documentation for generic parameters defined at the impl level
 	pub impl_type_param_docs: HashMap<ImplKey, Vec<(String, String)>>,
-
-	/// Impl-level receiver parameter documentation: ImplKey -> ReceiverDescription
-	/// Stores documentation for the receiver parameter (self, &self, &mut self) in impl blocks
-	/// When set, methods with receiver parameters inherit this documentation
-	pub impl_receiver_docs: HashMap<ImplKey, String>,
 }
 
 /// Accessor methods for backward compatibility
@@ -116,7 +111,6 @@ impl From<UserConfig> for Config {
 			concrete_types: HashSet::new(),
 			self_type_name: None,
 			impl_type_param_docs: HashMap::new(),
-			impl_receiver_docs: HashMap::new(),
 		}
 	}
 }

@@ -644,10 +644,10 @@ pub fn document_parameters(
 	}
 }
 
-/// Generates documentation for struct fields.
+/// Generates documentation for struct fields or enum variant fields.
 ///
-/// This macro analyzes a struct and generates documentation comments for its fields.
-/// It can be used on both named structs and tuple structs.
+/// This macro analyzes a struct or enum and generates documentation comments for its fields.
+/// It can be used on named structs, tuple structs, and enums with variants that have fields.
 ///
 /// ### Syntax
 ///
@@ -674,14 +674,35 @@ pub fn document_parameters(
 /// pub struct MyTuple(Type1, Type2);
 /// ```
 ///
+/// For enums (similar to [`#[document_module]`](macro@document_module)):
+/// ```ignore
+/// #[document_fields]
+/// pub enum MyEnum {
+///     #[document_fields(
+///         field1: "Description for field1",
+///         field2: "Description for field2"
+///     )]
+///     Variant1 {
+///         field1: Type1,
+///         field2: Type2,
+///     },
+///
+///     #[document_fields(
+///         "Description for tuple field"
+///     )]
+///     Variant2(Type3),
+/// }
+/// ```
+///
 /// ### Parameters
 ///
-/// * For named structs: A comma-separated list of `field_ident: "description"` pairs.
-/// * For tuple structs: A comma-separated list of string literal descriptions, in order.
+/// * For structs with named fields: A comma-separated list of `field_ident: "description"` pairs.
+/// * For structs with tuple fields: A comma-separated list of string literal descriptions, in order.
+/// * For enums: No arguments on the enum itself. Use `#[document_fields(...)]` on individual variants.
 ///
 /// ### Generates
 ///
-/// A list of documentation comments, one for each field, prepended to the struct definition.
+/// A list of documentation comments, one for each field, prepended to the struct or variant definition.
 ///
 /// ### Examples
 ///
@@ -721,13 +742,43 @@ pub fn document_parameters(
 /// );
 /// ```
 ///
+/// ```ignore
+/// // Invocation (enum with variants)
+/// #[document_fields]
+/// pub enum FreeInner<F, A> {
+///     Pure(A),
+///
+///     #[document_fields(
+///         head: "The initial computation.",
+///         continuations: "The list of continuations."
+///     )]
+///     Bind {
+///         head: Box<Free<F, A>>,
+///         continuations: CatList<Continuation<F>>,
+///     },
+/// }
+///
+/// // Expanded code
+/// pub enum FreeInner<F, A> {
+///     Pure(A),
+///
+///     /// * `head`: The initial computation.
+///     /// * `continuations`: The list of continuations.
+///     Bind {
+///         head: Box<Free<F, A>>,
+///         continuations: CatList<Continuation<F>>,
+///     },
+/// }
+/// ```
+///
 /// ### Constraints
 ///
 /// * All fields must be documented - the macro will error if any field is missing documentation.
-/// * The macro cannot be used on zero-sized types (unit structs or structs with no fields).
-/// * For named structs, you must use the `field_name: "description"` syntax.
-/// * For tuple structs, you must use just `"description"` (no field names).
-/// * The macro will error if the wrong syntax is used for the struct type.
+/// * The macro cannot be used on zero-sized types (unit structs/variants or structs/variants with no fields).
+/// * For named fields, you must use the `field_name: "description"` syntax.
+/// * For tuple fields, you must use just `"description"` (no field names).
+/// * For enums, the outer `#[document_fields]` must have no arguments.
+/// * The macro will error if the wrong syntax is used for the field type.
 #[proc_macro_attribute]
 pub fn document_fields(
 	attr: TokenStream,

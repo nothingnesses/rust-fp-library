@@ -34,7 +34,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_fields, document_type_parameters};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 	use std::{
@@ -1563,7 +1563,7 @@ mod inner {
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Fields
-	/// 
+	///
 	#[document_fields("The list being iterated over.")]
 	pub struct CatListIterator<A>(CatList<A>);
 

@@ -2,9 +2,7 @@ use crate::{
 	analysis::extract_all_params,
 	core::{
 		config::Config,
-		constants::attributes::{
-			DOCUMENT_PARAMETERS, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE,
-		},
+		constants::attributes::{DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE},
 		error_handling::ErrorCollector,
 	},
 	documentation::document_signature::generate_signature,
@@ -15,17 +13,13 @@ use crate::{
 		},
 	},
 	support::{
-		LogicalParam,
 		attributes::find_attribute,
-		get_logical_params,
 		parsing::{parse_parameter_documentation_pairs, parse_unique_attr_value},
 		syntax::{DocArg, GenericArgs, format_parameter_doc},
 	},
 };
-use quote::{ToTokens, quote};
-use syn::{
-	Error, FnArg, ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut,
-};
+use quote::quote;
+use syn::{Error, ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut};
 
 /// Process the `#[document_signature]` attribute on a method.
 #[allow(clippy::too_many_arguments)]
@@ -141,133 +135,6 @@ pub(super) fn process_document_type_parameters(
 	errors
 }
 
-/// Process the `#[document_parameters]` attribute on a method.
-pub(super) fn process_document_parameters(
-	method: &mut syn::ImplItemFn,
-	attr_pos: usize,
-	self_ty_path: &str,
-	trait_path_str: Option<&str>,
-	config: &Config,
-) -> Vec<Error> {
-	let attr = method.attrs.remove(attr_pos);
-	let mut errors = Vec::new();
-
-	// Get logical params (excluding receiver)
-	let logical_params = get_logical_params(&method.sig, config);
-
-	// Check if method has receiver
-	let has_receiver = method.sig.inputs.iter().any(|input| matches!(input, FnArg::Receiver(_)));
-
-	// Get impl-level receiver doc if present
-	let impl_key = ImplKey::from_paths(self_ty_path, trait_path_str);
-	let impl_receiver_doc = config.impl_receiver_docs.get(&impl_key);
-
-	// Error if no parameters at all
-	if logical_params.is_empty() && !has_receiver {
-		errors.push(Error::new(
-			attr.span(),
-			format!(
-				"{DOCUMENT_PARAMETERS} cannot be used on method '{}' with no parameters",
-				method.sig.ident
-			),
-		));
-		return errors;
-	}
-
-	// Error if has receiver but no impl-level doc
-	if has_receiver && impl_receiver_doc.is_none() {
-		errors.push(Error::new(
-			attr.span(),
-			format!(
-				"{DOCUMENT_PARAMETERS} cannot be used on method '{}' with a receiver parameter \
-				 unless {DOCUMENT_PARAMETERS} is also applied to the impl block to provide \
-				 receiver documentation",
-				method.sig.ident
-			),
-		));
-		return errors;
-	}
-
-	// Parse the arguments from the attribute (may be empty for receiver-only docs)
-	let parse_result = attr.parse_args::<GenericArgs>();
-
-	// Get entries, which may be empty if only documenting receiver
-	let entries: Vec<_> = if let Ok(args) = parse_result {
-		args.entries.into_iter().collect()
-	} else {
-		// If parse fails and we have no logical params, it's likely just empty parens or no args
-		// which is fine if we only have a receiver
-		if logical_params.is_empty() && has_receiver {
-			Vec::new()
-		} else {
-			errors.push(Error::new(
-				attr.span(),
-				format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
-			));
-			return errors;
-		}
-	};
-
-	// Validate entry count matches logical params (not including receiver)
-	if entries.len() != logical_params.len() {
-		errors.push(Error::new(
-			attr.span(),
-			format!(
-				"Expected {} description arguments for method parameters, found {}",
-				logical_params.len(),
-				entries.len()
-			),
-		));
-		return errors;
-	}
-
-	// Generate parameter names for all params including receiver
-	let mut param_names = Vec::new();
-	let mut param_descs = Vec::new();
-
-	// Add receiver if present
-	if has_receiver {
-		// Get receiver name from signature
-		let receiver_name = if let Some(FnArg::Receiver(recv)) = method.sig.inputs.first() {
-			if recv.mutability.is_some() {
-				"&mut self"
-			} else if recv.reference.is_some() {
-				"&self"
-			} else {
-				"self"
-			}
-		} else {
-			"self"
-		};
-		param_names.push(receiver_name.to_string());
-		param_descs.push(impl_receiver_doc.unwrap().clone());
-	}
-
-	// Add other parameters
-	for (param, entry) in logical_params.iter().zip(entries) {
-		let (name, desc) = match (param, entry) {
-			(LogicalParam::Explicit(_pat), DocArg::Override(n, d)) => (n.value(), d.value()),
-			(LogicalParam::Explicit(pat), DocArg::Desc(d)) => {
-				let name = pat.to_token_stream().to_string().replace(" , ", ", ");
-				(name, d.value())
-			}
-			(LogicalParam::Implicit(_), DocArg::Override(n, d)) => (n.value(), d.value()),
-			(LogicalParam::Implicit(_), DocArg::Desc(d)) => ("_".to_string(), d.value()),
-		};
-		param_names.push(name);
-		param_descs.push(desc);
-	}
-
-	// Generate doc comments
-	for (i, (name, desc)) in param_names.iter().zip(&param_descs).enumerate() {
-		let doc_comment = format_parameter_doc(name, desc);
-		let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-		method.attrs.insert(attr_pos + i, doc_attr);
-	}
-
-	errors
-}
-
 /// Helper to parse an attribute value, collecting errors instead of propagating them.
 fn parse_attr_or_none(
 	attrs: &[syn::Attribute],
@@ -317,12 +184,8 @@ fn process_method_documentation(
 		errors.extend(method_errors);
 	}
 
-	// 3. Handle Doc Parameters
-	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_PARAMETERS) {
-		let method_errors =
-			process_document_parameters(method, attr_pos, self_ty_path, trait_path_str, config);
-		errors.extend(method_errors);
-	}
+	// 3. Document parameters is now handled directly in document_parameters.rs
+	// No processing needed in document_module
 }
 
 /// Process a single impl block for documentation generation.
@@ -358,12 +221,6 @@ fn process_impl_block(
 			// But remove the attribute anyway to prevent downstream issues
 			item_impl.attrs.remove(attr_pos);
 		}
-	}
-
-	// Remove impl-level document_parameters attribute (it's used only for receiver doc)
-	// The attribute itself doesn't generate documentation at the impl level
-	if let Some(attr_pos) = find_attribute(&item_impl.attrs, DOCUMENT_PARAMETERS) {
-		item_impl.attrs.remove(attr_pos);
 	}
 
 	// Parse impl-level document_use attribute

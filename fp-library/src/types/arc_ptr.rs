@@ -20,6 +20,7 @@ mod inner {
 			UnsizedCoercible,
 		},
 	};
+	use fp_macros::document_parameters;
 	use std::sync::Arc;
 
 	impl Pointer for ArcBrand {

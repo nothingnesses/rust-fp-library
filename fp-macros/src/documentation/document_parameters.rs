@@ -1,9 +1,188 @@
 use crate::{
-	core::{Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS},
-	support::{LogicalParam, get_logical_params},
+	core::{
+		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
+	},
+	support::{LogicalParam, get_logical_params, syntax::format_parameter_doc},
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
+use syn::{ImplItem, ImplItemFn, LitStr, parse::Parse, spanned::Spanned};
+
+/// Parse single string literal for receiver documentation
+struct ReceiverDoc {
+	description: LitStr,
+}
+
+impl Parse for ReceiverDoc {
+	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+		let description = input.parse()?;
+		Ok(ReceiverDoc { description })
+	}
+}
+
+/// Process a method with #[document_parameters] attribute, applying receiver doc if needed
+fn process_method_in_impl(
+	method: &mut ImplItemFn,
+	receiver_doc: &str,
+	config: &crate::core::config::Config,
+) -> Result<()> {
+	// Find and remove the #[document_parameters] attribute
+	let attr_pos = method.attrs.iter().position(|attr| attr.path().is_ident(DOCUMENT_PARAMETERS));
+
+	let Some(attr_pos) = attr_pos else {
+		// No attribute on this method, skip it
+		return Ok(());
+	};
+
+	let attr = method.attrs.remove(attr_pos);
+
+	// Get logical params (excluding receiver)
+	let logical_params = get_logical_params(&method.sig, config);
+
+	// Check if method has receiver
+	let has_receiver =
+		method.sig.inputs.iter().any(|input| matches!(input, syn::FnArg::Receiver(_)));
+
+	// Error if no parameters at all
+	if logical_params.is_empty() && !has_receiver {
+		return Err(CoreError::Parse(syn::Error::new(
+			attr.span(),
+			format!(
+				"{DOCUMENT_PARAMETERS} cannot be used on method '{}' with no parameters",
+				method.sig.ident
+			),
+		)));
+	}
+
+	// Parse the arguments from the attribute (may be empty for receiver-only docs)
+	let parse_result = attr.parse_args::<crate::support::syntax::GenericArgs>();
+
+	// Get entries, which may be empty if only documenting receiver
+	let entries: Vec<_> = if let Ok(args) = parse_result {
+		args.entries.into_iter().collect()
+	} else {
+		// If parse fails and we have no logical params, it's likely just empty parens or no args
+		// which is fine if we only have a receiver
+		if logical_params.is_empty() && has_receiver {
+			Vec::new()
+		} else {
+			return Err(CoreError::Parse(syn::Error::new(
+				attr.span(),
+				format!("Failed to parse {DOCUMENT_PARAMETERS} arguments"),
+			)));
+		}
+	};
+
+	// Validate entry count matches logical params (not including receiver)
+	if entries.len() != logical_params.len() {
+		return Err(CoreError::Parse(syn::Error::new(
+			attr.span(),
+			format!(
+				"Expected {} description arguments for method parameters, found {}",
+				logical_params.len(),
+				entries.len()
+			),
+		)));
+	}
+
+	// Generate parameter names for all params including receiver
+	let mut param_names = Vec::new();
+	let mut param_descs = Vec::new();
+
+	// Add receiver if present
+	if has_receiver {
+		// Get receiver name from signature
+		let receiver_name = if let Some(syn::FnArg::Receiver(recv)) = method.sig.inputs.first() {
+			if recv.mutability.is_some() {
+				"&mut self"
+			} else if recv.reference.is_some() {
+				"&self"
+			} else {
+				"self"
+			}
+		} else {
+			"self"
+		};
+		param_names.push(receiver_name.to_string());
+		param_descs.push(receiver_doc.to_string());
+	}
+
+	// Add other parameters
+	for (param, entry) in logical_params.iter().zip(entries) {
+		let (name, desc) = match (param, entry) {
+			(LogicalParam::Explicit(_pat), crate::support::syntax::DocArg::Override(n, d)) => {
+				(n.value(), d.value())
+			}
+			(LogicalParam::Explicit(pat), crate::support::syntax::DocArg::Desc(d)) => {
+				let name = pat.to_token_stream().to_string().replace(" , ", ", ");
+				(name, d.value())
+			}
+			(LogicalParam::Implicit(_), crate::support::syntax::DocArg::Override(n, d)) => {
+				(n.value(), d.value())
+			}
+			(LogicalParam::Implicit(_), crate::support::syntax::DocArg::Desc(d)) => {
+				("_".to_string(), d.value())
+			}
+		};
+		param_names.push(name);
+		param_descs.push(desc);
+	}
+
+	// Generate doc comments and insert them
+	for (i, (name, desc)) in param_names.iter().zip(&param_descs).enumerate() {
+		let doc_comment = format_parameter_doc(name, desc);
+		let doc_attr: syn::Attribute = syn::parse_quote!(#[doc = #doc_comment]);
+		method.attrs.insert(attr_pos + i, doc_attr);
+	}
+
+	Ok(())
+}
+
+/// Process impl block with #[document_parameters("receiver doc")]
+fn process_impl_block(
+	attr: TokenStream,
+	mut item_impl: syn::ItemImpl,
+) -> Result<TokenStream> {
+	// Parse the receiver documentation
+	let receiver_doc = syn::parse2::<ReceiverDoc>(attr.clone()).map_err(|e| {
+		syn::Error::new(
+			e.span(),
+			format!(
+				"{DOCUMENT_PARAMETERS} on impl blocks must have exactly one string literal for receiver documentation"
+			),
+		)
+	})?;
+
+	// Verify that the impl block has at least one method with a receiver
+	let has_receiver_methods = item_impl.items.iter().any(|item| {
+		if let ImplItem::Fn(method) = item {
+			method.sig.inputs.iter().any(|input| matches!(input, syn::FnArg::Receiver(_)))
+		} else {
+			false
+		}
+	});
+
+	if !has_receiver_methods {
+		return Err(CoreError::Parse(syn::Error::new(
+			attr.span(),
+			format!(
+				"{DOCUMENT_PARAMETERS} cannot be used on impl blocks with no methods that have receiver parameters"
+			),
+		)));
+	}
+
+	let receiver_desc = receiver_doc.description.value();
+	let config = get_config();
+
+	// Process each method that has #[document_parameters]
+	for item in &mut item_impl.items {
+		if let ImplItem::Fn(method) = item {
+			process_method_in_impl(method, &receiver_desc, &config)?;
+		}
+	}
+
+	Ok(quote!(#item_impl))
+}
 
 pub fn document_parameters_worker(
 	attr: TokenStream,
@@ -11,9 +190,7 @@ pub fn document_parameters_worker(
 ) -> Result<TokenStream> {
 	// Try parsing as impl block first
 	if let Ok(item_impl) = syn::parse2::<syn::ItemImpl>(item_tokens.clone()) {
-		// For impl blocks, just pass through - they will be handled during module processing
-		// The attribute will be consumed during context extraction and generation phases
-		return Ok(quote!(#item_impl));
+		return process_impl_block(attr, item_impl);
 	}
 
 	// Otherwise, process as a function with generate_doc_comments
@@ -135,30 +312,53 @@ mod tests {
 	}
 
 	#[test]
-	fn test_doc_params_impl_block_passthrough() {
-		// When applied to an impl block, the attribute should be passed through
-		// without modification, to be processed later by document_module
+	fn test_doc_params_impl_block_with_receiver_only() {
+		// Method with only receiver, no other params
 		let attr = quote! { "The receiver parameter" };
 		let item = quote! {
 			impl<A> MyType<A> {
+				#[document_parameters]
 				fn foo(&self) -> usize { 0 }
 			}
 		};
 
-		let output = document_parameters_worker(attr.clone(), item.clone()).unwrap();
-
-		// The output should be the impl block unchanged (attribute will be processed later)
+		let output = document_parameters_worker(attr, item).unwrap();
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
-		let input_impl: syn::ItemImpl = syn::parse2(item).unwrap();
 
-		// Both should have the same structure (attribute processing happens in document_module)
-		assert_eq!(output_impl.items.len(), input_impl.items.len());
+		if let ImplItem::Fn(method) = &output_impl.items[0] {
+			assert_eq!(method.attrs.len(), 1);
+			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver parameter");
+		} else {
+			panic!("Expected method");
+		}
+	}
+
+	#[test]
+	fn test_doc_params_impl_block_with_receiver_and_params() {
+		// Method with receiver and additional params
+		let attr = quote! { "The list instance" };
+		let item = quote! {
+			impl<A> MyList<A> {
+				#[document_parameters("The element to append")]
+				fn push(&mut self, item: A) {}
+			}
+		};
+
+		let output = document_parameters_worker(attr, item).unwrap();
+		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
+
+		if let ImplItem::Fn(method) = &output_impl.items[0] {
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "* `&mut self`: The list instance");
+			assert_eq!(get_doc(&method.attrs[1]), "* `item`: The element to append");
+		} else {
+			panic!("Expected method");
+		}
 	}
 
 	#[test]
 	fn test_doc_params_impl_block_no_methods() {
-		// This error would be caught during context extraction in document_module,
-		// not in the attribute processor itself
+		// Should error when impl block has no methods with receivers
 		let attr = quote! { "The receiver" };
 		let item = quote! {
 			impl<A> MyType<A> {
@@ -166,9 +366,59 @@ mod tests {
 			}
 		};
 
-		// Should pass through successfully - validation happens in document_module
+		let result = document_parameters_worker(attr, item);
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("no methods that have receiver parameters"));
+	}
+
+	#[test]
+	fn test_doc_params_impl_block_no_receiver_methods() {
+		// Should error when impl block only has static methods
+		let attr = quote! { "The receiver" };
+		let item = quote! {
+			impl<A> MyType<A> {
+				fn new() -> Self { todo!() }
+			}
+		};
+
+		let result = document_parameters_worker(attr, item);
+		assert!(result.is_err());
+		let error = result.unwrap_err().to_string();
+		assert!(error.contains("no methods that have receiver parameters"));
+	}
+
+	#[test]
+	fn test_doc_params_impl_block_static_method_ignored() {
+		// Static methods without #[document_parameters] should be ignored
+		let attr = quote! { "The receiver" };
+		let item = quote! {
+			impl<A> MyType<A> {
+				#[document_parameters]
+				fn foo(&self) -> usize { 0 }
+
+				// This static method doesn't have #[document_parameters], so it's ignored
+				fn new() -> Self { todo!() }
+			}
+		};
+
 		let output = document_parameters_worker(attr, item).unwrap();
-		let _: syn::ItemImpl = syn::parse2(output).unwrap();
+		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
+
+		// First method should have doc
+		if let ImplItem::Fn(method) = &output_impl.items[0] {
+			assert_eq!(method.attrs.len(), 1);
+			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver");
+		} else {
+			panic!("Expected method");
+		}
+
+		// Second method should have no doc attributes
+		if let ImplItem::Fn(method) = &output_impl.items[1] {
+			assert_eq!(method.attrs.len(), 0);
+		} else {
+			panic!("Expected method");
+		}
 	}
 
 	#[test]

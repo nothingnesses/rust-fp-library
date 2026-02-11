@@ -4,13 +4,12 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use fp_macros::{document_fields, document_type_parameters};
-
 	use crate::{
 		Apply,
 		classes::{Category, Monoid, Semigroup},
 		kinds::*,
 	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,
@@ -37,7 +36,7 @@ mod inner {
 	)]
 	///
 	/// ### Fields
-	/// 
+	///
 	#[document_fields("The wrapped morphism.")]
 	///
 	/// ### Examples

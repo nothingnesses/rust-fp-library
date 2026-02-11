@@ -68,6 +68,7 @@ mod inner {
 		kinds::*,
 		types::{CatList, Thunk},
 	};
+	use fp_macros::{document_fields, document_parameters};
 	use std::{any::Any, marker::PhantomData};
 
 	/// A type-erased value for internal use.
@@ -97,6 +98,7 @@ mod inner {
 	/// * `F`: The base functor (must implement [`Functor`]).
 	/// * `A`: The result type.
 	///
+	#[document_fields]
 	pub enum FreeInner<F, A>
 	where
 		F: Functor + 'static,
@@ -121,8 +123,11 @@ mod inner {
 		///
 		/// ### Fields
 		///
-		/// * `head`: The initial computation.
-		/// * `continuations`: The list of continuations to apply to the result of `head`.
+		#[document_fields(
+			head: "The initial computation.",
+			continuations: "The list of continuations to apply to the result of `head`.",
+			_marker: "Phantom data for type parameter `A`."
+		)]
 		Bind {
 			head: Box<Free<F, TypeErasedValue>>,
 			continuations: CatList<Continuation<F>>,

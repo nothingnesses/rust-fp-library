@@ -136,6 +136,8 @@ mod test_erasure {
 
 #[document_module]
 mod test_impl_level_document_parameters {
+	use fp_macros::document_parameters;
+
 	#[allow(dead_code)]
 	pub struct MyList<T>(Vec<T>);
 
