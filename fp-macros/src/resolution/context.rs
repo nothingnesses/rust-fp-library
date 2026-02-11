@@ -7,7 +7,7 @@ use crate::{
 			attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
 			macros::IMPL_KIND_MACRO,
 		},
-		error_handling::ErrorCollector,
+		error_handling::{CollectErrors, ErrorCollector},
 	},
 	hkt::ImplKindInput,
 	resolution::{ImplKey, ProjectionKey},
@@ -63,7 +63,7 @@ fn process_impl_kind_macro(
 	// since cfg evaluation happens after macro expansion
 	let has_cfg = item_macro.attrs.iter().any(|attr| attr.path().is_ident("cfg"));
 
-	if let Ok(impl_kind) = item_macro.mac.parse_body::<ImplKindInput>() {
+	if let Some(impl_kind) = errors.collect(|| item_macro.mac.parse_body::<ImplKindInput>()) {
 		let brand_path = impl_kind.brand.to_token_stream().to_string();
 
 		for def in &impl_kind.definitions {
@@ -145,7 +145,7 @@ fn process_impl_type_parameter_documentation(
 			}
 
 			// Parse the arguments
-			if let Ok(args) = attr.parse_args::<GenericArgs>() {
+			if let Some(args) = errors.collect(|| attr.parse_args::<GenericArgs>()) {
 				let entries: Vec<_> = args.entries.iter().collect();
 				if entries.len() != targets.len() {
 					errors.push(Error::new(
@@ -170,11 +170,6 @@ fn process_impl_type_parameter_documentation(
 					let impl_key = ImplKey::from_paths(self_ty_path, trait_path);
 					config.impl_type_param_docs.insert(impl_key, docs);
 				}
-			} else {
-				errors.push(Error::new(
-					attr.span(),
-					format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
-				));
 			}
 		}
 	}

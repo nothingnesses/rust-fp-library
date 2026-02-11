@@ -250,6 +250,21 @@ impl ErrorCollector {
 		self.errors.extend(other_errors);
 	}
 
+	/// Check if there are any errors collected
+	pub fn has_errors(&self) -> bool {
+		!self.errors.is_empty()
+	}
+
+	/// Get the number of errors collected
+	pub fn len(&self) -> usize {
+		self.errors.len()
+	}
+
+	/// Check if the collector is empty
+	pub fn is_empty(&self) -> bool {
+		self.errors.is_empty()
+	}
+
 	pub fn finish(self) -> syn::Result<()> {
 		if self.errors.is_empty() { Ok(()) } else { Err(Self::combine_errors(self.errors)) }
 	}
@@ -266,6 +281,169 @@ impl ErrorCollector {
 impl Default for ErrorCollector {
 	fn default() -> Self {
 		Self::new()
+	}
+}
+
+/// Trait for collecting errors from fallible operations.
+///
+/// This trait provides methods to execute fallible operations and automatically
+/// collect any errors that occur, allowing the program to continue processing
+/// and report all errors at once.
+///
+/// # Examples
+///
+/// ```ignore
+/// use crate::core::error_handling::{ErrorCollector, CollectErrors};
+///
+/// let mut errors = ErrorCollector::new();
+///
+/// // Collect an error from a fallible operation
+/// if let Some(result) = errors.collect(|| parse_something()) {
+///     // Use result if successful
+/// }
+///
+/// // Collect with context for better error messages
+/// if let Some(value) = errors.collect_with_context("parsing attribute", || parse_attr()) {
+///     // Use value
+/// }
+///
+/// // Finish and return all errors
+/// errors.finish()?;
+/// ```
+pub trait CollectErrors {
+	/// Execute a fallible operation, collecting any errors.
+	///
+	/// If the operation succeeds, returns `Some(value)`.
+	/// If the operation fails, the error is collected and `None` is returned.
+	///
+	/// # Examples
+	///
+	/// ```ignore
+	/// let mut errors = ErrorCollector::new();
+	/// if let Some(sig) = errors.collect(|| parse_signature(&item)) {
+	///     // Use sig
+	/// }
+	/// ```
+	fn collect<F, T>(
+		&mut self,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> syn::Result<T>;
+
+	/// Execute a fallible operation with context, collecting any errors.
+	///
+	/// If the operation succeeds, returns `Some(value)`.
+	/// If the operation fails, the error is wrapped with the provided context
+	/// and collected, and `None` is returned.
+	///
+	/// # Examples
+	///
+	/// ```ignore
+	/// let mut errors = ErrorCollector::new();
+	/// if let Some(docs) = errors.collect_with_context("generating docs", || generate_docs(&sig)) {
+	///     // Use docs
+	/// }
+	/// ```
+	fn collect_with_context<F, T>(
+		&mut self,
+		context: &str,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> syn::Result<T>;
+
+	/// Execute a fallible operation that returns our custom Error type.
+	///
+	/// Converts the error to syn::Error before collecting.
+	fn collect_our_result<F, T>(
+		&mut self,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> Result<T>;
+
+	/// Execute a fallible operation with context that returns our custom Error type.
+	///
+	/// Converts the error to syn::Error and adds context before collecting.
+	fn collect_our_result_with_context<F, T>(
+		&mut self,
+		context: &str,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> Result<T>;
+}
+
+impl CollectErrors for ErrorCollector {
+	fn collect<F, T>(
+		&mut self,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> syn::Result<T>,
+	{
+		match f() {
+			Ok(value) => Some(value),
+			Err(e) => {
+				self.push(e);
+				None
+			}
+		}
+	}
+
+	fn collect_with_context<F, T>(
+		&mut self,
+		context: &str,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> syn::Result<T>,
+	{
+		match f() {
+			Ok(value) => Some(value),
+			Err(e) => {
+				let contextualized = syn::Error::new(e.span(), format!("{}: {}", context, e));
+				self.push(contextualized);
+				None
+			}
+		}
+	}
+
+	fn collect_our_result<F, T>(
+		&mut self,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> Result<T>,
+	{
+		match f() {
+			Ok(value) => Some(value),
+			Err(e) => {
+				self.push(e.into());
+				None
+			}
+		}
+	}
+
+	fn collect_our_result_with_context<F, T>(
+		&mut self,
+		context: &str,
+		f: F,
+	) -> Option<T>
+	where
+		F: FnOnce() -> Result<T>,
+	{
+		match f() {
+			Ok(value) => Some(value),
+			Err(e) => {
+				let syn_err: syn::Error = e.into();
+				let contextualized =
+					syn::Error::new(syn_err.span(), format!("{}: {}", context, syn_err));
+				self.push(contextualized);
+				None
+			}
+		}
 	}
 }
 
@@ -343,5 +521,104 @@ mod tests {
 		let err_string = syn_err.to_string();
 		assert!(err_string.contains("cannot find type"));
 		// The "available alternatives" note is combined as a separate error
+	}
+
+	// Tests for CollectErrors trait
+	#[test]
+	fn test_collect_success() {
+		let mut errors = ErrorCollector::new();
+		let result = errors.collect(|| Ok::<_, syn::Error>(42));
+		assert_eq!(result, Some(42));
+		assert!(errors.is_empty());
+	}
+
+	#[test]
+	fn test_collect_error() {
+		let mut errors = ErrorCollector::new();
+		let result =
+			errors.collect(|| Err::<i32, _>(syn::Error::new(Span::call_site(), "test error")));
+		assert_eq!(result, None);
+		assert_eq!(errors.len(), 1);
+	}
+
+	#[test]
+	fn test_collect_with_context() {
+		let mut errors = ErrorCollector::new();
+		let result = errors.collect_with_context("parsing", || {
+			Err::<i32, _>(syn::Error::new(Span::call_site(), "failed"))
+		});
+		assert_eq!(result, None);
+		assert_eq!(errors.len(), 1);
+		let combined_err = errors.finish().unwrap_err();
+		assert!(combined_err.to_string().contains("parsing"));
+		assert!(combined_err.to_string().contains("failed"));
+	}
+
+	#[test]
+	fn test_collect_our_result() {
+		let mut errors = ErrorCollector::new();
+		let result = errors.collect_our_result(|| Ok::<_, Error>(100));
+		assert_eq!(result, Some(100));
+		assert!(errors.is_empty());
+	}
+
+	#[test]
+	fn test_collect_our_result_error() {
+		let mut errors = ErrorCollector::new();
+		let result = errors.collect_our_result(|| {
+			Err::<i32, _>(Error::validation(Span::call_site(), "validation failed"))
+		});
+		assert_eq!(result, None);
+		assert_eq!(errors.len(), 1);
+	}
+
+	#[test]
+	fn test_collect_our_result_with_context() {
+		let mut errors = ErrorCollector::new();
+		let result = errors.collect_our_result_with_context("in function", || {
+			Err::<i32, _>(Error::validation(Span::call_site(), "bad value"))
+		});
+		assert_eq!(result, None);
+		assert_eq!(errors.len(), 1);
+		let combined_err = errors.finish().unwrap_err();
+		assert!(combined_err.to_string().contains("in function"));
+		assert!(combined_err.to_string().contains("bad value"));
+	}
+
+	#[test]
+	fn test_multiple_collects() {
+		let mut errors = ErrorCollector::new();
+
+		let r1 = errors.collect(|| Ok::<_, syn::Error>(1));
+		let r2 = errors.collect(|| Err::<i32, _>(syn::Error::new(Span::call_site(), "error 1")));
+		let r3 = errors.collect(|| Ok::<_, syn::Error>(3));
+		let r4 = errors.collect(|| Err::<i32, _>(syn::Error::new(Span::call_site(), "error 2")));
+
+		assert_eq!(r1, Some(1));
+		assert_eq!(r2, None);
+		assert_eq!(r3, Some(3));
+		assert_eq!(r4, None);
+		assert_eq!(errors.len(), 2);
+
+		let combined_err = errors.finish().unwrap_err();
+		let err_str = combined_err.to_string();
+		assert!(err_str.contains("error 1"));
+		assert!(err_str.contains("error 2"));
+	}
+
+	#[test]
+	fn test_error_collector_methods() {
+		let mut errors = ErrorCollector::new();
+		assert!(errors.is_empty());
+		assert!(!errors.has_errors());
+		assert_eq!(errors.len(), 0);
+
+		errors.push(syn::Error::new(Span::call_site(), "error 1"));
+		assert!(!errors.is_empty());
+		assert!(errors.has_errors());
+		assert_eq!(errors.len(), 1);
+
+		errors.push(syn::Error::new(Span::call_site(), "error 2"));
+		assert_eq!(errors.len(), 2);
 	}
 }

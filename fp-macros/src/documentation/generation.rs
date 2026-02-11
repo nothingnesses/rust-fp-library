@@ -3,7 +3,7 @@ use crate::{
 	core::{
 		config::Config,
 		constants::attributes::{DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE},
-		error_handling::ErrorCollector,
+		error_handling::{CollectErrors, ErrorCollector},
 	},
 	documentation::document_signature::generate_signature,
 	resolution::{
@@ -20,7 +20,7 @@ use crate::{
 	},
 };
 use quote::quote;
-use syn::{Error, ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut};
+use syn::{ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut};
 
 /// Process the `#[document_signature]` attribute on a method.
 #[allow(clippy::too_many_arguments)]
@@ -34,10 +34,10 @@ pub(super) fn process_document_signature(
 	document_use: Option<&str>,
 	item_impl_generics: &syn::Generics,
 	config: &Config,
-) -> Vec<Error> {
+	errors: &mut ErrorCollector,
+) {
 	method.attrs.remove(attr_pos);
 
-	let mut errors = Vec::new();
 	let mut synthetic_sig = method.sig.clone();
 
 	// Extract base type name and generic parameters from impl
@@ -75,64 +75,60 @@ pub(super) fn process_document_signature(
 	let doc_comment = format!("`{signature_data}`");
 	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 	method.attrs.insert(attr_pos, doc_attr);
-
-	errors
 }
 
 /// Process the `#[document_type_parameters]` attribute on a method.
 pub(super) fn process_document_type_parameters(
 	method: &mut syn::ImplItemFn,
 	attr_pos: usize,
-) -> Vec<Error> {
+	errors: &mut ErrorCollector,
+) {
 	let attr = method.attrs.remove(attr_pos);
-	let mut errors = Vec::new();
 
 	// Get method-only generics (not including impl generics)
 	let method_param_names: Vec<String> = extract_all_params(&method.sig.generics);
 
-	// Error if method has no type parameters
-	if let Err(e) = parsing::parse_has_documentable_items(
-		method_param_names.len(),
-		attr.span(),
-		DOCUMENT_TYPE_PARAMETERS,
-		&format!("method '{}' with no type parameters", method.sig.ident),
-	) {
-		errors.push(e.into());
-		return errors;
+	// Error if method has no type parameters - use collect_our_result
+	if errors
+		.collect_our_result(|| {
+			parsing::parse_has_documentable_items(
+				method_param_names.len(),
+				attr.span(),
+				DOCUMENT_TYPE_PARAMETERS,
+				&format!("method '{}' with no type parameters", method.sig.ident),
+			)
+		})
+		.is_none()
+	{
+		// Error occurred, return early
+		return;
 	}
 
 	// Try to parse the arguments from the attribute
-	let args_result = attr.parse_args::<GenericArgs>();
-
-	if let Ok(args) = args_result {
+	if let Some(args) = errors.collect(|| attr.parse_args::<GenericArgs>()) {
 		let entries: Vec<_> = args.entries.into_iter().collect();
 
-		match parse_parameter_documentation_pairs(method_param_names, entries, attr.span()) {
-			Ok(pairs) => {
-				for (i, (name_from_target, entry)) in pairs.into_iter().enumerate() {
-					let (name, desc) = match entry {
-						DocArg::Override(n, d) => (n.value(), d.value()),
-						DocArg::Desc(d) => (name_from_target, d.value()),
-					};
+		if let Some(pairs) = errors.collect_our_result(|| {
+			parse_parameter_documentation_pairs(method_param_names, entries, attr.span())
+		}) {
+			for (i, (name_from_target, entry)) in pairs.into_iter().enumerate() {
+				let (name, desc) = match entry {
+					DocArg::Override(n, d) => (n.value(), d.value()),
+					DocArg::Desc(d) => (name_from_target, d.value()),
+				};
 
-					let doc_comment = format_parameter_doc(&name, &desc);
-					let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-					method.attrs.insert(attr_pos + i, doc_attr);
-				}
-			}
-			Err(e) => {
-				errors.push(e.into());
+				let doc_comment = format_parameter_doc(&name, &desc);
+				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+				method.attrs.insert(attr_pos + i, doc_attr);
 			}
 		}
 	} else {
-		// Parse failed - error
-		errors.push(Error::new(
+		// Parse failed - add a custom error message with context
+		errors.push(syn::Error::new(
 			attr.span(),
 			format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
 		));
 	}
-
-	errors
 }
 
 /// Process method-level documentation (signatures and type parameters).
@@ -152,7 +148,7 @@ fn process_method_documentation(
 
 	// 1. Handle HM Signature
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
-		let method_errors = process_document_signature(
+		process_document_signature(
 			method,
 			attr_pos,
 			self_ty,
@@ -162,14 +158,13 @@ fn process_method_documentation(
 			document_use.as_deref(),
 			item_impl_generics,
 			config,
+			errors,
 		);
-		errors.extend(method_errors);
 	}
 
 	// 2. Handle Doc Type Params
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS) {
-		let method_errors = process_document_type_parameters(method, attr_pos);
-		errors.extend(method_errors);
+		process_document_type_parameters(method, attr_pos, errors);
 	}
 
 	// 3. Document parameters is now handled directly in document_parameters.rs
