@@ -180,7 +180,9 @@ To implement this trait for your type constructor, use the [`{IMPL_KIND_MACRO}!`
 	fn build_naming_section(&self) -> String {
 		let name = self.name;
 		format!(
-			"# Naming\n\nThe trait name `{name}` is a deterministic hash of the canonical signature,\nensuring that semantically equivalent signatures always map to the same trait."
+			r#"# Naming
+
+The trait name `{name}` is a deterministic hash of the canonical signature, ensuring that semantically equivalent signatures always map to the same trait."#
 		)
 	}
 

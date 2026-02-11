@@ -33,7 +33,7 @@ pub struct FnBrandInfo {
 ///
 /// ### Returns
 /// `Some(FnBrandInfo)` if this is a valid FnBrand pattern, `None` otherwise.
-pub fn extract_fn_brand_info(
+pub fn get_fn_brand_info(
 	type_path: &syn::TypePath,
 	config: &Config,
 ) -> Option<FnBrandInfo> {
@@ -66,7 +66,7 @@ pub fn extract_fn_brand_info(
 ///
 /// ### Returns
 /// `Some((brand, args))` if this is a valid Apply! macro, `None` otherwise.
-pub fn extract_apply_macro_info(
+pub fn get_apply_macro_parameters(
 	type_macro: &syn::TypeMacro
 ) -> Option<(syn::Type, Vec<syn::Type>)> {
 	if type_macro.mac.path.is_ident(macros::APPLY_MACRO)

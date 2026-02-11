@@ -4,8 +4,8 @@ use crate::{
 		Result as OurResult, config::Config, constants::attributes::DOCUMENT_MODULE,
 		error_handling::ErrorCollector,
 	},
-	resolution::extract_context,
-	support::parsing::{parse_many, parse_non_empty, try_parse_one_of},
+	resolution::get_context,
+	support::parsing::{parse_many, parse_non_empty, parse_with_dispatch},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -88,7 +88,7 @@ fn parse_document_module_input(item: TokenStream) -> Result<ParsedInput, syn::Er
 	// Try to parse as ItemMod first (more specific), then fall back to DocumentModuleInput
 	// This is critical: ItemMod must be checked first, otherwise `#[document_module] mod inner { ... }`
 	// would be parsed as DocumentModuleInput containing a single module item, losing the wrapper.
-	try_parse_one_of(
+	parse_with_dispatch(
 		item,
 		vec![
 			Box::new(|tokens| {
@@ -123,10 +123,10 @@ pub fn document_module_worker(
 	let mut config = Config::default();
 
 	// Pass 1: Context Extraction (handles both top-level and nested)
-	extract_context(&items, &mut config)?;
+	get_context(&items, &mut config)?;
 
 	// Also recursively extract from nested modules
-	apply_to_nested_modules(&mut items, extract_context, &mut config)?;
+	apply_to_nested_modules(&mut items, get_context, &mut config)?;
 
 	// Pass 2: Documentation Generation (handles both top-level and nested)
 	generate_documentation(&mut items, &config)?;

@@ -147,7 +147,7 @@ impl Parse for ReExportInput {
 
 /// Detects if a file uses a `pub use module_name::*;` re-export pattern.
 /// Returns the module name if found (e.g., "inner").
-fn detect_reexport_pattern(file: &syn::File) -> Option<String> {
+fn detect_re_export_pattern(file: &syn::File) -> Option<String> {
 	for item in &file.items {
 		if let Item::Use(use_item) = item
 			&& matches!(use_item.vis, Visibility::Public(_))
@@ -263,7 +263,7 @@ fn scan_directory_and_collect(
 					continue; // Skip files that can't be read
 				};
 				if let Ok(file) = parse_file(&content) {
-					let reexport_module = detect_reexport_pattern(&file);
+					let reexport_module = detect_re_export_pattern(&file);
 
 					// Collect public items using the formatter
 					let items = collect_public_items(&file, reexport_module.as_deref(), |item| {

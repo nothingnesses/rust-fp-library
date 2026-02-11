@@ -6,16 +6,22 @@
 //! It is divided into several sub-modules:
 //! - [`attributes`]: Utilities for parsing and filtering attributes, including doc-specific ones.
 //! - [`parsing`]: Common parsing patterns for `syn` and input validation helpers.
-//! - [`syntax`]: High-level abstractions for working with Rust items and generating documentation.
+//! - [`ast`]: RustAst enum for representing various Rust syntax items.
+//! - [`documentation_parameters`]: Documentation argument parsing for documentation macros.
+//! - [`generate_documentation`]: Documentation comment generation utilities.
+//! - [`get_parameters`]: Logical parameter extraction from function signatures.
 //! - [`type_visitor`]: Trait for traversing and transforming Rust type syntax trees.
-//! - [`field_docs`]: Unified field documentation generation for structs and enum variants.
+//! - [`document_field`]: Unified field documentation generation for structs and enum variants.
 
+pub mod ast;
 pub mod attributes;
-pub mod field_docs;
+pub mod document_field;
+pub mod documentation_parameters;
+pub mod generate_documentation;
+pub mod get_parameters;
 pub mod parsing;
-pub mod syntax;
 pub mod type_visitor;
 
 // Re-export commonly used items
-pub use syntax::{LogicalParam, get_logical_params, is_phantom_data, last_path_segment};
+pub use get_parameters::{Parameter, get_parameters, is_phantom_data, last_path_segment};
 pub use type_visitor::TypeVisitor;

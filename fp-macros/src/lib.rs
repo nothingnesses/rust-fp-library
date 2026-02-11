@@ -4,10 +4,10 @@
 
 pub(crate) mod analysis; // Type and trait analysis
 pub(crate) mod codegen; // Code generation (includes re-exports)
-pub(crate) mod conversion; // Hindley-Milner type conversion
 pub(crate) mod core; // Core infrastructure (config, error, result)
 pub(crate) mod documentation; // Documentation generation macros
 pub(crate) mod hkt; // Higher-Kinded Type macros
+pub(crate) mod hm; // Hindley-Milner type conversion
 pub(crate) mod resolution; // Type resolution
 pub(crate) mod support; // Support utilities (attributes, syntax, validation, errors)
 

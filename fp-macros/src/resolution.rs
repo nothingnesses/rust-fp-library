@@ -11,6 +11,6 @@ pub mod impl_key;
 pub mod projection_key;
 pub mod resolver;
 
-pub use context::extract_context;
+pub use context::get_context;
 pub use impl_key::ImplKey;
 pub use projection_key::ProjectionKey;

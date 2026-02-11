@@ -9,6 +9,6 @@ pub mod generics;
 pub mod patterns;
 pub mod traits;
 
-pub use generics::{analyze_generics, extract_all_params, extract_type_params};
-pub use patterns::{extract_apply_macro_info, extract_fn_brand_info};
+pub use generics::{analyze_generics, get_all_parameters, get_type_parameters};
+pub use patterns::{get_apply_macro_parameters, get_fn_brand_info};
 pub use traits::{TraitCategory, classify_trait, format_brand_name};

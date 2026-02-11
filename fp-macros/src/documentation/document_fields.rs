@@ -2,7 +2,7 @@ use crate::{
 	core::{Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS},
 	support::{
 		attributes::AttributeExt,
-		field_docs::{FieldDocArgs, FieldDocumenter, FieldInfo},
+		document_field::{DocumentFieldParameters, FieldDocumenter, FieldInfo},
 	},
 };
 use proc_macro2::TokenStream;
@@ -25,7 +25,8 @@ fn document_enum_fields(mut item_enum: ItemEnum) -> Result<TokenStream> {
 /// Processes a single variant's `#[document_fields(...)]` attribute if present.
 fn process_variant_fields(variant: &mut Variant) -> Result<()> {
 	// Find, remove, and parse the attribute in one operation
-	let Some(args) = variant.attrs.find_and_remove::<FieldDocArgs>(DOCUMENT_FIELDS)? else {
+	let Some(args) = variant.attrs.find_and_remove::<DocumentFieldParameters>(DOCUMENT_FIELDS)?
+	else {
 		// No attribute on this variant, skip it
 		return Ok(());
 	};
@@ -66,7 +67,7 @@ pub fn document_fields_worker(
 
 	// Fall back to struct handling
 	let mut item_struct = syn::parse2::<ItemStruct>(item_tokens)?;
-	let args = syn::parse2::<FieldDocArgs>(attr.clone())?;
+	let args = syn::parse2::<DocumentFieldParameters>(attr.clone())?;
 
 	// Extract field information
 	let field_info =
@@ -82,7 +83,7 @@ pub fn document_fields_worker(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::support::syntax::get_doc;
+	use crate::support::generate_documentation::get_doc;
 	use quote::quote;
 
 	#[test]

@@ -1,6 +1,6 @@
 use crate::{
 	core::{Result, constants::attributes::DOCUMENT_TYPE_PARAMETERS},
-	support::{parsing, syntax::generate_doc_comments},
+	support::{generate_documentation::generate_doc_comments, parsing},
 };
 use proc_macro2::TokenStream;
 use syn::{GenericParam, spanned::Spanned};
@@ -35,7 +35,7 @@ pub fn document_type_parameters_worker(
 #[cfg(test)]
 mod doc_type_params_tests {
 	use super::*;
-	use crate::support::syntax::get_doc;
+	use crate::support::generate_documentation::get_doc;
 	use quote::quote;
 	use syn::ItemFn;
 

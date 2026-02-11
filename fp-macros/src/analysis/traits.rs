@@ -1,11 +1,11 @@
 //! Trait classification and analysis.
 
 use crate::{
-	conversion::HmAst,
 	core::{
 		config::Config,
 		constants::{brands, macros, markers, traits},
 	},
+	hm::HmAst,
 	support::last_path_segment,
 };
 use std::collections::{HashMap, HashSet};
@@ -35,7 +35,7 @@ pub fn classify_trait(
 ///
 /// Returns Some(HMType) if the trait bound is a function trait (Fn, FnMut, FnOnce, or FnBrand),
 /// None otherwise.
-pub fn extract_fn_type_from_bound(
+pub fn get_fn_type_from_bound(
 	trait_bound: &syn::TraitBound,
 	fn_bounds: &HashMap<String, HmAst>,
 	generic_names: &HashSet<String>,
@@ -44,7 +44,7 @@ pub fn extract_fn_type_from_bound(
 	let segment = last_path_segment(&trait_bound.path)?;
 	let name = segment.ident.to_string();
 	match classify_trait(&name, config) {
-		TraitCategory::FnTrait => Some(crate::conversion::converter::trait_bound_to_hm_arrow(
+		TraitCategory::FnTrait => Some(crate::hm::converter::trait_bound_to_hm_arrow(
 			trait_bound,
 			fn_bounds,
 			generic_names,

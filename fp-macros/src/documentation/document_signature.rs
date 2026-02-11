@@ -1,15 +1,14 @@
 use crate::{
 	analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
-	conversion::{HmAst, type_to_hm},
 	core::{
 		config::{Config, get_config},
 		constants::attributes::DOCUMENT_SIGNATURE,
 		{Error, Result},
 	},
+	hm::{HmAst, type_to_hm},
 	support::{
-		is_phantom_data,
+		ast::RustAst, generate_documentation::insert_doc_comment, is_phantom_data,
 		parsing::parse_empty_attributes,
-		syntax::{GenericItem, insert_doc_comment},
 	},
 };
 use proc_macro2::TokenStream;
@@ -24,10 +23,10 @@ pub fn document_signature_worker(
 	parse_empty_attributes(attr)?;
 
 	// Parse the item
-	let mut item = GenericItem::parse(item_tokens).map_err(Error::Parse)?;
+	let mut item = RustAst::parse(item_tokens).map_err(Error::Parse)?;
 
 	// Get the function signature
-	let sig = item.sig().ok_or_else(|| {
+	let sig = item.signature().ok_or_else(|| {
 		Error::validation(
 			proc_macro2::Span::call_site(),
 			format!("{DOCUMENT_SIGNATURE} can only be used on functions or methods"),
@@ -42,7 +41,7 @@ pub fn document_signature_worker(
 	let doc_comment = format!("`{signature}`");
 
 	// Insert the documentation comment
-	insert_doc_comment(item.attrs(), doc_comment, proc_macro2::Span::call_site());
+	insert_doc_comment(item.attributes(), doc_comment, proc_macro2::Span::call_site());
 
 	Ok(quote::quote! {
 		#item
@@ -247,6 +246,7 @@ fn format_return_type(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::support::generate_documentation::get_doc;
 	use syn::{ItemFn, parse_quote};
 
 	#[test]
@@ -363,10 +363,6 @@ mod tests {
 		insert_doc_comment(&mut input_fn.attrs, "Signature".to_string(), macro_span);
 
 		assert_eq!(input_fn.attrs.len(), 3);
-
-		// Use helper from doc_utils, need to import it or use full path
-		// Since we are in a test module inside the crate, we can access crate::support::syntax
-		use crate::support::syntax::get_doc;
 
 		assert_eq!(get_doc(&input_fn.attrs[0]), "First");
 		assert_eq!(get_doc(&input_fn.attrs[1]), "Signature");

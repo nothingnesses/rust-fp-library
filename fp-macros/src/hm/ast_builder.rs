@@ -4,17 +4,16 @@
 //! to transform Rust types into Hindley-Milner representations.
 
 use crate::{
-	analysis::{extract_apply_macro_info, extract_fn_brand_info, traits::format_brand_name},
-	conversion::{
-		HmAst,
-		converter::{
-			extract_smart_pointer_inner, is_phantom_data_path, is_smart_pointer,
-			trait_bound_to_hm_type,
-		},
-	},
+	analysis::{get_apply_macro_parameters, get_fn_brand_info, traits::format_brand_name},
 	core::{
 		config::Config,
 		constants::{markers, types},
+	},
+	hm::{
+		HmAst,
+		converter::{
+			get_smart_pointer_inner, is_phantom_data_path, is_smart_pointer, trait_bound_to_hm_type,
+		},
 	},
 	support::{TypeVisitor, last_path_segment},
 };
@@ -43,7 +42,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		type_path: &syn::TypePath,
 	) -> Self::Output {
 		// Check for FnBrand pattern using shared helper
-		if let Some(fn_brand_info) = extract_fn_brand_info(type_path, self.config) {
+		if let Some(fn_brand_info) = get_fn_brand_info(type_path, self.config) {
 			let input_hm_types: Vec<_> =
 				fn_brand_info.inputs.iter().map(|ty| self.visit(ty)).collect();
 			let output_hm = self.visit(&fn_brand_info.output);
@@ -146,7 +145,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			let name = segment.ident.to_string();
 
 			if is_smart_pointer(&name)
-				&& let Some(inner_ty) = extract_smart_pointer_inner(segment)
+				&& let Some(inner_ty) = get_smart_pointer_inner(segment)
 			{
 				return self.visit(inner_ty);
 			}
@@ -220,7 +219,7 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 		type_macro: &syn::TypeMacro,
 	) -> Self::Output {
 		// Check for Apply! macro using shared helper
-		if let Some((brand, args)) = extract_apply_macro_info(type_macro) {
+		if let Some((brand, args)) = get_apply_macro_parameters(type_macro) {
 			let constructor_type = self.visit(&brand);
 			let type_args: Vec<_> = args.iter().map(|ty| self.visit(ty)).collect();
 

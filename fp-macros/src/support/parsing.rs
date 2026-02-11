@@ -2,7 +2,7 @@
 
 use crate::{
 	core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
-	support::syntax::DocArg,
+	support::documentation_parameters::DocumentationParameter,
 };
 use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ pub fn parse_non_empty<T>(
 ///
 /// # Example
 /// ```ignore
-/// try_parse_one_of(
+/// parse_with_dispatch(
 ///     item_tokens,
 ///     vec![
 ///         Box::new(|t| syn::parse2::<ItemEnum>(t).map(|e| handle_enum(attr.clone(), e))),
@@ -52,12 +52,12 @@ pub fn parse_non_empty<T>(
 ///     "Expected struct or enum"
 /// )
 /// ```
-pub fn try_parse_one_of<T>(
+pub fn parse_with_dispatch<T>(
 	tokens: TokenStream,
-	attempts: Vec<Box<dyn Fn(TokenStream) -> syn::Result<T>>>,
+	alternatives: Vec<Box<dyn Fn(TokenStream) -> syn::Result<T>>>,
 	error_msg: &str,
 ) -> syn::Result<T> {
-	for attempt in attempts {
+	for attempt in alternatives {
 		if let Ok(result) = attempt(tokens.clone()) {
 			return Ok(result);
 		}
@@ -336,9 +336,9 @@ pub fn format_nonexistent_item_error(
 /// - Number of descriptions doesn't match number of parameters
 pub fn parse_parameter_documentation_pairs(
 	targets: Vec<String>,
-	entries: Vec<DocArg>,
+	entries: Vec<DocumentationParameter>,
 	span: Span,
-) -> Result<Vec<(String, DocArg)>> {
+) -> Result<Vec<(String, DocumentationParameter)>> {
 	let expected = targets.len();
 	let found = entries.len();
 

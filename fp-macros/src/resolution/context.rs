@@ -1,6 +1,6 @@
 use super::resolver::{normalize_type, type_uses_self_assoc};
 use crate::{
-	analysis::extract_all_params,
+	analysis::get_all_parameters,
 	core::{
 		config::Config,
 		constants::{
@@ -13,7 +13,7 @@ use crate::{
 	resolution::{ImplKey, ProjectionKey},
 	support::{
 		attributes::has_attr,
-		syntax::{DocArg, GenericArgs},
+		documentation_parameters::{DocumentationParameter, DocumentationParameters},
 	},
 };
 use quote::ToTokens;
@@ -131,7 +131,7 @@ fn process_impl_type_parameter_documentation(
 	for attr in &item_impl.attrs {
 		if attr.path().is_ident(DOCUMENT_TYPE_PARAMETERS) {
 			// Get impl generics
-			let targets = extract_all_params(&item_impl.generics);
+			let targets = get_all_parameters(&item_impl.generics);
 
 			// Error if impl has no type parameters
 			if targets.is_empty() {
@@ -145,7 +145,7 @@ fn process_impl_type_parameter_documentation(
 			}
 
 			// Parse the arguments
-			if let Some(args) = errors.collect(|| attr.parse_args::<GenericArgs>()) {
+			if let Some(args) = errors.collect(|| attr.parse_args::<DocumentationParameters>()) {
 				let entries: Vec<_> = args.entries.iter().collect();
 				if entries.len() != targets.len() {
 					errors.push(Error::new(
@@ -160,8 +160,10 @@ fn process_impl_type_parameter_documentation(
 					let mut docs = Vec::new();
 					for (name_from_target, entry) in targets.iter().zip(entries) {
 						let (_name, desc) = match entry {
-							DocArg::Override(n, d) => (n.value(), d.value()),
-							DocArg::Desc(d) => (name_from_target.clone(), d.value()),
+							DocumentationParameter::Override(n, d) => (n.value(), d.value()),
+							DocumentationParameter::Description(d) => {
+								(name_from_target.clone(), d.value())
+							}
 						};
 						docs.push((name_from_target.clone(), desc));
 					}
@@ -276,7 +278,7 @@ fn validate_scoped_defaults(
 /// - Impl-level type parameter documentation
 /// - Associated type definitions
 /// - Scoped defaults with conflict detection
-pub fn extract_context(
+pub fn get_context(
 	items: &[Item],
 	config: &mut Config,
 ) -> Result<()> {

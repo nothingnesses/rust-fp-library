@@ -6,8 +6,8 @@
 //! - Visitor patterns for type transformation
 
 pub mod ast;
+pub mod ast_builder;
 pub mod converter;
-pub mod hm_ast_builder;
 
 pub use ast::HmAst;
 pub use converter::type_to_hm;

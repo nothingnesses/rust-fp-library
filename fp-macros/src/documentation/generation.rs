@@ -1,5 +1,5 @@
 use crate::{
-	analysis::extract_all_params,
+	analysis::get_all_parameters,
 	core::{
 		config::Config,
 		constants::attributes::{DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE},
@@ -8,15 +8,14 @@ use crate::{
 	documentation::document_signature::generate_signature,
 	resolution::{
 		ImplKey,
-		resolver::{
-			SelfSubstitutor, extract_concrete_type_name, extract_self_type_info, merge_generics,
-		},
+		resolver::{SelfSubstitutor, get_concrete_type_name, get_self_type_info, merge_generics},
 	},
 	support::{
 		attributes::{AttributeExt, find_attribute},
+		documentation_parameters::{DocumentationParameter, DocumentationParameters},
+		generate_documentation::format_parameter_doc,
 		parsing,
 		parsing::parse_parameter_documentation_pairs,
-		syntax::{DocArg, GenericArgs, format_parameter_doc},
 	},
 };
 use quote::quote;
@@ -41,7 +40,7 @@ pub(super) fn process_document_signature(
 	let mut synthetic_sig = method.sig.clone();
 
 	// Extract base type name and generic parameters from impl
-	let (base_type_name, impl_generic_params) = extract_self_type_info(self_ty, item_impl_generics);
+	let (base_type_name, impl_generic_params) = get_self_type_info(self_ty, item_impl_generics);
 
 	// Resolve Self
 	let mut substitutor = SelfSubstitutor::new(
@@ -65,7 +64,7 @@ pub(super) fn process_document_signature(
 	let mut sig_config = config.clone();
 
 	// Extract and add the concrete type name
-	if let Some(concrete_type_name) = extract_concrete_type_name(self_ty, config) {
+	if let Some(concrete_type_name) = get_concrete_type_name(self_ty, config) {
 		sig_config.concrete_types.insert(concrete_type_name.clone());
 		sig_config.self_type_name = Some(concrete_type_name);
 	}
@@ -86,7 +85,7 @@ pub(super) fn process_document_type_parameters(
 	let attr = method.attrs.remove(attr_pos);
 
 	// Get method-only generics (not including impl generics)
-	let method_param_names: Vec<String> = extract_all_params(&method.sig.generics);
+	let method_param_names: Vec<String> = get_all_parameters(&method.sig.generics);
 
 	// Error if method has no type parameters - use collect_our_result
 	if errors
@@ -105,7 +104,7 @@ pub(super) fn process_document_type_parameters(
 	}
 
 	// Try to parse the arguments from the attribute
-	if let Some(args) = errors.collect(|| attr.parse_args::<GenericArgs>()) {
+	if let Some(args) = errors.collect(|| attr.parse_args::<DocumentationParameters>()) {
 		let entries: Vec<_> = args.entries.into_iter().collect();
 
 		if let Some(pairs) = errors.collect_our_result(|| {
@@ -113,8 +112,8 @@ pub(super) fn process_document_type_parameters(
 		}) {
 			for (i, (name_from_target, entry)) in pairs.into_iter().enumerate() {
 				let (name, desc) = match entry {
-					DocArg::Override(n, d) => (n.value(), d.value()),
-					DocArg::Desc(d) => (name_from_target, d.value()),
+					DocumentationParameter::Override(n, d) => (n.value(), d.value()),
+					DocumentationParameter::Description(d) => (name_from_target, d.value()),
 				};
 
 				let doc_comment = format_parameter_doc(&name, &desc);

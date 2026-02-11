@@ -5,8 +5,8 @@
 use crate::{
 	core::{Error as CoreError, Result},
 	support::{
+		generate_documentation::{format_parameter_doc, insert_doc_comment},
 		parsing,
-		syntax::{format_parameter_doc, insert_doc_comment},
 	},
 };
 use std::collections::HashMap;
@@ -18,36 +18,36 @@ use syn::{Attribute, Fields, Ident, LitStr, Token};
 ///
 /// For named fields: `field_name: "description"`
 /// For tuple fields: just `"description"`
-pub enum FieldDocArg {
+pub enum DocumentFieldParameter {
 	/// Named field: `field_name: "description"`
 	Named(Ident, LitStr),
 	/// Unnamed field (tuple): `"description"`
 	Unnamed(LitStr),
 }
 
-impl Parse for FieldDocArg {
+impl Parse for DocumentFieldParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		// Try to parse as named field first: ident : "string"
 		if input.peek(Ident) && input.peek2(Token![:]) {
 			let ident: Ident = input.parse()?;
 			let _: Token![:] = input.parse()?;
 			let lit: LitStr = input.parse()?;
-			Ok(FieldDocArg::Named(ident, lit))
+			Ok(DocumentFieldParameter::Named(ident, lit))
 		} else {
 			// Otherwise, parse as unnamed field: "string"
 			let lit: LitStr = input.parse()?;
-			Ok(FieldDocArg::Unnamed(lit))
+			Ok(DocumentFieldParameter::Unnamed(lit))
 		}
 	}
 }
 
-pub struct FieldDocArgs {
-	pub entries: Punctuated<FieldDocArg, Token![,]>,
+pub struct DocumentFieldParameters {
+	pub entries: Punctuated<DocumentFieldParameter, Token![,]>,
 }
 
-impl Parse for FieldDocArgs {
+impl Parse for DocumentFieldParameters {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(FieldDocArgs { entries: Punctuated::parse_terminated(input)? })
+		Ok(DocumentFieldParameters { entries: Punctuated::parse_terminated(input)? })
 	}
 }
 
@@ -139,7 +139,7 @@ impl FieldDocumenter {
 	/// - `Err` if validation failed
 	pub fn validate_and_generate(
 		&self,
-		args: FieldDocArgs,
+		args: DocumentFieldParameters,
 		attrs: &mut Vec<Attribute>,
 	) -> Result<()> {
 		match &self.field_info {
@@ -155,7 +155,7 @@ impl FieldDocumenter {
 	/// Process named fields.
 	fn process_named_fields(
 		&self,
-		args: FieldDocArgs,
+		args: DocumentFieldParameters,
 		expected_fields: &[Ident],
 		attrs: &mut Vec<Attribute>,
 	) -> Result<()> {
@@ -164,12 +164,12 @@ impl FieldDocumenter {
 
 		for entry in &args.entries {
 			match entry {
-				FieldDocArg::Named(ident, desc) => {
+				DocumentFieldParameter::Named(ident, desc) => {
 					let existing = provided_fields.insert(ident.clone(), desc.clone());
 					let _ =
 						parsing::parse_no_duplicate(ident, desc.clone(), existing, self.context)?;
 				}
-				FieldDocArg::Unnamed(_) => {
+				DocumentFieldParameter::Unnamed(_) => {
 					return Err(CoreError::Parse(syn::Error::new(
 						self.attr_span,
 						format!(
@@ -203,7 +203,7 @@ impl FieldDocumenter {
 	/// Process unnamed (tuple) fields.
 	fn process_unnamed_fields(
 		&self,
-		args: FieldDocArgs,
+		args: DocumentFieldParameters,
 		expected_count: usize,
 		attrs: &mut Vec<Attribute>,
 	) -> Result<()> {
@@ -212,10 +212,10 @@ impl FieldDocumenter {
 
 		for entry in &args.entries {
 			match entry {
-				FieldDocArg::Unnamed(desc) => {
+				DocumentFieldParameter::Unnamed(desc) => {
 					descriptions.push(desc.clone());
 				}
-				FieldDocArg::Named(ident, _) => {
+				DocumentFieldParameter::Named(ident, _) => {
 					return Err(CoreError::Parse(syn::Error::new(
 						ident.span(),
 						format!(
@@ -255,9 +255,9 @@ mod tests {
 	#[test]
 	fn test_field_doc_arg_named() {
 		let tokens = quote! { x: "description" };
-		let arg: FieldDocArg = syn::parse2(tokens).unwrap();
+		let arg: DocumentFieldParameter = syn::parse2(tokens).unwrap();
 		match arg {
-			FieldDocArg::Named(ident, desc) => {
+			DocumentFieldParameter::Named(ident, desc) => {
 				assert_eq!(ident.to_string(), "x");
 				assert_eq!(desc.value(), "description");
 			}
@@ -268,9 +268,9 @@ mod tests {
 	#[test]
 	fn test_field_doc_arg_unnamed() {
 		let tokens = quote! { "description" };
-		let arg: FieldDocArg = syn::parse2(tokens).unwrap();
+		let arg: DocumentFieldParameter = syn::parse2(tokens).unwrap();
 		match arg {
-			FieldDocArg::Unnamed(desc) => {
+			DocumentFieldParameter::Unnamed(desc) => {
 				assert_eq!(desc.value(), "description");
 			}
 			_ => panic!("Expected Unnamed variant"),

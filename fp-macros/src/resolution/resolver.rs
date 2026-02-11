@@ -229,7 +229,7 @@
 //! to the user with proper span information.
 
 use crate::{
-	analysis::{extract_type_params, format_brand_name},
+	analysis::{format_brand_name, get_type_parameters},
 	core::{
 		config::Config,
 		constants::{macros, types},
@@ -246,7 +246,7 @@ use syn::{
 };
 
 /// Extract the concrete type name from a Type for use in HM signatures
-pub fn extract_concrete_type_name(
+pub fn get_concrete_type_name(
 	ty: &syn::Type,
 	config: &Config,
 ) -> Option<String> {
@@ -266,7 +266,7 @@ pub fn extract_concrete_type_name(
 
 /// Extract base type name and generic parameter names from impl self type
 /// For `impl<A> CatList<A>`, returns ("CatList", ["A"])
-pub fn extract_self_type_info(
+pub fn get_self_type_info(
 	self_ty: &syn::Type,
 	impl_generics: &syn::Generics,
 ) -> (Option<String>, Vec<String>) {
@@ -277,7 +277,7 @@ pub fn extract_self_type_info(
 		_ => None,
 	};
 
-	let generic_names = extract_type_params(impl_generics);
+	let generic_names = get_type_parameters(impl_generics);
 
 	(base_name, generic_names)
 }

@@ -5,11 +5,11 @@
 
 use crate::{
 	analysis::traits::format_brand_name,
-	conversion::{HmAst, hm_ast_builder::HmAstBuilder},
 	core::{
 		config::Config,
 		constants::{traits, types},
 	},
+	hm::{HmAst, ast_builder::HmAstBuilder},
 	support::{TypeVisitor, last_path_segment},
 };
 use std::collections::{HashMap, HashSet};
@@ -52,7 +52,7 @@ pub(crate) fn is_smart_pointer(name: &str) -> bool {
 }
 
 /// Helper function to extract the inner type from a smart pointer if present
-pub(crate) fn extract_smart_pointer_inner(segment: &syn::PathSegment) -> Option<&syn::Type> {
+pub(crate) fn get_smart_pointer_inner(segment: &syn::PathSegment) -> Option<&syn::Type> {
 	if let PathArguments::AngleBracketed(args) = &segment.arguments
 		&& let Some(GenericArgument::Type(inner_ty)) = args.args.first()
 	{

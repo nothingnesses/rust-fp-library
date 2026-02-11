@@ -3,10 +3,11 @@ use crate::{
 		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
 	},
 	support::{
-		LogicalParam,
+		Parameter,
 		attributes::{find_attribute, remove_attribute_tokens},
-		get_logical_params, parsing,
-		syntax::insert_doc_comments_batch,
+		documentation_parameters::{DocumentationParameter, DocumentationParameters},
+		generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
+		get_parameters, parsing,
 	},
 };
 use proc_macro2::TokenStream;
@@ -41,7 +42,7 @@ fn process_method_in_impl(
 	let attr_tokens = remove_attribute_tokens(&mut method.attrs, attr_pos)?;
 
 	// Get logical params (excluding receiver)
-	let logical_params = get_logical_params(&method.sig, config);
+	let logical_params = get_parameters(&method.sig, config);
 
 	// Check if method has receiver
 	let has_receiver =
@@ -58,7 +59,7 @@ fn process_method_in_impl(
 	}
 
 	// Parse the arguments from the attribute (may be empty for receiver-only docs)
-	let parse_result = syn::parse2::<crate::support::syntax::GenericArgs>(attr_tokens.clone());
+	let parse_result = syn::parse2::<DocumentationParameters>(attr_tokens.clone());
 
 	// Get entries, which may be empty if only documenting receiver
 	let entries: Vec<_> = if let Ok(args) = parse_result {
@@ -109,17 +110,17 @@ fn process_method_in_impl(
 	// Add other parameters
 	for (param, entry) in logical_params.iter().zip(entries) {
 		let (name, desc) = match (param, entry) {
-			(LogicalParam::Explicit(_pat), crate::support::syntax::DocArg::Override(n, d)) => {
+			(Parameter::Explicit(_pat), DocumentationParameter::Override(n, d)) => {
 				(n.value(), d.value())
 			}
-			(LogicalParam::Explicit(pat), crate::support::syntax::DocArg::Desc(d)) => {
+			(Parameter::Explicit(pat), DocumentationParameter::Description(d)) => {
 				let name = pat.to_token_stream().to_string().replace(" , ", ", ");
 				(name, d.value())
 			}
-			(LogicalParam::Implicit(_), crate::support::syntax::DocArg::Override(n, d)) => {
+			(Parameter::Implicit(_), DocumentationParameter::Override(n, d)) => {
 				(n.value(), d.value())
 			}
-			(LogicalParam::Implicit(_), crate::support::syntax::DocArg::Desc(d)) => {
+			(Parameter::Implicit(_), DocumentationParameter::Description(d)) => {
 				("_".to_string(), d.value())
 			}
 		};
@@ -190,26 +191,26 @@ pub fn document_parameters_worker(
 	}
 
 	// Otherwise, process as a function with generate_doc_comments
-	crate::support::syntax::generate_doc_comments(attr, item_tokens, |generic_item| {
+	generate_doc_comments(attr, item_tokens, |generic_item| {
 		let config = get_config();
 
-		let sig = generic_item.sig().ok_or_else(|| {
+		let sig = generic_item.signature().ok_or_else(|| {
 			syn::Error::new(
 				proc_macro2::Span::call_site(),
 				format!("{DOCUMENT_PARAMETERS} can only be used on functions or impl blocks"),
 			)
 		})?;
 
-		let logical_params = get_logical_params(sig, &config);
+		let logical_params = get_parameters(sig, &config);
 
 		Ok(logical_params
 			.into_iter()
 			.map(|param| match param {
-				LogicalParam::Explicit(pat) => {
+				Parameter::Explicit(pat) => {
 					let s = pat.to_token_stream().to_string();
 					s.replace(" , ", ", ")
 				}
-				LogicalParam::Implicit(_) => "_".to_string(),
+				Parameter::Implicit(_) => "_".to_string(),
 			})
 			.collect())
 	})
@@ -218,7 +219,7 @@ pub fn document_parameters_worker(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::support::syntax::get_doc;
+	use crate::support::generate_documentation::get_doc;
 	use quote::quote;
 	use syn::ItemFn;
 

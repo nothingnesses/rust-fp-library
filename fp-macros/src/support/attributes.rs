@@ -102,7 +102,7 @@ pub fn filter_doc_attributes(attrs: &[Attribute]) -> impl Iterator<Item = &Attri
 /// ```ignore
 /// let idx = find_attribute(&item.attrs, "document_fields").unwrap();
 /// let tokens = remove_attribute_tokens(&mut item.attrs, idx)?;
-/// let args: FieldDocArgs = syn::parse2(tokens)?;
+/// let args: DocumentFieldParameters = syn::parse2(tokens)?;
 /// ```
 pub fn remove_attribute_tokens(
 	attrs: &mut Vec<Attribute>,
@@ -160,7 +160,7 @@ pub fn parse_unique_attribute_value(
 /// use crate::support::attributes::AttributeExt;
 ///
 /// // Find and remove a parsed attribute
-/// if let Some(args) = item.attrs.find_and_remove::<FieldDocArgs>("document_fields")? {
+/// if let Some(args) = item.attrs.find_and_remove::<DocumentFieldParameters>("document_fields")? {
 ///     // Process args
 /// }
 ///
@@ -184,7 +184,7 @@ pub trait AttributeExt {
 	/// ```ignore
 	/// use crate::support::attributes::AttributeExt;
 	///
-	/// if let Some(args) = item.attrs.find_and_remove::<FieldDocArgs>("document_fields")? {
+	/// if let Some(args) = item.attrs.find_and_remove::<DocumentFieldParameters>("document_fields")? {
 	///     // The attribute has been removed and args are parsed
 	/// }
 	/// ```

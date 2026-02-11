@@ -210,15 +210,21 @@ impl From<Error> for syn::Error {
 
 		// Add suggestion directly to the message for Validation errors
 		if let Error::Validation { suggestion: Some(s), .. } = &err {
-			message = format!("{message}\nhelp: {s}");
+			message = format!(
+				r#"{message}
+  help: {s}"#
+			);
 		}
 
 		// Add available alternatives for Resolution errors
 		if let Error::Resolution { available_types, .. } = &err
 			&& !available_types.is_empty()
 		{
-			message =
-				format!("{message}\nnote: available alternatives: {}", available_types.join(", "));
+			message = format!(
+				r#"{message}
+  note: available alternatives: {}"#,
+				available_types.join(", ")
+			);
 		}
 
 		syn::Error::new(span, message)
@@ -615,9 +621,11 @@ mod tests {
 		assert_eq!(errors.len(), 2);
 
 		let combined_err = errors.finish().unwrap_err();
-		let err_str = combined_err.to_string();
-		assert!(err_str.contains("error 1"));
-		assert!(err_str.contains("error 2"));
+		// syn::Error::combine() combines errors for to_compile_error() output
+		// to_string() only shows the first error, so we check to_compile_error() instead
+		let compile_err_str = combined_err.to_compile_error().to_string();
+		assert!(compile_err_str.contains("error 1"));
+		assert!(compile_err_str.contains("error 2"));
 	}
 
 	#[test]
