@@ -1,6 +1,6 @@
 use crate::{
 	core::{Result, constants::attributes::DOCUMENT_TYPE_PARAMETERS},
-	support::{syntax::generate_doc_comments, validation},
+	support::{parsing, syntax::generate_doc_comments},
 };
 use proc_macro2::TokenStream;
 use syn::{GenericParam, spanned::Spanned};
@@ -13,7 +13,7 @@ pub fn document_type_parameters_worker(
 		let generics = generic_item.generics();
 
 		// Error if there are no type parameters
-		validation::validate_has_documentable_items(
+		let _count = parsing::parse_has_documentable_items(
 			generics.params.len(),
 			generics.span(),
 			DOCUMENT_TYPE_PARAMETERS,
@@ -94,7 +94,8 @@ mod doc_type_params_tests {
 
 		let output = document_type_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(error.contains("Expected 2 description arguments, found 1."));
+		assert!(error.contains("Expected 2 description arguments"));
+		assert!(error.contains("found 1"));
 	}
 
 	#[test]

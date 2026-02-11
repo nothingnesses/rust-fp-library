@@ -14,9 +14,9 @@ use crate::{
 	},
 	support::{
 		attributes::{AttributeExt, find_attribute},
+		parsing,
 		parsing::parse_parameter_documentation_pairs,
 		syntax::{DocArg, GenericArgs, format_parameter_doc},
-		validation,
 	},
 };
 use quote::quote;
@@ -91,7 +91,7 @@ pub(super) fn process_document_type_parameters(
 	let method_param_names: Vec<String> = extract_all_params(&method.sig.generics);
 
 	// Error if method has no type parameters
-	if let Err(e) = validation::validate_has_documentable_items(
+	if let Err(e) = parsing::parse_has_documentable_items(
 		method_param_names.len(),
 		attr.span(),
 		DOCUMENT_TYPE_PARAMETERS,

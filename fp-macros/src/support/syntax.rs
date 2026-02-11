@@ -3,7 +3,7 @@ use crate::{
 	conversion::patterns::extract_fn_brand_info,
 	core::{config::Config, constants::types},
 	support::{
-		parsing::{parse_first, parse_parameter_documentation_pairs},
+		parsing::{parse_parameter_documentation_pairs, try_parse_one_of},
 		type_visitor::TypeVisitor,
 	},
 };
@@ -32,18 +32,18 @@ pub enum GenericItem {
 
 impl GenericItem {
 	pub fn parse(item: TokenStream) -> syn::Result<Self> {
-		parse_first(
+		try_parse_one_of(
 			item,
 			vec![
-				|i| syn::parse2::<ItemFn>(i).map(GenericItem::Fn),
-				|i| syn::parse2::<TraitItemFn>(i).map(GenericItem::TraitFn),
-				|i| syn::parse2::<ImplItemFn>(i).map(GenericItem::ImplFn),
-				|i| syn::parse2::<syn::ItemImpl>(i).map(GenericItem::Impl),
-				|i| syn::parse2::<syn::ItemStruct>(i).map(GenericItem::Struct),
-				|i| syn::parse2::<syn::ItemEnum>(i).map(GenericItem::Enum),
-				|i| syn::parse2::<syn::ItemUnion>(i).map(GenericItem::Union),
-				|i| syn::parse2::<syn::ItemTrait>(i).map(GenericItem::Trait),
-				|i| syn::parse2::<syn::ItemType>(i).map(GenericItem::Type),
+				Box::new(|i| syn::parse2::<ItemFn>(i).map(GenericItem::Fn)),
+				Box::new(|i| syn::parse2::<TraitItemFn>(i).map(GenericItem::TraitFn)),
+				Box::new(|i| syn::parse2::<ImplItemFn>(i).map(GenericItem::ImplFn)),
+				Box::new(|i| syn::parse2::<syn::ItemImpl>(i).map(GenericItem::Impl)),
+				Box::new(|i| syn::parse2::<syn::ItemStruct>(i).map(GenericItem::Struct)),
+				Box::new(|i| syn::parse2::<syn::ItemEnum>(i).map(GenericItem::Enum)),
+				Box::new(|i| syn::parse2::<syn::ItemUnion>(i).map(GenericItem::Union)),
+				Box::new(|i| syn::parse2::<syn::ItemTrait>(i).map(GenericItem::Trait)),
+				Box::new(|i| syn::parse2::<syn::ItemType>(i).map(GenericItem::Type)),
 			],
 			"Unsupported item type for documentation macros",
 		)

@@ -5,9 +5,8 @@ use crate::{
 	support::{
 		LogicalParam,
 		attributes::{find_attribute, remove_attribute_tokens},
-		get_logical_params,
+		get_logical_params, parsing,
 		syntax::insert_doc_comments_batch,
-		validation,
 	},
 };
 use proc_macro2::TokenStream;
@@ -50,7 +49,7 @@ fn process_method_in_impl(
 
 	// Error if no parameters at all
 	if logical_params.is_empty() && !has_receiver {
-		validation::validate_has_documentable_items(
+		let _ = parsing::parse_has_documentable_items(
 			0, // Explicit 0 to trigger error
 			method.sig.ident.span(),
 			DOCUMENT_PARAMETERS,
@@ -78,10 +77,11 @@ fn process_method_in_impl(
 	};
 
 	// Validate entry count matches logical params (not including receiver)
-	validation::validate_parameter_doc_count(
+	let (_expected, _provided) = parsing::parse_entry_count(
 		logical_params.len(),
 		entries.len(),
 		attr_tokens.span(),
+		"parameter",
 	)?;
 
 	// Generate parameter names for all params including receiver
@@ -290,7 +290,9 @@ mod tests {
 
 		let output = document_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(error.contains("Expected 2 description arguments, found 1."));
+		assert!(
+			error.contains("Expected 2 description arguments (one for each parameter), found 1")
+		);
 	}
 
 	#[test]

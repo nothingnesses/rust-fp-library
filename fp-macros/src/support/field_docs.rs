@@ -5,8 +5,8 @@
 use crate::{
 	core::{Error as CoreError, Result},
 	support::{
+		parsing,
 		syntax::{format_parameter_doc, insert_doc_comment},
-		validation,
 	},
 };
 use std::collections::HashMap;
@@ -76,7 +76,7 @@ impl FieldInfo {
 				let field_names: Vec<_> =
 					fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
 
-				validation::validate_not_zero_sized(
+				let _ = parsing::parse_not_zero_sized(
 					field_names.len(),
 					span,
 					context,
@@ -88,7 +88,7 @@ impl FieldInfo {
 			Fields::Unnamed(fields_unnamed) => {
 				let field_count = fields_unnamed.unnamed.len();
 
-				validation::validate_not_zero_sized(field_count, span, context, attribute_name)?;
+				let _ = parsing::parse_not_zero_sized(field_count, span, context, attribute_name)?;
 
 				Ok(FieldInfo::Unnamed(field_count))
 			}
@@ -166,7 +166,8 @@ impl FieldDocumenter {
 			match entry {
 				FieldDocArg::Named(ident, desc) => {
 					let existing = provided_fields.insert(ident.clone(), desc.clone());
-					validation::check_duplicate_entry(ident, existing, self.context)?;
+					let _ =
+						parsing::parse_no_duplicate(ident, desc.clone(), existing, self.context)?;
 				}
 				FieldDocArg::Unnamed(_) => {
 					return Err(CoreError::Parse(syn::Error::new(
@@ -181,9 +182,9 @@ impl FieldDocumenter {
 		}
 
 		// Validate completeness
-		validation::validate_named_entries(
+		let (_expected, provided_fields) = parsing::parse_named_entries(
 			expected_fields,
-			&provided_fields,
+			provided_fields,
 			self.attr_span,
 			"field",
 		)?;
@@ -227,7 +228,7 @@ impl FieldDocumenter {
 		}
 
 		// Validate count
-		validation::validate_entry_count(
+		let _ = parsing::parse_entry_count(
 			expected_count,
 			descriptions.len(),
 			self.attr_span,
