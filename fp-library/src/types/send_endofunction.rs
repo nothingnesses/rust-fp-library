@@ -8,7 +8,7 @@ mod inner {
 		classes::{Monoid, Semigroup, SendCloneableFn},
 		functions::identity,
 	};
-	use fp_macros::document_parameters;
+	use fp_macros::{document_fields, document_parameters};
 	use std::{
 		fmt::{self, Debug, Formatter},
 		hash::Hash,
@@ -32,7 +32,7 @@ mod inner {
 	///
 	/// ### Fields
 	///
-	/// * `0`: The wrapped thread-safe function.
+	#[document_fields("The wrapped thread-safe function.")]
 	///
 	/// ### Examples
 	///

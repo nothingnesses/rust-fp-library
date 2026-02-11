@@ -15,7 +15,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::document_parameters;
+	use fp_macros::{document_fields, document_parameters};
 
 	/// Wraps two values.
 	///
@@ -28,8 +28,7 @@ mod inner {
 	///
 	/// ### Fields
 	///
-	/// * `0`: The first value.
-	/// * `1`: The second value.
+	#[document_fields("The first value.", "The second value.")]
 	///
 	/// ### Examples
 	///
@@ -42,6 +41,12 @@ mod inner {
 	/// ```
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Pair<First, Second>(pub First, pub Second);
+
+	impl_kind! {
+		for PairBrand {
+			type Of<First,Second> = Pair<First, Second>;
+		}
+	}
 
 	impl_kind! {
 		for PairBrand {

@@ -16,7 +16,7 @@ pub fn find_attribute(
 }
 
 /// Checks if an attribute with the given name exists.
-pub fn has_attr(
+pub fn has_attribute(
 	attrs: &[Attribute],
 	name: &str,
 ) -> bool {
@@ -325,7 +325,7 @@ impl AttributeExt for Vec<Attribute> {
 		&self,
 		name: &str,
 	) -> bool {
-		has_attr(self, name)
+		has_attribute(self, name)
 	}
 
 	fn find_value_or_collect(
@@ -348,8 +348,8 @@ mod tests {
 	fn test_has_attr() {
 		use syn::parse_quote;
 		let attrs: Vec<Attribute> = vec![parse_quote!(#[doc = "test"])];
-		assert!(has_attr(&attrs, "doc"));
-		assert!(!has_attr(&attrs, "test"));
+		assert!(has_attribute(&attrs, "doc"));
+		assert!(!has_attribute(&attrs, "test"));
 	}
 
 	#[test]
@@ -438,8 +438,8 @@ mod tests {
 
 		// Should have removed the attribute
 		assert_eq!(item.attrs.len(), 1);
-		assert!(has_attr(&item.attrs, "derive"));
-		assert!(!has_attr(&item.attrs, "test_attr"));
+		assert!(has_attribute(&item.attrs, "derive"));
+		assert!(!has_attribute(&item.attrs, "test_attr"));
 
 		// Should have extracted the tokens
 		let lit: LitStr = syn::parse2(tokens).unwrap();

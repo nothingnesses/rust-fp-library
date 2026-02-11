@@ -18,6 +18,12 @@ mod inner {
 
 	impl_kind! {
 		for ResultBrand {
+			type Of<A, B> = Result<B, A>;
+		}
+	}
+
+	impl_kind! {
+		for ResultBrand {
 			type Of<'a, A: 'a, B: 'a>: 'a = Result<B, A>;
 		}
 	}

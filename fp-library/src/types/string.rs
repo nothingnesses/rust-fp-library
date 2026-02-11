@@ -2,79 +2,83 @@
 //!
 //! Provides string concatenation as a monoidal operation with the empty string as the identity element.
 
-use crate::{
-	classes::{Monoid, Semigroup},
-	impl_kind,
-	kinds::*,
-};
-use fp_macros::{document_parameters, document_signature};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		classes::{Monoid, Semigroup},
+		impl_kind,
+		kinds::*,
+	};
+	use fp_macros::{document_parameters, document_signature};
 
-impl_kind! {
-	for String {
-		type Of<'a> = String;
+	impl_kind! {
+		for String {
+			type Of<'a> = String;
+		}
+	}
+
+	impl Semigroup for String {
+		/// The result of combining two strings.
+		///
+		/// This method combines two strings into a single string.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The first string.", "The second string.")]
+		///
+		/// ### Returns
+		///
+		/// The combined string.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::functions::*;
+		///
+		/// let s1 = "Hello, ".to_string();
+		/// let s2 = "World!".to_string();
+		/// let result = append::<_>(s1, s2);
+		/// assert_eq!(result, "Hello, World!");
+		/// ```
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self {
+			a + &b
+		}
+	}
+
+	impl Monoid for String {
+		/// The identity element.
+		///
+		/// This method returns the identity element of the monoid.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// The identity element.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::functions::*;
+		///
+		/// let empty_string = empty::<String>();
+		/// assert_eq!(empty_string, "");
+		/// ```
+		fn empty() -> Self {
+			String::new()
+		}
 	}
 }
-
-impl Semigroup for String {
-	/// The result of combining two strings.
-	///
-	/// This method combines two strings into a single string.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Parameters
-	///
-	#[document_parameters("The first string.", "The second string.")]
-	///
-	/// ### Returns
-	///
-	/// The combined string.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::functions::*;
-	///
-	/// let s1 = "Hello, ".to_string();
-	/// let s2 = "World!".to_string();
-	/// let result = append::<_>(s1, s2);
-	/// assert_eq!(result, "Hello, World!");
-	/// ```
-	fn append(
-		a: Self,
-		b: Self,
-	) -> Self {
-		a + &b
-	}
-}
-
-impl Monoid for String {
-	/// The identity element.
-	///
-	/// This method returns the identity element of the monoid.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Returns
-	///
-	/// The identity element.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::functions::*;
-	///
-	/// let empty_string = empty::<String>();
-	/// assert_eq!(empty_string, "");
-	/// ```
-	fn empty() -> Self {
-		String::new()
-	}
-}
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {

@@ -14,6 +14,7 @@ pub struct ProjectionKey {
 	type_path: String,
 	trait_path: Option<String>,
 	assoc_name: String,
+	signature_hash: Option<u64>,
 }
 
 impl ProjectionKey {
@@ -28,7 +29,12 @@ impl ProjectionKey {
 		type_path: impl Into<String>,
 		assoc_name: impl Into<String>,
 	) -> Self {
-		Self { type_path: type_path.into(), trait_path: None, assoc_name: assoc_name.into() }
+		Self {
+			type_path: type_path.into(),
+			trait_path: None,
+			assoc_name: assoc_name.into(),
+			signature_hash: None,
+		}
 	}
 
 	/// Create a scoped projection key (Type, Trait, AssocName).
@@ -47,6 +53,7 @@ impl ProjectionKey {
 			type_path: type_path.into(),
 			trait_path: Some(trait_path.into()),
 			assoc_name: assoc_name.into(),
+			signature_hash: None,
 		}
 	}
 
@@ -58,6 +65,17 @@ impl ProjectionKey {
 		trait_path: impl Into<String>,
 	) -> Self {
 		self.trait_path = Some(trait_path.into());
+		self
+	}
+
+	/// Set the signature hash for this key.
+	///
+	/// Used to differentiate between associated types with the same name but different signatures.
+	pub fn with_signature_hash(
+		mut self,
+		hash: u64,
+	) -> Self {
+		self.signature_hash = Some(hash);
 		self
 	}
 
@@ -104,7 +122,7 @@ impl ProjectionKey {
 	/// # Arguments
 	/// * `tuple` - `(type_path, trait_path, assoc_name)`
 	pub fn from_tuple(tuple: (String, Option<String>, String)) -> Self {
-		Self { type_path: tuple.0, trait_path: tuple.1, assoc_name: tuple.2 }
+		Self { type_path: tuple.0, trait_path: tuple.1, assoc_name: tuple.2, signature_hash: None }
 	}
 }
 
@@ -116,18 +134,19 @@ impl Hash for ProjectionKey {
 		self.type_path.hash(state);
 		self.trait_path.hash(state);
 		self.assoc_name.hash(state);
+		self.signature_hash.hash(state);
 	}
 }
 
 impl From<(String, Option<String>, String)> for ProjectionKey {
 	fn from(tuple: (String, Option<String>, String)) -> Self {
-		Self::from_tuple(tuple)
+		Self { type_path: tuple.0, trait_path: tuple.1, assoc_name: tuple.2, signature_hash: None }
 	}
 }
 
 impl From<ProjectionKey> for (String, Option<String>, String) {
 	fn from(key: ProjectionKey) -> Self {
-		key.to_tuple()
+		(key.type_path, key.trait_path, key.assoc_name)
 	}
 }
 

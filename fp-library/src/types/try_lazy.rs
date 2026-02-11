@@ -2,340 +2,346 @@
 //!
 //! Computes a [`Result`] at most once and caches either the success value or error. All clones share the same cache. Available in both single-threaded [`RcTryLazy`] and thread-safe [`ArcTryLazy`] variants.
 
-use crate::{
-	brands::TryLazyBrand,
-	classes::{Deferrable, SendDeferrable},
-	impl_kind,
-	kinds::*,
-	types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
-};
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		brands::TryLazyBrand,
+		classes::{Deferrable, SendDeferrable},
+		impl_kind,
+		kinds::*,
+		types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
+	};
+	use fp_macros::{
+		document_fields, document_parameters, document_signature, document_type_parameters,
+	};
 
-/// A lazily-computed, memoized value that may fail.
-///
-/// The computation runs at most once. If it succeeds, the value is cached.
-/// If it fails, the error is cached. Subsequent accesses return the cached result.
-///
-/// ### Type Parameters
-///
-/// * `A`: The type of the computed value.
-/// * `E`: The type of the error.
-/// * `Config`: The memoization configuration.
-///
-/// ### Fields
-///
-/// * `0`: The internal lazy cell.
-pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
-	pub(crate) Config::TryLazy<'a, A, E>,
-)
-where
-	A: 'a,
-	E: 'a;
-
-impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
-where
-	A: 'a,
-	E: 'a,
-{
-	fn clone(&self) -> Self {
-		Self(self.0.clone())
-	}
-}
-
-impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
-where
-	A: 'a,
-	E: 'a,
-{
-	/// Gets the memoized result, computing on first access.
+	/// A lazily-computed, memoized value that may fail.
 	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Returns
-	///
-	/// A result containing a reference to the value or error.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.evaluate(), Ok(&42));
-	/// ```
-	pub fn evaluate(&self) -> Result<&A, &E> {
-		Config::try_evaluate(&self.0)
-	}
-}
-
-impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
-where
-	A: 'a,
-	E: 'a,
-{
-	/// Creates a new `TryLazy` that will run `f` on first access.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
+	/// The computation runs at most once. If it succeeds, the value is cached.
+	/// If it fails, the error is cached. Subsequent accesses return the cached result.
 	///
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the initializer closure.")]
+	/// * `A`: The type of the computed value.
+	/// * `E`: The type of the error.
+	/// * `Config`: The memoization configuration.
 	///
-	/// ### Parameters
+	/// ### Fields
 	///
-	#[document_parameters("The closure that produces the result.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryLazy` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.evaluate(), Ok(&42));
-	/// ```
-	pub fn new<F>(f: F) -> Self
+	#[document_fields("The internal lazy cell.")]
+	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
+		pub(crate) Config::TryLazy<'a, A, E>,
+	)
 	where
-		F: FnOnce() -> Result<A, E> + 'a,
-	{
-		TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
-	}
-}
+		A: 'a,
+		E: 'a;
 
-impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
-	fn from(eval: TryThunk<'a, A, E>) -> Self {
-		Self::new(move || eval.evaluate())
-	}
-}
-
-impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
-where
-	A: Send,
-	E: Send,
-{
-	fn from(task: TryTrampoline<A, E>) -> Self {
-		Self::new(move || task.evaluate())
-	}
-}
-
-impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
-where
-	A: Clone + Send + Sync + 'a,
-	E: Send + Sync + 'a,
-{
-	fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
-		Self::new(move || Ok(memo.evaluate().clone()))
-	}
-}
-
-impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
-where
-	A: Clone + 'a,
-	E: 'a,
-{
-	fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
-		Self::new(move || Ok(memo.evaluate().clone()))
-	}
-}
-
-impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
-where
-	A: 'a,
-{
-	/// Creates a `TryLazy` that catches unwinds (panics).
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[document_type_parameters("The type of the initializer closure.")]
-	///
-	/// ### Parameters
-	///
-	#[document_parameters("The closure that might panic.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryLazy` instance where panics are converted to `Err(String)`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
-	///     if true { panic!("oops") }
-	///     42
-	/// });
-	/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
-	/// ```
-	pub fn catch_unwind<F>(f: F) -> Self
+	impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
 	where
-		F: FnOnce() -> A + std::panic::UnwindSafe + 'a,
+		A: 'a,
+		E: 'a,
 	{
-		Self::new(move || {
-			std::panic::catch_unwind(f).map_err(|e| {
-				if let Some(s) = e.downcast_ref::<&str>() {
-					s.to_string()
-				} else if let Some(s) = e.downcast_ref::<String>() {
-					s.clone()
-				} else {
-					"Unknown panic".to_string()
-				}
+		fn clone(&self) -> Self {
+			Self(self.0.clone())
+		}
+	}
+
+	impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
+	where
+		A: 'a,
+		E: 'a,
+	{
+		/// Gets the memoized result, computing on first access.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// A result containing a reference to the value or error.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		pub fn evaluate(&self) -> Result<&A, &E> {
+			Config::try_evaluate(&self.0)
+		}
+	}
+
+	impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
+	where
+		A: 'a,
+		E: 'a,
+	{
+		/// Creates a new `TryLazy` that will run `f` on first access.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the initializer closure.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The closure that produces the result.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryLazy` instance.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		pub fn new<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Result<A, E> + 'a,
+		{
+			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
+		}
+	}
+
+	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		fn from(eval: TryThunk<'a, A, E>) -> Self {
+			Self::new(move || eval.evaluate())
+		}
+	}
+
+	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
+	where
+		A: Send,
+		E: Send,
+	{
+		fn from(task: TryTrampoline<A, E>) -> Self {
+			Self::new(move || task.evaluate())
+		}
+	}
+
+	impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
+	where
+		A: Clone + Send + Sync + 'a,
+		E: Send + Sync + 'a,
+	{
+		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
+			Self::new(move || Ok(memo.evaluate().clone()))
+		}
+	}
+
+	impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
+	where
+		A: Clone + 'a,
+		E: 'a,
+	{
+		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
+			Self::new(move || Ok(memo.evaluate().clone()))
+		}
+	}
+
+	impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
+	where
+		A: 'a,
+	{
+		/// Creates a `TryLazy` that catches unwinds (panics).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the initializer closure.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The closure that might panic.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryLazy` instance where panics are converted to `Err(String)`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
+		///     if true { panic!("oops") }
+		///     42
+		/// });
+		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
+		/// ```
+		pub fn catch_unwind<F>(f: F) -> Self
+		where
+			F: FnOnce() -> A + std::panic::UnwindSafe + 'a,
+		{
+			Self::new(move || {
+				std::panic::catch_unwind(f).map_err(|e| {
+					if let Some(s) = e.downcast_ref::<&str>() {
+						s.to_string()
+					} else if let Some(s) = e.downcast_ref::<String>() {
+						s.clone()
+					} else {
+						"Unknown panic".to_string()
+					}
+				})
 			})
-		})
+		}
 	}
-}
 
-impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
-where
-	A: 'a,
-	E: 'a,
-{
-	/// Creates a new `TryLazy` that will run `f` on first access.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[document_type_parameters("The type of the initializer closure.")]
-	///
-	/// ### Parameters
-	///
-	#[document_parameters("The closure that produces the result.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryLazy` instance.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
-	/// assert_eq!(memo.evaluate(), Ok(&42));
-	/// ```
-	pub fn new<F>(f: F) -> Self
+	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
 	where
-		F: FnOnce() -> Result<A, E> + Send + 'a,
+		A: 'a,
+		E: 'a,
 	{
-		TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
+		/// Creates a new `TryLazy` that will run `f` on first access.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the initializer closure.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The closure that produces the result.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryLazy` instance.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
+		/// assert_eq!(memo.evaluate(), Ok(&42));
+		/// ```
+		pub fn new<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Result<A, E> + Send + 'a,
+		{
+			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
+		}
 	}
-}
 
-impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
-where
-	A: Clone + 'a,
-	E: Clone + 'a,
-{
-	/// Defers a computation that produces a `TryLazy` value.
-	///
-	/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
-	/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[document_type_parameters("The type of the thunk.")]
-	///
-	/// ### Parameters
-	///
-	#[document_parameters("The thunk that produces the lazy value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryLazy` value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*, functions::*};
-	///
-	/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
-	/// assert_eq!(lazy.evaluate(), Ok(&42));
-	/// ```
-	fn defer<F>(f: F) -> Self
+	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
 	where
-		F: FnOnce() -> Self + 'a,
-		Self: Sized,
+		A: Clone + 'a,
+		E: Clone + 'a,
 	{
-		Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+		/// Defers a computation that produces a `TryLazy` value.
+		///
+		/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
+		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the thunk.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The thunk that produces the lazy value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryLazy` value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+		///
+		/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		fn defer<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Self + 'a,
+			Self: Sized,
+		{
+			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+		}
 	}
-}
 
-impl_kind! {
-	impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
-		type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+	impl_kind! {
+		impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
+			type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+		}
 	}
-}
 
-impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
-where
-	A: Clone + Send + Sync + 'a,
-	E: Clone + Send + Sync + 'a,
-{
-	/// Defers a computation that produces a thread-safe `TryLazy` value.
-	///
-	/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
-	/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
-	///
-	/// ### Type Signature
-	///
-	#[document_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[document_type_parameters("The type of the thunk.")]
-	///
-	/// ### Parameters
-	///
-	#[document_parameters("The thunk that produces the lazy value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `ArcTryLazy` value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
-	///
-	/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
-	/// assert_eq!(lazy.evaluate(), Ok(&42));
-	/// ```
-	fn send_defer<F>(f: F) -> Self
+	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
-		F: FnOnce() -> Self + Send + Sync + 'a,
-		Self: Sized,
+		A: Clone + Send + Sync + 'a,
+		E: Clone + Send + Sync + 'a,
 	{
-		Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+		/// Defers a computation that produces a thread-safe `TryLazy` value.
+		///
+		/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
+		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the thunk.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The thunk that produces the lazy value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `ArcTryLazy` value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, types::*};
+		///
+		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
+		/// assert_eq!(lazy.evaluate(), Ok(&42));
+		/// ```
+		fn send_defer<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Self + Send + Sync + 'a,
+			Self: Sized,
+		{
+			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
+		}
 	}
+
+	/// Single-threaded fallible memoization alias.
+	pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
+
+	/// Thread-safe fallible memoization alias.
+	pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
 }
-
-/// Single-threaded fallible memoization alias.
-pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
-
-/// Thread-safe fallible memoization alias.
-pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use crate::types::RcLazy;
+	use crate::types::{RcLazy, TryThunk, TryTrampoline};
 
 	use super::*;
 	use std::cell::RefCell;

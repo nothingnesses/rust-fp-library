@@ -324,7 +324,7 @@ impl Canonicalizer {
 const RAPID_SECRETS: rapidhash::v3::RapidSecrets =
 	rapidhash::v3::RapidSecrets::seed(0x1234567890abcdef);
 
-fn rapidhash(data: &[u8]) -> u64 {
+pub fn rapidhash(data: &[u8]) -> u64 {
 	rapidhash::v3::rapidhash_v3_seeded(data, &RAPID_SECRETS)
 }
 
@@ -342,6 +342,46 @@ fn rapidhash(data: &[u8]) -> u64 {
 ///    - Canonicalized bounds on type parameters
 ///    - Canonicalized output bounds
 /// 3. Joining these strings with `__`.
+/// Generates a canonical string representation for an associated type's signature.
+pub fn generate_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Result<String> {
+	let mut canon = Canonicalizer::new(&signature.generics);
+
+	let mut l_count = 0;
+	let mut t_count = 0;
+	let mut type_bounds_parts = Vec::new();
+
+	for param in &signature.generics.params {
+		match param {
+			GenericParam::Lifetime(_) => l_count += 1,
+			GenericParam::Type(ty) => {
+				if !ty.bounds.is_empty() {
+					let bounds_str = canon.canonicalize_bounds(&ty.bounds)?;
+					// Use current type index for bound association
+					type_bounds_parts.push(format!("B{t_count}{bounds_str}"));
+				}
+				t_count += 1;
+			}
+			_ => {}
+		}
+	}
+
+	let mut parts = vec![signature.name.to_string(), format!("L{l_count}"), format!("T{t_count}")];
+	parts.extend(type_bounds_parts);
+
+	if !signature.output_bounds.is_empty() {
+		let bounds_str = canon.canonicalize_bounds(&signature.output_bounds)?;
+		parts.push(format!("O{bounds_str}"));
+	}
+
+	Ok(parts.join("_"))
+}
+
+/// Generates a 64-bit hash for a single associated type's signature.
+pub fn hash_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Result<u64> {
+	let repr = generate_assoc_signature(signature)?;
+	Ok(rapidhash(repr.as_bytes()))
+}
+
 pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
@@ -350,37 +390,7 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut canonical_parts = Vec::new();
 
 	for assoc in assoc_types {
-		let mut canon = Canonicalizer::new(&assoc.signature.generics);
-
-		let mut l_count = 0;
-		let mut t_count = 0;
-		let mut type_bounds_parts = Vec::new();
-
-		for param in &assoc.signature.generics.params {
-			match param {
-				GenericParam::Lifetime(_) => l_count += 1,
-				GenericParam::Type(ty) => {
-					if !ty.bounds.is_empty() {
-						let bounds_str = canon.canonicalize_bounds(&ty.bounds)?;
-						// Use current type index for bound association
-						type_bounds_parts.push(format!("B{t_count}{bounds_str}"));
-					}
-					t_count += 1;
-				}
-				_ => {}
-			}
-		}
-
-		let mut parts =
-			vec![assoc.signature.name.to_string(), format!("L{l_count}"), format!("T{t_count}")];
-		parts.extend(type_bounds_parts);
-
-		if !assoc.signature.output_bounds.is_empty() {
-			let bounds_str = canon.canonicalize_bounds(&assoc.signature.output_bounds)?;
-			parts.push(format!("O{bounds_str}"));
-		}
-
-		canonical_parts.push(parts.join("_"));
+		canonical_parts.push(generate_assoc_signature(&assoc.signature)?);
 	}
 
 	let canonical_repr = canonical_parts.join("__");

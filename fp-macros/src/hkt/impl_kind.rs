@@ -120,16 +120,16 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 	let impl_generics = &input.impl_generics;
 
 	// Convert to KindInput for name generation
-	let assoc_types_input: Vec<AssociatedTypeInput> = input
-		.definitions
-		.iter()
-		.map(|def| AssociatedTypeInput {
-			signature: def.signature.clone(),
-			semi_token: def.semi_token,
-		})
-		.collect();
-
-	let kind_input = AssociatedTypes { associated_types: assoc_types_input };
+	let kind_input = AssociatedTypes {
+		associated_types: input
+			.definitions
+			.iter()
+			.map(|def| AssociatedTypeInput {
+				signature: def.signature.clone(),
+				semi_token: def.semi_token,
+			})
+			.collect(),
+	};
 	let kind_trait_name = generate_name(&kind_input)?;
 
 	let assoc_types_impl = input.definitions.iter().map(|def| {

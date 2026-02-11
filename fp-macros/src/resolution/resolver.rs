@@ -233,6 +233,7 @@ use crate::{
 	core::{
 		config::Config,
 		constants::{macros, types},
+		error_handling::ErrorCollector,
 	},
 	hkt::ApplyInput,
 	resolution::ProjectionKey,
@@ -347,8 +348,9 @@ pub struct SelfSubstitutor<'a> {
 	self_ty_path: &'a str,
 	trait_path: Option<&'a str>,
 	document_use: Option<&'a str>,
+	signature_hash: Option<u64>,
 	config: &'a Config,
-	pub errors: Vec<Error>,
+	pub errors: ErrorCollector,
 	/// The base type name (e.g., "CatList") extracted from self_ty
 	base_type_name: Option<String>,
 	/// Generic parameter names from the impl block (e.g., ["A"])
@@ -370,8 +372,9 @@ impl<'a> SelfSubstitutor<'a> {
 			self_ty_path,
 			trait_path,
 			document_use,
+			signature_hash: None,
 			config,
-			errors: Vec::new(),
+			errors: ErrorCollector::new(),
 			base_type_name,
 			impl_generic_params,
 		}
@@ -411,8 +414,31 @@ impl<'a> SelfSubstitutor<'a> {
 		}
 
 		// Fall back to module-level (Type, AssocName) lookup
-		let module_key = ProjectionKey::new(self.self_ty_path, assoc_name);
-		self.config.projections.get(&module_key)
+		let mut module_key = ProjectionKey::new(self.self_ty_path, assoc_name);
+		if let Some(hash) = self.signature_hash {
+			module_key = module_key.with_signature_hash(hash);
+		}
+
+		if let Some(result) = self.config.projections.get(&module_key) {
+			return Some(result);
+		}
+
+		// If we had a hash and didn't find it, try without hash as fallback for legacy or non-hashed entries
+		if self.signature_hash.is_some() {
+			let module_key_no_hash = ProjectionKey::new(self.self_ty_path, assoc_name);
+			if let Some(result) = self.config.projections.get(&module_key_no_hash) {
+				#[cfg(debug_assertions)]
+				{
+					eprintln!(
+						"Warning: Signature hash lookup failed for {}.{assoc_name}, falling back to legacy lookup",
+						self.self_ty_path
+					);
+				}
+				return Some(result);
+			}
+		}
+
+		None
 	}
 
 	/// Build a fallback type using the base type name and impl generic parameters.
@@ -513,6 +539,30 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 		if i.mac.path.is_ident(macros::APPLY_MACRO)
 			&& let Ok(mut apply_input) = syn::parse2::<ApplyInput>(i.mac.tokens.clone())
 		{
+			// Temporarily store signature hash for lookups within this Apply!
+			let prev_hash = self.signature_hash;
+			// We need the hash of the target associated type within the Apply! macro.
+			// Apply! input contains kind_input (AssociatedTypes) and assoc_name.
+			let current_hash = match apply_input
+				.kind_input
+				.associated_types
+				.iter()
+				.find(|a| a.signature.name == apply_input.assoc_name)
+			{
+				Some(a) => match crate::hkt::canonicalizer::hash_assoc_signature(&a.signature) {
+					Ok(h) => Some(h),
+					Err(e) => {
+						self.errors.push(syn::Error::new(
+							a.signature.name.span(),
+							format!("Failed to compute signature hash: {e}"),
+						));
+						None
+					}
+				},
+				None => None,
+			};
+			self.signature_hash = current_hash;
+
 			self.visit_type_mut(&mut apply_input.brand);
 			for arg in apply_input.args.args.iter_mut() {
 				if let syn::GenericArgument::Type(ty) = arg {
@@ -536,6 +586,8 @@ impl<'a> VisitMut for SelfSubstitutor<'a> {
 			let args = &apply_input.args;
 
 			i.mac.tokens = quote! { <#brand as Kind!(#kind_input)>::#assoc_name #args };
+
+			self.signature_hash = prev_hash;
 		}
 		visit_mut::visit_type_macro_mut(self, i);
 	}
@@ -720,10 +772,12 @@ pub fn normalize_type(
 	generics: &syn::Generics,
 ) -> syn::Type {
 	let mut mapping = HashMap::new();
-	for (i, param) in generics.params.iter().enumerate() {
+	let mut type_idx = 0;
+	for param in &generics.params {
 		if let syn::GenericParam::Type(tp) = param {
-			let ident = quote::format_ident!("T{i}");
+			let ident = quote::format_ident!("T{type_idx}");
 			mapping.insert(tp.ident.to_string(), parse_quote!(#ident));
+			type_idx += 1;
 		}
 	}
 

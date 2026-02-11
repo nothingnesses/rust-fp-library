@@ -12,7 +12,9 @@ mod inner {
 		kinds::*,
 		types::{Thunk, Trampoline},
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::{
+		document_fields, document_parameters, document_signature, document_type_parameters,
+	};
 	use std::{
 		cell::LazyCell,
 		rc::Rc,
@@ -484,7 +486,7 @@ mod inner {
 	///
 	/// ### Fields
 	///
-	/// * `0`: The internal lazy cell.
+	#[document_fields("The internal lazy cell.")]
 	///
 	/// ### Examples
 	///

@@ -9,10 +9,10 @@ use crate::{
 		},
 		error_handling::{CollectErrors, ErrorCollector},
 	},
-	hkt::ImplKindInput,
+	hkt::{ImplKindInput, canonicalizer::hash_assoc_signature},
 	resolution::{ImplKey, ProjectionKey},
 	support::{
-		attributes::has_attr,
+		attributes::has_attribute,
 		documentation_parameters::{DocumentationParameter, DocumentationParameters},
 	},
 };
@@ -77,9 +77,48 @@ fn process_impl_kind_macro(
 				));
 			}
 
+			// Calculate signature hash to allow multiple impls for the same name with different signatures
+			let signature_hash = match hash_assoc_signature(&def.signature) {
+				Ok(h) => h,
+				Err(e) => {
+					errors.push(e.into());
+					continue;
+				}
+			};
+
+			// Check for hash collisions (extremely rare, but theoretically possible)
+			let canonical_sig =
+				match crate::hkt::canonicalizer::generate_assoc_signature(&def.signature) {
+					Ok(s) => s,
+					Err(e) => {
+						errors.push(e.into());
+						continue;
+					}
+				};
+
+			if let Some((prev_brand, prev_assoc, prev_sig)) =
+				config.signature_hashes.get(&signature_hash)
+			{
+				if prev_sig != &canonical_sig {
+					errors.push(Error::new(
+						def.signature.name.span(),
+						format!(
+							"Hash collision detected (extremely rare!): {brand_path}.{assoc_name} and {prev_brand}.{prev_assoc} have the same hash. Please report this as a bug."
+						),
+					));
+					continue;
+				}
+			} else {
+				config.signature_hashes.insert(
+					signature_hash,
+					(brand_path.clone(), assoc_name.clone(), canonical_sig),
+				);
+			}
+
 			// Check for collisions in impl_kind! only if not cfg-gated
 			// We use normalized types to detect semantic collisions even if generic names differ
-			let key = ProjectionKey::new(&brand_path, &assoc_name);
+			let key =
+				ProjectionKey::new(&brand_path, &assoc_name).with_signature_hash(signature_hash);
 			if !has_cfg {
 				let normalized_target =
 					normalize_type(def.target_type.clone(), &def.signature.generics);
@@ -105,7 +144,7 @@ fn process_impl_kind_macro(
 				.insert(key, (def.signature.generics.clone(), def.target_type.clone()));
 
 			// Register module-level default with immediate conflict detection
-			if has_attr(&def.signature.attributes, DOCUMENT_DEFAULT) {
+			if has_attribute(&def.signature.attributes, DOCUMENT_DEFAULT) {
 				register_module_default(
 					config,
 					brand_path.clone(),
@@ -196,10 +235,12 @@ fn process_impl_associated_types(
 			} else {
 				ProjectionKey::new(self_ty_path, &assoc_name)
 			};
+			// NOTE: We don't include signature_hash for standard trait associated types
+			// because they are inherently scoped by the trait path.
 			config.projections.insert(key, (assoc_type.generics.clone(), assoc_type.ty.clone()));
 
 			// Track document_default across split impl blocks for deferred validation
-			if has_attr(&assoc_type.attrs, DOCUMENT_DEFAULT)
+			if has_attribute(&assoc_type.attrs, DOCUMENT_DEFAULT)
 				&& let Some(t_path) = trait_path
 			{
 				track_scoped_default(

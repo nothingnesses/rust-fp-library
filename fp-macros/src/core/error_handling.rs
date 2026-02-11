@@ -250,10 +250,12 @@ impl ErrorCollector {
 		self.errors.push(error);
 	}
 
-	pub fn extend(
+	pub fn extend<I>(
 		&mut self,
-		other_errors: Vec<syn::Error>,
-	) {
+		other_errors: I,
+	) where
+		I: IntoIterator<Item = syn::Error>,
+	{
 		self.errors.extend(other_errors);
 	}
 
@@ -272,6 +274,16 @@ impl ErrorCollector {
 		self.errors.is_empty()
 	}
 
+	/// Consume the collector and return the inner vector of errors
+	pub fn into_errors(self) -> Vec<syn::Error> {
+		self.errors
+	}
+
+	/// Return an iterator over the collected errors
+	pub fn iter(&self) -> std::slice::Iter<'_, syn::Error> {
+		self.errors.iter()
+	}
+
 	pub fn finish(self) -> syn::Result<()> {
 		if self.errors.is_empty() { Ok(()) } else { Err(Self::combine_errors(self.errors)) }
 	}
@@ -288,6 +300,24 @@ impl ErrorCollector {
 impl Default for ErrorCollector {
 	fn default() -> Self {
 		Self::new()
+	}
+}
+
+impl IntoIterator for ErrorCollector {
+	type Item = syn::Error;
+	type IntoIter = std::vec::IntoIter<syn::Error>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.errors.into_iter()
+	}
+}
+
+impl<'a> IntoIterator for &'a ErrorCollector {
+	type Item = &'a syn::Error;
+	type IntoIter = std::slice::Iter<'a, syn::Error>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.errors.iter()
 	}
 }
 

@@ -81,6 +81,10 @@ pub struct Config {
 	/// Impl-level type parameter documentation: ImplKey -> Vec<(ParamName, Description)>
 	/// Stores documentation for generic parameters defined at the impl level
 	pub impl_type_param_docs: HashMap<ImplKey, Vec<(String, String)>>,
+
+	/// Signature hash tracking: Hash -> (BrandPath, AssocName, CanonicalSignature)
+	/// Used to detect extremely rare hash collisions between different signatures
+	pub signature_hashes: HashMap<u64, (String, String, String)>,
 }
 
 /// Accessor methods for backward compatibility
@@ -111,6 +115,7 @@ impl From<UserConfig> for Config {
 			concrete_types: HashSet::new(),
 			self_type_name: None,
 			impl_type_param_docs: HashMap::new(),
+			signature_hashes: HashMap::new(),
 		}
 	}
 }
