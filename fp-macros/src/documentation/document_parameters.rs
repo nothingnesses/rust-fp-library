@@ -2,7 +2,10 @@ use crate::{
 	core::{
 		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
 	},
-	support::{LogicalParam, get_logical_params, syntax::format_parameter_doc},
+	support::{
+		LogicalParam, attributes::find_attribute, get_logical_params,
+		syntax::insert_doc_comments_batch, validation,
+	},
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
@@ -26,10 +29,8 @@ fn process_method_in_impl(
 	receiver_doc: &str,
 	config: &crate::core::config::Config,
 ) -> Result<()> {
-	// Find and remove the #[document_parameters] attribute
-	let attr_pos = method.attrs.iter().position(|attr| attr.path().is_ident(DOCUMENT_PARAMETERS));
-
-	let Some(attr_pos) = attr_pos else {
+	// Find the #[document_parameters] attribute
+	let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_PARAMETERS) else {
 		// No attribute on this method, skip it
 		return Ok(());
 	};
@@ -74,16 +75,12 @@ fn process_method_in_impl(
 	};
 
 	// Validate entry count matches logical params (not including receiver)
-	if entries.len() != logical_params.len() {
-		return Err(CoreError::Parse(syn::Error::new(
-			attr.span(),
-			format!(
-				"Expected {} description arguments for method parameters, found {}",
-				logical_params.len(),
-				entries.len()
-			),
-		)));
-	}
+	validation::validate_entry_count(
+		logical_params.len(),
+		entries.len(),
+		attr.span(),
+		"method parameter",
+	)?;
 
 	// Generate parameter names for all params including receiver
 	let mut param_names = Vec::new();
@@ -129,11 +126,8 @@ fn process_method_in_impl(
 	}
 
 	// Generate doc comments and insert them
-	for (i, (name, desc)) in param_names.iter().zip(&param_descs).enumerate() {
-		let doc_comment = format_parameter_doc(name, desc);
-		let doc_attr: syn::Attribute = syn::parse_quote!(#[doc = #doc_comment]);
-		method.attrs.insert(attr_pos + i, doc_attr);
-	}
+	let docs: Vec<_> = param_names.into_iter().zip(param_descs).collect();
+	insert_doc_comments_batch(&mut method.attrs, docs, attr_pos);
 
 	Ok(())
 }

@@ -230,6 +230,26 @@ pub fn insert_doc_comment(
 	attrs.insert(insert_idx, doc_attr);
 }
 
+/// Generate and insert multiple doc comments in order.
+///
+/// This is a convenience function for batch-inserting documentation comments.
+///
+/// # Parameters
+/// - `attrs`: The attribute list to insert into
+/// - `docs`: Vec of (name, description) pairs to generate docs for
+/// - `base_index`: The index where the first doc comment should be inserted
+pub fn insert_doc_comments_batch(
+	attrs: &mut Vec<syn::Attribute>,
+	docs: Vec<(String, String)>,
+	base_index: usize,
+) {
+	for (i, (name, desc)) in docs.into_iter().enumerate() {
+		let doc_comment = format_parameter_doc(&name, &desc);
+		let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+		attrs.insert(base_index + i, doc_attr);
+	}
+}
+
 #[cfg(test)]
 pub fn get_doc(attr: &syn::Attribute) -> String {
 	if let syn::Meta::NameValue(nv) = &attr.meta

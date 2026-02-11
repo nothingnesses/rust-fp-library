@@ -32,7 +32,7 @@ impl Parse for DocumentModuleInput {
 enum ParsedInput {
 	/// Outer attribute on a module: #[document_module] mod foo { ... }
 	ModuleWrapper(ItemMod, syn::token::Brace, Vec<Item>),
-	/// Inner attribute or direct items: #![document_module] ... items ...
+	/// Direct items (used for const block pattern): const _: () = { ... items ... };
 	DirectItems(Vec<Item>),
 }
 
@@ -50,7 +50,7 @@ fn try_parse_module_wrapper(item: TokenStream) -> Option<ParsedInput> {
 	None
 }
 
-/// Try to parse input as direct items (inner attribute case).
+/// Try to parse input as direct items (const block pattern).
 fn try_parse_direct_items(item: TokenStream) -> Option<ParsedInput> {
 	if let Ok(input) = syn::parse2::<DocumentModuleInput>(item) {
 		return Some(ParsedInput::DirectItems(input.items));
@@ -104,7 +104,7 @@ fn parse_document_module_input(item: TokenStream) -> Result<ParsedInput, syn::Er
 	Err(syn::Error::new(
 		proc_macro2::Span::call_site(),
 		format!(
-			"{DOCUMENT_MODULE} must be applied to a module, a const block, or used as an inner attribute in a module."
+			"{DOCUMENT_MODULE} must be applied to a module or a const block (e.g., const _: () = {{ ... }})."
 		),
 	))
 }

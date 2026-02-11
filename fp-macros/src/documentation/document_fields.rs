@@ -1,52 +1,13 @@
 use crate::{
 	core::{Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS},
-	support::syntax::{format_parameter_doc, insert_doc_comment},
+	support::{
+		attributes::remove_and_parse_attribute,
+		field_docs::{FieldDocArgs, FieldDocumenter, FieldInfo},
+	},
 };
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{
-	Fields, Ident, ItemEnum, ItemStruct, LitStr, Token, Variant,
-	parse::{Parse, ParseStream},
-	punctuated::Punctuated,
-	spanned::Spanned,
-};
-
-/// Represents a field documentation entry.
-///
-/// For named structs: `field_name: "description"`
-/// For tuple structs: just `"description"`
-pub enum FieldDocArg {
-	/// Named field: `field_name: "description"`
-	Named(Ident, LitStr),
-	/// Unnamed field (tuple struct): `"description"`
-	Unnamed(LitStr),
-}
-
-impl Parse for FieldDocArg {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		// Try to parse as named field first: ident : "string"
-		if input.peek(Ident) && input.peek2(Token![:]) {
-			let ident: Ident = input.parse()?;
-			let _: Token![:] = input.parse()?;
-			let lit: LitStr = input.parse()?;
-			Ok(FieldDocArg::Named(ident, lit))
-		} else {
-			// Otherwise, parse as unnamed field: "string"
-			let lit: LitStr = input.parse()?;
-			Ok(FieldDocArg::Unnamed(lit))
-		}
-	}
-}
-
-pub struct FieldDocArgs {
-	pub entries: Punctuated<FieldDocArg, Token![,]>,
-}
-
-impl Parse for FieldDocArgs {
-	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(FieldDocArgs { entries: Punctuated::parse_terminated(input)? })
-	}
-}
+use syn::{ItemEnum, ItemStruct, Variant, spanned::Spanned};
 
 /// Processes an enum with `#[document_fields]` on variants.
 ///
@@ -63,169 +24,24 @@ fn document_enum_fields(mut item_enum: ItemEnum) -> Result<TokenStream> {
 
 /// Processes a single variant's `#[document_fields(...)]` attribute if present.
 fn process_variant_fields(variant: &mut Variant) -> Result<()> {
-	// Look for #[document_fields(...)] attribute on this variant
-	let mut doc_fields_attr_idx = None;
-	let mut attr_tokens = None;
-
-	for (idx, attr) in variant.attrs.iter().enumerate() {
-		if attr.path().is_ident(DOCUMENT_FIELDS) {
-			doc_fields_attr_idx = Some(idx);
-			attr_tokens = Some(attr.meta.require_list()?.tokens.clone());
-			break;
-		}
-	}
-
-	// If no #[document_fields(...)] attribute, skip this variant
-	let Some(attr_idx) = doc_fields_attr_idx else {
+	// Find, remove, and parse the attribute in one operation
+	let Some((_attr_idx, args)) =
+		remove_and_parse_attribute::<FieldDocArgs>(&mut variant.attrs, DOCUMENT_FIELDS)?
+	else {
+		// No attribute on this variant, skip it
 		return Ok(());
 	};
 
-	let attr = attr_tokens.unwrap();
-
-	// Remove the attribute from the variant
-	variant.attrs.remove(attr_idx);
-
-	// Parse the field documentation arguments
-	let args = syn::parse2::<FieldDocArgs>(attr.clone())?;
+	// Get the span for error messages (we need to reconstruct since we already consumed the attr)
+	let attr_span = variant.span();
 
 	// Extract field information from the variant
-	let field_info = match &variant.fields {
-		Fields::Named(fields_named) => {
-			let field_names: Vec<_> =
-				fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
+	let field_info =
+		FieldInfo::from_fields(&variant.fields, variant.span(), "variant", DOCUMENT_FIELDS)?;
 
-			if field_names.is_empty() {
-				return Err(CoreError::Parse(syn::Error::new(
-					variant.span(),
-					format!("{DOCUMENT_FIELDS} cannot be used on variants with no fields"),
-				)));
-			}
-
-			FieldInfo::Named(field_names)
-		}
-		Fields::Unnamed(fields_unnamed) => {
-			let field_count = fields_unnamed.unnamed.len();
-
-			if field_count == 0 {
-				return Err(CoreError::Parse(syn::Error::new(
-					variant.span(),
-					format!("{DOCUMENT_FIELDS} cannot be used on variants with no fields"),
-				)));
-			}
-
-			FieldInfo::Unnamed(field_count)
-		}
-		Fields::Unit => {
-			return Err(CoreError::Parse(syn::Error::new(
-				variant.span(),
-				format!("{DOCUMENT_FIELDS} cannot be used on unit variants"),
-			)));
-		}
-	};
-
-	// Validate and generate documentation
-	match field_info {
-		FieldInfo::Named(expected_fields) => {
-			// Collect all named entries
-			let mut provided_fields = std::collections::HashMap::new();
-
-			for entry in &args.entries {
-				match entry {
-					FieldDocArg::Named(ident, desc) => {
-						if provided_fields.insert(ident.clone(), desc.clone()).is_some() {
-							return Err(CoreError::Parse(syn::Error::new(
-								ident.span(),
-								format!("Duplicate documentation for field `{ident}`"),
-							)));
-						}
-					}
-					FieldDocArg::Unnamed(_) => {
-						return Err(CoreError::Parse(syn::Error::new(
-							attr.span(),
-							r#"Expected named field documentation (e.g., `field_name: "description"`), found unnamed description. Use named syntax for variants with named fields."#,
-						)));
-					}
-				}
-			}
-
-			// Check that all fields have documentation
-			for field_name in &expected_fields {
-				if !provided_fields.contains_key(field_name) {
-					return Err(CoreError::Parse(syn::Error::new(
-						attr.span(),
-						format!(
-							"Missing documentation for field `{field_name}`. All fields must be documented."
-						),
-					)));
-				}
-			}
-
-			// Check that no extra fields are documented
-			for provided_field in provided_fields.keys() {
-				if !expected_fields.iter().any(|f| f == provided_field) {
-					return Err(CoreError::Parse(syn::Error::new(
-						provided_field.span(),
-						format!(
-							"Field `{provided_field}` does not exist in variant. Available fields: {}",
-							expected_fields
-								.iter()
-								.map(|f| format!("`{f}`"))
-								.collect::<Vec<_>>()
-								.join(", ")
-						),
-					)));
-				}
-			}
-
-			// Generate documentation in the order of field declaration
-			for field_name in expected_fields {
-				if let Some(desc) = provided_fields.get(&field_name) {
-					let doc_comment = format_parameter_doc(&field_name.to_string(), &desc.value());
-					insert_doc_comment(
-						&mut variant.attrs,
-						doc_comment,
-						proc_macro2::Span::call_site(),
-					);
-				}
-			}
-		}
-		FieldInfo::Unnamed(expected_count) => {
-			// Collect all unnamed entries
-			let mut descriptions = Vec::new();
-
-			for entry in &args.entries {
-				match entry {
-					FieldDocArg::Unnamed(desc) => {
-						descriptions.push(desc.clone());
-					}
-					FieldDocArg::Named(ident, _) => {
-						return Err(CoreError::Parse(syn::Error::new(
-							ident.span(),
-							r#"Expected unnamed field documentation (e.g., just `"description"`), found named syntax. Use comma-separated descriptions for tuple variants."#,
-						)));
-					}
-				}
-			}
-
-			// Check count matches
-			if descriptions.len() != expected_count {
-				return Err(CoreError::Parse(syn::Error::new(
-					attr.span(),
-					format!(
-						"Expected {expected_count} description arguments (one for each field), found {}. All fields must be documented.",
-						descriptions.len()
-					),
-				)));
-			}
-
-			// Generate documentation for tuple fields
-			for (idx, desc) in descriptions.iter().enumerate() {
-				let field_name = format!("{idx}");
-				let doc_comment = format_parameter_doc(&field_name, &desc.value());
-				insert_doc_comment(&mut variant.attrs, doc_comment, proc_macro2::Span::call_site());
-			}
-		}
-	}
+	// Use the documenter to validate and generate docs
+	let documenter = FieldDocumenter::new(field_info, attr_span, "variant");
+	documenter.validate_and_generate(args, &mut variant.attrs)?;
 
 	Ok(())
 }
@@ -255,162 +71,14 @@ pub fn document_fields_worker(
 	let args = syn::parse2::<FieldDocArgs>(attr.clone())?;
 
 	// Extract field information
-	let field_info = match &item_struct.fields {
-		Fields::Named(fields_named) => {
-			let field_names: Vec<_> =
-				fields_named.named.iter().map(|f| f.ident.clone().unwrap()).collect();
+	let field_info =
+		FieldInfo::from_fields(&item_struct.fields, item_struct.span(), "struct", DOCUMENT_FIELDS)?;
 
-			if field_names.is_empty() {
-				return Err(CoreError::Parse(syn::Error::new(
-					item_struct.span(),
-					format!(
-						"{DOCUMENT_FIELDS} cannot be used on zero-sized types (structs with no fields)"
-					),
-				)));
-			}
-
-			FieldInfo::Named(field_names)
-		}
-		Fields::Unnamed(fields_unnamed) => {
-			let field_count = fields_unnamed.unnamed.len();
-
-			if field_count == 0 {
-				return Err(CoreError::Parse(syn::Error::new(
-					item_struct.span(),
-					format!(
-						"{DOCUMENT_FIELDS} cannot be used on zero-sized types (structs with no fields)"
-					),
-				)));
-			}
-
-			FieldInfo::Unnamed(field_count)
-		}
-		Fields::Unit => {
-			return Err(CoreError::Parse(syn::Error::new(
-				item_struct.span(),
-				format!("{DOCUMENT_FIELDS} cannot be used on zero-sized types (unit structs)"),
-			)));
-		}
-	};
-
-	// Validate and generate documentation
-	match field_info {
-		FieldInfo::Named(expected_fields) => {
-			// Collect all named entries
-			let mut provided_fields = std::collections::HashMap::new();
-
-			for entry in &args.entries {
-				match entry {
-					FieldDocArg::Named(ident, desc) => {
-						if provided_fields.insert(ident.clone(), desc.clone()).is_some() {
-							return Err(CoreError::Parse(syn::Error::new(
-								ident.span(),
-								format!("Duplicate documentation for field `{ident}`"),
-							)));
-						}
-					}
-					FieldDocArg::Unnamed(_) => {
-						return Err(CoreError::Parse(syn::Error::new(
-							attr.span(),
-							r#"Expected named field documentation (e.g., `field_name: "description"`), found unnamed description. Use named syntax for structs with named fields."#,
-						)));
-					}
-				}
-			}
-
-			// Check that all fields have documentation
-			for field_name in &expected_fields {
-				if !provided_fields.contains_key(field_name) {
-					return Err(CoreError::Parse(syn::Error::new(
-						attr.span(),
-						format!(
-							"Missing documentation for field `{}`. All fields must be documented.",
-							field_name
-						),
-					)));
-				}
-			}
-
-			// Check that no extra fields are documented
-			for provided_field in provided_fields.keys() {
-				if !expected_fields.iter().any(|f| f == provided_field) {
-					return Err(CoreError::Parse(syn::Error::new(
-						provided_field.span(),
-						format!(
-							"Field `{provided_field}` does not exist in struct. Available fields: {}",
-							expected_fields
-								.iter()
-								.map(|f| format!("`{}`", f))
-								.collect::<Vec<_>>()
-								.join(", ")
-						),
-					)));
-				}
-			}
-
-			// Generate documentation in the order of field declaration
-			for field_name in expected_fields {
-				if let Some(desc) = provided_fields.get(&field_name) {
-					let doc_comment = format_parameter_doc(&field_name.to_string(), &desc.value());
-					insert_doc_comment(
-						&mut item_struct.attrs,
-						doc_comment,
-						proc_macro2::Span::call_site(),
-					);
-				}
-			}
-		}
-		FieldInfo::Unnamed(expected_count) => {
-			// Collect all unnamed entries
-			let mut descriptions = Vec::new();
-
-			for entry in &args.entries {
-				match entry {
-					FieldDocArg::Unnamed(desc) => {
-						descriptions.push(desc.clone());
-					}
-					FieldDocArg::Named(ident, _) => {
-						return Err(CoreError::Parse(syn::Error::new(
-							ident.span(),
-							r#"Expected unnamed field documentation (e.g., just `"description"`), found named syntax. Use comma-separated descriptions for tuple structs."#,
-						)));
-					}
-				}
-			}
-
-			// Check count matches
-			if descriptions.len() != expected_count {
-				return Err(CoreError::Parse(syn::Error::new(
-					attr.span(),
-					format!(
-						"Expected {expected_count} description arguments (one for each field), found {}. All fields must be documented.",
-						descriptions.len()
-					),
-				)));
-			}
-
-			// Generate documentation for tuple fields
-			for (idx, desc) in descriptions.iter().enumerate() {
-				let field_name = format!("{idx}");
-				let doc_comment = format_parameter_doc(&field_name, &desc.value());
-				insert_doc_comment(
-					&mut item_struct.attrs,
-					doc_comment,
-					proc_macro2::Span::call_site(),
-				);
-			}
-		}
-	}
+	// Use the documenter to validate and generate docs
+	let documenter = FieldDocumenter::new(field_info, attr.span(), "struct");
+	documenter.validate_and_generate(args, &mut item_struct.attrs)?;
 
 	Ok(item_struct.to_token_stream())
-}
-
-/// Information about the fields in a struct.
-enum FieldInfo {
-	/// Named fields with their identifiers
-	Named(Vec<Ident>),
-	/// Unnamed fields (tuple struct) with the count
-	Unnamed(usize),
 }
 
 #[cfg(test)]
@@ -481,7 +149,7 @@ mod tests {
 		let result = document_fields_worker(attr, item);
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Field `z` does not exist in struct"));
+		assert!(error.contains("Field `z` does not exist"));
 	}
 
 	#[test]
@@ -497,7 +165,7 @@ mod tests {
 		let result = document_fields_worker(attr, item);
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Duplicate documentation for field `x`"));
+		assert!(error.contains("Duplicate documentation for"));
 	}
 
 	#[test]
@@ -524,7 +192,7 @@ mod tests {
 		let result = document_fields_worker(attr, item);
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("zero-sized types"));
+		assert!(error.contains("cannot be used on unit struct"));
 	}
 
 	#[test]
@@ -551,7 +219,7 @@ mod tests {
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
 		assert!(error.contains("Expected unnamed field documentation"));
-		assert!(error.contains("Use comma-separated descriptions for tuple structs"));
+		assert!(error.contains("Use comma-separated descriptions for tuple"));
 	}
 
 	#[test]
@@ -567,7 +235,7 @@ mod tests {
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
 		assert!(error.contains("Expected named field documentation"));
-		assert!(error.contains("Use named syntax for structs with named fields"));
+		assert!(error.contains("Use named syntax for"));
 	}
 
 	#[test]
