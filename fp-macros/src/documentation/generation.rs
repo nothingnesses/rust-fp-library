@@ -13,8 +13,8 @@ use crate::{
 		},
 	},
 	support::{
-		attributes::find_attribute,
-		parsing::{parse_parameter_documentation_pairs, parse_unique_attr_value},
+		attributes::{AttributeExt, find_attribute},
+		parsing::parse_parameter_documentation_pairs,
 		syntax::{DocArg, GenericArgs, format_parameter_doc},
 	},
 };
@@ -135,18 +135,6 @@ pub(super) fn process_document_type_parameters(
 	errors
 }
 
-/// Helper to parse an attribute value, collecting errors instead of propagating them.
-fn parse_attr_or_none(
-	attrs: &[syn::Attribute],
-	name: &str,
-	errors: &mut ErrorCollector,
-) -> Option<String> {
-	parse_unique_attr_value(attrs, name).unwrap_or_else(|e| {
-		errors.push(syn::Error::from(e));
-		None
-	})
-}
-
 /// Process method-level documentation (signatures and type parameters).
 fn process_method_documentation(
 	method: &mut syn::ImplItemFn,
@@ -159,7 +147,7 @@ fn process_method_documentation(
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
-	let method_document_use = parse_attr_or_none(&method.attrs, DOCUMENT_USE, errors);
+	let method_document_use = method.attrs.find_value_or_collect(DOCUMENT_USE, errors);
 	let document_use = method_document_use.or_else(|| impl_document_use.map(String::from));
 
 	// 1. Handle HM Signature
@@ -224,7 +212,7 @@ fn process_impl_block(
 	}
 
 	// Parse impl-level document_use attribute
-	let impl_document_use = parse_attr_or_none(&item_impl.attrs, DOCUMENT_USE, errors);
+	let impl_document_use = item_impl.attrs.find_value_or_collect(DOCUMENT_USE, errors);
 
 	// Process each method in the impl block
 	for impl_item in &mut item_impl.items {

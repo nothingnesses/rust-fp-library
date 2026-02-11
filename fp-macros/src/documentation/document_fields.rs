@@ -1,7 +1,7 @@
 use crate::{
 	core::{Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS},
 	support::{
-		attributes::remove_and_parse_attribute,
+		attributes::AttributeExt,
 		field_docs::{FieldDocArgs, FieldDocumenter, FieldInfo},
 	},
 };
@@ -25,9 +25,7 @@ fn document_enum_fields(mut item_enum: ItemEnum) -> Result<TokenStream> {
 /// Processes a single variant's `#[document_fields(...)]` attribute if present.
 fn process_variant_fields(variant: &mut Variant) -> Result<()> {
 	// Find, remove, and parse the attribute in one operation
-	let Some((_attr_idx, args)) =
-		remove_and_parse_attribute::<FieldDocArgs>(&mut variant.attrs, DOCUMENT_FIELDS)?
-	else {
+	let Some(args) = variant.attrs.find_and_remove::<FieldDocArgs>(DOCUMENT_FIELDS)? else {
 		// No attribute on this variant, skip it
 		return Ok(());
 	};

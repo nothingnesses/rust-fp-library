@@ -138,7 +138,7 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 		let target = &def.target_type;
 		let where_clause = &def.where_clause;
 		// Filter out documentation-specific attributes to avoid "unused attribute" warnings
-		let attrs = attributes::filter_doc_attrs(&def.signature.attributes);
+		let attrs = attributes::filter_doc_attributes(&def.signature.attributes);
 
 		quote! {
 			#(#attrs)*

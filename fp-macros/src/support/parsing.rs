@@ -8,7 +8,6 @@ use proc_macro2::{Span, TokenStream};
 use syn::{
 	GenericParam, Generics,
 	parse::{Parse, ParseStream},
-	spanned::Spanned,
 };
 
 /// Parse a stream of items until it's empty.
@@ -102,32 +101,6 @@ pub fn parse_empty_attributes(attrs: TokenStream) -> Result<TokenStream> {
 		return Err(Error::validation(Span::call_site(), "This macro does not accept attributes"));
 	}
 	Ok(attrs)
-}
-
-/// Extracts a single string value from a name-value attribute, with duplicate checking.
-///
-/// For example, this extracts `"SomeType"` from `#[document_use = "SomeType"]`.
-pub fn parse_unique_attr_value(
-	attrs: &[syn::Attribute],
-	name: &str,
-) -> Result<Option<String>> {
-	let mut found = None;
-	for attr in attrs {
-		if attr.path().is_ident(name) {
-			if found.is_some() {
-				return Err(Error::validation(
-					attr.span(),
-					format!("Multiple `#[{name}]` attributes found on same item"),
-				));
-			}
-			if let syn::Meta::NameValue(nv) = &attr.meta
-				&& let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value
-			{
-				found = Some(s.value());
-			}
-		}
-	}
-	Ok(found)
 }
 
 /// Parses and validates parameter documentation pairs.
@@ -226,26 +199,5 @@ mod tests {
 
 		let not_empty = quote::quote!(#[attr]);
 		assert!(parse_empty_attributes(not_empty).is_err());
-	}
-
-	#[test]
-	fn test_parse_unique_attr_value() {
-		use syn::parse_quote;
-		let attrs: Vec<syn::Attribute> = vec![parse_quote!(#[test = "value"])];
-
-		let result = parse_unique_attr_value(&attrs, "test");
-		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), Some("value".to_string()));
-
-		let multi_attrs: Vec<syn::Attribute> =
-			vec![parse_quote!(#[test = "v1"]), parse_quote!(#[test = "v2"])];
-		let result = parse_unique_attr_value(&multi_attrs, "test");
-		assert!(result.is_err());
-
-		// Test invalid format (not name-value)
-		let invalid_attrs: Vec<syn::Attribute> = vec![parse_quote!(#[test])];
-		let result = parse_unique_attr_value(&invalid_attrs, "test");
-		assert!(result.is_ok());
-		assert_eq!(result.unwrap(), None);
 	}
 }
