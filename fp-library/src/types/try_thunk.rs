@@ -971,6 +971,12 @@ mod inner {
 	}
 
 	impl_kind! {
+		/// HKT branding for the `TryThunk` type.
+		///
+		/// The type parameters for `Of` are ordered `E`, then `A` (Error, then Success).
+		/// This follows the same convention as `ResultBrand`, matching functional
+		/// programming expectations (like Haskell's `Either e a`) where the success
+		/// type is the last parameter.
 		for TryThunkBrand {
 			type Of<'a, E: 'a, A: 'a>: 'a = TryThunk<'a, A, E>;
 		}

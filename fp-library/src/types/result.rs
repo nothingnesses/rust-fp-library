@@ -17,12 +17,21 @@ mod inner {
 	use fp_macros::document_parameters;
 
 	impl_kind! {
+		/// HKT branding for the `Result` type.
+		///
+		/// The type parameters for `Of` are ordered `E`, then `A` (Error, then Success).
+		/// This follows functional programming conventions (like Haskell's `Either e a`)
+		/// where the right-most type parameter is the "success" value, allowing the
+		/// type to form a `Monad` over the success type by fixing the error type.
 		for ResultBrand {
 			type Of<A, B> = Result<B, A>;
 		}
 	}
 
 	impl_kind! {
+		/// HKT branding for the `Result` type with lifetimes.
+		///
+		/// The type parameters for `Of` are ordered `E`, then `A` (Error, then Success).
 		for ResultBrand {
 			type Of<'a, A: 'a, B: 'a>: 'a = Result<B, A>;
 		}

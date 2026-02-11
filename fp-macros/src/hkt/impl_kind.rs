@@ -30,6 +30,8 @@ use syn::{
 /// }
 /// ```
 pub struct ImplKindInput {
+	/// Attributes (including doc comments) for the impl block.
+	pub attributes: Vec<syn::Attribute>,
 	/// Generics for the impl block (e.g., `impl<T>`).
 	pub impl_generics: Generics,
 	/// The `for` keyword.
@@ -60,6 +62,8 @@ pub struct AssociatedType {
 
 impl Parse for ImplKindInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let attributes = input.call(syn::Attribute::parse_outer)?;
+
 		let mut impl_generics = if input.peek(Token![impl]) {
 			input.parse::<Token![impl]>()?;
 			input.parse::<Generics>()?
@@ -85,6 +89,7 @@ impl Parse for ImplKindInput {
 		)?;
 
 		Ok(ImplKindInput {
+			attributes,
 			impl_generics,
 			_for_token: for_token,
 			brand,
@@ -152,8 +157,18 @@ pub fn impl_kind_worker(input: ImplKindInput) -> Result<TokenStream> {
 
 	let (impl_generics_impl, _, impl_generics_where) = impl_generics.split_for_impl();
 
+	let attrs = &input.attributes;
+	let has_doc = attrs.iter().any(|attr| attr.path().is_ident("doc"));
+	let maybe_separator = if has_doc {
+		quote! { #[doc = ""] }
+	} else {
+		quote! {}
+	};
+
 	Ok(quote! {
 		#[doc = #doc_comment]
+		#maybe_separator
+		#(#attrs)*
 		impl #impl_generics_impl #kind_trait_name for #brand #impl_generics_where {
 			#(#assoc_types_impl)*
 		}
