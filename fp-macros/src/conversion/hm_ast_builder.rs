@@ -4,14 +4,13 @@
 //! to transform Rust types into Hindley-Milner representations.
 
 use crate::{
-	analysis::traits::format_brand_name,
+	analysis::{extract_apply_macro_info, extract_fn_brand_info, traits::format_brand_name},
 	conversion::{
 		HmAst,
 		converter::{
 			extract_smart_pointer_inner, is_phantom_data_path, is_smart_pointer,
 			trait_bound_to_hm_type,
 		},
-		extract_apply_macro_info, extract_fn_brand_info,
 	},
 	core::{
 		config::Config,

@@ -1,6 +1,9 @@
 use crate::{
-	analysis::traits::{TraitCategory, classify_trait},
-	conversion::patterns::extract_fn_brand_info,
+	analysis::{
+		extract_apply_macro_info,
+		patterns::extract_fn_brand_info,
+		traits::{TraitCategory, classify_trait},
+	},
 	core::{config::Config, constants::types},
 	support::{
 		parsing::{parse_parameter_documentation_pairs, try_parse_one_of},
@@ -379,7 +382,7 @@ impl<'a> TypeVisitor for CurriedParamExtractor<'a> {
 		// Apply! macro support is handled by extracting its info, but we don't
 		// currently extract curried parameters from Apply! projections.
 		// This could be enhanced in the future if needed.
-		let _ = crate::conversion::patterns::extract_apply_macro_info(type_macro);
+		let _ = extract_apply_macro_info(type_macro);
 	}
 
 	fn visit_impl_trait(

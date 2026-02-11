@@ -3,7 +3,7 @@
 //! This module provides a comprehensive error system with rich context for
 //! generating helpful compile-time error messages.
 
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use std::fmt;
 use thiserror::Error;
 
@@ -231,6 +231,7 @@ pub struct ErrorCollector {
 	errors: Vec<syn::Error>,
 }
 
+#[allow(dead_code)]
 impl ErrorCollector {
 	pub fn new() -> Self {
 		Self { errors: Vec::new() }
@@ -310,6 +311,7 @@ impl Default for ErrorCollector {
 /// // Finish and return all errors
 /// errors.finish()?;
 /// ```
+#[allow(dead_code)]
 pub trait CollectErrors {
 	/// Execute a fallible operation, collecting any errors.
 	///
@@ -444,6 +446,18 @@ impl CollectErrors for ErrorCollector {
 				None
 			}
 		}
+	}
+}
+
+/// Trait for converting errors to compile-time errors
+pub trait ToCompileError {
+	fn to_compile_error(self) -> TokenStream;
+}
+
+impl ToCompileError for Error {
+	fn to_compile_error(self) -> TokenStream {
+		let syn_error: syn::Error = self.into();
+		syn_error.to_compile_error()
 	}
 }
 
@@ -620,5 +634,13 @@ mod tests {
 
 		errors.push(syn::Error::new(Span::call_site(), "error 2"));
 		assert_eq!(errors.len(), 2);
+	}
+
+	#[test]
+	fn test_to_compile_error() {
+		let err = Error::validation(Span::call_site(), "test error");
+		let token_stream = err.to_compile_error();
+		let output = token_stream.to_string();
+		assert!(!output.is_empty());
 	}
 }
