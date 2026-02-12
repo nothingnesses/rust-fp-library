@@ -342,7 +342,6 @@ pub fn rapidhash(data: &[u8]) -> u64 {
 ///    - Canonicalized bounds on type parameters
 ///    - Canonicalized output bounds
 /// 3. Joining these strings with `__`.
-/// Generates a canonical string representation for an associated type's signature.
 pub fn generate_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Result<String> {
 	let mut canon = Canonicalizer::new(&signature.generics);
 

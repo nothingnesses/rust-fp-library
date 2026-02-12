@@ -1,6 +1,7 @@
 use crate::{
 	core::{
 		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
+		error_handling::ErrorCollector,
 	},
 	support::{
 		Parameter,
@@ -171,12 +172,20 @@ fn process_impl_block(
 	let receiver_desc = receiver_doc.description.value();
 	let config = get_config();
 
+	// Collect errors from all methods instead of returning early
+	let mut errors = ErrorCollector::new();
+
 	// Process each method that has #[document_parameters]
 	for item in &mut item_impl.items {
-		if let ImplItem::Fn(method) = item {
-			process_method_in_impl(method, &receiver_desc, &config)?;
+		if let ImplItem::Fn(method) = item
+			&& let Err(e) = process_method_in_impl(method, &receiver_desc, &config)
+		{
+			errors.push(e.into());
 		}
 	}
+
+	// Finish and convert any collected errors
+	errors.finish()?;
 
 	Ok(quote!(#item_impl))
 }

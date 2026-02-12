@@ -205,6 +205,13 @@ impl UnsupportedFeature {
 /// Convert our error to syn::Error for proc macro output
 impl From<Error> for syn::Error {
 	fn from(err: Error) -> Self {
+		// If it's a wrapped syn::Error (Parse variant), return it directly
+		// to preserve multiple combined errors (which would be lost if we
+		// created a new syn::Error from the Display message).
+		if let Error::Parse(e) = err {
+			return e;
+		}
+
 		let span = err.span();
 		let mut message = err.to_string();
 

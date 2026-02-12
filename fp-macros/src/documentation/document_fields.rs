@@ -1,5 +1,8 @@
 use crate::{
-	core::{Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS},
+	core::{
+		Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS,
+		error_handling::ErrorCollector,
+	},
 	support::{
 		attributes::AttributeExt,
 		document_field::{DocumentFieldParameters, FieldDocumenter, FieldInfo},
@@ -14,10 +17,18 @@ use syn::{ItemEnum, ItemStruct, Variant, spanned::Spanned};
 /// This function looks for `#[document_fields(...)]` attributes on enum variants
 /// and processes them to generate field documentation.
 fn document_enum_fields(mut item_enum: ItemEnum) -> Result<TokenStream> {
+	// Collect errors from all variants instead of returning early
+	let mut errors = ErrorCollector::new();
+
 	// Process each variant
 	for variant in &mut item_enum.variants {
-		process_variant_fields(variant)?;
+		if let Err(e) = process_variant_fields(variant) {
+			errors.push(e.into());
+		}
 	}
+
+	// Finish and convert any collected errors
+	errors.finish()?;
 
 	Ok(item_enum.to_token_stream())
 }
