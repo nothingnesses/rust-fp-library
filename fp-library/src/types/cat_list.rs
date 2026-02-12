@@ -1275,7 +1275,7 @@ mod inner {
 	/// ### Type Parameters
 	///
 	#[document_type_parameters("The type of the elements in the list")]
-	#[document_parameters("The list to operate on")]
+	#[document_parameters("The list to operate on.")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
 		///
@@ -1362,7 +1362,7 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[document_parameters("The element to append.")]
+		#[document_parameters("The element to prepend.")]
 		///
 		/// ### Returns
 		///
@@ -1447,7 +1447,19 @@ mod inner {
 
 		/// Internal linking operation.
 		///
-		/// Links two CatLists by pushing the second onto the first's sublist deque.
+		/// Links two `CatList`s by pushing the second onto the first's sublist deque.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The first list.", "The second list.")]
+		///
+		/// ### Returns
+		///
+		/// A new list consisting of the two input lists linked together.
 		fn link(
 			left: Self,
 			right: Self,
@@ -1509,6 +1521,18 @@ mod inner {
 		/// This is equivalent to `foldr link CatNil deque` in PureScript.
 		///
 		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The deque of sublists to flatten.")]
+		///
+		/// ### Returns
+		///
+		/// A single flattened `CatList`.
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
