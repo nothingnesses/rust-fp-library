@@ -514,10 +514,10 @@ pub fn document_signature(
 	}
 }
 
-/// Generates documentation for a function's type parameters.
+/// Generates documentation for type parameters.
 ///
-/// This macro analyzes the function signature and generates a documentation comment
-/// list based on the provided descriptions.
+/// This macro analyzes the item's signature (function, struct, enum, impl block, etc.)
+/// and generates a documentation comment list based on the provided descriptions.
 ///
 /// When used within a module annotated with [`#[document_module]`](macro@document_module),
 /// it benefits from automatic `Self` resolution and is applied as part of the module-level
@@ -532,6 +532,13 @@ pub fn document_signature(
 ///     ...
 /// )]
 /// pub fn function_name<Generics>(params) -> ReturnType { ... }
+/// ```
+///
+/// It can also be used on other items like `impl` blocks:
+///
+/// ```ignore
+/// #[document_type_parameters("Description for T")]
+/// impl<T> MyType<T> { ... }
 /// ```
 ///
 /// ### Parameters
@@ -580,8 +587,12 @@ pub fn document_type_parameters(
 /// This macro analyzes the function signature and generates a documentation comment
 /// list based on the provided descriptions. It also handles curried return types.
 ///
+/// It can also be used on `impl` blocks to provide a common description for the receiver (`self`)
+/// parameter of methods within the block.
+///
 /// ### Syntax
 ///
+/// For functions:
 /// ```ignore
 /// #[document_parameters(
 ///     "Description for first parameter",
@@ -591,10 +602,23 @@ pub fn document_type_parameters(
 /// pub fn function_name(params) -> impl Fn(...) { ... }
 /// ```
 ///
+/// For `impl` blocks:
+/// ```ignore
+/// #[document_parameters("Description for receiver")]
+/// impl MyType {
+///     #[document_parameters]
+///     pub fn method_with_receiver(&self) { ... }
+///
+///     #[document_parameters("Description for arg")]
+///     pub fn method_with_args(&self, arg: i32) { ... }
+/// }
+/// ```
+///
 /// ### Parameters
 ///
 /// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
 ///   or a tuple of two string literals `(Name, Description)`.
+/// * For `impl` blocks: Exactly one string literal describing the receiver parameter.
 ///
 /// ### Generates
 ///
@@ -615,6 +639,22 @@ pub fn document_type_parameters(
 /// /// * `x`: The first input value.
 /// /// * `y`: The second input value.
 /// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
+/// ```
+///
+/// ```ignore
+/// // Invocation on impl block
+/// #[document_parameters("The list instance")]
+/// impl<A> MyList<A> {
+///     #[document_parameters("The element to push")]
+///     pub fn push(&mut self, item: A) { ... }
+/// }
+///
+/// // Expanded code
+/// impl<A> MyList<A> {
+///     /// * `&mut self`: The list instance
+///     /// * `item`: The element to push
+///     pub fn push(&mut self, item: A) { ... }
+/// }
 /// ```
 ///
 /// ### Constraints
