@@ -81,6 +81,10 @@ mod inner {
 	/// ```
 	pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the value produced by the task.")]
+	#[document_parameters("The `Trampoline` instance.")]
 	impl<A: 'static + Send> Trampoline<A> {
 		/// Creates a `Trampoline` from an already-computed value.
 		///
@@ -299,6 +303,10 @@ mod inner {
 		/// ### Type Signature
 		///
 		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters]
 		///
 		/// ### Returns
 		///
@@ -534,6 +542,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the value produced by the task.")]
 	impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
 		///
