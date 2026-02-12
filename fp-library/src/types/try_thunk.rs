@@ -50,6 +50,14 @@ mod inner {
 	/// ```
 	pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
+	#[document_parameters("The `TryThunk` instance.")]
 	impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 		/// Creates a new `TryThunk` from a thunk.
 		///
@@ -257,9 +265,9 @@ mod inner {
 		/// ### Type Parameters
 		///
 		#[document_type_parameters(
-		"The type of the result of the transformation.",
-		("F", "The type of the transformation function.")
-	)]
+			"The type of the result of the transformation.",
+			"The type of the transformation function."
+		)]
 		///
 		/// ### Parameters
 		///
@@ -417,6 +425,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
 	impl<'a, A, E> Deferrable<'a> for TryThunk<'a, A, E>
 	where
 		A: 'a,
@@ -459,10 +474,14 @@ mod inner {
 
 	impl_kind! {
 		impl<E: 'static> for TryThunkWithErrBrand<E> {
+			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>;
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
 		/// Maps a function over the result of a `TryThunk` computation.
 		///
@@ -510,6 +529,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Pointed for TryThunkWithErrBrand<E> {
 		/// Wraps a value in a `TryThunk` context.
 		///
@@ -545,6 +567,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
 		/// Lifts a binary function into the `TryThunk` context.
 		///
@@ -599,9 +624,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> ApplyFirst for TryThunkWithErrBrand<E> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> ApplySecond for TryThunkWithErrBrand<E> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
 		/// Applies a function wrapped in `TryThunk` to a value wrapped in `TryThunk`.
 		///
@@ -652,6 +687,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
 		/// Chains `TryThunk` computations.
 		///
@@ -699,6 +737,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
 		/// Performs tail-recursive monadic computation.
 		///
@@ -756,6 +797,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 		/// Folds the `TryThunk` from the right.
 		///
@@ -910,6 +954,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The success value type.",
+		"The error value type."
+	)]
 	impl<'a, A: Semigroup + 'a, E: 'a> Semigroup for TryThunk<'a, A, E> {
 		/// Combines two `TryThunk`s by combining their results.
 		///
@@ -947,6 +998,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The success value type.",
+		"The error value type."
+	)]
 	impl<'a, A: Monoid + 'a, E: 'a> Monoid for TryThunk<'a, A, E> {
 		/// Returns the identity `TryThunk`.
 		///
@@ -1045,10 +1103,14 @@ mod inner {
 
 	impl_kind! {
 		impl<A: 'static> for TryThunkWithOkBrand<A> {
+			#[document_default]
 			type Of<'a, E: 'a>: 'a = TryThunk<'a, A, E>;
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
 		/// Maps a function over the error value in the `TryThunk`.
 		///
@@ -1093,6 +1155,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Pointed for TryThunkWithOkBrand<A> {
 		/// Wraps a value in a `TryThunk` context (as error).
 		///
@@ -1128,6 +1193,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
 		/// Lifts a binary function into the `TryThunk` context (over error).
 		///
@@ -1186,9 +1254,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> ApplyFirst for TryThunkWithOkBrand<A> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> ApplySecond for TryThunkWithOkBrand<A> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
 		/// Applies a function wrapped in `TryThunk` (as error) to a value wrapped in `TryThunk` (as error).
 		///
@@ -1238,6 +1316,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
 		/// Chains `TryThunk` computations (over error).
 		///
@@ -1288,6 +1369,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 		/// Folds the `TryThunk` from the right (over error).
 		///

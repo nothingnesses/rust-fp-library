@@ -47,6 +47,15 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The `TryLazy` instance.")]
 	impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
 	where
 		A: 'a,
@@ -75,6 +84,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
 	where
 		A: 'a,
@@ -150,6 +166,12 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value."
+	)]
 	impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
 	where
 		A: 'a,
@@ -201,6 +223,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: 'a,
@@ -240,6 +269,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
 	where
 		A: Clone + 'a,
@@ -285,10 +321,18 @@ mod inner {
 
 	impl_kind! {
 		impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
+			#[document_default]
 			type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: Clone + Send + Sync + 'a,
