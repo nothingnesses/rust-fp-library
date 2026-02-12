@@ -1206,7 +1206,7 @@ mod inner {
 
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the elements in the list")]
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
 		///
@@ -1245,7 +1245,7 @@ mod inner {
 
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the elements in the list")]
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Monoid for CatList<A> {
 		/// Returns an empty list.
 		///
@@ -1274,7 +1274,7 @@ mod inner {
 
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the elements in the list")]
+	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to operate on.")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.

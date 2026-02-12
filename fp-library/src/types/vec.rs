@@ -615,6 +615,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the vector.")]
 	impl<A: Clone> Semigroup for Vec<A> {
 		/// Appends one vector to another.
 		///
@@ -647,6 +650,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the vector.")]
 	impl<A: Clone> Monoid for Vec<A> {
 		/// Returns an empty vector.
 		///

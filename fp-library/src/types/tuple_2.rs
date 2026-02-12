@@ -91,6 +91,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
 		/// Maps a function over the second value in the tuple.
 		///
@@ -138,6 +141,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Lift for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
@@ -197,6 +203,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Pointed for Tuple2WithFirstBrand<First>
 	where
 		First: Monoid,
@@ -233,9 +242,18 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithFirstBrand<First> {}
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + Semigroup + 'static> ApplySecond for Tuple2WithFirstBrand<First> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Semiapplicative for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
@@ -284,6 +302,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Semimonad for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
@@ -336,6 +357,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 		/// Folds the tuple from the right (over second).
 		///
@@ -480,6 +504,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 		/// Traverses the tuple with an applicative function (over second).
 		///
@@ -577,6 +604,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
@@ -690,6 +720,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
 		/// Maps a function over the first value in the tuple.
 		///
@@ -737,6 +770,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Lift for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
@@ -796,6 +832,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Pointed for Tuple2WithSecondBrand<Second>
 	where
 		Second: Monoid,
@@ -832,9 +871,18 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithSecondBrand<Second> {}
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + Semigroup + 'static> ApplySecond for Tuple2WithSecondBrand<Second> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Semiapplicative for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
@@ -883,6 +931,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Semimonad for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
@@ -935,6 +986,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 		/// Folds the tuple from the right (over first).
 		///
@@ -1075,6 +1129,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 		/// Traverses the tuple with an applicative function (over first).
 		///
@@ -1170,6 +1227,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
