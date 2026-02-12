@@ -1,4 +1,4 @@
-//! Single-value tuple with [`Functor`], [`Applicative`], and [`Monad`](crate::classes::Monad) instances.
+//! Single-value tuple with [`Functor`], [`Applicative`], [`Monad`](crate::classes::Monad), [`Foldable`], [`Traversable`], and parallel folding instances.
 //!
 //! A trivial wrapper using the native Rust 1-tuple `(A,)`.
 
@@ -338,7 +338,7 @@ mod inner {
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
 			"The initial value of the accumulator.",
-			"The structure to fold."
+			"The tuple to fold."
 		)]
 		///
 		/// ### Returns
@@ -386,7 +386,10 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[document_parameters("The mapping function.", "The tuple to fold.")]
+		#[document_parameters(
+			"The thread-safe function to map each element to a monoid.",
+			"The tuple to fold."
+		)]
 		///
 		/// ### Returns
 		///
@@ -528,7 +531,10 @@ mod inner {
 		///
 		/// ### Parameters
 		///
-		#[document_parameters("The mapping function.", "The tuple to fold.")]
+		#[document_parameters(
+			"The function to map each element to a monoid.",
+			"The tuple to fold."
+		)]
 		///
 		/// ### Returns
 		///
