@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-13
+
+### Added
+- **New Macros**:
+  - Added `document_fields!` macro for documenting struct/enum fields.
+  - Added `document_module!` macro for processing module-level documentation and trait implementations.
+- **Error Handling Infrastructure**: Added comprehensive error handling with `thiserror` integration, including proper error propagation and user-friendly compile errors.
+- **Type Resolution System**: Added full type resolution infrastructure in `resolution` module (context, impl_key, projection_key, resolver).
+- **Analysis Infrastructure**: Added `analysis` module for generic parameter analysis, pattern detection (FnBrand, Apply!), and trait classification.
+- **Core Infrastructure**: Added `core` module with configuration management, error handling, and constants.
+- **Support Utilities**: Added `support` module with AST utilities, attribute handling, parsing helpers, type visitors, and field documentation support.
+
+### Changed
+- **API Breaking - Macro Renames**:
+  - Renamed `def_kind!` to `trait_kind!` for clarity.
+  - Renamed `hm_signature!` to `document_signature!` for consistency.
+  - Renamed `doc_type_params!` to `document_type_parameters!` for consistency.
+  - Renamed `doc_params!` to `document_parameters!` for consistency.
+- **Dependencies**: Added `visit` and `visit-mut` features to `syn` dependency. Added `thiserror` 2.0 for error handling.
+- **README**: Removed detailed macro usage documentation from README (documentation now in rustdoc).
+- **Module Structure (Internal Refactoring)**:
+  - Reorganized codebase into clear module hierarchy: `analysis`, `codegen`, `core`, `documentation`, `hkt`, `hm`, `resolution`, `support`.
+  - Split `hkt` functionality into submodules: `apply`, `associated_type`, `canonicalizer`, `impl_kind`, `input`, `trait_kind`.
+  - Split `hm` (Hindley-Milner) into submodules: `ast`, `ast_builder`, `converter`.
+  - Split `documentation` into submodules: `document_fields`, `document_module`, `document_parameters`, `document_signature`, `document_type_parameters`, `generation`, `templates`.
+  - Split `codegen` into submodules for re-export generation.
+  - Consolidated core types and error handling in `core` module.
+- **Error Handling**: All macro workers now return `Result` types with proper error propagation instead of panicking.
+- **Documentation**: Added `#![warn(missing_docs)]` and comprehensive module-level documentation throughout the crate.
+
+### Removed
+- **Old Module Structure**: Removed flat modules in favor of hierarchical organization: `canonicalize`, `def_kind`, `doc_params`, `doc_type_params`, `doc_utils`, `function_utils`, `generate`, `parse`, `re_export` (functionality moved to new module structure).
+
 ## [0.3.3] - 2026-02-02
 
 ### Added
