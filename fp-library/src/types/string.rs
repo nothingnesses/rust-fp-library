@@ -1,4 +1,4 @@
-//! [`Semigroup`] and [`Monoid`] instances for the standard library [`String`] type.
+//! [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances for the standard library [`String`] type.
 //!
 //! Provides string concatenation as a monoidal operation with the empty string as the identity element.
 

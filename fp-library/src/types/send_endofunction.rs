@@ -1,4 +1,4 @@
-//! Thread-safe wrapper for endofunctions with [`Semigroup`] and [`Monoid`] instances.
+//! Thread-safe wrapper for endofunctions with [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances.
 //!
 //! The `Send + Sync` counterpart to [`Endofunction`](crate::types::Endofunction), wrapping functions that can be safely shared across threads.
 

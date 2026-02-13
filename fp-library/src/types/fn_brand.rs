@@ -1,6 +1,6 @@
-//! Reference-counted cloneable function wrappers with [`Semigroupoid`] and [`Category`] instances.
+//! Reference-counted cloneable function wrappers with [`Semigroupoid`](crate::classes::Semigroupoid) and [`Category`](crate::classes::Category) instances.
 //!
-//! Provides the [`FnBrand`] abstraction for wrapping closures in `Rc<dyn Fn>` or `Arc<dyn Fn>` for use in higher-kinded contexts.
+//! Provides the [`FnBrand`](crate::brands::FnBrand) abstraction for wrapping closures in `Rc<dyn Fn>` or `Arc<dyn Fn>` for use in higher-kinded contexts.
 
 #[fp_macros::document_module]
 mod inner {

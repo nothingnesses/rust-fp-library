@@ -1,4 +1,4 @@
-//! Single-threaded reference-counted pointer abstraction using [`Rc`].
+//! Single-threaded reference-counted pointer abstraction using [`Rc`](std::rc::Rc).
 //!
 //! Provides trait implementations for using `Rc` in the library's pointer abstraction hierarchy. Not thread-safe; use [`ArcBrand`](crate::brands::ArcBrand) for multi-threaded contexts.
 //!

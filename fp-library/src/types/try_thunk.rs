@@ -1,6 +1,6 @@
 //! Deferred, non-memoized fallible computation with higher-kinded type support.
 //!
-//! The fallible counterpart to [`Thunk`]. Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
+//! The fallible counterpart to [`Thunk`](crate::types::Thunk). Each call to [`TryThunk::evaluate`] re-executes the computation and returns a [`Result`]. Supports borrowing and lifetime polymorphism.
 
 #[fp_macros::document_module]
 mod inner {

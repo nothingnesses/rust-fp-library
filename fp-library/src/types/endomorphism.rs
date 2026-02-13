@@ -1,6 +1,6 @@
-//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`] and [`Monoid`] instances based on categorical composition.
+//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances based on categorical composition.
 //!
-//! A more general form of `Endofunction` that works with any [`Category`], not just functions.
+//! A more general form of `Endofunction` that works with any [`Category`](crate::classes::Category), not just functions.
 
 #[fp_macros::document_module]
 mod inner {

@@ -1,4 +1,4 @@
-//! Wrapper for endofunctions (functions `a -> a`) with [`Semigroup`] and [`Monoid`] instances based on function composition.
+//! Wrapper for endofunctions (functions `a -> a`) with [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances based on function composition.
 //!
 //! Used to treat function composition as a monoidal operation where [`append`](crate::functions::append) composes functions and [`empty`](crate::functions::empty) is the identity function.
 

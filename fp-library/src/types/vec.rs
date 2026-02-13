@@ -1,6 +1,6 @@
 //! Functional programming trait implementations for the standard library [`Vec`] type.
 //!
-//! Extends `Vec` with [`Functor`], [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`], [`Traversable`], [`Filterable`], [`Witherable`], and parallel folding instances.
+//! Extends `Vec` with [`Functor`](crate::classes::Functor), [`Monad`](crate::classes::semimonad::Semimonad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), [`Filterable`](crate::classes::Filterable), [`Witherable`](crate::classes::Witherable), and parallel folding instances.
 
 #[fp_macros::document_module]
 mod inner {

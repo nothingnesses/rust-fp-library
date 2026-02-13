@@ -14,7 +14,7 @@
 //!    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
 //!      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
 //!    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
-//!      baked into the [`Evaluable`] trait implemented by the functor `F`.
+//!      baked into the [`Evaluable`](crate::classes::Evaluable) trait implemented by the functor `F`.
 //!      The [`Free::wrap`] method wraps a functor layer containing a Free computation.
 //!
 //! 2. **API Surface**:
@@ -31,7 +31,7 @@
 //! **What it CAN do:**
 //! * Provide stack-safe recursion for monadic computations (trampolining).
 //! * Prevent stack overflows when chaining many `bind` operations.
-//! * Execute self-describing effects (like [`Thunk`]).
+//! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
 //!
 //! **What it CANNOT do (easily):**
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.

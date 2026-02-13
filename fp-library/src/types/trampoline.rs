@@ -1,6 +1,6 @@
 //! Stack-safe computation type with guaranteed safety for unlimited recursion depth.
 //!
-//! Built on the [`Free`] monad with O(1) [`bind`](crate::functions::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
+//! Built on the [`Free`](crate::types::Free) monad with O(1) [`bind`](crate::functions::bind) operations. Provides complete stack safety at the cost of requiring `'static` types. Use this for deep recursion and heavy monadic pipelines.
 //!
 //! ### Examples
 //!

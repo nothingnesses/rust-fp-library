@@ -1,4 +1,4 @@
-//! Single-value tuple with [`Functor`], [`Applicative`], [`Monad`](crate::classes::Monad), [`Foldable`], [`Traversable`], and parallel folding instances.
+//! Single-value tuple with [`Functor`](crate::classes::Functor), [`Applicative`](crate::classes::Applicative), [`Monad`](crate::classes::Monad), [`Foldable`](crate::classes::Foldable), [`Traversable`](crate::classes::Traversable), and parallel folding instances.
 //!
 //! A trivial wrapper using the native Rust 1-tuple `(A,)`.
 
