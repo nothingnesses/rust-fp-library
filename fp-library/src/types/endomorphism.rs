@@ -86,19 +86,45 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to clone.")]
 	impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to format.")]
 	impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The formatter to use.")]
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -107,15 +133,41 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
 	{
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to hash.")]
 	impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the hasher.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The hasher state to update.")]
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -124,10 +176,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
 	impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -136,10 +203,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
 	impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
 		fn eq(
 			&self,
 			other: &Self,
@@ -148,10 +230,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
 	impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -160,6 +257,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
 		/// The result of combining the two values using the semigroup operation.
 		///
@@ -202,6 +306,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
 		/// The identity element.
 		///

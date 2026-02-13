@@ -70,6 +70,13 @@ mod inner {
 	/// ```
 	pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
+	#[document_parameters("The thunk instance.")]
 	impl<'a, A: 'a> Thunk<'a, A> {
 		/// Creates a new `Thunk` from a thunk.
 		///
@@ -274,11 +281,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation.",
+		"The memoization configuration."
+	)]
 	impl<'a, A, Config> From<Lazy<'a, A, Config>> for Thunk<'a, A>
 	where
 		A: Clone + 'a,
 		Config: LazyConfig,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
@@ -290,6 +311,12 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
 	impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
 		/// Creates a `Thunk` from a computation that produces it.
 		///
@@ -800,6 +827,12 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
 	impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 		/// Combines two `Thunk`s by combining their results.
 		///
@@ -833,6 +866,12 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the value produced by the computation."
+	)]
 	impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 		/// Returns the identity `Thunk`.
 		///

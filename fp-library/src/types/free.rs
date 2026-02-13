@@ -358,6 +358,10 @@ mod inner {
 		}
 
 		/// Converts to type-erased form.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 			let inner = self.0.take().expect("Free value already consumed");
 
@@ -375,6 +379,10 @@ mod inner {
 		}
 
 		/// Converts to boxed type-erased form.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
 		}
@@ -444,11 +452,18 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
 		F: Functor + 'static,
 		A: 'static,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn drop(&mut self) {
 			// We take the inner value out.
 			let inner = self.0.take();

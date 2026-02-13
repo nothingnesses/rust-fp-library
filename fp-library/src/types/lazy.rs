@@ -509,15 +509,34 @@ mod inner {
 	where
 		A: 'a;
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the reference.",
+		"The type of the computed value.",
+		"The memoization configuration (determines Rc vs Arc)."
+	)]
+	#[document_parameters("The instance to clone.")]
 	impl<'a, A, Config: LazyConfig> Clone for Lazy<'a, A, Config>
 	where
 		A: 'a,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the reference.",
+		"The type of the computed value.",
+		"The memoization configuration (determines Rc vs Arc)."
+	)]
+	#[document_parameters("The lazy instance.")]
 	impl<'a, A, Config: LazyConfig> Lazy<'a, A, Config>
 	where
 		A: 'a,
@@ -545,6 +564,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Lazy<'a, A, RcLazyConfig>
 	where
 		A: 'a,
@@ -611,21 +633,44 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The thunk to convert.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> From<Trampoline<A>> for Lazy<'a, A, RcLazyConfig>
 	where
 		A: Send,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The trampoline to convert.")]
 		fn from(task: Trampoline<A>) -> Self {
 			Self::new(move || task.evaluate())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 	where
 		A: 'a,
@@ -708,6 +753,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
 	where
 		A: Clone + 'a,
@@ -750,6 +798,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> SendDeferrable<'a> for Lazy<'a, A, ArcLazyConfig>
 	where
 		A: Clone + Send + Sync + 'a,

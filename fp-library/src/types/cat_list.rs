@@ -77,7 +77,18 @@ mod inner {
 		Cons(A, VecDeque<CatList<A>>, usize),
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to compare.")]
 	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other list to compare to.")]
 		fn eq(
 			&self,
 			other: &Self,
@@ -89,9 +100,27 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A: Eq + Clone> Eq for CatList<A> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to hash.")]
 	impl<A: Hash + Clone> Hash for CatList<A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the hasher.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The hasher state to update.")]
 		fn hash<H: Hasher>(
 			&self,
 			state: &mut H,
@@ -103,7 +132,18 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to compare.")]
 	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other list to compare to.")]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -112,7 +152,18 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to compare.")]
 	impl<A: Ord + Clone> Ord for CatList<A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other list to compare to.")]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -1571,10 +1622,17 @@ mod inner {
 	}
 
 	// Iteration support
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The list to consume.")]
 	impl<A> IntoIterator for CatList<A> {
 		type Item = A;
 		type IntoIter = CatListIterator<A>;
 
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
 		}
@@ -1591,9 +1649,16 @@ mod inner {
 	#[document_fields("The list being iterated over.")]
 	pub struct CatListIterator<A>(CatList<A>);
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
+	#[document_parameters("The iterator state.")]
 	impl<A> Iterator for CatListIterator<A> {
 		type Item = A;
 
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
@@ -1602,7 +1667,21 @@ mod inner {
 	}
 
 	// FromIterator for easy construction
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> FromIterator<A> for CatList<A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The iterator type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The iterator to collect from.")]
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
 		}

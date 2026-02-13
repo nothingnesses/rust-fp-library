@@ -61,6 +61,13 @@ mod inner {
 		Done(B),
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
+		r#"The "done" type - when we return `Done(b)`, we're finished."#
+	)]
+	#[document_parameters("The step value.")]
 	impl<A, B> Step<A, B> {
 		/// Returns `true` if this is a `Loop` variant.
 		///
@@ -298,6 +305,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 		/// Maps a function over the done value in the step.
 		///
@@ -342,6 +352,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 		/// Lifts a binary function into the step context.
 		///
@@ -406,6 +419,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 		/// Wraps a value in a step.
 		///
@@ -439,9 +455,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> ApplyFirst for StepWithLoopBrand<LoopType> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> ApplySecond for StepWithLoopBrand<LoopType> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> {
 		/// Applies a wrapped function to a wrapped value.
 		///
@@ -491,6 +517,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 		/// Chains step computations.
 		///
@@ -544,6 +573,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 		/// Folds the step from the right.
 		///
@@ -699,6 +731,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 		/// Traverses the step with an applicative function.
 		///
@@ -806,6 +841,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
@@ -928,6 +966,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 		/// Maps a function over the loop value in the step.
 		///
@@ -972,6 +1013,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 		/// Lifts a binary function into the step context (over loop).
 		///
@@ -1036,6 +1080,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 		/// Wraps a value in a step (as loop).
 		///
@@ -1069,9 +1116,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> ApplyFirst for StepWithDoneBrand<DoneType> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> ApplySecond for StepWithDoneBrand<DoneType> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> {
 		/// Applies a wrapped function to a wrapped value (over loop).
 		///
@@ -1121,6 +1178,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 		/// Chains step computations (over loop).
 		///
@@ -1171,6 +1231,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 		/// Folds the step from the right (over loop).
 		///
@@ -1326,6 +1389,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 		/// Traverses the step with an applicative function (over loop).
 		///
@@ -1433,6 +1499,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
 		///

@@ -14,7 +14,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::document_parameters;
+	use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 	impl_kind! {
 		/// HKT branding for the `Result` type.
@@ -100,11 +100,17 @@ mod inner {
 	// ResultWithErrBrand<E> (Functor over T)
 
 	impl_kind! {
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The error type.")]
 		impl<E: 'static> for ResultWithErrBrand<E> {
 			type Of<'a, A: 'a>: 'a = Result<A, E>;
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Functor for ResultWithErrBrand<E> {
 		/// Maps a function over the value in the result.
 		///
@@ -150,6 +156,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 		/// Lifts a binary function into the result context.
 		///
@@ -222,6 +231,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 		/// Wraps a value in a result.
 		///
@@ -256,9 +268,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> ApplyFirst for ResultWithErrBrand<E> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> ApplySecond for ResultWithErrBrand<E> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 		/// Applies a wrapped function to a wrapped value.
 		///
@@ -313,6 +335,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 		/// Chains result computations.
 		///
@@ -372,6 +397,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		/// Folds the result from the right.
 		///
@@ -527,6 +555,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 		/// Traverses the result with an applicative function.
 		///
@@ -647,11 +678,17 @@ mod inner {
 	// ResultWithOkBrand<T> (Functor over E)
 
 	impl_kind! {
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The success type.")]
 		impl<T: 'static> for ResultWithOkBrand<T> {
 			type Of<'a, A: 'a>: 'a = Result<T, A>;
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Functor for ResultWithOkBrand<T> {
 		/// Maps a function over the error value in the result.
 		///
@@ -700,6 +737,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 		/// Lifts a binary function into the result context (over error).
 		///
@@ -772,6 +812,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 		/// Wraps a value in a result (as error).
 		///
@@ -806,9 +849,19 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> ApplyFirst for ResultWithOkBrand<T> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> ApplySecond for ResultWithOkBrand<T> {}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 		/// Applies a wrapped function to a wrapped value (over error).
 		///
@@ -863,6 +916,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 		/// Chains result computations (over error).
 		///
@@ -922,6 +978,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		/// Folds the result from the right (over error).
 		///
@@ -1077,6 +1136,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 		/// Traverses the result with an applicative function (over error).
 		///
@@ -1194,6 +1256,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The error type.")]
 	impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
@@ -1308,6 +1373,9 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The success type.")]
 	impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 		///

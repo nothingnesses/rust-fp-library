@@ -397,29 +397,73 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
 	impl<'a, A, E, Config> From<Lazy<'a, A, Config>> for TryThunk<'a, A, E>
 	where
 		A: Clone + 'a,
 		E: 'a,
 		Config: LazyConfig,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
 		fn from(memo: Lazy<'a, A, Config>) -> Self {
 			TryThunk::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
 	impl<'a, A, E, Config> From<TryLazy<'a, A, E, Config>> for TryThunk<'a, A, E>
 	where
 		A: Clone + 'a,
 		E: Clone + 'a,
 		Config: LazyConfig,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The fallible lazy value to convert.")]
 		fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
 			TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the success value.",
+		"The type of the error value."
+	)]
 	impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The thunk to convert.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			TryThunk::new(move || Ok(eval.evaluate()))
 		}

@@ -534,9 +534,22 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The type of the value produced by the task.",
+		"The memoization configuration."
+	)]
 	impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>>
 		for Trampoline<A>
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
 		fn from(lazy: Lazy<'static, A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}

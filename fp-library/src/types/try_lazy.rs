@@ -37,11 +37,23 @@ mod inner {
 		A: 'a,
 		E: 'a;
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error.",
+		"The memoization configuration."
+	)]
+	#[document_parameters("The instance to clone.")]
 	impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
 	where
 		A: 'a,
 		E: 'a,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
@@ -130,37 +142,93 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The fallible thunk to convert.")]
 		fn from(eval: TryThunk<'a, A, E>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
 	where
 		A: Send,
 		E: Send,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The fallible trampoline to convert.")]
 		fn from(task: TryTrampoline<A, E>) -> Self {
 			Self::new(move || task.evaluate())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
 	where
 		A: Clone + Send + Sync + 'a,
 		E: Send + Sync + 'a,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The thread-safe lazy value to convert.")]
 		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the computation.",
+		"The type of the computed value.",
+		"The type of the error."
+	)]
 	impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
 	where
 		A: Clone + 'a,
 		E: 'a,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
 		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}

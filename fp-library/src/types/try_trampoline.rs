@@ -46,6 +46,10 @@ mod inner {
 	/// ```
 	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	#[document_parameters("The fallible trampoline computation.")]
 	impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 		/// Creates a successful `TryTrampoline`.
 		///
@@ -370,38 +374,79 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 	where
 		A: Send + 'static,
 		E: Send + 'static,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The trampoline computation to convert.")]
 		fn from(task: Trampoline<A>) -> Self {
-			TryTrampoline::new(move || Ok(task.evaluate()))
+			TryTrampoline(task.map(Ok))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
 	impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
 	where
 		A: Clone + Send + 'static,
 		E: Send + 'static,
 		Config: LazyConfig,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
-			TryTrampoline::new(move || Ok(memo.evaluate().clone()))
+			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
 	impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
 	where
 		A: Clone + Send + 'static,
 		E: Clone + Send + 'static,
 		Config: LazyConfig,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The fallible lazy value to convert.")]
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
-			TryTrampoline::new(move || memo.evaluate().cloned().map_err(Clone::clone))
+			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
 	where
 		A: 'static + Send,

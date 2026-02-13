@@ -84,16 +84,42 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to clone.")]
 	impl<'a, FnBrand: CloneableFn, A> Clone for Endofunction<'a, FnBrand, A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to format.")]
 	impl<'a, FnBrand: CloneableFn, A> Debug for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Debug,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The formatter to use.")]
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -102,15 +128,41 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
 	impl<'a, FnBrand: CloneableFn, A> Eq for Endofunction<'a, FnBrand, A> where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Eq
 	{
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to hash.")]
 	impl<'a, FnBrand: CloneableFn, A> Hash for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Hash,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the hasher.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The hasher state to update.")]
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -119,10 +171,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to compare.")]
 	impl<'a, FnBrand: CloneableFn, A> Ord for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Ord,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other function to compare to.")]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -131,10 +198,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to compare.")]
 	impl<'a, FnBrand: CloneableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialEq,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other function to compare to.")]
 		fn eq(
 			&self,
 			other: &Self,
@@ -143,10 +225,25 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
+	#[document_parameters("The function to compare.")]
 	impl<'a, FnBrand: CloneableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialOrd,
 	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other function to compare to.")]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -155,6 +252,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
 	impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
 		/// The result of combining the two values using the semigroup operation.
 		///
@@ -200,6 +304,13 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The brand of the function (e.g., `RcFnBrand`).",
+		"The input and output type of the function."
+	)]
 	impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
 		/// The identity element.
 		///
