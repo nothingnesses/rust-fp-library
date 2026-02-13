@@ -1,72 +1,43 @@
-//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`] and [`Monoid`] instances based on categorical composition.
+//! Wrapper for endomorphisms (morphisms `c a a` in a category) with [`Semigroup`](crate::classes::Semigroup) and [`Monoid`](crate::classes::Monoid) instances based on categorical composition.
 //!
-//! A more general form of `Endofunction` that works with any [`Category`], not just functions.
+//! A more general form of `Endofunction` that works with any [`Category`](crate::classes::Category), not just functions.
 
-use crate::{
-	Apply,
-	classes::{Category, Monoid, Semigroup},
-	kinds::*,
-};
-use fp_macros::{doc_params, hm_signature};
-use std::{
-	fmt::{self, Debug, Formatter},
-	hash::Hash,
-};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		classes::{Category, Monoid, Semigroup},
+		kinds::*,
+	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
+	use std::{
+		fmt::{self, Debug, Formatter},
+		hash::Hash,
+	};
 
-/// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
-///
-/// `Endomorphism c a` represents a morphism `c a a` where `c` is a `Category`.
-/// For the category of functions, this represents functions of type `a -> a`.
-///
-/// It exists to provide a monoid instance where:
-///
-/// * The binary operation [append][Semigroup::append] is [morphism composition][crate::classes::semigroupoid::Semigroupoid::compose].
-/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
-///
-/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
-///
-/// ### Type Parameters
-///
-/// * `C`: The category of the morphism.
-/// * `A`: The object of the morphism.
-///
-/// ### Fields
-///
-/// * `0`: The wrapped morphism.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::{brands::*, functions::*, types::*};
-///
-/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-/// assert_eq!(f.0(5), 10);
-/// ```
-pub struct Endomorphism<'a, C: Category, A>(
-	pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
-);
-
-impl<'a, C: Category, A> Endomorphism<'a, C, A> {
-	/// Creates a new `Endomorphism`.
+	/// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
 	///
-	/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
+	/// `Endomorphism c a` represents a morphism `c a a` where `c` is a `Category`.
+	/// For the category of functions, this represents functions of type `a -> a`.
 	///
-	/// ### Type Signature
+	/// It exists to provide a monoid instance where:
 	///
-	#[hm_signature(Category)]
+	/// * The binary operation [append][Semigroup::append] is [morphism composition][crate::classes::semigroupoid::Semigroupoid::compose].
+	/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
+	///
+	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 	///
 	/// ### Type Parameters
 	///
-	/// * `C`: The category of the morphism.
-	/// * `A`: The object of the morphism.
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
 	///
-	/// ### Parameters
+	/// ### Fields
 	///
-	#[doc_params("The morphism to wrap.")]
-	///
-	/// ### Returns
-	///
-	/// A new `Endomorphism`.
+	#[document_fields("The wrapped morphism.")]
 	///
 	/// ### Examples
 	///
@@ -76,152 +47,299 @@ impl<'a, C: Category, A> Endomorphism<'a, C, A> {
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
-		Self(f)
-	}
-}
+	pub struct Endomorphism<'a, C: Category, A>(
+		pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
+	);
 
-impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
-{
-	fn clone(&self) -> Self {
-		Self::new(self.0.clone())
-	}
-}
-
-impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
-{
-	fn fmt(
-		&self,
-		fmt: &mut Formatter<'_>,
-	) -> fmt::Result {
-		fmt.debug_tuple("Endomorphism").field(&self.0).finish()
-	}
-}
-
-impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
-{
-}
-
-impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
-{
-	fn hash<H: std::hash::Hasher>(
-		&self,
-		state: &mut H,
-	) {
-		self.0.hash(state);
-	}
-}
-
-impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
-{
-	fn cmp(
-		&self,
-		other: &Self,
-	) -> std::cmp::Ordering {
-		self.0.cmp(&other.0)
-	}
-}
-
-impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
-{
-	fn eq(
-		&self,
-		other: &Self,
-	) -> bool {
-		self.0 == other.0
-	}
-}
-
-impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
-where
-	Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
-{
-	fn partial_cmp(
-		&self,
-		other: &Self,
-	) -> Option<std::cmp::Ordering> {
-		self.0.partial_cmp(&other.0)
-	}
-}
-
-impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
-	/// The result of combining the two values using the semigroup operation.
-	///
-	/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
-	/// Note that `Endomorphism` composition is reversed relative to standard function composition:
-	/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Semigroup)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The second morphism to apply (the outer function).",
-		"The first morphism to apply (the inner function)."
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
 	)]
-	///
-	/// ### Returns
-	///
-	/// The composed morphism `a . b`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
-	///
-	/// // f(g(x)) = (x + 1) * 2
-	/// let h = append::<_>(f, g);
-	/// assert_eq!(h.0(5), 12);
-	/// ```
-	fn append(
-		a: Self,
-		b: Self,
-	) -> Self {
-		Self::new(C::compose(a.0, b.0))
+	impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+		/// Creates a new `Endomorphism`.
+		///
+		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The morphism to wrap.")]
+		///
+		/// ### Returns
+		///
+		/// A new `Endomorphism`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(f.0(5), 10);
+		/// ```
+		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
+			Self(f)
+		}
 	}
-}
 
-impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
-	/// The identity element.
+	/// ### Type Parameters
 	///
-	/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to clone.")]
+	impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		fn clone(&self) -> Self {
+			Self::new(self.0.clone())
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ### Type Signature
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to format.")]
+	impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The formatter to use.")]
+		fn fmt(
+			&self,
+			fmt: &mut Formatter<'_>,
+		) -> fmt::Result {
+			fmt.debug_tuple("Endomorphism").field(&self.0).finish()
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	#[hm_signature(Monoid)]
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
+	{
+	}
+
+	/// ### Type Parameters
 	///
-	/// ### Returns
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to hash.")]
+	impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the hasher.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The hasher state to update.")]
+		fn hash<H: std::hash::Hasher>(
+			&self,
+			state: &mut H,
+		) {
+			self.0.hash(state);
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// The identity endomorphism.
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
+	impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
+		fn cmp(
+			&self,
+			other: &Self,
+		) -> std::cmp::Ordering {
+			self.0.cmp(&other.0)
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ### Examples
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
+	impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
+		fn eq(
+			&self,
+			other: &Self,
+		) -> bool {
+			self.0 == other.0
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	#[document_parameters("The morphism to compare.")]
+	impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
+	where
+		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The other morphism to compare to.")]
+		fn partial_cmp(
+			&self,
+			other: &Self,
+		) -> Option<std::cmp::Ordering> {
+			self.0.partial_cmp(&other.0)
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
-	/// assert_eq!(id.0(5), 5);
-	/// ```
-	fn empty() -> Self {
-		Self::new(C::identity())
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
+		/// The result of combining the two values using the semigroup operation.
+		///
+		/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
+		/// Note that `Endomorphism` composition is reversed relative to standard function composition:
+		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The second morphism to apply (the outer function).",
+			"The first morphism to apply (the inner function)."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The composed morphism `a . b`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+		///
+		/// // f(g(x)) = (x + 1) * 2
+		/// let h = append::<_>(f, g);
+		/// assert_eq!(h.0(5), 12);
+		/// ```
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self {
+			Self::new(C::compose(a.0, b.0))
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the function and its captured data.",
+		"The category of the morphism.",
+		"The object of the morphism."
+	)]
+	impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
+		/// The identity element.
+		///
+		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// The identity endomorphism.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
+		/// assert_eq!(id.0(5), 5);
+		/// ```
+		fn empty() -> Self {
+			Self::new(C::identity())
+		}
 	}
 }
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {

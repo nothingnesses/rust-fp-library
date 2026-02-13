@@ -11,9 +11,9 @@
 //! ```
 
 use crate::{Apply, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for types that can be mapped over two type arguments.
 ///
@@ -32,11 +32,11 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Bifunctor)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the first result.",
@@ -48,7 +48,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to the first value.",
 		"The function to apply to the second value.",
 		"The bifunctor instance."
@@ -83,11 +83,11 @@ pub trait Bifunctor: Kind_266801a817966495 {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Bifunctor)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the values.",
 	"The brand of the bifunctor.",
 	"The type of the first value.",
@@ -100,7 +100,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to the first value.",
 	"The function to apply to the second value.",
 	"The bifunctor instance."

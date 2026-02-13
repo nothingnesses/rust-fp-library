@@ -16,9 +16,9 @@
 //! ```
 
 use super::cloneable_fn::CloneableFn;
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 use std::ops::Deref;
 
 /// Abstraction for thread-safe cloneable wrappers over closures.
@@ -42,11 +42,11 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendCloneableFn)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -54,7 +54,10 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
+	#[document_parameters(
+		"The closure to wrap. Must be `Send + Sync`.",
+		"The input value to the function."
+	)]
 	/// ### Returns
 	///
 	/// The wrapped thread-safe cloneable function.
@@ -84,11 +87,11 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(SendCloneableFn)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the function and its captured data.",
 	"The brand of the thread-safe cloneable function wrapper.",
 	"The input type of the function.",
@@ -97,7 +100,10 @@ pub trait SendCloneableFn: CloneableFn {
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to wrap. Must be `Send + Sync`.", "The input value to the function.")]
+#[document_parameters(
+	"The closure to wrap. Must be `Send + Sync`.",
+	"The input value to the function."
+)]
 /// ### Returns
 ///
 /// The wrapped thread-safe cloneable function.

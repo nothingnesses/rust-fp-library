@@ -9,9 +9,9 @@
 //! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A trait for deferred lazy evaluation with thread-safe thunks.
 ///
@@ -21,15 +21,15 @@ pub trait SendDeferrable<'a> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(SendDeferrable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The function that produces the value.")]
+	#[document_parameters("The function that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -55,11 +55,11 @@ pub trait SendDeferrable<'a> {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(SendDeferrable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computation",
 	"The type of the deferred value.",
 	"The type of the thunk."
@@ -67,7 +67,7 @@ pub trait SendDeferrable<'a> {
 ///
 /// ### Parameters
 ///
-#[doc_params("The function that produces the value.")]
+#[document_parameters("The function that produces the value.")]
 ///
 /// ### Returns
 ///

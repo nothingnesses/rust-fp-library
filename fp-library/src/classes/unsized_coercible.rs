@@ -10,9 +10,9 @@
 //! ```
 
 use super::RefCountedPointer;
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
@@ -20,11 +20,11 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -32,7 +32,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to coerce.")]
+	#[document_parameters("The closure to coerce.")]
 	///
 	/// ### Returns
 	///
@@ -55,11 +55,11 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the closure.",
 	"The brand of the pointer.",
 	"The input type of the function.",
@@ -69,7 +69,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to coerce.")]
+#[document_parameters("The closure to coerce.")]
 ///
 /// ### Returns
 ///

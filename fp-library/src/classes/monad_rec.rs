@@ -28,9 +28,9 @@
 //! ```
 
 use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for monads that support stack-safe tail recursion.
 ///
@@ -55,11 +55,11 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(MonadRec)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
@@ -68,7 +68,7 @@ pub trait MonadRec: Monad {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The step function.", "The initial value.")]
+	#[document_parameters("The step function.", "The initial value.")]
 	///
 	/// ### Returns
 	///
@@ -108,11 +108,11 @@ pub trait MonadRec: Monad {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(MonadRec)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computation.",
 	"The brand of the monad.",
 	"The type of the initial value and loop state.",
@@ -122,7 +122,7 @@ pub trait MonadRec: Monad {
 ///
 /// ### Parameters
 ///
-#[doc_params("The step function.", "The initial value.")]
+#[document_parameters("The step function.", "The initial value.")]
 ///
 /// ### Returns
 ///

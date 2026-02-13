@@ -6,7 +6,7 @@
 //! - **Bound Order Independence**: Order of bounds doesn't affect the result
 //! - **Lifetime Name Independence**: Lifetime names don't affect canonical representation
 
-use crate::{canonicalize::Canonicalizer, generate::generate_name, parse::KindInput};
+use crate::hkt::{AssociatedTypes, Canonicalizer, generate_name};
 use quickcheck::{Arbitrary, Gen, quickcheck};
 use syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated};
 
@@ -167,13 +167,13 @@ fn prop_hash_determinism_simple() {
 		let input_str = format!("type Of<{}>;", params_str);
 
 		// Parse twice and compare
-		let result1: Result<KindInput, _> = syn::parse_str(&input_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match (result1, result2) {
 			(Ok(input1), Ok(input2)) => {
-				let name1 = generate_name(&input1);
-				let name2 = generate_name(&input2);
+				let name1 = generate_name(&input1).unwrap();
+				let name2 = generate_name(&input2).unwrap();
 				name1 == name2
 			}
 			_ => true, // Skip unparseable inputs
@@ -191,13 +191,13 @@ fn prop_hash_determinism_repeated() {
 		let input_str = "type Of<'a, A: 'a>;";
 
 		let first_name = {
-			let input: KindInput = syn::parse_str(input_str).unwrap();
-			generate_name(&input).to_string()
+			let input: AssociatedTypes = syn::parse_str(input_str).unwrap();
+			generate_name(&input).unwrap().to_string()
 		};
 
 		for _ in 0..iterations {
-			let input: KindInput = syn::parse_str(input_str).unwrap();
-			let name = generate_name(&input).to_string();
+			let input: AssociatedTypes = syn::parse_str(input_str).unwrap();
+			let name = generate_name(&input).unwrap().to_string();
 			if name != first_name {
 				return false;
 			}
@@ -228,7 +228,7 @@ fn prop_bound_order_independence() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse individual bounds and create punctuated list
 		let bound1: Result<TypeParamBound, _> = syn::parse_str(&b1.name);
@@ -246,8 +246,8 @@ fn prop_bound_order_independence() {
 				bounds2.push(b2_parsed);
 				bounds2.push(b1_parsed);
 
-				let canonical1 = canon.canonicalize_bounds(&bounds1);
-				let canonical2 = canon.canonicalize_bounds(&bounds2);
+				let canonical1 = canon.canonicalize_bounds(&bounds1).unwrap();
+				let canonical2 = canon.canonicalize_bounds(&bounds2).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true, // Skip unparseable
@@ -266,7 +266,7 @@ fn prop_bound_permutation_independence() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse all bounds
 		let parsed_bounds: Result<Vec<TypeParamBound>, _> =
@@ -286,8 +286,8 @@ fn prop_bound_permutation_independence() {
 					reversed.push(b.clone());
 				}
 
-				let canonical_original = canon.canonicalize_bounds(&original);
-				let canonical_reversed = canon.canonicalize_bounds(&reversed);
+				let canonical_original = canon.canonicalize_bounds(&original).unwrap();
+				let canonical_reversed = canon.canonicalize_bounds(&reversed).unwrap();
 				canonical_original == canonical_reversed
 			}
 			_ => true,
@@ -318,17 +318,17 @@ fn prop_lifetime_name_independence() {
 
 		// Create two canonicalizers with different lifetime names
 		let generics1: Generics = syn::parse_str(&format!("<'{}>", lt1.name)).unwrap();
-		let canon1 = Canonicalizer::new(&generics1);
+		let mut canon1 = Canonicalizer::new(&generics1);
 
 		let generics2: Generics = syn::parse_str(&format!("<'{}>", lt2.name)).unwrap();
-		let canon2 = Canonicalizer::new(&generics2);
+		let mut canon2 = Canonicalizer::new(&generics2);
 
 		// Both should canonicalize their respective lifetimes to "l0"
 		let bound1: TypeParamBound = syn::parse_str(&format!("'{}", lt1.name)).unwrap();
 		let bound2: TypeParamBound = syn::parse_str(&format!("'{}", lt2.name)).unwrap();
 
-		let canonical1 = canon1.canonicalize_bound(&bound1);
-		let canonical2 = canon2.canonicalize_bound(&bound2);
+		let canonical1 = canon1.canonicalize_bound(&bound1).unwrap();
+		let canonical2 = canon2.canonicalize_bound(&bound2).unwrap();
 
 		canonical1 == canonical2 && canonical1 == "l0"
 	}
@@ -346,12 +346,12 @@ fn prop_multiple_lifetime_positions() {
 
 		let lts_str = lts.names.iter().map(|n| format!("'{}", n)).collect::<Vec<_>>().join(", ");
 		let generics: Generics = syn::parse_str(&format!("<{}>", lts_str)).unwrap();
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Verify each lifetime maps to the correct index
 		for (i, name) in lts.names.iter().enumerate() {
 			let bound: TypeParamBound = syn::parse_str(&format!("'{}", name)).unwrap();
-			let canonical = canon.canonicalize_bound(&bound);
+			let canonical = canon.canonicalize_bound(&bound).unwrap();
 			let expected = format!("l{}", i);
 			if canonical != expected {
 				return false;
@@ -379,11 +379,11 @@ fn prop_generated_name_format() {
 		};
 
 		let input_str = format!("type Of<{}>;", bounds_str);
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				// Should start with Kind_ and have exactly 16 hex chars after
 				name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
 			}
@@ -413,11 +413,11 @@ fn prop_generated_name_valid_identifier() {
 		}
 
 		let input_str = format!("type Of<{}>;", params.join(", "));
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				// Check valid Rust identifier: starts with letter/underscore,
 				// contains only alphanumeric and underscore
 				name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
@@ -438,14 +438,14 @@ fn prop_generated_name_valid_identifier() {
 #[test]
 fn prop_adding_bound_changes_name() {
 	fn property(bound: ArbTraitBound) -> bool {
-		let input_without: KindInput = syn::parse_str("type Of<A>;").unwrap();
-		let input_with: Result<KindInput, _> =
+		let input_without: AssociatedTypes = syn::parse_str("type Of<A>;").unwrap();
+		let input_with: Result<AssociatedTypes, _> =
 			syn::parse_str(&format!("type Of<A: {}>;", bound.name));
 
 		match input_with {
 			Ok(input) => {
-				let name_without = generate_name(&input_without);
-				let name_with = generate_name(&input);
+				let name_without = generate_name(&input_without).unwrap();
+				let name_with = generate_name(&input).unwrap();
 				name_without != name_with
 			}
 			_ => true,
@@ -459,14 +459,14 @@ fn prop_adding_bound_changes_name() {
 #[test]
 fn prop_adding_lifetime_changes_name() {
 	fn property(lt: ArbLifetime) -> bool {
-		let input_without: KindInput = syn::parse_str("type Of<A>;").unwrap();
-		let input_with: Result<KindInput, _> =
+		let input_without: AssociatedTypes = syn::parse_str("type Of<A>;").unwrap();
+		let input_with: Result<AssociatedTypes, _> =
 			syn::parse_str(&format!("type Of<'{}, A: '{}>;", lt.name, lt.name));
 
 		match input_with {
 			Ok(input) => {
-				let name_without = generate_name(&input_without);
-				let name_with = generate_name(&input);
+				let name_without = generate_name(&input_without).unwrap();
+				let name_with = generate_name(&input).unwrap();
 				name_without != name_with
 			}
 			_ => true,
@@ -485,15 +485,15 @@ fn prop_adding_lifetime_changes_name() {
 fn prop_canonicalization_idempotent() {
 	fn property(bound: ArbTraitBound) -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound_str = &bound.name;
 		let parsed: Result<TypeParamBound, _> = syn::parse_str(bound_str);
 
 		match parsed {
 			Ok(b) => {
-				let canonical1 = canon.canonicalize_bound(&b);
-				let canonical2 = canon.canonicalize_bound(&b);
+				let canonical1 = canon.canonicalize_bound(&b).unwrap();
+				let canonical2 = canon.canonicalize_bound(&b).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -511,7 +511,7 @@ fn prop_canonicalize_bounds_idempotent() {
 		}
 
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Parse all bounds
 		let parsed_bounds: Result<Vec<TypeParamBound>, _> =
@@ -524,8 +524,8 @@ fn prop_canonicalize_bounds_idempotent() {
 					punctuated.push(b);
 				}
 
-				let canonical1 = canon.canonicalize_bounds(&punctuated);
-				let canonical2 = canon.canonicalize_bounds(&punctuated);
+				let canonical1 = canon.canonicalize_bounds(&punctuated).unwrap();
+				let canonical2 = canon.canonicalize_bounds(&punctuated).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -553,13 +553,13 @@ fn prop_output_bounds_order_independence() {
 		let input1_str = format!("type Of<A>: {} + {};", b1.name, b2.name);
 		let input2_str = format!("type Of<A>: {} + {};", b2.name, b1.name);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input1_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input2_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input1_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input2_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				name1 == name2
 			}
 			_ => true,
@@ -596,15 +596,15 @@ fn prop_fn_bound_determinism() {
 		output_type: ArbSimpleType,
 	) -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		let bound_str = format!("Fn({}) -> {}", input_type.name, output_type.name);
 		let bound: Result<TypeParamBound, _> = syn::parse_str(&bound_str);
 
 		match bound {
 			Ok(b) => {
-				let canonical1 = canon.canonicalize_bound(&b);
-				let canonical2 = canon.canonicalize_bound(&b);
+				let canonical1 = canon.canonicalize_bound(&b).unwrap();
+				let canonical2 = canon.canonicalize_bound(&b).unwrap();
 				canonical1 == canonical2
 			}
 			_ => true,
@@ -623,7 +623,7 @@ fn prop_fn_bound_determinism() {
 fn prop_path_preservation() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test various paths
 		let paths = vec![
@@ -634,7 +634,7 @@ fn prop_path_preservation() {
 
 		for (input_path, expected) in paths {
 			let bound: TypeParamBound = syn::parse_str(input_path).unwrap();
-			let canonical = canon.canonicalize_bound(&bound);
+			let canonical = canon.canonicalize_bound(&bound).unwrap();
 			if canonical != expected {
 				return false;
 			}
@@ -654,8 +654,8 @@ fn prop_path_preservation() {
 #[test]
 fn prop_empty_inputs_valid() {
 	fn property() -> bool {
-		let input: KindInput = syn::parse_str("type Of;").unwrap();
-		let name = generate_name(&input).to_string();
+		let input: AssociatedTypes = syn::parse_str("type Of;").unwrap();
+		let name = generate_name(&input).unwrap().to_string();
 
 		// Should still be a valid name with Kind_ prefix
 		name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
@@ -669,11 +669,11 @@ fn prop_empty_inputs_valid() {
 fn prop_single_lifetime_valid() {
 	fn property(lt: ArbLifetime) -> bool {
 		let input_str = format!("type Of<'{} >;", lt.name);
-		let result: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match result {
 			Ok(input) => {
-				let name = generate_name(&input).to_string();
+				let name = generate_name(&input).unwrap().to_string();
 				name.starts_with("Kind_") && name.len() == "Kind_".len() + 16
 			}
 			_ => true,
@@ -701,13 +701,13 @@ fn prop_type_param_bounds_consistent() {
 		let bounds_str = bounds.bounds.join(" + ");
 		let input_str = format!("type Of<{}: {}>;", type_name.name, bounds_str);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				name1 == name2
 			}
 			_ => true,
@@ -737,13 +737,13 @@ fn prop_hash_collision_resistance() {
 		let input1_str = format!("type Of<A: {}>;", b1.name);
 		let input2_str = format!("type Of<A: {}>;", b2.name);
 
-		let result1: Result<KindInput, _> = syn::parse_str(&input1_str);
-		let result2: Result<KindInput, _> = syn::parse_str(&input2_str);
+		let result1: Result<AssociatedTypes, _> = syn::parse_str(&input1_str);
+		let result2: Result<AssociatedTypes, _> = syn::parse_str(&input2_str);
 
 		match (result1, result2) {
 			(Ok(i1), Ok(i2)) => {
-				let name1 = generate_name(&i1);
-				let name2 = generate_name(&i2);
+				let name1 = generate_name(&i1).unwrap();
+				let name2 = generate_name(&i2).unwrap();
 				// Different inputs should produce different names
 				name1 != name2
 			}
@@ -763,12 +763,12 @@ fn prop_hash_collision_resistance() {
 fn prop_nested_generics_determinism() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// Test nested generics
 		let bound: TypeParamBound = parse_quote!(Iterator<Item = Option<String>>);
-		let canonical1 = canon.canonicalize_bound(&bound);
-		let canonical2 = canon.canonicalize_bound(&bound);
+		let canonical1 = canon.canonicalize_bound(&bound).unwrap();
+		let canonical2 = canon.canonicalize_bound(&bound).unwrap();
 
 		canonical1 == canonical2 && canonical1.contains("Iterator") && canonical1.contains("Option")
 	}
@@ -781,12 +781,12 @@ fn prop_nested_generics_determinism() {
 fn prop_reference_lifetime_canonicalization() {
 	fn property() -> bool {
 		let generics: Generics = parse_quote!(<'a>);
-		let canon = Canonicalizer::new(&generics);
+		let mut canon = Canonicalizer::new(&generics);
 
 		// The implementation canonicalizes reference types, test that it's consistent
 		let bound: TypeParamBound = parse_quote!(AsRef<&'a str>);
-		let canonical1 = canon.canonicalize_bound(&bound);
-		let canonical2 = canon.canonicalize_bound(&bound);
+		let canonical1 = canon.canonicalize_bound(&bound).unwrap();
+		let canonical2 = canon.canonicalize_bound(&bound).unwrap();
 
 		canonical1 == canonical2
 	}

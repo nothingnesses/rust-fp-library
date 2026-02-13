@@ -14,7 +14,7 @@
 //!    * **PureScript**: Designed as a generic Abstract Syntax Tree (AST) that can be interpreted into *any* target
 //!      monad using `runFree` or `foldFree` by providing a natural transformation at runtime.
 //!    * **Rust**: Designed primarily for **stack-safe execution** of computations. The interpretation logic is
-//!      baked into the [`Evaluable`] trait implemented by the functor `F`.
+//!      baked into the [`Evaluable`](crate::classes::Evaluable) trait implemented by the functor `F`.
 //!      The [`Free::wrap`] method wraps a functor layer containing a Free computation.
 //!
 //! 2. **API Surface**:
@@ -31,7 +31,7 @@
 //! **What it CAN do:**
 //! * Provide stack-safe recursion for monadic computations (trampolining).
 //! * Prevent stack overflows when chaining many `bind` operations.
-//! * Execute self-describing effects (like [`Thunk`]).
+//! * Execute self-describing effects (like [`Thunk`](crate::types::Thunk)).
 //!
 //! **What it CANNOT do (easily):**
 //! * Act as a generic DSL where the interpretation is decoupled from the operation type.
@@ -59,327 +59,111 @@
 //!     .bind(|x| Free::pure(x + 1));
 //! ```
 
-use crate::{
-	Apply,
-	brands::ThunkBrand,
-	classes::{Deferrable, Evaluable, Functor},
-	kinds::*,
-	types::{CatList, Thunk},
-};
-use fp_macros::{doc_params, doc_type_params, hm_signature};
-use std::{any::Any, marker::PhantomData};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		brands::ThunkBrand,
+		classes::{Deferrable, Evaluable, Functor},
+		kinds::*,
+		types::{CatList, Thunk},
+	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
+	use std::{any::Any, marker::PhantomData};
 
-/// A type-erased value for internal use.
-///
-/// This type alias represents a value whose type has been erased to [`Box<dyn Any>`].
-/// It is used within the internal implementation of [`Free`] to allow for
-/// heterogeneous chains of computations in the [`CatList`].
-type TypeErasedValue = Box<dyn Any>;
+	/// A type-erased value for internal use.
+	///
+	/// This type alias represents a value whose type has been erased to [`Box<dyn Any>`].
+	/// It is used within the internal implementation of [`Free`] to allow for
+	/// heterogeneous chains of computations in the [`CatList`].
+	pub type TypeErasedValue = Box<dyn Any>;
 
-/// A type-erased continuation.
-///
-/// This type alias represents a function that takes a [`TypeErasedValue`]
-/// and returns a new [`Free`] computation (also type-erased).
-///
-/// ### Type Parameters
-///
-/// * `F`: The base functor.
-type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
-
-/// The internal representation of the [`Free`] monad.
-///
-/// This enum encodes the structure of the free monad, supporting
-/// pure values, suspended computations, and efficient concatenation of binds.
-///
-/// ### Type Parameters
-///
-/// * `F`: The base functor (must implement [`Functor`]).
-/// * `A`: The result type.
-///
-enum FreeInner<F, A>
-where
-	F: Functor + 'static,
-	A: 'static,
-{
-	/// A pure value.
+	/// A type-erased continuation.
 	///
-	/// This variant represents a computation that has finished and produced a value.
-	Pure(A),
-
-	/// A suspended computation.
-	///
-	/// This variant represents a computation that is suspended in the functor `F`.
-	/// The functor contains the next step of the computation.
-	Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
-
-	/// A bind operation.
-	///
-	/// This variant represents a computation followed by a sequence of continuations.
-	/// It uses a [`CatList`] to store continuations, ensuring O(1) append complexity
-	/// for left-associated binds.
-	///
-	/// ### Fields
-	///
-	/// * `head`: The initial computation.
-	/// * `continuations`: The list of continuations to apply to the result of `head`.
-	Bind {
-		head: Box<Free<F, TypeErasedValue>>,
-		continuations: CatList<Continuation<F>>,
-		_marker: PhantomData<A>,
-	},
-}
-
-/// The Free monad with O(1) bind via [`CatList`].
-///
-/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
-/// that left-associated binds do not degrade performance.
-///
-/// # HKT and Lifetime Limitations
-///
-/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.
-///
-/// ## The Conflict
-/// * **The Traits**: The `Kind` trait implemented by the `Functor` hierarchy requires the type
-///   constructor to accept *any* lifetime `'a` (e.g., `type Of<'a, A> = Free<F, A>`).
-/// * **The Implementation**: This implementation uses [`Box<dyn Any>`] to type-erase continuations
-///   for the "Reflection without Remorse" optimization. `dyn Any` strictly requires `A: 'static`.
-///
-/// This creates an unresolvable conflict: `Free` cannot support non-static references (like `&'a str`),
-/// so it cannot satisfy the `Kind` signature.
-///
-/// ## Why not use the "Naive" Recursive Definition?
-///
-/// A naive definition (`enum Free { Pure(A), Wrap(F<Box<Free<F, A>>>) }`) would support lifetimes
-/// and HKT traits. However, it was rejected because:
-/// 1.  **Stack Safety**: `run` would not be stack-safe for deep computations.
-/// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
-///
-/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
-///
-/// ### Type Parameters
-///
-/// * `F`: The base functor (must implement [`Functor`]).
-/// * `A`: The result type.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::{brands::*, types::*};
-///
-/// let free = Free::<ThunkBrand, _>::pure(42);
-/// ```
-pub struct Free<F, A>(Option<FreeInner<F, A>>)
-where
-	F: Functor + 'static,
-	A: 'static;
-
-impl<F, A> Free<F, A>
-where
-	F: Functor + 'static,
-	A: 'static,
-{
-	/// Creates a pure `Free` value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The value to wrap.")]
-	///
-	/// ### Returns
-	///
-	/// A `Free` computation that produces `a`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, types::*};
-	///
-	/// let free = Free::<ThunkBrand, _>::pure(42);
-	/// ```
-	#[inline]
-	pub fn pure(a: A) -> Self {
-		Free(Some(FreeInner::Pure(a)))
-	}
-
-	/// Creates a suspended computation from a functor value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The functor value containing the next step.")]
-	///
-	/// ### Returns
-	///
-	/// A `Free` computation that performs the effect `fa`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, types::*};
-	///
-	/// let eval = Thunk::new(|| Free::pure(42));
-	/// let free = Free::<ThunkBrand, _>::wrap(eval);
-	/// ```
-	pub fn wrap(
-		fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
-	) -> Self {
-		Free(Some(FreeInner::Wrap(fa)))
-	}
-
-	/// Lifts a functor value into the Free monad.
-	///
-	/// This is the primary way to inject effects into Free monad computations.
-	/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Functor)]
-	///
-	/// ### Implementation
-	///
-	/// ```text
-	/// liftF fa = wrap (map pure fa)
-	/// ```
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The functor value to lift.")]
-	///
-	/// ### Returns
-	///
-	/// A `Free` computation that performs the effect and returns the result.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, types::*};
-	///
-	/// // Lift a simple computation
-	/// let thunk = Thunk::new(|| 42);
-	/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
-	/// assert_eq!(free.evaluate(), 42);
-	///
-	/// // Build a computation from raw effects
-	/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
-	///     .bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-	///     .bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
-	/// assert_eq!(computation.evaluate(), 25);
-	/// ```
-	pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
-		// Map the value to a pure Free, then wrap it
-		Free::wrap(F::map(Free::pure, fa))
-	}
-
-	/// Monadic bind with O(1) complexity.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
+	/// This type alias represents a function that takes a [`TypeErasedValue`]
+	/// and returns a new [`Free`] computation (also type-erased).
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The result type of the new computation.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the result of this computation.")]
-	///
-	/// ### Returns
-	///
-	/// A new `Free` computation that chains `f` after this computation.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, types::*};
-	///
-	/// let free = Free::<ThunkBrand, _>::pure(42)
-	///     .bind(|x| Free::pure(x + 1));
-	/// ```
-	pub fn bind<B: 'static>(
-		mut self,
-		f: impl FnOnce(A) -> Free<F, B> + 'static,
-	) -> Free<F, B> {
-		// Type-erase the continuation
-		let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
-			let a: A = *val.downcast().expect("Type mismatch in Free::bind");
-			let free_b: Free<F, B> = f(a);
-			free_b.erase_type()
-		});
+	#[document_type_parameters("The base functor.")]
+	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
-		// Extract inner safely
-		let inner = self.0.take().expect("Free value already consumed");
+	/// The internal representation of the [`Free`] monad.
+	///
+	/// This enum encodes the structure of the free monad, supporting
+	/// pure values, suspended computations, and efficient concatenation of binds.
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The base functor (must implement [`Functor`]).",
+		"The result type."
+	)]
+	#[document_fields]
+	pub enum FreeInner<F, A>
+	where
+		F: Functor + 'static,
+		A: 'static,
+	{
+		/// A pure value.
+		///
+		/// This variant represents a computation that has finished and produced a value.
+		Pure(A),
 
-		match inner {
-			// Pure: create a Bind with this continuation
-			FreeInner::Pure(a) => {
-				let head: Free<F, TypeErasedValue> = Free::pure(a).erase_type();
-				Free(Some(FreeInner::Bind {
-					head: Box::new(head),
-					continuations: CatList::singleton(erased_f),
-					_marker: PhantomData,
-				}))
-			}
+		/// A suspended computation.
+		///
+		/// This variant represents a computation that is suspended in the functor `F`.
+		/// The functor contains the next step of the computation.
+		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
 
-			// Wrap: wrap in a Bind
-			FreeInner::Wrap(fa) => {
-				let head = Free::wrap(fa).boxed_erase_type();
-				Free(Some(FreeInner::Bind {
-					head,
-					continuations: CatList::singleton(erased_f),
-					_marker: PhantomData,
-				}))
-			}
-
-			// Bind: snoc the new continuation onto the CatList (O(1)!)
-			FreeInner::Bind { head, continuations: conts, .. } => Free(Some(FreeInner::Bind {
-				head,
-				continuations: conts.snoc(erased_f),
-				_marker: PhantomData,
-			})),
-		}
+		/// A bind operation.
+		///
+		/// This variant represents a computation followed by a sequence of continuations.
+		/// It uses a [`CatList`] to store continuations, ensuring O(1) append complexity
+		/// for left-associated binds.
+		Bind {
+			/// The initial computation.
+			head: Box<Free<F, TypeErasedValue>>,
+			/// The list of continuations to apply to the result of `head`.
+			continuations: CatList<Continuation<F>>,
+			/// Phantom data for type parameter `A`.
+			_marker: PhantomData<A>,
+		},
 	}
 
-	/// Converts to type-erased form.
-	fn erase_type(mut self) -> Free<F, TypeErasedValue> {
-		let inner = self.0.take().expect("Free value already consumed");
-
-		match inner {
-			FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as TypeErasedValue))),
-			FreeInner::Wrap(fa) => {
-				// Map over the functor to erase the inner type
-				let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
-				Free(Some(FreeInner::Wrap(erased)))
-			}
-			FreeInner::Bind { head, continuations, .. } => {
-				Free(Some(FreeInner::Bind { head, continuations, _marker: PhantomData }))
-			}
-		}
-	}
-
-	/// Converts to boxed type-erased form.
-	fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
-		Box::new(self.erase_type())
-	}
-
-	/// Executes the Free computation, returning the final result.
+	/// The Free monad with O(1) bind via [`CatList`].
 	///
-	/// This is the "trampoline" that iteratively processes the
-	/// [`CatList`] of continuations without growing the stack.
+	/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
+	/// that left-associated binds do not degrade performance.
 	///
-	/// ### Type Signature
+	/// # HKT and Lifetime Limitations
 	///
-	#[hm_signature(Evaluable)]
+	/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.
 	///
-	/// ### Returns
+	/// ## The Conflict
+	/// * **The Traits**: The `Kind` trait implemented by the `Functor` hierarchy requires the type
+	///   constructor to accept *any* lifetime `'a` (e.g., `type Of<'a, A> = Free<F, A>`).
+	/// * **The Implementation**: This implementation uses [`Box<dyn Any>`] to type-erase continuations
+	///   for the "Reflection without Remorse" optimization. `dyn Any` strictly requires `A: 'static`.
 	///
-	/// The final result of the computation.
+	/// This creates an unresolvable conflict: `Free` cannot support non-static references (like `&'a str`),
+	/// so it cannot satisfy the `Kind` signature.
+	///
+	/// ## Why not use the "Naive" Recursive Definition?
+	///
+	/// A naive definition (`enum Free { Pure(A), Wrap(F<Box<Free<F, A>>>) }`) would support lifetimes
+	/// and HKT traits. However, it was rejected because:
+	/// 1.  **Stack Safety**: `run` would not be stack-safe for deep computations.
+	/// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
+	///
+	/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The base functor (must implement [`Functor`]).",
+		"The result type."
+	)]
 	///
 	/// ### Examples
 	///
@@ -387,112 +171,352 @@ where
 	/// use fp_library::{brands::*, types::*};
 	///
 	/// let free = Free::<ThunkBrand, _>::pure(42);
-	/// assert_eq!(free.evaluate(), 42);
 	/// ```
-	pub fn evaluate(self) -> A
+	pub struct Free<F, A>(pub(crate) Option<FreeInner<F, A>>)
 	where
-		F: Evaluable,
-	{
-		// Start with a type-erased version
-		let mut current: Free<F, TypeErasedValue> = self.erase_type();
-		let mut continuations: CatList<Continuation<F>> = CatList::empty();
+		F: Functor + 'static,
+		A: 'static;
 
-		loop {
-			let inner = current.0.take().expect("Free value already consumed");
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The Free monad instance to operate on.")]
+	impl<F, A> Free<F, A>
+	where
+		F: Functor + 'static,
+		A: 'static,
+	{
+		/// Creates a pure `Free` value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		/// ### Returns
+		///
+		/// A `Free` computation that produces `a`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, types::*};
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// ```
+		#[inline]
+		pub fn pure(a: A) -> Self {
+			Free(Some(FreeInner::Pure(a)))
+		}
+
+		/// Creates a suspended computation from a functor value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The functor value containing the next step.")]
+		///
+		/// ### Returns
+		///
+		/// A `Free` computation that performs the effect `fa`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, types::*};
+		///
+		/// let eval = Thunk::new(|| Free::pure(42));
+		/// let free = Free::<ThunkBrand, _>::wrap(eval);
+		/// ```
+		pub fn wrap(
+			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
+		) -> Self {
+			Free(Some(FreeInner::Wrap(fa)))
+		}
+
+		/// Lifts a functor value into the Free monad.
+		///
+		/// This is the primary way to inject effects into Free monad computations.
+		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Implementation
+		///
+		/// ```text
+		/// liftF fa = wrap (map pure fa)
+		/// ```
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The functor value to lift.")]
+		///
+		/// ### Returns
+		///
+		/// A `Free` computation that performs the effect and returns the result.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, types::*};
+		///
+		/// // Lift a simple computation
+		/// let thunk = Thunk::new(|| 42);
+		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
+		/// assert_eq!(free.evaluate(), 42);
+		///
+		/// // Build a computation from raw effects
+		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+		///     .bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+		///     .bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		/// assert_eq!(computation.evaluate(), 25);
+		/// ```
+		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
+			// Map the value to a pure Free, then wrap it
+			Free::wrap(F::map(Free::pure, fa))
+		}
+
+		/// Monadic bind with O(1) complexity.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The result type of the new computation.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the result of this computation.")]
+		///
+		/// ### Returns
+		///
+		/// A new `Free` computation that chains `f` after this computation.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, types::*};
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42)
+		///     .bind(|x| Free::pure(x + 1));
+		/// ```
+		pub fn bind<B: 'static>(
+			mut self,
+			f: impl FnOnce(A) -> Free<F, B> + 'static,
+		) -> Free<F, B> {
+			// Type-erase the continuation
+			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
+				let a: A = *val.downcast().expect("Type mismatch in Free::bind");
+				let free_b: Free<F, B> = f(a);
+				free_b.erase_type()
+			});
+
+			// Extract inner safely
+			let inner = self.0.take().expect("Free value already consumed");
 
 			match inner {
-				FreeInner::Pure(val) => {
-					// Try to apply the next continuation
-					match continuations.uncons() {
-						Some((continuation, rest)) => {
-							current = continuation(val);
-							continuations = rest;
-						}
-						None => {
-							// No more continuations - we're done!
-							return *val
-								.downcast::<A>()
-								.expect("Type mismatch in Free::evaluate final downcast");
+				// Pure: create a Bind with this continuation
+				FreeInner::Pure(a) => {
+					let head: Free<F, TypeErasedValue> = Free::pure(a).erase_type();
+					Free(Some(FreeInner::Bind {
+						head: Box::new(head),
+						continuations: CatList::singleton(erased_f),
+						_marker: PhantomData,
+					}))
+				}
+
+				// Wrap: wrap in a Bind
+				FreeInner::Wrap(fa) => {
+					let head = Free::wrap(fa).boxed_erase_type();
+					Free(Some(FreeInner::Bind {
+						head,
+						continuations: CatList::singleton(erased_f),
+						_marker: PhantomData,
+					}))
+				}
+
+				// Bind: snoc the new continuation onto the CatList (O(1)!)
+				FreeInner::Bind { head, continuations: conts, .. } => Free(Some(FreeInner::Bind {
+					head,
+					continuations: conts.snoc(erased_f),
+					_marker: PhantomData,
+				})),
+			}
+		}
+
+		/// Converts to type-erased form.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
+			let inner = self.0.take().expect("Free value already consumed");
+
+			match inner {
+				FreeInner::Pure(a) => Free(Some(FreeInner::Pure(Box::new(a) as TypeErasedValue))),
+				FreeInner::Wrap(fa) => {
+					// Map over the functor to erase the inner type
+					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
+					Free(Some(FreeInner::Wrap(erased)))
+				}
+				FreeInner::Bind { head, continuations, .. } => {
+					Free(Some(FreeInner::Bind { head, continuations, _marker: PhantomData }))
+				}
+			}
+		}
+
+		/// Converts to boxed type-erased form.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
+			Box::new(self.erase_type())
+		}
+
+		/// Executes the Free computation, returning the final result.
+		///
+		/// This is the "trampoline" that iteratively processes the
+		/// [`CatList`] of continuations without growing the stack.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// The final result of the computation.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, types::*};
+		///
+		/// let free = Free::<ThunkBrand, _>::pure(42);
+		/// assert_eq!(free.evaluate(), 42);
+		/// ```
+		pub fn evaluate(self) -> A
+		where
+			F: Evaluable,
+		{
+			// Start with a type-erased version
+			let mut current: Free<F, TypeErasedValue> = self.erase_type();
+			let mut continuations: CatList<Continuation<F>> = CatList::empty();
+
+			loop {
+				let inner = current.0.take().expect("Free value already consumed");
+
+				match inner {
+					FreeInner::Pure(val) => {
+						// Try to apply the next continuation
+						match continuations.uncons() {
+							Some((continuation, rest)) => {
+								current = continuation(val);
+								continuations = rest;
+							}
+							None => {
+								// No more continuations - we're done!
+								return *val
+									.downcast::<A>()
+									.expect("Type mismatch in Free::evaluate final downcast");
+							}
 						}
 					}
-				}
 
-				FreeInner::Wrap(fa) => {
-					// Run the effect to get the inner Free
-					current = <F as Evaluable>::evaluate(fa);
-				}
+					FreeInner::Wrap(fa) => {
+						// Run the effect to get the inner Free
+						current = <F as Evaluable>::evaluate(fa);
+					}
 
-				FreeInner::Bind { head, continuations: inner_continuations, .. } => {
-					// Merge the inner continuations with outer ones
-					// This is where CatList's O(1) append shines!
-					current = *head;
-					continuations = inner_continuations.append(continuations);
+					FreeInner::Bind { head, continuations: inner_continuations, .. } => {
+						// Merge the inner continuations with outer ones
+						// This is where CatList's O(1) append shines!
+						current = *head;
+						continuations = inner_continuations.append(continuations);
+					}
 				}
 			}
 		}
 	}
-}
 
-impl<F, A> Drop for Free<F, A>
-where
-	F: Functor + 'static,
-	A: 'static,
-{
-	fn drop(&mut self) {
-		// We take the inner value out.
-		let inner = self.0.take();
-
-		// If the top level is a Bind, we need to start the iterative drop chain.
-		if let Some(FreeInner::Bind { mut head, .. }) = inner {
-			// head is Box<Free<F, TypeEraseValue>>.
-			// We take its inner value to continue the chain.
-			// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
-			let mut current = head.0.take();
-
-			while let Some(FreeInner::Bind { mut head, .. }) = current {
-				current = head.0.take();
-			}
-		}
-	}
-}
-
-impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
-	/// Creates a `Free` computation from a thunk.
-	///
-	/// This delegates to `Free::wrap` and `Thunk::new`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Deferrable)]
-	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("A thunk that produces the free computation.")]
-	///
-	/// ### Returns
-	///
-	/// The deferred free computation.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
-	///
-	/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
-	/// assert_eq!(task.evaluate(), 42);
-	/// ```
-	fn defer<F>(f: F) -> Self
+	#[document_type_parameters("The base functor.", "The result type.")]
+	#[document_parameters("The free monad instance to drop.")]
+	impl<F, A> Drop for Free<F, A>
 	where
-		F: FnOnce() -> Self + 'static,
-		Self: Sized,
+		F: Functor + 'static,
+		A: 'static,
 	{
-		Self::wrap(Thunk::new(f))
+		/// ### Type Signature
+		///
+		#[document_signature]
+		fn drop(&mut self) {
+			// We take the inner value out.
+			let inner = self.0.take();
+
+			// If the top level is a Bind, we need to start the iterative drop chain.
+			if let Some(FreeInner::Bind { mut head, .. }) = inner {
+				// head is Box<Free<F, TypeEraseValue>>.
+				// We take its inner value to continue the chain.
+				// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
+				let mut current = head.0.take();
+
+				while let Some(FreeInner::Bind { mut head, .. }) = current {
+					current = head.0.take();
+				}
+			}
+		}
+	}
+
+	#[document_type_parameters("The result type.")]
+	impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
+		/// Creates a `Free` computation from a thunk.
+		///
+		/// This delegates to `Free::wrap` and `Thunk::new`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the thunk.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("A thunk that produces the free computation.")]
+		///
+		/// ### Returns
+		///
+		/// The deferred free computation.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		///
+		/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
+		fn defer<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Self + 'static,
+			Self: Sized,
+		{
+			Self::wrap(Thunk::new(f))
+		}
 	}
 }
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {

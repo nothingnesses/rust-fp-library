@@ -17,9 +17,9 @@
 //! assert_eq!(*ptr, 42);
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 use std::ops::Deref;
 
 /// Base type class for heap-allocated pointers.
@@ -29,22 +29,22 @@ use std::ops::Deref;
 pub trait Pointer {
 	/// The pointer type constructor.
 	///
-	/// For `RcBrand`, this is `Rc<T>`. For `BoxBrand`, this would be `Box<T>`.
+	/// For `RcBrand`, this is `Rc<T>`. For `ArcBrand`, this is `Arc<T>`.
 	type Of<T: ?Sized>: Deref<Target = T>;
 
 	/// Wraps a sized value in the pointer.
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the value to wrap.")]
+	#[document_type_parameters("The type of the value to wrap.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The value to wrap.")]
+	#[document_parameters("The value to wrap.")]
 	///
 	/// ### Returns
 	///
@@ -67,15 +67,15 @@ pub trait Pointer {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Pointer)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The pointer brand.", "The type of the value to wrap.")]
+#[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
 ///
 /// ### Parameters
 ///
-#[doc_params("The value to wrap.")]
+#[document_parameters("The value to wrap.")]
 ///
 /// ### Returns
 ///

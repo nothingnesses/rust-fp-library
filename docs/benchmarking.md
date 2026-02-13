@@ -1,0 +1,58 @@
+# Benchmarking Comparison
+
+This document outlines benchmarks implemented for the `fp-library` against Rust's standard library.
+
+## Comparisons
+
+We will compare the performance of the following `fp-library` abstractions against their `std` equivalents.
+
+### Vec
+
+| Feature | `fp-library`    | `std`                   | Status                                                     | [ ] |
+| :------ | :-------------- | :---------------------- | :--------------------------------------------------------- | --- |
+|         | **Map**         | `VecBrand::map`         | `iter().map().collect()`                                   | [x] |
+|         | **Fold Right**  | `VecBrand::fold_right`  | `iter().rev().fold()`                                      | [x] |
+|         | **Fold Left**   | `VecBrand::fold_left`   | `iter().fold()`                                            | [x] |
+|         | **Fold Map**    | `VecBrand::fold_map`    | `iter().map().fold()`                                      | [x] |
+|         | **Traverse**    | `VecBrand::traverse`    | `iter().map().collect::<Result<Vec<_>, _>>()` (for Result) | [x] |
+|         | **Sequence**    | `VecBrand::sequence`    | `iter().collect::<Result<Vec<_>, _>>()` (for Result)       | [x] |
+|         | **Bind**        | `VecBrand::bind`        | `iter().flat_map().collect()`                              | [x] |
+|         | **Append**      | `Semigroup::append`     | `[a, b].concat()`                                          | [x] |
+|         | **Empty**       | `Monoid::empty`         | `Vec::new()`                                               | [x] |
+|         | **Construct**   | `VecBrand::construct`   | `[vec![x], y].concat()`                                    | [x] |
+|         | **Deconstruct** | `VecBrand::deconstruct` | `slice.split_first()`                                      | [x] |
+
+### Option
+
+| Feature | `fp-library`   | `std`                     | Status                                   | [ ] |
+| :------ | :------------- | :------------------------ | :--------------------------------------- | --- |
+|         | **Map**        | `OptionBrand::map`        | `Option::map`                            | [x] |
+|         | **Fold Right** | `OptionBrand::fold_right` | `map_or`                                 | [x] |
+|         | **Fold Left**  | `OptionBrand::fold_left`  | `map_or`                                 | [x] |
+|         | **Traverse**   | `OptionBrand::traverse`   | `Option::map().transpose()` (for Result) | [x] |
+|         | **Sequence**   | `OptionBrand::sequence`   | `Option::transpose()` (for Result)       | [x] |
+|         | **Bind**       | `OptionBrand::bind`       | `Option::and_then`                       | [x] |
+
+### Result
+
+| Feature | `fp-library`   | `std`                            | Status                                   | [ ] |
+| :------ | :------------- | :------------------------------- | :--------------------------------------- | --- |
+|         | **Map**        | `ResultWithErrBrand::map`        | `Result::map`                            | [x] |
+|         | **Fold Right** | `ResultWithErrBrand::fold_right` | `map_or`                                 | [x] |
+|         | **Fold Left**  | `ResultWithErrBrand::fold_left`  | `map_or`                                 | [x] |
+|         | **Traverse**   | `ResultWithErrBrand::traverse`   | `Result::map().transpose()` (for Option) | [x] |
+|         | **Sequence**   | `ResultWithErrBrand::sequence`   | `Result::transpose()` (for Option)       | [x] |
+|         | **Bind**       | `ResultWithErrBrand::bind`       | `Result::and_then`                       | [x] |
+
+### String
+
+| Feature | `fp-library` | `std`               | Status           | [ ] |
+| :------ | :----------- | :------------------ | :--------------- | --- |
+|         | **Append**   | `Semigroup::append` | `+` / `push_str` | [x] |
+|         | **Empty**    | `Monoid::empty`     | `String::new()`  | [x] |
+
+### Functions
+
+| Feature | `fp-library` | `std`      | Status                   | [ ] |
+| :------ | :----------- | :--------- | :----------------------- | --- |
+|         | **Identity** | `identity` | `std::convert::identity` | [x] |

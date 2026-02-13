@@ -9,7 +9,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
 ## Features
 
 - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
-- **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
+- **Macros:** Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
@@ -42,7 +42,7 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.8"
+fp-library = "0.9"
 ```
 
 ### Crate Features
@@ -50,12 +50,17 @@ fp-library = "0.8"
 The library offers optional features that can be enabled in your `Cargo.toml`:
 
 - **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+- **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 
-To enable this feature:
+To enable features:
 
 ```toml
 [dependencies]
-fp-library = { version = "0.8", features = ["rayon"] }
+# Single feature
+fp-library = { version = "0.9", features = ["rayon"] }
+
+# Multiple features
+fp-library = { version = "0.9", features = ["rayon", "serde"] }
 ```
 
 ### Example: Using `Functor` with `Option`

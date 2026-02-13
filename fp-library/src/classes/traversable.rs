@@ -12,9 +12,9 @@
 
 use super::{Applicative, Foldable, Functor};
 use crate::{Apply, functions::identity, kinds::*};
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for traversable functors.
 ///
@@ -31,11 +31,11 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
@@ -45,7 +45,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
 		"The traversable structure."
 	)]
@@ -85,11 +85,11 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Traversable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
@@ -97,7 +97,7 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The traversable structure containing values in an applicative context.")]
+	#[document_parameters("The traversable structure containing values in an applicative context.")]
 	///
 	/// ### Returns
 	///
@@ -131,11 +131,11 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Traversable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
@@ -146,7 +146,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The function to apply to each element, returning a value in an applicative context.",
 	"The traversable structure."
 )]
@@ -182,11 +182,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Traversable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
@@ -195,7 +195,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params("The traversable structure containing values in an applicative context.")]
+#[document_parameters("The traversable structure containing values in an applicative context.")]
 ///
 /// ### Returns
 ///

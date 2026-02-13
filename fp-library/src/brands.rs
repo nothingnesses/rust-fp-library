@@ -16,7 +16,7 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::{Category, CloneableFn, RefCountedPointer};
+use crate::classes::RefCountedPointer;
 use std::marker::PhantomData;
 
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
@@ -30,21 +30,9 @@ pub struct ArcBrand;
 /// closures in a generic context.
 pub type ArcFnBrand = FnBrand<ArcBrand>;
 
-/// Brand for [`Box`] unique ownership pointer.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BoxBrand;
-
 /// Brand for [`CatList`](crate::types::CatList).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CatListBrand;
-
-/// Brand for [`Endofunction`](crate::types::Endofunction).
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndofunctionBrand<FnBrand: CloneableFn, A>(PhantomData<(FnBrand, A)>);
-
-/// Brand for [`Endomorphism`](crate::types::Endomorphism).
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct EndomorphismBrand<CategoryBrand: Category, A>(PhantomData<(CategoryBrand, A)>);
 
 /// Brand for [`Thunk`](crate::types::Thunk).
 ///
@@ -56,10 +44,6 @@ pub struct ThunkBrand;
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);
-
-/// Brand for [`Free`](crate::types::Free).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FreeBrand<F>(PhantomData<F>);
 
 /// Brand for [`Identity`](crate::types::Identity).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -135,6 +119,22 @@ pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
 /// Brand for [`TryThunk`](crate::types::TryThunk) with the success value filled in (Functor over [`Err`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
+
+/// Brand for `(A,)`, with A not filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple1Brand;
+
+/// Brand for `(First, Second)`, with neither `First` nor `Second` filled in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2Brand;
+
+/// Brand for `(First, Second)`, with `First` filled in (Functor over `Second`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2WithFirstBrand<First>(First);
+
+/// Brand for `(First, Second)`, with `Second` filled in (Functor over `First`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tuple2WithSecondBrand<Second>(Second);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -14,440 +14,483 @@
 //! assert_eq!(task.evaluate(), Ok(25));
 //! ```
 
-use crate::{
-	classes::Deferrable,
-	types::{Lazy, LazyConfig, Trampoline, TryLazy},
-};
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		classes::Deferrable,
+		types::{Lazy, LazyConfig, Trampoline, TryLazy},
+	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
-/// A lazy, stack-safe computation that may fail with an error.
-///
-/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
-///
-/// ### Type Parameters
-///
-/// * `A`: The type of the success value.
-/// * `E`: The type of the error value.
-///
-/// ### Fields
-///
-/// * `0`: The internal `Trampoline` wrapping a `Result`.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::types::*;
-///
-/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
-/// assert_eq!(task.evaluate(), Ok(10));
-/// ```
-pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
-
-impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
-	/// Creates a successful `TryTrampoline`.
+	/// A lazy, stack-safe computation that may fail with an error.
 	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
+	/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
 	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the success value.
-	/// * `E`: The type of the error value.
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
-	/// ### Parameters
+	/// ### Fields
 	///
-	#[doc_params("The success value.")]
-	///
-	/// ### Returns
-	///
-	/// A `TryTrampoline` representing success.
+	#[document_fields("The internal `Trampoline` wrapping a `Result`.")]
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-	/// assert_eq!(task.evaluate(), Ok(42));
+	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
+	/// assert_eq!(task.evaluate(), Ok(10));
 	/// ```
-	pub fn ok(a: A) -> Self {
-		TryTrampoline(Trampoline::pure(Ok(a)))
-	}
+	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
 
-	/// Creates a failed `TryTrampoline`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
 	/// ### Type Parameters
 	///
-	/// * `A`: The type of the success value.
-	/// * `E`: The type of the error value.
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The error value.")]
-	///
-	/// ### Returns
-	///
-	/// A `TryTrampoline` representing failure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
-	/// assert_eq!(task.evaluate(), Err("error".to_string()));
-	/// ```
-	pub fn err(e: E) -> Self {
-		TryTrampoline(Trampoline::pure(Err(e)))
-	}
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	#[document_parameters("The fallible trampoline computation.")]
+	impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
+		/// Creates a successful `TryTrampoline`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The success value.")]
+		///
+		/// ### Returns
+		///
+		/// A `TryTrampoline` representing success.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		pub fn ok(a: A) -> Self {
+			TryTrampoline(Trampoline::pure(Ok(a)))
+		}
 
-	/// Creates a lazy `TryTrampoline` that may fail.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The type of the closure.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The closure to execute.")]
-	///
-	/// ### Returns
-	///
-	/// A `TryTrampoline` that executes `f` when run.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	pub fn new<F>(f: F) -> Self
-	where
-		F: FnOnce() -> Result<A, E> + 'static,
-	{
-		TryTrampoline(Trampoline::new(f))
-	}
+		/// Creates a failed `TryTrampoline`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The error value.")]
+		///
+		/// ### Returns
+		///
+		/// A `TryTrampoline` representing failure.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
+		/// assert_eq!(task.evaluate(), Err("error".to_string()));
+		/// ```
+		pub fn err(e: E) -> Self {
+			TryTrampoline(Trampoline::pure(Err(e)))
+		}
 
-	/// Defers the construction of a `TryTrampoline`.
-	///
-	/// Use this for stack-safe recursion.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The type of the thunk.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("A thunk that returns the next step.")]
-	///
-	/// ### Returns
-	///
-	/// A `TryTrampoline` that executes `f` to get the next step.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	///
-	/// Stack-safe recursion:
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// fn factorial(n: i32, acc: i32) -> TryTrampoline<i32, String> {
-	///     if n < 0 {
-	///         TryTrampoline::err("Negative input".to_string())
-	///     } else if n == 0 {
-	///         TryTrampoline::ok(acc)
-	///     } else {
-	///         TryTrampoline::defer(move || factorial(n - 1, n * acc))
-	///     }
-	/// }
-	///
-	/// let task = factorial(5, 1);
-	/// assert_eq!(task.evaluate(), Ok(120));
-	/// ```
-	pub fn defer<F>(f: F) -> Self
-	where
-		F: FnOnce() -> TryTrampoline<A, E> + 'static,
-	{
-		TryTrampoline(Trampoline::defer(move || f().0))
-	}
+		/// Creates a lazy `TryTrampoline` that may fail.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the closure.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The closure to execute.")]
+		///
+		/// ### Returns
+		///
+		/// A `TryTrampoline` that executes `f` when run.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		pub fn new<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Result<A, E> + 'static,
+		{
+			TryTrampoline(Trampoline::new(f))
+		}
 
-	/// Maps over the success value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
+		/// Defers the construction of a `TryTrampoline`.
+		///
+		/// Use this for stack-safe recursion.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the thunk.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("A thunk that returns the next step.")]
+		///
+		/// ### Returns
+		///
+		/// A `TryTrampoline` that executes `f` to get the next step.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		///
+		/// Stack-safe recursion:
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// fn factorial(n: i32, acc: i32) -> TryTrampoline<i32, String> {
+		///     if n < 0 {
+		///         TryTrampoline::err("Negative input".to_string())
+		///     } else if n == 0 {
+		///         TryTrampoline::ok(acc)
+		///     } else {
+		///         TryTrampoline::defer(move || factorial(n - 1, n * acc))
+		///     }
+		/// }
+		///
+		/// let task = factorial(5, 1);
+		/// assert_eq!(task.evaluate(), Ok(120));
+		/// ```
+		pub fn defer<F>(f: F) -> Self
+		where
+			F: FnOnce() -> TryTrampoline<A, E> + 'static,
+		{
+			TryTrampoline(Trampoline::defer(move || f().0))
+		}
+
+		/// Maps over the success value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
 		"The type of the new success value.",
 		("F", "The type of the mapping function.")
 	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the success value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryTrampoline` with the transformed success value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
-	/// assert_eq!(task.evaluate(), Ok(20));
-	/// ```
-	pub fn map<B: 'static + Send, Func>(
-		self,
-		func: Func,
-	) -> TryTrampoline<B, E>
-	where
-		Func: FnOnce(A) -> B + 'static,
-	{
-		TryTrampoline(self.0.map(|result| result.map(func)))
-	}
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the success value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryTrampoline` with the transformed success value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
+		/// assert_eq!(task.evaluate(), Ok(20));
+		/// ```
+		pub fn map<B: 'static + Send, Func>(
+			self,
+			func: Func,
+		) -> TryTrampoline<B, E>
+		where
+			Func: FnOnce(A) -> B + 'static,
+		{
+			TryTrampoline(self.0.map(|result| result.map(func)))
+		}
 
-	/// Maps over the error value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
+		/// Maps over the error value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
 		"The type of the new error value.",
 		("F", "The type of the mapping function.")
 	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the error value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryTrampoline` with the transformed error value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
-	///     .map_err(|e| e.to_uppercase());
-	/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
-	/// ```
-	pub fn map_err<E2: 'static + Send, Func>(
-		self,
-		func: Func,
-	) -> TryTrampoline<A, E2>
-	where
-		Func: FnOnce(E) -> E2 + 'static,
-	{
-		TryTrampoline(self.0.map(|result| result.map_err(func)))
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the error value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryTrampoline` with the transformed error value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
+		///     .map_err(|e| e.to_uppercase());
+		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
+		/// ```
+		pub fn map_err<E2: 'static + Send, Func>(
+			self,
+			func: Func,
+		) -> TryTrampoline<A, E2>
+		where
+			Func: FnOnce(E) -> E2 + 'static,
+		{
+			TryTrampoline(self.0.map(|result| result.map_err(func)))
+		}
+
+		/// Chains fallible computations.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The type of the new success value.",
+			"The type of the binding function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the success value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryTrampoline` that chains `f` after this task.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
+		/// assert_eq!(task.evaluate(), Ok(20));
+		/// ```
+		pub fn bind<B: 'static + Send, F>(
+			self,
+			f: F,
+		) -> TryTrampoline<B, E>
+		where
+			F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
+		{
+			TryTrampoline(self.0.bind(|result| match result {
+				Ok(a) => f(a).0,
+				Err(e) => Trampoline::pure(Err(e)),
+			}))
+		}
+
+		/// Recovers from an error.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the recovery function.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the error value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `TryTrampoline` that attempts to recover from failure.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
+		///     .catch(|_| TryTrampoline::ok(42));
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		pub fn catch<F>(
+			self,
+			f: F,
+		) -> Self
+		where
+			F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
+		{
+			TryTrampoline(self.0.bind(|result| match result {
+				Ok(a) => Trampoline::pure(Ok(a)),
+				Err(e) => f(e).0,
+			}))
+		}
+
+		/// Runs the computation, returning the result.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// The result of the computation.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		pub fn evaluate(self) -> Result<A, E> {
+			self.0.evaluate()
+		}
 	}
 
-	/// Chains fallible computations.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the new success value.", "The type of the binding function.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the success value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryTrampoline` that chains `f` after this task.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
-	/// assert_eq!(task.evaluate(), Ok(20));
-	/// ```
-	pub fn bind<B: 'static + Send, F>(
-		self,
-		f: F,
-	) -> TryTrampoline<B, E>
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 	where
-		F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
+		A: Send + 'static,
+		E: Send + 'static,
 	{
-		TryTrampoline(self.0.bind(|result| match result {
-			Ok(a) => f(a).0,
-			Err(e) => Trampoline::pure(Err(e)),
-		}))
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The trampoline computation to convert.")]
+		fn from(task: Trampoline<A>) -> Self {
+			TryTrampoline(task.map(Ok))
+		}
 	}
 
-	/// Recovers from an error.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the recovery function.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the error value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `TryTrampoline` that attempts to recover from failure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
-	///     .catch(|_| TryTrampoline::ok(42));
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	pub fn catch<F>(
-		self,
-		f: F,
-	) -> Self
+	#[document_type_parameters(
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
+	impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
 	where
-		F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
+		A: Clone + Send + 'static,
+		E: Send + 'static,
+		Config: LazyConfig,
 	{
-		TryTrampoline(self.0.bind(|result| match result {
-			Ok(a) => Trampoline::pure(Ok(a)),
-			Err(e) => f(e).0,
-		}))
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The lazy value to convert.")]
+		fn from(memo: Lazy<'static, A, Config>) -> Self {
+			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
+		}
 	}
 
-	/// Runs the computation, returning the result.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Returns
-	///
-	/// The result of the computation.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	pub fn evaluate(self) -> Result<A, E> {
-		self.0.evaluate()
-	}
-}
-
-impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
-where
-	A: Send + 'static,
-	E: Send + 'static,
-{
-	fn from(task: Trampoline<A>) -> Self {
-		TryTrampoline::new(move || Ok(task.evaluate()))
-	}
-}
-
-impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
-where
-	A: Clone + Send + 'static,
-	E: Send + 'static,
-	Config: LazyConfig,
-{
-	fn from(memo: Lazy<'static, A, Config>) -> Self {
-		TryTrampoline::new(move || Ok(memo.evaluate().clone()))
-	}
-}
-
-impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
-where
-	A: Clone + Send + 'static,
-	E: Clone + Send + 'static,
-	Config: LazyConfig,
-{
-	fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
-		TryTrampoline::new(move || memo.evaluate().cloned().map_err(Clone::clone))
-	}
-}
-
-impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
-where
-	A: 'static + Send,
-	E: 'static + Send,
-{
-	/// Creates a value from a computation that produces the value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Deferrable)]
-	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("A thunk that produces the value.")]
-	///
-	/// ### Returns
-	///
-	/// The deferred value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
-	///
-	/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
-	/// assert_eq!(task.evaluate(), Ok(42));
-	/// ```
-	fn defer<F>(f: F) -> Self
+	#[document_type_parameters(
+		"The type of the success value.",
+		"The type of the error value.",
+		"The memoization configuration."
+	)]
+	impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
 	where
-		F: FnOnce() -> Self + 'static,
-		Self: Sized,
+		A: Clone + Send + 'static,
+		E: Clone + Send + 'static,
+		Config: LazyConfig,
 	{
-		TryTrampoline(Trampoline::defer(move || f().0))
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The fallible lazy value to convert.")]
+		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
+			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
+	impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
+	where
+		A: 'static + Send,
+		E: 'static + Send,
+	{
+		/// Creates a value from a computation that produces the value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The type of the thunk.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("A thunk that produces the value.")]
+		///
+		/// ### Returns
+		///
+		/// The deferred value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		///
+		/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
+		fn defer<F>(f: F) -> Self
+		where
+			F: FnOnce() -> Self + 'static,
+			Self: Sized,
+		{
+			TryTrampoline(Trampoline::defer(move || f().0))
+		}
 	}
 }
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
+	use crate::types::Trampoline;
+
 	use super::*;
 
 	/// Tests `TryTrampoline::ok`.

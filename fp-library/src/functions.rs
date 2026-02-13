@@ -17,7 +17,7 @@
 //! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -37,11 +37,11 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The input type of the inner function `g`.",
 	"The output type of `g` and the input type of `f`.",
 	"The output type of the outer function `f`.",
@@ -51,7 +51,7 @@ fp_macros::generate_function_re_exports!("src/classes", {
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The outer function to apply second.",
 	"The inner function to apply first.",
 	"The argument to be passed to the composed function."
@@ -93,15 +93,21 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The type of the value to return.", "The type of the argument to ignore.")]
+#[document_type_parameters(
+	"The type of the value to return.",
+	"The type of the argument to ignore."
+)]
 ///
 /// ### Parameters
 ///
-#[doc_params("The value to be returned by the constant function.", "The argument to be ignored.")]
+#[document_parameters(
+	"The value to be returned by the constant function.",
+	"The argument to be ignored."
+)]
 /// ### Returns
 ///
 /// The first parameter.
@@ -130,11 +136,11 @@ pub fn constant<A: Clone, B>(
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The type of the first argument of the input function.",
 	"The type of the second argument of the input function.",
 	"The return type of the function.",
@@ -143,7 +149,7 @@ pub fn constant<A: Clone, B>(
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"A binary function.",
 	"The second argument (which will be passed as the first to `f`).",
 	"The first argument (which will be passed as the second to `f`)."
@@ -178,15 +184,15 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params("The type of the value.")]
+#[document_type_parameters("The type of the value.")]
 ///
 /// ### Parameters
 ///
-#[doc_params("A value.")]
+#[document_parameters("A value.")]
 ///
 /// ### Returns
 ///

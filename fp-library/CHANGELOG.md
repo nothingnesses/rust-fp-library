@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-02-13
+
+### Added
+- **Tuple Types**:
+  - Added `Tuple1Brand` for 1-tuples `(A,)` with full type class implementations (`Functor`, `Applicative`, `Monad`, `Foldable`, `Traversable`, `ParFoldable`).
+  - Added `Tuple2Brand` for 2-tuples `(A, B)` with Bifunctor over both positions.
+  - Added `Tuple2WithFirstBrand<First>` for 2-tuples with first element fixed, providing Functor over the second element.
+  - Added `Tuple2WithSecondBrand<Second>` for 2-tuples with second element fixed, providing Functor over the first element.
+- **Feature Flags**:
+  - Added optional `serde` feature for serialization/deserialization support on pure data types.
+
+### Changed
+- **API Breaking - Macro Exports**:
+  - Updated re-export from `def_kind!` to `trait_kind!` to match the renamed macro in `fp-macros`.
+- **Documentation (Non-Breaking)**:
+  - Comprehensive documentation improvements across all type classes and types using the new documentation macros (`document_signature!`, `document_type_parameters!`, `document_parameters!`, `document_fields!`, `document_module!`).
+  - Enhanced inline documentation examples and type signatures throughout the library.
+  - Improved module-level documentation for better API discoverability.
+
+### Removed
+- **Brand Types (API Breaking)**:
+  - Removed `BoxBrand` (unused).
+  - Removed `EndofunctionBrand` (internal implementation detail).
+  - Removed `EndomorphismBrand` (internal implementation detail).
+  - Removed `FreeBrand` (internal implementation detail).
+
 ## [0.8.0] - 2026-02-02
 
 ### Added

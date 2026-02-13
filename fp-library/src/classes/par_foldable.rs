@@ -13,9 +13,9 @@
 //! assert_eq!(result, "12345");
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
 use crate::{Apply, kinds::*, types::SendEndofunction};
@@ -80,11 +80,11 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of thread-safe function to use.",
 		"The element type.",
@@ -93,7 +93,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to map each element to a monoid`.",
 		"The foldable structure."
 	)]
@@ -127,11 +127,11 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(ParFoldable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The brand of thread-safe function to use.",
 		"The element type.",
@@ -140,7 +140,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// ### Parameters
 	///
-	#[doc_params(
+	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
 		"The initial value of the accumulator.",
 		"The structure to fold."
@@ -192,11 +192,11 @@ pub trait ParFoldable: Foldable {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ParFoldable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computation.",
 	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
@@ -206,7 +206,10 @@ pub trait ParFoldable: Foldable {
 ///
 /// ### Parameters
 ///
-#[doc_params("The thread-safe function to map each element to a monoid.", "The structure to fold.")]
+#[document_parameters(
+	"The thread-safe function to map each element to a monoid.",
+	"The structure to fold."
+)]
 ///
 /// ### Returns
 ///
@@ -241,11 +244,11 @@ where
 ///
 /// ### Type Signature
 ///
-#[hm_signature(ParFoldable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computation.",
 	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
@@ -255,7 +258,7 @@ where
 ///
 /// ### Parameters
 ///
-#[doc_params(
+#[document_parameters(
 	"The thread-safe function to apply to each element and the accumulator.",
 	"The initial value of the accumulator.",
 	"The structure to fold."

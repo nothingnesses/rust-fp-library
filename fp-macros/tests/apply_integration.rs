@@ -1,7 +1,7 @@
-use fp_macros::{Apply, def_kind, impl_kind};
+use fp_macros::{Apply, impl_kind, trait_kind};
 
 // Define a `Kind` with 1 type parameter and no bounds
-def_kind!(
+trait_kind!(
 	type Of<T>;
 );
 

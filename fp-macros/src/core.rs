@@ -1,0 +1,12 @@
+//! Core infrastructure for fp-macros.
+//!
+//! This module provides centralized utilities and infrastructure used across
+//! the macro crate, including error handling, configuration management,
+//! and result type helpers.
+
+pub mod config;
+pub mod constants;
+pub mod error_handling;
+
+// Re-export commonly used types
+pub use error_handling::{Error, Result, ToCompileError};

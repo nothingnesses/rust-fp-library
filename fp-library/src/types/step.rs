@@ -17,1517 +17,1618 @@
 //! }
 //! ```
 
-use crate::{
-	Apply,
-	brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},
-	classes::{
-		Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
-		Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
-	},
-	impl_kind,
-	kinds::*,
-};
-use fp_macros::{doc_params, doc_type_params, hm_signature};
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},
+		classes::{
+			Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
+			Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+		},
+		impl_kind,
+		kinds::*,
+	};
+	use fp_macros::{document_parameters, document_type_parameters};
 
-/// Represents the result of a single step in a tail-recursive computation.
-///
-/// This type is fundamental to stack-safe recursion via `MonadRec`.
-///
-/// ### Type Parameters
-///
-/// * `A`: The "loop" type - when we return `Loop(a)`, we continue with `a`.
-/// * `B`: The "done" type - when we return `Done(b)`, we're finished.
-///
-/// ### Variants
-///
-/// * `Loop(A)`: Continue the loop with a new value.
-/// * `Done(B)`: Finish the computation with a final value.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::types::*;
-///
-/// let loop_step: Step<i32, i32> = Step::Loop(10);
-/// let done_step: Step<i32, i32> = Step::Done(20);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Step<A, B> {
-	/// Continue the loop with a new value
-	Loop(A),
-	/// Finish the computation with a final value
-	Done(B),
-}
-
-impl<A, B> Step<A, B> {
-	/// Returns `true` if this is a `Loop` variant.
+	/// Represents the result of a single step in a tail-recursive computation.
 	///
-	/// ### Type Signature
+	/// This type is fundamental to stack-safe recursion via `MonadRec`.
 	///
-	#[hm_signature]
+	/// ### Higher-Kinded Type Representation
 	///
-	/// ### Returns
+	/// This type has multiple higher-kinded representations:
+	/// - [`StepBrand`](crate::brands::StepBrand): fully polymorphic over both loop and done types (bifunctor).
+	/// - [`StepWithLoopBrand<LoopType>`](crate::brands::StepWithLoopBrand): the loop type is fixed, polymorphic over the done type (functor over done).
+	/// - [`StepWithDoneBrand<DoneType>`](crate::brands::StepWithDoneBrand): the done type is fixed, polymorphic over the loop type (functor over loop).
 	///
-	/// `true` if the step is a loop, `false` otherwise.
+	/// ### Serialization
+	///
+	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
+	///
+	#[document_type_parameters(
+		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
+		r#"The "done" type - when we return `Done(b)`, we're finished."#
+	)]
+	///
+	/// ### Variants
+	///
+	/// * `Loop(A)`: Continue the loop with a new value.
+	/// * `Done(B)`: Finish the computation with a final value.
 	///
 	/// ### Examples
 	///
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let step: Step<i32, i32> = Step::Loop(1);
-	/// assert!(step.is_loop());
+	/// let loop_step: Step<i32, i32> = Step::Loop(10);
+	/// let done_step: Step<i32, i32> = Step::Done(20);
 	/// ```
-	#[inline]
-	pub fn is_loop(&self) -> bool {
-		matches!(self, Step::Loop(_))
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+	#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+	pub enum Step<A, B> {
+		/// Continue the loop with a new value
+		Loop(A),
+		/// Finish the computation with a final value
+		Done(B),
 	}
 
-	/// Returns `true` if this is a `Done` variant.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Returns
-	///
-	/// `true` if the step is done, `false` otherwise.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let step: Step<i32, i32> = Step::Done(1);
-	/// assert!(step.is_done());
-	/// ```
-	#[inline]
-	pub fn is_done(&self) -> bool {
-		matches!(self, Step::Done(_))
-	}
-
-	/// Maps a function over the `Loop` variant.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The new loop type.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the loop value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `Step` with the loop value transformed.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let step: Step<i32, i32> = Step::Loop(1);
-	/// let mapped = step.map_loop(|x| x + 1);
-	/// assert_eq!(mapped, Step::Loop(2));
-	/// ```
-	pub fn map_loop<C>(
-		self,
-		f: impl FnOnce(A) -> C,
-	) -> Step<C, B> {
-		match self {
-			Step::Loop(a) => Step::Loop(f(a)),
-			Step::Done(b) => Step::Done(b),
-		}
-	}
-
-	/// Maps a function over the `Done` variant.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The new done type.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the done value.")]
-	///
-	/// ### Returns
-	///
-	/// A new `Step` with the done value transformed.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let step: Step<i32, i32> = Step::Done(1);
-	/// let mapped = step.map_done(|x| x + 1);
-	/// assert_eq!(mapped, Step::Done(2));
-	/// ```
-	pub fn map_done<C>(
-		self,
-		f: impl FnOnce(B) -> C,
-	) -> Step<A, C> {
-		match self {
-			Step::Loop(a) => Step::Loop(a),
-			Step::Done(b) => Step::Done(f(b)),
-		}
-	}
-
-	/// Applies functions to both variants (bifunctor map).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The new loop type.", "The new done type.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The function to apply to the loop value.",
-		"The function to apply to the done value."
+	#[document_type_parameters(
+		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
+		r#"The "done" type - when we return `Done(b)`, we're finished."#
 	)]
+	#[document_parameters("The step value.")]
+	impl<A, B> Step<A, B> {
+		/// Returns `true` if this is a `Loop` variant.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// `true` if the step is a loop, `false` otherwise.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Loop(1);
+		/// assert!(step.is_loop());
+		/// ```
+		#[inline]
+		pub fn is_loop(&self) -> bool {
+			matches!(self, Step::Loop(_))
+		}
+
+		/// Returns `true` if this is a `Done` variant.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Returns
+		///
+		/// `true` if the step is done, `false` otherwise.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Done(1);
+		/// assert!(step.is_done());
+		/// ```
+		#[inline]
+		pub fn is_done(&self) -> bool {
+			matches!(self, Step::Done(_))
+		}
+
+		/// Maps a function over the `Loop` variant.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The new loop type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the loop value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `Step` with the loop value transformed.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Loop(1);
+		/// let mapped = step.map_loop(|x| x + 1);
+		/// assert_eq!(mapped, Step::Loop(2));
+		/// ```
+		pub fn map_loop<C>(
+			self,
+			f: impl FnOnce(A) -> C,
+		) -> Step<C, B> {
+			match self {
+				Step::Loop(a) => Step::Loop(f(a)),
+				Step::Done(b) => Step::Done(b),
+			}
+		}
+
+		/// Maps a function over the `Done` variant.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The new done type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the done value.")]
+		///
+		/// ### Returns
+		///
+		/// A new `Step` with the done value transformed.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Done(1);
+		/// let mapped = step.map_done(|x| x + 1);
+		/// assert_eq!(mapped, Step::Done(2));
+		/// ```
+		pub fn map_done<C>(
+			self,
+			f: impl FnOnce(B) -> C,
+		) -> Step<A, C> {
+			match self {
+				Step::Loop(a) => Step::Loop(a),
+				Step::Done(b) => Step::Done(f(b)),
+			}
+		}
+
+		/// Applies functions to both variants (bifunctor map).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The new loop type.", "The new done type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The function to apply to the loop value.",
+			"The function to apply to the done value."
+		)]
+		///
+		/// ### Returns
+		///
+		/// A new `Step` with both values transformed.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let step: Step<i32, i32> = Step::Loop(1);
+		/// let mapped = step.bimap(|x| x + 1, |x| x * 2);
+		/// assert_eq!(mapped, Step::Loop(2));
+		/// ```
+		pub fn bimap<C, D>(
+			self,
+			f: impl FnOnce(A) -> C,
+			g: impl FnOnce(B) -> D,
+		) -> Step<C, D> {
+			match self {
+				Step::Loop(a) => Step::Loop(f(a)),
+				Step::Done(b) => Step::Done(g(b)),
+			}
+		}
+	}
+
+	impl_kind! {
+		for StepBrand {
+			type Of<A, B> = Step<A, B>;
+		}
+	}
+
+	impl_kind! {
+		for StepBrand {
+			type Of<'a, A: 'a, B: 'a>: 'a = Step<A, B>;
+		}
+	}
+
+	impl Bifunctor for StepBrand {
+		/// Maps functions over the values in the step.
+		///
+		/// This method applies one function to the loop value and another to the done value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the loop value.",
+			"The type of the mapped loop value.",
+			"The type of the done value.",
+			"The type of the mapped done value.",
+			"The type of the function to apply to the loop value.",
+			"The type of the function to apply to the done value."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The function to apply to the loop value.",
+			"The function to apply to the done value.",
+			"The step to map over."
+		)]
+		///
+		/// ### Returns
+		///
+		/// A new step containing the mapped values.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::bifunctor::*, functions::*, types::*};
+		///
+		/// let x = Step::Loop(1);
+		/// assert_eq!(bimap::<StepBrand, _, _, _, _, _, _>(|a| a + 1, |b: i32| b * 2, x), Step::Loop(2));
+		/// ```
+		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+			f: F,
+			g: G,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+		where
+			F: Fn(A) -> B + 'a,
+			G: Fn(C) -> D + 'a,
+		{
+			p.bimap(f, g)
+		}
+	}
+
+	// StepWithLoopBrand<LoopType> (Functor over B - Done)
+
+	impl_kind! {
+		impl<LoopType: 'static> for StepWithLoopBrand<LoopType> {
+			type Of<'a, B: 'a>: 'a = Step<LoopType, B>;
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ### Returns
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
+		/// Maps a function over the done value in the step.
+		///
+		/// This method applies a function to the done value inside the step, producing a new step with the transformed done value. The loop value remains unchanged.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the done value.",
+			"The type of the result of applying the function.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the done value.", "The step to map over.")]
+		///
+		/// ### Returns
+		///
+		/// A new step containing the result of applying the function to the done value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(map::<StepWithLoopBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Done(5)), Step::Done(10));
+		/// ```
+		fn map<'a, A: 'a, B: 'a, Func>(
+			func: Func,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			Func: Fn(A) -> B + 'a,
+		{
+			fa.map_done(func)
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// A new `Step` with both values transformed.
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
+		/// Lifts a binary function into the step context.
+		///
+		/// This method lifts a binary function to operate on values within the step context.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first value.",
+			"The type of the second value.",
+			"The type of the result.",
+			"The type of the binary function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The binary function to apply.",
+			"The first step.",
+			"The second step."
+		)]
+		///
+		/// ### Returns
+		///
+		/// `Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     lift2::<StepWithLoopBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Done(1), Step::Done(2)),
+		///     Step::Done(3)
+		/// );
+		/// assert_eq!(
+		///     lift2::<StepWithLoopBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Done(1), Step::Loop(2)),
+		///     Step::Loop(2)
+		/// );
+		/// ```
+		fn lift2<'a, A, B, C, Func>(
+			func: Func,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+		where
+			Func: Fn(A, B) -> C + 'a,
+			A: Clone + 'a,
+			B: Clone + 'a,
+			C: 'a,
+		{
+			match (fa, fb) {
+				(Step::Done(a), Step::Done(b)) => Step::Done(func(a, b)),
+				(Step::Loop(e), _) => Step::Loop(e),
+				(_, Step::Loop(e)) => Step::Loop(e),
+			}
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ### Examples
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
+		/// Wraps a value in a step.
+		///
+		/// This method wraps a value in the `Done` variant of a `Step`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		/// ### Returns
+		///
+		/// `Done(a)`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(pure::<StepWithLoopBrand<()>, _>(5), Step::Done(5));
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Step::Done(a)
+		}
+	}
+
+	/// ### Type Parameters
 	///
-	/// ```
-	/// use fp_library::types::*;
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> ApplyFirst for StepWithLoopBrand<LoopType> {}
+
+	/// ### Type Parameters
 	///
-	/// let step: Step<i32, i32> = Step::Loop(1);
-	/// let mapped = step.bimap(|x| x + 1, |x| x * 2);
-	/// assert_eq!(mapped, Step::Loop(2));
-	/// ```
-	pub fn bimap<C, D>(
-		self,
-		f: impl FnOnce(A) -> C,
-		g: impl FnOnce(B) -> D,
-	) -> Step<C, D> {
-		match self {
-			Step::Loop(a) => Step::Loop(f(a)),
-			Step::Done(b) => Step::Done(g(b)),
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> ApplySecond for StepWithLoopBrand<LoopType> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> {
+		/// Applies a wrapped function to a wrapped value.
+		///
+		/// This method applies a function wrapped in a step to a value wrapped in a step.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The step containing the function.",
+			"The step containing the value."
+		)]
+		///
+		/// ### Returns
+		///
+		/// `Done(f(a))` if both are `Done`, otherwise the first loop encountered.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let f: Step<_, _> = Step::Done(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, Step::Done(5)), Step::Done(10));
+		/// ```
+		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Step::Done(f), Step::Done(a)) => Step::Done(f(a)),
+				(Step::Loop(e), _) => Step::Loop(e),
+				(_, Step::Loop(e)) => Step::Loop(e),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
+		/// Chains step computations.
+		///
+		/// This method chains two computations, where the second computation depends on the result of the first.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The first step.",
+			"The function to apply to the value inside the step."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     bind::<StepWithLoopBrand<()>, _, _, _>(Step::Done(5), |x| Step::Done(x * 2)),
+		///     Step::Done(10)
+		/// );
+		/// ```
+		fn bind<'a, A: 'a, B: 'a, Func>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: Func,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
+			match ma {
+				Step::Done(a) => func(a),
+				Step::Loop(e) => Step::Loop(e),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
+		/// Folds the step from the right.
+		///
+		/// This method performs a right-associative fold of the step.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator.",
+			"The type of the folding function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x, acc| x + acc, 0, Step::Done(5)), 5);
+		/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 0);
+		/// ```
+		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
+			func: F,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			F: Fn(A, B) -> B + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Done(a) => func(a, initial),
+				Step::Loop(_) => initial,
+			}
+		}
+
+		/// Folds the step from the left.
+		///
+		/// This method performs a left-associative fold of the step.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator.",
+			"The type of the folding function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|acc, x| acc + x, 0, Step::Done(5)), 5);
+		/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(1)), 0);
+		/// ```
+		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
+			func: F,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			F: Fn(B, A) -> B + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Done(a) => func(initial, a),
+				Step::Loop(_) => initial,
+			}
+		}
+
+		/// Maps the value to a monoid and returns it.
+		///
+		/// This method maps the element of the step to a monoid and then returns it.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid.",
+			"The type of the mapping function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The mapping function.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     fold_map::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x: i32| x.to_string(), Step::Done(5)),
+		///     "5".to_string()
+		/// );
+		/// assert_eq!(
+		///     fold_map::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|x: i32| x.to_string(), Step::Loop(1)),
+		///     "".to_string()
+		/// );
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a, M, F>(
+			func: F,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			F: Fn(A) -> M + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Done(a) => func(a),
+				Step::Loop(_) => M::empty(),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
+		/// Traverses the step with an applicative function.
+		///
+		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the traversable structure.",
+			"The type of the elements in the resulting traversable structure.",
+			"The applicative context.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply.", "The step to traverse.")]
+		///
+		/// ### Returns
+		///
+		/// The step wrapped in the applicative context.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Done(5)),
+		///     Some(Step::Done(10))
+		/// );
+		/// assert_eq!(
+		///     traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Loop(1)),
+		///     Some(Step::Loop(1))
+		/// );
+		/// ```
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
+			func: Func,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		{
+			match ta {
+				Step::Done(a) => F::map(|b| Step::Done(b), func(a)),
+				Step::Loop(e) => F::pure(Step::Loop(e)),
+			}
+		}
+
+		/// Sequences a step of applicative.
+		///
+		/// This method evaluates the computation inside the step and accumulates the result into an applicative context.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the traversable structure.",
+			"The applicative context."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The step containing the applicative value.")]
+		///
+		/// ### Returns
+		///
+		/// The step wrapped in the applicative context.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     sequence::<StepWithLoopBrand<()>, _, OptionBrand>(Step::Done(Some(5))),
+		///     Some(Step::Done(5))
+		/// );
+		/// assert_eq!(
+		///     sequence::<StepWithLoopBrand<i32>, i32, OptionBrand>(Step::Loop::<i32, Option<i32>>(1)),
+		///     Some(Step::Loop::<i32, i32>(1))
+		/// );
+		/// ```
+		fn sequence<'a, A: 'a + Clone, F: Applicative>(
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		{
+			match ta {
+				Step::Done(fa) => F::map(|a| Step::Done(a), fa),
+				Step::Loop(e) => F::pure(Step::Loop(e)),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The loop type.")]
+	impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
+		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
+		///
+		/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The thread-safe function to map each element to a monoid.",
+			"The step to fold."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The combined monoid value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let x: Step<i32, i32> = Step::Done(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), x), "5".to_string());
+		///
+		/// let x_loop: Step<i32, i32> = Step::Loop(1);
+		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, x_loop), "".to_string());
+		/// ```
+		fn par_fold_map<'a, FnBrand, A, M>(
+			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: 'a + SendCloneableFn,
+			A: 'a + Clone + Send + Sync,
+			M: Monoid + Send + Sync + 'a,
+		{
+			match fa {
+				Step::Done(a) => func(a),
+				Step::Loop(_) => M::empty(),
+			}
+		}
+
+		/// Folds the step from the right in parallel.
+		///
+		/// This method folds the step by applying a function from right to left, potentially in parallel.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The element type.",
+			"The accumulator type."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The thread-safe function to apply to each element and the accumulator.",
+			"The initial value.",
+			"The step to fold."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The final accumulator value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let x: Step<i32, i32> = Step::Done(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), 10, x), 15);
+		///
+		/// let x_loop: Step<i32, i32> = Step::Loop(1);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, 10, x_loop), 10);
+		/// ```
+		fn par_fold_right<'a, FnBrand, A, B>(
+			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: 'a + SendCloneableFn,
+			A: 'a + Clone + Send + Sync,
+			B: Send + Sync + 'a,
+		{
+			match fa {
+				Step::Done(a) => func((a, initial)),
+				Step::Loop(_) => initial,
+			}
+		}
+	}
+
+	// StepWithDoneBrand<DoneType> (Functor over A - Loop)
+
+	impl_kind! {
+		impl<DoneType: 'static> for StepWithDoneBrand<DoneType> {
+			type Of<'a, A: 'a>: 'a = Step<A, DoneType>;
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
+		/// Maps a function over the loop value in the step.
+		///
+		/// This method applies a function to the loop value inside the step, producing a new step with the transformed loop value. The done value remains unchanged.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the loop value.",
+			"The type of the result of applying the function.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply to the loop value.", "The step to map over.")]
+		///
+		/// ### Returns
+		///
+		/// A new step containing the result of applying the function to the loop value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(map::<StepWithDoneBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Loop(5)), Step::Loop(10));
+		/// ```
+		fn map<'a, A: 'a, B: 'a, Func>(
+			func: Func,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			Func: Fn(A) -> B + 'a,
+		{
+			fa.map_loop(func)
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
+		/// Lifts a binary function into the step context (over loop).
+		///
+		/// This method lifts a binary function to operate on loop values within the step context.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first loop value.",
+			"The type of the second loop value.",
+			"The type of the result loop value.",
+			"The type of the binary function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The binary function to apply to the loops.",
+			"The first step.",
+			"The second step."
+		)]
+		///
+		/// ### Returns
+		///
+		/// `Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Loop(1), Step::Loop(2)),
+		///     Step::Loop(3)
+		/// );
+		/// assert_eq!(
+		///     lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Loop(1), Step::Done(2)),
+		///     Step::Done(2)
+		/// );
+		/// ```
+		fn lift2<'a, A, B, C, Func>(
+			func: Func,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+		where
+			Func: Fn(A, B) -> C + 'a,
+			A: Clone + 'a,
+			B: Clone + 'a,
+			C: 'a,
+		{
+			match (fa, fb) {
+				(Step::Loop(a), Step::Loop(b)) => Step::Loop(func(a, b)),
+				(Step::Done(t), _) => Step::Done(t),
+				(_, Step::Done(t)) => Step::Done(t),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
+		/// Wraps a value in a step (as loop).
+		///
+		/// This method wraps a value in the `Loop` variant of a `Step`.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		/// ### Returns
+		///
+		/// `Loop(a)`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(pure::<StepWithDoneBrand<()>, _>(5), Step::Loop(5));
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+			Step::Loop(a)
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> ApplyFirst for StepWithDoneBrand<DoneType> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> ApplySecond for StepWithDoneBrand<DoneType> {}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> {
+		/// Applies a wrapped function to a wrapped value (over loop).
+		///
+		/// This method applies a function wrapped in a step (as loop) to a value wrapped in a step (as loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The type of the input value.",
+			"The type of the output value."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The step containing the function (in Loop).",
+			"The step containing the value (in Loop)."
+		)]
+		///
+		/// ### Returns
+		///
+		/// `Loop(f(a))` if both are `Loop`, otherwise the first done encountered.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let f: Step<_, ()> = Step::Loop(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, Step::Loop(5)), Step::Loop(10));
+		/// ```
+		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
+			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			match (ff, fa) {
+				(Step::Loop(f), Step::Loop(a)) => Step::Loop(f(a)),
+				(Step::Done(t), _) => Step::Done(t),
+				(_, Step::Done(t)) => Step::Done(t),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
+		/// Chains step computations (over loop).
+		///
+		/// This method chains two computations, where the second computation depends on the result of the first (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the result of the first computation.",
+			"The type of the result of the second computation.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The first step.", "The function to apply to the loop value.")]
+		///
+		/// ### Returns
+		///
+		/// The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     bind::<StepWithDoneBrand<()>, _, _, _>(Step::Loop(5), |x| Step::Loop(x * 2)),
+		///     Step::Loop(10)
+		/// );
+		/// ```
+		fn bind<'a, A: 'a, B: 'a, Func>(
+			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			func: Func,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		where
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
+			match ma {
+				Step::Done(t) => Step::Done(t),
+				Step::Loop(e) => func(e),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
+		/// Folds the step from the right (over loop).
+		///
+		/// This method performs a right-associative fold of the step (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator.",
+			"The type of the folding function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 1);
+		/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Done(())), 0);
+		/// ```
+		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
+			func: F,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			F: Fn(A, B) -> B + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Loop(e) => func(e, initial),
+				Step::Done(_) => initial,
+			}
+		}
+
+		/// Folds the step from the left (over loop).
+		///
+		/// This method performs a left-associative fold of the step (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the accumulator.",
+			"The type of the folding function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(5)), 5);
+		/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Done(1)), 0);
+		/// ```
+		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
+			func: F,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			F: Fn(B, A) -> B + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Loop(e) => func(initial, e),
+				Step::Done(_) => initial,
+			}
+		}
+
+		/// Maps the value to a monoid and returns it (over loop).
+		///
+		/// This method maps the element of the step to a monoid and then returns it (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the elements in the structure.",
+			"The type of the monoid.",
+			"The type of the mapping function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The mapping function.", "The step to fold.")]
+		///
+		/// ### Returns
+		///
+		/// `func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     fold_map::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|x: i32| x.to_string(), Step::Loop(5)),
+		///     "5".to_string()
+		/// );
+		/// assert_eq!(
+		///     fold_map::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|x: i32| x.to_string(), Step::Done(1)),
+		///     "".to_string()
+		/// );
+		/// ```
+		fn fold_map<'a, FnBrand, A: 'a, M, F>(
+			func: F,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			F: Fn(A) -> M + 'a,
+			FnBrand: CloneableFn + 'a,
+		{
+			match fa {
+				Step::Loop(e) => func(e),
+				Step::Done(_) => M::empty(),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
+		/// Traverses the step with an applicative function (over loop).
+		///
+		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the traversable structure.",
+			"The type of the elements in the resulting traversable structure.",
+			"The applicative context.",
+			"The type of the function to apply."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function to apply.", "The step to traverse.")]
+		///
+		/// ### Returns
+		///
+		/// The step wrapped in the applicative context.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Loop(5)),
+		///     Some(Step::Loop(10))
+		/// );
+		/// assert_eq!(
+		///     traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Done(1)),
+		///     Some(Step::Done(1))
+		/// );
+		/// ```
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
+			func: Func,
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		where
+			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		{
+			match ta {
+				Step::Loop(e) => F::map(|b| Step::Loop(b), func(e)),
+				Step::Done(t) => F::pure(Step::Done(t)),
+			}
+		}
+
+		/// Sequences a step of applicative (over loop).
+		///
+		/// This method evaluates the computation inside the step and accumulates the result into an applicative context (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements in the traversable structure.",
+			"The applicative context."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The step containing the applicative value.")]
+		///
+		/// ### Returns
+		///
+		/// The step wrapped in the applicative context.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, functions::*, types::*};
+		///
+		/// assert_eq!(
+		///     sequence::<StepWithDoneBrand<()>, _, OptionBrand>(Step::Loop(Some(5))),
+		///     Some(Step::Loop(5))
+		/// );
+		/// assert_eq!(
+		///     sequence::<StepWithDoneBrand<i32>, i32, OptionBrand>(Step::Done::<Option<i32>, _>(1)),
+		///     Some(Step::Done::<i32, i32>(1))
+		/// );
+		/// ```
+		fn sequence<'a, A: 'a + Clone, F: Applicative>(
+			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		where
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		{
+			match ta {
+				Step::Loop(fe) => F::map(|e| Step::Loop(e), fe),
+				Step::Done(t) => F::pure(Step::Done(t)),
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The done type.")]
+	impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
+		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
+		///
+		/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The element type.",
+			"The monoid type."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The thread-safe function to map each element to a monoid.",
+			"The step to fold."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The combined monoid value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let x: Step<i32, i32> = Step::Loop(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), x), "5".to_string());
+		///
+		/// let x_done: Step<i32, i32> = Step::Done(1);
+		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, x_done), "".to_string());
+		/// ```
+		fn par_fold_map<'a, FnBrand, A, M>(
+			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> M
+		where
+			FnBrand: 'a + SendCloneableFn,
+			A: 'a + Clone + Send + Sync,
+			M: Monoid + Send + Sync + 'a,
+		{
+			match fa {
+				Step::Loop(e) => func(e),
+				Step::Done(_) => M::empty(),
+			}
+		}
+
+		/// Folds the step from the right in parallel (over loop).
+		///
+		/// This method folds the step by applying a function from right to left, potentially in parallel (over loop).
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function wrapper.",
+			"The element type.",
+			"The accumulator type."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The thread-safe function to apply to each element and the accumulator.",
+			"The initial value.",
+			"The step to fold."
+		)]
+		///
+		/// ### Returns
+		///
+		/// The final accumulator value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		///
+		/// let x: Step<i32, i32> = Step::Loop(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), 10, x), 15);
+		///
+		/// let x_done: Step<i32, i32> = Step::Done(1);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, 10, x_done), 10);
+		/// ```
+		fn par_fold_right<'a, FnBrand, A, B>(
+			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
+			initial: B,
+			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		) -> B
+		where
+			FnBrand: 'a + SendCloneableFn,
+			A: 'a + Clone + Send + Sync,
+			B: Send + Sync + 'a,
+		{
+			match fa {
+				Step::Loop(e) => func((e, initial)),
+				Step::Done(_) => initial,
+			}
 		}
 	}
 }
-
-impl_kind! {
-	for StepBrand {
-		type Of<A, B> = Step<A, B>;
-	}
-}
-
-impl_kind! {
-	for StepBrand {
-		type Of<'a, A: 'a, B: 'a>: 'a = Step<A, B>;
-	}
-}
-
-impl Bifunctor for StepBrand {
-	/// Maps functions over the values in the step.
-	///
-	/// This method applies one function to the loop value and another to the done value.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Bifunctor)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the loop value.",
-		"The type of the mapped loop value.",
-		"The type of the done value.",
-		"The type of the mapped done value.",
-		"The type of the function to apply to the loop value.",
-		"The type of the function to apply to the done value."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The function to apply to the loop value.",
-		"The function to apply to the done value.",
-		"The step to map over."
-	)]
-	///
-	/// ### Returns
-	///
-	/// A new step containing the mapped values.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::bifunctor::*, functions::*, types::*};
-	///
-	/// let x = Step::Loop(1);
-	/// assert_eq!(bimap::<StepBrand, _, _, _, _, _, _>(|a| a + 1, |b: i32| b * 2, x), Step::Loop(2));
-	/// ```
-	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
-		f: F,
-		g: G,
-		p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-	) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
-	where
-		F: Fn(A) -> B + 'a,
-		G: Fn(C) -> D + 'a,
-	{
-		p.bimap(f, g)
-	}
-}
-
-// StepWithLoopBrand<LoopType> (Functor over B - Done)
-
-impl_kind! {
-	impl<LoopType: 'static> for StepWithLoopBrand<LoopType> {
-		type Of<'a, B: 'a>: 'a = Step<LoopType, B>;
-	}
-}
-
-impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
-	/// Maps a function over the done value in the step.
-	///
-	/// This method applies a function to the done value inside the step, producing a new step with the transformed done value. The loop value remains unchanged.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Functor)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the done value.",
-		"The type of the result of applying the function.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the done value.", "The step to map over.")]
-	///
-	/// ### Returns
-	///
-	/// A new step containing the result of applying the function to the done value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(map::<StepWithLoopBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Done(5)), Step::Done(10));
-	/// ```
-	fn map<'a, A: 'a, B: 'a, Func>(
-		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> B + 'a,
-	{
-		fa.map_done(func)
-	}
-}
-
-impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
-	/// Lifts a binary function into the step context.
-	///
-	/// This method lifts a binary function to operate on values within the step context.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Lift)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the first value.",
-		"The type of the second value.",
-		"The type of the result.",
-		"The type of the binary function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The binary function to apply.", "The first step.", "The second step.")]
-	///
-	/// ### Returns
-	///
-	/// `Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     lift2::<StepWithLoopBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Done(1), Step::Done(2)),
-	///     Step::Done(3)
-	/// );
-	/// assert_eq!(
-	///     lift2::<StepWithLoopBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Done(1), Step::Loop(2)),
-	///     Step::Loop(2)
-	/// );
-	/// ```
-	fn lift2<'a, A, B, C, Func>(
-		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-	where
-		Func: Fn(A, B) -> C + 'a,
-		A: Clone + 'a,
-		B: Clone + 'a,
-		C: 'a,
-	{
-		match (fa, fb) {
-			(Step::Done(a), Step::Done(b)) => Step::Done(func(a, b)),
-			(Step::Loop(e), _) => Step::Loop(e),
-			(_, Step::Loop(e)) => Step::Loop(e),
-		}
-	}
-}
-
-impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
-	/// Wraps a value in a step.
-	///
-	/// This method wraps a value in the `Done` variant of a `Step`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Pointed)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The value to wrap.")]
-	///
-	/// ### Returns
-	///
-	/// `Done(a)`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(pure::<StepWithLoopBrand<()>, _>(5), Step::Done(5));
-	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		Step::Done(a)
-	}
-}
-
-impl<LoopType: Clone + 'static> ApplyFirst for StepWithLoopBrand<LoopType> {}
-impl<LoopType: Clone + 'static> ApplySecond for StepWithLoopBrand<LoopType> {}
-
-impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> {
-	/// Applies a wrapped function to a wrapped value.
-	///
-	/// This method applies a function wrapped in a step to a value wrapped in a step.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Semiapplicative)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The type of the input value.",
-		"The type of the output value."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The step containing the function.", "The step containing the value.")]
-	///
-	/// ### Returns
-	///
-	/// `Done(f(a))` if both are `Done`, otherwise the first loop encountered.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let f: Step<_, _> = Step::Done(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, Step::Done(5)), Step::Done(10));
-	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match (ff, fa) {
-			(Step::Done(f), Step::Done(a)) => Step::Done(f(a)),
-			(Step::Loop(e), _) => Step::Loop(e),
-			(_, Step::Loop(e)) => Step::Loop(e),
-		}
-	}
-}
-
-impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
-	/// Chains step computations.
-	///
-	/// This method chains two computations, where the second computation depends on the result of the first.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Semimonad)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the result of the first computation.",
-		"The type of the result of the second computation.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The first step.", "The function to apply to the value inside the step.")]
-	///
-	/// ### Returns
-	///
-	/// The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     bind::<StepWithLoopBrand<()>, _, _, _>(Step::Done(5), |x| Step::Done(x * 2)),
-	///     Step::Done(10)
-	/// );
-	/// ```
-	fn bind<'a, A: 'a, B: 'a, Func>(
-		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		func: Func,
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		match ma {
-			Step::Done(a) => func(a),
-			Step::Loop(e) => Step::Loop(e),
-		}
-	}
-}
-
-impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
-	/// Folds the step from the right.
-	///
-	/// This method performs a right-associative fold of the step.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x, acc| x + acc, 0, Step::Done(5)), 5);
-	/// assert_eq!(fold_right::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 0);
-	/// ```
-	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
-		func: F,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		F: Fn(A, B) -> B + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Done(a) => func(a, initial),
-			Step::Loop(_) => initial,
-		}
-	}
-
-	/// Folds the step from the left.
-	///
-	/// This method performs a left-associative fold of the step.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|acc, x| acc + x, 0, Step::Done(5)), 5);
-	/// assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(1)), 0);
-	/// ```
-	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
-		func: F,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		F: Fn(B, A) -> B + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Done(a) => func(initial, a),
-			Step::Loop(_) => initial,
-		}
-	}
-
-	/// Maps the value to a monoid and returns it.
-	///
-	/// This method maps the element of the step to a monoid and then returns it.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the monoid.",
-		"The type of the mapping function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The mapping function.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     fold_map::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x: i32| x.to_string(), Step::Done(5)),
-	///     "5".to_string()
-	/// );
-	/// assert_eq!(
-	///     fold_map::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|x: i32| x.to_string(), Step::Loop(1)),
-	///     "".to_string()
-	/// );
-	/// ```
-	fn fold_map<'a, FnBrand, A: 'a, M, F>(
-		func: F,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> M
-	where
-		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Done(a) => func(a),
-			Step::Loop(_) => M::empty(),
-		}
-	}
-}
-
-impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
-	/// Traverses the step with an applicative function.
-	///
-	/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Traversable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the elements in the traversable structure.",
-		"The type of the elements in the resulting traversable structure.",
-		"The applicative context.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply.", "The step to traverse.")]
-	///
-	/// ### Returns
-	///
-	/// The step wrapped in the applicative context.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Done(5)),
-	///     Some(Step::Done(10))
-	/// );
-	/// assert_eq!(
-	///     traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Loop(1)),
-	///     Some(Step::Loop(1))
-	/// );
-	/// ```
-	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-		func: Func,
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
-	where
-		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-	{
-		match ta {
-			Step::Done(a) => F::map(|b| Step::Done(b), func(a)),
-			Step::Loop(e) => F::pure(Step::Loop(e)),
-		}
-	}
-
-	/// Sequences a step of applicative.
-	///
-	/// This method evaluates the computation inside the step and accumulates the result into an applicative context.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Traversable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the elements in the traversable structure.",
-		"The applicative context."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The step containing the applicative value.")]
-	///
-	/// ### Returns
-	///
-	/// The step wrapped in the applicative context.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     sequence::<StepWithLoopBrand<()>, _, OptionBrand>(Step::Done(Some(5))),
-	///     Some(Step::Done(5))
-	/// );
-	/// assert_eq!(
-	///     sequence::<StepWithLoopBrand<i32>, i32, OptionBrand>(Step::Loop::<i32, Option<i32>>(1)),
-	///     Some(Step::Loop::<i32, i32>(1))
-	/// );
-	/// ```
-	fn sequence<'a, A: 'a + Clone, F: Applicative>(
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-	where
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-	{
-		match ta {
-			Step::Done(fa) => F::map(|a| Step::Done(a), fa),
-			Step::Loop(e) => F::pure(Step::Loop(e)),
-		}
-	}
-}
-
-impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
-	/// Maps the value to a monoid and returns it, or returns empty, in parallel.
-	///
-	/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(ParFoldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The element type.",
-		"The monoid type."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// The combined monoid value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let x: Step<i32, i32> = Step::Done(5);
-	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), x), "5".to_string());
-	///
-	/// let x_loop: Step<i32, i32> = Step::Loop(1);
-	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, x_loop), "".to_string());
-	/// ```
-	fn par_fold_map<'a, FnBrand, A, M>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> M
-	where
-		FnBrand: 'a + SendCloneableFn,
-		A: 'a + Clone + Send + Sync,
-		M: Monoid + Send + Sync + 'a,
-	{
-		match fa {
-			Step::Done(a) => func(a),
-			Step::Loop(_) => M::empty(),
-		}
-	}
-
-	/// Folds the step from the right in parallel.
-	///
-	/// This method folds the step by applying a function from right to left, potentially in parallel.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(ParFoldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The element type.",
-		"The accumulator type."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The thread-safe function to apply to each element and the accumulator.",
-		"The initial value.",
-		"The step to fold."
-	)]
-	///
-	/// ### Returns
-	///
-	/// The final accumulator value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let x: Step<i32, i32> = Step::Done(5);
-	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), 10, x), 15);
-	///
-	/// let x_loop: Step<i32, i32> = Step::Loop(1);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, 10, x_loop), 10);
-	/// ```
-	fn par_fold_right<'a, FnBrand, A, B>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		FnBrand: 'a + SendCloneableFn,
-		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a,
-	{
-		match fa {
-			Step::Done(a) => func((a, initial)),
-			Step::Loop(_) => initial,
-		}
-	}
-}
-
-// StepWithDoneBrand<DoneType> (Functor over A - Loop)
-
-impl_kind! {
-	impl<DoneType: 'static> for StepWithDoneBrand<DoneType> {
-		type Of<'a, A: 'a>: 'a = Step<A, DoneType>;
-	}
-}
-
-impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
-	/// Maps a function over the loop value in the step.
-	///
-	/// This method applies a function to the loop value inside the step, producing a new step with the transformed loop value. The done value remains unchanged.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Functor)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the loop value.",
-		"The type of the result of applying the function.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply to the loop value.", "The step to map over.")]
-	///
-	/// ### Returns
-	///
-	/// A new step containing the result of applying the function to the loop value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(map::<StepWithDoneBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Loop(5)), Step::Loop(10));
-	/// ```
-	fn map<'a, A: 'a, B: 'a, Func>(
-		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> B + 'a,
-	{
-		fa.map_loop(func)
-	}
-}
-
-impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
-	/// Lifts a binary function into the step context (over loop).
-	///
-	/// This method lifts a binary function to operate on loop values within the step context.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Lift)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the first loop value.",
-		"The type of the second loop value.",
-		"The type of the result loop value.",
-		"The type of the binary function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The binary function to apply to the loops.",
-		"The first step.",
-		"The second step."
-	)]
-	///
-	/// ### Returns
-	///
-	/// `Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Loop(1), Step::Loop(2)),
-	///     Step::Loop(3)
-	/// );
-	/// assert_eq!(
-	///     lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Step::Loop(1), Step::Done(2)),
-	///     Step::Done(2)
-	/// );
-	/// ```
-	fn lift2<'a, A, B, C, Func>(
-		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-	where
-		Func: Fn(A, B) -> C + 'a,
-		A: Clone + 'a,
-		B: Clone + 'a,
-		C: 'a,
-	{
-		match (fa, fb) {
-			(Step::Loop(a), Step::Loop(b)) => Step::Loop(func(a, b)),
-			(Step::Done(t), _) => Step::Done(t),
-			(_, Step::Done(t)) => Step::Done(t),
-		}
-	}
-}
-
-impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
-	/// Wraps a value in a step (as loop).
-	///
-	/// This method wraps a value in the `Loop` variant of a `Step`.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Pointed)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params("The lifetime of the value.", "The type of the value to wrap.")]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The value to wrap.")]
-	///
-	/// ### Returns
-	///
-	/// `Loop(a)`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(pure::<StepWithDoneBrand<()>, _>(5), Step::Loop(5));
-	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-		Step::Loop(a)
-	}
-}
-
-impl<DoneType: Clone + 'static> ApplyFirst for StepWithDoneBrand<DoneType> {}
-impl<DoneType: Clone + 'static> ApplySecond for StepWithDoneBrand<DoneType> {}
-
-impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> {
-	/// Applies a wrapped function to a wrapped value (over loop).
-	///
-	/// This method applies a function wrapped in a step (as loop) to a value wrapped in a step (as loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Semiapplicative)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The type of the input value.",
-		"The type of the output value."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The step containing the function (in Loop).",
-		"The step containing the value (in Loop)."
-	)]
-	///
-	/// ### Returns
-	///
-	/// `Loop(f(a))` if both are `Loop`, otherwise the first done encountered.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let f: Step<_, ()> = Step::Loop(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, Step::Loop(5)), Step::Loop(10));
-	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-		match (ff, fa) {
-			(Step::Loop(f), Step::Loop(a)) => Step::Loop(f(a)),
-			(Step::Done(t), _) => Step::Done(t),
-			(_, Step::Done(t)) => Step::Done(t),
-		}
-	}
-}
-
-impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
-	/// Chains step computations (over loop).
-	///
-	/// This method chains two computations, where the second computation depends on the result of the first (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Semimonad)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the result of the first computation.",
-		"The type of the result of the second computation.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The first step.", "The function to apply to the loop value.")]
-	///
-	/// ### Returns
-	///
-	/// The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     bind::<StepWithDoneBrand<()>, _, _, _>(Step::Loop(5), |x| Step::Loop(x * 2)),
-	///     Step::Loop(10)
-	/// );
-	/// ```
-	fn bind<'a, A: 'a, B: 'a, Func>(
-		ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		func: Func,
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	{
-		match ma {
-			Step::Done(t) => Step::Done(t),
-			Step::Loop(e) => func(e),
-		}
-	}
-}
-
-impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
-	/// Folds the step from the right (over loop).
-	///
-	/// This method performs a right-associative fold of the step (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Loop(1)), 1);
-	/// assert_eq!(fold_right::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Step::Done(())), 0);
-	/// ```
-	fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
-		func: F,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		F: Fn(A, B) -> B + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Loop(e) => func(e, initial),
-			Step::Done(_) => initial,
-		}
-	}
-
-	/// Folds the step from the left (over loop).
-	///
-	/// This method performs a left-associative fold of the step (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The folding function.", "The initial value.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Loop(5)), 5);
-	/// assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Step::Done(1)), 0);
-	/// ```
-	fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
-		func: F,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		F: Fn(B, A) -> B + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Loop(e) => func(initial, e),
-			Step::Done(_) => initial,
-		}
-	}
-
-	/// Maps the value to a monoid and returns it (over loop).
-	///
-	/// This method maps the element of the step to a monoid and then returns it (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Foldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function to use.",
-		"The type of the elements in the structure.",
-		"The type of the monoid.",
-		"The type of the mapping function."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The mapping function.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// `func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     fold_map::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|x: i32| x.to_string(), Step::Loop(5)),
-	///     "5".to_string()
-	/// );
-	/// assert_eq!(
-	///     fold_map::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|x: i32| x.to_string(), Step::Done(1)),
-	///     "".to_string()
-	/// );
-	/// ```
-	fn fold_map<'a, FnBrand, A: 'a, M, F>(
-		func: F,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> M
-	where
-		M: Monoid + 'a,
-		F: Fn(A) -> M + 'a,
-		FnBrand: CloneableFn + 'a,
-	{
-		match fa {
-			Step::Loop(e) => func(e),
-			Step::Done(_) => M::empty(),
-		}
-	}
-}
-
-impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
-	/// Traverses the step with an applicative function (over loop).
-	///
-	/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Traversable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the elements in the traversable structure.",
-		"The type of the elements in the resulting traversable structure.",
-		"The applicative context.",
-		"The type of the function to apply."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The function to apply.", "The step to traverse.")]
-	///
-	/// ### Returns
-	///
-	/// The step wrapped in the applicative context.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Loop(5)),
-	///     Some(Step::Loop(10))
-	/// );
-	/// assert_eq!(
-	///     traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Step::Done(1)),
-	///     Some(Step::Done(1))
-	/// );
-	/// ```
-	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-		func: Func,
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
-	where
-		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-	{
-		match ta {
-			Step::Loop(e) => F::map(|b| Step::Loop(b), func(e)),
-			Step::Done(t) => F::pure(Step::Done(t)),
-		}
-	}
-
-	/// Sequences a step of applicative (over loop).
-	///
-	/// This method evaluates the computation inside the step and accumulates the result into an applicative context (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(Traversable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The type of the elements in the traversable structure.",
-		"The applicative context."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The step containing the applicative value.")]
-	///
-	/// ### Returns
-	///
-	/// The step wrapped in the applicative context.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
-	///
-	/// assert_eq!(
-	///     sequence::<StepWithDoneBrand<()>, _, OptionBrand>(Step::Loop(Some(5))),
-	///     Some(Step::Loop(5))
-	/// );
-	/// assert_eq!(
-	///     sequence::<StepWithDoneBrand<i32>, i32, OptionBrand>(Step::Done::<Option<i32>, _>(1)),
-	///     Some(Step::Done::<i32, i32>(1))
-	/// );
-	/// ```
-	fn sequence<'a, A: 'a + Clone, F: Applicative>(
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-	where
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-	{
-		match ta {
-			Step::Loop(fe) => F::map(|e| Step::Loop(e), fe),
-			Step::Done(t) => F::pure(Step::Done(t)),
-		}
-	}
-}
-
-impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
-	/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
-	///
-	/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(ParFoldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The element type.",
-		"The monoid type."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params("The thread-safe function to map each element to a monoid.", "The step to fold.")]
-	///
-	/// ### Returns
-	///
-	/// The combined monoid value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let x: Step<i32, i32> = Step::Loop(5);
-	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), x), "5".to_string());
-	///
-	/// let x_done: Step<i32, i32> = Step::Done(1);
-	/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, x_done), "".to_string());
-	/// ```
-	fn par_fold_map<'a, FnBrand, A, M>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> M
-	where
-		FnBrand: 'a + SendCloneableFn,
-		A: 'a + Clone + Send + Sync,
-		M: Monoid + Send + Sync + 'a,
-	{
-		match fa {
-			Step::Loop(e) => func(e),
-			Step::Done(_) => M::empty(),
-		}
-	}
-
-	/// Folds the step from the right in parallel (over loop).
-	///
-	/// This method folds the step by applying a function from right to left, potentially in parallel (over loop).
-	///
-	/// ### Type Signature
-	///
-	#[hm_signature(ParFoldable)]
-	///
-	/// ### Type Parameters
-	///
-	#[doc_type_params(
-		"The lifetime of the values.",
-		"The brand of the cloneable function wrapper.",
-		"The element type.",
-		"The accumulator type."
-	)]
-	///
-	/// ### Parameters
-	///
-	#[doc_params(
-		"The thread-safe function to apply to each element and the accumulator.",
-		"The initial value.",
-		"The step to fold."
-	)]
-	///
-	/// ### Returns
-	///
-	/// The final accumulator value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*, types::*};
-	///
-	/// let x: Step<i32, i32> = Step::Loop(5);
-	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), 10, x), 15);
-	///
-	/// let x_done: Step<i32, i32> = Step::Done(1);
-	/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, 10, x_done), 10);
-	/// ```
-	fn par_fold_right<'a, FnBrand, A, B>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
-		initial: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> B
-	where
-		FnBrand: 'a + SendCloneableFn,
-		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a,
-	{
-		match fa {
-			Step::Loop(e) => func((e, initial)),
-			Step::Done(_) => initial,
-		}
-	}
-}
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {

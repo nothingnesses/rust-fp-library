@@ -10,9 +10,9 @@
 //! ```
 
 use super::category::Category;
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 use std::ops::Deref;
 
 /// A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
@@ -38,11 +38,11 @@ pub trait Function: Category {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Function)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params(
+	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
@@ -50,7 +50,7 @@ pub trait Function: Category {
 	///
 	/// ### Parameters
 	///
-	#[doc_params("The closure to wrap.", "The input value to the function.")]
+	#[document_parameters("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
 	///
 	/// The wrapped function.
@@ -72,11 +72,11 @@ pub trait Function: Category {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Function)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the function and its captured data.",
 	"The brand of the function wrapper.",
 	"The input type of the function.",
@@ -85,7 +85,7 @@ pub trait Function: Category {
 ///
 /// ### Parameters
 ///
-#[doc_params("The closure to wrap.", "The input value to the function.")]
+#[document_parameters("The closure to wrap.", "The input value to the function.")]
 /// ### Returns
 ///
 /// The wrapped function.

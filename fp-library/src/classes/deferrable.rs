@@ -9,9 +9,9 @@
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
-use fp_macros::doc_params;
-use fp_macros::doc_type_params;
-use fp_macros::hm_signature;
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
 
 /// A type class for types that can be constructed lazily.
 pub trait Deferrable<'a> {
@@ -21,15 +21,15 @@ pub trait Deferrable<'a> {
 	///
 	/// ### Type Signature
 	///
-	#[hm_signature(Deferrable)]
+	#[document_signature]
 	///
 	/// ### Type Parameters
 	///
-	#[doc_type_params("The type of the thunk.")]
+	#[document_type_parameters("The type of the thunk.")]
 	///
 	/// ### Parameters
 	///
-	#[doc_params("A thunk that produces the value.")]
+	#[document_parameters("A thunk that produces the value.")]
 	///
 	/// ### Returns
 	///
@@ -55,11 +55,11 @@ pub trait Deferrable<'a> {
 ///
 /// ### Type Signature
 ///
-#[hm_signature(Deferrable)]
+#[document_signature]
 ///
 /// ### Type Parameters
 ///
-#[doc_type_params(
+#[document_type_parameters(
 	"The lifetime of the computation",
 	"The type of the deferred value.",
 	"The type of the thunk."
@@ -67,7 +67,7 @@ pub trait Deferrable<'a> {
 ///
 /// ### Parameters
 ///
-#[doc_params("A thunk that produces the value.")]
+#[document_parameters("A thunk that produces the value.")]
 ///
 /// ### Returns
 ///
