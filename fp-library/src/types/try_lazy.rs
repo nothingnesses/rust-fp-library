@@ -11,9 +11,7 @@ mod inner {
 		kinds::*,
 		types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
 	};
-	use fp_macros::{
-		document_fields, document_parameters, document_signature, document_type_parameters,
-	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazily-computed, memoized value that may fail.
 	///

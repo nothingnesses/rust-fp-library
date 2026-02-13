@@ -21,9 +21,7 @@ mod inner {
 		classes::Deferrable,
 		types::{Free, Lazy, LazyConfig, Step, Thunk},
 	};
-	use fp_macros::{
-		document_fields, document_parameters, document_signature, document_type_parameters,
-	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazy, stack-safe computation that produces a value of type `A`.
 	///

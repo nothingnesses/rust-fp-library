@@ -121,17 +121,12 @@ mod inner {
 		/// This variant represents a computation followed by a sequence of continuations.
 		/// It uses a [`CatList`] to store continuations, ensuring O(1) append complexity
 		/// for left-associated binds.
-		///
-		/// ### Fields
-		///
-		#[document_fields(
-			head: "The initial computation.",
-			continuations: "The list of continuations to apply to the result of `head`.",
-			_marker: "Phantom data for type parameter `A`."
-		)]
 		Bind {
+			/// The initial computation.
 			head: Box<Free<F, TypeErasedValue>>,
+			/// The list of continuations to apply to the result of `head`.
 			continuations: CatList<Continuation<F>>,
+			/// Phantom data for type parameter `A`.
 			_marker: PhantomData<A>,
 		},
 	}

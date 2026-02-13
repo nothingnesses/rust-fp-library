@@ -18,6 +18,7 @@ mod test_no_validation {
 			Self
 		}
 
+		#[allow(dead_code)]
 		pub fn process<T>(
 			&self,
 			_value: T,

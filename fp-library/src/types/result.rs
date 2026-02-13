@@ -14,7 +14,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::{document_parameters, document_type_parameters};
 
 	impl_kind! {
 		/// HKT branding for the `Result` type.
@@ -1491,11 +1491,9 @@ mod inner {
 	}
 }
 
-pub use inner::*;
-
 #[cfg(test)]
 mod tests {
-	use super::inner::*;
+
 	use crate::{
 		brands::*,
 		classes::{CloneableFn, bifunctor::*},

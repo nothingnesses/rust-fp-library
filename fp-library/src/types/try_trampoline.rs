@@ -20,9 +20,7 @@ mod inner {
 		classes::Deferrable,
 		types::{Lazy, LazyConfig, Trampoline, TryLazy},
 	};
-	use fp_macros::{
-		document_fields, document_parameters, document_signature, document_type_parameters,
-	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazy, stack-safe computation that may fail with an error.
 	///

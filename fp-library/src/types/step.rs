@@ -29,7 +29,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::{document_parameters, document_type_parameters};
 
 	/// Represents the result of a single step in a tail-recursive computation.
 	///

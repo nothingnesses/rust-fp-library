@@ -15,7 +15,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::document_parameters;
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
 
@@ -1161,11 +1161,10 @@ mod inner {
 		}
 	}
 }
-pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+
 	use crate::{brands::*, classes::CloneableFn, functions::*};
 	use quickcheck_macros::quickcheck;
 

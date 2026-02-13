@@ -14,7 +14,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for Tuple1Brand {
@@ -615,11 +615,10 @@ mod inner {
 		}
 	}
 }
-pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+
 	use crate::{
 		brands::{OptionBrand, RcFnBrand, Tuple1Brand},
 		classes::{

@@ -15,9 +15,7 @@ mod inner {
 		kinds::*,
 		types::{Lazy, LazyConfig, Step, Thunk, TryLazy},
 	};
-	use fp_macros::{
-		document_fields, document_parameters, document_signature, document_type_parameters,
-	};
+	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A deferred computation that may fail with error type `E`.
 	///

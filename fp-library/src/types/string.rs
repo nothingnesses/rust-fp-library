@@ -9,7 +9,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature};
+	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for String {
@@ -78,7 +78,6 @@ mod inner {
 		}
 	}
 }
-pub use inner::*;
 
 #[cfg(test)]
 mod tests {

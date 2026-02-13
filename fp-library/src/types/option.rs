@@ -986,11 +986,10 @@ mod inner {
 		}
 	}
 }
-pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::inner::*;
+
 	use crate::{brands::*, classes::CloneableFn, functions::*};
 	use quickcheck_macros::quickcheck;
 

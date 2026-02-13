@@ -15,7 +15,7 @@ mod inner {
 		impl_kind,
 		kinds::*,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for Tuple2Brand {
@@ -1335,11 +1335,10 @@ mod inner {
 		}
 	}
 }
-pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+
 	use crate::{
 		brands::*,
 		classes::{CloneableFn, bifunctor::*},
