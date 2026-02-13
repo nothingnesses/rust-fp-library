@@ -1,11 +1,20 @@
-use super::{generation::generate_documentation, validation::validate_documentation};
+use super::generation::generate_documentation;
 use crate::{
+	analysis::get_all_parameters,
 	core::{
-		Result as OurResult, config::Config, constants::attributes::DOCUMENT_MODULE,
+		Result as OurResult,
+		config::Config,
+		constants::attributes::{
+			DOCUMENT_MODULE, DOCUMENT_PARAMETERS, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS,
+		},
 		error_handling::ErrorCollector,
 	},
 	resolution::get_context,
-	support::parsing::{parse_many, parse_non_empty, parse_with_dispatch},
+	support::{
+		attributes::has_attribute,
+		method_utils::{has_non_receiver_parameters, impl_has_receiver_methods},
+		parsing::{parse_many, parse_non_empty, parse_with_dispatch},
+	},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -290,6 +299,116 @@ where
 			visit_mut::visit_item_mod_mut(self, module);
 		}
 	}
+}
+
+/// Validate that a method has appropriate documentation attributes.
+fn validate_method_documentation(
+	method: &syn::ImplItemFn,
+	warnings: &mut ErrorCollector,
+) {
+	let method_name = &method.sig.ident;
+	let method_generics = &method.sig.generics;
+
+	// Check for document_signature
+	if !has_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
+		let warning = syn::Error::new(
+			method.span(),
+			format!("Method `{method_name}` should have #[{DOCUMENT_SIGNATURE}] attribute"),
+		);
+		warnings.push(warning);
+	}
+
+	// Check for document_type_parameters if method has type parameters
+	let has_type_params = !method_generics.params.is_empty();
+	let has_doc_type_params = has_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS);
+
+	if has_type_params && !has_doc_type_params {
+		let type_param_names: Vec<String> = get_all_parameters(method_generics);
+		let warning = syn::Error::new(
+			method.span(),
+			format!(
+				"Method `{method_name}` has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
+				type_param_names.join(", "),
+			),
+		);
+		warnings.push(warning);
+	}
+
+	// Check for document_parameters if method has non-receiver parameters
+	if has_non_receiver_parameters(method) && !has_attribute(&method.attrs, DOCUMENT_PARAMETERS) {
+		let warning = syn::Error::new(
+			method.span(),
+			format!(
+				"Method `{method_name}` has parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
+			),
+		);
+		warnings.push(warning);
+	}
+}
+
+/// Validate that an impl block has appropriate documentation attributes.
+fn validate_impl_documentation(
+	item_impl: &syn::ItemImpl,
+	warnings: &mut ErrorCollector,
+) {
+	let impl_generics = &item_impl.generics;
+	let has_type_params = !impl_generics.params.is_empty();
+	let has_doc_type_params = has_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS);
+
+	// Check if any methods have receivers
+	let has_methods_with_receivers = impl_has_receiver_methods(item_impl);
+
+	// Warn if impl has type parameters but no document_type_parameters
+	if has_type_params && !has_doc_type_params {
+		let type_param_names: Vec<String> = get_all_parameters(impl_generics);
+		let warning = syn::Error::new(
+			item_impl.span(),
+			format!(
+				"Impl block has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
+				type_param_names.join(", "),
+			),
+		);
+		warnings.push(warning);
+	}
+
+	// Warn if impl has methods with receivers but no document_parameters at impl level
+	// Note: This checks for impl-level document_parameters, which documents the receiver type
+	if has_methods_with_receivers && !has_attribute(&item_impl.attrs, DOCUMENT_PARAMETERS) {
+		let warning = syn::Error::new(
+			item_impl.span(),
+			format!(
+				"Impl block contains methods with receiver parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
+			),
+		);
+		warnings.push(warning);
+	}
+
+	// Validate each method in the impl block
+	for impl_item in &item_impl.items {
+		if let syn::ImplItem::Fn(method) = impl_item {
+			validate_method_documentation(method, warnings);
+		}
+	}
+}
+
+/// Validate documentation attributes on all items.
+///
+/// This function checks that impl blocks and methods have appropriate
+/// documentation attributes based on their characteristics (type parameters,
+/// parameters, etc.).
+///
+/// Returns a list of warnings (as syn::Error objects) that can be emitted
+/// or collected for reporting.
+fn validate_documentation(items: &[Item]) -> Vec<syn::Error> {
+	let mut warnings = ErrorCollector::new();
+
+	for item in items {
+		if let Item::Impl(item_impl) = item {
+			validate_impl_documentation(item_impl, &mut warnings);
+		}
+	}
+
+	warnings.into_errors()
 }
 
 /// Recursively validate all nested modules and collect warnings.

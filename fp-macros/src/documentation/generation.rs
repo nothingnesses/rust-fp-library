@@ -131,6 +131,7 @@ pub(super) fn process_document_type_parameters(
 }
 
 /// Process method-level documentation (signatures and type parameters).
+#[allow(clippy::too_many_arguments)]
 fn process_method_documentation(
 	method: &mut syn::ImplItemFn,
 	self_ty: &syn::Type,

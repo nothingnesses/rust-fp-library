@@ -8,7 +8,7 @@ use crate::{
 		attributes::{find_attribute, remove_attribute_tokens},
 		documentation_parameters::{DocumentationParameter, DocumentationParameters},
 		generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
-		get_parameters, parsing,
+		get_parameters, has_receiver, impl_has_receiver_methods, parsing,
 	},
 };
 use proc_macro2::TokenStream;
@@ -46,11 +46,10 @@ fn process_method_in_impl(
 	let logical_params = get_parameters(&method.sig, config);
 
 	// Check if method has receiver
-	let has_receiver =
-		method.sig.inputs.iter().any(|input| matches!(input, syn::FnArg::Receiver(_)));
+	let has_receiver_param = has_receiver(method);
 
 	// Error if no parameters at all
-	if logical_params.is_empty() && !has_receiver {
+	if logical_params.is_empty() && !has_receiver_param {
 		let _ = parsing::parse_has_documentable_items(
 			0, // Explicit 0 to trigger error
 			method.sig.ident.span(),
@@ -68,7 +67,7 @@ fn process_method_in_impl(
 	} else {
 		// If parse fails and we have no logical params, it's likely just empty parens or no args
 		// which is fine if we only have a receiver
-		if logical_params.is_empty() && has_receiver {
+		if logical_params.is_empty() && has_receiver_param {
 			Vec::new()
 		} else {
 			return Err(CoreError::Parse(syn::Error::new(
@@ -91,7 +90,7 @@ fn process_method_in_impl(
 	let mut param_descs = Vec::new();
 
 	// Add receiver if present
-	if has_receiver {
+	if has_receiver_param {
 		// Get receiver name from signature
 		let receiver_name = if let Some(syn::FnArg::Receiver(recv)) = method.sig.inputs.first() {
 			if recv.mutability.is_some() {
@@ -152,15 +151,7 @@ fn process_impl_block(
 	})?;
 
 	// Verify that the impl block has at least one method with a receiver
-	let has_receiver_methods = item_impl.items.iter().any(|item| {
-		if let ImplItem::Fn(method) = item {
-			method.sig.inputs.iter().any(|input| matches!(input, syn::FnArg::Receiver(_)))
-		} else {
-			false
-		}
-	});
-
-	if !has_receiver_methods {
+	if !impl_has_receiver_methods(&item_impl) {
 		return Err(CoreError::Parse(syn::Error::new(
 			attr.span(),
 			format!(
