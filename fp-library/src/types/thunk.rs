@@ -41,6 +41,18 @@ mod inner {
 	/// - `thunk.bind(pure) == thunk` (right identity).
 	/// - `thunk.bind(f).bind(g) == thunk.bind(|a| f(a).bind(g))` (associativity).
 	///
+	/// ### Limitations
+	///
+	/// **Cannot implement `Traversable`**: `Thunk` wraps `Box<dyn FnOnce() -> A>`, which cannot be cloned
+	/// because `FnOnce` is consumed when called. The [`Traversable`](crate::classes::Traversable) trait
+	/// requires `Clone` bounds on the result type (to build the output structure), making it fundamentally
+	/// incompatible with `Thunk`'s design. This is an intentional trade-off: `Thunk` prioritizes
+	/// zero-overhead deferred execution and lifetime flexibility over structural cloning.
+	///
+	/// Implemented typeclasses:
+	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
+	/// - ❌ [`Traversable`](crate::classes::Traversable) (requires `Clone`)
+	///
 	/// ### Type Parameters
 	///
 	#[document_type_parameters(
