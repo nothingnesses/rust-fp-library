@@ -1,6 +1,6 @@
-# Benchmarking Plan
+# Benchmarking Comparison
 
-This document outlines the plan for benchmarking the `fp-library` against Rust's standard library.
+This document outlines benchmarks implemented for the `fp-library` against Rust's standard library.
 
 ## Comparisons
 
@@ -56,12 +56,3 @@ We will compare the performance of the following `fp-library` abstractions again
 | Feature | `fp-library` | `std`      | Status                   | [ ] |
 | :------ | :----------- | :--------- | :----------------------- | --- |
 |         | **Identity** | `identity` | `std::convert::identity` | [x] |
-
-## Checklist
-
-- [x] Create `fp-library/benches/benchmarks.rs`
-- [x] Implement `Vec` benchmarks
-- [x] Implement `Option` benchmarks
-- [x] Implement `Result` benchmarks
-- [x] Implement `String` benchmarks
-- [x] Implement `Functions` benchmarks
