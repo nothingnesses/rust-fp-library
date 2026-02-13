@@ -29,7 +29,7 @@ use std::ops::Deref;
 pub trait Pointer {
 	/// The pointer type constructor.
 	///
-	/// For `RcBrand`, this is `Rc<T>`. For `BoxBrand`, this would be `Box<T>`.
+	/// For `RcBrand`, this is `Rc<T>`. For `ArcBrand`, this is `Arc<T>`.
 	type Of<T: ?Sized>: Deref<Target = T>;
 
 	/// Wraps a sized value in the pointer.

@@ -33,11 +33,6 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	///
-	/// ### Higher-Kinded Type Representation
-	///
-	/// The higher-kinded representation of this type constructor is [`EndofunctionBrand<FnBrand, A>`](crate::brands::EndofunctionBrand),
-	/// which is parameterized by both the function brand and the input/output type, and is polymorphic over the lifetime.
-	///
 	/// ### Fields
 	///
 	#[document_fields("The wrapped function.")]
