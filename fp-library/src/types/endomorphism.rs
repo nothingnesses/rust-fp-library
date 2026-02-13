@@ -35,6 +35,11 @@ mod inner {
 		"The object of the morphism."
 	)]
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`EndomorphismBrand<CategoryBrand, A>`](crate::brands::EndomorphismBrand),
+	/// which is parameterized by both the category brand and the object type, and is polymorphic over the lifetime.
+	///
 	/// ### Fields
 	///
 	#[document_fields("The wrapped morphism.")]

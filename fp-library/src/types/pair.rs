@@ -21,6 +21,13 @@ mod inner {
 	///
 	/// A simple tuple struct that holds two values of potentially different types.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// This type has multiple higher-kinded representations:
+	/// - [`PairBrand`](crate::brands::PairBrand): fully polymorphic over both values (bifunctor).
+	/// - [`PairWithFirstBrand<First>`](crate::brands::PairWithFirstBrand): the first value type is fixed, polymorphic over the second (functor over second).
+	/// - [`PairWithSecondBrand<Second>`](crate::brands::PairWithSecondBrand): the second value type is fixed, polymorphic over the first (functor over first).
+	///
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.

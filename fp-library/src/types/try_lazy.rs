@@ -25,6 +25,11 @@ mod inner {
 		"The memoization configuration."
 	)]
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
+	/// which is parameterized by both the error type and the `LazyConfig`, and is polymorphic over the success value type.
+	///
 	/// ### Fields
 	///
 	#[document_fields("The internal lazy cell.")]

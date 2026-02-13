@@ -21,6 +21,11 @@ mod inner {
 	/// The `Identity` type represents a trivial wrapper around a value. It is the simplest possible container.
 	/// It is often used as a base case for higher-kinded types or when a container is required but no additional effect is needed.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`IdentityBrand`](crate::brands::IdentityBrand),
+	/// which is fully polymorphic over the wrapped value type.
+	///
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.

@@ -479,6 +479,11 @@ mod inner {
 	/// The computation runs at most once; subsequent accesses return the cached value.
 	/// Cloning a `Lazy` shares the underlying cache - all clones see the same value.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`LazyBrand<Config>`](crate::brands::LazyBrand),
+	/// which is parameterized by the memoization configuration and is polymorphic over the computed value type.
+	///
 	/// ### Type Parameters
 	///
 	#[document_type_parameters(

@@ -136,6 +136,11 @@ mod inner {
 	/// This implementation follows ["Reflection without Remorse"](http://okmij.org/ftp/Haskell/zseq.pdf) to ensure
 	/// that left-associated binds do not degrade performance.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`FreeBrand<F>`](crate::brands::FreeBrand),
+	/// which is parameterized by the base functor `F` and is polymorphic over the result type.
+	///
 	/// # HKT and Lifetime Limitations
 	///
 	/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.

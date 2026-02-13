@@ -28,6 +28,13 @@ mod inner {
 		"The type of the error produced by the computation on failure."
 	)]
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// This type has multiple higher-kinded representations:
+	/// - [`TryThunkBrand`](crate::brands::TryThunkBrand): fully polymorphic over both error and success types (bifunctor).
+	/// - [`TryThunkWithErrBrand<E>`](crate::brands::TryThunkWithErrBrand): the error type is fixed, polymorphic over the success type (functor over `Ok`).
+	/// - [`TryThunkWithOkBrand<A>`](crate::brands::TryThunkWithOkBrand): the success type is fixed, polymorphic over the error type (functor over `Err`).
+	///
 	/// ### Fields
 	///
 	#[document_fields("The closure that performs the computation.")]

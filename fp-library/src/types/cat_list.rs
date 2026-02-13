@@ -48,6 +48,11 @@ mod inner {
 	/// This is the "Reflection without Remorse" data structure that enables
 	/// O(1) left-associated bind operations in the Free monad.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`CatListBrand`](crate::brands::CatListBrand),
+	/// which is fully polymorphic over the element type.
+	///
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.

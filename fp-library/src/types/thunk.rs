@@ -25,6 +25,11 @@ mod inner {
 	/// Unlike [`Trampoline`](crate::types::Trampoline), `Thunk` does NOT require `'static` and CAN implement
 	/// HKT traits like [`Functor`], [`Semimonad`], etc.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// The higher-kinded representation of this type constructor is [`ThunkBrand`](crate::brands::ThunkBrand),
+	/// which is fully polymorphic over the result type.
+	///
 	/// ### Trade-offs vs `Trampoline`
 	///
 	/// | Aspect         | `Thunk<'a, A>`              | `Trampoline<A>`            |

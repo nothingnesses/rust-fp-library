@@ -35,6 +35,13 @@ mod inner {
 	///
 	/// This type is fundamental to stack-safe recursion via `MonadRec`.
 	///
+	/// ### Higher-Kinded Type Representation
+	///
+	/// This type has multiple higher-kinded representations:
+	/// - [`StepBrand`](crate::brands::StepBrand): fully polymorphic over both loop and done types (bifunctor).
+	/// - [`StepWithLoopBrand<LoopType>`](crate::brands::StepWithLoopBrand): the loop type is fixed, polymorphic over the done type (functor over done).
+	/// - [`StepWithDoneBrand<DoneType>`](crate::brands::StepWithDoneBrand): the done type is fixed, polymorphic over the loop type (functor over loop).
+	///
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.

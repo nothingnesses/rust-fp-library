@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Add a brand for SendEndofunction and implement traits for it?
 * Add extra trait methods for type classes and methods for brand/type structs. Make trait implementations use type methods. E.g., add a map method for Identity, make the Functor implementation use it, like how Functor for Vec uses Iterator map internally.
 * Property-based tests for type class laws.
 	* [Validity](https://github.com/NorfairKing/validity).
