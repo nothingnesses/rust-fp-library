@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! Procedural macros for the [`fp-library`](https://docs.rs/fp-library/latest/fp_library/) crate.
 //!
 //! This crate provides macros for generating and working with Higher-Kinded Type (HKT) traits.
@@ -922,10 +924,10 @@ pub fn document_fields(
 /// mod inner {
 ///     pub struct MyType;
 ///
-///     #[document_parameters("Self" = "The MyType instance")]
+///     #[document_parameters("The MyType instance")]
 ///     impl MyType {
 ///         #[document_signature]
-///         #[document_parameters("x" = "The input value")]
+///         #[document_parameters("The input value")]
 ///         pub fn process(&self, x: i32) -> i32 { x }
 ///     }
 /// }

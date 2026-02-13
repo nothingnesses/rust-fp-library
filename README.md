@@ -9,7 +9,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
 ## Features
 
 - **Higher-Kinded Types (HKT):** Implemented using lightweight higher-kinded polymorphism (type-level defunctionalization/brands).
-- **Macros:** Procedural macros (`def_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
+- **Macros:** Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
