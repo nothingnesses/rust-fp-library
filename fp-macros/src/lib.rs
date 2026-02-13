@@ -840,6 +840,8 @@ pub fn document_fields(
 /// 2. **Documentation Generation**: It processes all methods annotated with [`#[document_signature]`](macro@document_signature)
 ///    or [`#[document_type_parameters]`](macro@document_type_parameters), resolving `Self` and associated types
 ///    using the collected context.
+/// 3. **Validation** (Optional): Checks that impl blocks and methods have appropriate documentation
+///    attributes and emits compile-time warnings for missing documentation.
 ///
 /// ### Syntax
 ///
@@ -847,6 +849,16 @@ pub fn document_fields(
 ///
 /// ```ignore
 /// #[fp_macros::document_module]
+/// mod inner {
+///     // ... module content ...
+/// }
+/// pub use inner::*;
+/// ```
+///
+/// To disable validation warnings:
+///
+/// ```ignore
+/// #[fp_macros::document_module(no_validation)]
 /// mod inner {
 ///     // ... module content ...
 /// }
@@ -868,6 +880,64 @@ pub fn document_fields(
 ///   default to use when resolving bare `Self` references.
 /// * `#[document_use = "AssocName"]`: (Used on `impl` or `fn`) Explicitly specifies which
 ///   associated type definition to use for resolution within that scope.
+///
+/// ### Validation
+///
+/// By default, `document_module` validates that impl blocks and methods have appropriate
+/// documentation attributes and emits compile-time errors for missing documentation.
+///
+/// To disable validation, use `#[document_module(no_validation)]`.
+///
+/// #### Validation Rules
+///
+/// An impl block should have:
+/// * `#[document_type_parameters]` if it has type parameters
+/// * `#[document_parameters]` if it contains methods with receiver parameters (self, &self, &mut self)
+///
+/// A method should have:
+/// * `#[document_signature]` - always recommended for documenting the Hindley-Milner signature
+/// * `#[document_type_parameters]` if it has type parameters
+/// * `#[document_parameters]` if it has non-receiver parameters
+///
+/// #### Examples of Validation
+///
+/// ```ignore
+/// // This will emit warnings:
+/// #[fp_macros::document_module]
+/// mod inner {
+///     pub struct MyType;
+///
+///     // WARNING: Impl block contains methods with receiver parameters
+///     // but no #[document_parameters] attribute
+///     impl MyType {
+///         // WARNING: Method should have #[document_signature] attribute
+///         pub fn process(&self, x: i32) -> i32 { x }
+///     }
+/// }
+/// ```
+///
+/// ```ignore
+/// // Properly documented (no warnings):
+/// #[fp_macros::document_module]
+/// mod inner {
+///     pub struct MyType;
+///
+///     #[document_parameters("Self" = "The MyType instance")]
+///     impl MyType {
+///         #[document_signature]
+///         #[document_parameters("x" = "The input value")]
+///         pub fn process(&self, x: i32) -> i32 { x }
+///     }
+/// }
+/// ```
+///
+/// ```ignore
+/// // Disable validation to suppress warnings:
+/// #[fp_macros::document_module(no_validation)]
+/// mod inner {
+///     // ... undocumented code won't produce warnings ...
+/// }
+/// ```
 ///
 /// ### Hierarchical Configuration
 ///

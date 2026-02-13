@@ -1,6 +1,6 @@
 use fp_macros::document_module;
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_context {
 	#[allow(dead_code)]
 	pub struct CatListBrand;

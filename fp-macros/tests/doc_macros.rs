@@ -15,7 +15,7 @@ pub fn test_fn<T: Clone, ERR>(x: T) -> impl Fn(i32) -> T {
 	move |_| x.clone()
 }
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_mod {
 	#[allow(dead_code)]
 	pub trait MyTrait<T> {

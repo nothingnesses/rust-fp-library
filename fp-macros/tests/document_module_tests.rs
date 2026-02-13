@@ -1,6 +1,6 @@
 use fp_macros::{document_module, impl_kind, trait_kind};
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_mod {
 	use super::*;
 
@@ -50,7 +50,7 @@ fn test_positional_matching() {
 	// For now, we just ensure it compiles.
 }
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_collision {
 	use fp_macros::{impl_kind, trait_kind};
 	trait_kind!(
@@ -121,7 +121,7 @@ mod test_collision {
 	// or just test that one block works.
 }
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_erasure {
 	use fp_macros::document_signature;
 	#[allow(dead_code)]
@@ -134,7 +134,7 @@ mod test_erasure {
 	}
 }
 
-#[document_module]
+#[document_module(no_validation)]
 mod test_impl_level_document_parameters {
 	use fp_macros::document_parameters;
 

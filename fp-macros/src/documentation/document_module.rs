@@ -1,4 +1,4 @@
-use super::generation::generate_documentation;
+use super::{generation::generate_documentation, validation::validate_documentation};
 use crate::{
 	core::{
 		Result as OurResult, config::Config, constants::attributes::DOCUMENT_MODULE,
@@ -25,6 +25,32 @@ impl Parse for DocumentModuleInput {
 		let items = parse_many(input)?;
 		let items = parse_non_empty(items, "Module documentation must contain at least one item")?;
 		Ok(DocumentModuleInput { items })
+	}
+}
+
+/// Configuration for document_module validation
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum ValidationMode {
+	/// Validation enabled - emit warnings for missing documentation (default)
+	#[default]
+	On,
+	/// Validation disabled - no warnings
+	Off,
+}
+
+/// Parse validation mode from attribute arguments
+fn parse_validation_mode(attr: TokenStream) -> syn::Result<ValidationMode> {
+	if attr.is_empty() {
+		return Ok(ValidationMode::default());
+	}
+
+	let attr_str = attr.to_string();
+	match attr_str.trim() {
+		"no_validation" => Ok(ValidationMode::Off),
+		_ => Err(syn::Error::new(
+			attr.span(),
+			format!("Unknown validation mode '{attr_str}'. Valid option: 'no_validation'"),
+		)),
 	}
 }
 
@@ -110,7 +136,7 @@ fn parse_document_module_input(item: TokenStream) -> Result<ParsedInput, syn::Er
 }
 
 pub fn document_module_worker(
-	_attr: TokenStream,
+	attr: TokenStream,
 	item: TokenStream,
 ) -> OurResult<TokenStream> {
 	let parsed_input = parse_document_module_input(item)?;
@@ -120,6 +146,9 @@ pub fn document_module_worker(
 		ParsedInput::DirectItems(items) => (None, items),
 	};
 
+	// Parse validation mode from attribute
+	let validation_mode = parse_validation_mode(attr)?;
+
 	let mut config = Config::default();
 
 	// Pass 1: Context Extraction (handles both top-level and nested)
@@ -128,6 +157,19 @@ pub fn document_module_worker(
 	// Also recursively extract from nested modules
 	apply_to_nested_modules(&mut items, get_context, &mut config)?;
 
+	// Pass 1.5: Validation (emit warnings for missing documentation attributes)
+	let warning_tokens: Vec<TokenStream> = if validation_mode != ValidationMode::Off {
+		let warnings = validate_documentation(&items);
+
+		// Also recursively validate nested modules
+		let nested_warnings = validate_nested_modules(&items);
+
+		// Convert errors to compile-time errors
+		warnings.into_iter().chain(nested_warnings).map(|e| e.to_compile_error()).collect()
+	} else {
+		Vec::new()
+	};
+
 	// Pass 2: Documentation Generation (handles both top-level and nested)
 	generate_documentation(&mut items, &config)?;
 
@@ -135,14 +177,25 @@ pub fn document_module_worker(
 	apply_to_nested_modules_immut(&mut items, generate_documentation, &config)?;
 
 	// Reconstruct module wrapper if needed (outer attribute case)
-	if let Some((mut module, brace)) = module_wrapper {
+	let items_output = if let Some((mut module, brace)) = module_wrapper {
 		module.content = Some((brace, items));
-		let output = quote!(#module);
-		Ok(output)
+		quote!(#module)
 	} else {
-		let output = quote!(#(#items)*);
-		Ok(output)
-	}
+		quote!(#(#items)*)
+	};
+
+	// Combine warnings with output if validation is enabled
+	// Warnings are emitted first so they appear in the compiler output
+	let output = if !warning_tokens.is_empty() {
+		quote! {
+			#(#warning_tokens)*
+			#items_output
+		}
+	} else {
+		items_output
+	};
+
+	Ok(output)
 }
 
 /// Apply an operation to all nested modules recursively with mutable config.
@@ -237,4 +290,23 @@ where
 			visit_mut::visit_item_mod_mut(self, module);
 		}
 	}
+}
+
+/// Recursively validate all nested modules and collect warnings.
+fn validate_nested_modules(items: &[Item]) -> Vec<syn::Error> {
+	let mut warnings = Vec::new();
+
+	for item in items {
+		if let Item::Mod(module) = item
+			&& let Some((_, ref nested_items)) = module.content
+		{
+			// Validate this module's items
+			warnings.extend(validate_documentation(nested_items));
+
+			// Recursively validate nested modules
+			warnings.extend(validate_nested_modules(nested_items));
+		}
+	}
+
+	warnings
 }
