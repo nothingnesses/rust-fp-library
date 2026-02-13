@@ -50,12 +50,17 @@ fp-library = "0.8"
 The library offers optional features that can be enabled in your `Cargo.toml`:
 
 - **`rayon`**: Enables parallel folding operations (`ParFoldable`) and parallel execution support for `VecBrand` using the [rayon](https://github.com/rayon-rs/rayon) library.
+- **`serde`**: Enables serialization and deserialization support for pure data types using the [serde](https://github.com/serde-rs/serde) library.
 
-To enable this feature:
+To enable features:
 
 ```toml
 [dependencies]
+# Single feature
 fp-library = { version = "0.8", features = ["rayon"] }
+
+# Multiple features
+fp-library = { version = "0.8", features = ["rayon", "serde"] }
 ```
 
 ### Example: Using `Functor` with `Option`

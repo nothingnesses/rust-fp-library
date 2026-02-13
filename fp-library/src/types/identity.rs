@@ -21,6 +21,10 @@ mod inner {
 	/// The `Identity` type represents a trivial wrapper around a value. It is the simplest possible container.
 	/// It is often used as a base case for higher-kinded types or when a container is required but no additional effect is needed.
 	///
+	/// ### Serialization
+	///
+	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
+	///
 	/// ### Type Parameters
 	///
 	#[document_type_parameters("The type of the wrapped value.")]
@@ -37,6 +41,7 @@ mod inner {
 	/// let x = Identity(5);
 	/// assert_eq!(x.0, 5);
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Identity<A>(pub A);
 

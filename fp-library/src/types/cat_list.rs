@@ -48,6 +48,10 @@ mod inner {
 	/// This is the "Reflection without Remorse" data structure that enables
 	/// O(1) left-associated bind operations in the Free monad.
 	///
+	/// ### Serialization
+	///
+	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
+	///
 	/// ### Performance Notes
 	///
 	/// This implementation uses a [`VecDeque`] to store sublists, providing:
@@ -68,6 +72,7 @@ mod inner {
 	///
 	/// let list: CatList<i32> = CatList::empty();
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Debug, Default)]
 	pub enum CatList<A> {
 		/// Empty list

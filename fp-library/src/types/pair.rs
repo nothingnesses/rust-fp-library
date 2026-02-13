@@ -21,6 +21,10 @@ mod inner {
 	///
 	/// A simple tuple struct that holds two values of potentially different types.
 	///
+	/// ### Serialization
+	///
+	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
+	///
 	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
 	///
 	/// ### Fields
@@ -36,6 +40,7 @@ mod inner {
 	/// assert_eq!(p.0, 1);
 	/// assert_eq!(p.1, "hello");
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 	pub struct Pair<First, Second>(pub First, pub Second);
 

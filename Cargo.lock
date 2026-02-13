@@ -221,6 +221,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "rayon",
+ "serde",
  "thiserror",
  "trybuild",
 ]

@@ -5,7 +5,6 @@
 	* [Validity](https://github.com/NorfairKing/validity).
 * Add a diagram of the typeclass/trait hierarchy and reasoning/justification for why the current hierarchy is as it is.
 * For each equivalent abstraction in docs/benchmarks/comparisons.md / docs/std_coverage_checklist.md , there should be a property-based test to test for equivalence.
-* Serde (de)serialisation for types.
 * [Mutation testing](https://github.com/sourcefrog/cargo-mutants).
 * [Lazy, memoized data type](https://pursuit.purescript.org/packages/purescript-lazy/3.0.0/docs/Data.Lazy) for [dynamic programming](https://en.wikipedia.org/wiki/Dynamic_programming#Computer_science).
 * [Monadic stream functions](https://github.com/ivanperez-keera/dunai).

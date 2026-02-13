@@ -35,6 +35,10 @@ mod inner {
 	///
 	/// This type is fundamental to stack-safe recursion via `MonadRec`.
 	///
+	/// ### Serialization
+	///
+	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
+	///
 	#[document_type_parameters(
 		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
 		r#"The "done" type - when we return `Done(b)`, we're finished."#
@@ -53,6 +57,7 @@ mod inner {
 	/// let loop_step: Step<i32, i32> = Step::Loop(10);
 	/// let done_step: Step<i32, i32> = Step::Done(20);
 	/// ```
+	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 	pub enum Step<A, B> {
 		/// Continue the loop with a new value
