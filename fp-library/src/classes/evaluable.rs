@@ -24,18 +24,12 @@ use fp_macros::document_type_parameters;
 pub trait Evaluable: Functor {
 	/// Evaluates the effect, producing the inner value.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the value.",
 		"The type of the value inside the functor."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The functor instance to evaluate.")]
 	///
@@ -58,19 +52,13 @@ pub trait Evaluable: Functor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Evaluable::evaluate`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the value.",
 	"The evaluable functor.",
 	"The type of the value inside the functor."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The functor instance to evaluable.")]
 ///

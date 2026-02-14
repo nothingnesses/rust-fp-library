@@ -20,15 +20,9 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	///
 	/// This method wraps a value in a context.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -51,19 +45,13 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the value.",
 	"The brand of the context.",
 	"The type of the value to wrap."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The value to wrap.")]
 ///

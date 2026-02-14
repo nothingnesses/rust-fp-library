@@ -26,11 +26,7 @@ mod inner {
 	///
 	/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The internal `Trampoline` wrapping a `Result`.")]
 	///
@@ -44,18 +40,12 @@ mod inner {
 	/// ```
 	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	#[document_parameters("The fallible trampoline computation.")]
 	impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 		/// Creates a successful `TryTrampoline`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The success value.")]
 		///
@@ -77,11 +67,7 @@ mod inner {
 
 		/// Creates a failed `TryTrampoline`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The error value.")]
 		///
@@ -103,15 +89,9 @@ mod inner {
 
 		/// Creates a lazy `TryTrampoline` that may fail.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to execute.")]
 		///
@@ -138,15 +118,9 @@ mod inner {
 		///
 		/// Use this for stack-safe recursion.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that returns the next step.")]
 		///
@@ -190,18 +164,12 @@ mod inner {
 
 		/// Maps over the success value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 		"The type of the new success value.",
 		("F", "The type of the mapping function.")
 	)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
@@ -229,18 +197,12 @@ mod inner {
 
 		/// Maps over the error value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 		"The type of the new error value.",
 		("F", "The type of the mapping function.")
 	)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
@@ -269,18 +231,12 @@ mod inner {
 
 		/// Chains fallible computations.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The type of the new success value.",
 			"The type of the binding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
@@ -311,15 +267,9 @@ mod inner {
 
 		/// Recovers from an error.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the recovery function.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
@@ -351,8 +301,6 @@ mod inner {
 
 		/// Runs the computation, returning the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -372,28 +320,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 	where
 		A: Send + 'static,
 		E: Send + 'static,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The trampoline computation to convert.")]
 		fn from(task: Trampoline<A>) -> Self {
 			TryTrampoline(task.map(Ok))
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The type of the success value.",
 		"The type of the error value.",
@@ -405,20 +344,13 @@ mod inner {
 		E: Send + 'static,
 		Config: LazyConfig,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The lazy value to convert.")]
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The type of the success value.",
 		"The type of the error value.",
@@ -430,20 +362,13 @@ mod inner {
 		E: Clone + Send + 'static,
 		Config: LazyConfig,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The fallible lazy value to convert.")]
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
 	where
@@ -452,15 +377,9 @@ mod inner {
 	{
 		/// Creates a value from a computation that produces the value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that produces the value.")]
 		///

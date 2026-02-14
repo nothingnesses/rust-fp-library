@@ -58,11 +58,7 @@ mod inner {
 	/// lazy.evaluate(); // Returns cached
 	/// ```
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The internal `Free` monad representation.")]
 	///
@@ -79,8 +75,6 @@ mod inner {
 	/// ```
 	pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
 	#[document_parameters("The `Trampoline` instance.")]
 	impl<A: 'static + Send> Trampoline<A> {
@@ -90,11 +84,7 @@ mod inner {
 		///
 		/// O(1) creation, O(1) evaluation
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -123,15 +113,9 @@ mod inner {
 		/// # Complexity
 		/// O(1) creation
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to execute.")]
 		///
@@ -166,15 +150,9 @@ mod inner {
 		/// building a chain of `Trampoline`s directly (which grows the stack),
 		/// we defer the construction.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces a `Trampoline`.")]
 		///
@@ -212,18 +190,12 @@ mod inner {
 		/// Chains computations together. The key property is that
 		/// left-associated chains don't degrade to O(n²).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The type of the result of the new task.",
 			"The type of the binding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
@@ -255,18 +227,12 @@ mod inner {
 
 		/// Functor map: transforms the result without changing structure.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The type of the result of the mapping function.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
@@ -298,11 +264,7 @@ mod inner {
 		/// This runs the trampoline loop, iteratively processing
 		/// the CatList of continuations without growing the stack.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
@@ -324,19 +286,13 @@ mod inner {
 
 		/// Combines two `Trampoline`s, running both and combining results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The type of the second task's result.",
 			"The type of the combined result.",
 			"The type of the combining function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The second task.", "The function to combine the results.")]
 		///
@@ -367,15 +323,9 @@ mod inner {
 
 		/// Sequences two `Trampoline`s, discarding the first result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the second task's result.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The second task.")]
 		///
@@ -411,15 +361,9 @@ mod inner {
 		/// For closures that don't implement `Clone`, use `arc_tail_rec_m`
 		/// which wraps the closure in `Arc` internally.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the state.", "The type of the step function.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
@@ -479,15 +423,9 @@ mod inner {
 		///
 		/// Use this when your closure captures non-Clone state.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the state.", "The type of the step function.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
@@ -532,8 +470,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The type of the value produced by the task.",
 		"The memoization configuration."
@@ -541,33 +477,20 @@ mod inner {
 	impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>>
 		for Trampoline<A>
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The lazy value to convert.")]
 		fn from(lazy: Lazy<'static, A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value produced by the task.")]
 	impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that produces the trampoline.")]
 		///

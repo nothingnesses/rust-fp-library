@@ -44,6 +44,7 @@ pub use endomorphism::Endomorphism;
 pub use free::Free;
 pub use identity::Identity;
 pub use lazy::{ArcLazy, ArcLazyConfig, Lazy, LazyConfig, RcLazy, RcLazyConfig};
+pub use optics::{Composed, Lens, LensPrime};
 pub use pair::Pair;
 pub use send_endofunction::SendEndofunction;
 pub use step::Step;

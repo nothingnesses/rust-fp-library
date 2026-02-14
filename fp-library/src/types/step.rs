@@ -73,8 +73,6 @@ mod inner {
 		Done(B),
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		r#"The "loop" type - when we return `Loop(a)`, we continue with `a`."#,
 		r#"The "done" type - when we return `Done(b)`, we're finished."#
@@ -82,8 +80,6 @@ mod inner {
 	#[document_parameters("The step value.")]
 	impl<A, B> Step<A, B> {
 		/// Returns `true` if this is a `Loop` variant.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -106,8 +102,6 @@ mod inner {
 
 		/// Returns `true` if this is a `Done` variant.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -129,15 +123,9 @@ mod inner {
 
 		/// Maps a function over the `Loop` variant.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The new loop type.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the loop value.")]
 		///
@@ -166,15 +154,9 @@ mod inner {
 
 		/// Maps a function over the `Done` variant.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The new done type.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the done value.")]
 		///
@@ -203,15 +185,9 @@ mod inner {
 
 		/// Applies functions to both variants (bifunctor map).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The new loop type.", "The new done type.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the loop value.",
@@ -260,11 +236,7 @@ mod inner {
 		///
 		/// This method applies one function to the loop value and another to the done value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -275,8 +247,6 @@ mod inner {
 			"The type of the function to apply to the loop value.",
 			"The type of the function to apply to the done value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the loop value.",
@@ -317,19 +287,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
 		/// Maps a function over the done value in the step.
 		///
 		/// This method applies a function to the done value inside the step, producing a new step with the transformed done value. The loop value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -337,8 +301,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the done value.", "The step to map over.")]
 		///
@@ -364,19 +326,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
 		/// Lifts a binary function into the step context.
 		///
 		/// This method lifts a binary function to operate on values within the step context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -385,8 +341,6 @@ mod inner {
 			"The type of the result.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -431,23 +385,15 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
 		/// Wraps a value in a step.
 		///
 		/// This method wraps a value in the `Done` variant of a `Step`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -467,29 +413,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> ApplyFirst for StepWithLoopBrand<LoopType> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> ApplySecond for StepWithLoopBrand<LoopType> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a step to a value wrapped in a step.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -497,8 +433,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The step containing the function.",
@@ -529,19 +463,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
 		/// Chains step computations.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -549,8 +477,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first step.",
@@ -585,19 +511,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
 		/// Folds the step from the right.
 		///
 		/// This method performs a right-associative fold of the step.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -606,8 +526,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
@@ -642,11 +560,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the step.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -655,8 +569,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
@@ -691,11 +603,7 @@ mod inner {
 		///
 		/// This method maps the element of the step to a monoid and then returns it.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -704,8 +612,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The step to fold.")]
 		///
@@ -743,19 +649,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
 		/// Traverses the step with an applicative function.
 		///
 		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -764,8 +664,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The step to traverse.")]
 		///
@@ -805,19 +703,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the step and accumulates the result into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The step containing the applicative value.")]
 		///
@@ -853,19 +745,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The loop type.")]
 	impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -873,8 +759,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -916,11 +800,7 @@ mod inner {
 		///
 		/// This method folds the step by applying a function from right to left, potentially in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -928,8 +808,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -978,19 +856,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
 		/// Maps a function over the loop value in the step.
 		///
 		/// This method applies a function to the loop value inside the step, producing a new step with the transformed loop value. The done value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -998,8 +870,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the loop value.", "The step to map over.")]
 		///
@@ -1025,19 +895,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
 		/// Lifts a binary function into the step context (over loop).
 		///
 		/// This method lifts a binary function to operate on loop values within the step context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1046,8 +910,6 @@ mod inner {
 			"The type of the result loop value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the loops.",
@@ -1092,23 +954,15 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
 		/// Wraps a value in a step (as loop).
 		///
 		/// This method wraps a value in the `Loop` variant of a `Step`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -1128,29 +982,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> ApplyFirst for StepWithDoneBrand<DoneType> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> ApplySecond for StepWithDoneBrand<DoneType> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> {
 		/// Applies a wrapped function to a wrapped value (over loop).
 		///
 		/// This method applies a function wrapped in a step (as loop) to a value wrapped in a step (as loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1158,8 +1002,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The step containing the function (in Loop).",
@@ -1190,19 +1032,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
 		/// Chains step computations (over loop).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1210,8 +1046,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first step.", "The function to apply to the loop value.")]
 		///
@@ -1243,19 +1077,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
 		/// Folds the step from the right (over loop).
 		///
 		/// This method performs a right-associative fold of the step (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1264,8 +1092,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
@@ -1300,11 +1126,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the step (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1313,8 +1135,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
@@ -1349,11 +1169,7 @@ mod inner {
 		///
 		/// This method maps the element of the step to a monoid and then returns it (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1362,8 +1178,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The step to fold.")]
 		///
@@ -1401,19 +1215,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
 		/// Traverses the step with an applicative function (over loop).
 		///
 		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1422,8 +1230,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The step to traverse.")]
 		///
@@ -1463,19 +1269,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the step and accumulates the result into an applicative context (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The step containing the applicative value.")]
 		///
@@ -1511,19 +1311,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The done type.")]
 	impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
 		///
 		/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1531,8 +1325,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -1574,11 +1366,7 @@ mod inner {
 		///
 		/// This method folds the step by applying a function from right to left, potentially in parallel (over loop).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1586,8 +1374,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",

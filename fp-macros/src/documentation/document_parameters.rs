@@ -129,7 +129,19 @@ fn process_method_in_impl(
 	}
 
 	// Generate doc comments and insert them
-	let docs: Vec<_> = param_names.into_iter().zip(param_descs).collect();
+	let mut docs: Vec<_> = param_names.into_iter().zip(param_descs).collect();
+
+	// Add section header
+	docs.insert(
+		0,
+		(
+			String::new(),
+			r#"### Parameters
+"#
+			.to_string(),
+		),
+	);
+
 	insert_doc_comments_batch(&mut method.attrs, docs, attr_pos);
 
 	Ok(())
@@ -191,7 +203,7 @@ pub fn document_parameters_worker(
 	}
 
 	// Otherwise, process as a function with generate_doc_comments
-	generate_doc_comments(attr, item_tokens, |generic_item| {
+	generate_doc_comments(attr, item_tokens, "Parameters", |generic_item| {
 		let config = get_config();
 
 		let sig = generic_item.signature().ok_or_else(|| {
@@ -233,9 +245,11 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `b`: Arg 2");
+		// 2 parameters + 1 header = 3 attributes
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `b`: Arg 2");
 	}
 
 	#[test]
@@ -248,8 +262,9 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: syn::TraitItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
+		assert_eq!(output_fn.attrs.len(), 2);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
 	}
 
 	#[test]
@@ -262,9 +277,10 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `custom_a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `b`: Arg 2");
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `custom_a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `b`: Arg 2");
 	}
 
 	#[test]
@@ -277,9 +293,10 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `_`: Curried Arg");
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `_`: Curried Arg");
 	}
 
 	#[test]
@@ -306,8 +323,9 @@ mod tests {
 		let output = document_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `a`: Arg 1");
+		assert_eq!(output_fn.attrs.len(), 2);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `a`: Arg 1");
 	}
 
 	#[test]
@@ -325,8 +343,9 @@ mod tests {
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
 
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 1);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver parameter");
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The receiver parameter");
 		} else {
 			panic!("Expected method");
 		}
@@ -347,9 +366,10 @@ mod tests {
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
 
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 2);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&mut self`: The list instance");
-			assert_eq!(get_doc(&method.attrs[1]), "* `item`: The element to append");
+			assert_eq!(method.attrs.len(), 3);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&mut self`: The list instance");
+			assert_eq!(get_doc(&method.attrs[2]), "* `item`: The element to append");
 		} else {
 			panic!("Expected method");
 		}
@@ -406,8 +426,9 @@ mod tests {
 
 		// First method should have doc
 		if let ImplItem::Fn(method) = &output_impl.items[0] {
-			assert_eq!(method.attrs.len(), 1);
-			assert_eq!(get_doc(&method.attrs[0]), "* `&self`: The receiver");
+			assert_eq!(method.attrs.len(), 2);
+			assert_eq!(get_doc(&method.attrs[0]), "### Parameters\n");
+			assert_eq!(get_doc(&method.attrs[1]), "* `&self`: The receiver");
 		} else {
 			panic!("Expected method");
 		}

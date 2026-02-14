@@ -30,11 +30,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	///
 	/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -42,8 +38,6 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 		"The type of the result(s) of applying the function.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to the value(s) inside the functor.",
@@ -75,11 +69,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Functor::map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -88,8 +78,6 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	"The type of the result(s) of applying the function.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to the value(s) inside the functor.",

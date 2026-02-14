@@ -64,8 +64,6 @@ mod inner {
 	/// This trait allows optics to be first-class values that can be composed
 	/// and stored while preserving their polymorphism over profunctor types.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -77,15 +75,9 @@ mod inner {
 		///
 		/// This method applies the optic transformation to a profunctor value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The profunctor value to transform.")]
 		fn evaluate<'a, P: Strong + Choice>(
@@ -103,8 +95,6 @@ mod inner {
 	///
 	/// This struct represents the composition of two optics, allowing them to be
 	/// combined into a single optic that applies both transformations.
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The source type of the outer structure.",
@@ -124,8 +114,6 @@ mod inner {
 		pub(crate) _phantom: PhantomData<(S, T, M, N, A, B)>,
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
@@ -139,11 +127,7 @@ mod inner {
 	impl<S, T, M, N, A, B, O1, O2> Composed<S, T, M, N, A, B, O1, O2> {
 		/// Create a new composed optic.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The outer optic (applied second).",
@@ -157,8 +141,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
@@ -177,16 +159,8 @@ mod inner {
 		M: 'static,
 		N: 'static,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The profunctor value to transform.")]
 		fn evaluate<'a, P: Strong + Choice>(
 			&self,
@@ -211,11 +185,7 @@ mod inner {
 	/// as a trait method (`Optic::evaluate<P>`), and the `Composed` struct enables
 	/// static dispatch and zero-cost composition through monomorphization.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The source type of the outer structure.",
@@ -227,8 +197,6 @@ mod inner {
 		"The first optic.",
 		"The second optic."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The outer optic (applied second).", "The inner optic (applied first).")]
 	///
@@ -272,8 +240,6 @@ mod inner {
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
@@ -292,8 +258,6 @@ mod inner {
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
@@ -308,11 +272,7 @@ mod inner {
 	{
 		/// Create a new polymorphic lens.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
 		///
@@ -336,11 +296,7 @@ mod inner {
 
 		/// View the focus of the lens in a structure.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The structure to view.")]
 		///
@@ -362,11 +318,7 @@ mod inner {
 
 		/// Set the focus of the lens in a structure.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
 		///
@@ -388,8 +340,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
@@ -403,16 +353,8 @@ mod inner {
 		P: UnsizedCoercible,
 		S: Clone,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The profunctor value to transform.")]
 		fn evaluate<'a, Q: Strong + Choice>(
 			&self,
@@ -440,8 +382,6 @@ mod inner {
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The type of the structure.",
@@ -456,8 +396,6 @@ mod inner {
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The type of the structure.",
@@ -468,8 +406,6 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			LensPrime {
@@ -480,8 +416,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The type of the structure.",
@@ -494,11 +428,7 @@ mod inner {
 	{
 		/// Create a new monomorphic lens from a getter and setter.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
 		///
@@ -523,11 +453,7 @@ mod inner {
 
 		/// View the focus of the lens in a structure.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The structure to view.")]
 		///
@@ -549,11 +475,7 @@ mod inner {
 
 		/// Set the focus of the lens in a structure.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
 		///
@@ -576,11 +498,7 @@ mod inner {
 
 		/// Update the focus of the lens in a structure using a function.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		///
@@ -608,8 +526,6 @@ mod inner {
 
 	// Optic implementation for LensPrime<P, S, A>
 	// Note: This implements monomorphic update (S -> S, A -> A)
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The type of the structure.",
@@ -621,16 +537,8 @@ mod inner {
 		P: UnsizedCoercible,
 		S: Clone,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The profunctor value to transform.")]
 		fn evaluate<'a, Q: Strong + Choice>(
 			&self,

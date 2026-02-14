@@ -25,8 +25,6 @@ pub trait Monoid: Semigroup {
 	///
 	/// This method returns the identity element of the monoid.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
 	/// ### Returns
@@ -48,11 +46,7 @@ pub trait Monoid: Semigroup {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters("The type of the monoid.")]
 ///

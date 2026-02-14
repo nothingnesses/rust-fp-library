@@ -25,15 +25,9 @@ mod inner {
 
 		/// Wraps a sized value in an `Rc`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -59,15 +53,9 @@ mod inner {
 
 		/// Wraps a sized value in an `Rc`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -89,15 +77,9 @@ mod inner {
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the wrapped value.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
@@ -121,19 +103,13 @@ mod inner {
 	impl UnsizedCoercible for RcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Rc`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to coerce.")]
 		///

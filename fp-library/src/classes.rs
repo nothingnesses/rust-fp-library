@@ -54,3 +54,4 @@ pub mod witherable;
 
 // Automatically re-export all traits defined in submodules.
 fp_macros::generate_trait_re_exports!("src/classes", {});
+pub use crate::types::optics::Optic;

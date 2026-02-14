@@ -34,11 +34,7 @@ mod inner {
 		///
 		/// This method applies one function to the first value and another to the second value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -49,8 +45,6 @@ mod inner {
 			"The type of the function to apply to the first value.",
 			"The type of the function to apply to the second value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the first value.",
@@ -91,19 +85,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
 		/// Maps a function over the second value in the tuple.
 		///
 		/// This method applies a function to the second value inside the tuple, producing a new tuple with the transformed second value. The first value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -111,8 +99,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the second value.",
@@ -141,8 +127,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Lift for Tuple2WithFirstBrand<First>
 	where
@@ -152,11 +136,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on the second values within the tuple context. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -165,8 +145,6 @@ mod inner {
 			"The type of the result second value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the second values.",
@@ -203,8 +181,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Pointed for Tuple2WithFirstBrand<First>
 	where
@@ -214,15 +190,9 @@ mod inner {
 		///
 		/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the first element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -242,17 +212,11 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithFirstBrand<First> {}
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + Semigroup + 'static> ApplySecond for Tuple2WithFirstBrand<First> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Semiapplicative for Tuple2WithFirstBrand<First>
 	where
@@ -262,11 +226,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -274,8 +234,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The tuple containing the function.",
@@ -302,8 +260,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Semimonad for Tuple2WithFirstBrand<First>
 	where
@@ -313,11 +269,7 @@ mod inner {
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -325,8 +277,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first tuple.", "The function to apply to the second value.")]
 		///
@@ -357,19 +307,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
 		/// Folds the tuple from the right (over second).
 		///
 		/// This method performs a right-associative fold of the tuple (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -378,8 +322,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
@@ -410,11 +352,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the tuple (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -423,8 +361,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -459,11 +395,7 @@ mod inner {
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -472,8 +404,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The tuple to fold.")]
 		///
@@ -504,19 +434,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
 		/// Traverses the tuple with an applicative function (over second).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -525,8 +449,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -562,19 +484,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
@@ -604,19 +520,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the tuple.")]
 	impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -624,8 +534,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -664,11 +572,7 @@ mod inner {
 		///
 		/// This method folds the tuple by applying a function from right to left, potentially in parallel (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -676,8 +580,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -720,19 +622,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
 		/// Maps a function over the first value in the tuple.
 		///
 		/// This method applies a function to the first value inside the tuple, producing a new tuple with the transformed first value. The second value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -740,8 +636,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the first value.",
@@ -770,8 +664,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Lift for Tuple2WithSecondBrand<Second>
 	where
@@ -781,11 +673,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on the first values within the tuple context. The second values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -794,8 +682,6 @@ mod inner {
 			"The type of the result first value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the first values.",
@@ -832,8 +718,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Pointed for Tuple2WithSecondBrand<Second>
 	where
@@ -843,15 +727,9 @@ mod inner {
 		///
 		/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the second element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -871,17 +749,11 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithSecondBrand<Second> {}
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + Semigroup + 'static> ApplySecond for Tuple2WithSecondBrand<Second> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Semiapplicative for Tuple2WithSecondBrand<Second>
 	where
@@ -891,11 +763,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The second values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -903,8 +771,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The tuple containing the function.",
@@ -931,8 +797,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Semimonad for Tuple2WithSecondBrand<Second>
 	where
@@ -942,11 +806,7 @@ mod inner {
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first. The second values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -954,8 +814,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first tuple.", "The function to apply to the first value.")]
 		///
@@ -986,19 +844,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
 		/// Folds the tuple from the right (over first).
 		///
 		/// This method performs a right-associative fold of the tuple (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1007,8 +859,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
@@ -1039,11 +889,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the tuple (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1052,8 +898,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
@@ -1084,11 +928,7 @@ mod inner {
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1097,8 +937,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The tuple to fold.")]
 		///
@@ -1129,19 +967,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
 		/// Traverses the tuple with an applicative function (over first).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1150,8 +982,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The tuple to traverse.")]
 		///
@@ -1185,19 +1015,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
@@ -1227,19 +1051,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the tuple.")]
 	impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1247,8 +1065,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -1287,11 +1103,7 @@ mod inner {
 		///
 		/// This method folds the tuple by applying a function from right to left, potentially in parallel (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1299,8 +1111,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -1379,7 +1189,7 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<Tuple2Brand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x.clone())
+		bimap::<Tuple2Brand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x)
 			== bimap::<Tuple2Brand, _, _, _, _, _, _>(
 				f,
 				h,

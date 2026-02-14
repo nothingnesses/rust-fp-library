@@ -43,8 +43,6 @@ use syn::parse_macro_input;
 /// )
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
 ///
 /// ### Generates
@@ -113,8 +111,6 @@ pub fn Kind(input: TokenStream) -> TokenStream {
 ///     // ...
 /// )
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Associated Types`: A list of associated type definitions (e.g., `type Of<T>;`) that define the signature of the Kind.
 ///
@@ -189,8 +185,6 @@ pub fn trait_kind(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Generics`: Optional generic parameters for the implementation.
 /// * `BrandType`: The brand type to implement the Kind for.
@@ -291,8 +285,6 @@ pub fn impl_kind(input: TokenStream) -> TokenStream {
 /// Apply!(<Brand as Kind!( KindSignature )>::AssocType<Args>)
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Brand`: The brand type (e.g., `OptionBrand`).
 /// * `KindSignature`: A list of associated type definitions defining the `Kind` trait schema.
 /// * `AssocType`: The associated type to project (e.g., `Of`).
@@ -363,8 +355,6 @@ pub fn Apply(input: TokenStream) -> TokenStream {
 /// })
 /// ```
 ///
-/// ### Parameters
-///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of function names to their desired aliases.
 ///
@@ -405,8 +395,6 @@ pub fn generate_function_re_exports(input: TokenStream) -> TokenStream {
 ///     ...
 /// })
 /// ```
-///
-/// ### Parameters
 ///
 /// * `path/to/directory`: The path to the directory containing the modules, relative to the crate root.
 /// * `aliases`: A map of trait names to their desired aliases (optional).
@@ -543,8 +531,6 @@ pub fn document_signature(
 /// impl<T> MyType<T> { ... }
 /// ```
 ///
-/// ### Parameters
-///
 /// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
 ///   or a tuple of two string literals `(Name, Description)`.
 ///
@@ -615,8 +601,6 @@ pub fn document_type_parameters(
 ///     pub fn method_with_args(&self, arg: i32) { ... }
 /// }
 /// ```
-///
-/// ### Parameters
 ///
 /// * `Descriptions`: A comma-separated list. Each entry can be either a string literal
 ///   or a tuple of two string literals `(Name, Description)`.
@@ -735,8 +719,6 @@ pub fn document_parameters(
 ///     Variant2(Type3),
 /// }
 /// ```
-///
-/// ### Parameters
 ///
 /// * For structs with named fields: A comma-separated list of `field_ident: "description"` pairs.
 /// * For structs with tuple fields: A comma-separated list of string literal descriptions, in order.

@@ -74,6 +74,11 @@ pub(super) fn process_document_signature(
 	let doc_comment = format!("`{signature_data}`");
 	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 	method.attrs.insert(attr_pos, doc_attr);
+
+	// Add section header
+	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+	method.attrs.insert(attr_pos, header_attr);
 }
 
 /// Process the `#[document_type_parameters]` attribute on a method.
@@ -110,12 +115,23 @@ pub(super) fn process_document_type_parameters(
 		if let Some(pairs) = errors.collect_our_result(|| {
 			parse_parameter_documentation_pairs(method_param_names, entries, attr.span())
 		}) {
-			for (i, (name_from_target, entry)) in pairs.into_iter().enumerate() {
+			let mut docs = Vec::new();
+			docs.push((
+				String::new(),
+				r#"### Type Parameters
+"#
+				.to_string(),
+			));
+
+			for (name_from_target, entry) in pairs {
 				let (name, desc) = match entry {
 					DocumentationParameter::Override(n, d) => (n.value(), d.value()),
 					DocumentationParameter::Description(d) => (name_from_target, d.value()),
 				};
+				docs.push((name, desc));
+			}
 
+			for (i, (name, desc)) in docs.into_iter().enumerate() {
 				let doc_comment = format_parameter_doc(&name, &desc);
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 				method.attrs.insert(attr_pos + i, doc_attr);
@@ -194,8 +210,19 @@ fn process_impl_block(
 			item_impl.attrs.remove(attr_pos);
 
 			// Generate documentation comments for each impl-level type parameter
-			for (i, (param_name, desc)) in impl_docs.iter().enumerate() {
-				let doc_comment = format_parameter_doc(param_name, desc);
+			let mut docs = Vec::new();
+			docs.push((
+				String::new(),
+				r#"### Type Parameters
+"#
+				.to_string(),
+			));
+			for (param_name, desc) in impl_docs.iter() {
+				docs.push((param_name.clone(), desc.clone()));
+			}
+
+			for (i, (name, desc)) in docs.into_iter().enumerate() {
+				let doc_comment = format_parameter_doc(&name, &desc);
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
 				item_impl.attrs.insert(attr_pos + i, doc_attr);
 			}

@@ -19,15 +19,9 @@ pub trait Deferrable<'a> {
 	///
 	/// This function takes a thunk and creates a deferred value that will be computed using the thunk.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the thunk.")]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("A thunk that produces the value.")]
 	///
@@ -53,19 +47,13 @@ pub trait Deferrable<'a> {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Deferrable::defer`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the computation",
 	"The type of the deferred value.",
 	"The type of the thunk."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("A thunk that produces the value.")]
 ///

@@ -23,18 +23,12 @@ use fp_macros::document_type_parameters;
 pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the [`Option`]."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The data structure containing [`Option`] values.")]
 	///
@@ -64,19 +58,13 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 
 	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the error values.",
 		"The type of the success values."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The data structure containing [`Result`] values.")]
 	///
@@ -111,19 +99,13 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::compact`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the elements in the [`Option`]."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The data structure containing [`Option`] values.")]
 ///
@@ -153,11 +135,7 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::separate`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -165,8 +143,6 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 	"The type of the error values.",
 	"The type of the success values."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The data structure containing [`Result`] values.")]
 ///

@@ -23,11 +23,7 @@ pub trait Semigroup {
 	///
 	/// This method combines two values of the same type into a single value of that type.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The first value.", "The second value.")]
 	///
@@ -55,15 +51,9 @@ pub trait Semigroup {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
 ///
-/// ### Type Parameters
-///
 #[document_type_parameters("The type of the semigroup.")]
-///
-/// ### Parameters
 ///
 #[document_parameters("The first value.", "The second value.")]
 ///

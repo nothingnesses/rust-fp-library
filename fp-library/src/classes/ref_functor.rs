@@ -25,11 +25,7 @@ use fp_macros::document_type_parameters;
 pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context, where the function takes a reference.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -37,8 +33,6 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 		"The type of the result(s) of applying the function.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to the value(s) inside the functor.",
@@ -73,11 +67,7 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`RefFunctor::ref_map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -86,8 +76,6 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	"The type of the result(s) of applying the function.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to the value(s) inside the functor.",

@@ -34,8 +34,6 @@ mod inner {
 	///
 	#[document_type_parameters("The type of the first value.", "The type of the second value.")]
 	///
-	/// ### Fields
-	///
 	#[document_fields("The first value.", "The second value.")]
 	///
 	/// ### Examples
@@ -68,11 +66,7 @@ mod inner {
 		///
 		/// This method applies one function to the first value and another to the second value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -83,8 +77,6 @@ mod inner {
 			"The type of the function to apply to the first value.",
 			"The type of the function to apply to the second value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the first value.",
@@ -121,27 +113,19 @@ mod inner {
 	// PairWithFirstBrand<First> (Functor over Second)
 
 	impl_kind! {
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the first value in the pair.")]
 		impl<First: 'static> for PairWithFirstBrand<First> {
 			type Of<'a, A: 'a>: 'a = Pair<First, A>;
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: 'static> Functor for PairWithFirstBrand<First> {
 		/// Maps a function over the second value in the pair.
 		///
 		/// This method applies a function to the second value inside the pair, producing a new pair with the transformed second value. The first value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -149,8 +133,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the second value.",
@@ -179,8 +161,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Lift for PairWithFirstBrand<First>
 	where
@@ -190,11 +170,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on the second values within the pair context. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -203,8 +179,6 @@ mod inner {
 			"The type of the result second value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the second values.",
@@ -241,8 +215,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Pointed for PairWithFirstBrand<First>
 	where
@@ -252,15 +224,9 @@ mod inner {
 		///
 		/// This method wraps a value in a pair, using the `Monoid::empty()` value for the first element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -280,18 +246,12 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + Semigroup + 'static> ApplyFirst for PairWithFirstBrand<First> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + Semigroup + 'static> ApplySecond for PairWithFirstBrand<First> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Semiapplicative for PairWithFirstBrand<First>
 	where
@@ -301,11 +261,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in a pair to a value wrapped in a pair. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -313,8 +269,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The pair containing the function.",
@@ -341,8 +295,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Semimonad for PairWithFirstBrand<First>
 	where
@@ -352,11 +304,7 @@ mod inner {
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first. The first values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -364,8 +312,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first pair.", "The function to apply to the second value.")]
 		///
@@ -396,22 +342,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: 'static> Foldable for PairWithFirstBrand<First> {
 		/// Folds the pair from the right (over second).
 		///
 		/// This method performs a right-associative fold of the pair (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -420,8 +358,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The pair to fold.")]
 		///
@@ -452,11 +388,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the pair (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -465,8 +397,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -501,11 +431,7 @@ mod inner {
 		///
 		/// This method maps the element of the pair to a monoid and then returns it (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -514,8 +440,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The pair to fold.")]
 		///
@@ -546,22 +470,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
 		/// Traverses the pair with an applicative function (over second).
 		///
 		/// This method maps the element of the pair to a computation, evaluates it, and combines the result into an applicative context (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -570,8 +486,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -607,19 +521,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the pair and accumulates the result into an applicative context (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The pair containing the applicative value.")]
 		///
@@ -649,22 +557,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
 		/// This method maps the element of the pair to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -672,8 +572,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -712,11 +610,7 @@ mod inner {
 		///
 		/// This method folds the pair by applying a function from right to left, potentially in parallel (over second).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -724,8 +618,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -762,27 +654,19 @@ mod inner {
 	// PairWithSecondBrand<Second> (Functor over First)
 
 	impl_kind! {
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the second value in the pair.")]
 		impl<Second: 'static> for PairWithSecondBrand<Second> {
 			type Of<'a, A: 'a>: 'a = Pair<A, Second>;
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
 		/// Maps a function over the first value in the pair.
 		///
 		/// This method applies a function to the first value inside the pair, producing a new pair with the transformed first value. The second value remains unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -790,8 +674,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the first value.", "The pair to map over.")]
 		///
@@ -817,8 +699,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Lift for PairWithSecondBrand<Second>
 	where
@@ -828,11 +708,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on the first values within the pair context. The second values are combined using their `Semigroup` implementation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -841,8 +717,6 @@ mod inner {
 			"The type of the result first value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the first values.",
@@ -879,8 +753,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Pointed for PairWithSecondBrand<Second>
 	where
@@ -890,15 +762,9 @@ mod inner {
 		///
 		/// This method wraps a value in a pair, using the `Monoid::empty()` value for the second element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -918,18 +784,12 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + Semigroup + 'static> ApplyFirst for PairWithSecondBrand<Second> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + Semigroup + 'static> ApplySecond for PairWithSecondBrand<Second> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Semiapplicative for PairWithSecondBrand<Second>
 	where
@@ -939,11 +799,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -951,8 +807,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The pair containing the function (in Err).",
@@ -979,8 +833,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Semimonad for PairWithSecondBrand<Second>
 	where
@@ -990,11 +842,7 @@ mod inner {
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1002,8 +850,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
@@ -1034,22 +880,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
 		/// Folds the pair from the right (over first).
 		///
 		/// This method performs a right-associative fold of the result (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1058,8 +896,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -1090,11 +926,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the result (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1103,8 +935,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -1135,11 +965,7 @@ mod inner {
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1148,8 +974,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
@@ -1180,22 +1004,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
 		/// Traverses the pair with an applicative function (over first).
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1204,8 +1020,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
@@ -1239,19 +1053,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the result and accumulates the result into an applicative context (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
@@ -1281,22 +1089,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
 		/// This method maps the element of the pair to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1304,8 +1104,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -1344,11 +1142,7 @@ mod inner {
 		///
 		/// This method folds the pair by applying a function from right to left, potentially in parallel (over first).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1356,8 +1150,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -1437,7 +1229,7 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<PairBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x.clone())
+		bimap::<PairBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x)
 			== bimap::<PairBrand, _, _, _, _, _, _>(
 				f,
 				h,

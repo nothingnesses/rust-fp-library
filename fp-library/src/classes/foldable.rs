@@ -39,11 +39,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// This method performs a right-associative fold of the structure.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -52,8 +48,6 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the accumulator.",
 		"The type of the folding function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to each element and the accumulator.",
@@ -100,11 +94,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// This method performs a left-associative fold of the structure.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -113,8 +103,6 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the accumulator.",
 		"The type of the folding function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to the accumulator and each element.",
@@ -169,11 +157,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	///
 	/// This method maps each element of the structure to a monoid and then combines the results using the monoid's `append` operation.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -182,8 +166,6 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 		"The type of the monoid.",
 		"The type of the mapping function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to map each element to a monoid.",
@@ -220,11 +202,7 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_right`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -234,8 +212,6 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	"The type of the accumulator.",
 	"The type of the folding function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element and the accumulator.",
@@ -272,11 +248,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_left`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -286,8 +258,6 @@ where
 	"The type of the accumulator.",
 	"The type of the folding function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to the accumulator and each element.",
@@ -324,11 +294,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Foldable::fold_map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -338,8 +304,6 @@ where
 	"The type of the monoid.",
 	"The type of the mapping function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The function to map each element to a monoid.", "The structure to fold.")]
 ///

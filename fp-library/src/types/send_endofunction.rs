@@ -25,15 +25,11 @@ mod inner {
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped thread-safe function.")]
 	///
@@ -49,8 +45,6 @@ mod inner {
 		pub <FnBrand as SendCloneableFn>::SendOf<'a, A, A>,
 	);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -61,11 +55,7 @@ mod inner {
 		///
 		/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to wrap.")]
 		///
@@ -86,8 +76,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -95,16 +83,12 @@ mod inner {
 	)]
 	#[document_parameters("The function to clone.")]
 	impl<'a, FnBrand: SendCloneableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -115,12 +99,7 @@ mod inner {
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
 		fn fmt(
 			&self,
@@ -130,8 +109,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -142,8 +119,6 @@ mod inner {
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -154,16 +129,8 @@ mod inner {
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
 		fn hash<H: std::hash::Hasher>(
 			&self,
@@ -173,8 +140,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -185,12 +150,7 @@ mod inner {
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn cmp(
 			&self,
@@ -200,8 +160,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -212,12 +170,7 @@ mod inner {
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn eq(
 			&self,
@@ -227,8 +180,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -239,12 +190,7 @@ mod inner {
 	where
 		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn partial_cmp(
 			&self,
@@ -254,8 +200,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -270,11 +214,7 @@ mod inner {
 		/// Note that `SendEndofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second function to apply (the outer function).",
@@ -308,8 +248,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -321,8 +259,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///

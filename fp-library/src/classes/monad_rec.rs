@@ -53,11 +53,7 @@ use fp_macros::document_type_parameters;
 pub trait MonadRec: Monad {
 	/// Performs tail-recursive monadic computation.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -65,8 +61,6 @@ pub trait MonadRec: Monad {
 		"The type of the result.",
 		"The type of the step function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The step function.", "The initial value.")]
 	///
@@ -106,11 +100,7 @@ pub trait MonadRec: Monad {
 ///
 /// Free function version that dispatches to [the type class' associated function][`MonadRec::tail_rec_m`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the computation.",
@@ -119,8 +109,6 @@ pub trait MonadRec: Monad {
 	"The type of the result.",
 	"The type of the step function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The step function.", "The initial value.")]
 ///

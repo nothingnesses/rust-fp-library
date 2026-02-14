@@ -29,11 +29,7 @@ pub trait Traversable: Functor + Foldable {
 	/// A direct implementation can often perform the traversal in a single pass without allocating an intermediate container.
 	/// Types should provide their own implementation if possible.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -42,8 +38,6 @@ pub trait Traversable: Functor + Foldable {
 		"The applicative context.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to each element, returning a value in an applicative context.",
@@ -83,19 +77,13 @@ pub trait Traversable: Functor + Foldable {
 	///
 	/// The default implementation is defined in terms of [`traverse`] and [`identity`].
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The traversable structure containing values in an applicative context.")]
 	///
@@ -129,11 +117,7 @@ pub trait Traversable: Functor + Foldable {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::traverse`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -143,8 +127,6 @@ pub trait Traversable: Functor + Foldable {
 	"The applicative context.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element, returning a value in an applicative context.",
@@ -180,11 +162,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::sequence`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -192,8 +170,6 @@ where
 	"The type of the elements in the traversable structure.",
 	"The applicative context."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The traversable structure containing values in an applicative context.")]
 ///

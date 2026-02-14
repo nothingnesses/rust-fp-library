@@ -30,15 +30,9 @@ mod inner {
 		///
 		/// This method creates a new vector with the given head element followed by the elements of the tail vector.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the elements in the vector.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"A value to prepend to the vector.",
@@ -77,15 +71,9 @@ mod inner {
 		///
 		/// This method splits a slice into its first element and the rest of the elements as a new vector.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the elements in the vector.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The vector slice to deconstruct.")]
 		///
@@ -122,11 +110,7 @@ mod inner {
 		///
 		/// This method applies a function to each element of the vector, producing a new vector with the transformed values.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -134,8 +118,6 @@ mod inner {
 			"The type of the elements in the resulting vector.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to each element.", "The vector to map over.")]
 		///
@@ -166,11 +148,7 @@ mod inner {
 		///
 		/// This method applies a binary function to all pairs of elements from two vectors, producing a new vector containing the results (Cartesian product).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -179,8 +157,6 @@ mod inner {
 			"The type of the elements in the resulting vector.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -222,15 +198,9 @@ mod inner {
 		///
 		/// This method creates a new vector containing the single given value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -259,11 +229,7 @@ mod inner {
 		///
 		/// This method applies each function in the first vector to each value in the second vector, producing a new vector containing all the results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -271,8 +237,6 @@ mod inner {
 			"The type of the input values.",
 			"The type of the output values."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The vector containing the functions.",
@@ -307,11 +271,7 @@ mod inner {
 		///
 		/// This method applies a function that returns a vector to each element of the input vector, and then flattens the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -319,8 +279,6 @@ mod inner {
 			"The type of the elements in the output vector.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first vector.",
@@ -358,11 +316,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the vector.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -371,8 +325,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The vector to fold.")]
 		///
@@ -403,11 +355,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the vector.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -416,8 +364,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -452,11 +398,7 @@ mod inner {
 		///
 		/// This method maps each element of the vector to a monoid and then combines the results using the monoid's `append` operation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -465,8 +407,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The vector to fold.")]
 		///
@@ -502,11 +442,7 @@ mod inner {
 		///
 		/// This method maps each element of the vector to a computation, evaluates them, and combines the results into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -515,8 +451,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -563,19 +497,13 @@ mod inner {
 		///
 		/// This method evaluates the computations inside the vector and accumulates the results into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The vector containing the applicative values.")]
 		///
@@ -615,19 +543,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the vector.")]
 	impl<A: Clone> Semigroup for Vec<A> {
 		/// Appends one vector to another.
 		///
 		/// This method concatenates two vectors.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
@@ -650,15 +572,11 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the vector.")]
 	impl<A: Clone> Monoid for Vec<A> {
 		/// Returns an empty vector.
 		///
 		/// This method returns a new, empty vector.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -685,11 +603,7 @@ mod inner {
 		///
 		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -697,8 +611,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -744,15 +656,9 @@ mod inner {
 		///
 		/// This method flattens a vector of options, discarding `None` values.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The vector of options.")]
 		///
@@ -783,19 +689,13 @@ mod inner {
 		///
 		/// This method separates a vector of results into a pair of vectors.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the error value.",
 			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The vector of results.")]
 		///
@@ -836,11 +736,7 @@ mod inner {
 		///
 		/// This method partitions a vector based on a function that returns a result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -849,8 +745,6 @@ mod inner {
 			"The type of the success value.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
 		///
@@ -892,19 +786,13 @@ mod inner {
 		///
 		/// This method partitions a vector based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The vector to partition.")]
 		///
@@ -941,11 +829,7 @@ mod inner {
 		///
 		/// This method maps a function over a vector and filters out `None` results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -953,8 +837,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The vector to filter and map.")]
 		///
@@ -986,19 +868,13 @@ mod inner {
 		///
 		/// This method filters a vector based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The vector to filter.")]
 		///
@@ -1032,11 +908,7 @@ mod inner {
 		///
 		/// This method partitions a vector based on a function that returns a result in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -1046,8 +918,6 @@ mod inner {
 			"The type of the success value.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
 		///
@@ -1099,11 +969,7 @@ mod inner {
 		///
 		/// This method maps a function over a vector and filters out `None` results in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1112,8 +978,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
@@ -1519,7 +1383,7 @@ mod tests {
 
 		let lhs = wilt::<VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
 		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
-			|res| separate::<VecBrand, _, _>(res),
+			separate::<VecBrand, _, _>,
 			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 
@@ -1533,7 +1397,7 @@ mod tests {
 
 		let lhs = wither::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
 		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
-			|opt| compact::<VecBrand, _>(opt),
+			compact::<VecBrand, _>,
 			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
 		);
 

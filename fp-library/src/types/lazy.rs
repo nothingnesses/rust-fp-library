@@ -46,15 +46,9 @@ mod inner {
 
 		/// Creates a new lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -74,19 +68,13 @@ mod inner {
 
 		/// Creates a new fallible lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -108,19 +96,13 @@ mod inner {
 
 		/// Forces evaluation and returns a reference.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The lifetime of the reference.",
 			"The type of the value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
@@ -140,11 +122,7 @@ mod inner {
 
 		/// Forces evaluation and returns a reference to the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
@@ -152,8 +130,6 @@ mod inner {
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
@@ -188,15 +164,9 @@ mod inner {
 
 		/// Creates a new lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -218,19 +188,13 @@ mod inner {
 
 		/// Creates a new fallible lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -254,19 +218,13 @@ mod inner {
 
 		/// Forces evaluation and returns a reference.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The lifetime of the reference.",
 			"The type of the value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
@@ -288,11 +246,7 @@ mod inner {
 
 		/// Forces evaluation and returns a reference to the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
@@ -300,8 +254,6 @@ mod inner {
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
@@ -338,15 +290,9 @@ mod inner {
 
 		/// Creates a new lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -368,19 +314,13 @@ mod inner {
 
 		/// Creates a new fallible lazy cell from an initializer.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
@@ -404,19 +344,13 @@ mod inner {
 
 		/// Forces evaluation and returns a reference.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The lifetime of the reference.",
 			"The type of the value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
@@ -438,11 +372,7 @@ mod inner {
 
 		/// Forces evaluation and returns a reference to the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the computation.",
@@ -450,8 +380,6 @@ mod inner {
 			"The type of the value.",
 			"The type of the error."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
@@ -484,15 +412,11 @@ mod inner {
 	/// The higher-kinded representation of this type constructor is [`LazyBrand<Config>`](crate::brands::LazyBrand),
 	/// which is parameterized by the memoization configuration and is polymorphic over the computed value type.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the reference.",
 		"The type of the computed value.",
 		"The memoization configuration (determines Rc vs Arc)."
 	)]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The internal lazy cell.")]
 	///
@@ -514,8 +438,6 @@ mod inner {
 	where
 		A: 'a;
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the reference.",
 		"The type of the computed value.",
@@ -526,16 +448,12 @@ mod inner {
 	where
 		A: 'a,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the reference.",
 		"The type of the computed value.",
@@ -547,8 +465,6 @@ mod inner {
 		A: 'a,
 	{
 		/// Gets the memoized value, computing on first access.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -569,8 +485,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Lazy<'a, A, RcLazyConfig>
 	where
@@ -578,15 +492,9 @@ mod inner {
 	{
 		/// Creates a new Lazy that will run `f` on first access.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the initializer closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
@@ -613,11 +521,7 @@ mod inner {
 		///
 		/// The value is immediately available without any computation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
@@ -638,43 +542,27 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The thunk to convert.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> From<Trampoline<A>> for Lazy<'a, A, RcLazyConfig>
 	where
 		A: Send,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The trampoline to convert.")]
 		fn from(task: Trampoline<A>) -> Self {
 			Self::new(move || task.evaluate())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Lazy<'a, A, ArcLazyConfig>
 	where
@@ -682,15 +570,9 @@ mod inner {
 	{
 		/// Creates a new Lazy that will run `f` on first access.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the initializer closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
@@ -718,11 +600,7 @@ mod inner {
 		/// The value is immediately available without any computation.
 		/// Requires `Send` since `ArcLazy` is thread-safe.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
@@ -758,8 +636,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> Deferrable<'a> for Lazy<'a, A, RcLazyConfig>
 	where
@@ -770,15 +646,9 @@ mod inner {
 		/// This flattens the nested structure: instead of `Lazy<Lazy<A>>`, we get `Lazy<A>`.
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
@@ -803,8 +673,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The lifetime of the reference.", "The type of the computed value.")]
 	impl<'a, A> SendDeferrable<'a> for Lazy<'a, A, ArcLazyConfig>
 	where
@@ -815,15 +683,9 @@ mod inner {
 		/// This flattens the nested structure: instead of `ArcLazy<ArcLazy<A>>`, we get `ArcLazy<A>`.
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
@@ -851,11 +713,7 @@ mod inner {
 	impl RefFunctor for LazyBrand<RcLazyConfig> {
 		/// Maps a function over the memoized value, where the function takes a reference.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -863,8 +721,6 @@ mod inner {
 			"The type of the result.",
 			"The type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The memoized value.")]
 		///

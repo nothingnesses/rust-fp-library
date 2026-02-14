@@ -40,11 +40,7 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// The default implementation uses [`map`](crate::functions::map) and [`separate`](crate::functions::separate).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -53,8 +49,6 @@ pub trait Filterable: Compactable + Functor {
 		"The type of the success values.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to each element, returning a [`Result`].",
@@ -96,19 +90,13 @@ pub trait Filterable: Compactable + Functor {
 	/// This is achieved by mapping satisfied elements to [`Ok`] and unsatisfied elements to [`Err`] internally,
 	/// as `separate` returns `(Oks, Errs)`.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The predicate function.", "The data structure to partition.")]
 	///
@@ -144,11 +132,7 @@ pub trait Filterable: Compactable + Functor {
 	/// The default implementation uses [`map`](crate::functions::map) and [`compact`](crate::functions::compact).
 	///
 	/// ### Type Signature
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -156,8 +140,6 @@ pub trait Filterable: Compactable + Functor {
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
 	)]
-	/// ### Parameters
-	///
 	/// * `func`: The function to apply to each element, returning an [`Option`].
 	/// * `fa`: The data structure to filter and map.
 	///
@@ -188,19 +170,13 @@ pub trait Filterable: Compactable + Functor {
 	///
 	/// The default implementation uses [`filter_map`].
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The predicate function.", "The data structure to filter.")]
 	///
@@ -232,11 +208,7 @@ pub trait Filterable: Compactable + Functor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::partition_map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -246,8 +218,6 @@ pub trait Filterable: Compactable + Functor {
 	"The type of the success values.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element, returning a [`Result`].",
@@ -287,11 +257,7 @@ where
 ///
 /// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's [`Iterator::partition`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -299,8 +265,6 @@ where
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The predicate function.", "The data structure to partition.")]
 ///
@@ -335,11 +299,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::filter_map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -348,8 +308,6 @@ where
 	"The type of the elements in the output structure.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element, returning an [`Option`].",
@@ -383,11 +341,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::filter`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -395,8 +349,6 @@ where
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The predicate function.", "The data structure to filter.")]
 ///

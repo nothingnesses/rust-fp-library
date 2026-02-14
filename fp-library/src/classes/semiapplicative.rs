@@ -36,11 +36,7 @@ pub trait Semiapplicative: Lift + Functor {
 	/// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
 	/// distinct anonymous type.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -48,8 +44,6 @@ pub trait Semiapplicative: Lift + Functor {
 		"The type of the input value.",
 		"The type of the output value."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The context containing the function(s).",
@@ -80,11 +74,7 @@ pub trait Semiapplicative: Lift + Functor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -93,8 +83,6 @@ pub trait Semiapplicative: Lift + Functor {
 	"The type of the input value.",
 	"The type of the output value."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The context containing the function(s).",

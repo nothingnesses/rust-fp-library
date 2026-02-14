@@ -22,11 +22,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	///
 	/// This method lifts a binary function to operate on values within the context.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -35,8 +31,6 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 		"The type of the result.",
 		"The type of the binary function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The binary function to apply.",
@@ -74,11 +68,7 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Lift::lift2`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -88,8 +78,6 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	"The type of the result.",
 	"The type of the binary function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The binary function to apply.", "The first context.", "The second context.")]
 ///

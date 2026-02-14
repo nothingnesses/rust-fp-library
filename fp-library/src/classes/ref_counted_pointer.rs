@@ -28,15 +28,9 @@ pub trait RefCountedPointer: Pointer {
 
 	/// Wraps a sized value in a cloneable pointer.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value to wrap.")]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -58,15 +52,9 @@ pub trait RefCountedPointer: Pointer {
 
 	/// Attempts to unwrap the inner value if this is the sole reference.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the wrapped value.")]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The pointer to attempt to unwrap.")]
 	///
@@ -93,15 +81,9 @@ pub trait RefCountedPointer: Pointer {
 ///
 /// Free function version that dispatches to [the type class' associated function][`RefCountedPointer::try_unwrap`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
 ///
-/// ### Type Parameters
-///
 #[document_type_parameters("The pointer brand.", "The type of the wrapped value.")]
-///
-/// ### Parameters
 ///
 #[document_parameters("The pointer to attempt to unwrap.")]
 ///
@@ -127,15 +109,9 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 
 /// Wraps a sized value in a cloneable pointer.
 ///
-/// ### Type Signature
-///
 #[document_signature]
 ///
-/// ### Type Parameters
-///
 #[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
-///
-/// ### Parameters
 ///
 #[document_parameters("The value to wrap.")]
 ///

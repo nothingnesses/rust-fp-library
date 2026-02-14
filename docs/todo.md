@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Make Strong a supertrait of Function and rename Function to Arrow?
 * `Wander` type class (required for `Traversal`).
 * `Closed` type class (required for `Grate`).
 * Optics:

@@ -66,8 +66,6 @@ mod inner {
 	/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
 	///   provides true O(1) operations on both ends without periodic reversal.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Examples
@@ -87,17 +85,10 @@ mod inner {
 		Cons(A, VecDeque<CatList<A>>, usize),
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
 		fn eq(
 			&self,
@@ -110,26 +101,14 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A: Eq + Clone> Eq for CatList<A> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to hash.")]
 	impl<A: Hash + Clone> Hash for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
 		fn hash<H: Hasher>(
 			&self,
@@ -142,17 +121,10 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
 		fn partial_cmp(
 			&self,
@@ -162,17 +134,10 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to compare.")]
 	impl<A: Ord + Clone> Ord for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other list to compare to.")]
 		fn cmp(
 			&self,
@@ -193,15 +158,9 @@ mod inner {
 		///
 		/// This method creates a new list with the given head element followed by the elements of the tail list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the elements in the list.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A value to prepend to the list.", "A list to prepend the value to.")]
 		///
@@ -231,15 +190,9 @@ mod inner {
 		///
 		/// This method splits a list into its first element and the rest of the elements as a new list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the elements in the list.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The list to deconstruct.")]
 		///
@@ -273,11 +226,7 @@ mod inner {
 		///
 		/// This method applies a function to each element of the list, producing a new list with the transformed values.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -285,8 +234,6 @@ mod inner {
 			"The type of the elements in the resulting list.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to each element.", "The list to map over.")]
 		///
@@ -320,11 +267,7 @@ mod inner {
 		///
 		/// This method applies a binary function to all pairs of elements from two lists, producing a new list containing the results (Cartesian product).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -333,8 +276,6 @@ mod inner {
 			"The type of the elements in the resulting list.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -382,15 +323,9 @@ mod inner {
 		///
 		/// This method creates a new list containing the single given value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -420,11 +355,7 @@ mod inner {
 		///
 		/// This method applies each function in the first list to each value in the second list, producing a new list containing all the results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -432,8 +363,6 @@ mod inner {
 			"The type of the input values.",
 			"The type of the output values."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The list containing the functions.",
@@ -469,11 +398,7 @@ mod inner {
 		///
 		/// This method applies a function that returns a list to each element of the input list, and then flattens the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -481,8 +406,6 @@ mod inner {
 			"The type of the elements in the output list.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first list.",
@@ -519,11 +442,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -532,8 +451,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The list to fold.")]
 		///
@@ -569,11 +486,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -582,8 +495,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -619,11 +530,7 @@ mod inner {
 		///
 		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -632,8 +539,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The list to fold.")]
 		///
@@ -670,11 +575,7 @@ mod inner {
 		///
 		/// This method maps each element of the list to a computation, evaluates them, and combines the results into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -683,8 +584,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -723,19 +622,13 @@ mod inner {
 		///
 		/// This method evaluates the computations inside the list and accumulates the results into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The list containing the applicative values.")]
 		///
@@ -772,11 +665,7 @@ mod inner {
 		///
 		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -784,8 +673,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -833,15 +720,9 @@ mod inner {
 		///
 		/// This method flattens a list of options, discarding `None` values.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The list of options.")]
 		///
@@ -872,19 +753,13 @@ mod inner {
 		///
 		/// This method separates a list of results into a pair of lists.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the error value.",
 			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The list of results.")]
 		///
@@ -927,11 +802,7 @@ mod inner {
 		///
 		/// This method partitions a list based on a function that returns a result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -940,8 +811,6 @@ mod inner {
 			"The type of the success value.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
@@ -986,19 +855,13 @@ mod inner {
 		///
 		/// This method partitions a list based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The list to partition.")]
 		///
@@ -1044,11 +907,7 @@ mod inner {
 		///
 		/// This method maps a function over a list and filters out `None` results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -1056,8 +915,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to filter and map.")]
 		///
@@ -1089,19 +946,13 @@ mod inner {
 		///
 		/// This method filters a list based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The list to filter.")]
 		///
@@ -1135,11 +986,7 @@ mod inner {
 		///
 		/// This method partitions a list based on a function that returns a result in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
@@ -1149,8 +996,6 @@ mod inner {
 			"The type of the success value.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
@@ -1206,11 +1051,7 @@ mod inner {
 		///
 		/// This method maps a function over a list and filters out `None` results in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1219,8 +1060,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
@@ -1265,19 +1104,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Semigroup for CatList<A> {
 		/// Appends one list to another.
 		///
 		/// This method concatenates two lists.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
@@ -1304,15 +1137,11 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> Monoid for CatList<A> {
 		/// Returns an empty list.
 		///
 		/// This method returns a new, empty list.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -1333,14 +1162,10 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to operate on.")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -1363,11 +1188,7 @@ mod inner {
 
 		/// Returns `true` if the list is empty.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
@@ -1390,11 +1211,7 @@ mod inner {
 
 		/// Creates a CatList with a single element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to put in the list.")]
 		///
@@ -1417,11 +1234,7 @@ mod inner {
 
 		/// Appends an element to the front of the list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to prepend.")]
 		///
@@ -1446,11 +1259,7 @@ mod inner {
 
 		/// Appends an element to the back of the list.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The element to append.")]
 		///
@@ -1478,11 +1287,7 @@ mod inner {
 		/// This is the key operation that makes CatList special:
 		/// concatenation is O(1), not O(n).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The second list.")]
 		///
@@ -1510,11 +1315,7 @@ mod inner {
 		///
 		/// Links two `CatList`s by pushing the second onto the first's sublist deque.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
@@ -1540,11 +1341,7 @@ mod inner {
 		///
 		/// Returns `None` if the list is empty.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
@@ -1583,11 +1380,7 @@ mod inner {
 		///
 		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The deque of sublists to flatten.")]
 		///
@@ -1602,11 +1395,7 @@ mod inner {
 
 		/// Returns the number of elements.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters]
 		///
@@ -1632,16 +1421,12 @@ mod inner {
 	}
 
 	// Iteration support
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to consume.")]
 	impl<A> IntoIterator for CatList<A> {
 		type Item = A;
 		type IntoIter = CatListIterator<A>;
 
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
@@ -1650,24 +1435,16 @@ mod inner {
 
 	/// An iterator that consumes a `CatList`.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The list being iterated over.")]
 	pub struct CatListIterator<A>(CatList<A>);
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The iterator state.")]
 	impl<A> Iterator for CatListIterator<A> {
 		type Item = A;
 
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
@@ -1677,20 +1454,10 @@ mod inner {
 	}
 
 	// FromIterator for easy construction
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	impl<A> FromIterator<A> for CatList<A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The iterator type.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The iterator to collect from.")]
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))

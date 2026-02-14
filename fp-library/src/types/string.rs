@@ -22,11 +22,7 @@ mod inner {
 		///
 		/// This method combines two strings into a single string.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first string.", "The second string.")]
 		///
@@ -56,8 +52,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity element of the monoid.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///

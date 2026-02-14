@@ -33,11 +33,7 @@ mod inner {
 		///
 		/// This method applies a function to the value inside the 1-tuple, producing a new 1-tuple with the transformed value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
@@ -45,8 +41,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The tuple to map over.")]
 		///
@@ -79,11 +73,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on values within the 1-tuple context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -92,8 +82,6 @@ mod inner {
 			"The return type of the function.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -135,15 +123,9 @@ mod inner {
 		///
 		/// This method wraps a value in a 1-tuple context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -172,11 +154,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in a 1-tuple to a value wrapped in a 1-tuple.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -184,8 +162,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The tuple containing the function.",
@@ -219,11 +195,7 @@ mod inner {
 		///
 		/// This method chains two 1-tuple computations, where the second computation depends on the result of the first.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -231,8 +203,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first tuple.",
@@ -268,11 +238,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the 1-tuple. Since it contains only one element, this is equivalent to applying the function to the element and the initial value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -281,8 +247,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element and the accumulator.",
@@ -319,11 +283,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the 1-tuple. Since it contains only one element, this is equivalent to applying the function to the initial value and the element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -332,8 +292,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -370,11 +328,7 @@ mod inner {
 		///
 		/// This method maps the element of the 1-tuple to a monoid.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -383,8 +337,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -422,11 +374,7 @@ mod inner {
 		///
 		/// This method maps the element of the 1-tuple to a computation, evaluates it, and wraps the result in the applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -435,8 +383,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -471,19 +417,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the 1-tuple and wraps the result in the applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
@@ -516,11 +456,7 @@ mod inner {
 		///
 		/// This method maps the element of the 1-tuple to a monoid. Since it contains only one element, no actual parallelism occurs, but the interface is satisfied.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -528,8 +464,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to map each element to a monoid.",
@@ -566,11 +500,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the 1-tuple. Since it contains only one element, no actual parallelism occurs.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -578,8 +508,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -684,7 +612,7 @@ mod tests {
 		let u = pure::<Tuple1Brand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, Tuple1Brand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, Tuple1Brand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w

@@ -30,11 +30,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	///
 	/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the morphisms.",
@@ -42,8 +38,6 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 		"The target type of the first morphism and the source type of the second morphism.",
 		"The target type of the second morphism."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The second morphism to apply (from C to D).",
@@ -74,11 +68,7 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroupoid::compose`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the morphisms.",
@@ -87,8 +77,6 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	"The target type of the first morphism and the source type of the second morphism.",
 	"The target type of the second morphism."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The second morphism to apply (from C to D).",

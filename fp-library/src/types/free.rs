@@ -83,8 +83,6 @@ mod inner {
 	/// This type alias represents a function that takes a [`TypeErasedValue`]
 	/// and returns a new [`Free`] computation (also type-erased).
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The base functor.")]
 	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
@@ -92,8 +90,6 @@ mod inner {
 	///
 	/// This enum encodes the structure of the free monad, supporting
 	/// pure values, suspended computations, and efficient concatenation of binds.
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The base functor (must implement [`Functor`]).",
@@ -158,8 +154,6 @@ mod inner {
 	///
 	/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The base functor (must implement [`Functor`]).",
 		"The result type."
@@ -186,11 +180,7 @@ mod inner {
 	{
 		/// Creates a pure `Free` value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -212,11 +202,7 @@ mod inner {
 
 		/// Creates a suspended computation from a functor value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The functor value containing the next step.")]
 		///
@@ -243,8 +229,6 @@ mod inner {
 		/// This is the primary way to inject effects into Free monad computations.
 		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
 		/// ### Implementation
@@ -252,8 +236,6 @@ mod inner {
 		/// ```text
 		/// liftF fa = wrap (map pure fa)
 		/// ```
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The functor value to lift.")]
 		///
@@ -284,15 +266,9 @@ mod inner {
 
 		/// Monadic bind with O(1) complexity.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The result type of the new computation.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the result of this computation.")]
 		///
@@ -354,8 +330,6 @@ mod inner {
 
 		/// Converts to type-erased form.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 			let inner = self.0.take().expect("Free value already consumed");
@@ -375,8 +349,6 @@ mod inner {
 
 		/// Converts to boxed type-erased form.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
@@ -386,8 +358,6 @@ mod inner {
 		///
 		/// This is the "trampoline" that iteratively processes the
 		/// [`CatList`] of continuations without growing the stack.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -447,8 +417,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
@@ -456,8 +424,6 @@ mod inner {
 		F: Functor + 'static,
 		A: 'static,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn drop(&mut self) {
 			// We take the inner value out.
@@ -483,15 +449,9 @@ mod inner {
 		///
 		/// This delegates to `Free::wrap` and `Thunk::new`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("A thunk that produces the free computation.")]
 		///

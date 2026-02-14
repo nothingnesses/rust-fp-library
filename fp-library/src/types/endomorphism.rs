@@ -27,15 +27,11 @@ mod inner {
 	///
 	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped morphism.")]
 	///
@@ -61,11 +57,7 @@ mod inner {
 		///
 		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The morphism to wrap.")]
 		///
@@ -86,8 +78,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -98,16 +88,12 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -118,12 +104,7 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
 		fn fmt(
 			&self,
@@ -133,8 +114,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -145,8 +124,6 @@ mod inner {
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -157,16 +134,8 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
 		fn hash<H: std::hash::Hasher>(
 			&self,
@@ -176,8 +145,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -188,12 +155,7 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
 		fn cmp(
 			&self,
@@ -203,8 +165,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -215,12 +175,7 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
 		fn eq(
 			&self,
@@ -230,8 +185,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -242,12 +195,7 @@ mod inner {
 	where
 		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other morphism to compare to.")]
 		fn partial_cmp(
 			&self,
@@ -257,8 +205,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -271,11 +217,7 @@ mod inner {
 		/// Note that `Endomorphism` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second morphism to apply (the outer function).",
@@ -306,8 +248,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -317,8 +257,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///

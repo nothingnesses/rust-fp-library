@@ -25,15 +25,11 @@ mod inner {
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped function.")]
 	///
@@ -59,11 +55,7 @@ mod inner {
 		///
 		/// This function wraps a function `a -> a` in an `Endofunction` struct.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to wrap.")]
 		///
@@ -84,8 +76,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -93,16 +83,12 @@ mod inner {
 	)]
 	#[document_parameters("The function to clone.")]
 	impl<'a, FnBrand: CloneableFn, A> Clone for Endofunction<'a, FnBrand, A> {
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -113,12 +99,7 @@ mod inner {
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Debug,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The formatter to use.")]
 		fn fmt(
 			&self,
@@ -128,8 +109,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -140,8 +119,6 @@ mod inner {
 	{
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -152,16 +129,8 @@ mod inner {
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Hash,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the hasher.")]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The hasher state to update.")]
 		fn hash<H: std::hash::Hasher>(
 			&self,
@@ -171,8 +140,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -183,12 +150,7 @@ mod inner {
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: Ord,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn cmp(
 			&self,
@@ -198,8 +160,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -210,12 +170,7 @@ mod inner {
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialEq,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn eq(
 			&self,
@@ -225,8 +180,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -237,12 +190,7 @@ mod inner {
 	where
 		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialOrd,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The other function to compare to.")]
 		fn partial_cmp(
 			&self,
@@ -252,8 +200,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -266,11 +212,7 @@ mod inner {
 		/// Note that `Endofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second function to apply (the outer function).",
@@ -304,8 +246,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
@@ -315,8 +255,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///

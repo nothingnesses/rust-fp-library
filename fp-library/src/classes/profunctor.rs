@@ -35,11 +35,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// This method applies a contravariant function to the first argument and a covariant
 	/// function to the second argument, transforming the profunctor.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -50,8 +46,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 		"The type of the contravariant function.",
 		"The type of the covariant function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The contravariant function to apply to the input.",
@@ -85,11 +79,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	///
 	/// This is a convenience method that maps only over the input (contravariant position).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -98,8 +88,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 		"The output type.",
 		"The type of the contravariant function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The contravariant function to apply to the input.",
@@ -133,11 +121,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	///
 	/// This is a convenience method that maps only over the output (covariant position).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -146,8 +130,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 		"The new output type.",
 		"The type of the covariant function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The covariant function to apply to the output.",
@@ -182,11 +164,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::dimap`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -198,8 +176,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	"The type of the contravariant function.",
 	"The type of the covariant function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The contravariant function to apply to the input.",
@@ -236,11 +212,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::lmap`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -250,8 +222,6 @@ where
 	"The output type.",
 	"The type of the contravariant function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The contravariant function to apply to the input.",
@@ -285,11 +255,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::rmap`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -299,8 +265,6 @@ where
 	"The new output type.",
 	"The type of the covariant function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The covariant function to apply to the output.", "The profunctor instance.")]
 ///

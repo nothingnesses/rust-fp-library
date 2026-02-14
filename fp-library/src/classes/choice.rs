@@ -38,11 +38,7 @@ pub trait Choice: Profunctor {
 	/// This method takes a profunctor `P A B` and returns `P (Result<C, A>) (Result<C, B>)`,
 	/// threading the alternative context `C` through unchanged in the Ok position.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -50,8 +46,6 @@ pub trait Choice: Profunctor {
 		"The output type of the profunctor.",
 		"The type of the alternative variant (threaded through unchanged)."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The profunctor instance to lift.")]
 	///
@@ -78,11 +72,7 @@ pub trait Choice: Profunctor {
 	/// This method takes a profunctor `P A B` and returns `P (Result<A, C>) (Result<B, C>)`,
 	/// threading the alternative context `C` through unchanged in the Err position.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -90,8 +80,6 @@ pub trait Choice: Profunctor {
 		"The output type of the profunctor.",
 		"The type of the alternative variant (threaded through unchanged)."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The profunctor instance to lift.")]
 	///
@@ -130,11 +118,7 @@ pub trait Choice: Profunctor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::left`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -143,8 +127,6 @@ pub trait Choice: Profunctor {
 	"The output type of the profunctor.",
 	"The type of the alternative variant (threaded through unchanged)."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The profunctor instance to lift.")]
 ///
@@ -172,11 +154,7 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::right`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -185,8 +163,6 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 	"The output type of the profunctor.",
 	"The type of the alternative variant (threaded through unchanged)."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The profunctor instance to lift.")]
 ///

@@ -19,8 +19,6 @@ use super::{
 
 /// A type class for applicative functors, allowing for values to be wrapped in a context and for functions within a context to be applied to values within a context.
 ///
-/// ### Type Signature
-///
 /// `class (Pointed f, Semiapplicative f) => Applicative f`
 ///
 /// ### Examples

@@ -86,6 +86,22 @@ pub fn document_fields_worker(
 
 	// Use the documenter to validate and generate docs
 	let documenter = FieldDocumenter::new(field_info, attr.span(), "struct");
+
+	// Add section header
+	let header_attr: syn::Attribute = syn::parse_quote!(#[doc = r#"### Fields
+"#]);
+
+	if !item_struct.fields.is_empty() {
+		let mut insert_idx = item_struct.attrs.len();
+		for (i, a) in item_struct.attrs.iter().enumerate() {
+			if a.span().start().line > attr.span().start().line {
+				insert_idx = i;
+				break;
+			}
+		}
+		item_struct.attrs.insert(insert_idx, header_attr);
+	}
+
 	documenter.validate_and_generate(args, &mut item_struct.attrs)?;
 
 	Ok(item_struct.to_token_stream())
@@ -110,9 +126,11 @@ mod tests {
 		let output = document_fields_worker(attr, item).unwrap();
 		let output_struct: ItemStruct = syn::parse2(output).unwrap();
 
-		assert_eq!(output_struct.attrs.len(), 2);
-		assert_eq!(get_doc(&output_struct.attrs[0]), "* `x`: The x coordinate");
-		assert_eq!(get_doc(&output_struct.attrs[1]), "* `y`: The y coordinate");
+		// 2 fields + 1 header = 3 attributes
+		assert_eq!(output_struct.attrs.len(), 3);
+		assert_eq!(get_doc(&output_struct.attrs[0]), "### Fields\n");
+		assert_eq!(get_doc(&output_struct.attrs[1]), "* `x`: The x coordinate");
+		assert_eq!(get_doc(&output_struct.attrs[2]), "* `y`: The y coordinate");
 	}
 
 	#[test]
@@ -125,9 +143,11 @@ mod tests {
 		let output = document_fields_worker(attr, item).unwrap();
 		let output_struct: ItemStruct = syn::parse2(output).unwrap();
 
-		assert_eq!(output_struct.attrs.len(), 2);
-		assert_eq!(get_doc(&output_struct.attrs[0]), "* `0`: The wrapped value");
-		assert_eq!(get_doc(&output_struct.attrs[1]), "* `1`: The secondary value");
+		// 2 fields + 1 header = 3 attributes
+		assert_eq!(output_struct.attrs.len(), 3);
+		assert_eq!(get_doc(&output_struct.attrs[0]), "### Fields\n");
+		assert_eq!(get_doc(&output_struct.attrs[1]), "* `0`: The wrapped value");
+		assert_eq!(get_doc(&output_struct.attrs[2]), "* `1`: The secondary value");
 	}
 
 	#[test]
@@ -259,8 +279,10 @@ mod tests {
 		let output = document_fields_worker(attr, item).unwrap();
 		let output_struct: ItemStruct = syn::parse2(output).unwrap();
 
-		assert_eq!(output_struct.attrs.len(), 1);
-		assert_eq!(get_doc(&output_struct.attrs[0]), "* `0`: The wrapped value");
+		// 1 field + 1 header = 2 attributes
+		assert_eq!(output_struct.attrs.len(), 2);
+		assert_eq!(get_doc(&output_struct.attrs[0]), "### Fields\n");
+		assert_eq!(get_doc(&output_struct.attrs[1]), "* `0`: The wrapped value");
 	}
 
 	#[test]

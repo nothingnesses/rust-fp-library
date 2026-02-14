@@ -42,11 +42,7 @@ mod inner {
 		///
 		/// This method applies one function to the error value and another to the success value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -57,8 +53,6 @@ mod inner {
 			"The type of the function to apply to the error.",
 			"The type of the function to apply to the success."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the error.",
@@ -100,27 +94,19 @@ mod inner {
 	// ResultWithErrBrand<E> (Functor over T)
 
 	impl_kind! {
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The error type.")]
 		impl<E: 'static> for ResultWithErrBrand<E> {
 			type Of<'a, A: 'a>: 'a = Result<A, E>;
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Functor for ResultWithErrBrand<E> {
 		/// Maps a function over the value in the result.
 		///
 		/// This method applies a function to the value inside the result if it is `Ok`, producing a new result with the transformed value. If the result is `Err`, it is returned unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -128,8 +114,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The result to map over.")]
 		///
@@ -156,19 +140,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
 		/// Lifts a binary function into the result context.
 		///
 		/// This method lifts a binary function to operate on values within the result context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -177,8 +155,6 @@ mod inner {
 			"The type of the result.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -231,23 +207,15 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Pointed for ResultWithErrBrand<E> {
 		/// Wraps a value in a result.
 		///
 		/// This method wraps a value in the `Ok` variant of a `Result`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -268,29 +236,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> ApplyFirst for ResultWithErrBrand<E> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> ApplySecond for ResultWithErrBrand<E> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a result to a value wrapped in a result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -298,8 +256,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The result containing the function.",
@@ -335,19 +291,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
 		/// Chains result computations.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -355,8 +305,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first result.",
@@ -397,19 +345,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Foldable for ResultWithErrBrand<E> {
 		/// Folds the result from the right.
 		///
 		/// This method performs a right-associative fold of the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -418,8 +360,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -454,11 +394,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -467,8 +403,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -503,11 +437,7 @@ mod inner {
 		///
 		/// This method maps the element of the result to a monoid and then returns it.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -516,8 +446,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
@@ -555,19 +483,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
 		/// Traverses the result with an applicative function.
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -576,8 +498,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
@@ -622,19 +542,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the result and accumulates the result into an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
@@ -678,27 +592,19 @@ mod inner {
 	// ResultWithOkBrand<T> (Functor over E)
 
 	impl_kind! {
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The success type.")]
 		impl<T: 'static> for ResultWithOkBrand<T> {
 			type Of<'a, A: 'a>: 'a = Result<T, A>;
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Functor for ResultWithOkBrand<T> {
 		/// Maps a function over the error value in the result.
 		///
 		/// This method applies a function to the error value inside the result if it is `Err`, producing a new result with the transformed error. If the result is `Ok`, it is returned unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -706,8 +612,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the error.", "The result to map over.")]
 		///
@@ -737,19 +641,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
 		/// Lifts a binary function into the result context (over error).
 		///
 		/// This method lifts a binary function to operate on error values within the result context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -758,8 +656,6 @@ mod inner {
 			"The type of the result error value.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply to the errors.",
@@ -812,23 +708,15 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Pointed for ResultWithOkBrand<T> {
 		/// Wraps a value in a result (as error).
 		///
 		/// This method wraps a value in the `Err` variant of a `Result`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -849,29 +737,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> ApplyFirst for ResultWithOkBrand<T> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> ApplySecond for ResultWithOkBrand<T> {}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
 		/// Applies a wrapped function to a wrapped value (over error).
 		///
 		/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -879,8 +757,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The result containing the function (in Err).",
@@ -916,19 +792,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
 		/// Chains result computations (over error).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -936,8 +806,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
@@ -978,19 +846,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: 'static> Foldable for ResultWithOkBrand<T> {
 		/// Folds the result from the right (over error).
 		///
 		/// This method performs a right-associative fold of the result (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -999,8 +861,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -1035,11 +895,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the result (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1048,8 +904,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
@@ -1084,11 +938,7 @@ mod inner {
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1097,8 +947,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
@@ -1136,19 +984,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
 		/// Traverses the result with an applicative function (over error).
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1157,8 +999,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
@@ -1203,19 +1043,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the result and accumulates the result into an applicative context (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
@@ -1256,19 +1090,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the result to a monoid and then returns it. The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1276,8 +1104,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -1319,11 +1145,7 @@ mod inner {
 		///
 		/// This method folds the result by applying a function from right to left, potentially in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1331,8 +1153,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -1373,19 +1193,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The success type.")]
 	impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error). The mapping operation may be executed in parallel.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1393,8 +1207,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to map each element to a monoid.",
@@ -1436,11 +1248,7 @@ mod inner {
 		///
 		/// This method folds the result by applying a function from right to left, potentially in parallel (over error).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -1448,8 +1256,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -1600,7 +1406,7 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w

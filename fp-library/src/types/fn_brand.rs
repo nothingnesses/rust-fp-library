@@ -22,8 +22,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
@@ -32,19 +30,13 @@ mod inner {
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped function.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
 		///
@@ -65,8 +57,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
@@ -75,19 +65,13 @@ mod inner {
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
 		///
@@ -108,19 +92,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
 		/// This method composes two pointer-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the morphisms.",
@@ -128,8 +106,6 @@ mod inner {
 			"The target type of the first morphism and the source type of the second morphism.",
 			"The target type of the second morphism."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The second morphism to apply (from C to D).",
@@ -158,19 +134,13 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Category for FnBrand<P> {
 		/// Returns the identity morphism.
 		///
 		/// The identity morphism is a function that maps every object to itself, wrapped in the pointer type.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 		///
@@ -191,8 +161,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Profunctor for FnBrand<P> {
 		/// Maps over both arguments of the profunctor.
@@ -200,11 +168,7 @@ mod inner {
 		/// This method applies a contravariant function to the input and a covariant
 		/// function to the output, transforming the function.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -215,8 +179,6 @@ mod inner {
 			"The type of the contravariant function.",
 			"The type of the covariant function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The contravariant function to apply to the input.",
@@ -253,8 +215,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Strong for FnBrand<P> {
 		/// Lift a profunctor to operate on the first component of a pair.
@@ -262,11 +222,7 @@ mod inner {
 		/// This method takes a function `A -> B` and returns `(A, C) -> (B, C)`,
 		/// threading the extra context `C` through unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -274,8 +230,6 @@ mod inner {
 			"The output type of the function.",
 			"The type of the second component (threaded through unchanged)."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function instance to lift.")]
 		///
@@ -299,8 +253,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Choice for FnBrand<P> {
 		/// Lift a profunctor to operate on the left (Err) variant of a Result.
@@ -308,11 +260,7 @@ mod inner {
 		/// This method takes a function `A -> B` and returns `Result<C, A> -> Result<C, B>`,
 		/// threading the success context `C` through unchanged.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -320,8 +268,6 @@ mod inner {
 			"The output type of the function.",
 			"The type of the success variant (threaded through unchanged)."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function instance to lift.")]
 		///
@@ -351,8 +297,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 		type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
@@ -361,19 +305,13 @@ mod inner {
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.")]
 		///

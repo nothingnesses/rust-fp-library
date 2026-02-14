@@ -78,11 +78,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// Maps each element to a monoid value using `func`, then combines all values using the monoid's `append` operation. The mapping operations may be executed in parallel.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -90,8 +86,6 @@ pub trait ParFoldable: Foldable {
 		"The element type.",
 		"The monoid type."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The thread-safe function to map each element to a monoid`.",
@@ -125,11 +119,7 @@ pub trait ParFoldable: Foldable {
 	///
 	/// Folds the structure by applying a function from right to left, potentially in parallel.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
@@ -137,8 +127,6 @@ pub trait ParFoldable: Foldable {
 		"The element type.",
 		"The accumulator type."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The thread-safe function to apply to each element and the accumulator.",
@@ -190,11 +178,7 @@ pub trait ParFoldable: Foldable {
 ///
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_map`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the computation.",
@@ -203,8 +187,6 @@ pub trait ParFoldable: Foldable {
 	"The element type.",
 	"The monoid type."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The thread-safe function to map each element to a monoid.",
@@ -242,11 +224,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_right`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the computation.",
@@ -255,8 +233,6 @@ where
 	"The element type.",
 	"The accumulator type."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The thread-safe function to apply to each element and the accumulator.",

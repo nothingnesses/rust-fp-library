@@ -40,6 +40,14 @@ pub fn document_signature_worker(
 	let signature = generate_signature(sig, &cfg);
 	let doc_comment = format!("`{signature}`");
 
+	// Insert header
+	insert_doc_comment(
+		item.attributes(),
+		r#"### Type Signature
+"#
+		.to_string(),
+		proc_macro2::Span::call_site(),
+	);
 	// Insert the documentation comment
 	insert_doc_comment(item.attributes(), doc_comment, proc_macro2::Span::call_site());
 
@@ -94,8 +102,6 @@ impl std::fmt::Display for SignatureData {
 }
 
 /// Generates a Hindley-Milner type signature from a Rust function signature.
-///
-/// ### Parameters
 ///
 /// * `sig` - The Rust function signature to convert
 /// * `config` - Configuration for type resolution and formatting

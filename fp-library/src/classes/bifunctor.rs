@@ -30,11 +30,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	///
 	/// This method applies two functions to the values inside the bifunctor context, producing a new bifunctor context with the transformed values.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -45,8 +41,6 @@ pub trait Bifunctor: Kind_266801a817966495 {
 		"The type of the first function.",
 		"The type of the second function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to the first value.",
@@ -81,11 +75,7 @@ pub trait Bifunctor: Kind_266801a817966495 {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Bifunctor::bimap`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -97,8 +87,6 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	"The type of the first function.",
 	"The type of the second function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to the first value.",

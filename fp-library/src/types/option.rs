@@ -28,11 +28,7 @@ mod inner {
 		///
 		/// This method applies a function to the value inside the option, producing a new option with the transformed value. If the option is `None`, it returns `None`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
@@ -40,8 +36,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply to the value.", "The option to map over.")]
 		///
@@ -74,11 +68,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on values within the option context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -87,8 +77,6 @@ mod inner {
 			"The return type of the function.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -130,15 +118,9 @@ mod inner {
 		///
 		/// This method wraps a value in an option context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -168,11 +150,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in an option to a value wrapped in an option.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -180,8 +158,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The option containing the function.",
@@ -218,11 +194,7 @@ mod inner {
 		///
 		/// This method chains two option computations, where the second computation depends on the result of the first.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -230,8 +202,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first option.",
@@ -268,11 +238,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the option. If the option is `Some(a)`, it applies the function to `a` and the initial value. If `None`, it returns the initial value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -281,8 +247,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The option to fold.")]
 		///
@@ -318,11 +282,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the option. If the option is `Some(a)`, it applies the function to the initial value and `a`. If `None`, it returns the initial value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -331,8 +291,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -372,11 +330,7 @@ mod inner {
 		///
 		/// This method maps the element of the option to a monoid. If the option is `None`, it returns the monoid's identity element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -385,8 +339,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
@@ -424,11 +376,7 @@ mod inner {
 		///
 		/// This method maps the element of the option to a computation, evaluates it, and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -437,8 +385,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -476,19 +422,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the option and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The option containing the applicative value.")]
 		///
@@ -525,11 +465,7 @@ mod inner {
 		///
 		/// This method maps the element of the option to a monoid. Since `Option` contains at most one element, no actual parallelism occurs, but the interface is satisfied.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -537,8 +473,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
@@ -577,15 +511,9 @@ mod inner {
 		///
 		/// This method flattens a nested option.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The nested option.")]
 		///
@@ -616,19 +544,13 @@ mod inner {
 		///
 		/// This method separates an option of result into a pair of options.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the error value.",
 			"The type of the success value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The option of result.")]
 		///
@@ -665,11 +587,7 @@ mod inner {
 		///
 		/// This method partitions an option based on a function that returns a result.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -678,8 +596,6 @@ mod inner {
 			"The type of the success value.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The option to partition.")]
 		///
@@ -719,19 +635,13 @@ mod inner {
 		///
 		/// This method partitions an option based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The option to partition.")]
 		///
@@ -775,11 +685,7 @@ mod inner {
 		///
 		/// This method maps a function over an option and filters out `None` results.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -787,8 +693,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The option to filter and map.")]
 		///
@@ -820,19 +724,13 @@ mod inner {
 		///
 		/// This method filters an option based on a predicate.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The predicate.", "The option to filter.")]
 		///
@@ -866,11 +764,7 @@ mod inner {
 		///
 		/// This method partitions an option based on a function that returns a result in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -880,8 +774,6 @@ mod inner {
 			"The type of the success values.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a `Result` in an applicative context.",
@@ -933,11 +825,7 @@ mod inner {
 		///
 		/// This method maps a function over an option and filters out `None` results in an applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -946,8 +834,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning an `Option` in an applicative context.",
@@ -1053,7 +939,7 @@ mod tests {
 		};
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, OptionBrand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, OptionBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w
@@ -1212,13 +1098,13 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Option<Option<i32>>) -> bool {
-		filter_map::<OptionBrand, _, _, _>(identity, x.clone()) == compact::<OptionBrand, _>(x)
+		filter_map::<OptionBrand, _, _, _>(identity, x) == compact::<OptionBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Option<i32>) -> bool {
-		filter_map::<OptionBrand, _, _, _>(Some, x.clone()) == x
+		filter_map::<OptionBrand, _, _, _>(Some, x) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -1228,7 +1114,7 @@ mod tests {
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
 		let composed = |i| r(i).and_then(l);
 
-		filter_map::<OptionBrand, _, _, _>(composed, x.clone())
+		filter_map::<OptionBrand, _, _, _>(composed, x)
 			== filter_map::<OptionBrand, _, _, _>(l, filter_map::<OptionBrand, _, _, _>(r, x))
 	}
 
@@ -1238,28 +1124,26 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<OptionBrand, _, _>(p, x.clone())
-			== filter_map::<OptionBrand, _, _, _>(maybe_bool, x)
+		filter::<OptionBrand, _, _>(p, x) == filter_map::<OptionBrand, _, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Option<Result<i32, i32>>) -> bool {
-		partition_map::<OptionBrand, _, _, _, _>(identity, x.clone())
-			== separate::<OptionBrand, _, _>(x)
+		partition_map::<OptionBrand, _, _, _, _>(identity, x) == separate::<OptionBrand, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Option<i32>) -> bool {
-		let (_, oks) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<OptionBrand, _, _, _, _>(Ok::<_, i32>, x);
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Option<i32>) -> bool {
-		let (errs, _) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<OptionBrand, _, _, _, _>(Err::<i32, _>, x);
 		errs == x
 	}
 
@@ -1269,7 +1153,7 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(p, x.clone());
+		let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(p, x);
 		let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
@@ -1280,7 +1164,7 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Option<i32>) -> bool {
-		wither::<OptionBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<OptionBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -1288,9 +1172,9 @@ mod tests {
 	fn witherable_wilt_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _, _>(p, x.clone());
+		let lhs = wilt::<OptionBrand, OptionBrand, _, _, _, _>(p, x);
 		let rhs = map::<OptionBrand, _, _, _>(
-			|res| separate::<OptionBrand, _, _>(res),
+			separate::<OptionBrand, _, _>,
 			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
 		);
 
@@ -1302,9 +1186,9 @@ mod tests {
 	fn witherable_wither_consistency(x: Option<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<OptionBrand, OptionBrand, _, _, _>(p, x.clone());
+		let lhs = wither::<OptionBrand, OptionBrand, _, _, _>(p, x);
 		let rhs = map::<OptionBrand, _, _, _>(
-			|opt| compact::<OptionBrand, _>(opt),
+			compact::<OptionBrand, _>,
 			traverse::<OptionBrand, _, _, OptionBrand, _>(p, x),
 		);
 

@@ -18,19 +18,13 @@ use fp_macros::document_type_parameters;
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The closure to coerce.")]
 	///
@@ -55,11 +49,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 ///
 /// Free function version that dispatches to [the type class' associated function][`SendUnsizedCoercible::coerce_send_fn`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the closure.",
@@ -68,8 +58,6 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	"The output type of the function.",
 	"The type of the closure function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The closure to coerce.")]
 ///

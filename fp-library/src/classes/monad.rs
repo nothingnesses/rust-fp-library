@@ -15,8 +15,6 @@ use super::{applicative::Applicative, semimonad::Semimonad};
 
 /// A type class for monads, allowing for sequencing computations where the structure of the computation depends on the result of the previous computation.
 ///
-/// ### Type Signature
-///
 /// `class (Applicative m, Semimonad m) => Monad m`
 ///
 /// ### Examples

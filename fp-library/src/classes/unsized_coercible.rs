@@ -18,19 +18,13 @@ use fp_macros::document_type_parameters;
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The closure to coerce.")]
 	///
@@ -53,11 +47,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 ///
 /// Free function version that dispatches to [the type class' associated function][`UnsizedCoercible::coerce_fn`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the closure.",
@@ -66,8 +56,6 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	"The output type of the function.",
 	"The type of the closure function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The closure to coerce.")]
 ///

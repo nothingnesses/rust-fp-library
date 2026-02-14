@@ -36,19 +36,13 @@ pub trait CloneableFn: Function {
 	///
 	/// This function wraps the provided closure `f` into a cloneable function.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The closure to wrap.", "The input value to the function.")]
 	/// ### Returns
@@ -70,11 +64,7 @@ pub trait CloneableFn: Function {
 ///
 /// Free function version that dispatches to [the type class' associated function][`CloneableFn::new`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the function and its captured data.",
@@ -82,8 +72,6 @@ pub trait CloneableFn: Function {
 	"The input type of the function.",
 	"The output type of the function."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The closure to wrap.", "The input value to the function.")]
 /// ### Returns

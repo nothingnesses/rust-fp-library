@@ -25,11 +25,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	///
 	/// This method chains two computations, where the second computation depends on the result of the first.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the computations.",
@@ -37,8 +33,6 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 		"The type of the result of the second computation.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The first computation.",
@@ -70,11 +64,7 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semimonad::bind`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the computations.",
@@ -83,8 +73,6 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	"The type of the result of the second computation.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The first computation.",

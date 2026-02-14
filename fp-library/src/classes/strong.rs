@@ -37,11 +37,7 @@ pub trait Strong: Profunctor {
 	/// This method takes a profunctor `P A B` and returns `P (A, C) (B, C)`,
 	/// threading the extra context `C` through unchanged.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -49,8 +45,6 @@ pub trait Strong: Profunctor {
 		"The output type of the profunctor.",
 		"The type of the second component (threaded through unchanged)."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The profunctor instance to lift.")]
 	///
@@ -76,11 +70,7 @@ pub trait Strong: Profunctor {
 	/// This method takes a profunctor `P A B` and returns `P (C, A) (C, B)`,
 	/// threading the extra context `C` through unchanged in the first position.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -88,8 +78,6 @@ pub trait Strong: Profunctor {
 		"The output type of the profunctor.",
 		"The type of the first component (threaded through unchanged)."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The profunctor instance to lift.")]
 	///
@@ -117,11 +105,7 @@ pub trait Strong: Profunctor {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Strong::first`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -130,8 +114,6 @@ pub trait Strong: Profunctor {
 	"The output type of the profunctor.",
 	"The type of the second component (threaded through unchanged)."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The profunctor instance to lift.")]
 ///
@@ -158,11 +140,7 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 ///
 /// Free function version that dispatches to [the type class' associated function][`Strong::second`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -171,8 +149,6 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 	"The output type of the profunctor.",
 	"The type of the first component (threaded through unchanged)."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The profunctor instance to lift.")]
 ///

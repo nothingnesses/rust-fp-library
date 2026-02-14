@@ -9,20 +9,20 @@
 // They CANNOT be explicitly annotated when calling the function
 
 // Simple function with a LATE BOUND lifetime parameter
-fn identity<'a>(x: &'a str) -> &'a str {
+fn identity(x: &str) -> &str {
 	x
 }
 
 // Function with multiple LATE BOUND lifetime parameters
-fn first_of_two<'a, 'b>(
+fn first_of_two<'a>(
 	x: &'a str,
-	_y: &'b str,
+	_y: &str,
 ) -> &'a str {
 	x
 }
 
 // Function with LATE BOUND lifetime and type parameters
-fn generic_identity<'a, T>(x: &'a T) -> &'a T {
+fn generic_identity<T>(x: &T) -> &T {
 	x
 }
 

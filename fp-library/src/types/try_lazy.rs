@@ -30,8 +30,6 @@ mod inner {
 	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
 	/// which is parameterized by both the error type and the `LazyConfig`, and is polymorphic over the success value type.
 	///
-	/// ### Fields
-	///
 	#[document_fields("The internal lazy cell.")]
 	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
 		pub(crate) Config::TryLazy<'a, A, E>,
@@ -40,8 +38,6 @@ mod inner {
 		A: 'a,
 		E: 'a;
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -54,16 +50,12 @@ mod inner {
 		A: 'a,
 		E: 'a,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -77,8 +69,6 @@ mod inner {
 		E: 'a,
 	{
 		/// Gets the memoized result, computing on first access.
-		///
-		/// ### Type Signature
 		///
 		#[document_signature]
 		///
@@ -99,8 +89,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -113,15 +101,9 @@ mod inner {
 	{
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the initializer closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
@@ -145,28 +127,19 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
 	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The fallible thunk to convert.")]
 		fn from(eval: TryThunk<'a, A, E>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -177,20 +150,13 @@ mod inner {
 		A: Send,
 		E: Send,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The fallible trampoline to convert.")]
 		fn from(task: TryTrampoline<A, E>) -> Self {
 			Self::new(move || task.evaluate())
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -201,20 +167,13 @@ mod inner {
 		A: Clone + Send + Sync + 'a,
 		E: Send + Sync + 'a,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The thread-safe lazy value to convert.")]
 		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -225,20 +184,13 @@ mod inner {
 		A: Clone + 'a,
 		E: 'a,
 	{
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Parameters
-		///
 		#[document_parameters("The lazy value to convert.")]
 		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value."
@@ -249,15 +201,9 @@ mod inner {
 	{
 		/// Creates a `TryLazy` that catches unwinds (panics).
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the initializer closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that might panic.")]
 		///
@@ -294,8 +240,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -308,15 +252,9 @@ mod inner {
 	{
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the initializer closure.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
@@ -340,8 +278,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -357,15 +293,9 @@ mod inner {
 		/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
@@ -397,8 +327,6 @@ mod inner {
 		}
 	}
 
-	/// ### Type Parameters
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -414,15 +342,9 @@ mod inner {
 		/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The type of the thunk.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///

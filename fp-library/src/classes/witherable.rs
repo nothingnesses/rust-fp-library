@@ -35,11 +35,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`separate`](crate::functions::separate).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -49,8 +45,6 @@ pub trait Witherable: Filterable + Traversable {
 		"The type of the success values.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to each element, returning a [`Result`] in an applicative context.",
@@ -95,11 +89,7 @@ pub trait Witherable: Filterable + Traversable {
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`compact`](crate::functions::compact).
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the elements.",
@@ -108,8 +98,6 @@ pub trait Witherable: Filterable + Traversable {
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters(
 		"The function to apply to each element, returning an [`Option`] in an applicative context.",
@@ -149,11 +137,7 @@ pub trait Witherable: Filterable + Traversable {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wilt`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -164,8 +148,6 @@ pub trait Witherable: Filterable + Traversable {
 	"The type of the success values.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element, returning a [`Result`] in an applicative context.",
@@ -207,11 +189,7 @@ where
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wither`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the elements.",
@@ -221,8 +199,6 @@ where
 	"The type of the elements in the output structure.",
 	"The type of the function to apply."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters(
 	"The function to apply to each element, returning an [`Option`] in an applicative context.",

@@ -34,15 +34,9 @@ pub trait Pointer {
 
 	/// Wraps a sized value in the pointer.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the value to wrap.")]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -65,15 +59,9 @@ pub trait Pointer {
 
 /// Wraps a sized value in the pointer.
 ///
-/// ### Type Signature
-///
 #[document_signature]
 ///
-/// ### Type Parameters
-///
 #[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
-///
-/// ### Parameters
 ///
 #[document_parameters("The value to wrap.")]
 ///

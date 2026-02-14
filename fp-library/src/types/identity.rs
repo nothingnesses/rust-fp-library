@@ -30,11 +30,7 @@ mod inner {
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
 	///
-	/// ### Type Parameters
-	///
 	#[document_type_parameters("The type of the wrapped value.")]
-	///
-	/// ### Fields
 	///
 	#[document_fields("The wrapped value.")]
 	///
@@ -61,11 +57,7 @@ mod inner {
 		///
 		/// This method applies a function to the value inside the identity, producing a new identity with the transformed value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the value.",
@@ -73,8 +65,6 @@ mod inner {
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The function to apply.", "The identity to map over.")]
 		///
@@ -107,11 +97,7 @@ mod inner {
 		///
 		/// This method lifts a binary function to operate on values within the identity context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -120,8 +106,6 @@ mod inner {
 			"The return type of the function.",
 			"The type of the binary function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The binary function to apply.",
@@ -163,15 +147,9 @@ mod inner {
 		///
 		/// This method wraps a value in an identity context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
 		///
-		/// ### Type Parameters
-		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -200,11 +178,7 @@ mod inner {
 		///
 		/// This method applies a function wrapped in an identity to a value wrapped in an identity.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -212,8 +186,6 @@ mod inner {
 			"The type of the input value.",
 			"The type of the output value."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The identity containing the function.",
@@ -247,11 +219,7 @@ mod inner {
 		///
 		/// This method chains two identity computations, where the second computation depends on the result of the first.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -259,8 +227,6 @@ mod inner {
 			"The type of the result of the second computation.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The first identity.",
@@ -296,11 +262,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the element and the initial value.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -309,8 +271,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element and the accumulator.",
@@ -347,11 +307,7 @@ mod inner {
 		///
 		/// This method performs a left-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the initial value and the element.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -360,8 +316,6 @@ mod inner {
 			"The type of the accumulator.",
 			"The type of the folding function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to the accumulator and each element.",
@@ -398,11 +352,7 @@ mod inner {
 		///
 		/// This method maps the element of the identity to a monoid.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -411,8 +361,6 @@ mod inner {
 			"The type of the monoid.",
 			"The type of the mapping function."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
@@ -447,11 +395,7 @@ mod inner {
 		///
 		/// This method maps the element of the identity to a computation, evaluates it, and wraps the result in the applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -460,8 +404,6 @@ mod inner {
 			"The applicative context.",
 			"The type of the function to apply."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The function to apply to each element, returning a value in an applicative context.",
@@ -495,19 +437,13 @@ mod inner {
 		///
 		/// This method evaluates the computation inside the identity and wraps the result in the applicative context.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The identity containing the applicative value.")]
 		///
@@ -540,11 +476,7 @@ mod inner {
 		///
 		/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -552,8 +484,6 @@ mod inner {
 			"The element type.",
 			"The monoid type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
@@ -587,11 +517,7 @@ mod inner {
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, no actual parallelism occurs.
 		///
-		/// ### Type Signature
-		///
 		#[document_signature]
-		///
-		/// ### Type Parameters
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -599,8 +525,6 @@ mod inner {
 			"The element type.",
 			"The accumulator type."
 		)]
-		///
-		/// ### Parameters
 		///
 		#[document_parameters(
 			"The thread-safe function to apply to each element and the accumulator.",
@@ -707,7 +631,7 @@ mod tests {
 		let u = pure::<IdentityBrand, _>(<RcFnBrand as CloneableFn>::new(u_fn));
 
 		// RHS: u <*> (v <*> w)
-		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w.clone());
+		let vw = apply::<RcFnBrand, IdentityBrand, _, _>(v.clone(), w);
 		let rhs = apply::<RcFnBrand, IdentityBrand, _, _>(u.clone(), vw);
 
 		// LHS: pure(compose) <*> u <*> v <*> w

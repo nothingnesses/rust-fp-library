@@ -9,7 +9,7 @@ pub fn document_type_parameters_worker(
 	attr: TokenStream,
 	item_tokens: TokenStream,
 ) -> Result<TokenStream> {
-	generate_doc_comments(attr, item_tokens, |generic_item| {
+	generate_doc_comments(attr, item_tokens, "Type Parameters", |generic_item| {
 		let generics = generic_item.generics();
 
 		// Error if there are no type parameters
@@ -49,9 +49,11 @@ mod doc_type_params_tests {
 		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `A`: Type A");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `B`: Type B");
+		// 2 parameters + 1 header = 3 attributes
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Type Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `A`: Type A");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `B`: Type B");
 	}
 
 	#[test]
@@ -64,9 +66,10 @@ mod doc_type_params_tests {
 		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 2);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `CustomA`: Type A");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `B`: Type B");
+		assert_eq!(output_fn.attrs.len(), 3);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Type Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `CustomA`: Type A");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `B`: Type B");
 	}
 
 	#[test]
@@ -79,10 +82,11 @@ mod doc_type_params_tests {
 		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
-		assert_eq!(output_fn.attrs.len(), 3);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `'a`: Lifetime a");
-		assert_eq!(get_doc(&output_fn.attrs[1]), "* `T`: Type T");
-		assert_eq!(get_doc(&output_fn.attrs[2]), "* `N`: Const N");
+		assert_eq!(output_fn.attrs.len(), 4);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Type Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `'a`: Lifetime a");
+		assert_eq!(get_doc(&output_fn.attrs[2]), "* `T`: Type T");
+		assert_eq!(get_doc(&output_fn.attrs[3]), "* `N`: Const N");
 	}
 
 	#[test]
@@ -126,9 +130,10 @@ mod doc_type_params_tests {
 		let output = document_type_parameters_worker(attr, item).unwrap();
 		let output_impl: syn::ItemImpl = syn::parse2(output).unwrap();
 
-		assert_eq!(output_impl.attrs.len(), 2);
-		assert_eq!(get_doc(&output_impl.attrs[0]), "* `F`: The base functor.");
-		assert_eq!(get_doc(&output_impl.attrs[1]), "* `A`: The result type.");
+		assert_eq!(output_impl.attrs.len(), 3);
+		assert_eq!(get_doc(&output_impl.attrs[0]), "### Type Parameters\n");
+		assert_eq!(get_doc(&output_impl.attrs[1]), "* `F`: The base functor.");
+		assert_eq!(get_doc(&output_impl.attrs[2]), "* `A`: The result type.");
 	}
 
 	#[test]
@@ -142,7 +147,8 @@ mod doc_type_params_tests {
 		let output_fn: ItemFn = syn::parse2(output).unwrap();
 
 		// Only method-level type parameter B should be documented
-		assert_eq!(output_fn.attrs.len(), 1);
-		assert_eq!(get_doc(&output_fn.attrs[0]), "* `B`: The new result type.");
+		assert_eq!(output_fn.attrs.len(), 2);
+		assert_eq!(get_doc(&output_fn.attrs[0]), "### Type Parameters\n");
+		assert_eq!(get_doc(&output_fn.attrs[1]), "* `B`: The new result type.");
 	}
 }

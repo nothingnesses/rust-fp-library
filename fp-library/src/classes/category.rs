@@ -29,11 +29,7 @@ pub trait Category: Semigroupoid {
 	///
 	/// The identity morphism is a morphism that maps every object to itself.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 	///
@@ -56,11 +52,7 @@ pub trait Category: Semigroupoid {
 ///
 /// Free function version that dispatches to [the type class' associated function][`Category::identity`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the morphism.",

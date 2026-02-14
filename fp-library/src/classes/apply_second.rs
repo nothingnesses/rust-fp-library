@@ -26,19 +26,13 @@ pub trait ApplySecond: Lift {
 	///
 	/// This function sequences two computations and discards the result of the first computation, keeping only the result of the second.
 	///
-	/// ### Type Signature
-	///
 	#[document_signature]
-	///
-	/// ### Type Parameters
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The type of the value in the first context.",
 		"The type of the value in the second context."
 	)]
-	///
-	/// ### Parameters
 	///
 	#[document_parameters("The first context.", "The second context.")]
 	///
@@ -68,11 +62,7 @@ pub trait ApplySecond: Lift {
 ///
 /// Free function version that dispatches to [the type class' associated function][`ApplySecond::apply_second`].
 ///
-/// ### Type Signature
-///
 #[document_signature]
-///
-/// ### Type Parameters
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -80,8 +70,6 @@ pub trait ApplySecond: Lift {
 	"The type of the value in the first context.",
 	"The type of the value in the second context."
 )]
-///
-/// ### Parameters
 ///
 #[document_parameters("The first context.", "The second context.")]
 ///

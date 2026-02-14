@@ -219,8 +219,6 @@ use syn::{GenericParam, Generics, Signature, Type, TypeParamBound, WherePredicat
 /// This returns type parameters like `T`, `U`, filtering out lifetimes
 /// and const parameters.
 ///
-/// ### Parameters
-///
 /// * `generics` - The generics to extract type parameters from
 ///
 /// ### Returns
@@ -245,8 +243,6 @@ pub fn get_type_parameters(generics: &Generics) -> Vec<String> {
 ///
 /// This returns all parameters including lifetimes, type parameters,
 /// and const parameters.
-///
-/// ### Parameters
 ///
 /// * `generics` - The generics to extract parameters from
 ///
@@ -274,8 +270,6 @@ pub fn get_all_parameters(generics: &Generics) -> Vec<String> {
 /// This is a convenience function for when you need to perform membership
 /// checks to determine if an identifier is a type variable.
 ///
-/// ### Parameters
-///
 /// * `generics` - The generics to extract type parameters from
 ///
 /// ### Returns
@@ -300,8 +294,6 @@ pub fn type_parameters_to_set(generics: &Generics) -> HashSet<String> {
 /// This function extracts function signatures from trait bounds like
 /// `F: Fn(A) -> B`, returning a map from type parameter names to
 /// their HM type representations.
-///
-/// ### Parameters
 ///
 /// * `sig` - The function signature containing the generics and where clause
 /// * `config` - Configuration for type conversion
