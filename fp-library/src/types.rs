@@ -21,6 +21,7 @@ pub mod fn_brand;
 pub mod free;
 pub mod identity;
 pub mod lazy;
+pub mod optics;
 pub mod option;
 pub mod pair;
 pub mod rc_ptr;

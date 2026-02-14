@@ -8,8 +8,8 @@ mod inner {
 		Apply,
 		brands::FnBrand,
 		classes::{
-			Category, CloneableFn, Function, RefCountedPointer, Semigroupoid, SendCloneableFn,
-			SendUnsizedCoercible, UnsizedCoercible,
+			Category, Choice, CloneableFn, Function, Profunctor, RefCountedPointer, Semigroupoid,
+			SendCloneableFn, SendUnsizedCoercible, Strong, UnsizedCoercible,
 		},
 		impl_kind,
 		kinds::*,
@@ -178,6 +178,160 @@ mod inner {
 		/// ```
 		fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
 			P::coerce_fn(|a| a)
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> Profunctor for FnBrand<P> {
+		/// Maps over both arguments of the profunctor.
+		///
+		/// This method applies a contravariant function to the input and a covariant
+		/// function to the output, transforming the function.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The new input type (contravariant position).",
+			"The original input type.",
+			"The original output type.",
+			"The new output type (covariant position).",
+			"The type of the contravariant function.",
+			"The type of the covariant function."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The contravariant function to apply to the input.",
+			"The covariant function to apply to the output.",
+			"The profunctor instance."
+		)]
+		///
+		/// ### Returns
+		///
+		/// A new profunctor instance with transformed input and output types.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::Profunctor};
+		///
+		/// let f = <RcFnBrand as Profunctor>::dimap(
+		///     |x: i32| x * 2,
+		///     |x: i32| x - 1,
+		///     std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>
+		/// );
+		/// assert_eq!(f(10), 19); // (10 * 2) + 1 - 1 = 19
+		/// ```
+		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
+			ab: FuncAB,
+			cd: FuncCD,
+			pbc: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, D>)
+		where
+			FuncAB: Fn(A) -> B + 'a,
+			FuncCD: Fn(C) -> D + 'a,
+		{
+			P::coerce_fn(move |a| cd(pbc(ab(a))))
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> Strong for FnBrand<P> {
+		/// Lift a profunctor to operate on the first component of a pair.
+		///
+		/// This method takes a function `A -> B` and returns `(A, C) -> (B, C)`,
+		/// threading the extra context `C` through unchanged.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The input type of the function.",
+			"The output type of the function.",
+			"The type of the second component (threaded through unchanged)."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function instance to lift.")]
+		///
+		/// ### Returns
+		///
+		/// A new function that operates on pairs.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::Strong};
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Strong>::first::<i32, i32, i32>(f);
+		/// assert_eq!(g((10, 20)), (11, 20));
+		/// ```
+		fn first<'a, A: 'a, B: 'a, C>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
+			P::coerce_fn(move |(a, c)| (pab(a), c))
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> Choice for FnBrand<P> {
+		/// Lift a profunctor to operate on the left (Ok) variant of a Result.
+		///
+		/// This method takes a function `A -> B` and returns `Result<C, A> -> Result<C, B>`,
+		/// threading the error context `C` through unchanged.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The input type of the function.",
+			"The output type of the function.",
+			"The type of the error variant (threaded through unchanged)."
+		)]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The function instance to lift.")]
+		///
+		/// ### Returns
+		///
+		/// A new function that operates on Result types.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{brands::*, classes::Choice};
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Choice>::left::<i32, i32, String>(f);
+		/// assert_eq!(g(Ok(10)), Ok(11));
+		/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+		/// ```
+		fn left<'a, A: 'a, B: 'a, C>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
+				match r {
+					Ok(c) => Ok(c),
+					Err(a) => Err(pab(a)),
+				}
+			})
 		}
 	}
 

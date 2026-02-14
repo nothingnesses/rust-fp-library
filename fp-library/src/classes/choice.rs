@@ -1,0 +1,212 @@
+//! Choice profunctors, which can lift profunctors through sum types.
+//!
+//! A choice profunctor allows lifting a profunctor `P A B` to `P (Either C A) (Either C B)`,
+//! preserving the alternative context `C`. This is the key constraint for prisms.
+//!
+//! ### Examples
+//!
+//! ```
+//! use fp_library::{brands::*, functions::*};
+//!
+//! // Functions are choice profunctors
+//! let f = |x: i32| x + 1;
+//! let g = right::<RcFnBrand, _, _, String>(f);
+//! assert_eq!(g(Ok(10)), Ok(11));
+//! assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+//! ```
+
+use super::profunctor::Profunctor;
+use crate::{Apply, kinds::*};
+use fp_macros::document_parameters;
+use fp_macros::document_signature;
+use fp_macros::document_type_parameters;
+
+/// A type class for choice profunctors.
+///
+/// A choice profunctor can lift a profunctor through sum types (Result/Either).
+/// This is the profunctor constraint that characterizes prisms.
+///
+/// ### Laws
+///
+/// `Choice` instances must satisfy the following laws:
+/// * Identity: `left(identity) = identity`.
+/// * Composition: `left(p ∘ q) = left(p) ∘ left(q)`.
+/// * Naturality: `dimap(Left, Left) ∘ left(p) = left(p) ∘ dimap(Left, Left)`.
+pub trait Choice: Profunctor {
+	/// Lift a profunctor to operate on the left (Ok/Right) variant of a Result.
+	///
+	/// This method takes a profunctor `P A B` and returns `P (Result<C, A>) (Result<C, B>)`,
+	/// threading the error context `C` through unchanged.
+	///
+	/// ### Type Signature
+	///
+	#[document_signature]
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The input type of the profunctor.",
+		"The output type of the profunctor.",
+		"The type of the error variant (threaded through unchanged)."
+	)]
+	///
+	/// ### Parameters
+	///
+	#[document_parameters("The profunctor instance to lift.")]
+	///
+	/// ### Returns
+	///
+	/// A new profunctor that operates on Result types.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = |x: i32| x + 1;
+	/// let g = left::<RcFnBrand, _, _, String>(f);
+	/// assert_eq!(g(Ok(10)), Ok(11));
+	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+	/// ```
+	fn left<'a, A: 'a, B: 'a, C>(
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>);
+
+	/// Lift a profunctor to operate on the right (Err) variant of a Result.
+	///
+	/// This method takes a profunctor `P A B` and returns `P (Result<A, C>) (Result<B, C>)`,
+	/// threading the success context `C` through unchanged in the Ok position.
+	///
+	/// ### Type Signature
+	///
+	#[document_signature]
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The input type of the profunctor.",
+		"The output type of the profunctor.",
+		"The type of the success variant (threaded through unchanged)."
+	)]
+	///
+	/// ### Parameters
+	///
+	#[document_parameters("The profunctor instance to lift.")]
+	///
+	/// ### Returns
+	///
+	/// A new profunctor that operates on Result types.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{brands::*, functions::*};
+	///
+	/// let f = |x: i32| x + 1;
+	/// let g = right::<RcFnBrand, _, _, String>(f);
+	/// assert_eq!(g(Err(10)), Err(11));
+	/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
+	/// ```
+	fn right<'a, A: 'a, B: 'a, C: 'a>(
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>)
+	{
+		Self::dimap(
+			|r: Result<A, C>| match r {
+				Ok(c) => Err(c),
+				Err(a) => Ok(a),
+			},
+			|r: Result<C, B>| match r {
+				Ok(c) => Err(c),
+				Err(b) => Ok(b),
+			},
+			Self::left(pab),
+		)
+	}
+}
+
+/// Lift a profunctor to operate on the left (Ok/Right) variant of a Result.
+///
+/// Free function version that dispatches to [the type class' associated function][`Choice::left`].
+///
+/// ### Type Signature
+///
+#[document_signature]
+///
+/// ### Type Parameters
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the choice profunctor.",
+	"The input type of the profunctor.",
+	"The output type of the profunctor.",
+	"The type of the error variant (threaded through unchanged)."
+)]
+///
+/// ### Parameters
+///
+#[document_parameters("The profunctor instance to lift.")]
+///
+/// ### Returns
+///
+/// A new profunctor that operates on Result types.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, functions::*};
+///
+/// let f = |x: i32| x + 1;
+/// let g = left::<RcFnBrand, _, _, String>(f);
+/// assert_eq!(g(Ok(10)), Ok(11));
+/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+/// ```
+pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+	Brand::left(pab)
+}
+
+/// Lift a profunctor to operate on the right (Err) variant of a Result.
+///
+/// Free function version that dispatches to [the type class' associated function][`Choice::right`].
+///
+/// ### Type Signature
+///
+#[document_signature]
+///
+/// ### Type Parameters
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the choice profunctor.",
+	"The input type of the profunctor.",
+	"The output type of the profunctor.",
+	"The type of the success variant (threaded through unchanged)."
+)]
+///
+/// ### Parameters
+///
+#[document_parameters("The profunctor instance to lift.")]
+///
+/// ### Returns
+///
+/// A new profunctor that operates on Result types.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{brands::*, functions::*};
+///
+/// let f = |x: i32| x + 1;
+/// let g = right::<RcFnBrand, _, _, String>(f);
+/// assert_eq!(g(Err(10)), Err(11));
+/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
+/// ```
+pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
+	Brand::right(pab)
+}
