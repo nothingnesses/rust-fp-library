@@ -13,10 +13,14 @@ A functional programming library for Rust featuring your favourite higher-kinded
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-  - **Category Theory:** `Category`, `Semigroupoid`
+  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`
   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
+- **Optics:** Composable data accessors for elegant field access and updates:
+  - **Lens:** Focus on a single field within a structure
+  - **Prism:** Focus on a variant within a sum type
+  - Based on profunctor encoding for type-safe composition
 - **Helper Functions:** Standard FP utilities:
   - `compose`, `constant`, `flip`, `identity`
 - **Data Types:** Implementations for standard and custom types:

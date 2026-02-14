@@ -70,7 +70,7 @@ pub trait Choice: Profunctor {
 	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 	/// ```
 	fn left<'a, A: 'a, B: 'a, C>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>);
 
 	/// Lift a profunctor to operate on the right (Err) variant of a Result.
@@ -110,9 +110,8 @@ pub trait Choice: Profunctor {
 	/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 	/// ```
 	fn right<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>)
-	{
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
 		Self::dimap(
 			|r: Result<A, C>| match r {
 				Ok(c) => Err(c),
@@ -164,7 +163,7 @@ pub trait Choice: Profunctor {
 /// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 /// ```
 pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
 	Brand::left(pab)
 }
@@ -206,7 +205,7 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
 /// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 /// ```
 pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
 	Brand::right(pab)
 }

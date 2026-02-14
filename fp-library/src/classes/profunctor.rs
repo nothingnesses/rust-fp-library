@@ -302,10 +302,7 @@ where
 ///
 /// ### Parameters
 ///
-#[document_parameters(
-	"The covariant function to apply to the output.",
-	"The profunctor instance."
-)]
+#[document_parameters("The covariant function to apply to the output.", "The profunctor instance.")]
 ///
 /// ### Returns
 ///

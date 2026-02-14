@@ -279,7 +279,7 @@ mod inner {
 		/// assert_eq!(g((10, 20)), (11, 20));
 		/// ```
 		fn first<'a, A: 'a, B: 'a, C>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
 			P::coerce_fn(move |(a, c)| (pab(a), c))
 		}
@@ -324,7 +324,7 @@ mod inner {
 		/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 		/// ```
 		fn left<'a, A: 'a, B: 'a, C>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {

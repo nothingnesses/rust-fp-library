@@ -68,7 +68,7 @@ pub trait Strong: Profunctor {
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
 	fn first<'a, A: 'a, B: 'a, C>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>);
 
 	/// Lift a profunctor to operate on the second component of a pair.
@@ -107,14 +107,9 @@ pub trait Strong: Profunctor {
 	/// assert_eq!(g((20, 10)), (20, 11));
 	/// ```
 	fn second<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>)
-	{
-		Self::dimap(
-			|(c, a)| (a, c),
-			|(b, c)| (c, b),
-			Self::first(pab),
-		)
+		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
+		Self::dimap(|(c, a)| (a, c), |(b, c)| (c, b), Self::first(pab))
 	}
 }
 
@@ -154,7 +149,7 @@ pub trait Strong: Profunctor {
 /// assert_eq!(g((10, 20)), (11, 20));
 /// ```
 pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
 	Brand::first(pab)
 }
@@ -195,7 +190,7 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// assert_eq!(g((20, 10)), (20, 11));
 /// ```
 pub fn second<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
+	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
 	Brand::second(pab)
 }
