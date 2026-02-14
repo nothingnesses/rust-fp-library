@@ -3,21 +3,23 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 //! assert_eq!(f(1), 2);
 //! ```
 
-use super::RefCountedPointer;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::RefCountedPointer,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
 pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -35,7 +37,10 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
@@ -46,7 +51,6 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 ///
 /// Free function version that dispatches to [the type class' associated function][`UnsizedCoercible::coerce_fn`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -66,7 +70,11 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::unsized_coercible::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::unsized_coercible::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);

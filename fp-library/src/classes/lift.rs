@@ -3,7 +3,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(1);
 //! let y = Some(2);
@@ -11,17 +14,16 @@
 //! assert_eq!(z, Some(3));
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for lifting binary functions into a context.
 pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// Lifts a binary function into the context.
 	///
 	/// This method lifts a binary function to operate on values within the context.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -45,7 +47,10 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(1);
 	/// let y = Some(2);
@@ -67,7 +72,6 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// Lifts a binary function into the context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Lift::lift2`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -88,7 +92,10 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(1);
 /// let y = Some(2);

@@ -3,18 +3,21 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{functions::*, brands::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
-use super::{Applicative, Foldable, Functor};
-use crate::{Apply, functions::identity, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::{Applicative, Foldable, Functor},
+	crate::{Apply, functions::identity, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for traversable functors.
 ///
@@ -28,7 +31,6 @@ pub trait Traversable: Functor + Foldable {
 	/// first mapping the function to create an intermediate structure of computations, and then sequencing that structure.
 	/// A direct implementation can often perform the traversal in a single pass without allocating an intermediate container.
 	/// Types should provide their own implementation if possible.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -51,7 +53,10 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
@@ -76,7 +81,6 @@ pub trait Traversable: Functor + Foldable {
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
 	///
 	/// The default implementation is defined in terms of [`traverse`] and [`identity`].
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -94,7 +98,10 @@ pub trait Traversable: Functor + Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(Some(5));
 	/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
@@ -116,7 +123,6 @@ pub trait Traversable: Functor + Foldable {
 /// Map each element of the [`Traversable`] structure to a computation, evaluate those computations and combine the results into an [`Applicative`] context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::traverse`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -140,7 +146,10 @@ pub trait Traversable: Functor + Foldable {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
@@ -161,7 +170,6 @@ where
 /// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Traversable::sequence`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -180,7 +188,10 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(Some(5));
 /// let y = sequence::<OptionBrand, _, OptionBrand>(x);

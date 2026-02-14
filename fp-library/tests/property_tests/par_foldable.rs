@@ -1,7 +1,11 @@
-use super::common::Sum;
-use fp_library::brands::{ArcFnBrand, VecBrand};
-use fp_library::classes::{Foldable, Monoid, ParFoldable, SendCloneableFn};
-use quickcheck_macros::quickcheck;
+use {
+	super::common::Sum,
+	fp_library::{
+		brands::{ArcFnBrand, VecBrand},
+		classes::{Foldable, Monoid, ParFoldable, SendCloneableFn},
+	},
+	quickcheck_macros::quickcheck,
+};
 
 /// Verifies that `par_fold_map` correctly sums a large vector (100,000 elements)
 /// without overflow or errors, ensuring basic correctness for large datasets.

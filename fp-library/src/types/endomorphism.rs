@@ -4,15 +4,17 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		classes::{Category, Monoid, Semigroup},
-		kinds::*,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			Apply,
+			classes::{Category, Monoid, Semigroup},
+			kinds::*,
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		std::{
+			fmt::{self, Debug, Formatter},
+			hash::Hash,
+		},
 	};
 
 	/// A wrapper for endomorphisms (morphisms from an object to the same object) that enables monoidal operations.
@@ -26,7 +28,6 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
 	///
 	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -38,7 +39,11 @@ mod inner {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
@@ -56,7 +61,6 @@ mod inner {
 		/// Creates a new `Endomorphism`.
 		///
 		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The morphism to wrap.")]
@@ -68,7 +72,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
@@ -216,7 +224,6 @@ mod inner {
 		/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
 		/// Note that `Endomorphism` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -231,7 +238,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -257,7 +268,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -267,7 +277,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);
@@ -281,12 +295,14 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{
-		brands::RcFnBrand,
-		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+	use {
+		super::*,
+		crate::{
+			brands::RcFnBrand,
+			classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Semigroup Laws
 

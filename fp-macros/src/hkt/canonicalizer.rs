@@ -11,16 +11,18 @@
 //! - Recursively canonicalizing nested types and generic arguments.
 //! - Generating unique, deterministic identifiers for `Kind` traits.
 
-use crate::{
-	AssociatedTypes,
-	core::error_handling::{Error, UnsupportedFeature},
-	support::type_visitor::TypeVisitor,
-};
-use quote::{format_ident, quote};
-use std::collections::BTreeMap;
-use syn::{
-	GenericArgument, GenericParam, Generics, Ident, PathArguments, ReturnType, Token, Type,
-	TypeParamBound, punctuated::Punctuated,
+use {
+	crate::{
+		AssociatedTypes,
+		core::error_handling::{Error, UnsupportedFeature},
+		support::type_visitor::TypeVisitor,
+	},
+	quote::{format_ident, quote},
+	std::collections::BTreeMap,
+	syn::{
+		GenericArgument, GenericParam, Generics, Ident, PathArguments, ReturnType, Token, Type,
+		TypeParamBound, punctuated::Punctuated,
+	},
 };
 
 /// Result type for canonicalization operations
@@ -384,7 +386,7 @@ pub fn hash_assoc_signature(signature: &crate::hkt::AssociatedTypeBase) -> Resul
 pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 	let mut assoc_types: Vec<_> = input.associated_types.iter().collect();
 	// Sort by identifier to ensure order-independence
-	assoc_types.sort_by(|a, b| a.signature.name.to_string().cmp(&b.signature.name.to_string()));
+	assoc_types.sort_by_key(|a| a.signature.name.to_string());
 
 	let mut canonical_parts = Vec::new();
 
@@ -401,8 +403,7 @@ pub fn generate_name(input: &AssociatedTypes) -> Result<Ident> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use syn::parse_quote;
+	use {super::*, syn::parse_quote};
 
 	// ===========================================================================
 	// Canonicalizer - Basic Bound Tests

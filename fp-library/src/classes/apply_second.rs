@@ -3,7 +3,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = Some(10);
@@ -11,11 +14,11 @@
 //! assert_eq!(z, Some(10));
 //! ```
 
-use super::lift::Lift;
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::lift::Lift,
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for types that support combining two contexts, keeping the second value.
 ///
@@ -25,7 +28,6 @@ pub trait ApplySecond: Lift {
 	/// Combines two contexts, keeping the value from the second context.
 	///
 	/// This function sequences two computations and discards the result of the first computation, keeping only the result of the second.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -43,7 +45,10 @@ pub trait ApplySecond: Lift {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = Some(10);
@@ -61,7 +66,6 @@ pub trait ApplySecond: Lift {
 /// Combines two contexts, keeping the value from the second context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`ApplySecond::apply_second`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -80,7 +84,10 @@ pub trait ApplySecond: Lift {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = Some(10);

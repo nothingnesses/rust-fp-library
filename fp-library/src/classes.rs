@@ -8,7 +8,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
@@ -18,6 +21,7 @@
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
+pub mod arrow;
 pub mod bifunctor;
 pub mod category;
 pub mod choice;

@@ -9,5 +9,4 @@ pub mod ast;
 pub mod ast_builder;
 pub mod converter;
 
-pub use ast::HmAst;
-pub use converter::type_to_hm;
+pub use {ast::HmAst, converter::type_to_hm};

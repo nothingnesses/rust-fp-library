@@ -1,5 +1,7 @@
-use fp_library::{Apply, kinds::*};
-use fp_macros::document_fields;
+use {
+	fp_library::{Apply, kinds::*},
+	fp_macros::document_fields,
+};
 
 // Example: Using document_fields on a tuple struct similar to Endomorphism
 #[document_fields("The wrapped morphism from an object to itself")]

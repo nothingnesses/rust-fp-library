@@ -52,24 +52,28 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, types::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	types::*,
+//! };
 //!
 //! // ✅ CAN DO: Stack-safe recursion
-//! let free = Free::<ThunkBrand, _>::pure(42)
-//!     .bind(|x| Free::pure(x + 1));
+//! let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::ThunkBrand,
-		classes::{Deferrable, Evaluable, Functor},
-		kinds::*,
-		types::{CatList, Thunk},
+	use {
+		crate::{
+			Apply,
+			brands::ThunkBrand,
+			classes::{Deferrable, Evaluable, Functor},
+			kinds::*,
+			types::{CatList, Thunk},
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		std::{any::Any, marker::PhantomData},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{any::Any, marker::PhantomData};
 
 	/// A type-erased value for internal use.
 	///
@@ -82,7 +86,6 @@ mod inner {
 	///
 	/// This type alias represents a function that takes a [`TypeErasedValue`]
 	/// and returns a new [`Free`] computation (also type-erased).
-	///
 	#[document_type_parameters("The base functor.")]
 	pub type Continuation<F> = Box<dyn FnOnce(TypeErasedValue) -> Free<F, TypeErasedValue>>;
 
@@ -90,7 +93,6 @@ mod inner {
 	///
 	/// This enum encodes the structure of the free monad, supporting
 	/// pure values, suspended computations, and efficient concatenation of binds.
-	///
 	#[document_type_parameters(
 		"The base functor (must implement [`Functor`]).",
 		"The result type."
@@ -153,7 +155,6 @@ mod inner {
 	/// 2.  **Performance**: `bind` would be O(N), leading to quadratic complexity for sequences of binds.
 	///
 	/// This implementation prioritizes **stack safety** and **O(1) bind** over HKT trait compatibility.
-	///
 	#[document_type_parameters(
 		"The base functor (must implement [`Functor`]).",
 		"The result type."
@@ -162,7 +163,10 @@ mod inner {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let free = Free::<ThunkBrand, _>::pure(42);
 	/// ```
@@ -179,7 +183,6 @@ mod inner {
 		A: 'static,
 	{
 		/// Creates a pure `Free` value.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -191,7 +194,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// ```
@@ -201,7 +207,6 @@ mod inner {
 		}
 
 		/// Creates a suspended computation from a functor value.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The functor value containing the next step.")]
@@ -213,7 +218,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let eval = Thunk::new(|| Free::pure(42));
 		/// let free = Free::<ThunkBrand, _>::wrap(eval);
@@ -228,7 +236,6 @@ mod inner {
 		///
 		/// This is the primary way to inject effects into Free monad computations.
 		/// Equivalent to PureScript's `liftF` and Haskell's `liftF`.
-		///
 		#[document_signature]
 		///
 		/// ### Implementation
@@ -236,7 +243,6 @@ mod inner {
 		/// ```text
 		/// liftF fa = wrap (map pure fa)
 		/// ```
-		///
 		#[document_parameters("The functor value to lift.")]
 		///
 		/// ### Returns
@@ -246,7 +252,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// // Lift a simple computation
 		/// let thunk = Thunk::new(|| 42);
@@ -255,8 +264,8 @@ mod inner {
 		///
 		/// // Build a computation from raw effects
 		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
-		///     .bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-		///     .bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
 		/// assert_eq!(computation.evaluate(), 25);
 		/// ```
 		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
@@ -265,7 +274,6 @@ mod inner {
 		}
 
 		/// Monadic bind with O(1) complexity.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The result type of the new computation.")]
@@ -279,10 +287,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let free = Free::<ThunkBrand, _>::pure(42)
-		///     .bind(|x| Free::pure(x + 1));
+		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 		/// ```
 		pub fn bind<B: 'static>(
 			mut self,
@@ -329,7 +339,6 @@ mod inner {
 		}
 
 		/// Converts to type-erased form.
-		///
 		#[document_signature]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 			let inner = self.0.take().expect("Free value already consumed");
@@ -348,7 +357,6 @@ mod inner {
 		}
 
 		/// Converts to boxed type-erased form.
-		///
 		#[document_signature]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
@@ -358,7 +366,6 @@ mod inner {
 		///
 		/// This is the "trampoline" that iteratively processes the
 		/// [`CatList`] of continuations without growing the stack.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -368,7 +375,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// assert_eq!(free.evaluate(), 42);
@@ -448,7 +458,6 @@ mod inner {
 		/// Creates a `Free` computation from a thunk.
 		///
 		/// This delegates to `Free::wrap` and `Thunk::new`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -462,7 +471,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
@@ -480,8 +494,10 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{brands::ThunkBrand, types::thunk::Thunk};
+	use {
+		super::*,
+		crate::{brands::ThunkBrand, types::thunk::Thunk},
+	};
 
 	/// Tests `Free::pure`.
 	///

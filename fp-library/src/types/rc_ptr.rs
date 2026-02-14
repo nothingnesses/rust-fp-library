@@ -5,7 +5,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = pointer_new::<RcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -13,18 +16,19 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::RcBrand,
-		classes::{Pointer, RefCountedPointer, UnsizedCoercible},
+	use {
+		crate::{
+			brands::RcBrand,
+			classes::{Pointer, RefCountedPointer, UnsizedCoercible},
+		},
+		fp_macros::document_parameters,
+		std::rc::Rc,
 	};
-	use fp_macros::document_parameters;
-	use std::rc::Rc;
 
 	impl Pointer for RcBrand {
 		type Of<T: ?Sized> = Rc<T>;
 
 		/// Wraps a sized value in an `Rc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the value to wrap.")]
@@ -38,7 +42,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
@@ -52,7 +59,6 @@ mod inner {
 		type CloneableOf<T: ?Sized> = Rc<T>;
 
 		/// Wraps a sized value in an `Rc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the value to wrap.")]
@@ -66,7 +72,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
@@ -76,7 +85,6 @@ mod inner {
 		}
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the wrapped value.")]
@@ -90,7 +98,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 		/// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
@@ -102,7 +113,6 @@ mod inner {
 
 	impl UnsizedCoercible for RcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Rc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -120,7 +130,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
@@ -134,8 +147,10 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::brands::RcBrand;
-	use crate::classes::{RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new};
+	use crate::{
+		brands::RcBrand,
+		classes::{RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new},
+	};
 
 	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.
 	#[test]

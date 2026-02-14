@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![allow(clippy::tabs_in_doc_comments)]
 
 //! Procedural macros for the [`fp-library`](https://docs.rs/fp-library/latest/fp_library/) crate.
 //!
@@ -16,19 +17,21 @@ pub(crate) mod support; // Support utilities (attributes, syntax, validation, er
 #[cfg(test)]
 mod property_tests;
 
-use crate::core::ToCompileError;
-use codegen::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker};
-use documentation::{
-	document_fields_worker, document_module_worker, document_parameters_worker,
-	document_signature_worker, document_type_parameters_worker,
+use {
+	crate::core::ToCompileError,
+	codegen::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker},
+	documentation::{
+		document_fields_worker, document_module_worker, document_parameters_worker,
+		document_signature_worker, document_type_parameters_worker,
+	},
+	hkt::{
+		ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
+		trait_kind_worker,
+	},
+	proc_macro::TokenStream,
+	quote::quote,
+	syn::parse_macro_input,
 };
-use hkt::{
-	ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
-	trait_kind_worker,
-};
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::parse_macro_input;
 
 /// Generates the name of a `Kind` trait based on its signature.
 ///

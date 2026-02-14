@@ -43,7 +43,7 @@ impl HmAst {
 				}
 			}
 			// Arrow: binds loose
-			HmAst::Arrow(_, _) => 1,
+			HmAst::Arrow(..) => 1,
 		}
 	}
 

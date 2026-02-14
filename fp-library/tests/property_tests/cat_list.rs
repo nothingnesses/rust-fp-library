@@ -1,6 +1,7 @@
-use fp_library::types::cat_list::CatList;
-use quickcheck_macros::quickcheck;
-use std::collections::LinkedList;
+use {
+	fp_library::types::cat_list::CatList, quickcheck_macros::quickcheck,
+	std::collections::LinkedList,
+};
 
 // =========================================================================
 // CatList Property Tests

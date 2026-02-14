@@ -1,14 +1,16 @@
 //! Common parsing patterns and input validation helpers.
 
-use crate::{
-	core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
-	support::documentation_parameters::DocumentationParameter,
-};
-use proc_macro2::{Span, TokenStream};
-use std::collections::HashMap;
-use syn::{
-	GenericParam, Generics, Ident, LitStr,
-	parse::{Parse, ParseStream},
+use {
+	crate::{
+		core::{Error, Result, constants::attributes::DOCUMENT_PARAMETERS},
+		support::documentation_parameters::DocumentationParameter,
+	},
+	proc_macro2::{Span, TokenStream},
+	std::collections::HashMap,
+	syn::{
+		GenericParam, Generics, Ident, LitStr,
+		parse::{Parse, ParseStream},
+	},
 };
 
 /// Parse a stream of items until it's empty.
@@ -359,8 +361,7 @@ pub fn parse_parameter_documentation_pairs(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use quote::format_ident;
+	use {super::*, quote::format_ident};
 
 	#[test]
 	fn test_parse_many() {

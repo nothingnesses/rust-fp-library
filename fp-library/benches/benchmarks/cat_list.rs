@@ -1,7 +1,8 @@
-use criterion::{BatchSize, BenchmarkId, Criterion};
-use fp_library::types::cat_list::CatList;
-use std::collections::LinkedList;
-use std::hint::black_box;
+use {
+	criterion::{BatchSize, BenchmarkId, Criterion},
+	fp_library::types::cat_list::CatList,
+	std::{collections::LinkedList, hint::black_box},
+};
 
 /// Benchmarks for CatList operations.
 ///

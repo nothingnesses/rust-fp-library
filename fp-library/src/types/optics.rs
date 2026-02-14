@@ -25,22 +25,32 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{types::optics::*, brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! 	types::optics::*,
+//! };
 //!
 //! // Define a simple struct
 //! #[derive(Clone, Debug, PartialEq)]
 //! struct Person {
-//!     name: String,
-//!     age: i32,
+//! 	name: String,
+//! 	age: i32,
 //! }
 //!
 //! // Create a lens for the age field
 //! let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::new(
-//!     |p: Person| p.age,
-//!     |(p, age)| Person { age, ..p }
+//! 	|p: Person| p.age,
+//! 	|(p, age)| Person {
+//! 		age,
+//! 		..p
+//! 	},
 //! );
 //!
-//! let person = Person { name: "Alice".to_string(), age: 30 };
+//! let person = Person {
+//! 	name: "Alice".to_string(),
+//! 	age: 30,
+//! };
 //! let age = age_lens.view(person.clone());
 //! assert_eq!(age, 30);
 //!
@@ -50,20 +60,21 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::FnBrand,
-		classes::{Choice, CloneableFn, Strong, UnsizedCoercible},
-		kinds::*,
+	use {
+		crate::{
+			Apply,
+			brands::FnBrand,
+			classes::{Choice, CloneableFn, Strong, UnsizedCoercible},
+			kinds::*,
+		},
+		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		std::marker::PhantomData,
 	};
-	use fp_macros::{document_parameters, document_signature, document_type_parameters};
-	use std::marker::PhantomData;
 
 	/// A trait for optics that can be evaluated with any profunctor constraint.
 	///
 	/// This trait allows optics to be first-class values that can be composed
 	/// and stored while preserving their polymorphism over profunctor types.
-	///
 	#[document_type_parameters(
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -74,7 +85,6 @@ mod inner {
 		/// Evaluate the optic with a profunctor.
 		///
 		/// This method applies the optic transformation to a profunctor value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
@@ -95,7 +105,6 @@ mod inner {
 	///
 	/// This struct represents the composition of two optics, allowing them to be
 	/// combined into a single optic that applies both transformations.
-	///
 	#[document_type_parameters(
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
@@ -126,7 +135,6 @@ mod inner {
 	)]
 	impl<S, T, M, N, A, B, O1, O2> Composed<S, T, M, N, A, B, O1, O2> {
 		/// Create a new composed optic.
-		///
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -184,7 +192,6 @@ mod inner {
 	/// This is necessary because Rust represents the polymorphic profunctor constraint
 	/// as a trait method (`Optic::evaluate<P>`), and the `Composed` struct enables
 	/// static dispatch and zero-cost composition through monomorphization.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -203,18 +210,40 @@ mod inner {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{types::optics::*, brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::optics::*,
+	/// };
 	///
 	/// #[derive(Clone, Debug, PartialEq)]
-	/// struct Address { street: String }
+	/// struct Address {
+	/// 	street: String,
+	/// }
 	/// #[derive(Clone, Debug, PartialEq)]
-	/// struct User { address: Address }
+	/// struct User {
+	/// 	address: Address,
+	/// }
 	///
-	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(|u: User| u.address.clone(), |(_, a)| User { address: a });
-	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(|a: Address| a.street.clone(), |(_, s)| Address { street: s });
+	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	/// 	|u: User| u.address.clone(),
+	/// 	|(_, a)| User {
+	/// 		address: a,
+	/// 	},
+	/// );
+	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+	/// 	|a: Address| a.street.clone(),
+	/// 	|(_, s)| Address {
+	/// 		street: s,
+	/// 	},
+	/// );
 	///
 	/// let user_street = optics_compose(address_lens, street_lens);
-	/// let user = User { address: Address { street: "High St".to_string() } };
+	/// let user = User {
+	/// 	address: Address {
+	/// 		street: "High St".to_string(),
+	/// 	},
+	/// };
 	///
 	/// // Composed optics are evaluated through a profunctor instance (e.g., RcFnBrand).
 	/// // This lifts a function on the focus (A -> B) to a function on the structure (S -> T).
@@ -239,7 +268,6 @@ mod inner {
 	/// This matches PureScript's `Lens s t a b`.
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
@@ -271,7 +299,6 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		/// Create a new polymorphic lens.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
@@ -279,7 +306,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::Lens, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
 		///
 		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::new(|x| x, |(_, s)| s);
 		/// ```
@@ -295,7 +325,6 @@ mod inner {
 		}
 
 		/// View the focus of the lens in a structure.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The structure to view.")]
@@ -303,12 +332,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::Lens, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
 		///
 		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
 		/// assert_eq!(l.view(10), 10);
 		/// ```
-		///
 		pub fn view(
 			&self,
 			s: S,
@@ -317,7 +348,6 @@ mod inner {
 		}
 
 		/// Set the focus of the lens in a structure.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
@@ -325,12 +355,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::Lens, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
 		///
 		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
-		///
 		pub fn set(
 			&self,
 			s: S,
@@ -381,7 +413,6 @@ mod inner {
 	/// This matches PureScript's `Lens' s a`.
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
-	///
 	#[document_type_parameters(
 		"The reference-counted pointer type.",
 		"The type of the structure.",
@@ -427,7 +458,6 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		/// Create a new monomorphic lens from a getter and setter.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
@@ -435,11 +465,13 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
 		///
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// ```
-		///
 		pub fn new(
 			view: impl 'static + Fn(S) -> A,
 			set: impl 'static + Fn((S, A)) -> S,
@@ -452,7 +484,6 @@ mod inner {
 		}
 
 		/// View the focus of the lens in a structure.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The structure to view.")]
@@ -460,12 +491,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
 		///
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.view(42), 42);
 		/// ```
-		///
 		pub fn view(
 			&self,
 			s: S,
@@ -474,7 +507,6 @@ mod inner {
 		}
 
 		/// Set the focus of the lens in a structure.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
@@ -482,12 +514,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
 		///
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
-		///
 		pub fn set(
 			&self,
 			s: S,
@@ -497,7 +531,6 @@ mod inner {
 		}
 
 		/// Update the focus of the lens in a structure using a function.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
@@ -505,12 +538,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
 		///
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.over(10, |x| x + 1), 11);
 		/// ```
-		///
 		pub fn over(
 			&self,
 			s: S,

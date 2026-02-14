@@ -7,40 +7,39 @@
 //! ```
 //! use fp_library::types::cat_list::CatList;
 //!
-//! let list = CatList::singleton(1)
-//!     .snoc(2)
-//!     .snoc(3)
-//!     .append(CatList::singleton(4));
+//! let list = CatList::singleton(1).snoc(2).snoc(3).append(CatList::singleton(4));
 //!
 //! let mut result = Vec::new();
 //! let mut current = list;
 //! while let Some((head, tail)) = current.uncons() {
-//!     result.push(head);
-//!     current = tail;
+//! 	result.push(head);
+//! 	current = tail;
 //! }
 //! assert_eq!(result, vec![1, 2, 3, 4]);
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::{CatListBrand, OptionBrand},
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
-			Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad,
-			SendCloneableFn, Traversable, Witherable,
-		},
-		impl_kind,
-		kinds::*,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 	#[cfg(feature = "rayon")]
 	use rayon::prelude::*;
-	use std::{
-		cmp::Ordering,
-		collections::VecDeque,
-		hash::{Hash, Hasher},
+	use {
+		crate::{
+			Apply,
+			brands::{CatListBrand, OptionBrand},
+			classes::{
+				Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable,
+				Foldable, Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup,
+				Semimonad, SendCloneableFn, Traversable, Witherable,
+			},
+			impl_kind,
+			kinds::*,
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		std::{
+			cmp::Ordering,
+			collections::VecDeque,
+			hash::{Hash, Hasher},
+		},
 	};
 
 	/// A catenable list with O(1) append and O(1) amortized uncons.
@@ -65,7 +64,6 @@ mod inner {
 	/// * **O(1) amortized uncons**: Elements are extracted by flattening the deque.
 	/// * **No reversal overhead**: Unlike two-stack queue implementations, `VecDeque`
 	///   provides true O(1) operations on both ends without periodic reversal.
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	/// ### Examples
@@ -157,7 +155,6 @@ mod inner {
 		/// Constructs a new list by prepending a value to an existing list.
 		///
 		/// This method creates a new list with the given head element followed by the elements of the tail list.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the elements in the list.")]
@@ -171,7 +168,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let head = 1;
 		/// let tail = CatList::singleton(2).snoc(3);
@@ -189,7 +189,6 @@ mod inner {
 		/// Deconstructs a list into its head element and tail list.
 		///
 		/// This method splits a list into its first element and the rest of the elements as a new list.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the elements in the list.")]
@@ -204,7 +203,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
 		/// let deconstructed = CatListBrand::deconstruct(&list);
@@ -225,7 +227,6 @@ mod inner {
 		/// Maps a function over the list.
 		///
 		/// This method applies a function to each element of the list, producing a new list with the transformed values.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -244,7 +245,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// let mapped = map::<CatListBrand, _, _, _>(|x: i32| x * 2, list);
@@ -266,7 +271,6 @@ mod inner {
 		/// Lifts a binary function into the list context (Cartesian product).
 		///
 		/// This method applies a binary function to all pairs of elements from two lists, producing a new list containing the results (Cartesian product).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -290,7 +294,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(10).snoc(20);
@@ -322,7 +330,6 @@ mod inner {
 		/// Wraps a value in a list.
 		///
 		/// This method creates a new list containing the single given value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -336,7 +343,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = pure::<CatListBrand, _>(5);
 		/// let vec: Vec<_> = list.into_iter().collect();
@@ -354,7 +365,6 @@ mod inner {
 		/// Applies wrapped functions to wrapped values (Cartesian product).
 		///
 		/// This method applies each function in the first list to each value in the second list, producing a new list containing all the results.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -376,10 +386,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
-		///     .snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// 	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let vals = CatList::singleton(1).snoc(2);
 		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
 		/// let vec: Vec<_> = applied.into_iter().collect();
@@ -397,7 +411,6 @@ mod inner {
 		/// Chains list computations (`flat_map`).
 		///
 		/// This method applies a function that returns a list to each element of the input list, and then flattens the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -419,7 +432,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2);
 		/// let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
@@ -441,7 +458,6 @@ mod inner {
 		/// Folds the list from the right.
 		///
 		/// This method performs a right-associative fold of the list.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -461,7 +477,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);
@@ -485,7 +505,6 @@ mod inner {
 		/// Folds the list from the left.
 		///
 		/// This method performs a left-associative fold of the list.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -509,7 +528,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
@@ -529,7 +552,6 @@ mod inner {
 		/// Maps the values to a monoid and combines them.
 		///
 		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -549,12 +571,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: i32| x.to_string(), list),
-		///     "123".to_string()
+		/// 	fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: i32| x.to_string(), list),
+		/// 	"123".to_string()
 		/// );
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -574,7 +600,6 @@ mod inner {
 		/// Traverses the list with an applicative function.
 		///
 		/// This method maps each element of the list to a computation, evaluates them, and combines the results into an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -597,7 +622,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
@@ -621,7 +650,6 @@ mod inner {
 		/// Sequences a list of applicative.
 		///
 		/// This method evaluates the computations inside the list and accumulates the results into an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -639,7 +667,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(Some(2));
 		/// let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
@@ -664,7 +696,6 @@ mod inner {
 		/// This method maps each element of the list to a monoid and then combines the results using the monoid's `append` operation. The mapping and combination operations may be executed in parallel.
 		///
 		/// **Note: The `rayon` feature must be enabled to use parallel iteration.**
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -686,7 +717,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -719,7 +754,6 @@ mod inner {
 		/// Compacts a list of options.
 		///
 		/// This method flattens a list of options, discarding `None` values.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
@@ -733,7 +767,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
 		/// let compacted = compact::<CatListBrand, _>(list);
@@ -752,7 +790,6 @@ mod inner {
 		/// Separates a list of results.
 		///
 		/// This method separates a list of results into a pair of lists.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -770,7 +807,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
 		/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
@@ -801,7 +842,6 @@ mod inner {
 		/// Partitions a list based on a function that returns a result.
 		///
 		/// This method partitions a list based on a function that returns a result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -821,10 +861,17 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, list);
+		/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(
+		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
+		/// 	list,
+		/// );
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
 		/// assert_eq!(oks_vec, vec![2, 4]);
@@ -854,7 +901,6 @@ mod inner {
 		/// Partitions a list based on a predicate.
 		///
 		/// This method partitions a list based on a predicate.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -872,7 +918,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let (not_satisfied, satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
@@ -906,7 +956,6 @@ mod inner {
 		/// Maps a function over a list and filters out `None` results.
 		///
 		/// This method maps a function over a list and filters out `None` results.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -925,10 +974,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
+		/// let filtered =
+		/// 	filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
 		/// let vec: Vec<_> = filtered.into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
@@ -945,7 +999,6 @@ mod inner {
 		/// Filters a list based on a predicate.
 		///
 		/// This method filters a list based on a predicate.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -963,7 +1016,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
 		/// let filtered = filter::<CatListBrand, _, _>(|a| a % 2 == 0, list);
@@ -985,7 +1042,6 @@ mod inner {
 		/// Partitions a list based on a function that returns a result in an applicative context.
 		///
 		/// This method partitions a list based on a function that returns a result in an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1006,10 +1062,17 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }), list);
+		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(
+		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
+		/// 	list,
+		/// );
 		/// let (errs, oks) = wilted.unwrap();
 		/// let oks_vec: Vec<_> = oks.into_iter().collect();
 		/// let errs_vec: Vec<_> = errs.into_iter().collect();
@@ -1050,7 +1113,6 @@ mod inner {
 		/// Maps a function over a list and filters out `None` results in an applicative context.
 		///
 		/// This method maps a function over a list and filters out `None` results in an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1073,10 +1135,17 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<CatListBrand, OptionBrand, _, _, _>(|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }), list);
+		/// let withered = wither::<CatListBrand, OptionBrand, _, _, _>(
+		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
+		/// 	list,
+		/// );
 		/// let vec: Vec<_> = withered.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
@@ -1109,7 +1178,6 @@ mod inner {
 		/// Appends one list to another.
 		///
 		/// This method concatenates two lists.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The first list.", "The second list.")]
@@ -1121,7 +1189,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{functions::*, types::*};
+		/// use fp_library::{
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list1 = CatList::singleton(1).snoc(2);
 		/// let list2 = CatList::singleton(3).snoc(4);
@@ -1142,7 +1213,6 @@ mod inner {
 		/// Returns an empty list.
 		///
 		/// This method returns a new, empty list.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -1152,7 +1222,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{functions::*, types::*};
+		/// use fp_library::{
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let list = empty::<CatList<i32>>();
 		/// assert!(list.is_empty());
@@ -1166,7 +1239,6 @@ mod inner {
 	#[document_parameters("The list to operate on.")]
 	impl<A> CatList<A> {
 		/// Creates an empty CatList.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -1187,7 +1259,6 @@ mod inner {
 		}
 
 		/// Returns `true` if the list is empty.
-		///
 		#[document_signature]
 		///
 		#[document_parameters]
@@ -1210,7 +1281,6 @@ mod inner {
 		}
 
 		/// Creates a CatList with a single element.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The element to put in the list.")]
@@ -1233,7 +1303,6 @@ mod inner {
 		}
 
 		/// Appends an element to the front of the list.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The element to prepend.")]
@@ -1258,7 +1327,6 @@ mod inner {
 		}
 
 		/// Appends an element to the back of the list.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The element to append.")]
@@ -1286,7 +1354,6 @@ mod inner {
 		///
 		/// This is the key operation that makes CatList special:
 		/// concatenation is O(1), not O(n).
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The second list.")]
@@ -1314,7 +1381,6 @@ mod inner {
 		/// Internal linking operation.
 		///
 		/// Links two `CatList`s by pushing the second onto the first's sublist deque.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The first list.", "The second list.")]
@@ -1340,7 +1406,6 @@ mod inner {
 		/// Removes and returns the first element.
 		///
 		/// Returns `None` if the list is empty.
-		///
 		#[document_signature]
 		///
 		#[document_parameters]
@@ -1379,7 +1444,6 @@ mod inner {
 		/// This is equivalent to `foldr link CatNil deque` in PureScript.
 		///
 		/// We use an iterative approach to avoid stack overflow on deeply nested structures.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The deque of sublists to flatten.")]
@@ -1394,7 +1458,6 @@ mod inner {
 		}
 
 		/// Returns the number of elements.
-		///
 		#[document_signature]
 		///
 		#[document_parameters]
@@ -1424,8 +1487,8 @@ mod inner {
 	#[document_type_parameters("The type of the elements in the list.")]
 	#[document_parameters("The list to consume.")]
 	impl<A> IntoIterator for CatList<A> {
-		type Item = A;
 		type IntoIter = CatListIterator<A>;
+		type Item = A;
 
 		#[document_signature]
 		fn into_iter(self) -> Self::IntoIter {
@@ -1434,7 +1497,6 @@ mod inner {
 	}
 
 	/// An iterator that consumes a `CatList`.
-	///
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
 	#[document_fields("The list being iterated over.")]
@@ -1639,8 +1701,10 @@ mod tests {
 		assert_eq!(tail.len(), 0);
 	}
 
-	use crate::{brands::*, classes::CloneableFn, functions::*};
-	use quickcheck_macros::quickcheck;
+	use {
+		crate::{brands::*, classes::CloneableFn, functions::*},
+		quickcheck_macros::quickcheck,
+	};
 
 	// Functor Laws
 

@@ -3,7 +3,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! // Monad combines Pointed (pure) and Semimonad (bind)
 //! let x = pure::<OptionBrand, _>(5);
@@ -20,7 +23,10 @@ use super::{applicative::Applicative, semimonad::Semimonad};
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// // Monad combines Pointed (pure) and Semimonad (bind)
 /// let x = pure::<OptionBrand, _>(5);

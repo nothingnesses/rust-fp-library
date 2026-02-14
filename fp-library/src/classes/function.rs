@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 //! assert_eq!(f(5), 10);
 //! ```
 
-use super::category::Category;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	super::arrow::Arrow,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// A trait for wrappers over closures, allowing for generic handling of functions in higher-kinded contexts.
 ///
@@ -25,7 +28,7 @@ use std::ops::Deref;
 ///
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
-pub trait Function: Category {
+pub trait Function: Arrow {
 	/// The type of the function wrapper.
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
@@ -35,7 +38,6 @@ pub trait Function: Category {
 	/// Creates a new function wrapper.
 	///
 	/// This function wraps the provided closure `f` into a function wrapper.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -52,7 +54,10 @@ pub trait Function: Category {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
@@ -63,7 +68,6 @@ pub trait Function: Category {
 /// Creates a new function wrapper.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Function::new`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -81,7 +85,10 @@ pub trait Function: Category {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);

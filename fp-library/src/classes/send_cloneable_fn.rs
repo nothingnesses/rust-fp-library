@@ -3,23 +3,28 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{functions::*, brands::*};
-//! use std::thread;
+//! use {
+//! 	fp_library::{
+//! 		brands::*,
+//! 		functions::*,
+//! 	},
+//! 	std::thread,
+//! };
 //!
 //! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 //!
 //! // Can be sent to another thread
 //! let handle = thread::spawn(move || {
-//!     assert_eq!(f(5), 10);
+//! 	assert_eq!(f(5), 10);
 //! });
 //! handle.join().unwrap();
 //! ```
 
-use super::cloneable_fn::CloneableFn;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	super::cloneable_fn::CloneableFn,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// Abstraction for thread-safe cloneable wrappers over closures.
 ///
@@ -39,7 +44,6 @@ pub trait SendCloneableFn: CloneableFn {
 	/// Creates a new thread-safe cloneable function wrapper.
 	///
 	/// This method wraps a closure into a thread-safe cloneable function wrapper.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -59,14 +63,19 @@ pub trait SendCloneableFn: CloneableFn {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
-	/// use std::thread;
+	/// use {
+	/// 	fp_library::{
+	/// 		brands::*,
+	/// 		functions::*,
+	/// 	},
+	/// 	std::thread,
+	/// };
 	///
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 	///
 	/// // Can be sent to another thread
 	/// let handle = thread::spawn(move || {
-	///     assert_eq!(f(5), 10);
+	/// 	assert_eq!(f(5), 10);
 	/// });
 	/// handle.join().unwrap();
 	/// ```
@@ -78,7 +87,6 @@ pub trait SendCloneableFn: CloneableFn {
 /// Creates a new thread-safe cloneable function wrapper.
 ///
 /// Free function version that dispatches to [the type class' associated function][`SendCloneableFn::send_cloneable_fn_new`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -99,14 +107,19 @@ pub trait SendCloneableFn: CloneableFn {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
-/// use std::thread;
+/// use {
+/// 	fp_library::{
+/// 		brands::*,
+/// 		functions::*,
+/// 	},
+/// 	std::thread,
+/// };
 ///
 /// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 ///
 /// // Can be sent to another thread
 /// let handle = thread::spawn(move || {
-///     assert_eq!(f(5), 10);
+/// 	assert_eq!(f(5), 10);
 /// });
 /// handle.join().unwrap();
 /// ```

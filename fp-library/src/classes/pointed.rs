@@ -3,23 +3,25 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{functions::*, brands::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = pure::<OptionBrand, _>(5);
 //! assert_eq!(x, Some(5));
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for contexts that can be initialized with a value.
 pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// The value wrapped in the context.
 	///
 	/// This method wraps a value in a context.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -33,7 +35,10 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = pure::<OptionBrand, _>(5);
 	/// assert_eq!(x, Some(5));
@@ -44,7 +49,6 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 /// The value wrapped in the context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -62,7 +66,10 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = pure::<OptionBrand, _>(5);
 /// assert_eq!(x, Some(5));

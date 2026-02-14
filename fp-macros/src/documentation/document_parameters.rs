@@ -1,19 +1,21 @@
-use crate::{
-	core::{
-		Error as CoreError, Result, config::get_config, constants::attributes::DOCUMENT_PARAMETERS,
-		error_handling::ErrorCollector,
+use {
+	crate::{
+		core::{
+			Error as CoreError, Result, config::get_config,
+			constants::attributes::DOCUMENT_PARAMETERS, error_handling::ErrorCollector,
+		},
+		support::{
+			Parameter,
+			attributes::{find_attribute, remove_attribute_tokens},
+			documentation_parameters::{DocumentationParameter, DocumentationParameters},
+			generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
+			get_parameters, has_receiver, impl_has_receiver_methods, parsing,
+		},
 	},
-	support::{
-		Parameter,
-		attributes::{find_attribute, remove_attribute_tokens},
-		documentation_parameters::{DocumentationParameter, DocumentationParameters},
-		generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
-		get_parameters, has_receiver, impl_has_receiver_methods, parsing,
-	},
+	proc_macro2::TokenStream,
+	quote::{ToTokens, quote},
+	syn::{ImplItem, ImplItemFn, LitStr, parse::Parse, spanned::Spanned},
 };
-use proc_macro2::TokenStream;
-use quote::{ToTokens, quote};
-use syn::{ImplItem, ImplItemFn, LitStr, parse::Parse, spanned::Spanned};
 
 /// Parse single string literal for receiver documentation
 struct ReceiverDoc {
@@ -230,10 +232,7 @@ pub fn document_parameters_worker(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::support::generate_documentation::get_doc;
-	use quote::quote;
-	use syn::ItemFn;
+	use {super::*, crate::support::generate_documentation::get_doc, quote::quote, syn::ItemFn};
 
 	#[test]
 	fn test_doc_params_basic() {

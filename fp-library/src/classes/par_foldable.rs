@@ -5,7 +5,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //! let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -13,12 +16,11 @@
 //! assert_eq!(result, "12345");
 //! ```
 
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-
-use super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn};
-use crate::{Apply, kinds::*, types::SendEndofunction};
+use {
+	super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn},
+	crate::{Apply, kinds::*, types::SendEndofunction},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for data structures that can be folded in parallel.
 ///
@@ -66,7 +68,10 @@ use crate::{Apply, kinds::*, types::SendEndofunction};
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let v = vec![1, 2, 3, 4, 5];
 /// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -77,7 +82,6 @@ pub trait ParFoldable: Foldable {
 	/// Parallel version of fold_map.
 	///
 	/// Maps each element to a monoid value using `func`, then combines all values using the monoid's `append` operation. The mapping operations may be executed in parallel.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -99,7 +103,10 @@ pub trait ParFoldable: Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -118,7 +125,6 @@ pub trait ParFoldable: Foldable {
 	/// Parallel version of fold_right.
 	///
 	/// Folds the structure by applying a function from right to left, potentially in parallel.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -141,7 +147,10 @@ pub trait ParFoldable: Foldable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let v = vec![1, 2, 3, 4, 5];
 	/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);
@@ -177,7 +186,6 @@ pub trait ParFoldable: Foldable {
 /// Parallel fold_map operation.
 ///
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_map`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -200,7 +208,10 @@ pub trait ParFoldable: Foldable {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let v = vec![1, 2, 3, 4, 5];
 /// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -223,7 +234,6 @@ where
 /// Parallel fold_right operation.
 ///
 /// Free function version that dispatches to [the type class' associated function][`ParFoldable::par_fold_right`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -247,7 +257,10 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let v = vec![1, 2, 3, 4, 5];
 /// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b)| a + b);

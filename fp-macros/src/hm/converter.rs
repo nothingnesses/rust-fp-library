@@ -3,17 +3,19 @@
 //! This module contains the main conversion logic for transforming
 //! Rust types into Hindley-Milner representations.
 
-use crate::{
-	analysis::traits::format_brand_name,
-	core::{
-		config::Config,
-		constants::{traits, types},
+use {
+	crate::{
+		analysis::traits::format_brand_name,
+		core::{
+			config::Config,
+			constants::{traits, types},
+		},
+		hm::{HmAst, ast_builder::HmAstBuilder},
+		support::{TypeVisitor, last_path_segment},
 	},
-	hm::{HmAst, ast_builder::HmAstBuilder},
-	support::{TypeVisitor, last_path_segment},
+	std::collections::{HashMap, HashSet},
+	syn::{GenericArgument, PathArguments, ReturnType, TraitBound, Type},
 };
-use std::collections::{HashMap, HashSet};
-use syn::{GenericArgument, PathArguments, ReturnType, TraitBound, Type};
 
 // ============================================================================
 // Main Conversion Entry Point

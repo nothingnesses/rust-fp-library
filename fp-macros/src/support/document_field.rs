@@ -1,3 +1,12 @@
+use {
+	std::collections::HashMap,
+	syn::{
+		Attribute, Fields, Ident, LitStr, Token,
+		parse::{Parse, ParseStream},
+		punctuated::Punctuated,
+	},
+};
+
 /// Field documentation generation utilities.
 ///
 /// This module provides a unified interface for documenting struct and enum variant fields,
@@ -9,10 +18,6 @@ use crate::{
 		parsing,
 	},
 };
-use std::collections::HashMap;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
-use syn::{Attribute, Fields, Ident, LitStr, Token};
 
 /// Represents a field documentation entry.
 ///
@@ -248,9 +253,7 @@ impl FieldDocumenter {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use quote::quote;
-	use syn::parse_quote;
+	use {super::*, quote::quote, syn::parse_quote};
 
 	#[test]
 	fn test_field_doc_arg_named() {

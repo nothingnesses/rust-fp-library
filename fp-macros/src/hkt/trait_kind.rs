@@ -2,10 +2,12 @@
 //!
 //! This module handles the generation of a new `Kind` trait based on a signature.
 
-use super::AssociatedTypes;
-use crate::{core::Result, documentation::templates::DocumentationBuilder, generate_name};
-use proc_macro2::TokenStream;
-use quote::quote;
+use {
+	super::AssociatedTypes,
+	crate::{core::Result, documentation::templates::DocumentationBuilder, generate_name},
+	proc_macro2::TokenStream,
+	quote::quote,
+};
 
 /// Generates the implementation for the `trait_kind!` macro.
 ///

@@ -11,16 +11,19 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = pointer_new::<RcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
 //! ```
 
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// Base type class for heap-allocated pointers.
 ///
@@ -33,7 +36,6 @@ pub trait Pointer {
 	type Of<T: ?Sized>: Deref<Target = T>;
 
 	/// Wraps a sized value in the pointer.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The type of the value to wrap.")]
@@ -47,7 +49,10 @@ pub trait Pointer {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// };
 	///
 	/// let ptr = <RcBrand as Pointer>::new(42);
 	/// assert_eq!(*ptr, 42);
@@ -58,7 +63,6 @@ pub trait Pointer {
 }
 
 /// Wraps a sized value in the pointer.
-///
 #[document_signature]
 ///
 #[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
@@ -72,7 +76,10 @@ pub trait Pointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let ptr = pointer_new::<RcBrand, _>(42);
 /// assert_eq!(*ptr, 42);

@@ -13,7 +13,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`
+  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Arrow`
   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
@@ -28,7 +28,7 @@ A functional programming library for Rust featuring your favourite higher-kinded
   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
   - **Laziness, Memoization & Stack Safety:** `Lazy`, `Thunk`, `Trampoline`, `Free`
   - **Generic Containers:** `Identity`, `Pair`
-  - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
+  - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`, `Arrow`
   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 
 ## Motivation
@@ -156,49 +156,49 @@ use fp_library::types::*;
 
 #[derive(Clone)]
 enum Expr {
-    Val(i32),
-    Add(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
+	Val(i32),
+	Add(Box<Expr>, Box<Expr>),
+	Div(Box<Expr>, Box<Expr>),
 }
 
 // 1. Stack-safe recursion with error handling (TryTrampoline)
 fn eval(expr: &Expr) -> TryTrampoline<i32, String> {
-    let expr = expr.clone(); // Capture owned data for 'static closure
-    TryTrampoline::defer(move || match expr {
-        Expr::Val(n) => TryTrampoline::ok(n),
-        Expr::Add(lhs, rhs) => {
-            eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
-        }
-        Expr::Div(lhs, rhs) => {
-            eval(&lhs).bind(move |l| {
-                eval(&rhs).bind(move |r| {
-                    if r == 0 {
-                        TryTrampoline::err("Division by zero".to_string())
-                    } else {
-                        TryTrampoline::ok(l / r)
-                    }
-                })
-            })
-        }
-    })
+	let expr = expr.clone(); // Capture owned data for 'static closure
+	TryTrampoline::defer(move || match expr {
+		Expr::Val(n) => TryTrampoline::ok(n),
+		Expr::Add(lhs, rhs) => {
+			eval(&lhs).bind(move |l| eval(&rhs).map(move |r| l + r))
+		}
+		Expr::Div(lhs, rhs) => {
+			eval(&lhs).bind(move |l| {
+				eval(&rhs).bind(move |r| {
+					if r == 0 {
+						TryTrampoline::err("Division by zero".to_string())
+					} else {
+						TryTrampoline::ok(l / r)
+					}
+				})
+			})
+		}
+	})
 }
 
 // Usage
 fn main() {
-    let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
+	let expr = Expr::Div(Box::new(Expr::Val(100)), Box::new(Expr::Val(2)));
 
-    // 2. Memoize result (TryLazy)
-    // The evaluation runs at most once, even if accessed multiple times.
-    let result = RcTryLazy::new(move || eval(&expr).evaluate());
+	// 2. Memoize result (TryLazy)
+	// The evaluation runs at most once, even if accessed multiple times.
+	let result = RcTryLazy::new(move || eval(&expr).evaluate());
 
-    // 3. Create deferred view (TryThunk)
-    // Borrow the cached result to format it.
-    let view: TryThunk<String, String> = TryThunk::new(|| {
-        let val = result.evaluate().map_err(|e| e.clone())?;
-        Ok(format!("Result: {}", val))
-    });
+	// 3. Create deferred view (TryThunk)
+	// Borrow the cached result to format it.
+	let view: TryThunk<String, String> = TryThunk::new(|| {
+		let val = result.evaluate().map_err(|e| e.clone())?;
+		Ok(format!("Result: {}", val))
+	});
 
-    assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
+	assert_eq!(view.evaluate(), Ok("Result: 50".to_string()));
 }
 ```
 

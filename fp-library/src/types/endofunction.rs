@@ -4,14 +4,16 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::{CloneableFn, Monoid, Semigroup},
-		functions::identity,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			classes::{CloneableFn, Monoid, Semigroup},
+			functions::identity,
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		std::{
+			fmt::{self, Debug, Formatter},
+			hash::Hash,
+		},
 	};
 
 	/// A wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
@@ -24,7 +26,6 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the cloneable function wrapper.",
@@ -36,7 +37,11 @@ mod inner {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
@@ -54,7 +59,6 @@ mod inner {
 		/// Creates a new `Endofunction`.
 		///
 		/// This function wraps a function `a -> a` in an `Endofunction` struct.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The function to wrap.")]
@@ -66,7 +70,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
@@ -211,7 +219,6 @@ mod inner {
 		/// This method composes two endofunctions into a single endofunction.
 		/// Note that `Endofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -226,7 +233,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
@@ -255,7 +266,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -265,7 +275,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<Endofunction<RcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);
@@ -279,12 +293,14 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::{
-		brands::RcFnBrand,
-		classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+	use {
+		super::*,
+		crate::{
+			brands::RcFnBrand,
+			classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Semigroup Laws
 

@@ -6,9 +6,11 @@
 //! - **Bound Order Independence**: Order of bounds doesn't affect the result
 //! - **Lifetime Name Independence**: Lifetime names don't affect canonical representation
 
-use crate::hkt::{AssociatedTypes, Canonicalizer, generate_name};
-use quickcheck::{Arbitrary, Gen, quickcheck};
-use syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated};
+use {
+	crate::hkt::{AssociatedTypes, Canonicalizer, generate_name},
+	quickcheck::{Arbitrary, Gen, quickcheck},
+	syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated},
+};
 
 // ===========================================================================
 // Arbitrary Implementations for Test Data Generation

@@ -1,10 +1,13 @@
-use crate::core::constants::{configuration, re_export};
-use proc_macro2::TokenStream;
-use quote::quote;
-use std::{collections::HashMap, fs, path::Path};
-use syn::{
-	parse::{Parse, ParseStream},
-	{Ident, Item, LitStr, Result, Token, Visibility, braced, parse_file},
+use {
+	crate::core::constants::{configuration, re_export},
+	proc_macro2::TokenStream,
+	quote::quote,
+	std::{collections::HashMap, fs, path::Path},
+	syn::{
+		Ident, Item, LitStr, Result, Token, Visibility, braced,
+		parse::{Parse, ParseStream},
+		parse_file,
+	},
 };
 
 /// Trait for formatting re-exports based on item type.

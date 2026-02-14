@@ -5,17 +5,19 @@
 //! - Configuration types and validation
 //! - Runtime configuration state
 
-use crate::{
-	core::constants::{
-		configuration::{self, CONFIG_SECTION},
-		traits,
+use {
+	crate::{
+		core::constants::{
+			configuration::{self, CONFIG_SECTION},
+			traits,
+		},
+		resolution::{ImplKey, ProjectionKey},
 	},
-	resolution::{ImplKey, ProjectionKey},
-};
-use serde::Deserialize;
-use std::{
-	collections::{HashMap, HashSet},
-	sync::LazyLock,
+	serde::Deserialize,
+	std::{
+		collections::{HashMap, HashSet},
+		sync::LazyLock,
+	},
 };
 
 // ==================== Configuration Types ====================

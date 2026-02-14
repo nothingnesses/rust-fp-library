@@ -3,7 +3,11 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	classes::*,
+//! 	functions::*,
+//! };
 //!
 //! // Applicative combines Pointed (pure) and Semiapplicative (apply)
 //! let f = pure::<OptionBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
@@ -24,7 +28,11 @@ use super::{
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::*,
+/// 	functions::*,
+/// };
 ///
 /// // Applicative combines Pointed (pure) and Semiapplicative (apply)
 /// let f = pure::<OptionBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));

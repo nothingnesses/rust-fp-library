@@ -6,7 +6,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! // Functions are strong profunctors
 //! let f = |x: i32| x + 1;
@@ -14,11 +17,11 @@
 //! assert_eq!(g((10, 20)), (11, 20));
 //! ```
 
-use super::profunctor::Profunctor;
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::profunctor::Profunctor,
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for strong profunctors.
 ///
@@ -36,7 +39,6 @@ pub trait Strong: Profunctor {
 	///
 	/// This method takes a profunctor `P A B` and returns `P (A, C) (B, C)`,
 	/// threading the extra context `C` through unchanged.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -55,7 +57,10 @@ pub trait Strong: Profunctor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
 	/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
@@ -69,7 +74,6 @@ pub trait Strong: Profunctor {
 	///
 	/// This method takes a profunctor `P A B` and returns `P (C, A) (C, B)`,
 	/// threading the extra context `C` through unchanged in the first position.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -88,7 +92,10 @@ pub trait Strong: Profunctor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
 	/// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
@@ -104,7 +111,6 @@ pub trait Strong: Profunctor {
 /// Lift a profunctor to operate on the first component of a pair.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Strong::first`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -124,7 +130,10 @@ pub trait Strong: Profunctor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
 /// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
@@ -139,7 +148,6 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// Lift a profunctor to operate on the second component of a pair.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Strong::second`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -159,7 +167,10 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
 /// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);

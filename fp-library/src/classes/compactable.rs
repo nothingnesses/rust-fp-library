@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(Some(5));
 //! let y = compact::<OptionBrand, _>(x);
 //! assert_eq!(y, Some(5));
 //! ```
 
-use crate::{Apply, brands::OptionBrand, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, brands::OptionBrand, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for data structures that can be compacted and separated.
 ///
@@ -22,7 +25,6 @@ use fp_macros::document_type_parameters;
 /// *   `separate`: Splitting a structure of [`Result`]s into a pair of structures, one containing the [`Err`] values and the other containing the [`Ok`] values.
 pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -39,7 +41,10 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(Some(5));
 	/// let y = compact::<OptionBrand, _>(x);
@@ -57,7 +62,6 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
 
 	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -75,7 +79,10 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x: Option<Result<i32, &str>> = Some(Ok(5));
 	/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
@@ -98,7 +105,6 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::compact`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -116,7 +122,10 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(Some(5));
 /// let y = compact::<OptionBrand, _>(x);
@@ -134,7 +143,6 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 /// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Compactable::separate`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -153,7 +161,10 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x: Option<Result<i32, &str>> = Some(Ok(5));
 /// let (errs, oks) = separate::<OptionBrand, _, _>(x);

@@ -4,18 +4,20 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::ThunkBrand,
-		classes::{
-			ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor, Lift,
-			MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+	use {
+		crate::{
+			Apply,
+			brands::ThunkBrand,
+			classes::{
+				ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor,
+				Lift, MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+			},
+			impl_kind,
+			kinds::*,
+			types::{Lazy, LazyConfig, Step},
 		},
-		impl_kind,
-		kinds::*,
-		types::{Lazy, LazyConfig, Step},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A deferred computation that produces a value of type `A`.
 	///
@@ -57,7 +59,6 @@ mod inner {
 	/// Implemented typeclasses:
 	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
 	/// - ❌ [`Traversable`](crate::classes::Traversable) (requires `Clone`)
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
@@ -70,9 +71,7 @@ mod inner {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let computation = Thunk::new(|| 5)
-	///     .map(|x| x * 2)
-	///     .map(|x| x + 1);
+	/// let computation = Thunk::new(|| 5).map(|x| x * 2).map(|x| x + 1);
 	///
 	/// // No computation has happened yet!
 	/// // Only when we call evaluate() does it execute:
@@ -88,7 +87,6 @@ mod inner {
 	#[document_parameters("The thunk instance.")]
 	impl<'a, A: 'a> Thunk<'a, A> {
 		/// Creates a new `Thunk` from a thunk.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the closure.")]
@@ -115,7 +113,6 @@ mod inner {
 		}
 
 		/// Returns a pure value (already computed).
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -127,7 +124,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, classes::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -140,7 +141,6 @@ mod inner {
 		}
 
 		/// Defers a computation that returns a Thunk.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the closure.")]
@@ -154,7 +154,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -170,7 +174,6 @@ mod inner {
 		///
 		/// Note: Each `bind` adds to the call stack. For deep recursion,
 		/// use [`Trampoline`](crate::types::Trampoline) instead.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -187,7 +190,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -207,7 +213,6 @@ mod inner {
 		}
 
 		/// Functor map: transforms the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -224,7 +229,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -240,7 +248,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns the result.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -250,7 +257,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -289,7 +299,6 @@ mod inner {
 	)]
 	impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
 		/// Creates a `Thunk` from a computation that produces it.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the closure.")]
@@ -303,7 +312,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
@@ -319,7 +333,6 @@ mod inner {
 
 	impl Functor for ThunkBrand {
 		/// Maps a function over the result of a `Thunk` computation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -341,7 +354,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
 		/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
@@ -360,7 +376,6 @@ mod inner {
 
 	impl Pointed for ThunkBrand {
 		/// Wraps a value in a `Thunk` context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -377,7 +392,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
@@ -389,7 +408,6 @@ mod inner {
 
 	impl Lift for ThunkBrand {
 		/// Lifts a binary function into the `Thunk` context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -413,7 +431,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let eval1 = pure::<ThunkBrand, _>(10);
 		/// let eval2 = pure::<ThunkBrand, _>(20);
@@ -440,7 +461,6 @@ mod inner {
 
 	impl Semiapplicative for ThunkBrand {
 		/// Applies a function wrapped in `Thunk` to a value wrapped in `Thunk`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -462,7 +482,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val = pure::<ThunkBrand, _>(21);
@@ -484,7 +507,6 @@ mod inner {
 
 	impl Semimonad for ThunkBrand {
 		/// Chains `Thunk` computations.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -506,7 +528,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
 		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
@@ -525,7 +550,6 @@ mod inner {
 
 	impl MonadRec for ThunkBrand {
 		/// Performs tail-recursive monadic computation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -544,11 +568,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
-		///     |x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
-		///     0,
+		/// 	|x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	0,
 		/// );
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
@@ -575,7 +604,6 @@ mod inner {
 
 	impl Evaluable for ThunkBrand {
 		/// Runs the eval, producing the inner value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -592,7 +620,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let thunk = Thunk::new(|| 42);
 		/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
@@ -606,7 +639,6 @@ mod inner {
 
 	impl Foldable for ThunkBrand {
 		/// Folds the `Thunk` from the right.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -630,7 +662,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
 		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
@@ -649,7 +684,6 @@ mod inner {
 		}
 
 		/// Folds the `Thunk` from the left.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -673,7 +707,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
 		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
@@ -692,7 +729,6 @@ mod inner {
 		}
 
 		/// Maps the value to a monoid and returns it.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -712,7 +748,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let thunk = pure::<ThunkBrand, _>(10);
 		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
@@ -737,7 +776,6 @@ mod inner {
 	)]
 	impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
 		/// Combines two `Thunk`s by combining their results.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The first `Thunk`.", "The second `Thunk`.")]
@@ -749,7 +787,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		/// let t2 = pure::<ThunkBrand, _>(" World".to_string());
@@ -770,7 +812,6 @@ mod inner {
 	)]
 	impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
 		/// Returns the identity `Thunk`.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -780,7 +821,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{classes::*, types::*};
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let t: Thunk<String> = Thunk::empty();
 		/// assert_eq!(t.evaluate(), "");
@@ -865,8 +909,7 @@ mod tests {
 	/// Verifies that `append` correctly combines two evals.
 	#[test]
 	fn test_eval_semigroup() {
-		use crate::classes::semigroup::append;
-		use crate::{brands::*, functions::*};
+		use crate::{brands::*, classes::semigroup::append, functions::*};
 		let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		let t2 = pure::<ThunkBrand, _>(" World".to_string());
 		let t3 = append(t1, t2);

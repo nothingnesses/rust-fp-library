@@ -5,18 +5,25 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! // Function is a profunctor
 //! let f = |x: i32| x + 1;
-//! let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+//! let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+//! 	|x: i32| x * 2,
+//! 	|x: i32| x - 1,
+//! 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+//! );
 //! assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for profunctors.
 ///
@@ -34,7 +41,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	///
 	/// This method applies a contravariant function to the first argument and a covariant
 	/// function to the second argument, transforming the profunctor.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -60,10 +66,17 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+	/// 	|x: i32| x * 2,
+	/// 	|x: i32| x - 1,
+	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+	/// );
 	/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 	/// ```
 	fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
@@ -78,7 +91,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// Maps contravariantly over the first argument.
 	///
 	/// This is a convenience method that maps only over the input (contravariant position).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -101,10 +113,16 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// let g = lmap::<RcFnBrand, _, _, _, _>(
+	/// 	|x: i32| x * 2,
+	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+	/// );
 	/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 	/// ```
 	fn lmap<'a, A, B: 'a, C: 'a, FuncAB>(
@@ -120,7 +138,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// Maps covariantly over the second argument.
 	///
 	/// This is a convenience method that maps only over the output (covariant position).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -143,10 +160,16 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// let g = rmap::<RcFnBrand, _, _, _, _>(
+	/// 	|x: i32| x * 2,
+	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+	/// );
 	/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 	/// ```
 	fn rmap<'a, A: 'a, B: 'a, C, FuncBC>(
@@ -163,7 +186,6 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 /// Maps over both arguments of the profunctor.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::dimap`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -190,10 +212,17 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+/// 	|x: i32| x * 2,
+/// 	|x: i32| x - 1,
+/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+/// );
 /// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 /// ```
 pub fn dimap<'a, Brand: Profunctor, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
@@ -211,7 +240,6 @@ where
 /// Maps contravariantly over the first argument.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::lmap`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -235,10 +263,16 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// let g = lmap::<RcFnBrand, _, _, _, _>(
+/// 	|x: i32| x * 2,
+/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+/// );
 /// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 /// ```
 pub fn lmap<'a, Brand: Profunctor, A, B: 'a, C: 'a, FuncAB>(
@@ -254,7 +288,6 @@ where
 /// Maps covariantly over the second argument.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Profunctor::rmap`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -275,10 +308,16 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// let g = rmap::<RcFnBrand, _, _, _, _>(
+/// 	|x: i32| x * 2,
+/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
+/// );
 /// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 /// ```
 pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C, FuncBC>(

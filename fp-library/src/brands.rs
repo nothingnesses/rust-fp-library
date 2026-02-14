@@ -9,15 +9,17 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::classes::RefCountedPointer;
-use std::marker::PhantomData;
+use {crate::classes::RefCountedPointer, std::marker::PhantomData};
 
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

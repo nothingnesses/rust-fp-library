@@ -1,9 +1,12 @@
 //! Common signature components for Higher-Kinded Type (HKT) associated types.
 
-use proc_macro2::TokenStream;
-use quote::ToTokens;
-use syn::{
-	Attribute, Generics, Ident, Token, TypeParamBound, parse::ParseStream, punctuated::Punctuated,
+use {
+	proc_macro2::TokenStream,
+	quote::ToTokens,
+	syn::{
+		Attribute, Generics, Ident, Token, TypeParamBound, parse::ParseStream,
+		punctuated::Punctuated,
+	},
 };
 
 /// Common components of an associated type definition used across HKT macros.

@@ -4,20 +4,21 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::TryLazyBrand,
-		classes::{Deferrable, SendDeferrable},
-		impl_kind,
-		kinds::*,
-		types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
+	use {
+		crate::{
+			brands::TryLazyBrand,
+			classes::{Deferrable, SendDeferrable},
+			impl_kind,
+			kinds::*,
+			types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazily-computed, memoized value that may fail.
 	///
 	/// The computation runs at most once. If it succeeds, the value is cached.
 	/// If it fails, the error is cached. Subsequent accesses return the cached result.
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the computed value.",
@@ -29,7 +30,6 @@ mod inner {
 	///
 	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
 	/// which is parameterized by both the error type and the `LazyConfig`, and is polymorphic over the success value type.
-	///
 	#[document_fields("The internal lazy cell.")]
 	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
 		pub(crate) Config::TryLazy<'a, A, E>,
@@ -69,7 +69,6 @@ mod inner {
 		E: 'a,
 	{
 		/// Gets the memoized result, computing on first access.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -100,7 +99,6 @@ mod inner {
 		E: 'a,
 	{
 		/// Creates a new `TryLazy` that will run `f` on first access.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the initializer closure.")]
@@ -200,7 +198,6 @@ mod inner {
 		A: 'a,
 	{
 		/// Creates a `TryLazy` that catches unwinds (panics).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the initializer closure.")]
@@ -217,8 +214,10 @@ mod inner {
 		/// use fp_library::types::*;
 		///
 		/// let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
-		///     if true { panic!("oops") }
-		///     42
+		/// 	if true {
+		/// 		panic!("oops")
+		/// 	}
+		/// 	42
 		/// });
 		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
 		/// ```
@@ -251,7 +250,6 @@ mod inner {
 		E: 'a,
 	{
 		/// Creates a new `TryLazy` that will run `f` on first access.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the initializer closure.")]
@@ -292,7 +290,6 @@ mod inner {
 		///
 		/// This flattens the nested structure: instead of `TryLazy<TryLazy<A, E>, E>`, we get `TryLazy<A, E>`.
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -306,7 +303,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
@@ -341,7 +343,6 @@ mod inner {
 		///
 		/// This flattens the nested structure: instead of `ArcTryLazy<ArcTryLazy<A, E>, E>`, we get `ArcTryLazy<A, E>`.
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -355,7 +356,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
@@ -379,11 +384,11 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use crate::types::{RcLazy, TryThunk, TryTrampoline};
-
-	use super::*;
-	use std::cell::RefCell;
-	use std::rc::Rc;
+	use {
+		super::*,
+		crate::types::{RcLazy, TryThunk, TryTrampoline},
+		std::{cell::RefCell, rc::Rc},
+	};
 
 	/// Tests that `TryLazy` caches successful results.
 	///

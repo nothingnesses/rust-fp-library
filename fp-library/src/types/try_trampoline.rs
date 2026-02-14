@@ -7,25 +7,25 @@
 //! ```
 //! use fp_library::types::*;
 //!
-//! let task: TryTrampoline<i32, String> = TryTrampoline::ok(10)
-//!     .map(|x| x * 2)
-//!     .bind(|x| TryTrampoline::ok(x + 5));
+//! let task: TryTrampoline<i32, String> =
+//! 	TryTrampoline::ok(10).map(|x| x * 2).bind(|x| TryTrampoline::ok(x + 5));
 //!
 //! assert_eq!(task.evaluate(), Ok(25));
 //! ```
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::Deferrable,
-		types::{Lazy, LazyConfig, Trampoline, TryLazy},
+	use {
+		crate::{
+			classes::Deferrable,
+			types::{Lazy, LazyConfig, Trampoline, TryLazy},
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A lazy, stack-safe computation that may fail with an error.
 	///
 	/// This is [`Trampoline<Result<A, E>>`] with ergonomic combinators.
-	///
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	///
 	#[document_fields("The internal `Trampoline` wrapping a `Result`.")]
@@ -44,7 +44,6 @@ mod inner {
 	#[document_parameters("The fallible trampoline computation.")]
 	impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
 		/// Creates a successful `TryTrampoline`.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The success value.")]
@@ -66,7 +65,6 @@ mod inner {
 		}
 
 		/// Creates a failed `TryTrampoline`.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The error value.")]
@@ -88,7 +86,6 @@ mod inner {
 		}
 
 		/// Creates a lazy `TryTrampoline` that may fail.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the closure.")]
@@ -117,7 +114,6 @@ mod inner {
 		/// Defers the construction of a `TryTrampoline`.
 		///
 		/// Use this for stack-safe recursion.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -142,14 +138,17 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// fn factorial(n: i32, acc: i32) -> TryTrampoline<i32, String> {
-		///     if n < 0 {
-		///         TryTrampoline::err("Negative input".to_string())
-		///     } else if n == 0 {
-		///         TryTrampoline::ok(acc)
-		///     } else {
-		///         TryTrampoline::defer(move || factorial(n - 1, n * acc))
-		///     }
+		/// fn factorial(
+		/// 	n: i32,
+		/// 	acc: i32,
+		/// ) -> TryTrampoline<i32, String> {
+		/// 	if n < 0 {
+		/// 		TryTrampoline::err("Negative input".to_string())
+		/// 	} else if n == 0 {
+		/// 		TryTrampoline::ok(acc)
+		/// 	} else {
+		/// 		TryTrampoline::defer(move || factorial(n - 1, n * acc))
+		/// 	}
 		/// }
 		///
 		/// let task = factorial(5, 1);
@@ -163,7 +162,6 @@ mod inner {
 		}
 
 		/// Maps over the success value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -196,7 +194,6 @@ mod inner {
 		}
 
 		/// Maps over the error value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -215,8 +212,8 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
-		///     .map_err(|e| e.to_uppercase());
+		/// let task: TryTrampoline<i32, String> =
+		/// 	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
 		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
 		/// ```
 		pub fn map_err<E2: 'static + Send, Func>(
@@ -230,7 +227,6 @@ mod inner {
 		}
 
 		/// Chains fallible computations.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -266,7 +262,6 @@ mod inner {
 		}
 
 		/// Recovers from an error.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the recovery function.")]
@@ -282,8 +277,8 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string())
-		///     .catch(|_| TryTrampoline::ok(42));
+		/// let task: TryTrampoline<i32, String> =
+		/// 	TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
 		pub fn catch<F>(
@@ -300,7 +295,6 @@ mod inner {
 		}
 
 		/// Runs the computation, returning the result.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -376,7 +370,6 @@ mod inner {
 		E: 'static + Send,
 	{
 		/// Creates a value from a computation that produces the value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -390,7 +383,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
@@ -408,9 +406,7 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use crate::types::Trampoline;
-
-	use super::*;
+	use {super::*, crate::types::Trampoline};
 
 	/// Tests `TryTrampoline::ok`.
 	///

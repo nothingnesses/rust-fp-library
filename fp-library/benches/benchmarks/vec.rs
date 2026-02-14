@@ -1,22 +1,24 @@
-use criterion::{BatchSize, BenchmarkId, Criterion};
-use fp_library::{
-	brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand, VecBrand},
-	classes::{
-		compactable::{compact, separate},
-		filterable::{filter, filter_map, partition, partition_map},
-		foldable::{fold_left, fold_map, fold_right},
-		functor::map,
-		lift::lift2,
-		monoid::empty,
-		par_foldable::par_fold_map,
-		pointed::pure,
-		semiapplicative::apply,
-		semigroup::append,
-		semimonad::bind,
-		traversable::{sequence, traverse},
-		witherable::{wilt, wither},
+use {
+	criterion::{BatchSize, BenchmarkId, Criterion},
+	fp_library::{
+		brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand, VecBrand},
+		classes::{
+			compactable::{compact, separate},
+			filterable::{filter, filter_map, partition, partition_map},
+			foldable::{fold_left, fold_map, fold_right},
+			functor::map,
+			lift::lift2,
+			monoid::empty,
+			par_foldable::par_fold_map,
+			pointed::pure,
+			semiapplicative::apply,
+			semigroup::append,
+			semimonad::bind,
+			traversable::{sequence, traverse},
+			witherable::{wilt, wither},
+		},
+		functions::{cloneable_fn_new, send_cloneable_fn_new},
 	},
-	functions::{cloneable_fn_new, send_cloneable_fn_new},
 };
 
 pub fn bench_vec(c: &mut Criterion) {

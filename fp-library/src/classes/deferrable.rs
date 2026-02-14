@@ -3,22 +3,23 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*, types::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! 	types::*,
+//! };
 //!
 //! let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A type class for types that can be constructed lazily.
 pub trait Deferrable<'a> {
 	/// Creates a value from a computation that produces the value.
 	///
 	/// This function takes a thunk and creates a deferred value that will be computed using the thunk.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The type of the thunk.")]
@@ -32,7 +33,11 @@ pub trait Deferrable<'a> {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 	/// assert_eq!(eval.evaluate(), 42);
@@ -46,7 +51,6 @@ pub trait Deferrable<'a> {
 /// Creates a value from a computation that produces the value.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Deferrable::defer`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -64,7 +68,11 @@ pub trait Deferrable<'a> {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// 	types::*,
+/// };
 ///
 /// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 /// assert_eq!(eval.evaluate(), 42);

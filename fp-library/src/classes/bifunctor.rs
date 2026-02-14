@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Result::<i32, i32>::Ok(5);
 //! let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 //! assert_eq!(y, Ok(10));
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for types that can be mapped over two type arguments.
 ///
@@ -29,7 +32,6 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	/// Maps functions over the values in the bifunctor context.
 	///
 	/// This method applies two functions to the values inside the bifunctor context, producing a new bifunctor context with the transformed values.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -55,7 +57,10 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Result::<i32, i32>::Ok(5);
 	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
@@ -74,7 +79,6 @@ pub trait Bifunctor: Kind_266801a817966495 {
 /// Maps functions over the values in the bifunctor context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Bifunctor::bimap`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -101,7 +105,10 @@ pub trait Bifunctor: Kind_266801a817966495 {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Result::<i32, i32>::Ok(5);
 /// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);

@@ -1,10 +1,12 @@
-use crate::support::{
-	ast::RustAst,
-	documentation_parameters::{DocumentationParameter, DocumentationParameters},
-	parsing::parse_parameter_documentation_pairs,
+use {
+	crate::support::{
+		ast::RustAst,
+		documentation_parameters::{DocumentationParameter, DocumentationParameters},
+		parsing::parse_parameter_documentation_pairs,
+	},
+	proc_macro2::TokenStream,
+	syn::{Error, parse_quote, spanned::Spanned},
 };
-use proc_macro2::TokenStream;
-use syn::{Error, parse_quote, spanned::Spanned};
 
 /// Generate documentation comments for parameters.
 ///

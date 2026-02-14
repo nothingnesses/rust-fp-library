@@ -4,21 +4,23 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::LazyBrand,
-		classes::{Deferrable, RefFunctor, SendDeferrable},
-		impl_kind,
-		kinds::*,
-		types::{Thunk, Trampoline},
-	};
-	use fp_macros::{
-		document_fields, document_parameters, document_signature, document_type_parameters,
-	};
-	use std::{
-		cell::LazyCell,
-		rc::Rc,
-		sync::{Arc, LazyLock},
+	use {
+		crate::{
+			Apply,
+			brands::LazyBrand,
+			classes::{Deferrable, RefFunctor, SendDeferrable},
+			impl_kind,
+			kinds::*,
+			types::{Thunk, Trampoline},
+		},
+		fp_macros::{
+			document_fields, document_parameters, document_signature, document_type_parameters,
+		},
+		std::{
+			cell::LazyCell,
+			rc::Rc,
+			sync::{Arc, LazyLock},
+		},
 	};
 
 	/// Configuration for memoization strategy.
@@ -45,7 +47,6 @@ mod inner {
 		type TryThunk<'a, A: 'a, E: 'a>: ?Sized;
 
 		/// Creates a new lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
@@ -67,7 +68,6 @@ mod inner {
 		fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A>;
 
 		/// Creates a new fallible lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -95,7 +95,6 @@ mod inner {
 		) -> Self::TryLazy<'a, A, E>;
 
 		/// Forces evaluation and returns a reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -121,7 +120,6 @@ mod inner {
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
 
 		/// Forces evaluation and returns a reference to the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -157,13 +155,12 @@ mod inner {
 
 	impl LazyConfig for RcLazyConfig {
 		type Lazy<'a, A: 'a> = Rc<LazyCell<A, Box<dyn FnOnce() -> A + 'a>>>;
+		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + 'a;
 		type TryLazy<'a, A: 'a, E: 'a> =
 			Rc<LazyCell<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + 'a>>>;
-		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + 'a;
 		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + 'a;
 
 		/// Creates a new lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
@@ -187,7 +184,6 @@ mod inner {
 		}
 
 		/// Creates a new fallible lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -217,7 +213,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns a reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -245,7 +240,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns a reference to the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -283,13 +277,12 @@ mod inner {
 
 	impl LazyConfig for ArcLazyConfig {
 		type Lazy<'a, A: 'a> = Arc<LazyLock<A, Box<dyn FnOnce() -> A + Send + 'a>>>;
+		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + Send + 'a;
 		type TryLazy<'a, A: 'a, E: 'a> =
 			Arc<LazyLock<Result<A, E>, Box<dyn FnOnce() -> Result<A, E> + Send + 'a>>>;
-		type Thunk<'a, A: 'a> = dyn FnOnce() -> A + Send + 'a;
 		type TryThunk<'a, A: 'a, E: 'a> = dyn FnOnce() -> Result<A, E> + Send + 'a;
 
 		/// Creates a new lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the computation.", "The type of the value.")]
@@ -313,7 +306,6 @@ mod inner {
 		}
 
 		/// Creates a new fallible lazy cell from an initializer.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -343,7 +335,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns a reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -371,7 +362,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns a reference to the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -411,7 +401,6 @@ mod inner {
 	///
 	/// The higher-kinded representation of this type constructor is [`LazyBrand<Config>`](crate::brands::LazyBrand),
 	/// which is parameterized by the memoization configuration and is polymorphic over the computed value type.
-	///
 	#[document_type_parameters(
 		"The lifetime of the reference.",
 		"The type of the computed value.",
@@ -465,7 +454,6 @@ mod inner {
 		A: 'a,
 	{
 		/// Gets the memoized value, computing on first access.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -491,7 +479,6 @@ mod inner {
 		A: 'a,
 	{
 		/// Creates a new Lazy that will run `f` on first access.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the initializer closure.")]
@@ -520,7 +507,6 @@ mod inner {
 		/// Creates a `Lazy` from an already-computed value.
 		///
 		/// The value is immediately available without any computation.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
@@ -569,7 +555,6 @@ mod inner {
 		A: 'a,
 	{
 		/// Creates a new Lazy that will run `f` on first access.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the initializer closure.")]
@@ -599,7 +584,6 @@ mod inner {
 		///
 		/// The value is immediately available without any computation.
 		/// Requires `Send` since `ArcLazy` is thread-safe.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
@@ -645,7 +629,6 @@ mod inner {
 		///
 		/// This flattens the nested structure: instead of `Lazy<Lazy<A>>`, we get `Lazy<A>`.
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -659,7 +642,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, types::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = Lazy::<_, RcLazyConfig>::defer(|| RcLazy::pure(42));
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -682,7 +670,6 @@ mod inner {
 		///
 		/// This flattens the nested structure: instead of `ArcLazy<ArcLazy<A>>`, we get `ArcLazy<A>`.
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -696,7 +683,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let lazy = ArcLazy::send_defer(|| ArcLazy::pure(42));
 		/// assert_eq!(*lazy.evaluate(), 42);
@@ -712,7 +703,6 @@ mod inner {
 
 	impl RefFunctor for LazyBrand<RcLazyConfig> {
 		/// Maps a function over the memoized value, where the function takes a reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -731,13 +721,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(
-		///     |x: &i32| *x * 2,
-		///     memo,
-		/// );
+		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
 		fn ref_map<'a, A: 'a, B: 'a, F>(
@@ -758,11 +749,11 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::inner::*;
-	use crate::types::{Thunk, Trampoline};
-	use std::cell::RefCell;
-	use std::rc::Rc;
-	use std::sync::Arc;
+	use {
+		super::inner::*,
+		crate::types::{Thunk, Trampoline},
+		std::{cell::RefCell, rc::Rc, sync::Arc},
+	};
 
 	/// Tests that `Lazy` caches the result of the computation.
 	///
@@ -807,8 +798,10 @@ mod tests {
 	/// Verifies that `ArcLazy` can be shared across threads and computes only once.
 	#[test]
 	fn test_arc_memo_thread_safety() {
-		use std::sync::atomic::{AtomicUsize, Ordering};
-		use std::thread;
+		use std::{
+			sync::atomic::{AtomicUsize, Ordering},
+			thread,
+		};
 
 		let counter = Arc::new(AtomicUsize::new(0));
 		let counter_clone = counter.clone();

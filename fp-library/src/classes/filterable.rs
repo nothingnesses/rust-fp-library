@@ -3,21 +3,24 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 //! assert_eq!(y, Some(5));
 //! ```
 
-use crate::{
-	Apply,
-	classes::{compactable::Compactable, functor::Functor},
-	kinds::*,
+use {
+	crate::{
+		Apply,
+		classes::{compactable::Compactable, functor::Functor},
+		kinds::*,
+	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
 
 /// A type class for data structures that can be filtered and partitioned.
 ///
@@ -39,7 +42,6 @@ pub trait Filterable: Compactable + Functor {
 	/// Partitions a data structure based on a function that returns a [`Result`].
 	///
 	/// The default implementation uses [`map`](crate::functions::map) and [`separate`](crate::functions::separate).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -62,10 +64,14 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
-	/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// let (errs, oks) =
+	/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
@@ -89,7 +95,6 @@ pub trait Filterable: Compactable + Functor {
 	/// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's [`Iterator::partition`].
 	/// This is achieved by mapping satisfied elements to [`Ok`] and unsatisfied elements to [`Err`] internally,
 	/// as `separate` returns `(Oks, Errs)`.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -107,7 +112,10 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
@@ -150,7 +158,10 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
@@ -169,7 +180,6 @@ pub trait Filterable: Compactable + Functor {
 	/// Filters a data structure based on a predicate.
 	///
 	/// The default implementation uses [`filter_map`].
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -187,7 +197,10 @@ pub trait Filterable: Compactable + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
@@ -207,7 +220,6 @@ pub trait Filterable: Compactable + Functor {
 /// Partitions a data structure based on a function that returns a [`Result`].
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::partition_map`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -231,10 +243,14 @@ pub trait Filterable: Compactable + Functor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
-/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+/// let (errs, oks) =
+/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
@@ -256,7 +272,6 @@ where
 /// Free function version that dispatches to [the type class' associated function][`Filterable::partition`].
 ///
 /// **Note**: The return order is `(satisfied, not_satisfied)`, matching Rust's [`Iterator::partition`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -275,7 +290,10 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
@@ -298,7 +316,6 @@ where
 /// Maps a function over a data structure and filters out [`None`] results.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::filter_map`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -321,7 +338,10 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
@@ -340,7 +360,6 @@ where
 /// Filters a data structure based on a predicate.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Filterable::filter`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -359,7 +378,10 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);

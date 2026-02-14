@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
 //! ```
 
-use super::RefCountedPointer;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	super::RefCountedPointer,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// Extension trait for thread-safe reference-counted pointers.
 ///
@@ -26,7 +29,6 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
 
 	/// Wraps a sized value in a thread-safe pointer.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The type of the value to wrap.")]
@@ -40,7 +42,10 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 	/// assert_eq!(*ptr, 42);
@@ -51,7 +56,6 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 }
 
 /// Wraps a sized value in a thread-safe pointer.
-///
 #[document_signature]
 ///
 #[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
@@ -65,7 +69,10 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 /// assert_eq!(*ptr, 42);

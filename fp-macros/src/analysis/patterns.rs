@@ -4,12 +4,14 @@
 //! - FnBrand pattern detection and extraction
 //! - Apply! macro pattern detection and extraction
 
-use crate::{
-	analysis::traits::{TraitCategory, classify_trait},
-	core::{config::Config, constants::macros},
-	hkt::ApplyInput,
+use {
+	crate::{
+		analysis::traits::{TraitCategory, classify_trait},
+		core::{config::Config, constants::macros},
+		hkt::ApplyInput,
+	},
+	syn::{GenericArgument, PathArguments},
 };
-use syn::{GenericArgument, PathArguments};
 
 // ============================================================================
 // FnBrand and Apply! Pattern Detection

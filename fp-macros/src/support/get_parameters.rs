@@ -1,13 +1,15 @@
-use crate::{
-	analysis::{
-		get_apply_macro_parameters,
-		patterns::get_fn_brand_info,
-		traits::{TraitCategory, classify_trait},
+use {
+	crate::{
+		analysis::{
+			get_apply_macro_parameters,
+			patterns::get_fn_brand_info,
+			traits::{TraitCategory, classify_trait},
+		},
+		core::{config::Config, constants::types},
+		support::type_visitor::TypeVisitor,
 	},
-	core::{config::Config, constants::types},
-	support::type_visitor::TypeVisitor,
+	syn::{PathArguments, ReturnType, TraitBound, Type, TypeParamBound},
 };
-use syn::{PathArguments, ReturnType, TraitBound, Type, TypeParamBound};
 
 /// Represents a parameter in a function signature, either explicit or implicit.
 #[derive(Clone, Debug)]

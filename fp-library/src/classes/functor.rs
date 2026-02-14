@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for types that can be mapped over.
 ///
@@ -29,7 +32,6 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context.
 	///
 	/// This method applies a function to the value(s) inside the functor context, producing a new functor context with the transformed value(s).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -51,7 +53,10 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
@@ -68,7 +73,6 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// Maps a function over the values in the functor context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Functor::map`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -91,7 +95,10 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);

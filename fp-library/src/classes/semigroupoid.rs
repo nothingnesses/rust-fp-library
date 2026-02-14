@@ -3,7 +3,11 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	classes::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 //! let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
@@ -11,10 +15,10 @@
 //! assert_eq!(h(5), 12); // (5 + 1) * 2
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for semigroupoids.
 ///
@@ -29,7 +33,6 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 	///
 	/// This method composes two morphisms `f` and `g` to produce a new morphism that represents the application of `g` followed by `f`.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -51,7 +54,11 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
@@ -67,7 +74,6 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroupoid::compose`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -90,7 +96,11 @@ pub trait Semigroupoid: Kind_140eb1e35dc7afb3 {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);

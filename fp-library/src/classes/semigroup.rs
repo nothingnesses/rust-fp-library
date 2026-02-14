@@ -11,9 +11,7 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 /// A type class for types that support an associative binary operation.
 ///
 /// `Semigroup` instances must satisfy the associative law:
@@ -22,7 +20,6 @@ pub trait Semigroup {
 	/// The result of combining the two values using the semigroup operation.
 	///
 	/// This method combines two values of the same type into a single value of that type.
-	///
 	#[document_signature]
 	///
 	#[document_parameters("The first value.", "The second value.")]
@@ -50,7 +47,6 @@ pub trait Semigroup {
 /// The result of combining the two values using the semigroup operation.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semigroup::append`].
-///
 #[document_signature]
 ///
 #[document_type_parameters("The type of the semigroup.")]

@@ -6,20 +6,24 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! // Functions are choice profunctors
 //! let f = |x: i32| x + 1;
-//! let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+//! let g =
+//! 	right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 //! assert_eq!(g(Ok(10)), Ok(11));
 //! assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 //! ```
 
-use super::profunctor::Profunctor;
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::profunctor::Profunctor,
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for choice profunctors.
 ///
@@ -37,7 +41,6 @@ pub trait Choice: Profunctor {
 	///
 	/// This method takes a profunctor `P A B` and returns `P (Result<C, A>) (Result<C, B>)`,
 	/// threading the alternative context `C` through unchanged in the Ok position.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -56,7 +59,10 @@ pub trait Choice: Profunctor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
 	/// let g = left::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
@@ -71,7 +77,6 @@ pub trait Choice: Profunctor {
 	///
 	/// This method takes a profunctor `P A B` and returns `P (Result<A, C>) (Result<B, C>)`,
 	/// threading the alternative context `C` through unchanged in the Err position.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -90,10 +95,14 @@ pub trait Choice: Profunctor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// let g =
+	/// 	right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g(Ok(10)), Ok(11));
 	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 	/// ```
@@ -117,7 +126,6 @@ pub trait Choice: Profunctor {
 /// Lift a profunctor to operate on the left (Err) variant of a Result.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::left`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -137,7 +145,10 @@ pub trait Choice: Profunctor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
 /// let g = left::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
@@ -153,7 +164,6 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 /// Lift a profunctor to operate on the right (Ok) variant of a Result.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::right`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -173,10 +183,14 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = |x: i32| x + 1;
-/// let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// let g =
+/// 	right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g(Ok(10)), Ok(11));
 /// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 /// ```

@@ -1,5 +1,7 @@
-use fp_macros::{Apply, impl_kind, trait_kind};
-use std::fmt::Display;
+use {
+	fp_macros::{Apply, impl_kind, trait_kind},
+	std::fmt::Display,
+};
 
 // ===========================================================================
 // Test 1: Simple `Kind` (No Lifetimes)

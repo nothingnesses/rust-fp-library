@@ -228,22 +228,24 @@
 //! Errors are collected in [`SelfSubstitutor::errors`] and can be reported
 //! to the user with proper span information.
 
-use crate::{
-	analysis::{format_brand_name, get_type_parameters},
-	core::{
-		config::Config,
-		constants::{macros, types},
-		error_handling::ErrorCollector,
+use {
+	crate::{
+		analysis::{format_brand_name, get_type_parameters},
+		core::{
+			config::Config,
+			constants::{macros, types},
+			error_handling::ErrorCollector,
+		},
+		hkt::ApplyInput,
+		resolution::ProjectionKey,
 	},
-	hkt::ApplyInput,
-	resolution::ProjectionKey,
-};
-use quote::quote;
-use std::collections::HashMap;
-use syn::{
-	Error, GenericParam, Signature, parse_quote,
-	spanned::Spanned,
-	visit_mut::{self, VisitMut},
+	quote::quote,
+	std::collections::HashMap,
+	syn::{
+		Error, GenericParam, Signature, parse_quote,
+		spanned::Spanned,
+		visit_mut::{self, VisitMut},
+	},
 };
 
 /// Extract the concrete type name from a Type for use in HM signatures

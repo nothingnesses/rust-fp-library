@@ -3,20 +3,21 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*, types::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! 	types::*,
+//! };
 //!
 //! let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-//! let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(
-//!     |x: &i32| *x * 2,
-//!     memo
-//! );
+//! let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for types that can be mapped over, returning references.
 ///
@@ -24,7 +25,6 @@ use fp_macros::document_type_parameters;
 /// This is required for types like `Lazy` where `get()` returns `&A`, not `A`.
 pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	/// Maps a function over the values in the functor context, where the function takes a reference.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -46,13 +46,14 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-	/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(
-	///     |x: &i32| *x * 2,
-	///     memo
-	/// );
+	/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
 	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
 	fn ref_map<'a, A: 'a, B: 'a, Func>(
@@ -66,7 +67,6 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 /// Maps a function over the values in the functor context, where the function takes a reference.
 ///
 /// Free function version that dispatches to [the type class' associated function][`RefFunctor::ref_map`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -89,13 +89,14 @@ pub trait RefFunctor: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// 	types::*,
+/// };
 ///
 /// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(
-///     |x: &i32| *x * 2,
-///     memo
-/// );
+/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
 /// assert_eq!(*mapped.evaluate(), 20);
 /// ```
 pub fn ref_map<'a, Brand: RefFunctor, A: 'a, B: 'a, Func>(

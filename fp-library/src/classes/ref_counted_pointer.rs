@@ -3,18 +3,21 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 //! let clone = ptr.clone();
 //! assert_eq!(*clone, 42);
 //! ```
 
-use super::Pointer;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	super::Pointer,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// Extension trait for reference-counted pointers with shared ownership.
 ///
@@ -27,7 +30,6 @@ pub trait RefCountedPointer: Pointer {
 	type CloneableOf<T: ?Sized>: Clone + Deref<Target = T>;
 
 	/// Wraps a sized value in a cloneable pointer.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The type of the value to wrap.")]
@@ -41,7 +43,10 @@ pub trait RefCountedPointer: Pointer {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 	/// assert_eq!(*ptr, 42);
@@ -51,7 +56,6 @@ pub trait RefCountedPointer: Pointer {
 		Self::CloneableOf<T>: Sized;
 
 	/// Attempts to unwrap the inner value if this is the sole reference.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The type of the wrapped value.")]
@@ -65,7 +69,10 @@ pub trait RefCountedPointer: Pointer {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 	/// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
@@ -80,7 +87,6 @@ pub trait RefCountedPointer: Pointer {
 /// Attempts to unwrap the inner value if this is the sole reference.
 ///
 /// Free function version that dispatches to [the type class' associated function][`RefCountedPointer::try_unwrap`].
-///
 #[document_signature]
 ///
 #[document_type_parameters("The pointer brand.", "The type of the wrapped value.")]
@@ -94,7 +100,10 @@ pub trait RefCountedPointer: Pointer {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 /// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
@@ -108,7 +117,6 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 }
 
 /// Wraps a sized value in a cloneable pointer.
-///
 #[document_signature]
 ///
 #[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
@@ -122,7 +130,11 @@ pub fn try_unwrap<P: RefCountedPointer, T>(ptr: P::CloneableOf<T>) -> Result<T, 
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::*,
+/// 	functions::*,
+/// };
 ///
 /// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
 /// let clone = ptr.clone();

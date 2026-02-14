@@ -3,7 +3,11 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, classes::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	classes::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 //! let x = Some(5);
@@ -11,11 +15,11 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift};
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for applying functions within a context to values within a context.
 ///
@@ -35,7 +39,6 @@ pub trait Semiapplicative: Lift + Functor {
 	/// When a container (like `Vec`) holds multiple different closures, they must be
 	/// type-erased via `Rc<dyn Fn>` or `Arc<dyn Fn>` because each Rust closure is a
 	/// distinct anonymous type.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -57,7 +60,11 @@ pub trait Semiapplicative: Lift + Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, classes::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// let x = Some(5);
@@ -73,7 +80,6 @@ pub trait Semiapplicative: Lift + Functor {
 /// Applies a function within a context to a value within a context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semiapplicative::apply`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -96,7 +102,11 @@ pub trait Semiapplicative: Lift + Functor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 /// let x = Some(5);

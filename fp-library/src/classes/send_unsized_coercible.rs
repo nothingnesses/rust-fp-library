@@ -3,21 +3,23 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 //! assert_eq!(f(1), 2);
 //! ```
 
-use super::{SendRefCountedPointer, UnsizedCoercible};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::{SendRefCountedPointer, UnsizedCoercible},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
 pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -35,7 +37,10 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
@@ -48,7 +53,6 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 ///
 /// Free function version that dispatches to [the type class' associated function][`SendUnsizedCoercible::coerce_send_fn`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -68,7 +72,11 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, classes::send_unsized_coercible::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::send_unsized_coercible::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);

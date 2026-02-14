@@ -3,13 +3,15 @@
 //! This module provides a builder pattern for generating documentation strings,
 //! replacing direct string manipulation on `quote!()` output.
 
-use crate::{
-	core::constants::macros::{APPLY_MACRO, IMPL_KIND_MACRO, KIND_MACRO, TRAIT_KIND_MACRO},
-	hkt::AssociatedType,
+use {
+	crate::{
+		core::constants::macros::{APPLY_MACRO, IMPL_KIND_MACRO, KIND_MACRO, TRAIT_KIND_MACRO},
+		hkt::AssociatedType,
+	},
+	proc_macro2::Ident,
+	quote::quote,
+	syn::GenericParam,
 };
-use proc_macro2::Ident;
-use quote::quote;
-use syn::GenericParam;
 
 /// Builder for Kind trait documentation.
 pub struct DocumentationBuilder<'a> {
@@ -201,8 +203,7 @@ The trait name `{name}` is a deterministic hash of the canonical signature, ensu
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use syn::parse_quote;
+	use {super::*, syn::parse_quote};
 
 	#[test]
 	fn test_documentation_builder_single_assoc() {

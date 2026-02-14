@@ -1,23 +1,25 @@
-use super::resolver::{normalize_type, type_uses_self_assoc};
-use crate::{
-	analysis::get_all_parameters,
-	core::{
-		config::Config,
-		constants::{
-			attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
-			macros::IMPL_KIND_MACRO,
+use {
+	super::resolver::{normalize_type, type_uses_self_assoc},
+	crate::{
+		analysis::get_all_parameters,
+		core::{
+			config::Config,
+			constants::{
+				attributes::{DOCUMENT_DEFAULT, DOCUMENT_TYPE_PARAMETERS},
+				macros::IMPL_KIND_MACRO,
+			},
+			error_handling::{CollectErrors, ErrorCollector},
 		},
-		error_handling::{CollectErrors, ErrorCollector},
+		hkt::{ImplKindInput, canonicalizer::hash_assoc_signature},
+		resolution::{ImplKey, ProjectionKey},
+		support::{
+			attributes::has_attribute,
+			documentation_parameters::{DocumentationParameter, DocumentationParameters},
+		},
 	},
-	hkt::{ImplKindInput, canonicalizer::hash_assoc_signature},
-	resolution::{ImplKey, ProjectionKey},
-	support::{
-		attributes::has_attribute,
-		documentation_parameters::{DocumentationParameter, DocumentationParameters},
-	},
+	quote::ToTokens,
+	syn::{Error, ImplItem, Item, Result, spanned::Spanned},
 };
-use quote::ToTokens;
-use syn::{Error, ImplItem, Item, Result, spanned::Spanned};
 
 /// Type alias for tracking scoped defaults
 type ScopedDefaultsTracker =

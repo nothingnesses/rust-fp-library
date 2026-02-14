@@ -4,17 +4,20 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
-			Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+	use {
+		crate::{
+			Apply,
+			brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
+			classes::{
+				Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor,
+				Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
+				Traversable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::{document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_parameters, document_type_parameters};
 
 	impl_kind! {
 		/// HKT branding for the `Result` type.
@@ -41,7 +44,6 @@ mod inner {
 		/// Maps functions over the values in the result.
 		///
 		/// This method applies one function to the error value and another to the success value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -67,7 +69,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::bifunctor::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
 		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
@@ -105,7 +111,6 @@ mod inner {
 		/// Maps a function over the value in the result.
 		///
 		/// This method applies a function to the value inside the result if it is `Ok`, producing a new result with the transformed value. If the result is `Err`, it is returned unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -124,7 +129,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(map::<ResultWithErrBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
 		/// assert_eq!(map::<ResultWithErrBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
@@ -145,7 +153,6 @@ mod inner {
 		/// Lifts a binary function into the result context.
 		///
 		/// This method lifts a binary function to operate on values within the result context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -169,23 +176,26 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     lift2::<ResultWithErrBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
-		///     Ok(3)
+		/// 	lift2::<ResultWithErrBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
-		///     Err(2)
+		/// 	lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
-		///     Err(1)
+		/// 	lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
-		///     Err(1)
+		/// 	lift2::<ResultWithErrBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	Err(1)
 		/// );
 		/// ```
 		fn lift2<'a, A, B, C, Func>(
@@ -212,7 +222,6 @@ mod inner {
 		/// Wraps a value in a result.
 		///
 		/// This method wraps a value in the `Ok` variant of a `Result`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -226,8 +235,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::ResultWithErrBrand;
+		/// use fp_library::{
+		/// 	brands::ResultWithErrBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(pure::<ResultWithErrBrand<()>, _>(5), Ok(5));
 		/// ```
@@ -247,7 +258,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a result to a value wrapped in a result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -269,7 +279,13 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, Apply, Kind};
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	Kind,
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f: Result<_, ()> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultWithErrBrand<()>, _, _>(f, Ok(5)), Ok(10));
@@ -296,7 +312,6 @@ mod inner {
 		/// Chains result computations.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -318,21 +333,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::ResultWithErrBrand;
+		/// use fp_library::{
+		/// 	brands::ResultWithErrBrand,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(
-		///     bind::<ResultWithErrBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)),
-		///     Ok(10)
-		/// );
-		/// assert_eq!(
-		///     bind::<ResultWithErrBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)),
-		///     Err(1)
-		/// );
-		/// assert_eq!(
-		///     bind::<ResultWithErrBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)),
-		///     Err(1)
-		/// );
+		/// assert_eq!(bind::<ResultWithErrBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
+		/// assert_eq!(bind::<ResultWithErrBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
+		/// assert_eq!(bind::<ResultWithErrBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -350,7 +358,6 @@ mod inner {
 		/// Folds the result from the right.
 		///
 		/// This method performs a right-associative fold of the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -370,10 +377,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands:: *, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)), 5);
-		/// assert_eq!(fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 0);
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
+		/// 	0
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -393,7 +409,6 @@ mod inner {
 		/// Folds the result from the left.
 		///
 		/// This method performs a left-associative fold of the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -413,10 +428,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands:: *, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)), 5);
-		/// assert_eq!(fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Err(1)), 0);
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Err(1)),
+		/// 	0
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -436,7 +460,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it.
 		///
 		/// This method maps the element of the result to a monoid and then returns it.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -456,15 +479,18 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
-		///     "5".to_string()
+		/// 	fold_map::<RcFnBrand, ResultWithErrBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
-		///     "".to_string()
+		/// 	fold_map::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
+		/// 	"".to_string()
 		/// );
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, F>(
@@ -488,7 +514,6 @@ mod inner {
 		/// Traverses the result with an applicative function.
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -508,20 +533,25 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultWithErrBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
-		///     Some(Ok(10))
+		/// 	traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
+		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		///     traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
-		///     Some(Err(1))
+		/// 	traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
+		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		///     traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
-		///     None
+		/// 	traverse::<ResultWithErrBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
+		/// 	None
 		/// );
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -541,7 +571,6 @@ mod inner {
 		/// Sequences a result of applicative.
 		///
 		/// This method evaluates the computation inside the result and accumulates the result into an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -559,21 +588,20 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::{ResultWithErrBrand, OptionBrand};
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultWithErrBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
 		///
+		/// assert_eq!(sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(Some(5))), Some(Ok(5)));
 		/// assert_eq!(
-		///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(Some(5))),
-		///     Some(Ok(5))
+		/// 	sequence::<ResultWithErrBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
+		/// 	Some(Err::<i32, i32>(1))
 		/// );
-		/// assert_eq!(
-		///     sequence::<ResultWithErrBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
-		///     Some(Err::<i32, i32>(1))
-		/// );
-		/// assert_eq!(
-		///     sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(None::<i32>)),
-		///     None
-		/// );
+		/// assert_eq!(sequence::<ResultWithErrBrand<()>, _, OptionBrand>(Ok(None::<i32>)), None);
 		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -603,7 +631,6 @@ mod inner {
 		/// Maps a function over the error value in the result.
 		///
 		/// This method applies a function to the error value inside the result if it is `Err`, producing a new result with the transformed error. If the result is `Ok`, it is returned unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -622,7 +649,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
 		/// assert_eq!(map::<ResultWithOkBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
@@ -646,7 +676,6 @@ mod inner {
 		/// Lifts a binary function into the result context (over error).
 		///
 		/// This method lifts a binary function to operate on error values within the result context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -670,23 +699,26 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
-		///     Err(3)
+		/// 	lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
-		///     Ok(2)
+		/// 	lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
-		///     Ok(1)
+		/// 	lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		///     lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
-		///     Ok(1)
+		/// 	lift2::<ResultWithOkBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	Ok(1)
 		/// );
 		/// ```
 		fn lift2<'a, A, B, C, Func>(
@@ -713,7 +745,6 @@ mod inner {
 		/// Wraps a value in a result (as error).
 		///
 		/// This method wraps a value in the `Err` variant of a `Result`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -727,8 +758,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::ResultWithOkBrand;
+		/// use fp_library::{
+		/// 	brands::ResultWithOkBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(pure::<ResultWithOkBrand<()>, _>(5), Err(5));
 		/// ```
@@ -748,7 +781,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value (over error).
 		///
 		/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -770,7 +802,13 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, Apply, Kind};
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	Kind,
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f: Result<(), _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(apply::<RcFnBrand, ResultWithOkBrand<()>, _, _>(f, Err(5)), Err(10));
@@ -797,7 +835,6 @@ mod inner {
 		/// Chains result computations (over error).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -816,21 +853,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::ResultWithOkBrand;
+		/// use fp_library::{
+		/// 	brands::ResultWithOkBrand,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(
-		///     bind::<ResultWithOkBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)),
-		///     Err(10)
-		/// );
-		/// assert_eq!(
-		///     bind::<ResultWithOkBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)),
-		///     Ok(1)
-		/// );
-		/// assert_eq!(
-		///     bind::<ResultWithOkBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)),
-		///     Ok(1)
-		/// );
+		/// assert_eq!(bind::<ResultWithOkBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
+		/// assert_eq!(bind::<ResultWithOkBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
+		/// assert_eq!(bind::<ResultWithOkBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -851,7 +881,6 @@ mod inner {
 		/// Folds the result from the right (over error).
 		///
 		/// This method performs a right-associative fold of the result (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -871,10 +900,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)), 1);
-		/// assert_eq!(fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())), 0);
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
+		/// 	1
+		/// );
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32, acc| x + acc, 0, Ok(())),
+		/// 	0
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -894,7 +932,6 @@ mod inner {
 		/// Folds the result from the left (over error).
 		///
 		/// This method performs a left-associative fold of the result (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -914,10 +951,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)), 5);
-		/// assert_eq!(fold_left::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)), 0);
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
+		/// 	0
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -937,7 +983,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it (over error).
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -957,15 +1002,18 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
-		///     "5".to_string()
+		/// 	fold_map::<RcFnBrand, ResultWithOkBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
-		///     "".to_string()
+		/// 	fold_map::<RcFnBrand, ResultWithOkBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	"".to_string()
 		/// );
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -989,7 +1037,6 @@ mod inner {
 		/// Traverses the result with an applicative function (over error).
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1009,20 +1056,25 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultWithOkBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
-		///     Some(Err(10))
+		/// 	traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
+		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		///     traverse::<ResultWithOkBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
-		///     Some(Ok(1))
+		/// 	traverse::<ResultWithOkBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
+		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		///     traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
-		///     None
+		/// 	traverse::<ResultWithOkBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
+		/// 	None
 		/// );
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -1042,7 +1094,6 @@ mod inner {
 		/// Sequences a result of applicative (over error).
 		///
 		/// This method evaluates the computation inside the result and accumulates the result into an applicative context (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1060,21 +1111,20 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::{ResultWithOkBrand, OptionBrand};
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultWithOkBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
 		///
+		/// assert_eq!(sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(Some(5))), Some(Err(5)));
 		/// assert_eq!(
-		///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(Some(5))),
-		///     Some(Err(5))
+		/// 	sequence::<ResultWithOkBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
+		/// 	Some(Ok::<i32, i32>(1))
 		/// );
-		/// assert_eq!(
-		///     sequence::<ResultWithOkBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
-		///     Some(Ok::<i32, i32>(1))
-		/// );
-		/// assert_eq!(
-		///     sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(None::<i32>)),
-		///     None
-		/// );
+		/// assert_eq!(sequence::<ResultWithOkBrand<()>, _, OptionBrand>(Err(None::<i32>)), None);
 		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -1095,7 +1145,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the result to a monoid and then returns it. The mapping operation may be executed in parallel.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1117,11 +1166,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x: Result<i32, ()> = Ok(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithErrBrand<()>, _, _>(f.clone(), x), "5".to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultWithErrBrand<()>, _, _>(f.clone(), x),
+		/// 	"5".to_string()
+		/// );
 		///
 		/// let x_err: Result<i32, i32> = Err(1);
 		/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(f, x_err), "".to_string());
@@ -1144,7 +1201,6 @@ mod inner {
 		/// Folds the result from the right in parallel.
 		///
 		/// This method folds the result by applying a function from right to left, potentially in parallel.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1167,7 +1223,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x: Result<i32, ()> = Ok(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -1198,7 +1258,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error). The mapping operation may be executed in parallel.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1220,11 +1279,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x: Result<(), i32> = Err(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithOkBrand<()>, _, _>(f.clone(), x), "5".to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultWithOkBrand<()>, _, _>(f.clone(), x),
+		/// 	"5".to_string()
+		/// );
 		///
 		/// let x_ok: Result<i32, i32> = Ok(1);
 		/// assert_eq!(par_fold_map::<ArcFnBrand, ResultWithOkBrand<i32>, _, _>(f, x_ok), "".to_string());
@@ -1247,7 +1314,6 @@ mod inner {
 		/// Folds the result from the right in parallel (over error).
 		///
 		/// This method folds the result by applying a function from right to left, potentially in parallel (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1270,7 +1336,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x: Result<(), i32> = Err(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -1300,12 +1370,14 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::{
-		brands::*,
-		classes::{CloneableFn, bifunctor::*},
-		functions::*,
+	use {
+		crate::{
+			brands::*,
+			classes::{CloneableFn, bifunctor::*},
+			functions::*,
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Bifunctor Tests
 

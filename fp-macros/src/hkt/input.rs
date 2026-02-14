@@ -3,12 +3,14 @@
 //! This module handles parsing of `Kind!` and `trait_kind!` macro input,
 //! defining the syntax for Kind trait signatures with associated types.
 
-use super::AssociatedTypeBase;
-use crate::support::parsing::{parse_generics, parse_many, parse_non_empty};
-use quote::ToTokens;
-use syn::{
-	Token,
-	parse::{Parse, ParseStream},
+use {
+	super::AssociatedTypeBase,
+	crate::support::parsing::{parse_generics, parse_many, parse_non_empty},
+	quote::ToTokens,
+	syn::{
+		Token,
+		parse::{Parse, ParseStream},
+	},
 };
 
 /// Represents the parsed input for a `Kind` signature.
@@ -80,8 +82,7 @@ impl Parse for AssociatedType {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use syn::parse_str;
+	use {super::*, syn::parse_str};
 
 	/// Tests parsing of a simple `Kind` signature with one associated type.
 	///

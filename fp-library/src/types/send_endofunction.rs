@@ -4,14 +4,16 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::{Monoid, Semigroup, SendCloneableFn},
-		functions::identity,
-	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
-	use std::{
-		fmt::{self, Debug, Formatter},
-		hash::Hash,
+	use {
+		crate::{
+			classes::{Monoid, Semigroup, SendCloneableFn},
+			functions::identity,
+		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		std::{
+			fmt::{self, Debug, Formatter},
+			hash::Hash,
+		},
 	};
 
 	/// A thread-safe wrapper for endofunctions (functions from a set to the same set) that enables monoidal operations.
@@ -24,7 +26,6 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity function][crate::functions::identity].
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
-	///
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
@@ -36,9 +37,15 @@ mod inner {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
-	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+	/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+	/// 	|x: i32| x * 2,
+	/// ));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
 	pub struct SendEndofunction<'a, FnBrand: SendCloneableFn, A>(
@@ -54,7 +61,6 @@ mod inner {
 		/// Creates a new `SendEndofunction`.
 		///
 		/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The function to wrap.")]
@@ -66,9 +72,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
 		pub fn new(f: <FnBrand as SendCloneableFn>::SendOf<'a, A, A>) -> Self {
@@ -213,7 +225,6 @@ mod inner {
 		/// This method combines two endofunctions into a single endofunction.
 		/// Note that `SendEndofunction` composition is reversed relative to standard function composition:
 		/// `append(f, g)` results in `f . g` (read as "f after g"), meaning `g` is applied first, then `f`.
-		///
 		#[document_signature]
 		///
 		#[document_parameters(
@@ -228,10 +239,18 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x + 1));
+		/// let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x * 2,
+		/// ));
+		/// let g = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(
+		/// 	|x: i32| x + 1,
+		/// ));
 		///
 		/// // f(g(x)) = (x + 1) * 2
 		/// let h = append::<_>(f, g);
@@ -259,7 +278,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -269,7 +287,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let id = empty::<SendEndofunction<ArcFnBrand, i32>>();
 		/// assert_eq!(id.0(5), 5);

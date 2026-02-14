@@ -9,9 +9,10 @@
 //! assert_eq!(x, "".to_string());
 //! ```
 
-use super::semigroup::Semigroup;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::semigroup::Semigroup,
+	fp_macros::{document_signature, document_type_parameters},
+};
 
 /// A type class for types that have an identity element and an associative binary operation.
 ///
@@ -24,7 +25,6 @@ pub trait Monoid: Semigroup {
 	/// The identity element.
 	///
 	/// This method returns the identity element of the monoid.
-	///
 	#[document_signature]
 	///
 	/// ### Returns
@@ -45,7 +45,6 @@ pub trait Monoid: Semigroup {
 /// The identity element.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
-///
 #[document_signature]
 ///
 #[document_type_parameters("The type of the monoid.")]

@@ -3,9 +3,11 @@
 //! This module provides utilities for parsing, filtering, and working with attributes,
 //! including documentation-specific attributes like `document_default` and `document_use`.
 
-use crate::core::{Result, constants::attributes};
-use proc_macro2::TokenStream;
-use syn::{Attribute, Expr, ExprLit, Lit, Meta, parse::Parse, spanned::Spanned};
+use {
+	crate::core::{Result, constants::attributes},
+	proc_macro2::TokenStream,
+	syn::{Attribute, Expr, ExprLit, Lit, Meta, parse::Parse, spanned::Spanned},
+};
 
 /// Finds the index of the first attribute with the given name.
 pub fn find_attribute(

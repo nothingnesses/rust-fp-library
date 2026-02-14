@@ -1,14 +1,16 @@
 //! Trait classification and analysis.
 
-use crate::{
-	core::{
-		config::Config,
-		constants::{brands, macros, markers, traits},
+use {
+	crate::{
+		core::{
+			config::Config,
+			constants::{brands, macros, markers, traits},
+		},
+		hm::HmAst,
+		support::last_path_segment,
 	},
-	hm::HmAst,
-	support::last_path_segment,
+	std::collections::{HashMap, HashSet},
 };
-use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, PartialEq)]
 pub enum TraitCategory {

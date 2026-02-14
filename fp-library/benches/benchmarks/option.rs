@@ -1,20 +1,22 @@
-use criterion::{BenchmarkId, Criterion};
-use fp_library::{
-	brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand},
-	classes::{
-		compactable::{compact, separate},
-		filterable::{filter, filter_map, partition, partition_map},
-		foldable::{fold_left, fold_right},
-		functor::map,
-		lift::lift2,
-		par_foldable::par_fold_map,
-		pointed::pure,
-		semiapplicative::apply,
-		semimonad::bind,
-		traversable::{sequence, traverse},
-		witherable::{wilt, wither},
+use {
+	criterion::{BenchmarkId, Criterion},
+	fp_library::{
+		brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand},
+		classes::{
+			compactable::{compact, separate},
+			filterable::{filter, filter_map, partition, partition_map},
+			foldable::{fold_left, fold_right},
+			functor::map,
+			lift::lift2,
+			par_foldable::par_fold_map,
+			pointed::pure,
+			semiapplicative::apply,
+			semimonad::bind,
+			traversable::{sequence, traverse},
+			witherable::{wilt, wither},
+		},
+		functions::{cloneable_fn_new, send_cloneable_fn_new},
 	},
-	functions::{cloneable_fn_new, send_cloneable_fn_new},
 };
 
 pub fn bench_option(c: &mut Criterion) {

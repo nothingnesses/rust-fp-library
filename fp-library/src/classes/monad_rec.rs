@@ -4,33 +4,33 @@
 //!
 //! ```
 //! use fp_library::{
-//!     brands::*,
-//!     classes::*,
-//!     types::*,
-//!     functions::tail_rec_m,
+//! 	brands::*,
+//! 	classes::*,
+//! 	functions::tail_rec_m,
+//! 	types::*,
 //! };
 //!
 //! // A tail-recursive function to calculate factorial
 //! fn factorial(n: u64) -> Thunk<'static, u64> {
-//!     tail_rec_m::<ThunkBrand, _, _, _>(
-//!         |(n, acc)| {
-//!             if n == 0 {
-//!                 Thunk::pure(Step::Done(acc))
-//!             } else {
-//!                 Thunk::pure(Step::Loop((n - 1, n * acc)))
-//!             }
-//!         },
-//!         (n, 1),
-//!     )
+//! 	tail_rec_m::<ThunkBrand, _, _, _>(
+//! 		|(n, acc)| {
+//! 			if n == 0 {
+//! 				Thunk::pure(Step::Done(acc))
+//! 			} else {
+//! 				Thunk::pure(Step::Loop((n - 1, n * acc)))
+//! 			}
+//! 		},
+//! 		(n, 1),
+//! 	)
 //! }
 //!
 //! assert_eq!(factorial(5).evaluate(), 120);
 //! ```
 
-use crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A type class for monads that support stack-safe tail recursion.
 ///
@@ -52,7 +52,6 @@ use fp_macros::document_type_parameters;
 ///    `Trampoline` is guaranteed stack-safe for all operations.
 pub trait MonadRec: Monad {
 	/// Performs tail-recursive monadic computation.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -71,17 +70,17 @@ pub trait MonadRec: Monad {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
-	///     |n| {
-	///         if n < 10 {
-	///             Thunk::pure(Step::Loop(n + 1))
-	///         } else {
-	///             Thunk::pure(Step::Done(n))
-	///         }
-	///     },
-	///     0,
+	/// 	|n| {
+	/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
+	/// 	},
+	/// 	0,
 	/// );
 	///
 	/// assert_eq!(result.evaluate(), 10);
@@ -99,7 +98,6 @@ pub trait MonadRec: Monad {
 /// Performs tail-recursive monadic computation.
 ///
 /// Free function version that dispatches to [the type class' associated function][`MonadRec::tail_rec_m`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -119,17 +117,17 @@ pub trait MonadRec: Monad {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// 	types::*,
+/// };
 ///
 /// let result = tail_rec_m::<ThunkBrand, _, _, _>(
-///     |n| {
-///         if n < 10 {
-///             Thunk::pure(Step::Loop(n + 1))
-///         } else {
-///             Thunk::pure(Step::Done(n))
-///         }
-///     },
-///     0,
+/// 	|n| {
+/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
+/// 	},
+/// 	0,
 /// );
 ///
 /// assert_eq!(result.evaluate(), 10);

@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 //! assert_eq!(f(5), 10);
 //! ```
 
-use super::function::Function;
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
-use std::ops::Deref;
+use {
+	super::function::Function,
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	std::ops::Deref,
+};
 
 /// A trait for cloneable wrappers over closures, allowing for generic handling of cloneable functions in higher-kinded contexts.
 ///
@@ -35,7 +38,6 @@ pub trait CloneableFn: Function {
 	/// Creates a new cloneable function wrapper.
 	///
 	/// This function wraps the provided closure `f` into a cloneable function.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -52,7 +54,10 @@ pub trait CloneableFn: Function {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
@@ -63,7 +68,6 @@ pub trait CloneableFn: Function {
 /// Creates a new cloneable function wrapper.
 ///
 /// Free function version that dispatches to [the type class' associated function][`CloneableFn::new`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -81,7 +85,10 @@ pub trait CloneableFn: Function {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);

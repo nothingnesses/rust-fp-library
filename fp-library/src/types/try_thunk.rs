@@ -4,24 +4,25 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::{TryThunkBrand, TryThunkWithErrBrand, TryThunkWithOkBrand},
-		classes::{
-			ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Deferrable, Foldable, Functor, Lift,
-			MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+	use {
+		crate::{
+			Apply,
+			brands::{TryThunkBrand, TryThunkWithErrBrand, TryThunkWithOkBrand},
+			classes::{
+				ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Deferrable, Foldable, Functor,
+				Lift, MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+			},
+			impl_kind,
+			kinds::*,
+			types::{Lazy, LazyConfig, Step, Thunk, TryLazy},
 		},
-		impl_kind,
-		kinds::*,
-		types::{Lazy, LazyConfig, Step, Thunk, TryLazy},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// A deferred computation that may fail with error type `E`.
 	///
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
-	///
 	#[document_type_parameters(
 		"The lifetime of the computation.",
 		"The type of the value produced by the computation on success.",
@@ -34,7 +35,6 @@ mod inner {
 	/// - [`TryThunkBrand`](crate::brands::TryThunkBrand): fully polymorphic over both error and success types (bifunctor).
 	/// - [`TryThunkWithErrBrand<E>`](crate::brands::TryThunkWithErrBrand): the error type is fixed, polymorphic over the success type (functor over `Ok`).
 	/// - [`TryThunkWithOkBrand<A>`](crate::brands::TryThunkWithOkBrand): the success type is fixed, polymorphic over the error type (functor over `Err`).
-	///
 	#[document_fields("The closure that performs the computation.")]
 	///
 	/// ### Examples
@@ -42,13 +42,11 @@ mod inner {
 	/// ```
 	/// use fp_library::types::*;
 	///
-	/// let computation: TryThunk<i32, &str> = TryThunk::new(|| {
-	///     Ok(42)
-	/// });
+	/// let computation: TryThunk<i32, &str> = TryThunk::new(|| Ok(42));
 	///
 	/// match computation.evaluate() {
-	///     Ok(val) => assert_eq!(val, 42),
-	///     Err(_) => panic!("Should not fail"),
+	/// 	Ok(val) => assert_eq!(val, 42),
+	/// 	Err(_) => panic!("Should not fail"),
 	/// }
 	/// ```
 	pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
@@ -61,7 +59,6 @@ mod inner {
 	#[document_parameters("The `TryThunk` instance.")]
 	impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
 		/// Creates a new `TryThunk` from a thunk.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -88,7 +85,6 @@ mod inner {
 		}
 
 		/// Returns a pure value (already computed).
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -113,7 +109,6 @@ mod inner {
 		}
 
 		/// Defers a computation that returns a TryThunk.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -142,7 +137,6 @@ mod inner {
 		/// Alias for [`pure`](Self::pure).
 		///
 		/// Creates a successful computation.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The value to wrap.")]
@@ -167,7 +161,6 @@ mod inner {
 		}
 
 		/// Returns a pure error.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The error to wrap.")]
@@ -192,7 +185,6 @@ mod inner {
 		}
 
 		/// Monadic bind: chains computations.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -228,7 +220,6 @@ mod inner {
 		}
 
 		/// Functor map: transforms the result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -261,7 +252,6 @@ mod inner {
 		}
 
 		/// Map error: transforms the error.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -294,7 +284,6 @@ mod inner {
 		}
 
 		/// Recovers from an error.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the recovery function.")]
@@ -310,8 +299,7 @@ mod inner {
 		/// ```
 		/// use fp_library::types::*;
 		///
-		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error")
-		///     .catch(|_| TryThunk::pure(42));
+		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::pure(42));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
 		pub fn catch<F>(
@@ -328,7 +316,6 @@ mod inner {
 		}
 
 		/// Forces evaluation and returns the result.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -410,7 +397,6 @@ mod inner {
 		E: 'a,
 	{
 		/// Creates a `TryThunk` from a computation that produces it.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the thunk.")]
@@ -424,7 +410,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*, classes::Deferrable};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::pure(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
@@ -448,7 +439,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
 		/// Maps a function over the result of a `TryThunk` computation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -470,7 +460,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
 		/// let mapped = map::<TryThunkWithErrBrand<()>, _, _, _>(|x| x * 2, try_thunk);
@@ -490,7 +484,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Pointed for TryThunkWithErrBrand<E> {
 		/// Wraps a value in a `TryThunk` context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -507,7 +500,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
@@ -520,7 +517,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
 		/// Lifts a binary function into the `TryThunk` context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -544,7 +540,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
 		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(20);
@@ -575,7 +575,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
 		/// Applies a function wrapped in `TryThunk` to a value wrapped in `TryThunk`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -597,9 +596,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let func: TryThunk<_, ()> = pure::<TryThunkWithErrBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let func: TryThunk<_, ()> =
+		/// 	pure::<TryThunkWithErrBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<_, ()> = pure::<TryThunkWithErrBrand<()>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkWithErrBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
@@ -620,7 +624,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
 		/// Chains `TryThunk` computations.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -642,10 +645,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
-		/// let result = bind::<TryThunkWithErrBrand<()>, _, _, _>(try_thunk, |x| pure::<TryThunkWithErrBrand<()>, _>(x * 2));
+		/// let result = bind::<TryThunkWithErrBrand<()>, _, _, _>(try_thunk, |x| {
+		/// 	pure::<TryThunkWithErrBrand<()>, _>(x * 2)
+		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
 		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
@@ -662,7 +671,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
 		/// Performs tail-recursive monadic computation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -681,11 +689,20 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let result = tail_rec_m::<TryThunkWithErrBrand<()>, _, _, _>(
-		///     |x| pure::<TryThunkWithErrBrand<()>, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
-		///     0,
+		/// 	|x| {
+		/// 		pure::<TryThunkWithErrBrand<()>, _>(
+		/// 			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
+		/// 		)
+		/// 	},
+		/// 	0,
 		/// );
 		/// assert_eq!(result.evaluate(), Ok(1000));
 		/// ```
@@ -714,7 +731,6 @@ mod inner {
 	#[document_type_parameters("The error type.")]
 	impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
 		/// Folds the `TryThunk` from the right.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -738,10 +754,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
-		/// let result = fold_right::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
+		/// let result =
+		/// 	fold_right::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
@@ -760,7 +781,6 @@ mod inner {
 		}
 
 		/// Folds the `TryThunk` from the left.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -784,10 +804,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
-		/// let result = fold_left::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result =
+		/// 	fold_left::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
@@ -806,7 +831,6 @@ mod inner {
 		}
 
 		/// Maps the value to a monoid and returns it.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -826,10 +850,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(10);
-		/// let result = fold_map::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a| a.to_string(), try_thunk);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a| a.to_string(), try_thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -855,7 +884,6 @@ mod inner {
 	)]
 	impl<'a, A: Semigroup + 'a, E: 'a> Semigroup for TryThunk<'a, A, E> {
 		/// Combines two `TryThunk`s by combining their results.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The first `TryThunk`.", "The second `TryThunk`.")]
@@ -867,7 +895,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let t1: TryThunk<String, ()> = pure::<TryThunkWithErrBrand<()>, _>("Hello".to_string());
 		/// let t2: TryThunk<String, ()> = pure::<TryThunkWithErrBrand<()>, _>(" World".to_string());
@@ -893,7 +926,6 @@ mod inner {
 	)]
 	impl<'a, A: Monoid + 'a, E: 'a> Monoid for TryThunk<'a, A, E> {
 		/// Returns the identity `TryThunk`.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -903,7 +935,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{classes::*, types::*};
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let t: TryThunk<String, ()> = TryThunk::empty();
 		/// assert_eq!(t.evaluate(), Ok("".to_string()));
@@ -929,7 +964,6 @@ mod inner {
 		/// Maps functions over the values in the `TryThunk`.
 		///
 		/// This method applies one function to the error value and another to the success value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -955,13 +989,24 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::bifunctor::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x: TryThunk<i32, i32> = TryThunk::pure(5);
-		/// assert_eq!(bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(), Ok(10));
+		/// assert_eq!(
+		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(),
+		/// 	Ok(10)
+		/// );
 		///
 		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
-		/// assert_eq!(bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(), Err(6));
+		/// assert_eq!(
+		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(),
+		/// 	Err(6)
+		/// );
 		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
@@ -989,7 +1034,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
 		/// Maps a function over the error value in the `TryThunk`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1008,7 +1052,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
 		/// let mapped = map::<TryThunkWithOkBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
@@ -1028,7 +1076,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Pointed for TryThunkWithOkBrand<A> {
 		/// Wraps a value in a `TryThunk` context (as error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1045,7 +1092,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(42);
 		/// assert_eq!(try_thunk.evaluate(), Err(42));
@@ -1058,7 +1109,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
 		/// Lifts a binary function into the `TryThunk` context (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1082,7 +1132,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
 		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(20);
@@ -1117,7 +1171,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
 		/// Applies a function wrapped in `TryThunk` (as error) to a value wrapped in `TryThunk` (as error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1139,9 +1192,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
-		/// let func: TryThunk<i32, _> = pure::<TryThunkWithOkBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let func: TryThunk<i32, _> =
+		/// 	pure::<TryThunkWithOkBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let val: TryThunk<i32, _> = pure::<TryThunkWithOkBrand<i32>, _>(21);
 		/// let result = apply::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
@@ -1161,7 +1219,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
 		/// Chains `TryThunk` computations (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1183,10 +1240,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
-		/// let result = bind::<TryThunkWithOkBrand<i32>, _, _, _>(try_thunk, |x| pure::<TryThunkWithOkBrand<i32>, _>(x * 2));
+		/// let result = bind::<TryThunkWithOkBrand<i32>, _, _, _>(try_thunk, |x| {
+		/// 	pure::<TryThunkWithOkBrand<i32>, _>(x * 2)
+		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
 		/// ```
 		fn bind<'a, E1: 'a, E2: 'a, Func>(
@@ -1206,7 +1269,6 @@ mod inner {
 	#[document_type_parameters("The success type.")]
 	impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
 		/// Folds the `TryThunk` from the right (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1230,10 +1292,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
-		/// let result = fold_right::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
+		/// let result =
+		/// 	fold_right::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_right<'a, FnBrand, E: 'a, B: 'a, Func>(
@@ -1252,7 +1319,6 @@ mod inner {
 		}
 
 		/// Folds the `TryThunk` from the left (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1276,10 +1342,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
-		/// let result = fold_left::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// let result =
+		/// 	fold_left::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
 		fn fold_left<'a, FnBrand, E: 'a, B: 'a, Func>(
@@ -1298,7 +1369,6 @@ mod inner {
 		}
 
 		/// Maps the value to a monoid and returns it (over error).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1318,10 +1388,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(10);
-		/// let result = fold_map::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a| a.to_string(), try_thunk);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a| a.to_string(), try_thunk);
 		/// assert_eq!(result, "10");
 		/// ```
 		fn fold_map<'a, FnBrand, E: 'a, M, Func>(
@@ -1344,9 +1419,7 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use crate::types::Thunk;
-
-	use super::*;
+	use {super::*, crate::types::Thunk};
 
 	/// Tests success path.
 	///

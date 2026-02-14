@@ -1,28 +1,30 @@
-use super::generation::generate_documentation;
-use crate::{
-	analysis::get_all_parameters,
-	core::{
-		Result as OurResult,
-		config::Config,
-		constants::attributes::{
-			DOCUMENT_MODULE, DOCUMENT_PARAMETERS, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS,
+use {
+	super::generation::generate_documentation,
+	crate::{
+		analysis::get_all_parameters,
+		core::{
+			Result as OurResult,
+			config::Config,
+			constants::attributes::{
+				DOCUMENT_MODULE, DOCUMENT_PARAMETERS, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS,
+			},
+			error_handling::ErrorCollector,
 		},
-		error_handling::ErrorCollector,
+		resolution::get_context,
+		support::{
+			attributes::has_attribute,
+			method_utils::{has_non_receiver_parameters, impl_has_receiver_methods},
+			parsing::{parse_many, parse_non_empty, parse_with_dispatch},
+		},
 	},
-	resolution::get_context,
-	support::{
-		attributes::has_attribute,
-		method_utils::{has_non_receiver_parameters, impl_has_receiver_methods},
-		parsing::{parse_many, parse_non_empty, parse_with_dispatch},
+	proc_macro2::TokenStream,
+	quote::quote,
+	syn::{
+		Item, ItemMod,
+		parse::{Parse, ParseStream},
+		spanned::Spanned,
+		visit_mut::{self, VisitMut},
 	},
-};
-use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{
-	Item, ItemMod,
-	parse::{Parse, ParseStream},
-	spanned::Spanned,
-	visit_mut::{self, VisitMut},
 };
 
 pub struct DocumentModuleInput {

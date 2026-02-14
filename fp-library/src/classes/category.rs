@@ -5,16 +5,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let id = category_identity::<RcFnBrand, i32>();
 //! assert_eq!(id(5), 5);
 //! ```
 
-use super::semigroupoid::Semigroupoid;
-use crate::{Apply, kinds::*};
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	super::semigroupoid::Semigroupoid,
+	crate::{Apply, kinds::*},
+	fp_macros::{document_signature, document_type_parameters},
+};
 
 /// A type class for categories, which are semigroupoids with an identity element.
 ///
@@ -28,7 +32,6 @@ pub trait Category: Semigroupoid {
 	/// Returns the identity morphism.
 	///
 	/// The identity morphism is a morphism that maps every object to itself.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
@@ -40,7 +43,10 @@ pub trait Category: Semigroupoid {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
@@ -51,7 +57,6 @@ pub trait Category: Semigroupoid {
 /// Returns the identity morphism.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Category::identity`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -67,7 +72,10 @@ pub trait Category: Semigroupoid {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let id = category_identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);

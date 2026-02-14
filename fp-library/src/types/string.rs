@@ -4,12 +4,14 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		classes::{Monoid, Semigroup},
-		impl_kind,
-		kinds::*,
+	use {
+		crate::{
+			classes::{Monoid, Semigroup},
+			impl_kind,
+			kinds::*,
+		},
+		fp_macros::document_parameters,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for String {
@@ -21,7 +23,6 @@ mod inner {
 		/// The result of combining two strings.
 		///
 		/// This method combines two strings into a single string.
-		///
 		#[document_signature]
 		///
 		#[document_parameters("The first string.", "The second string.")]
@@ -52,7 +53,6 @@ mod inner {
 		/// The identity element.
 		///
 		/// This method returns the identity element of the monoid.
-		///
 		#[document_signature]
 		///
 		/// ### Returns
@@ -75,8 +75,10 @@ mod inner {
 
 #[cfg(test)]
 mod tests {
-	use crate::classes::{monoid::Monoid, semigroup::append};
-	use quickcheck_macros::quickcheck;
+	use {
+		crate::classes::{monoid::Monoid, semigroup::append},
+		quickcheck_macros::quickcheck,
+	};
 
 	// Semigroup Laws
 

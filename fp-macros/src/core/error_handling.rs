@@ -3,9 +3,11 @@
 //! This module provides a comprehensive error system with rich context for
 //! generating helpful compile-time error messages.
 
-use proc_macro2::{Span, TokenStream};
-use std::fmt;
-use thiserror::Error;
+use {
+	proc_macro2::{Span, TokenStream},
+	std::fmt,
+	thiserror::Error,
+};
 
 /// Result type alias using our unified error type
 pub type Result<T> = std::result::Result<T, Error>;
@@ -311,8 +313,8 @@ impl Default for ErrorCollector {
 }
 
 impl IntoIterator for ErrorCollector {
-	type Item = syn::Error;
 	type IntoIter = std::vec::IntoIter<syn::Error>;
+	type Item = syn::Error;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.errors.into_iter()
@@ -320,8 +322,8 @@ impl IntoIterator for ErrorCollector {
 }
 
 impl<'a> IntoIterator for &'a ErrorCollector {
-	type Item = &'a syn::Error;
 	type IntoIter = std::slice::Iter<'a, syn::Error>;
+	type Item = &'a syn::Error;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.errors.iter()

@@ -5,7 +5,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 //! assert_eq!(*ptr, 42);
@@ -13,21 +16,22 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		brands::ArcBrand,
-		classes::{
-			Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible,
-			UnsizedCoercible,
+	use {
+		crate::{
+			brands::ArcBrand,
+			classes::{
+				Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible,
+				UnsizedCoercible,
+			},
 		},
+		fp_macros::document_parameters,
+		std::sync::Arc,
 	};
-	use fp_macros::document_parameters;
-	use std::sync::Arc;
 
 	impl Pointer for ArcBrand {
 		type Of<T: ?Sized> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the value to wrap.")]
@@ -41,7 +45,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
@@ -55,7 +62,6 @@ mod inner {
 		type CloneableOf<T: ?Sized> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the value to wrap.")]
@@ -69,7 +75,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
@@ -79,7 +88,6 @@ mod inner {
 		}
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the wrapped value.")]
@@ -93,7 +101,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(try_unwrap::<ArcBrand, _>(ptr), Ok(42));
@@ -107,7 +118,6 @@ mod inner {
 		type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The type of the value to wrap.")]
@@ -121,7 +131,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
@@ -133,7 +146,6 @@ mod inner {
 
 	impl UnsizedCoercible for ArcBrand {
 		/// Coerces a sized closure to a `dyn Fn` wrapped in an `Arc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -151,7 +163,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
@@ -163,7 +178,6 @@ mod inner {
 
 	impl SendUnsizedCoercible for ArcBrand {
 		/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync` wrapped in an `Arc`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -181,7 +195,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);

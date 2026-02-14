@@ -6,16 +6,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*, types::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! 	types::*,
+//! };
 //!
 //! let thunk = Thunk::new(|| 42);
 //! assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 //! ```
 
-use crate::{Apply, classes::functor::Functor, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, classes::functor::Functor, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// A functor whose effects can be evaluated to produce the inner value.
 ///
@@ -23,7 +27,6 @@ use fp_macros::document_type_parameters;
 /// in a [`Free`](crate::types::Free) monad.
 pub trait Evaluable: Functor {
 	/// Evaluates the effect, producing the inner value.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -40,7 +43,11 @@ pub trait Evaluable: Functor {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{brands::*, functions::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let eval = Thunk::new(|| 42);
 	/// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);
@@ -51,7 +58,6 @@ pub trait Evaluable: Functor {
 /// Evaluates the effect, producing the inner value.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Evaluable::evaluate`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -69,7 +75,11 @@ pub trait Evaluable: Functor {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{brands::*, functions::*, types::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// 	types::*,
+/// };
 ///
 /// let eval = Thunk::new(|| 42);
 /// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);

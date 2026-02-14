@@ -4,17 +4,19 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::IdentityBrand,
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Foldable, Functor, Lift, Monoid,
-			ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+	use {
+		crate::{
+			Apply,
+			brands::IdentityBrand,
+			classes::{
+				Applicative, ApplyFirst, ApplySecond, CloneableFn, Foldable, Functor, Lift, Monoid,
+				ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
-	use fp_macros::{document_fields, document_parameters, document_type_parameters};
 
 	/// Wraps a value.
 	///
@@ -29,7 +31,6 @@ mod inner {
 	/// ### Serialization
 	///
 	/// This type supports serialization and deserialization via [`serde`](https://serde.rs) when the `serde` feature is enabled.
-	///
 	#[document_type_parameters("The type of the wrapped value.")]
 	///
 	#[document_fields("The wrapped value.")]
@@ -56,7 +57,6 @@ mod inner {
 		/// Maps a function over the value in the identity.
 		///
 		/// This method applies a function to the value inside the identity, producing a new identity with the transformed value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -75,7 +75,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = map::<IdentityBrand, _, _, _>(|i| i * 2, x);
@@ -96,7 +100,6 @@ mod inner {
 		/// Lifts a binary function into the identity context.
 		///
 		/// This method lifts a binary function to operate on values within the identity context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -120,7 +123,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let y = Identity(2);
@@ -146,7 +153,6 @@ mod inner {
 		/// Wraps a value in an identity.
 		///
 		/// This method wraps a value in an identity context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -160,7 +166,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = pure::<IdentityBrand, _>(5);
 		/// assert_eq!(x, Identity(5));
@@ -177,7 +187,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in an identity to a value wrapped in an identity.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -199,7 +208,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let f = Identity(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Identity(5);
@@ -218,7 +231,6 @@ mod inner {
 		/// Chains identity computations.
 		///
 		/// This method chains two identity computations, where the second computation depends on the result of the first.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -240,7 +252,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
@@ -261,7 +277,6 @@ mod inner {
 		/// Folds the identity from the right.
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the element and the initial value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -285,7 +300,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
@@ -306,7 +325,6 @@ mod inner {
 		/// Folds the identity from the left.
 		///
 		/// This method performs a left-associative fold of the identity. Since `Identity` contains only one element, this is equivalent to applying the function to the initial value and the element.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -330,7 +348,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
@@ -351,7 +373,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it.
 		///
 		/// This method maps the element of the identity to a monoid.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -371,7 +392,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = fold_map::<RcFnBrand, IdentityBrand, _, _, _>(|a: i32| a.to_string(), x);
@@ -394,7 +419,6 @@ mod inner {
 		/// Traverses the identity with an applicative function.
 		///
 		/// This method maps the element of the identity to a computation, evaluates it, and wraps the result in the applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -417,7 +441,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(5);
 		/// let y = traverse::<IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
@@ -433,10 +461,10 @@ mod inner {
 		{
 			F::map(|b| Identity(b), func(ta.0))
 		}
+
 		/// Sequences an identity of applicative.
 		///
 		/// This method evaluates the computation inside the identity and wraps the result in the applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -454,7 +482,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(Some(5));
 		/// let y = sequence::<IdentityBrand, _, OptionBrand>(x);
@@ -475,7 +507,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it in parallel.
 		///
 		/// This method maps the element of the identity to a monoid. Since `Identity` contains only one element, no actual parallelism occurs, but the interface is satisfied.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -494,7 +525,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -516,7 +551,6 @@ mod inner {
 		/// Folds the identity from the right in parallel.
 		///
 		/// This method performs a right-associative fold of the identity. Since `Identity` contains only one element, no actual parallelism occurs.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -539,7 +573,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*, types::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
 		///
 		/// let x = Identity(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -564,16 +602,18 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use super::inner::Identity;
-	use crate::{
-		brands::{IdentityBrand, OptionBrand, RcFnBrand},
-		classes::{
-			cloneable_fn::CloneableFn, functor::map, pointed::pure, semiapplicative::apply,
-			semimonad::bind,
+	use {
+		super::inner::Identity,
+		crate::{
+			brands::{IdentityBrand, OptionBrand, RcFnBrand},
+			classes::{
+				cloneable_fn::CloneableFn, functor::map, pointed::pure, semiapplicative::apply,
+				semimonad::bind,
+			},
+			functions::{compose, identity},
 		},
-		functions::{compose, identity},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Functor Laws
 

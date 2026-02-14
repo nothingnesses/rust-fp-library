@@ -4,18 +4,20 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::OptionBrand,
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable, Foldable,
-			Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad,
-			SendCloneableFn, Traversable, Witherable,
+	use {
+		crate::{
+			Apply,
+			brands::OptionBrand,
+			classes::{
+				Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable,
+				Foldable, Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad,
+				SendCloneableFn, Traversable, Witherable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::document_parameters,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for OptionBrand {
@@ -27,7 +29,6 @@ mod inner {
 		/// Maps a function over the value in the option.
 		///
 		/// This method applies a function to the value inside the option, producing a new option with the transformed value. If the option is `None`, it returns `None`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -46,7 +47,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
@@ -67,7 +71,6 @@ mod inner {
 		/// Lifts a binary function into the option context.
 		///
 		/// This method lifts a binary function to operate on values within the option context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -91,7 +94,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
@@ -117,7 +123,6 @@ mod inner {
 		/// Wraps a value in an option.
 		///
 		/// This method wraps a value in an option context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -131,8 +136,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = pure::<OptionBrand, _>(5);
 		/// assert_eq!(x, Some(5));
@@ -149,7 +156,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in an option to a value wrapped in an option.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -171,7 +177,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// let x = Some(5);
@@ -193,7 +203,6 @@ mod inner {
 		/// Chains option computations.
 		///
 		/// This method chains two option computations, where the second computation depends on the result of the first.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -215,8 +224,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
@@ -237,7 +248,6 @@ mod inner {
 		/// Folds the option from the right.
 		///
 		/// This method performs a right-associative fold of the option. If the option is `Some(a)`, it applies the function to `a` and the initial value. If `None`, it returns the initial value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -257,7 +267,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
@@ -281,7 +294,6 @@ mod inner {
 		/// Folds the option from the left.
 		///
 		/// This method performs a left-associative fold of the option. If the option is `Some(a)`, it applies the function to the initial value and `a`. If `None`, it returns the initial value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -305,7 +317,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
@@ -329,7 +344,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty.
 		///
 		/// This method maps the element of the option to a monoid. If the option is `None`, it returns the monoid's identity element.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -349,7 +363,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
@@ -375,7 +392,6 @@ mod inner {
 		/// Traverses the option with an applicative function.
 		///
 		/// This method maps the element of the option to a computation, evaluates it, and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -398,8 +414,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
@@ -418,10 +436,10 @@ mod inner {
 				None => F::pure(None),
 			}
 		}
+
 		/// Sequences an option of applicative.
 		///
 		/// This method evaluates the computation inside the option and wraps the result in the applicative context. If `None`, it returns `pure(None)`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -439,8 +457,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(Some(5));
 		/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
@@ -464,7 +484,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the option to a monoid. Since `Option` contains at most one element, no actual parallelism occurs, but the interface is satisfied.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -483,7 +502,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -510,7 +532,6 @@ mod inner {
 		/// Compacts a nested option.
 		///
 		/// This method flattens a nested option.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the values.", "The type of the elements.")]
@@ -524,8 +545,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(Some(5));
 		/// let y = compact::<OptionBrand, _>(x);
@@ -543,7 +566,6 @@ mod inner {
 		/// Separates an option of result.
 		///
 		/// This method separates an option of result into a pair of options.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -561,7 +583,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
 		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
@@ -586,7 +611,6 @@ mod inner {
 		/// Partitions an option based on a function that returns a result.
 		///
 		/// This method partitions an option based on a function that returns a result.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -606,10 +630,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let (errs, oks) = partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
@@ -631,10 +659,10 @@ mod inner {
 				None => (None, None),
 			}
 		}
+
 		/// Partitions an option based on a predicate.
 		///
 		/// This method partitions an option based on a predicate.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -652,7 +680,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
@@ -684,7 +715,6 @@ mod inner {
 		/// Maps a function over an option and filters out `None` results.
 		///
 		/// This method maps a function over an option and filters out `None` results.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -703,8 +733,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
@@ -723,7 +755,6 @@ mod inner {
 		/// Filters an option based on a predicate.
 		///
 		/// This method filters an option based on a predicate.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -741,8 +772,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::functions::*;
-		/// use fp_library::brands::OptionBrand;
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
 		/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
@@ -763,7 +796,6 @@ mod inner {
 		/// Partitions an option based on a function that returns a result in an applicative context.
 		///
 		/// This method partitions an option based on a function that returns a result in an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -787,10 +819,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{functions::*, brands::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+		/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
+		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
@@ -824,7 +862,6 @@ mod inner {
 		/// Maps a function over an option and filters out `None` results in an applicative context.
 		///
 		/// This method maps a function over an option and filters out `None` results in an applicative context.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -847,10 +884,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{functions::*, brands::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+		/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+		/// 	x,
+		/// );
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
@@ -876,8 +919,10 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::{brands::*, classes::CloneableFn, functions::*};
-	use quickcheck_macros::quickcheck;
+	use {
+		crate::{brands::*, classes::CloneableFn, functions::*},
+		quickcheck_macros::quickcheck,
+	};
 
 	// Functor Laws
 

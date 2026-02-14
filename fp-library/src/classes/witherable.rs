@@ -3,21 +3,27 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{functions::*, brands::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
-//! let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+//! let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+//! 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+//! 	x,
+//! );
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
-use crate::{
-	Apply,
-	classes::{Applicative, Filterable, Traversable},
-	kinds::*,
+use {
+	crate::{
+		Apply,
+		classes::{Applicative, Filterable, Traversable},
+		kinds::*,
+	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
 
 /// A type class for data structures that can be traversed and filtered.
 ///
@@ -34,7 +40,6 @@ pub trait Witherable: Filterable + Traversable {
 	/// Partitions a data structure based on a function that returns a [`Result`] in an applicative context.
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`separate`](crate::functions::separate).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -58,10 +63,17 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*, types::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::*,
+	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
+	/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+	/// 	x,
+	/// );
 	/// assert_eq!(y, Some((None, Some(5))));
 	/// ```
 	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
@@ -88,7 +100,6 @@ pub trait Witherable: Filterable + Traversable {
 	/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
 	///
 	/// The default implementation uses [`traverse`](crate::functions::traverse) and [`compact`](crate::functions::compact).
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -111,10 +122,16 @@ pub trait Witherable: Filterable + Traversable {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+	/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+	/// 	x,
+	/// );
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
 	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
@@ -136,7 +153,6 @@ pub trait Witherable: Filterable + Traversable {
 /// Partitions a data structure based on a function that returns a [`Result`] in an applicative context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wilt`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -161,10 +177,17 @@ pub trait Witherable: Filterable + Traversable {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*, types::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// 	types::*,
+/// };
 ///
 /// let x = Some(5);
-/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
+/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
+/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+/// 	x,
+/// );
 /// assert_eq!(y, Some((None, Some(5))));
 /// ```
 pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
@@ -188,7 +211,6 @@ where
 /// Maps a function over a data structure and filters out [`None`] results in an applicative context.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Witherable::wither`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -212,10 +234,16 @@ where
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
-/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Some(a * 2) } else { None }), x);
+/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+/// 	x,
+/// );
 /// assert_eq!(y, Some(Some(10)));
 /// ```
 pub fn wither<'a, F: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(

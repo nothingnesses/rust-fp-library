@@ -3,17 +3,20 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{functions::*, brands::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let x = Some(5);
 //! let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
-use crate::{Apply, kinds::*};
-use fp_macros::document_parameters;
-use fp_macros::document_signature;
-use fp_macros::document_type_parameters;
+use {
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
+};
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
@@ -24,7 +27,6 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
 	///
 	/// This method chains two computations, where the second computation depends on the result of the first.
-	///
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -46,7 +48,10 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::{functions::*, brands::*};
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// };
 	///
 	/// let x = Some(5);
 	/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
@@ -63,7 +68,6 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Semimonad::bind`].
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -86,7 +90,10 @@ pub trait Semimonad: Kind_cdc7cd43dac7585f {
 /// ### Examples
 ///
 /// ```
-/// use fp_library::{functions::*, brands::*};
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
 ///
 /// let x = Some(5);
 /// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));

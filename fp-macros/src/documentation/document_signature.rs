@@ -1,19 +1,21 @@
-use crate::{
-	analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
-	core::{
-		config::{Config, get_config},
-		constants::attributes::DOCUMENT_SIGNATURE,
-		{Error, Result},
+use {
+	crate::{
+		analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
+		core::{
+			Error, Result,
+			config::{Config, get_config},
+			constants::attributes::DOCUMENT_SIGNATURE,
+		},
+		hm::{HmAst, type_to_hm},
+		support::{
+			ast::RustAst, generate_documentation::insert_doc_comment, is_phantom_data,
+			parsing::parse_empty_attributes,
+		},
 	},
-	hm::{HmAst, type_to_hm},
-	support::{
-		ast::RustAst, generate_documentation::insert_doc_comment, is_phantom_data,
-		parsing::parse_empty_attributes,
-	},
+	proc_macro2::TokenStream,
+	std::collections::{HashMap, HashSet},
+	syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate},
 };
-use proc_macro2::TokenStream;
-use std::collections::{HashMap, HashSet};
-use syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate};
 
 pub fn document_signature_worker(
 	attr: TokenStream,
@@ -251,9 +253,11 @@ fn format_return_type(
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::support::generate_documentation::get_doc;
-	use syn::{ItemFn, parse_quote};
+	use {
+		super::*,
+		crate::support::generate_documentation::get_doc,
+		syn::{ItemFn, parse_quote},
+	};
 
 	#[test]
 	fn test_simple_signature() {

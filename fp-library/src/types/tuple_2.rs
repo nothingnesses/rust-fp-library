@@ -4,18 +4,20 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::{Tuple2Brand, Tuple2WithFirstBrand, Tuple2WithSecondBrand},
-		classes::{
-			Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor, Lift,
-			Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad, SendCloneableFn,
-			Traversable,
+	use {
+		crate::{
+			Apply,
+			brands::{Tuple2Brand, Tuple2WithFirstBrand, Tuple2WithSecondBrand},
+			classes::{
+				Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor,
+				Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup, Semimonad,
+				SendCloneableFn, Traversable,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::document_parameters,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		for Tuple2Brand {
@@ -33,7 +35,6 @@ mod inner {
 		/// Maps functions over the values in the tuple.
 		///
 		/// This method applies one function to the first value and another to the second value.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -59,7 +60,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::bifunctor::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1, 5);
 		/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
@@ -90,7 +95,6 @@ mod inner {
 		/// Maps a function over the second value in the tuple.
 		///
 		/// This method applies a function to the second value inside the tuple, producing a new tuple with the transformed second value. The first value remains unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -112,7 +116,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(map::<Tuple2WithFirstBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 		/// ```
@@ -135,7 +142,6 @@ mod inner {
 		/// Lifts a binary function into the tuple context (over second).
 		///
 		/// This method lifts a binary function to operate on the second values within the tuple context. The first values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -159,11 +165,18 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     lift2::<Tuple2WithFirstBrand<String>, _, _, _, _>(|x, y| x + y, ("a".to_string(), 1), ("b".to_string(), 2)),
-		///     ("ab".to_string(), 3)
+		/// 	lift2::<Tuple2WithFirstBrand<String>, _, _, _, _>(
+		/// 		|x, y| x + y,
+		/// 		("a".to_string(), 1),
+		/// 		("b".to_string(), 2)
+		/// 	),
+		/// 	("ab".to_string(), 3)
 		/// );
 		/// ```
 		fn lift2<'a, A, B, C, Func>(
@@ -189,7 +202,6 @@ mod inner {
 		/// Wraps a value in a tuple (with empty first).
 		///
 		/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the first element.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -203,7 +215,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(pure::<Tuple2WithFirstBrand<String>, _>(5), ("".to_string(), 5));
 		/// ```
@@ -225,7 +240,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value (over second).
 		///
 		/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The first values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -247,10 +261,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = ("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, ("b".to_string(), 5)), ("ab".to_string(), 10));
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, ("b".to_string(), 5)),
+		/// 	("ab".to_string(), 10)
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -268,7 +288,6 @@ mod inner {
 		/// Chains tuple computations (over second).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first. The first values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -287,11 +306,17 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     bind::<Tuple2WithFirstBrand<String>, _, _, _>(("a".to_string(), 5), |x| ("b".to_string(), x * 2)),
-		///     ("ab".to_string(), 10)
+		/// 	bind::<Tuple2WithFirstBrand<String>, _, _, _>(("a".to_string(), 5), |x| (
+		/// 		"b".to_string(),
+		/// 		x * 2
+		/// 	)),
+		/// 	("ab".to_string(), 10)
 		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
@@ -312,7 +337,6 @@ mod inner {
 		/// Folds the tuple from the right (over second).
 		///
 		/// This method performs a right-associative fold of the tuple (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -332,9 +356,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, ((), 5)), 5);
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x, acc| x + acc, 0, ((), 5)),
+		/// 	5
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
@@ -351,7 +381,6 @@ mod inner {
 		/// Folds the tuple from the left (over second).
 		///
 		/// This method performs a left-associative fold of the tuple (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -375,9 +404,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, ((), 5)), 5);
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|acc, x| acc + x, 0, ((), 5)),
+		/// 	5
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
@@ -394,7 +429,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it (over second).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -414,11 +448,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), ((), 5)),
-		///     "5".to_string()
+		/// 	fold_map::<RcFnBrand, Tuple2WithFirstBrand<()>, _, _, _>(|x: i32| x.to_string(), ((), 5)),
+		/// 	"5".to_string()
 		/// );
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -439,7 +476,6 @@ mod inner {
 		/// Traverses the tuple with an applicative function (over second).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -462,11 +498,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     traverse::<Tuple2WithFirstBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), ((), 5)),
-		///     Some(((), 10))
+		/// 	traverse::<Tuple2WithFirstBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), ((), 5)),
+		/// 	Some(((), 10))
 		/// );
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -480,10 +519,10 @@ mod inner {
 			let (first, second) = ta;
 			F::map(move |b| (first.clone(), b), func(second))
 		}
+
 		/// Sequences a tuple of applicative (over second).
 		///
 		/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -501,12 +540,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(
-		///     sequence::<Tuple2WithFirstBrand<()>, _, OptionBrand>(((), Some(5))),
-		///     Some(((), 5))
-		/// );
+		/// assert_eq!(sequence::<Tuple2WithFirstBrand<()>, _, OptionBrand>(((), Some(5))), Some(((), 5)));
 		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -525,7 +564,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -547,13 +585,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = ("a".to_string(), 1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(
-		///     par_fold_map::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, x),
-		///     "1".to_string()
+		/// 	par_fold_map::<ArcFnBrand, Tuple2WithFirstBrand<String>, _, _>(f, x),
+		/// 	"1".to_string()
 		/// );
 		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
@@ -571,7 +612,6 @@ mod inner {
 		/// Folds the tuple from the right in parallel (over second).
 		///
 		/// This method folds the tuple by applying a function from right to left, potentially in parallel (over second).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -594,7 +634,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = ("a".to_string(), 1);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -627,7 +670,6 @@ mod inner {
 		/// Maps a function over the first value in the tuple.
 		///
 		/// This method applies a function to the first value inside the tuple, producing a new tuple with the transformed first value. The second value remains unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -649,7 +691,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(map::<Tuple2WithSecondBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 		/// ```
@@ -672,7 +717,6 @@ mod inner {
 		/// Lifts a binary function into the tuple context (over first).
 		///
 		/// This method lifts a binary function to operate on the first values within the tuple context. The second values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -696,11 +740,18 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     lift2::<Tuple2WithSecondBrand<String>, _, _, _, _>(|x, y| x + y, (1, "a".to_string()), (2, "b".to_string())),
-		///     (3, "ab".to_string())
+		/// 	lift2::<Tuple2WithSecondBrand<String>, _, _, _, _>(
+		/// 		|x, y| x + y,
+		/// 		(1, "a".to_string()),
+		/// 		(2, "b".to_string())
+		/// 	),
+		/// 	(3, "ab".to_string())
 		/// );
 		/// ```
 		fn lift2<'a, A, B, C, Func>(
@@ -726,7 +777,6 @@ mod inner {
 		/// Wraps a value in a tuple (with empty second).
 		///
 		/// This method wraps a value in a tuple, using the `Monoid::empty()` value for the second element.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
@@ -740,7 +790,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(pure::<Tuple2WithSecondBrand<String>, _>(5), (5, "".to_string()));
 		/// ```
@@ -762,7 +815,6 @@ mod inner {
 		/// Applies a wrapped function to a wrapped value (over first).
 		///
 		/// This method applies a function wrapped in a tuple to a value wrapped in a tuple. The second values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -784,10 +836,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
-		/// assert_eq!(apply::<RcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, (5, "b".to_string())), (10, "ab".to_string()));
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, (5, "b".to_string())),
+		/// 	(10, "ab".to_string())
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -805,7 +863,6 @@ mod inner {
 		/// Chains tuple computations (over first).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first. The second values are combined using their `Semigroup` implementation.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -824,11 +881,17 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     bind::<Tuple2WithSecondBrand<String>, _, _, _>((5, "a".to_string()), |x| (x * 2, "b".to_string())),
-		///     (10, "ab".to_string())
+		/// 	bind::<Tuple2WithSecondBrand<String>, _, _, _>((5, "a".to_string()), |x| (
+		/// 		x * 2,
+		/// 		"b".to_string()
+		/// 	)),
+		/// 	(10, "ab".to_string())
 		/// );
 		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
@@ -849,7 +912,6 @@ mod inner {
 		/// Folds the tuple from the right (over first).
 		///
 		/// This method performs a right-associative fold of the tuple (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -869,9 +931,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_right::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, (5, ())), 5);
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x, acc| x + acc, 0, (5, ())),
+		/// 	5
+		/// );
 		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -888,7 +956,6 @@ mod inner {
 		/// Folds the tuple from the left (over first).
 		///
 		/// This method performs a left-associative fold of the tuple (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -908,9 +975,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(fold_left::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, (5, ())), 5);
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|acc, x| acc + x, 0, (5, ())),
+		/// 	5
+		/// );
 		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
@@ -927,7 +1000,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it (over first).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -947,11 +1019,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     fold_map::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), (5, ())),
-		///     "5".to_string()
+		/// 	fold_map::<RcFnBrand, Tuple2WithSecondBrand<()>, _, _, _>(|x: i32| x.to_string(), (5, ())),
+		/// 	"5".to_string()
 		/// );
 		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
@@ -972,7 +1047,6 @@ mod inner {
 		/// Traverses the tuple with an applicative function (over first).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -992,11 +1066,14 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// assert_eq!(
-		///     traverse::<Tuple2WithSecondBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), (5, ())),
-		///     Some((10, ()))
+		/// 	traverse::<Tuple2WithSecondBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), (5, ())),
+		/// 	Some((10, ()))
 		/// );
 		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
@@ -1014,7 +1091,6 @@ mod inner {
 		/// Sequences a tuple of applicative (over first).
 		///
 		/// This method evaluates the computation inside the tuple and accumulates the result into an applicative context (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1032,12 +1108,12 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
-		/// assert_eq!(
-		///     sequence::<Tuple2WithSecondBrand<()>, _, OptionBrand>((Some(5), ())),
-		///     Some((5, ()))
-		/// );
+		/// assert_eq!(sequence::<Tuple2WithSecondBrand<()>, _, OptionBrand>((Some(5), ())), Some((5, ())));
 		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -1056,7 +1132,6 @@ mod inner {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over first). The mapping operation may be executed in parallel.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1078,13 +1153,16 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1, "a".to_string());
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(
-		///     par_fold_map::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, x),
-		///     "1".to_string()
+		/// 	par_fold_map::<ArcFnBrand, Tuple2WithSecondBrand<String>, _, _>(f, x),
+		/// 	"1".to_string()
 		/// );
 		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
@@ -1102,7 +1180,6 @@ mod inner {
 		/// Folds the tuple from the right in parallel (over first).
 		///
 		/// This method folds the tuple by applying a function from right to left, potentially in parallel (over first).
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -1125,7 +1202,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let x = (1, "a".to_string());
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
@@ -1149,12 +1229,14 @@ mod inner {
 #[cfg(test)]
 mod tests {
 
-	use crate::{
-		brands::*,
-		classes::{CloneableFn, bifunctor::*},
-		functions::*,
+	use {
+		crate::{
+			brands::*,
+			classes::{CloneableFn, bifunctor::*},
+			functions::*,
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Bifunctor Tests
 

@@ -210,9 +210,11 @@
 //! 3. **Separation of Concerns**: Simple extraction (type params, all params) doesn't need
 //!    external context, while semantic analysis (bounds) does.
 
-use crate::{analysis::traits::get_fn_type_from_bound, core::config::Config, hm::HmAst};
-use std::collections::{HashMap, HashSet};
-use syn::{GenericParam, Generics, Signature, Type, TypeParamBound, WherePredicate};
+use {
+	crate::{analysis::traits::get_fn_type_from_bound, core::config::Config, hm::HmAst},
+	std::collections::{HashMap, HashSet},
+	syn::{GenericParam, Generics, Signature, Type, TypeParamBound, WherePredicate},
+};
 
 /// Extracts only type parameter names.
 ///

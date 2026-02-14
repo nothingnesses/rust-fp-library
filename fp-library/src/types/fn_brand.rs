@@ -4,17 +4,19 @@
 
 #[fp_macros::document_module]
 mod inner {
-	use crate::{
-		Apply,
-		brands::FnBrand,
-		classes::{
-			Category, Choice, CloneableFn, Function, Profunctor, RefCountedPointer, Semigroupoid,
-			SendCloneableFn, SendUnsizedCoercible, Strong, UnsizedCoercible,
+	use {
+		crate::{
+			Apply,
+			brands::FnBrand,
+			classes::{
+				Category, Choice, CloneableFn, Function, Profunctor, RefCountedPointer,
+				Semigroupoid, SendCloneableFn, SendUnsizedCoercible, Strong, UnsizedCoercible,
+			},
+			impl_kind,
+			kinds::*,
 		},
-		impl_kind,
-		kinds::*,
+		fp_macros::document_parameters,
 	};
-	use fp_macros::document_parameters;
 
 	impl_kind! {
 		impl<P: UnsizedCoercible> for FnBrand<P> {
@@ -29,7 +31,6 @@ mod inner {
 		/// Creates a new function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped function.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -47,7 +48,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
@@ -64,7 +68,6 @@ mod inner {
 		/// Creates a new cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped cloneable function.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -82,7 +85,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
@@ -97,7 +103,6 @@ mod inner {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
 		///
 		/// This method composes two pointer-wrapped functions `f` and `g` to produce a new function that represents the application of `g` followed by `f`.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -119,7 +124,11 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
@@ -139,7 +148,6 @@ mod inner {
 		/// Returns the identity morphism.
 		///
 		/// The identity morphism is a function that maps every object to itself, wrapped in the pointer type.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
@@ -151,7 +159,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let id = category_identity::<RcFnBrand, i32>();
 		/// assert_eq!(id(5), 5);
@@ -167,7 +178,6 @@ mod inner {
 		///
 		/// This method applies a contravariant function to the input and a covariant
 		/// function to the output, transforming the function.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -193,12 +203,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::Profunctor};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Profunctor,
+		/// };
 		///
 		/// let f = <RcFnBrand as Profunctor>::dimap(
-		///     |x: i32| x * 2,
-		///     |x: i32| x - 1,
-		///     std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>
+		/// 	|x: i32| x * 2,
+		/// 	|x: i32| x - 1,
+		/// 	std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
@@ -221,7 +234,6 @@ mod inner {
 		///
 		/// This method takes a function `A -> B` and returns `(A, C) -> (B, C)`,
 		/// threading the extra context `C` through unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -240,7 +252,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::Strong};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Strong,
+		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = <RcFnBrand as Strong>::first::<i32, i32, i32>(f);
@@ -259,7 +274,6 @@ mod inner {
 		///
 		/// This method takes a function `A -> B` and returns `Result<C, A> -> Result<C, B>`,
 		/// threading the success context `C` through unchanged.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -278,7 +292,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, classes::Choice};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Choice,
+		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = <RcFnBrand as Choice>::left::<i32, i32, String>(f);
@@ -304,7 +321,6 @@ mod inner {
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
 		/// This function wraps the provided closure `f` into a pointer-wrapped thread-safe cloneable function.
-		///
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -322,7 +338,10 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{brands::*, functions::*};
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
 		///
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
@@ -337,11 +356,13 @@ mod inner {
 
 #[cfg(test)]
 mod tests {
-	use crate::{
-		brands::*,
-		classes::{category::Category, cloneable_fn::CloneableFn, semigroupoid::Semigroupoid},
+	use {
+		crate::{
+			brands::*,
+			classes::{category::Category, cloneable_fn::CloneableFn, semigroupoid::Semigroupoid},
+		},
+		quickcheck_macros::quickcheck,
 	};
-	use quickcheck_macros::quickcheck;
 
 	// Semigroupoid Laws
 

@@ -8,7 +8,10 @@
 //! ### Examples
 //!
 //! ```
-//! use fp_library::{brands::*, functions::*};
+//! use fp_library::{
+//! 	brands::*,
+//! 	functions::*,
+//! };
 //!
 //! let f = |x: i32| x + 1;
 //! let g = |x: i32| x * 2;
@@ -35,7 +38,6 @@ pub use crate::types::optics::optics_compose;
 ///
 /// Takes two functions, `f` and `g`, and returns a new function that applies `g` to its argument,
 /// and then applies `f` to the result. This is equivalent to the mathematical composition `f ∘ g`.
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -65,10 +67,7 @@ pub use crate::types::optics::optics_compose;
 /// let times_two_add_one = compose(add_one, times_two);
 ///
 /// // 3 * 2 + 1 = 7
-/// assert_eq!(
-///     times_two_add_one(3),
-///     7
-/// );
+/// assert_eq!(times_two_add_one(3), 7);
 /// ```
 pub fn compose<A, B, C, F, G>(
 	f: F,
@@ -85,7 +84,6 @@ where
 ///
 /// Returns a function that ignores its argument and always returns the provided value `a`.
 /// This is useful when a function is expected but a constant value is needed.
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -106,10 +104,7 @@ where
 /// ```rust
 /// use fp_library::functions::*;
 ///
-/// assert_eq!(
-///     constant(true, false),
-///     true
-/// );
+/// assert_eq!(constant(true, false), true);
 /// ```
 pub fn constant<A: Clone, B>(
 	a: A,
@@ -122,7 +117,6 @@ pub fn constant<A: Clone, B>(
 ///
 /// Returns a new function that takes its arguments in the reverse order of the input function `f`.
 /// If `f` takes `(a, b)`, the returned function takes `(b, a)`.
-///
 #[document_signature]
 ///
 #[document_type_parameters(
@@ -149,10 +143,7 @@ pub fn constant<A: Clone, B>(
 /// let subtract = |a, b| a - b;
 ///
 /// // 0 - 1 = -1
-/// assert_eq!(
-///     flip(subtract)(1, 0),
-///     -1
-/// );
+/// assert_eq!(flip(subtract)(1, 0), -1);
 /// ```
 pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
 where
@@ -164,7 +155,6 @@ where
 /// The identity function.
 ///
 /// Returns its input argument as is. This is often used as a default or placeholder function.
-///
 #[document_signature]
 ///
 #[document_type_parameters("The type of the value.")]
@@ -180,10 +170,7 @@ where
 /// ```rust
 /// use fp_library::functions::*;
 ///
-/// assert_eq!(
-///     identity(()),
-///     ()
-/// );
+/// assert_eq!(identity(()), ());
 /// ```
 pub fn identity<A>(a: A) -> A {
 	a
