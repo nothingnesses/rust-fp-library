@@ -10,7 +10,7 @@
 //!
 //! // Functions are strong profunctors
 //! let f = |x: i32| x + 1;
-//! let g = first::<RcFnBrand, _, _, i32>(f);
+//! let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 //! assert_eq!(g((10, 20)), (11, 20));
 //! ```
 
@@ -64,7 +64,7 @@ pub trait Strong: Profunctor {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = first::<RcFnBrand, _, _, i32>(f);
+	/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
 	fn first<'a, A: 'a, B: 'a, C>(
@@ -103,7 +103,7 @@ pub trait Strong: Profunctor {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = second::<RcFnBrand, _, _, i32>(f);
+	/// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((20, 10)), (20, 11));
 	/// ```
 	fn second<'a, A: 'a, B: 'a, C: 'a>(
@@ -145,7 +145,7 @@ pub trait Strong: Profunctor {
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = first::<RcFnBrand, _, _, i32>(f);
+/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g((10, 20)), (11, 20));
 /// ```
 pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
@@ -186,7 +186,7 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = second::<RcFnBrand, _, _, i32>(f);
+/// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g((20, 10)), (20, 11));
 /// ```
 pub fn second<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(

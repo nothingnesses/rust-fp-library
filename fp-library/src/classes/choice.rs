@@ -10,7 +10,7 @@
 //!
 //! // Functions are choice profunctors
 //! let f = |x: i32| x + 1;
-//! let g = right::<RcFnBrand, _, _, String>(f);
+//! let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 //! assert_eq!(g(Ok(10)), Ok(11));
 //! assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 //! ```
@@ -33,10 +33,10 @@ use fp_macros::document_type_parameters;
 /// * Composition: `left(p ∘ q) = left(p) ∘ left(q)`.
 /// * Naturality: `dimap(Left, Left) ∘ left(p) = left(p) ∘ dimap(Left, Left)`.
 pub trait Choice: Profunctor {
-	/// Lift a profunctor to operate on the left (Ok/Right) variant of a Result.
+	/// Lift a profunctor to operate on the left (Err) variant of a Result.
 	///
 	/// This method takes a profunctor `P A B` and returns `P (Result<C, A>) (Result<C, B>)`,
-	/// threading the error context `C` through unchanged.
+	/// threading the alternative context `C` through unchanged in the Ok position.
 	///
 	/// ### Type Signature
 	///
@@ -48,7 +48,7 @@ pub trait Choice: Profunctor {
 		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
-		"The type of the error variant (threaded through unchanged)."
+		"The type of the alternative variant (threaded through unchanged)."
 	)]
 	///
 	/// ### Parameters
@@ -65,18 +65,18 @@ pub trait Choice: Profunctor {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = left::<RcFnBrand, _, _, String>(f);
-	/// assert_eq!(g(Ok(10)), Ok(11));
-	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+	/// let g = left::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// assert_eq!(g(Err(10)), Err(11));
+	/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 	/// ```
-	fn left<'a, A: 'a, B: 'a, C>(
+	fn left<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>);
 
-	/// Lift a profunctor to operate on the right (Err) variant of a Result.
+	/// Lift a profunctor to operate on the right (Ok) variant of a Result.
 	///
 	/// This method takes a profunctor `P A B` and returns `P (Result<A, C>) (Result<B, C>)`,
-	/// threading the success context `C` through unchanged in the Ok position.
+	/// threading the alternative context `C` through unchanged in the Err position.
 	///
 	/// ### Type Signature
 	///
@@ -88,7 +88,7 @@ pub trait Choice: Profunctor {
 		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
-		"The type of the success variant (threaded through unchanged)."
+		"The type of the alternative variant (threaded through unchanged)."
 	)]
 	///
 	/// ### Parameters
@@ -105,17 +105,17 @@ pub trait Choice: Profunctor {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = right::<RcFnBrand, _, _, String>(f);
-	/// assert_eq!(g(Err(10)), Err(11));
-	/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
+	/// let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// assert_eq!(g(Ok(10)), Ok(11));
+	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 	/// ```
 	fn right<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
 		Self::dimap(
 			|r: Result<A, C>| match r {
-				Ok(c) => Err(c),
-				Err(a) => Ok(a),
+				Ok(a) => Err(a),
+				Err(c) => Ok(c),
 			},
 			|r: Result<C, B>| match r {
 				Ok(c) => Err(c),
@@ -126,7 +126,7 @@ pub trait Choice: Profunctor {
 	}
 }
 
-/// Lift a profunctor to operate on the left (Ok/Right) variant of a Result.
+/// Lift a profunctor to operate on the left (Err) variant of a Result.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::left`].
 ///
@@ -141,7 +141,7 @@ pub trait Choice: Profunctor {
 	"The brand of the choice profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
-	"The type of the error variant (threaded through unchanged)."
+	"The type of the alternative variant (threaded through unchanged)."
 )]
 ///
 /// ### Parameters
@@ -158,17 +158,17 @@ pub trait Choice: Profunctor {
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = left::<RcFnBrand, _, _, String>(f);
-/// assert_eq!(g(Ok(10)), Ok(11));
-/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+/// let g = left::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// assert_eq!(g(Err(10)), Err(11));
+/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 /// ```
-pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
+pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
 	Brand::left(pab)
 }
 
-/// Lift a profunctor to operate on the right (Err) variant of a Result.
+/// Lift a profunctor to operate on the right (Ok) variant of a Result.
 ///
 /// Free function version that dispatches to [the type class' associated function][`Choice::right`].
 ///
@@ -183,7 +183,7 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
 	"The brand of the choice profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
-	"The type of the success variant (threaded through unchanged)."
+	"The type of the alternative variant (threaded through unchanged)."
 )]
 ///
 /// ### Parameters
@@ -200,9 +200,9 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C>(
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = right::<RcFnBrand, _, _, String>(f);
-/// assert_eq!(g(Err(10)), Err(11));
-/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
+/// let g = right::<RcFnBrand, _, _, String>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// assert_eq!(g(Ok(10)), Ok(11));
+/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 /// ```
 pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)

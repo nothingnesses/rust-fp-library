@@ -22,6 +22,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
@@ -45,6 +47,7 @@ mod inner {
 		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
+		///
 		/// ### Returns
 		///
 		/// The wrapped function.
@@ -62,6 +65,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
@@ -85,6 +90,7 @@ mod inner {
 		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
+		///
 		/// ### Returns
 		///
 		/// The wrapped cloneable function.
@@ -102,6 +108,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Semigroupoid for FnBrand<P> {
 		/// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -150,6 +158,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Category for FnBrand<P> {
 		/// Returns the identity morphism.
@@ -181,6 +191,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Profunctor for FnBrand<P> {
 		/// Maps over both arguments of the profunctor.
@@ -226,7 +238,7 @@ mod inner {
 		///     |x: i32| x - 1,
 		///     std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>
 		/// );
-		/// assert_eq!(f(10), 19); // (10 * 2) + 1 - 1 = 19
+		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
 		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 			ab: FuncAB,
@@ -241,6 +253,8 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Strong for FnBrand<P> {
 		/// Lift a profunctor to operate on the first component of a pair.
@@ -285,12 +299,14 @@ mod inner {
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Choice for FnBrand<P> {
-		/// Lift a profunctor to operate on the left (Ok) variant of a Result.
+		/// Lift a profunctor to operate on the left (Err) variant of a Result.
 		///
 		/// This method takes a function `A -> B` and returns `Result<C, A> -> Result<C, B>`,
-		/// threading the error context `C` through unchanged.
+		/// threading the success context `C` through unchanged.
 		///
 		/// ### Type Signature
 		///
@@ -302,7 +318,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The input type of the function.",
 			"The output type of the function.",
-			"The type of the error variant (threaded through unchanged)."
+			"The type of the success variant (threaded through unchanged)."
 		)]
 		///
 		/// ### Parameters
@@ -320,21 +336,23 @@ mod inner {
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = <RcFnBrand as Choice>::left::<i32, i32, String>(f);
-		/// assert_eq!(g(Ok(10)), Ok(11));
-		/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+		/// assert_eq!(g(Err(10)), Err(11));
+		/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 		/// ```
-		fn left<'a, A: 'a, B: 'a, C>(
+		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
-					Ok(c) => Ok(c),
 					Err(a) => Err(pab(a)),
+					Ok(c) => Ok(c),
 				}
 			})
 		}
 	}
 
+	/// ### Type Parameters
+	///
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
 		type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
@@ -358,6 +376,7 @@ mod inner {
 		/// ### Parameters
 		///
 		#[document_parameters("The closure to wrap.")]
+		///
 		/// ### Returns
 		///
 		/// The wrapped thread-safe cloneable function.

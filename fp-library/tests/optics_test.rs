@@ -1,57 +1,103 @@
-use fp_library::{
-	brands::*,
-	classes::{Choice, Profunctor, Strong},
-	functions::*,
-	types::optics::*,
-};
+use fp_library::{brands::*, functions::*, types::optics::*};
 
 #[test]
-fn test_lens_view_and_set() {
+fn test_lens_optic() {
 	#[derive(Clone, Debug, PartialEq)]
 	struct Person {
 		name: String,
 		age: i32,
 	}
 
-	let age_lens = Lens::new(|p: &Person| p.age, |p: Person, age: i32| Person { age, ..p });
+	// Lenses currently use function pointers (`fn`) to remain zero-cost and avoid
+	// unnecessary boxing or reference counting in the lens itself.
+	fn view_age(p: &Person) -> i32 {
+		p.age
+	}
+	fn set_age(
+		p: Person,
+		age: i32,
+	) -> Person {
+		Person { age, ..p }
+	}
+
+	let age_lens = LensPrime::new(view_age, set_age);
 
 	let person = Person { name: "Alice".to_string(), age: 30 };
 
-	// Test view
-	assert_eq!(age_lens.view(&person), 30);
+	// To use 'evaluate', we must provide a concrete Profunctor implementation.
+	// `RcFnBrand` provides a Strong + Choice Profunctor for reference-counted closures.
+	//
+	// Profunctor encoding of a Lens:
+	//   Lens S A = forall p. Strong p => p A A -> p S S
+	//
+	// When p is a Function (->):
+	//   evaluate :: (A -> A) -> (S -> S)
+	//
+	// Passing a modification function `f: A -> A` returns a function `S -> S`
+	// that applies `f` to the focused field.
 
-	// Test set
-	let updated = age_lens.set(person.clone(), 31);
+	let modify_age = |x: i32| x + 1;
+
+	// Wrap the closure in the Profunctor (RcFnBrand)
+	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_age);
+
+	// Evaluate the optic to get the modifier function
+	let modifier = age_lens.evaluate::<RcFnBrand>(p_modify);
+
+	let updated = modifier(person.clone());
 	assert_eq!(updated.age, 31);
 	assert_eq!(updated.name, "Alice");
 }
 
 #[test]
-fn test_lens_over() {
+fn test_composition() {
 	#[derive(Clone, Debug, PartialEq)]
-	struct Counter {
-		count: i32,
+	struct Inner {
+		val: i32,
 	}
 
-	let count_lens = Lens::new(|c: &Counter| c.count, |c: Counter, count: i32| Counter { count });
+	#[derive(Clone, Debug, PartialEq)]
+	struct Outer {
+		inner: Inner,
+	}
 
-	let counter = Counter { count: 5 };
-	let incremented = count_lens.over(counter, |x| x + 1);
+	fn view_inner(o: &Outer) -> Inner {
+		o.inner.clone()
+	}
+	fn set_inner(
+		_o: Outer,
+		i: Inner,
+	) -> Outer {
+		Outer { inner: i }
+	}
 
-	assert_eq!(incremented.count, 6);
-}
+	fn view_val(i: &Inner) -> i32 {
+		i.val
+	}
+	fn set_val(
+		_i: Inner,
+		v: i32,
+	) -> Inner {
+		Inner { val: v }
+	}
 
-#[test]
-fn test_prism_preview_and_review() {
-	let ok_prism: Prism<Result<i32, String>, i32> =
-		Prism::new(|r: Result<i32, String>| r.ok(), |x: i32| Ok(x));
+	let outer_lens = LensPrime::new(view_inner, set_inner);
+	let inner_lens = LensPrime::new(view_val, set_val);
 
-	// Test preview
-	assert_eq!(ok_prism.preview(Ok(42)), Some(42));
-	assert_eq!(ok_prism.preview(Err("error".to_string())), None);
+	// Compose: Outer -> Inner -> i32
+	// O1: Lens<Outer, Inner>
+	// O2: Lens<Inner, i32>
+	let composed = optics_compose(outer_lens, inner_lens);
 
-	// Test review
-	assert_eq!(ok_prism.review(42), Ok(42));
+	let obj = Outer { inner: Inner { val: 10 } };
+
+	let modify_val = |x: i32| x * 2;
+	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_val);
+
+	let modifier = composed.evaluate::<RcFnBrand>(p_modify);
+
+	let result = modifier(obj);
+	assert_eq!(result.inner.val, 20);
 }
 
 #[test]
@@ -61,22 +107,6 @@ fn test_profunctor_dimap() {
 	let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
 
 	assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
-}
-
-#[test]
-fn test_profunctor_lmap() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
-
-	assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
-}
-
-#[test]
-fn test_profunctor_rmap() {
-	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
-
-	assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 }
 
 #[test]
@@ -97,9 +127,14 @@ fn test_strong_second() {
 
 #[test]
 fn test_choice_left() {
-	// left: Result<C, A> -> Result<C, B>, transforms the Err variant
 	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = left::<RcFnBrand, _, _, String>(f);
+
+	// `left` lifts a profunctor transformation `p a b` to `p (Result a c) (Result b c)`.
+	// Following the PureScript/Haskell convention for Choice:
+	//   left  :: p a b -> p (Either a c) (Either b c)
+	//   Err(a) -> Err(f(a))
+	//   Ok(c)  -> Ok(c)
 
 	assert_eq!(g(Err(10)), Err(11));
 	assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
@@ -107,10 +142,72 @@ fn test_choice_left() {
 
 #[test]
 fn test_choice_right() {
-	// right: Result<A, C> -> Result<B, C>, transforms the Ok variant
 	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 	let g = right::<RcFnBrand, _, _, String>(f);
 
+	// `right` lifts a profunctor transformation `p a b` to `p (Result c a) (Result c b)`.
+	//   right :: p a b -> p (Either c a) (Either c b)
+	//   Ok(a)  -> Ok(f(a))
+	//   Err(c) -> Err(c)
+
 	assert_eq!(g(Ok(10)), Ok(11));
 	assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
+}
+
+#[test]
+fn test_lens_polymorphic() {
+	#[derive(Clone, Debug, PartialEq)]
+	struct Poly<A> {
+		val: A,
+	}
+
+	// Lens that changes Poly<i32> to Poly<String>
+	let l: Lens<Poly<i32>, Poly<String>, i32, String> =
+		Lens::new(|p| p.val, |_, s| Poly { val: s });
+
+	let p = Poly { val: 42 };
+	assert_eq!(l.view(&p), 42);
+
+	let p2 = l.set(p, "hello".to_string());
+	assert_eq!(p2.val, "hello".to_string());
+}
+
+#[test]
+fn test_lens_prime_over() {
+	let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+	assert_eq!(l.over(10, |x| x + 5), 15);
+}
+
+#[test]
+fn test_composed_deep() {
+	#[derive(Clone, Debug, PartialEq)]
+	struct C {
+		val: i32,
+	}
+	#[derive(Clone, Debug, PartialEq)]
+	struct B {
+		c: C,
+	}
+	#[derive(Clone, Debug, PartialEq)]
+	struct A {
+		b: B,
+	}
+
+	let a_b = LensPrime::new(|a: &A| a.b.clone(), |_a, b| A { b, .._a });
+	let b_c = LensPrime::new(|b: &B| b.c.clone(), |_b, c| B { c, .._b });
+	let c_val = LensPrime::new(|c: &C| c.val, |_c, val| C { val, .._c });
+
+	let a_c = optics_compose(a_b, b_c);
+	let a_val = optics_compose(a_c, c_val);
+
+	let obj = A { b: B { c: C { val: 1 } } };
+
+	// Composed optics don't have .view()/.set() directly, but can be used via evaluate
+	let modifier =
+		a_val.evaluate::<RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10));
+	let result = modifier(obj.clone());
+	assert_eq!(result.b.c.val, 11);
+
+	// We can also use evaluate with Category::identity to just view (using Forget profunctor would be better but we don't have it here)
+	// For now, let's just test that evaluate works on the composed optic.
 }

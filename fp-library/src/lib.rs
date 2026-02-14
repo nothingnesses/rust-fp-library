@@ -24,7 +24,8 @@
 //!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
 //!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
 //! - **Optics:** Composable data accessors for elegant field access and updates:
-//!   - **Lens:** Focus on a single field within a structure
+//!   - **Lens:** Fully polymorphic focus (S -> T, A -> B) - Matches PureScript `Lens`
+//!   - **LensPrime:** Monomorphic focus on a field (S -> S, A -> A) - Matches PureScript `Lens'`
 //!   - **Prism:** Focus on a variant within a sum type
 //!   - Based on profunctor encoding for type-safe composition
 //! - **Helper Functions:** Standard FP utilities:

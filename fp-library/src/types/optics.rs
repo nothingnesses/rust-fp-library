@@ -1,12 +1,29 @@
 //! Optics for composable data accessors using profunctor encoding.
 //!
-//! This module provides concrete optic types (Lens and Prism) that can be
-//! composed to create complex data accessors while maintaining type safety.
+//! This module provides a trait-based profunctor optic implementation that is a high-fidelity
+//! port of PureScript's `purescript-profunctor-lenses`. It allows composing lenses, prisms,
+//! and other optics while maintaining type safety and zero-cost abstractions through monomorphization.
+//!
+//! ### Comparison with PureScript
+//!
+//! The implementation mirrors the PureScript `Optic` definition closely:
+//!
+//! | Feature | PureScript | Rust (`fp-library`) |
+//! | :--- | :--- | :--- |
+//! | **Optic Definition** | `p a b -> p s t` | `trait Optic<S, T, A, B>` |
+//! | **Lens** | `Strong p => Optic p s t a b` | `struct Lens<S, T, A, B>` |
+//! | **Lens'** | `Lens s s a a` | `struct LensPrime<S, A>` |
+//! | **Composition** | `Semigroupoid` / `<<<` | `struct Composed` / `optics_compose` |
+//!
+//! While PureScript uses the `Semigroupoid` instance of functions for composition,
+//! this library uses a specialized `Composed` struct. This allows Rust to perform
+//! zero-cost composition through monomorphization while preserving the `Optic` trait
+//! boundaries without needing the rank-2 polymorphism that PureScript relies on.
 //!
 //! ### Examples
 //!
 //! ```
-//! use fp_library::types::optics::*;
+//! use fp_library::{types::optics::*, brands::*, functions::*};
 //!
 //! // Define a simple struct
 //! #[derive(Clone, Debug, PartialEq)]
@@ -16,7 +33,7 @@
 //! }
 //!
 //! // Create a lens for the age field
-//! let age_lens = Lens::new(
+//! let age_lens = LensPrime::new(
 //!     |p: &Person| p.age,
 //!     |p: Person, age: i32| Person { age, ..p }
 //! );
@@ -29,144 +46,533 @@
 //! assert_eq!(updated.age, 31);
 //! ```
 
-/// A concrete lens type for accessing and updating a field in a structure.
-///
-/// A lens focuses on a single value within a data structure, allowing you to
-/// view (get) and update (set) that value while preserving the rest of the structure.
-#[derive(Clone)]
-pub struct Lens<S, A> {
-	view_fn: fn(&S) -> A,
-	set_fn: fn(S, A) -> S,
-}
+#[fp_macros::document_module]
+mod inner {
+	use crate::{
+		Apply,
+		classes::{Choice, Strong},
+		kinds::*,
+	};
+	use fp_macros::{document_parameters, document_signature, document_type_parameters};
+	use std::marker::PhantomData;
 
-impl<S, A> Lens<S, A> {
-	/// Create a new lens from view and set functions.
+	/// A trait for optics that can be evaluated with any profunctor constraint.
 	///
-	/// ### Parameters
+	/// This trait allows optics to be first-class values that can be composed
+	/// and stored while preserving their polymorphism over profunctor types.
 	///
-	/// - `view`: A function that extracts the focused value from the structure.
-	/// - `set`: A function that updates the structure with a new focused value.
+	/// ### Type Parameters
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::optics::*;
-	///
-	/// #[derive(Clone)]
-	/// struct Point { x: i32, y: i32 }
-	///
-	/// let x_lens = Lens::new(
-	///     |p: &Point| p.x,
-	///     |p: Point, x: i32| Point { x, ..p }
-	/// );
-	///
-	/// let point = Point { x: 10, y: 20 };
-	/// assert_eq!(x_lens.view(&point), 10);
-	///
-	/// let updated = x_lens.set(point, 15);
-	/// assert_eq!(updated.x, 15);
-	/// assert_eq!(updated.y, 20);
-	/// ```
-	pub fn new(
-		view: fn(&S) -> A,
-		set: fn(S, A) -> S,
-	) -> Self {
-		Lens { view_fn: view, set_fn: set }
+	#[document_type_parameters(
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait Optic<S, T, A, B> {
+		/// Evaluate the optic with a profunctor.
+		///
+		/// This method applies the optic transformation to a profunctor value.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		fn evaluate<'a, P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
+		where
+			A: 'a,
+			B: 'a,
+			S: 'a,
+			T: 'a;
 	}
 
-	/// View the focused value.
+	/// Composition of two optics.
 	///
-	/// Extracts the value that this lens focuses on from the structure.
-	pub fn view(
-		&self,
-		s: &S,
-	) -> A {
-		(self.view_fn)(s)
+	/// This struct represents the composition of two optics, allowing them to be
+	/// combined into a single optic that applies both transformations.
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	pub struct Composed<S, T, M, N, A, B, O1, O2> {
+		/// The outer optic (applied second).
+		pub first: O1,
+		/// The inner optic (applied first).
+		pub second: O2,
+		pub(crate) _phantom: PhantomData<(S, T, M, N, A, B)>,
 	}
 
-	/// Set the focused value.
+	/// ### Type Parameters
 	///
-	/// Updates the structure with a new value for the focused field.
-	pub fn set(
-		&self,
-		s: S,
-		a: A,
-	) -> S {
-		(self.set_fn)(s, a)
+	#[document_type_parameters(
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	impl<S, T, M, N, A, B, O1, O2> Composed<S, T, M, N, A, B, O1, O2> {
+		/// Create a new composed optic.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters(
+			"The outer optic (applied second).",
+			"The inner optic (applied first)."
+		)]
+		pub fn new(
+			first: O1,
+			second: O2,
+		) -> Self {
+			Composed { first, second, _phantom: PhantomData }
+		}
 	}
 
-	/// Modify the focused value with a function.
+	/// ### Type Parameters
 	///
-	/// Applies a function to the focused value and updates the structure.
-	pub fn over(
-		&self,
-		s: S,
-		f: impl Fn(A) -> A,
-	) -> S
+	#[document_type_parameters(
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<S, T, M, N, A, B, O1, O2> Optic<S, T, A, B> for Composed<S, T, M, N, A, B, O1, O2>
 	where
-		A: Clone,
+		O1: Optic<S, T, M, N>,
+		O2: Optic<M, N, A, B>,
+		M: 'static,
+		N: 'static,
 	{
-		let a = self.view(&s);
-		self.set(s, f(a))
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		fn evaluate<'a, P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
+		where
+			A: 'a,
+			B: 'a,
+			S: 'a,
+			T: 'a,
+		{
+			let pmn = self.second.evaluate::<P>(pab);
+			self.first.evaluate::<P>(pmn)
+		}
 	}
-}
 
-/// A concrete prism type for accessing and constructing a variant in a sum type.
-///
-/// A prism focuses on one variant of a sum type (like `Result` or `Option`),
-/// allowing you to preview (try to extract) that variant and review (construct) it.
-#[derive(Clone)]
-pub struct Prism<S, A> {
-	preview_fn: fn(S) -> Option<A>,
-	review_fn: fn(A) -> S,
-}
-
-impl<S, A> Prism<S, A> {
-	/// Create a new prism from preview and review functions.
+	/// Compose two optics into a single optic.
+	///
+	/// While PureScript uses the `Semigroupoid` operator (`<<<`) for composition because
+	/// its optics are functions, this library uses a specialized `Composed` struct.
+	/// This is necessary because Rust represents the polymorphic profunctor constraint
+	/// as a trait method (`Optic::evaluate<P>`), and the `Composed` struct enables
+	/// static dispatch and zero-cost composition through monomorphization.
+	///
+	/// ### Type Signature
+	///
+	#[document_signature]
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
 	///
 	/// ### Parameters
 	///
-	/// - `preview`: A function that attempts to extract the focused value from the structure.
-	/// - `review`: A function that constructs the structure from the focused value.
+	#[document_parameters("The outer optic (applied second).", "The inner optic (applied first).")]
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::optics::*;
+	/// use fp_library::{types::optics::*, brands::*, functions::*};
 	///
-	/// let ok_prism: Prism<Result<i32, String>, i32> = Prism::new(
-	///     |r: Result<i32, String>| r.ok(),
-	///     |x: i32| Ok(x)
-	/// );
+	/// #[derive(Clone, Debug, PartialEq)]
+	/// struct Address { street: String }
+	/// #[derive(Clone, Debug, PartialEq)]
+	/// struct User { address: Address }
 	///
-	/// assert_eq!(ok_prism.preview(Ok(42)), Some(42));
-	/// assert_eq!(ok_prism.preview(Err("error".to_string())), None);
-	/// assert_eq!(ok_prism.review(42), Ok(42));
+	/// let address_lens = LensPrime::new(|u: &User| u.address.clone(), |u, a| User { address: a, ..u });
+	/// let street_lens = LensPrime::new(|a: &Address| a.street.clone(), |a, s| Address { street: s, ..a });
+	///
+	/// let user_street = optics_compose(address_lens, street_lens);
+	/// let user = User { address: Address { street: "High St".to_string() } };
+	///
+	/// // Composed optics are evaluated through a profunctor instance (e.g., RcFnBrand).
+	/// // This lifts a function on the focus (A -> B) to a function on the structure (S -> T).
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
+	/// let modifier = user_street.evaluate::<RcFnBrand>(f);
+	/// let updated = modifier(user);
+	///
+	/// assert_eq!(updated.address.street, "HIGH ST");
 	/// ```
-	pub fn new(
-		preview: fn(S) -> Option<A>,
-		review: fn(A) -> S,
-	) -> Self {
-		Prism { preview_fn: preview, review_fn: review }
+	pub fn optics_compose<S, T, M, N, A, B, O1, O2>(
+		first: O1,
+		second: O2,
+	) -> Composed<S, T, M, N, A, B, O1, O2>
+	where
+		O1: Optic<S, T, M, N>,
+		O2: Optic<M, N, A, B>,
+	{
+		Composed::new(first, second)
 	}
 
-	/// Preview the focused value.
+	/// A polymorphic lens for accessing and updating a field where types can change.
+	/// This matches PureScript's `Lens s t a b`.
 	///
-	/// Attempts to extract the value if this variant is present.
-	pub fn preview(
-		&self,
-		s: S,
-	) -> Option<A> {
-		(self.preview_fn)(s)
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub struct Lens<S, T, A, B> {
+		/// Getter function.
+		pub view: fn(&S) -> A,
+		/// Setter function.
+		pub set: fn(S, B) -> T,
 	}
 
-	/// Review (construct) from the focused value.
+	/// ### Type Parameters
 	///
-	/// Constructs the structure from the focused value.
-	pub fn review(
-		&self,
-		a: A,
-	) -> S {
-		(self.review_fn)(a)
+	#[document_type_parameters(
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The lens instance.")]
+	impl<S, T, A, B> Lens<S, T, A, B> {
+		/// Create a new polymorphic lens.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The getter function.", "The setter function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::Lens;
+		///
+		/// let l: Lens<i32, String, i32, String> = Lens::new(|&x| x, |_, s| s);
+		/// ```
+		pub fn new(
+			view: fn(&S) -> A,
+			set: fn(S, B) -> T,
+		) -> Self {
+			Lens { view, set }
+		}
+
+		/// View the focus of the lens in a structure.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The structure to view.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::Lens;
+		///
+		/// let l: Lens<i32, i32, i32, i32> = Lens::new(|&x| x, |_, y| y);
+		/// assert_eq!(l.view(&10), 10);
+		/// ```
+		///
+		pub fn view(
+			&self,
+			s: &S,
+		) -> A {
+			(self.view)(s)
+		}
+
+		/// Set the focus of the lens in a structure.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The structure to update.", "The new value for the focus.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::Lens;
+		///
+		/// let l: Lens<i32, i32, i32, i32> = Lens::new(|&x| x, |_, y| y);
+		/// assert_eq!(l.set(10, 20), 20);
+		/// ```
+		///
+		pub fn set(
+			&self,
+			s: S,
+			b: B,
+		) -> T {
+			(self.set)(s, b)
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The lens instance.")]
+	impl<S, T, A, B> Optic<S, T, A, B> for Lens<S, T, A, B> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		fn evaluate<'a, P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
+		where
+			A: 'a,
+			B: 'a,
+			S: 'a,
+			T: 'a,
+		{
+			let view = self.view;
+			let set = self.set;
+
+			P::dimap(move |s: S| (view(&s), s), move |(b, s): (B, S)| set(s, b), P::first(pab))
+		}
+	}
+
+	/// A concrete lens type for accessing and updating a field in a structure where types do not change.
+	/// This matches PureScript's `Lens' s a`.
+	///
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
+	#[derive(Clone)]
+	pub struct LensPrime<S, A> {
+		pub(crate) view_fn: fn(&S) -> A,
+		pub(crate) set_fn: fn(S, A) -> S,
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
+	#[document_parameters("The monomorphic lens instance.")]
+	impl<S, A> LensPrime<S, A> {
+		/// Create a new monomorphic lens from a getter and setter.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The getter function.", "The setter function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::LensPrime;
+		///
+		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// ```
+		///
+		pub fn new(
+			view: fn(&S) -> A,
+			set: fn(S, A) -> S,
+		) -> Self {
+			LensPrime { view_fn: view, set_fn: set }
+		}
+
+		/// View the focus of the lens in a structure.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The structure to view.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::LensPrime;
+		///
+		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// assert_eq!(l.view(&42), 42);
+		/// ```
+		///
+		pub fn view(
+			&self,
+			s: &S,
+		) -> A {
+			(self.view_fn)(s)
+		}
+
+		/// Set the focus of the lens in a structure.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The structure to update.", "The new value for the focus.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::LensPrime;
+		///
+		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// assert_eq!(l.set(10, 20), 20);
+		/// ```
+		///
+		pub fn set(
+			&self,
+			s: S,
+			a: A,
+		) -> S {
+			(self.set_fn)(s, a)
+		}
+
+		/// Update the focus of the lens in a structure using a function.
+		///
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::LensPrime;
+		///
+		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// assert_eq!(l.over(10, |x| x + 1), 11);
+		/// ```
+		///
+		pub fn over(
+			&self,
+			s: S,
+			f: impl Fn(A) -> A,
+		) -> S
+		where
+			A: Clone,
+		{
+			let a = self.view(&s);
+			self.set(s, f(a))
+		}
+	}
+
+	// Optic implementation for LensPrime<S, A>
+	// Note: This implements monomorphic update (S -> S, A -> A)
+	/// ### Type Parameters
+	///
+	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
+	#[document_parameters("The monomorphic lens instance.")]
+	impl<S, A> Optic<S, S, A, A> for LensPrime<S, A> {
+		/// ### Type Signature
+		///
+		#[document_signature]
+		///
+		/// ### Type Parameters
+		///
+		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		///
+		/// ### Parameters
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		fn evaluate<'a, P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, A>),
+		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, S>)
+		where
+			A: 'a,
+			S: 'a,
+		{
+			let view_fn = self.view_fn;
+			let set_fn = self.set_fn;
+
+			// The Profunctor encoding of a Lens is:
+			// lens get set = dimap (\s -> (get s, s)) (\(b, s) -> set s b) . first
+			P::dimap(
+				move |s: S| (view_fn(&s), s),
+				move |(a, s): (A, S)| set_fn(s, a),
+				P::first(pab),
+			)
+		}
 	}
 }
+
+pub use inner::*;

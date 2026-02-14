@@ -61,13 +61,13 @@ pub struct OptionBrand;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PairBrand;
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the first value filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the first value fixed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PairWithFirstBrand<First>(First);
+pub struct PairWithFirstBrand<First>(PhantomData<First>);
 
-/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the second value filled in.
+/// Brand for the partially-applied form of [`Pair`](crate::types::Pair) with the second value fixed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PairWithSecondBrand<Second>(Second);
+pub struct PairWithSecondBrand<Second>(PhantomData<Second>);
 
 /// Brand for [`Rc`](`std::rc::Rc`) reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -84,23 +84,27 @@ pub type RcFnBrand = FnBrand<RcBrand>;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResultBrand;
 
-/// Brand for the partially-applied form of [`Result`] with the [`Err`] constructor filled in.
+/// Brand for the partially-applied form of [`Result`] with the [`Err`] type fixed.
+///
+/// This brand forms a [`crate::classes::Functor`] and [`crate::classes::Monad`] over the success ([`Ok`]) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ResultWithErrBrand<E>(E);
+pub struct ResultWithErrBrand<E>(PhantomData<E>);
 
-/// Brand for the partially-applied form of [`Result`] with the [`Ok`] constructor filled in.
+/// Brand for the partially-applied form of [`Result`] with the [`Ok`] type fixed.
+///
+/// This brand forms a [`crate::classes::Functor`] and [`crate::classes::Monad`] over the error ([`Err`]) type.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ResultWithOkBrand<T>(T);
+pub struct ResultWithOkBrand<T>(PhantomData<T>);
 
 /// Brand for [`Step`](crate::types::Step).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepBrand;
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Loop`](crate::types::Step::Loop) type filled in.
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Loop`](crate::types::Step::Loop) type fixed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithLoopBrand<A>(PhantomData<A>);
 
-/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Done`](crate::types::Step::Done) type filled in.
+/// Brand for the partially-applied form of [`Step`](crate::types::Step) with the [`Done`](crate::types::Step::Done) type fixed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepWithDoneBrand<B>(PhantomData<B>);
 
@@ -112,11 +116,11 @@ pub struct TryLazyBrand<E, Config>(PhantomData<(E, Config)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkBrand;
 
-/// Brand for [`TryThunk`](crate::types::TryThunk) with the error value filled in (Functor over [`Ok`]).
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the error value fixed (Functor over [`Ok`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithErrBrand<E>(PhantomData<E>);
 
-/// Brand for [`TryThunk`](crate::types::TryThunk) with the success value filled in (Functor over [`Err`]).
+/// Brand for [`TryThunk`](crate::types::TryThunk) with the success value fixed (Functor over [`Err`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 
@@ -124,17 +128,17 @@ pub struct TryThunkWithOkBrand<A>(PhantomData<A>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tuple1Brand;
 
-/// Brand for `(First, Second)`, with neither `First` nor `Second` filled in.
+/// Brand for `(First, Second)`, with neither `First` nor `Second` fixed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tuple2Brand;
 
-/// Brand for `(First, Second)`, with `First` filled in (Functor over `Second`).
+/// Brand for `(First, Second)`, with `First` fixed (Functor over `Second`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Tuple2WithFirstBrand<First>(First);
+pub struct Tuple2WithFirstBrand<First>(PhantomData<First>);
 
-/// Brand for `(First, Second)`, with `Second` filled in (Functor over `First`).
+/// Brand for `(First, Second)`, with `Second` fixed (Functor over `First`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Tuple2WithSecondBrand<Second>(Second);
+pub struct Tuple2WithSecondBrand<Second>(PhantomData<Second>);
 
 /// Brand for [`Vec`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

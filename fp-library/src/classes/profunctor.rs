@@ -9,8 +9,8 @@
 //!
 //! // Function is a profunctor
 //! let f = |x: i32| x + 1;
-//! let g = dimap::<RcFnBrand, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
-//! assert_eq!(g(10), 19); // (10 * 2) + 1 - 1 = 19
+//! let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+//! assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 //! ```
 
 use crate::{Apply, kinds::*};
@@ -69,8 +69,8 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = dimap::<RcFnBrand, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
-	/// assert_eq!(g(10), 19); // (10 * 2) + 1 - 1 = 19
+	/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+	/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 	/// ```
 	fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 		ab: FuncAB,
@@ -116,7 +116,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
+	/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 	/// ```
 	fn lmap<'a, A, B: 'a, C: 'a, FuncAB>(
@@ -164,7 +164,7 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// use fp_library::{brands::*, functions::*};
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
+	/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 	/// ```
 	fn rmap<'a, A: 'a, B: 'a, C, FuncBC>(
@@ -217,8 +217,8 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = dimap::<RcFnBrand, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
-/// assert_eq!(g(10), 19); // (10 * 2) + 1 - 1 = 19
+/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
+/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 /// ```
 pub fn dimap<'a, Brand: Profunctor, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 	ab: FuncAB,
@@ -268,7 +268,7 @@ where
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
+/// let g = lmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 /// ```
 pub fn lmap<'a, Brand: Profunctor, A, B: 'a, C: 'a, FuncAB>(
@@ -314,7 +314,7 @@ where
 /// use fp_library::{brands::*, functions::*};
 ///
 /// let f = |x: i32| x + 1;
-/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, f);
+/// let g = rmap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 /// ```
 pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C, FuncBC>(
