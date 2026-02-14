@@ -11,14 +11,16 @@
 //! | Feature | PureScript | Rust (`fp-library`) |
 //! | :--- | :--- | :--- |
 //! | **Optic Definition** | `p a b -> p s t` | `trait Optic<S, T, A, B>` |
-//! | **Lens** | `Strong p => Optic p s t a b` | `struct Lens<S, T, A, B>` |
-//! | **Lens'** | `Lens s s a a` | `struct LensPrime<S, A>` |
+//! | **Lens** | `Strong p => Optic p s t a b` | `struct Lens<P, S, T, A, B>` |
+//! | **Lens'** | `Lens s s a a` | `struct LensPrime<P, S, A>` |
 //! | **Composition** | `Semigroupoid` / `<<<` | `struct Composed` / `optics_compose` |
 //!
 //! While PureScript uses the `Semigroupoid` instance of functions for composition,
 //! this library uses a specialized `Composed` struct. This allows Rust to perform
 //! zero-cost composition through monomorphization while preserving the `Optic` trait
 //! boundaries without needing the rank-2 polymorphism that PureScript relies on.
+//! Lenses in this library use [`FnBrand`](crate::brands::FnBrand) to support
+//! capturing closures and reference-counted storage.
 //!
 //! ### Examples
 //!
@@ -33,13 +35,13 @@
 //! }
 //!
 //! // Create a lens for the age field
-//! let age_lens = LensPrime::new(
-//!     |p: &Person| p.age,
-//!     |p: Person, age: i32| Person { age, ..p }
+//! let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::new(
+//!     |p: Person| p.age,
+//!     |(p, age)| Person { age, ..p }
 //! );
 //!
 //! let person = Person { name: "Alice".to_string(), age: 30 };
-//! let age = age_lens.view(&person);
+//! let age = age_lens.view(person.clone());
 //! assert_eq!(age, 30);
 //!
 //! let updated = age_lens.set(person.clone(), 31);
@@ -50,7 +52,8 @@
 mod inner {
 	use crate::{
 		Apply,
-		classes::{Choice, Strong},
+		brands::FnBrand,
+		classes::{Choice, CloneableFn, Strong, UnsizedCoercible},
 		kinds::*,
 	};
 	use fp_macros::{document_parameters, document_signature, document_type_parameters};
@@ -239,8 +242,8 @@ mod inner {
 	/// #[derive(Clone, Debug, PartialEq)]
 	/// struct User { address: Address }
 	///
-	/// let address_lens = LensPrime::new(|u: &User| u.address.clone(), |u, a| User { address: a, ..u });
-	/// let street_lens = LensPrime::new(|a: &Address| a.street.clone(), |a, s| Address { street: s, ..a });
+	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(|u: User| u.address.clone(), |(_, a)| User { address: a });
+	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(|a: Address| a.street.clone(), |(_, s)| Address { street: s });
 	///
 	/// let user_street = optics_compose(address_lens, street_lens);
 	/// let user = User { address: Address { street: "High St".to_string() } };
@@ -267,31 +270,42 @@ mod inner {
 	/// A polymorphic lens for accessing and updating a field where types can change.
 	/// This matches PureScript's `Lens s t a b`.
 	///
+	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
+	///
 	/// ### Type Parameters
 	///
 	#[document_type_parameters(
+		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub struct Lens<S, T, A, B> {
+	pub struct Lens<P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+	{
 		/// Getter function.
-		pub view: fn(&S) -> A,
+		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
 		/// Setter function.
-		pub set: fn(S, B) -> T,
+		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, B), T>),
+		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	/// ### Type Parameters
 	///
 	#[document_type_parameters(
+		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<S, T, A, B> Lens<S, T, A, B> {
+	impl<P, S, T, A, B> Lens<P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+	{
 		/// Create a new polymorphic lens.
 		///
 		/// ### Type Signature
@@ -305,15 +319,19 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::Lens;
+		/// use fp_library::{types::optics::Lens, brands::RcBrand};
 		///
-		/// let l: Lens<i32, String, i32, String> = Lens::new(|&x| x, |_, s| s);
+		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::new(|x| x, |(_, s)| s);
 		/// ```
 		pub fn new(
-			view: fn(&S) -> A,
-			set: fn(S, B) -> T,
+			view: impl 'static + Fn(S) -> A,
+			set: impl 'static + Fn((S, B)) -> T,
 		) -> Self {
-			Lens { view, set }
+			Lens {
+				view: <FnBrand<P> as CloneableFn>::new(view),
+				set: <FnBrand<P> as CloneableFn>::new(set),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// View the focus of the lens in a structure.
@@ -329,15 +347,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::Lens;
+		/// use fp_library::{types::optics::Lens, brands::RcBrand};
 		///
-		/// let l: Lens<i32, i32, i32, i32> = Lens::new(|&x| x, |_, y| y);
-		/// assert_eq!(l.view(&10), 10);
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
+		/// assert_eq!(l.view(10), 10);
 		/// ```
 		///
 		pub fn view(
 			&self,
-			s: &S,
+			s: S,
 		) -> A {
 			(self.view)(s)
 		}
@@ -355,9 +373,9 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::Lens;
+		/// use fp_library::{types::optics::Lens, brands::RcBrand};
 		///
-		/// let l: Lens<i32, i32, i32, i32> = Lens::new(|&x| x, |_, y| y);
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
 		///
@@ -366,20 +384,25 @@ mod inner {
 			s: S,
 			b: B,
 		) -> T {
-			(self.set)(s, b)
+			(self.set)((s, b))
 		}
 	}
 
 	/// ### Type Parameters
 	///
 	#[document_type_parameters(
+		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<S, T, A, B> Optic<S, T, A, B> for Lens<S, T, A, B> {
+	impl<P, S, T, A, B> Optic<S, T, A, B> for Lens<P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+		S: Clone,
+	{
 		/// ### Type Signature
 		///
 		#[document_signature]
@@ -391,40 +414,84 @@ mod inner {
 		/// ### Parameters
 		///
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<'a, Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
+			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
+		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
 		where
 			A: 'a,
 			B: 'a,
 			S: 'a,
 			T: 'a,
 		{
-			let view = self.view;
-			let set = self.set;
+			let view = self.view.clone();
+			let set = self.set.clone();
 
-			P::dimap(move |s: S| (view(&s), s), move |(b, s): (B, S)| set(s, b), P::first(pab))
+			Q::dimap(
+				move |s: S| (view(s.clone()), s),
+				move |(b, s): (B, S)| set((s, b)),
+				Q::first(pab),
+			)
 		}
 	}
 
 	/// A concrete lens type for accessing and updating a field in a structure where types do not change.
 	/// This matches PureScript's `Lens' s a`.
 	///
+	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
+	///
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
-	#[derive(Clone)]
-	pub struct LensPrime<S, A> {
-		pub(crate) view_fn: fn(&S) -> A,
-		pub(crate) set_fn: fn(S, A) -> S,
+	#[document_type_parameters(
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	pub struct LensPrime<P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
+		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, A), S>),
+		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
+	#[document_type_parameters(
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	#[document_parameters("The lens instance.")]
+	impl<P, S, A> Clone for LensPrime<P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		/// ### Type Signature
+		///
+		#[document_signature]
+		fn clone(&self) -> Self {
+			LensPrime {
+				view_fn: self.view_fn.clone(),
+				set_fn: self.set_fn.clone(),
+				_phantom: PhantomData,
+			}
+		}
+	}
+
+	/// ### Type Parameters
+	///
+	#[document_type_parameters(
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<S, A> LensPrime<S, A> {
+	impl<P, S, A> LensPrime<P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
 		/// Create a new monomorphic lens from a getter and setter.
 		///
 		/// ### Type Signature
@@ -438,16 +505,20 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::LensPrime;
+		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
 		///
-		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// ```
 		///
 		pub fn new(
-			view: fn(&S) -> A,
-			set: fn(S, A) -> S,
+			view: impl 'static + Fn(S) -> A,
+			set: impl 'static + Fn((S, A)) -> S,
 		) -> Self {
-			LensPrime { view_fn: view, set_fn: set }
+			LensPrime {
+				view_fn: <FnBrand<P> as CloneableFn>::new(view),
+				set_fn: <FnBrand<P> as CloneableFn>::new(set),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// View the focus of the lens in a structure.
@@ -463,15 +534,15 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::LensPrime;
+		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
 		///
-		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
-		/// assert_eq!(l.view(&42), 42);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// assert_eq!(l.view(42), 42);
 		/// ```
 		///
 		pub fn view(
 			&self,
-			s: &S,
+			s: S,
 		) -> A {
 			(self.view_fn)(s)
 		}
@@ -489,9 +560,9 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::LensPrime;
+		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
 		///
-		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
 		///
@@ -500,7 +571,7 @@ mod inner {
 			s: S,
 			a: A,
 		) -> S {
-			(self.set_fn)(s, a)
+			(self.set_fn)((s, a))
 		}
 
 		/// Update the focus of the lens in a structure using a function.
@@ -516,9 +587,9 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::LensPrime;
+		/// use fp_library::{types::optics::LensPrime, brands::RcBrand};
 		///
-		/// let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.over(10, |x| x + 1), 11);
 		/// ```
 		///
@@ -528,20 +599,28 @@ mod inner {
 			f: impl Fn(A) -> A,
 		) -> S
 		where
-			A: Clone,
+			S: Clone,
 		{
-			let a = self.view(&s);
+			let a = self.view(s.clone());
 			self.set(s, f(a))
 		}
 	}
 
-	// Optic implementation for LensPrime<S, A>
+	// Optic implementation for LensPrime<P, S, A>
 	// Note: This implements monomorphic update (S -> S, A -> A)
 	/// ### Type Parameters
 	///
-	#[document_type_parameters("The type of the structure.", "The type of the focus.")]
+	#[document_type_parameters(
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<S, A> Optic<S, S, A, A> for LensPrime<S, A> {
+	impl<P, S, A> Optic<S, S, A, A> for LensPrime<P, S, A>
+	where
+		P: UnsizedCoercible,
+		S: Clone,
+	{
 		/// ### Type Signature
 		///
 		#[document_signature]
@@ -553,23 +632,23 @@ mod inner {
 		/// ### Parameters
 		///
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<'a, Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, A>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, S>)
+			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, A>),
+		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, S>)
 		where
 			A: 'a,
 			S: 'a,
 		{
-			let view_fn = self.view_fn;
-			let set_fn = self.set_fn;
+			let view_fn = self.view_fn.clone();
+			let set_fn = self.set_fn.clone();
 
 			// The Profunctor encoding of a Lens is:
 			// lens get set = dimap (\s -> (get s, s)) (\(b, s) -> set s b) . first
-			P::dimap(
-				move |s: S| (view_fn(&s), s),
-				move |(a, s): (A, S)| set_fn(s, a),
-				P::first(pab),
+			Q::dimap(
+				move |s: S| (view_fn(s.clone()), s),
+				move |(a, s): (A, S)| set_fn((s, a)),
+				Q::first(pab),
 			)
 		}
 	}

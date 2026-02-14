@@ -8,19 +8,8 @@ fn test_lens_optic() {
 		age: i32,
 	}
 
-	// Lenses currently use function pointers (`fn`) to remain zero-cost and avoid
-	// unnecessary boxing or reference counting in the lens itself.
-	fn view_age(p: &Person) -> i32 {
-		p.age
-	}
-	fn set_age(
-		p: Person,
-		age: i32,
-	) -> Person {
-		Person { age, ..p }
-	}
-
-	let age_lens = LensPrime::new(view_age, set_age);
+	let age_lens: LensPrime<RcBrand, Person, i32> =
+		LensPrime::new(|p: Person| p.age, |(p, age)| Person { age, ..p });
 
 	let person = Person { name: "Alice".to_string(), age: 30 };
 
@@ -61,28 +50,10 @@ fn test_composition() {
 		inner: Inner,
 	}
 
-	fn view_inner(o: &Outer) -> Inner {
-		o.inner.clone()
-	}
-	fn set_inner(
-		_o: Outer,
-		i: Inner,
-	) -> Outer {
-		Outer { inner: i }
-	}
-
-	fn view_val(i: &Inner) -> i32 {
-		i.val
-	}
-	fn set_val(
-		_i: Inner,
-		v: i32,
-	) -> Inner {
-		Inner { val: v }
-	}
-
-	let outer_lens = LensPrime::new(view_inner, set_inner);
-	let inner_lens = LensPrime::new(view_val, set_val);
+	let outer_lens: LensPrime<RcBrand, Outer, Inner> =
+		LensPrime::new(|o: Outer| o.inner.clone(), |(_, i)| Outer { inner: i });
+	let inner_lens: LensPrime<RcBrand, Inner, i32> =
+		LensPrime::new(|i: Inner| i.val, |(_, v)| Inner { val: v });
 
 	// Compose: Outer -> Inner -> i32
 	// O1: Lens<Outer, Inner>
@@ -162,11 +133,11 @@ fn test_lens_polymorphic() {
 	}
 
 	// Lens that changes Poly<i32> to Poly<String>
-	let l: Lens<Poly<i32>, Poly<String>, i32, String> =
-		Lens::new(|p| p.val, |_, s| Poly { val: s });
+	let l: Lens<RcBrand, Poly<i32>, Poly<String>, i32, String> =
+		Lens::new(|p: Poly<i32>| p.val, |(_, s)| Poly { val: s });
 
 	let p = Poly { val: 42 };
-	assert_eq!(l.view(&p), 42);
+	assert_eq!(l.view(p.clone()), 42);
 
 	let p2 = l.set(p, "hello".to_string());
 	assert_eq!(p2.val, "hello".to_string());
@@ -174,7 +145,7 @@ fn test_lens_polymorphic() {
 
 #[test]
 fn test_lens_prime_over() {
-	let l = LensPrime::new(|&x: &i32| x, |_, y| y);
+	let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 	assert_eq!(l.over(10, |x| x + 5), 15);
 }
 
@@ -193,9 +164,9 @@ fn test_composed_deep() {
 		b: B,
 	}
 
-	let a_b = LensPrime::new(|a: &A| a.b.clone(), |_a, b| A { b, .._a });
-	let b_c = LensPrime::new(|b: &B| b.c.clone(), |_b, c| B { c, .._b });
-	let c_val = LensPrime::new(|c: &C| c.val, |_c, val| C { val, .._c });
+	let a_b: LensPrime<RcBrand, A, B> = LensPrime::new(|a: A| a.b.clone(), |(_, b)| A { b });
+	let b_c: LensPrime<RcBrand, B, C> = LensPrime::new(|b: B| b.c.clone(), |(_, c)| B { c });
+	let c_val: LensPrime<RcBrand, C, i32> = LensPrime::new(|c: C| c.val, |(_, val)| C { val });
 
 	let a_c = optics_compose(a_b, b_c);
 	let a_val = optics_compose(a_c, c_val);
