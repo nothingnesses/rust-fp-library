@@ -25,8 +25,10 @@
 //! ## Examples
 //!
 //! * `Kind_ad6c20556a82a1f0`: Signature `type Of<A>;`.
-//! * `Kind_140eb1e35dc7afb3`: Signature `type Of<'a, A, B>;`.
 //! * `Kind_cdc7cd43dac7585f`: Signature `type Of<'a, A: 'a>: 'a;`.
+//! * `Kind_5b1bcedfd80bdc16`: Signature `type Of<A, B>;`.
+//! * `Kind_140eb1e35dc7afb3`: Signature `type Of<'a, A, B>;`.
+//! * `Kind_266801a817966495`: Signature `type Of<'a, A: 'a, B: 'a>: 'a;`.
 //!
 //! As an example of how to use these traits, the trait [`Kind_ad6c20556a82a1f0`] would be
 //! implemented by a [`Brand`][crate::brands] representing type constructors

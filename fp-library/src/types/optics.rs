@@ -115,6 +115,7 @@ mod inner {
 		"The first optic.",
 		"The second optic."
 	)]
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct Composed<S, T, M, N, A, B, O1, O2> {
 		/// The outer optic (applied second).
 		pub first: O1,
