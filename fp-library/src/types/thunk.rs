@@ -289,7 +289,7 @@ mod inner {
 
 	impl_kind! {
 		for ThunkBrand {
-			type Of<'a, A: 'a>: 'a = Thunk<'a, A>;
+			type Of<A> = Thunk<'static, A>;
 		}
 	}
 
@@ -336,7 +336,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value inside the `Thunk`.",
 			"The type of the result of the transformation.",
 			"The type of the transformation function."
@@ -363,12 +362,12 @@ mod inner {
 		/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
 		/// assert_eq!(mapped.evaluate(), 20);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
+		fn map<A, B, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> B + 'a,
+			Func: Fn(A) -> B,
 		{
 			fa.map(func)
 		}
@@ -379,7 +378,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value to wrap."
 		)]
 		///
@@ -401,7 +399,7 @@ mod inner {
 		/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn pure<A>(a: A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>) {
 			Thunk::pure(a)
 		}
 	}
@@ -411,7 +409,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the first value.",
 			"The type of the second value.",
 			"The type of the result.",
@@ -441,16 +438,15 @@ mod inner {
 		/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), 30);
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
+		fn lift2<A, B, C, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+			fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
-			A: Clone + 'a,
-			B: Clone + 'a,
-			C: 'a,
+			Func: Fn(A, B) -> C,
+			A: Clone,
+			B: Clone,
 		{
 			fa.bind(move |a| fb.map(move |b| func(a, b)))
 		}
@@ -464,7 +460,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function wrapper.",
 			"The type of the input.",
 			"The type of the result."
@@ -492,10 +487,10 @@ mod inner {
 		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		fn apply<FnBrand: CloneableFn, A: Clone, B>(
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.bind(move |f| {
 				fa.map(
 					#[allow(clippy::redundant_closure)] // Required for move semantics
@@ -510,7 +505,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the result of the first computation.",
 			"The type of the result of the new computation.",
 			"The type of the function to apply."
@@ -537,12 +531,12 @@ mod inner {
 		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(result.evaluate(), 20);
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fn bind<A, B, Func>(
+			ma: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
 		{
 			ma.bind(func)
 		}
@@ -553,7 +547,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the initial value and loop state.",
 			"The type of the result.",
 			"The type of the step function."
@@ -581,14 +574,14 @@ mod inner {
 		/// );
 		/// assert_eq!(result.evaluate(), 1000);
 		/// ```
-		fn tail_rec_m<'a, A: 'a, B: 'a, F>(
+		fn tail_rec_m<A, B, F>(
 			f: F,
 			a: A,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			F: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
 				+ Clone
-				+ 'a,
+				+ 'static,
 		{
 			Thunk::new(move || {
 				let mut current = a;
@@ -607,7 +600,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value inside the thunk."
 		)]
 		///
@@ -630,8 +622,8 @@ mod inner {
 		/// let thunk = Thunk::new(|| 42);
 		/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
 		/// ```
-		fn evaluate<'a, A: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		fn evaluate<A>(
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)
 		) -> A {
 			fa.evaluate()
 		}
@@ -642,7 +634,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -671,14 +662,14 @@ mod inner {
 		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_right<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(A, B) -> B,
+			FnBrand: CloneableFn,
 		{
 			func(fa.evaluate(), initial)
 		}
@@ -687,7 +678,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -716,14 +706,14 @@ mod inner {
 		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_left<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(B, A) -> B,
+			FnBrand: CloneableFn,
 		{
 			func(initial, fa.evaluate())
 		}
@@ -732,7 +722,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the monoid.",
@@ -757,14 +746,14 @@ mod inner {
 		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
+		fn fold_map<FnBrand, A, M, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
+			M: Monoid,
+			Func: Fn(A) -> M,
+			FnBrand: CloneableFn,
 		{
 			func(fa.evaluate())
 		}

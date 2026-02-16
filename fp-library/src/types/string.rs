@@ -5,19 +5,9 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::{
-			classes::{Monoid, Semigroup},
-			impl_kind,
-			kinds::*,
-		},
+		crate::classes::{Monoid, Semigroup},
 		fp_macros::document_parameters,
 	};
-
-	impl_kind! {
-		for String {
-			type Of<'a> = String;
-		}
-	}
 
 	impl Semigroup for String {
 		/// The result of combining two strings.

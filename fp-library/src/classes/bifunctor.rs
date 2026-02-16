@@ -28,14 +28,13 @@ use {
 /// `Bifunctor` instances must satisfy the following laws:
 /// * Identity: `bimap(identity, identity, p) = p`.
 /// * Composition: `bimap(compose(f, g), compose(h, i), p) = bimap(f, h, bimap(g, i, p))`.
-pub trait Bifunctor: Kind_266801a817966495 {
+pub trait Bifunctor: Kind_5b1bcedfd80bdc16 {
 	/// Maps functions over the values in the bifunctor context.
 	///
 	/// This method applies two functions to the values inside the bifunctor context, producing a new bifunctor context with the transformed values.
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the first result.",
 		"The type of the second value.",
@@ -66,14 +65,14 @@ pub trait Bifunctor: Kind_266801a817966495 {
 	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 	/// assert_eq!(y, Ok(10));
 	/// ```
-	fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+	fn bimap<A, B, C, D, F, G>(
 		f: F,
 		g: G,
-		p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-	) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+		p: Apply!(<Self as Kind!( type Of<A, B>; )>::Of<A, C>),
+	) -> Apply!(<Self as Kind!( type Of<A, B>; )>::Of<B, D>)
 	where
-		F: Fn(A) -> B + 'a,
-		G: Fn(C) -> D + 'a;
+		F: Fn(A) -> B,
+		G: Fn(C) -> D;
 }
 
 /// Maps functions over the values in the bifunctor context.
@@ -82,7 +81,6 @@ pub trait Bifunctor: Kind_266801a817966495 {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the bifunctor.",
 	"The type of the first value.",
 	"The type of the first result.",
@@ -114,14 +112,65 @@ pub trait Bifunctor: Kind_266801a817966495 {
 /// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 /// assert_eq!(y, Ok(10));
 /// ```
-pub fn bimap<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+pub fn bimap<Brand, A, B, C, D, F, G>(
 	f: F,
 	g: G,
-	p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+	p: Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<A, C>),
+) -> Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<B, D>)
 where
-	F: Fn(A) -> B + 'a,
-	G: Fn(C) -> D + 'a,
+	Brand: Bifunctor,
+	F: Fn(A) -> B,
+	G: Fn(C) -> D,
 {
-	Brand::bimap::<A, B, C, D, F, G>(f, g, p)
+	Brand::bimap(f, g, p)
+}
+
+/// Maps a function over the first type argument.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
+///
+/// let x = Result::<i32, i32>::Err(5);
+/// let y = map_first::<ResultBrand, _, _, _, _, _>(|e| e + 1, x);
+/// assert_eq!(y, Err(6));
+/// ```
+pub fn map_first<Brand, A, B, C, F>(
+	f: F,
+	p: Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<A, C>),
+) -> Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<B, C>)
+where
+	Brand: Bifunctor,
+	F: Fn(A) -> B,
+{
+	Brand::bimap(f, |c| c, p)
+}
+
+/// Maps a function over the second type argument.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
+///
+/// let x = Result::<i32, i32>::Ok(5);
+/// let y = map_second::<ResultBrand, _, _, _, _, _>(|s| s * 2, x);
+/// assert_eq!(y, Ok(10));
+/// ```
+pub fn map_second<Brand, A, B, C, G>(
+	g: G,
+	p: Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<A, B>),
+) -> Apply!(<Brand as Kind!( type Of<A, B>; )>::Of<A, C>)
+where
+	Brand: Bifunctor,
+	G: Fn(B) -> C,
+{
+	Brand::bimap(|a| a, g, p)
 }

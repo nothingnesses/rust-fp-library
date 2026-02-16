@@ -23,7 +23,7 @@ mod inner {
 
 	impl_kind! {
 		for VecBrand {
-			type Of<'a, A: 'a>: 'a = Vec<A>;
+			type Of<A> = Vec<A>;
 		}
 	}
 
@@ -112,7 +112,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements in the vector.",
 			"The type of the elements in the resulting vector.",
 			"The type of the function to apply."
@@ -134,12 +133,12 @@ mod inner {
 		///
 		/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
+		fn map<A, B, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> B + 'a,
+			Func: Fn(A) -> B,
 		{
 			fa.into_iter().map(func).collect()
 		}
@@ -152,7 +151,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements in the first vector.",
 			"The type of the elements in the second vector.",
 			"The type of the elements in the resulting vector.",
@@ -182,16 +180,15 @@ mod inner {
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
+		fn lift2<A, B, C, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+			fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
-			A: Clone + 'a,
-			B: Clone + 'a,
-			C: 'a,
+			Func: Fn(A, B) -> C,
+			A: Clone,
+			B: Clone,
 		{
 			fa.iter().flat_map(|a| fb.iter().map(|b| func(a.clone(), b.clone()))).collect()
 		}
@@ -203,7 +200,7 @@ mod inner {
 		/// This method creates a new vector containing the single given value.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+		#[document_type_parameters("The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -221,7 +218,7 @@ mod inner {
 		///
 		/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
 		/// ```
-		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn pure<A>(a: A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>) {
 			vec![a]
 		}
 	}
@@ -236,7 +233,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function wrapper.",
 			"The type of the input values.",
 			"The type of the output values."
@@ -266,10 +262,10 @@ mod inner {
 		/// ];
 		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		fn apply<FnBrand: CloneableFn, A: Clone, B>(
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.iter().flat_map(|f| fa.iter().map(move |a| f(a.clone()))).collect()
 		}
 	}
@@ -281,7 +277,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements in the input vector.",
 			"The type of the elements in the output vector.",
 			"The type of the function to apply."
@@ -306,12 +301,12 @@ mod inner {
 		///
 		/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fn bind<A, B, Func>(
+			ma: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
 		{
 			ma.into_iter().flat_map(func).collect()
 		}
@@ -324,7 +319,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
 			"The type of the accumulator.",
@@ -350,14 +344,14 @@ mod inner {
 		/// 	6
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_right<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(A, B) -> B,
+			FnBrand: CloneableFn,
 		{
 			fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 		}
@@ -368,7 +362,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
 			"The type of the accumulator.",
@@ -398,14 +391,14 @@ mod inner {
 		/// 	6
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_left<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(B, A) -> B,
+			FnBrand: CloneableFn,
 		{
 			fa.into_iter().fold(initial, func)
 		}
@@ -416,7 +409,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
 			"The type of the monoid.",
@@ -442,14 +434,14 @@ mod inner {
 		/// 	"123".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
+		fn fold_map<FnBrand, A, M, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
+			M: Monoid,
+			Func: Fn(A) -> M,
+			FnBrand: CloneableFn,
 		{
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
@@ -462,7 +454,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
 			"The applicative context.",
@@ -494,14 +485,14 @@ mod inner {
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
+		fn traverse<A: Clone, B: Clone, F: Applicative, Func>(
 			func: Func,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+			Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<B>): Clone,
+			Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone,
 		{
 			let len = ta.len();
 			ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -522,7 +513,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The applicative context."
 		)]
@@ -546,12 +536,12 @@ mod inner {
 		///
 		/// assert_eq!(sequence::<VecBrand, _, OptionBrand>(vec![Some(1), Some(2)]), Some(vec![1, 2]));
 		/// ```
-		fn sequence<'a, A: 'a + Clone, F: Applicative>(
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+		fn sequence<A: Clone, F: Applicative>(
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
+		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)>)
 		where
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+			Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone,
 		{
 			let len = ta.len();
 			ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
@@ -627,7 +617,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The brand of the cloneable function wrapper.",
 			"The element type.",
 			"The monoid type."
@@ -654,14 +643,14 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fn par_fold_map<FnBrand, A, M>(
+			func: <FnBrand as SendCloneableFn>::SendOf<A, M>,
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
+			FnBrand: SendCloneableFn,
+			A: Clone + Send + Sync,
+			M: Monoid + Send + Sync,
 		{
 			#[cfg(feature = "rayon")]
 			{
@@ -681,7 +670,7 @@ mod inner {
 		/// This method flattens a vector of options, discarding `None` values.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
+		#[document_type_parameters("The type of the elements.")]
 		///
 		#[document_parameters("The vector of options.")]
 		///
@@ -701,12 +690,9 @@ mod inner {
 		/// let y = compact::<VecBrand, _>(x);
 		/// assert_eq!(y, vec![1, 2]);
 		/// ```
-		fn compact<'a, A: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-			'a,
-			Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn compact<A>(
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<OptionBrand as Kind!( type Of<T>; )>::Of<A>)>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>) {
 			fa.into_iter().flatten().collect()
 		}
 
@@ -716,7 +702,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the error value.",
 			"The type of the success value."
 		)]
@@ -740,11 +725,11 @@ mod inner {
 		/// assert_eq!(oks, vec![1, 2]);
 		/// assert_eq!(errs, vec!["error"]);
 		/// ```
-		fn separate<'a, E: 'a, O: 'a>(
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+		fn separate<E, O>(
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<Result<O, E>>)
 		) -> (
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 		) {
 			let mut oks = Vec::new();
 			let mut errs = Vec::new();
@@ -765,7 +750,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the error value.",
 			"The type of the success value.",
@@ -788,19 +772,19 @@ mod inner {
 		///
 		/// let x = vec![1, 2, 3, 4];
 		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
-		/// assert_eq!(oks, vec![2, 4]);
-		/// assert_eq!(errs, vec![1, 3]);
+		/// 	partition_map::<VecBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// assert_eq!(oks, vec![3, 4]);
+		/// assert_eq!(errs, vec![1, 2]);
 		/// ```
-		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
+		fn partition_map<A, E, O, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> (
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 		)
 		where
-			Func: Fn(A) -> Result<O, E> + 'a,
+			Func: Fn(A) -> Result<O, E>,
 		{
 			let mut oks = Vec::new();
 			let mut errs = Vec::new();
@@ -819,7 +803,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
@@ -843,15 +826,15 @@ mod inner {
 		/// assert_eq!(satisfied, vec![2, 4]);
 		/// assert_eq!(not_satisfied, vec![1, 3]);
 		/// ```
-		fn partition<'a, A: 'a + Clone, Func>(
+		fn partition<A: Clone, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> (
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		)
 		where
-			Func: Fn(A) -> bool + 'a,
+			Func: Fn(A) -> bool,
 		{
 			let (satisfied, not_satisfied): (Vec<A>, Vec<A>) =
 				fa.into_iter().partition(|a| func(a.clone()));
@@ -864,7 +847,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the result of applying the function.",
 			"The type of the function to apply."
@@ -888,12 +870,12 @@ mod inner {
 		/// let y = filter_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, vec![4, 8]);
 		/// ```
-		fn filter_map<'a, A: 'a, B: 'a, Func>(
+		fn filter_map<A, B, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> Option<B> + 'a,
+			Func: Fn(A) -> Option<B>,
 		{
 			fa.into_iter().filter_map(func).collect()
 		}
@@ -904,7 +886,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The type of the elements.",
 			"The type of the predicate."
 		)]
@@ -927,12 +908,12 @@ mod inner {
 		/// let y = filter::<VecBrand, _, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(y, vec![2, 4]);
 		/// ```
-		fn filter<'a, A: 'a + Clone, Func>(
+		fn filter<A: Clone, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)
 		where
-			Func: Fn(A) -> bool + 'a,
+			Func: Fn(A) -> bool,
 		{
 			fa.into_iter().filter(|a| func(a.clone())).collect()
 		}
@@ -945,7 +926,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the elements.",
 			"The applicative context.",
 			"The type of the input value.",
 			"The type of the error value.",
@@ -974,21 +954,19 @@ mod inner {
 		/// );
 		/// assert_eq!(y, Some((vec![1, 3], vec![2, 4])));
 		/// ```
-		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
+		fn wilt<M: Applicative, A: Clone, E: Clone, O: Clone, Func>(
 			func: Func,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<M as Kind!( type Of<T>; )>::Of<
 		(
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 		),
 	>)
 		where
-			Func:
-				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+			Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
+			Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
 		{
 			ta.into_iter().fold(M::pure((Vec::new(), Vec::new())), |acc, x| {
 				M::lift2(
@@ -1011,7 +989,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
 			"The type of the result of applying the function.",
@@ -1045,17 +1022,14 @@ mod inner {
 		/// );
 		/// assert_eq!(y, Some(vec![4, 8]));
 		/// ```
-		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+		fn wither<M: Applicative, A: Clone, B: Clone, Func>(
 			func: Func,
-			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	>)
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 		where
-			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+			Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>),
+			Apply!(<Self as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
+			Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
 		{
 			ta.into_iter().fold(M::pure(Vec::new()), |acc, x| {
 				M::lift2(
@@ -1144,8 +1118,8 @@ mod tests {
 		// We construct (u . v) manually as the cartesian product of compositions
 		let uv_fns: Vec<_> = u_fns
 			.iter()
-			.flat_map(|uf| {
-				v_fns.iter().map(move |vf| {
+			.flat_map(|uf: &<RcFnBrand as CloneableFn>::Of<i32, i32>| {
+				v_fns.iter().map(move |vf: &<RcFnBrand as CloneableFn>::Of<i32, i32>| {
 					let uf = uf.clone();
 					let vf = vf.clone();
 					<RcFnBrand as CloneableFn>::new(move |x| uf(vf(x)))
