@@ -18,13 +18,13 @@ use {
 };
 
 /// A type class for contexts that can be initialized with a value.
-pub trait Pointed: Kind_cdc7cd43dac7585f {
+pub trait Pointed: Kind_ad6c20556a82a1f0 {
 	/// The value wrapped in the context.
 	///
 	/// This method wraps a value in a context.
 	#[document_signature]
 	///
-	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters("The type of the value to wrap.")]
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -43,7 +43,7 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// let x = pure::<OptionBrand, _>(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	fn pure<A>(a: A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>);
 }
 
 /// The value wrapped in the context.
@@ -52,7 +52,6 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the value.",
 	"The brand of the context.",
 	"The type of the value to wrap."
 )]
@@ -74,8 +73,8 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 /// let x = pure::<OptionBrand, _>(5);
 /// assert_eq!(x, Some(5));
 /// ```
-pub fn pure<'a, Brand: Pointed, A: 'a>(
+pub fn pure<Brand: Pointed, A>(
 	a: A
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>) {
 	Brand::pure(a)
 }

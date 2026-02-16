@@ -39,7 +39,7 @@ pub trait SendCloneableFn: CloneableFn {
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Arc<dyn Fn(A) -> B + Send + Sync>`)
 	/// that implements `Clone`, `Send`, `Sync` and dereferences to the underlying closure.
-	type SendOf<'a, A, B>: Clone + Send + Sync + Deref<Target = dyn 'a + Fn(A) -> B + Send + Sync>;
+	type SendOf<A, B>: Clone + Send + Sync + Deref<Target = dyn Fn(A) -> B + Send + Sync>;
 
 	/// Creates a new thread-safe cloneable function wrapper.
 	///
@@ -47,7 +47,6 @@ pub trait SendCloneableFn: CloneableFn {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
@@ -79,9 +78,9 @@ pub trait SendCloneableFn: CloneableFn {
 	/// });
 	/// handle.join().unwrap();
 	/// ```
-	fn send_cloneable_fn_new<'a, A, B>(
-		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> <Self as SendCloneableFn>::SendOf<'a, A, B>;
+	fn send_cloneable_fn_new<A, B>(
+		f: impl Fn(A) -> B + Send + Sync
+	) -> <Self as SendCloneableFn>::SendOf<A, B>;
 }
 
 /// Creates a new thread-safe cloneable function wrapper.
@@ -90,7 +89,6 @@ pub trait SendCloneableFn: CloneableFn {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the function and its captured data.",
 	"The brand of the thread-safe cloneable function wrapper.",
 	"The input type of the function.",
 	"The output type of the function."
@@ -123,11 +121,8 @@ pub trait SendCloneableFn: CloneableFn {
 /// });
 /// handle.join().unwrap();
 /// ```
-pub fn new<'a, Brand, A, B>(
-	f: impl 'a + Fn(A) -> B + Send + Sync
-) -> <Brand as SendCloneableFn>::SendOf<'a, A, B>
-where
-	Brand: SendCloneableFn,
-{
+pub fn new<Brand: SendCloneableFn, A, B>(
+	f: impl Fn(A) -> B + Send + Sync
+) -> <Brand as SendCloneableFn>::SendOf<A, B> {
 	<Brand as SendCloneableFn>::send_cloneable_fn_new(f)
 }

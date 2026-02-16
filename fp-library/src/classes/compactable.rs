@@ -23,12 +23,11 @@ use {
 /// `Compactable` allows for:
 /// *   `compact`: Filtering out [`None`] values and unwrapping [`Some`] values from a structure of [`Option`]s.
 /// *   `separate`: Splitting a structure of [`Result`]s into a pair of structures, one containing the [`Err`] values and the other containing the [`Ok`] values.
-pub trait Compactable: Kind_cdc7cd43dac7585f {
+pub trait Compactable: Kind_ad6c20556a82a1f0 {
 	/// Compacts a data structure of [`Option`]s, discarding [`None`] values and keeping [`Some`] values.
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the [`Option`]."
 	)]
 	///
@@ -54,18 +53,16 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// let w = compact::<OptionBrand, _>(z);
 	/// assert_eq!(w, None);
 	/// ```
-	fn compact<'a, A: 'a>(
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-			'a,
-			Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fn compact<A>(
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<
+			Apply!(<OptionBrand as Kind!( type Of<T>; )>::Of<A>),
 		>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>);
 
 	/// Separates a data structure of [`Result`]s into two data structures: one containing the [`Err`] values and one containing the [`Ok`] values.
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the error values.",
 		"The type of the success values."
 	)]
@@ -94,11 +91,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 	/// assert_eq!(oks2, None);
 	/// assert_eq!(errs2, Some("error"));
 	/// ```
-	fn separate<'a, E: 'a, O: 'a>(
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+	fn separate<E, O>(
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<Result<O, E>>)
 	) -> (
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 	);
 }
 
@@ -108,7 +105,6 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the elements in the [`Option`]."
 )]
@@ -131,12 +127,11 @@ pub trait Compactable: Kind_cdc7cd43dac7585f {
 /// let y = compact::<OptionBrand, _>(x);
 /// assert_eq!(y, Some(5));
 /// ```
-pub fn compact<'a, Brand: Compactable, A: 'a>(
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		Apply!(<OptionBrand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+pub fn compact<Brand: Compactable, A>(
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<
+		Apply!(<OptionBrand as Kind!( type Of<T>; )>::Of<A>),
 	>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>) {
 	Brand::compact(fa)
 }
 
@@ -146,7 +141,6 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the compactable structure.",
 	"The type of the error values.",
 	"The type of the success values."
@@ -171,11 +165,11 @@ pub fn compact<'a, Brand: Compactable, A: 'a>(
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn separate<'a, Brand: Compactable, E: 'a, O: 'a>(
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+pub fn separate<Brand: Compactable, E, O>(
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<Result<O, E>>)
 ) -> (
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<E>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<O>),
 ) {
 	Brand::separate::<E, O>(fa)
 }

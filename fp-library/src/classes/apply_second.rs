@@ -31,7 +31,6 @@ pub trait ApplySecond: Lift {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The type of the value in the first context.",
 		"The type of the value in the second context."
 	)]
@@ -55,10 +54,10 @@ pub trait ApplySecond: Lift {
 	/// let z = apply_second::<OptionBrand, _, _>(x, y);
 	/// assert_eq!(z, Some(10));
 	/// ```
-	fn apply_second<'a, A: 'a + Clone, B: 'a + Clone>(
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+	fn apply_second<A: Clone, B: Clone>(
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 		Self::lift2::<A, B, B, _>(|_, b| b, fa, fb)
 	}
 }
@@ -69,7 +68,6 @@ pub trait ApplySecond: Lift {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the context.",
 	"The type of the value in the first context.",
 	"The type of the value in the second context."
@@ -94,9 +92,9 @@ pub trait ApplySecond: Lift {
 /// let z = apply_second::<OptionBrand, _, _>(x, y);
 /// assert_eq!(z, Some(10));
 /// ```
-pub fn apply_second<'a, Brand: ApplySecond, A: 'a + Clone, B: 'a + Clone>(
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+pub fn apply_second<Brand: ApplySecond, A: Clone, B: Clone>(
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+	fb: Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>),
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>) {
 	Brand::apply_second::<A, B>(fa, fb)
 }

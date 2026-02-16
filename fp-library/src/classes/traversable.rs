@@ -34,7 +34,6 @@ pub trait Traversable: Functor + Foldable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
 		"The applicative context.",
@@ -62,20 +61,16 @@ pub trait Traversable: Functor + Foldable {
 	/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
+	fn traverse<A: Clone, B: Clone, F: Applicative, Func>(
 		func: Func,
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<B>): Clone,
+		Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone,
 	{
-		Self::sequence::<B, F>(Self::map::<
-			A,
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-			Func,
-		>(func, ta))
+		Self::sequence::<B, F>(Self::map::<A, Apply!(<F as Kind!( type Of<T>; )>::Of<B>), Func>(func, ta))
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.
@@ -84,7 +79,6 @@ pub trait Traversable: Functor + Foldable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the traversable structure.",
 		"The applicative context."
 	)]
@@ -107,14 +101,14 @@ pub trait Traversable: Functor + Foldable {
 	/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
 	/// assert_eq!(y, Some(Some(5)));
 	/// ```
-	fn sequence<'a, A: 'a + Clone, F: Applicative>(
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+	fn sequence<A: Clone, F: Applicative>(
+		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
+	) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)>)
 	where
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone,
 	{
-		Self::traverse::<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A, F, _>(
+		Self::traverse::<Apply!(<F as Kind!( type Of<T>; )>::Of<A>), A, F, _>(
 			identity, ta,
 		)
 	}
@@ -126,7 +120,6 @@ pub trait Traversable: Functor + Foldable {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
 	"The type of the elements in the resulting traversable structure.",
@@ -155,14 +148,14 @@ pub trait Traversable: Functor + Foldable {
 /// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
+pub fn traverse<Brand: Traversable, A: Clone, B: Clone, F: Applicative, Func>(
 	func: Func,
-	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
+	ta: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)>)
 where
-	Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+	Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>): Clone,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone,
 {
 	Brand::traverse::<A, B, F, Func>(func, ta)
 }
@@ -173,7 +166,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the traversable structure.",
 	"The type of the elements in the traversable structure.",
 	"The applicative context."
@@ -197,12 +189,12 @@ where
 /// let y = sequence::<OptionBrand, _, OptionBrand>(x);
 /// assert_eq!(y, Some(Some(5)));
 /// ```
-pub fn sequence<'a, Brand: Traversable, A: 'a + Clone, F: Applicative>(
-	ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
-) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
+pub fn sequence<Brand: Traversable, A: Clone, F: Applicative>(
+	ta: Apply!(<Brand as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
+) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>)>)
 where
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>): Clone,
 {
 	Brand::sequence::<A, F>(ta)
 }

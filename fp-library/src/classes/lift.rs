@@ -20,14 +20,13 @@ use {
 };
 
 /// A type class for lifting binary functions into a context.
-pub trait Lift: Kind_cdc7cd43dac7585f {
+pub trait Lift: Kind_ad6c20556a82a1f0 {
 	/// Lifts a binary function into the context.
 	///
 	/// This method lifts a binary function to operate on values within the context.
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The type of the first value.",
 		"The type of the second value.",
 		"The type of the result.",
@@ -57,16 +56,15 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	fn lift2<'a, A, B, C, Func>(
+	fn lift2<A, B, C, Func>(
 		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<C>)
 	where
-		Func: Fn(A, B) -> C + 'a,
-		A: Clone + 'a,
-		B: Clone + 'a,
-		C: 'a;
+		Func: Fn(A, B) -> C,
+		A: Clone,
+		B: Clone;
 }
 
 /// Lifts a binary function into the context.
@@ -75,7 +73,6 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the context.",
 	"The type of the first value.",
 	"The type of the second value.",
@@ -102,16 +99,15 @@ pub trait Lift: Kind_cdc7cd43dac7585f {
 /// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 /// assert_eq!(z, Some(3));
 /// ```
-pub fn lift2<'a, Brand: Lift, A, B, C, Func>(
+pub fn lift2<Brand: Lift, A, B, C, Func>(
 	func: Func,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+	fb: Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>),
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<C>)
 where
-	Func: Fn(A, B) -> C + 'a,
-	A: Clone + 'a,
-	B: Clone + 'a,
-	C: 'a,
+	Func: Fn(A, B) -> C,
+	A: Clone,
+	B: Clone,
 {
 	Brand::lift2::<A, B, C, Func>(func, fa, fb)
 }

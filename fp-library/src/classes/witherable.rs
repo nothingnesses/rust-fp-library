@@ -43,7 +43,6 @@ pub trait Witherable: Filterable + Traversable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the error values.",
@@ -76,20 +75,17 @@ pub trait Witherable: Filterable + Traversable {
 	/// );
 	/// assert_eq!(y, Some((None, Some(5))));
 	/// ```
-	fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
+	fn wilt<M: Applicative, A: Clone, E: Clone, O: Clone, Func>(
 		func: Func,
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		(
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		),
-	>)
+		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<M as Kind!( type Of<T>; )>::Of<(
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
+	)>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
+		Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
 	{
 		M::map(
 			|res| Self::separate::<E, O>(res),
@@ -103,7 +99,6 @@ pub trait Witherable: Filterable + Traversable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
@@ -134,17 +129,14 @@ pub trait Witherable: Filterable + Traversable {
 	/// );
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+	fn wither<M: Applicative, A: Clone, B: Clone, Func>(
 		func: Func,
-		ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-		'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-	>)
+		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
+		Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
 	{
 		M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M, Func>(func, ta))
 	}
@@ -156,7 +148,6 @@ pub trait Witherable: Filterable + Traversable {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
 	"The type of the elements in the input structure.",
@@ -190,20 +181,17 @@ pub trait Witherable: Filterable + Traversable {
 /// );
 /// assert_eq!(y, Some((None, Some(5))));
 /// ```
-pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
+pub fn wilt<F: Witherable, M: Applicative, A: Clone, E: Clone, O: Clone, Func>(
 	func: Func,
-	ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-	'a,
-	(
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-	),
->)
+	ta: Apply!(<F as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<M as Kind!( type Of<T>; )>::Of<(
+	Apply!(<F as Kind!( type Of<T>; )>::Of<E>),
+	Apply!(<F as Kind!( type Of<T>; )>::Of<O>),
+)>)
 where
-	Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>),
+	Apply!(<F as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
+	Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
 {
 	F::wilt::<M, A, E, O, Func>(func, ta)
 }
@@ -214,7 +202,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the witherable structure.",
 	"The applicative context.",
 	"The type of the elements in the input structure.",
@@ -246,17 +233,14 @@ where
 /// );
 /// assert_eq!(y, Some(Some(10)));
 /// ```
-pub fn wither<'a, F: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
+pub fn wither<F: Witherable, M: Applicative, A: Clone, B: Clone, Func>(
 	func: Func,
-	ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
-	'a,
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
->)
+	ta: Apply!(<F as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<B>)>)
 where
-	Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>),
+	Apply!(<F as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
+	Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
 {
 	F::wither::<M, A, B, Func>(func, ta)
 }

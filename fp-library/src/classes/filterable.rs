@@ -45,7 +45,6 @@ pub trait Filterable: Compactable + Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the error values.",
 		"The type of the success values.",
@@ -75,15 +74,15 @@ pub trait Filterable: Compactable + Functor {
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
+	fn partition_map<A, E, O, Func>(
 		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> (
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 	)
 	where
-		Func: Fn(A) -> Result<O, E> + 'a,
+		Func: Fn(A) -> Result<O, E>,
 	{
 		Self::separate::<E, O>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
@@ -98,7 +97,6 @@ pub trait Filterable: Compactable + Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
@@ -122,15 +120,15 @@ pub trait Filterable: Compactable + Functor {
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
-	fn partition<'a, A: 'a + Clone, Func>(
+	fn partition<A: Clone, Func>(
 		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> (
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	)
 	where
-		Func: Fn(A) -> bool + 'a,
+		Func: Fn(A) -> bool,
 	{
 		Self::partition_map(move |a| if func(a.clone()) { Ok(a) } else { Err(a) }, fa)
 	}
@@ -143,7 +141,6 @@ pub trait Filterable: Compactable + Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the input structure.",
 		"The type of the elements in the output structure.",
 		"The type of the function to apply."
@@ -167,12 +164,12 @@ pub trait Filterable: Compactable + Functor {
 	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn filter_map<'a, A: 'a, B: 'a, Func>(
+	fn filter_map<A, B, Func>(
 		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> Option<B> + 'a,
+		Func: Fn(A) -> Option<B>,
 	{
 		Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
 	}
@@ -183,7 +180,6 @@ pub trait Filterable: Compactable + Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the elements.",
 		"The type of the elements in the structure.",
 		"The type of the predicate function."
 	)]
@@ -206,12 +202,12 @@ pub trait Filterable: Compactable + Functor {
 	/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 	/// assert_eq!(y, Some(5));
 	/// ```
-	fn filter<'a, A: 'a + Clone, Func>(
+	fn filter<A: Clone, Func>(
 		func: Func,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)
 	where
-		Func: Fn(A) -> bool + 'a,
+		Func: Fn(A) -> bool,
 	{
 		Self::filter_map(move |a| if func(a.clone()) { Some(a) } else { None }, fa)
 	}
@@ -223,7 +219,6 @@ pub trait Filterable: Compactable + Functor {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
 	"The type of the error values.",
@@ -254,15 +249,15 @@ pub trait Filterable: Compactable + Functor {
 /// assert_eq!(oks, Some(5));
 /// assert_eq!(errs, None);
 /// ```
-pub fn partition_map<'a, Brand: Filterable, A: 'a, E: 'a, O: 'a, Func>(
+pub fn partition_map<Brand: Filterable, A, E, O, Func>(
 	func: Func,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 ) -> (
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<E>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<O>),
 )
 where
-	Func: Fn(A) -> Result<O, E> + 'a,
+	Func: Fn(A) -> Result<O, E>,
 {
 	Brand::partition_map::<A, E, O, Func>(func, fa)
 }
@@ -275,7 +270,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
@@ -300,15 +294,15 @@ where
 /// assert_eq!(satisfied, Some(5));
 /// assert_eq!(not_satisfied, None);
 /// ```
-pub fn partition<'a, Brand: Filterable, A: 'a + Clone, Func>(
+pub fn partition<Brand: Filterable, A: Clone, Func>(
 	func: Func,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 ) -> (
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 )
 where
-	Func: Fn(A) -> bool + 'a,
+	Func: Fn(A) -> bool,
 {
 	Brand::partition(func, fa)
 }
@@ -319,7 +313,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the input structure.",
 	"The type of the elements in the output structure.",
@@ -347,12 +340,12 @@ where
 /// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a, Func>(
+pub fn filter_map<Brand: Filterable, A, B, Func>(
 	func: Func,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
 where
-	Func: Fn(A) -> Option<B> + 'a,
+	Func: Fn(A) -> Option<B>,
 {
 	Brand::filter_map::<A, B, Func>(func, fa)
 }
@@ -363,7 +356,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the elements.",
 	"The brand of the filterable structure.",
 	"The type of the elements in the structure.",
 	"The type of the predicate function."
@@ -387,12 +379,12 @@ where
 /// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
 /// assert_eq!(y, Some(5));
 /// ```
-pub fn filter<'a, Brand: Filterable, A: 'a + Clone, Func>(
+pub fn filter<Brand: Filterable, A: Clone, Func>(
 	func: Func,
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>)
 where
-	Func: Fn(A) -> bool + 'a,
+	Func: Fn(A) -> bool,
 {
 	Brand::filter(func, fa)
 }

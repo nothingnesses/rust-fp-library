@@ -85,7 +85,6 @@ pub trait ParFoldable: Foldable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The brand of thread-safe function to use.",
 		"The element type.",
 		"The monoid type."
@@ -113,14 +112,14 @@ pub trait ParFoldable: Foldable {
 	/// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 	/// assert_eq!(result, "12345");
 	/// ```
-	fn par_fold_map<'a, FnBrand, A, M>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fn par_fold_map<FnBrand, A, M>(
+		func: <FnBrand as SendCloneableFn>::SendOf<A, M>,
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> M
 	where
-		FnBrand: 'a + SendCloneableFn,
-		A: 'a + Clone + Send + Sync,
-		M: Monoid + Send + Sync + 'a;
+		FnBrand: SendCloneableFn,
+		A: Clone + Send + Sync,
+		M: Monoid + Send + Sync;
 
 	/// Parallel version of fold_right.
 	///
@@ -128,7 +127,6 @@ pub trait ParFoldable: Foldable {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The brand of thread-safe function to use.",
 		"The element type.",
 		"The accumulator type."
@@ -157,15 +155,15 @@ pub trait ParFoldable: Foldable {
 	/// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 	/// assert_eq!(sum, 25);
 	/// ```
-	fn par_fold_right<'a, FnBrand, A, B>(
-		func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
+	fn par_fold_right<FnBrand, A, B>(
+		func: <FnBrand as SendCloneableFn>::SendOf<(A, B), B>,
 		init: B,
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> B
 	where
-		A: 'a + Clone + Send + Sync,
-		B: Send + Sync + 'a,
-		FnBrand: 'a + SendCloneableFn,
+		A: Clone + Send + Sync,
+		B: Send + Sync,
+		FnBrand: SendCloneableFn,
 	{
 		let f_clone = func.clone();
 		let endo = Self::par_fold_map::<FnBrand, _, _>(
@@ -189,7 +187,6 @@ pub trait ParFoldable: Foldable {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the computation.",
 	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
 	"The element type.",
@@ -218,15 +215,15 @@ pub trait ParFoldable: Foldable {
 /// let result: String = par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v);
 /// assert_eq!(result, "12345");
 /// ```
-pub fn par_fold_map<'a, FnBrand, F, A, M>(
-	func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-	fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+pub fn par_fold_map<FnBrand, F, A, M>(
+	func: <FnBrand as SendCloneableFn>::SendOf<A, M>,
+	fa: Apply!(<F as Kind!( type Of<T>; )>::Of<A>),
 ) -> M
 where
-	FnBrand: 'a + SendCloneableFn,
+	FnBrand: SendCloneableFn,
 	F: ParFoldable,
-	A: 'a + Clone + Send + Sync,
-	M: Monoid + Send + Sync + 'a,
+	A: Clone + Send + Sync,
+	M: Monoid + Send + Sync,
 {
 	F::par_fold_map::<FnBrand, A, M>(func, fa)
 }
@@ -237,7 +234,6 @@ where
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the computation.",
 	"The brand of thread-safe function to use.",
 	"The brand of the foldable structure.",
 	"The element type.",
@@ -267,16 +263,16 @@ where
 /// let sum = par_fold_right::<ArcFnBrand, VecBrand, _, _>(f, 10, v);
 /// assert_eq!(sum, 25);
 /// ```
-pub fn par_fold_right<'a, FnBrand, F, A, B>(
-	func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
+pub fn par_fold_right<FnBrand, F, A, B>(
+	func: <FnBrand as SendCloneableFn>::SendOf<(A, B), B>,
 	initial: B,
-	fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	fa: Apply!(<F as Kind!( type Of<T>; )>::Of<A>),
 ) -> B
 where
-	FnBrand: SendCloneableFn + 'a,
+	FnBrand: SendCloneableFn,
 	F: ParFoldable,
-	A: 'a + Clone + Send + Sync,
-	B: Send + Sync + 'a,
+	A: Clone + Send + Sync,
+	B: Send + Sync,
 {
 	F::par_fold_right::<FnBrand, A, B>(func, initial, fa)
 }

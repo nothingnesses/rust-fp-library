@@ -30,7 +30,6 @@ pub trait Evaluable: Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the value.",
 		"The type of the value inside the functor."
 	)]
 	///
@@ -52,7 +51,7 @@ pub trait Evaluable: Functor {
 	/// let eval = Thunk::new(|| 42);
 	/// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);
 	/// ```
-	fn evaluate<'a, A: 'a>(fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A;
+	fn evaluate<A>(fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)) -> A;
 }
 
 /// Evaluates the effect, producing the inner value.
@@ -61,7 +60,6 @@ pub trait Evaluable: Functor {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the value.",
 	"The evaluable functor.",
 	"The type of the value inside the functor."
 )]
@@ -84,10 +82,6 @@ pub trait Evaluable: Functor {
 /// let eval = Thunk::new(|| 42);
 /// assert_eq!(evaluate::<ThunkBrand, _>(eval), 42);
 /// ```
-pub fn evaluate<'a, F, A>(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A
-where
-	F: Evaluable,
-	A: 'a,
-{
+pub fn evaluate<F: Evaluable, A>(fa: Apply!(<F as Kind!( type Of<T>; )>::Of<A>)) -> A {
 	F::evaluate(fa)
 }

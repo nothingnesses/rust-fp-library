@@ -55,7 +55,6 @@ pub trait MonadRec: Monad {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the initial value and loop state.",
 		"The type of the result.",
 		"The type of the step function."
@@ -85,14 +84,13 @@ pub trait MonadRec: Monad {
 	///
 	/// assert_eq!(result.evaluate(), 10);
 	/// ```
-	fn tail_rec_m<'a, A: 'a, B: 'a, Func>(
+	fn tail_rec_m<A, B, Func>(
 		func: Func,
 		initial: A,
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
-			+ 'a;
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
+			+ Clone;
 }
 
 /// Performs tail-recursive monadic computation.
@@ -101,7 +99,6 @@ pub trait MonadRec: Monad {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the computation.",
 	"The brand of the monad.",
 	"The type of the initial value and loop state.",
 	"The type of the result.",
@@ -132,14 +129,13 @@ pub trait MonadRec: Monad {
 ///
 /// assert_eq!(result.evaluate(), 10);
 /// ```
-pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, Func>(
+pub fn tail_rec_m<Brand: MonadRec, A, B, Func>(
 	func: Func,
 	initial: A,
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
 where
-	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-		+ Clone
-		+ 'a,
+	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<Step<A, B>>)
+		+ Clone,
 {
 	Brand::tail_rec_m(func, initial)
 }

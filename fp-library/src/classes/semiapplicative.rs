@@ -42,7 +42,6 @@ pub trait Semiapplicative: Lift + Functor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The brand of the cloneable function wrapper.",
 		"The type of the input value.",
 		"The type of the output value."
@@ -71,10 +70,10 @@ pub trait Semiapplicative: Lift + Functor {
 	/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-		ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
+	fn apply<FnBrand: CloneableFn, A: Clone, B>(
+		ff: Apply!(<Self as Kind!( type Of<T>; )>::Of< <FnBrand as CloneableFn>::Of<A, B> >),
+		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>);
 }
 
 /// Applies a function within a context to a value within a context.
@@ -83,7 +82,6 @@ pub trait Semiapplicative: Lift + Functor {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the cloneable function wrapper.",
 	"The brand of the context.",
 	"The type of the input value.",
@@ -113,9 +111,9 @@ pub trait Semiapplicative: Lift + Functor {
 /// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 /// assert_eq!(y, Some(10));
 /// ```
-pub fn apply<'a, FnBrand: 'a + CloneableFn, Brand: Semiapplicative, A: 'a + Clone, B: 'a>(
-	ff: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+pub fn apply<FnBrand: CloneableFn, Brand: Semiapplicative, A: Clone, B>(
+	ff: Apply!(<Brand as Kind!( type Of<T>; )>::Of< <FnBrand as CloneableFn>::Of<A, B> >),
+	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>) {
 	Brand::apply::<FnBrand, A, B>(ff, fa)
 }
