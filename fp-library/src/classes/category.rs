@@ -34,7 +34,7 @@ pub trait Category: Semigroupoid {
 	/// The identity morphism is a morphism that maps every object to itself.
 	#[document_signature]
 	///
-	#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
+	#[document_type_parameters("The type of the object.")]
 	///
 	/// ### Returns
 	///
@@ -51,7 +51,7 @@ pub trait Category: Semigroupoid {
 	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>);
+	fn identity<A>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>);
 }
 
 /// Returns the identity morphism.
@@ -60,7 +60,6 @@ pub trait Category: Semigroupoid {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the morphism.",
 	"The brand of the category.",
 	"The type of the object."
 )]
@@ -80,7 +79,7 @@ pub trait Category: Semigroupoid {
 /// let id = category_identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);
 /// ```
-pub fn identity<'a, Brand: Category, A>()
--> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
+pub fn identity<Brand: Category, A>()
+-> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, A>) {
 	Brand::identity()
 }

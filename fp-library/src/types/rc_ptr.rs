@@ -116,7 +116,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -135,10 +134,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
+		fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Rc<dyn Fn(A) -> B> {
 			Rc::new(f)
 		}
 	}

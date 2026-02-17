@@ -23,7 +23,6 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
@@ -42,10 +41,10 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+	/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
+	fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Self::CloneableOf<dyn Fn(A) -> B>;
 }
 
 /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
@@ -54,7 +53,6 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the closure.",
 	"The brand of the pointer.",
 	"The input type of the function.",
 	"The output type of the function.",
@@ -76,14 +74,14 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// 	functions::*,
 /// };
 ///
-/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, Func>(
+pub fn coerce_fn<Brand: UnsizedCoercible, A, B, Func>(
 	func: Func
-) -> Brand::CloneableOf<dyn 'a + Fn(A) -> B>
+) -> Brand::CloneableOf<dyn Fn(A) -> B>
 where
-	Func: 'a + Fn(A) -> B,
+	Func: Fn(A) -> B + 'static,
 {
 	Brand::coerce_fn::<A, B>(func)
 }

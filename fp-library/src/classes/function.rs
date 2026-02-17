@@ -33,7 +33,7 @@ pub trait Function: Arrow {
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
 	/// that dereferences to the underlying closure.
-	type Of<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Of<A, B>: Deref<Target = dyn Fn(A) -> B>;
 
 	/// Creates a new function wrapper.
 	///
@@ -41,7 +41,6 @@ pub trait Function: Arrow {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
@@ -62,7 +61,7 @@ pub trait Function: Arrow {
 	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B>;
+	fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as Function>::Of<A, B>;
 }
 
 /// Creates a new function wrapper.
@@ -71,7 +70,6 @@ pub trait Function: Arrow {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the function and its captured data.",
 	"The brand of the function wrapper.",
 	"The input type of the function.",
 	"The output type of the function."
@@ -93,7 +91,7 @@ pub trait Function: Arrow {
 /// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as Function>::Of<'a, A, B>
+pub fn new<Brand, A, B>(f: impl Fn(A) -> B + 'static) -> <Brand as Function>::Of<A, B>
 where
 	Brand: Function,
 {

@@ -20,13 +20,13 @@ mod inner {
 
 	impl_kind! {
 		impl<P: UnsizedCoercible> for FnBrand<P> {
-			type Of<'a, A, B> = <P as RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
+			type Of<A, B> = <P as RefCountedPointer>::CloneableOf<dyn Fn(A) -> B>;
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
-		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+		type Of<A, B> = Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>);
 
 		/// Creates a new function wrapper.
 		///
@@ -34,7 +34,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -56,14 +55,14 @@ mod inner {
 		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
+		fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as Function>::Of<A, B> {
 			P::coerce_fn(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
-		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+		type Of<A, B> = Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>);
 
 		/// Creates a new cloneable function wrapper.
 		///
@@ -71,7 +70,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -93,7 +91,7 @@ mod inner {
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
+		fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as CloneableFn>::Of<A, B> {
 			P::coerce_fn(f)
 		}
 	}
@@ -106,7 +104,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the morphisms.",
 			"The source type of the first morphism.",
 			"The target type of the first morphism and the source type of the second morphism.",
 			"The target type of the second morphism."
@@ -135,10 +132,10 @@ mod inner {
 		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
-		fn compose<'a, B: 'a, C: 'a, D: 'a>(
-			f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
-			g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
+		fn compose<B, C, D>(
+			f: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<C, D>),
+			g: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>) {
 			P::coerce_fn(move |b| f(g(b)))
 		}
 	}
@@ -150,7 +147,7 @@ mod inner {
 		/// The identity morphism is a function that maps every object to itself, wrapped in the pointer type.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
+		#[document_type_parameters("The type of the object.")]
 		///
 		/// ### Returns
 		///
@@ -167,7 +164,7 @@ mod inner {
 		/// let id = category_identity::<RcFnBrand, i32>();
 		/// assert_eq!(id(5), 5);
 		/// ```
-		fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
+		fn identity<A>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>) {
 			P::coerce_fn(|a| a)
 		}
 	}
@@ -181,7 +178,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The new input type (contravariant position).",
 			"The original input type.",
 			"The original output type.",
@@ -215,14 +211,14 @@ mod inner {
 		/// );
 		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
-		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
+		fn dimap<A, B, C, D, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
-			pbc: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, D>)
+			pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, D>)
 		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a,
+			FuncAB: Fn(A) -> B + 'static,
+			FuncCD: Fn(C) -> D + 'static,
 		{
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
@@ -237,7 +233,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The input type of the function.",
 			"The output type of the function.",
 			"The type of the second component (threaded through unchanged)."
@@ -261,9 +256,9 @@ mod inner {
 		/// let g = <RcFnBrand as Strong>::first::<i32, i32, i32>(f);
 		/// assert_eq!(g((10, 20)), (11, 20));
 		/// ```
-		fn first<'a, A: 'a, B: 'a, C>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
+		fn first<A, B, C>(
+			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>) {
 			P::coerce_fn(move |(a, c)| (pab(a), c))
 		}
 	}
@@ -277,7 +272,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The input type of the function.",
 			"The output type of the function.",
 			"The type of the success variant (threaded through unchanged)."
@@ -302,9 +296,9 @@ mod inner {
 		/// assert_eq!(g(Err(10)), Err(11));
 		/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 		/// ```
-		fn left<'a, A: 'a, B: 'a, C: 'a>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+		fn left<A, B, C>(
+			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>) {
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
 					Err(a) => Err(pab(a)),
@@ -316,7 +310,7 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
-		type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+		type SendOf<A, B> = P::SendOf<dyn Fn(A) -> B + Send + Sync>;
 
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
@@ -324,7 +318,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the function and its captured data.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -346,9 +339,9 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn send_cloneable_fn_new<'a, A, B>(
-			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> Self::SendOf<'a, A, B> {
+		fn send_cloneable_fn_new<A, B>(
+			f: impl Fn(A) -> B + Send + Sync + 'static
+		) -> Self::SendOf<A, B> {
 			P::coerce_send_fn(f)
 		}
 	}

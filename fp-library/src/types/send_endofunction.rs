@@ -27,7 +27,6 @@ mod inner {
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][SendEndofunction#structfield.0].
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
@@ -48,16 +47,15 @@ mod inner {
 	/// ));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct SendEndofunction<'a, FnBrand: SendCloneableFn, A>(
-		pub <FnBrand as SendCloneableFn>::SendOf<'a, A, A>,
+	pub struct SendEndofunction<FnBrand: SendCloneableFn, A>(
+		pub <FnBrand as SendCloneableFn>::SendOf<A, A>,
 	);
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: SendCloneableFn, A> SendEndofunction<'a, FnBrand, A> {
+	impl<FnBrand: SendCloneableFn, A> SendEndofunction<FnBrand, A> {
 		/// Creates a new `SendEndofunction`.
 		///
 		/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
@@ -83,18 +81,17 @@ mod inner {
 		/// ));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: <FnBrand as SendCloneableFn>::SendOf<'a, A, A>) -> Self {
+		pub fn new(f: <FnBrand as SendCloneableFn>::SendOf<A, A>) -> Self {
 			Self(f)
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Clone for SendEndofunction<'a, FnBrand, A> {
+	impl<FnBrand: SendCloneableFn, A> Clone for SendEndofunction<FnBrand, A> {
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
@@ -102,14 +99,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Debug for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A> Debug for SendEndofunction<FnBrand, A>
 	where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Debug,
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: Debug,
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
@@ -122,24 +118,22 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: SendCloneableFn, A> Eq for SendEndofunction<'a, FnBrand, A> where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Eq
+	impl<FnBrand: SendCloneableFn, A> Eq for SendEndofunction<FnBrand, A> where
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: Eq
 	{
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Hash for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A> Hash for SendEndofunction<FnBrand, A>
 	where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Hash,
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: Hash,
 	{
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -153,14 +147,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> Ord for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A> Ord for SendEndofunction<FnBrand, A>
 	where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: Ord,
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: Ord,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -173,14 +166,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> PartialEq for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A> PartialEq for SendEndofunction<FnBrand, A>
 	where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialEq,
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: PartialEq,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -193,14 +185,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: SendCloneableFn, A> PartialOrd for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A> PartialOrd for SendEndofunction<FnBrand, A>
 	where
-		<FnBrand as SendCloneableFn>::SendOf<'a, A, A>: PartialOrd,
+		<FnBrand as SendCloneableFn>::SendOf<A, A>: PartialOrd,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -213,12 +204,11 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Semigroup
-		for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: Send + Sync> Semigroup
+		for SendEndofunction<FnBrand, A>
 	{
 		/// The result of combining the two values using the semigroup operation.
 		///
@@ -268,12 +258,11 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: 'a + SendCloneableFn, A: 'a + Send + Sync> Monoid
-		for SendEndofunction<'a, FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: Send + Sync> Monoid
+		for SendEndofunction<FnBrand, A>
 	{
 		/// The identity element.
 		///

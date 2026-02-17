@@ -149,7 +149,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -168,10 +167,10 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
+		fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Arc<dyn Fn(A) -> B> {
 			Arc::new(f)
 		}
 	}
@@ -181,7 +180,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the closure.",
 			"The input type of the function.",
 			"The output type of the function."
 		)]
@@ -200,12 +198,12 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_send_fn<'a, A, B>(
-			f: impl 'a + Fn(A) -> B + Send + Sync
-		) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
+		fn coerce_send_fn<A, B>(
+			f: impl Fn(A) -> B + Send + Sync + 'static
+		) -> Arc<dyn Fn(A) -> B + Send + Sync> {
 			Arc::new(f)
 		}
 	}

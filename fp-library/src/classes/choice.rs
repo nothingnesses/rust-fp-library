@@ -44,7 +44,6 @@ pub trait Choice: Profunctor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
 		"The type of the alternative variant (threaded through unchanged)."
@@ -69,9 +68,9 @@ pub trait Choice: Profunctor {
 	/// assert_eq!(g(Err(10)), Err(11));
 	/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 	/// ```
-	fn left<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>);
+	fn left<A, B, C>(
+		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>);
 
 	/// Lift a profunctor to operate on the right (Ok) variant of a Result.
 	///
@@ -80,7 +79,6 @@ pub trait Choice: Profunctor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
 		"The type of the alternative variant (threaded through unchanged)."
@@ -106,9 +104,9 @@ pub trait Choice: Profunctor {
 	/// assert_eq!(g(Ok(10)), Ok(11));
 	/// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 	/// ```
-	fn right<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
+	fn right<A, B, C>(
+		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<A, C>, Result<B, C>>) {
 		Self::dimap(
 			|r: Result<A, C>| match r {
 				Ok(a) => Err(a),
@@ -129,7 +127,6 @@ pub trait Choice: Profunctor {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the choice profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
@@ -155,9 +152,9 @@ pub trait Choice: Profunctor {
 /// assert_eq!(g(Err(10)), Err(11));
 /// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 /// ```
-pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+pub fn left<Brand: Choice, A, B, C>(
+	pab: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>) {
 	Brand::left(pab)
 }
 
@@ -167,7 +164,6 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the choice profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
@@ -194,8 +190,8 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 /// assert_eq!(g(Ok(10)), Ok(11));
 /// assert_eq!(g(Err("error".to_string())), Err("error".to_string()));
 /// ```
-pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<A, C>, Result<B, C>>) {
+pub fn right<Brand: Choice, A, B, C>(
+	pab: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<Result<A, C>, Result<B, C>>) {
 	Brand::right(pab)
 }

@@ -22,7 +22,7 @@ The refactor has been successfully applied to the core type class definitions an
 - **HKT Branding Updates**: `impl_kind!` blocks for these types now use `type Of<A>` or `type Of<A, B>`.
 
 ## Files Edited
-- `fp-library/src/classes/*.rs` (All trait definitions)
+- `fp-library/src/classes/*.rs` (All trait definitions, including `Function`, `Profunctor`, `Category`, etc.)
 - `fp-library/src/types/identity.rs`
 - `fp-library/src/types/option.rs`
 - `fp-library/src/types/vec.rs`
@@ -32,6 +32,12 @@ The refactor has been successfully applied to the core type class definitions an
 - `fp-library/src/types/tuple_2.rs`
 - `fp-library/src/types/cat_list.rs`
 - `fp-library/src/types/string.rs`
+- `fp-library/src/types/arc_ptr.rs`
+- `fp-library/src/types/rc_ptr.rs`
+- `fp-library/src/types/endofunction.rs`
+- `fp-library/src/types/send_endofunction.rs`
+- `fp-library/src/types/endomorphism.rs`
+- `fp-library/src/types/fn_brand.rs`
 
 ## Analyses and Findings
 
@@ -39,7 +45,7 @@ The refactor has been successfully applied to the core type class definitions an
 For types that simply hold data (`Vec<A>`, `Option<A>`, etc.), ablation is highly successful. It results in much cleaner code and simplifies HKT integration. The loss of lifetime-parameterized application (e.g., `Option<&'a T>`) via HKT traits is a minor regression compared to the gain in simplicity.
 
 ### 2. The "Closure Hurdle"
-The experiment reached an "inflection point" when attempting to migrate `Thunk<'a, A>`, `Lazy<'a, A>`, and `Free<F, A>`. These types wrap closures that may capture borrowed data.
+The experiment reached an "inflection point" when attempting to migrate `Thunk<'a, A>`, `Lazy<'a, A>`, `Free<F, A>`, and especially the function-related traits like `Function` and `Profunctor`. These types wrap closures that may capture borrowed data.
 
 **Key Finding**: Types that store `Box<dyn Fn... + 'a>` are fundamentally higher-arity in Rust. They require *both* a lifetime parameter and a type parameter to be safe and flexible.
 
@@ -47,6 +53,16 @@ The experiment reached an "inflection point" when attempting to migrate `Thunk<'
 - The ablated `Functor` trait requires `ThunkBrand::Of<A>` to resolve to a concrete type.
 - Since the trait provides no lifetime, we must fix it to `'static` in the `impl_kind!`.
 - This prevents `map` from working with closures that capture local variables, as they would produce `Thunk<'a, B>` instead of the required `Thunk<'static, B>`.
+- Similarly, for `Profunctor` and `Arrow`, removing the lifetime from `compose` and `arrow` forces the input closures to be `'static`.
+
+### 3. Impact on Pointer Abstractions
+Ablating lifetimes in `UnsizedCoercible` and `SendUnsizedCoercible` forces all coerced closures to be `'static`. While this simplifies the traits, it prevents the use of these pointers for temporary closures that borrow from the stack, significantly limiting the library's utility in non-long-lived scenarios.
+
+### 4. Cascade of Incompatibilities
+The transition to a lifetime-free `Kind` model for category-theoretic traits (`Semigroupoid`, `Category`, `Arrow`) created a massive wave of compilation errors (over 500 detected during the experiment).
+- `Endomorphism` and `Endofunction` became unusable with non-`'static` closures.
+- `Trampoline` and `TryTrampoline`, which are built on `Free` and `Thunk`, became disconnected from the HKT system because their underlying brands no longer matched the expected trait signatures.
+- Many traits like `Arrow` and `Profunctor` had their internal logic and default implementations broken because they could no longer express the necessary lifetime relationships between input and output.
 
 ## Possible Next Steps
 
@@ -59,5 +75,9 @@ The experiment reached an "inflection point" when attempting to migrate `Thunk<'
 4.  **Lifetime Erasure (Unsafe)**:
     Use `unsafe` to cast lifetimes. This is deemed unacceptable for a library prioritizing safety.
 
-## Conclusion (Work in Progress)
-The experiment has demonstrated that while lifetime-free HKTs are ideal for data containers, they struggle to represent the full power of Rust's borrowing system in the context of deferred execution.
+## Conclusion (Postponed)
+The experiment has demonstrated that while lifetime-free HKTs are ideal for data containers, they struggle to represent the full power of Rust's borrowing system in the context of deferred execution and category-theoretic abstractions.
+
+While the ablation significantly cleans up passive data structures, the "closure hurdle" creates a cascade of incompatibilities that would require either forcing all HKT-compatible computations to be `'static` or abandoning safety and flexibility for function-like types.
+
+The high volume of compilation errors (500+) and the significant regression in functionality for types like `Endomorphism` and `Trampoline` suggest that a pure arity-1 HKT model is insufficient for this library's scope in Rust.

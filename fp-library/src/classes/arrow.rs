@@ -39,7 +39,6 @@ pub trait Arrow: Category + Strong {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The input type of the arrow.",
 		"The output type of the arrow."
 	)]
@@ -61,18 +60,18 @@ pub trait Arrow: Category + Strong {
 	/// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn arrow<'a, A, B: 'a>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+	fn arrow<A, B>(
+		f: impl Fn(A) -> B + 'static
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>);
 }
 
 impl<Brand> Arrow for Brand
 where
 	Brand: Category + Strong,
 {
-	fn arrow<'a, A, B: 'a>(
-		f: impl 'a + Fn(A) -> B
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>) {
+	fn arrow<A, B>(
+		f: impl Fn(A) -> B + 'static
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>) {
 		Brand::lmap(f, Brand::identity())
 	}
 }
@@ -84,7 +83,6 @@ where
 ///
 #[document_type_parameters(
 	"The brand of the arrow.",
-	"The lifetime of the function and its captured data.",
 	"The input type of the arrow.",
 	"The output type of the arrow."
 )]
@@ -106,9 +104,9 @@ where
 /// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn arrow<'a, Brand, A, B: 'a>(
-	f: impl 'a + Fn(A) -> B
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
+pub fn arrow<Brand, A, B>(
+	f: impl Fn(A) -> B + 'static
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
 where
 	Brand: Arrow,
 {

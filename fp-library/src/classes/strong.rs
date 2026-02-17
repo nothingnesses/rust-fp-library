@@ -42,7 +42,6 @@ pub trait Strong: Profunctor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
 		"The type of the second component (threaded through unchanged)."
@@ -66,9 +65,9 @@ pub trait Strong: Profunctor {
 	/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
-	fn first<'a, A: 'a, B: 'a, C>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>);
+	fn first<A, B, C>(
+		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>);
 
 	/// Lift a profunctor to operate on the second component of a pair.
 	///
@@ -77,7 +76,6 @@ pub trait Strong: Profunctor {
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the values.",
 		"The input type of the profunctor.",
 		"The output type of the profunctor.",
 		"The type of the first component (threaded through unchanged)."
@@ -101,9 +99,9 @@ pub trait Strong: Profunctor {
 	/// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((20, 10)), (20, 11));
 	/// ```
-	fn second<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
+	fn second<A, B, C>(
+		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(C, A), (C, B)>) {
 		Self::dimap(|(c, a)| (a, c), |(b, c)| (c, b), Self::first(pab))
 	}
 }
@@ -114,7 +112,6 @@ pub trait Strong: Profunctor {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the strong profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
@@ -139,9 +136,9 @@ pub trait Strong: Profunctor {
 /// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g((10, 20)), (11, 20));
 /// ```
-pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
+pub fn first<Brand: Strong, A, B, C>(
+	pab: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>) {
 	Brand::first(pab)
 }
 
@@ -151,7 +148,6 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the values.",
 	"The brand of the strong profunctor.",
 	"The input type of the profunctor.",
 	"The output type of the profunctor.",
@@ -176,8 +172,8 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// let g = second::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g((20, 10)), (20, 11));
 /// ```
-pub fn second<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
+pub fn second<Brand: Strong, A, B, C>(
+	pab: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<(C, A), (C, B)>) {
 	Brand::second(pab)
 }

@@ -27,7 +27,6 @@ mod inner {
 	///
 	/// The wrapped function can be accessed directly via the [`.0` field][Endofunction#structfield.0].
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
@@ -46,16 +45,15 @@ mod inner {
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct Endofunction<'a, FnBrand: CloneableFn, A>(
-		pub <FnBrand as CloneableFn>::Of<'a, A, A>,
+	pub struct Endofunction<FnBrand: CloneableFn, A>(
+		pub <FnBrand as CloneableFn>::Of<A, A>,
 	);
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: CloneableFn, A> Endofunction<'a, FnBrand, A> {
+	impl<FnBrand: CloneableFn, A> Endofunction<FnBrand, A> {
 		/// Creates a new `Endofunction`.
 		///
 		/// This function wraps a function `a -> a` in an `Endofunction` struct.
@@ -79,18 +77,17 @@ mod inner {
 		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: <FnBrand as CloneableFn>::Of<'a, A, A>) -> Self {
+		pub fn new(f: <FnBrand as CloneableFn>::Of<A, A>) -> Self {
 			Self(f)
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<'a, FnBrand: CloneableFn, A> Clone for Endofunction<'a, FnBrand, A> {
+	impl<FnBrand: CloneableFn, A> Clone for Endofunction<FnBrand, A> {
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
@@ -98,14 +95,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<'a, FnBrand: CloneableFn, A> Debug for Endofunction<'a, FnBrand, A>
+	impl<FnBrand: CloneableFn, A> Debug for Endofunction<FnBrand, A>
 	where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: Debug,
+		<FnBrand as CloneableFn>::Of<A, A>: Debug,
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
@@ -118,24 +114,22 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: CloneableFn, A> Eq for Endofunction<'a, FnBrand, A> where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: Eq
+	impl<FnBrand: CloneableFn, A> Eq for Endofunction<FnBrand, A> where
+		<FnBrand as CloneableFn>::Of<A, A>: Eq
 	{
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<'a, FnBrand: CloneableFn, A> Hash for Endofunction<'a, FnBrand, A>
+	impl<FnBrand: CloneableFn, A> Hash for Endofunction<FnBrand, A>
 	where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: Hash,
+		<FnBrand as CloneableFn>::Of<A, A>: Hash,
 	{
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -149,14 +143,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> Ord for Endofunction<'a, FnBrand, A>
+	impl<FnBrand: CloneableFn, A> Ord for Endofunction<FnBrand, A>
 	where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: Ord,
+		<FnBrand as CloneableFn>::Of<A, A>: Ord,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -169,14 +162,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> PartialEq for Endofunction<'a, FnBrand, A>
+	impl<FnBrand: CloneableFn, A> PartialEq for Endofunction<FnBrand, A>
 	where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialEq,
+		<FnBrand as CloneableFn>::Of<A, A>: PartialEq,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -189,14 +181,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<'a, FnBrand: CloneableFn, A> PartialOrd for Endofunction<'a, FnBrand, A>
+	impl<FnBrand: CloneableFn, A> PartialOrd for Endofunction<FnBrand, A>
 	where
-		<FnBrand as CloneableFn>::Of<'a, A, A>: PartialOrd,
+		<FnBrand as CloneableFn>::Of<A, A>: PartialOrd,
 	{
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
@@ -209,11 +200,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Semigroup for Endofunction<'a, FnBrand, A> {
+	impl<FnBrand: CloneableFn, A> Semigroup for Endofunction<FnBrand, A> {
 		/// The result of combining the two values using the semigroup operation.
 		///
 		/// This method composes two endofunctions into a single endofunction.
@@ -258,11 +248,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<'a, FnBrand: 'a + CloneableFn, A: 'a> Monoid for Endofunction<'a, FnBrand, A> {
+	impl<FnBrand: CloneableFn, A> Monoid for Endofunction<FnBrand, A> {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.

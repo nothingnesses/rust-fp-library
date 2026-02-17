@@ -23,7 +23,6 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	#[document_signature]
 	///
 	#[document_type_parameters(
-		"The lifetime of the closure.",
 		"The input type of the function.",
 		"The output type of the function."
 	)]
@@ -42,12 +41,12 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	/// 	functions::*,
 	/// };
 	///
-	/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+	/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	fn coerce_send_fn<'a, A, B>(
-		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> Self::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+	fn coerce_send_fn<A, B>(
+		f: impl Fn(A) -> B + Send + Sync + 'static
+	) -> Self::SendOf<dyn Fn(A) -> B + Send + Sync>;
 }
 
 /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
@@ -56,7 +55,6 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the closure.",
 	"The brand of the pointer.",
 	"The input type of the function.",
 	"The output type of the function.",
@@ -78,14 +76,14 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// 	functions::*,
 /// };
 ///
-/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, Func>(
+pub fn coerce_send_fn<Brand: SendUnsizedCoercible, A, B, Func>(
 	func: Func
-) -> Brand::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>
+) -> Brand::SendOf<dyn Fn(A) -> B + Send + Sync>
 where
-	Func: 'a + Fn(A) -> B + Send + Sync,
+	Func: Fn(A) -> B + Send + Sync + 'static,
 {
 	Brand::coerce_send_fn::<A, B>(func)
 }

@@ -29,7 +29,6 @@ mod inner {
 	///
 	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
@@ -48,16 +47,15 @@ mod inner {
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct Endomorphism<'a, C: Category, A>(
-		pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
+	pub struct Endomorphism<C: Category, A>(
+		pub Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>),
 	);
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+	impl<C: Category, A> Endomorphism<C, A> {
 		/// Creates a new `Endomorphism`.
 		///
 		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
@@ -81,20 +79,19 @@ mod inner {
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
+		pub fn new(f: Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>)) -> Self {
 			Self(f)
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to clone.")]
-	impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
+	impl<C: Category, A> Clone for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): Clone,
 	{
 		#[document_signature]
 		fn clone(&self) -> Self {
@@ -103,14 +100,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to format.")]
-	impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
+	impl<C: Category, A> Debug for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): Debug,
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
@@ -123,24 +119,22 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
+	impl<C: Category, A> Eq for Endomorphism<C, A> where
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): Eq
 	{
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to hash.")]
-	impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
+	impl<C: Category, A> Hash for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): Hash,
 	{
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -154,14 +148,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
+	impl<C: Category, A> Ord for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): Ord,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
@@ -174,14 +167,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
+	impl<C: Category, A> PartialEq for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): PartialEq,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
@@ -194,14 +186,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
+	impl<C: Category, A> PartialOrd for Endomorphism<C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
+		Apply!(<C as Kind!( type Of<T, U>; )>::Of<A, A>): PartialOrd,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
@@ -214,11 +205,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A: 'a> Semigroup for Endomorphism<'a, C, A> {
+	impl<C: Category, A> Semigroup for Endomorphism<C, A> {
 		/// The result of combining the two values using the semigroup operation.
 		///
 		/// This method composes two endomorphisms into a single endomorphism using the underlying category's composition.
@@ -260,11 +250,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A: 'a> Monoid for Endomorphism<'a, C, A> {
+	impl<C: Category, A> Monoid for Endomorphism<C, A> {
 		/// The identity element.
 		///
 		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
