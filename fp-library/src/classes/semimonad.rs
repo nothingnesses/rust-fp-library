@@ -61,7 +61,9 @@ pub trait Semimonad: Kind_ad6c20556a82a1f0 {
 		func: Func,
 	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>);
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) + 'static;
 }
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -102,7 +104,9 @@ pub fn bind<Brand: Semimonad, A, B, Func>(
 	f: Func,
 ) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
 where
-	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>),
+	A: 'static,
+	B: 'static,
+	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>) + 'static,
 {
 	Brand::bind::<A, B, Func>(ma, f)
 }

@@ -497,7 +497,9 @@ mod inner {
 			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+			A: 'static,
+			B: 'static,
+			Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>) + 'static,
 			Apply!(<Self as Kind!( type Of<T>; )>::Of<B>): Clone,
 		{
 			let (first, second) = ta;
@@ -1053,7 +1055,9 @@ mod inner {
 			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+			A: 'static,
+			B: 'static,
+			Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>) + 'static,
 			Apply!(<Self as Kind!( type Of<T>; )>::Of<B>): Clone,
 		{
 			let (first, second) = ta;

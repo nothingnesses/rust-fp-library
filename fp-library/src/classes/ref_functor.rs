@@ -60,7 +60,9 @@ pub trait RefFunctor: Kind_ad6c20556a82a1f0 {
 		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: FnOnce(&A) -> B;
+		A: 'static,
+		B: 'static,
+		Func: FnOnce(&A) -> B + 'static;
 }
 
 /// Maps a function over the values in the functor context, where the function takes a reference.
@@ -102,7 +104,9 @@ pub fn ref_map<Brand: RefFunctor, A, B, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 ) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
 where
-	Func: FnOnce(&A) -> B,
+	A: 'static,
+	B: 'static,
+	Func: FnOnce(&A) -> B + 'static,
 {
 	Brand::ref_map::<A, B, Func>(func, fa)
 }

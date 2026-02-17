@@ -73,7 +73,10 @@ pub trait Semiapplicative: Lift + Functor {
 	fn apply<FnBrand: CloneableFn, A: Clone, B>(
 		ff: Apply!(<Self as Kind!( type Of<T>; )>::Of< <FnBrand as CloneableFn>::Of<A, B> >),
 		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
-	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>);
+	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
+	where
+		A: 'static,
+		B: 'static;
 }
 
 /// Applies a function within a context to a value within a context.
@@ -114,6 +117,10 @@ pub trait Semiapplicative: Lift + Functor {
 pub fn apply<FnBrand: CloneableFn, Brand: Semiapplicative, A: Clone, B>(
 	ff: Apply!(<Brand as Kind!( type Of<T>; )>::Of< <FnBrand as CloneableFn>::Of<A, B> >),
 	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
-) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>) {
+) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
+where
+	A: 'static,
+	B: 'static,
+{
 	Brand::apply::<FnBrand, A, B>(ff, fa)
 }

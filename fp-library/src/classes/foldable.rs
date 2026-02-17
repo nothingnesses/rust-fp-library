@@ -78,7 +78,9 @@ pub trait Foldable: Kind_ad6c20556a82a1f0 {
 		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> B
 	where
-		Func: Fn(A, B) -> B,
+		A: 'static,
+		B: 'static,
+		Func: Fn(A, B) -> B + 'static,
 		FnBrand: CloneableFn,
 	{
 		let f = <FnBrand as CloneableFn>::new(move |(a, b)| func(a, b));

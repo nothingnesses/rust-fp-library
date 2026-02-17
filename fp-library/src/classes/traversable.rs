@@ -66,7 +66,9 @@ pub trait Traversable: Functor + Foldable {
 		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>) + 'static,
 		Apply!(<Self as Kind!( type Of<T>; )>::Of<B>): Clone,
 		Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone,
 	{
@@ -105,8 +107,9 @@ pub trait Traversable: Functor + Foldable {
 		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
 	) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)>)
 	where
-		Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
-		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone,
+		A: 'static,
+		Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone + 'static,
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone + 'static,
 	{
 		Self::traverse::<Apply!(<F as Kind!( type Of<T>; )>::Of<A>), A, F, _>(
 			identity, ta,
@@ -153,9 +156,11 @@ pub fn traverse<Brand: Traversable, A: Clone, B: Clone, F: Applicative, Func>(
 	ta: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 ) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)>)
 where
-	Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>),
-	Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>): Clone,
-	Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone,
+	A: 'static,
+	B: 'static,
+	Func: Fn(A) -> Apply!(<F as Kind!( type Of<T>; )>::Of<B>) + 'static,
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>): Clone + 'static,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<B>): Clone + 'static,
 {
 	Brand::traverse::<A, B, F, Func>(func, ta)
 }
@@ -193,8 +198,9 @@ pub fn sequence<Brand: Traversable, A: Clone, F: Applicative>(
 	ta: Apply!(<Brand as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
 ) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>)>)
 where
-	Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
-	Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>): Clone,
+	A: 'static,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone + 'static,
+	Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>): Clone + 'static,
 {
 	Brand::sequence::<A, F>(ta)
 }

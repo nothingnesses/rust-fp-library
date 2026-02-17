@@ -67,7 +67,11 @@ pub trait Semigroupoid: Kind_5b1bcedfd80bdc16 {
 	fn compose<B, C, D>(
 		f: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<C, D>),
 		g: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
-	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>);
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>)
+	where
+		B: 'static,
+		C: 'static,
+		D: 'static;
 }
 
 /// Takes morphisms `f` and `g` and returns the morphism `f . g` (`f` composed with `g`).
@@ -108,6 +112,11 @@ pub trait Semigroupoid: Kind_5b1bcedfd80bdc16 {
 pub fn compose<Brand: Semigroupoid, B, C, D>(
 	f: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<C, D>),
 	g: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<B, C>),
-) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<B, D>) {
+) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<B, D>)
+where
+	B: 'static,
+	C: 'static,
+	D: 'static,
+{
 	Brand::compose::<B, C, D>(f, g)
 }

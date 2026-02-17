@@ -465,7 +465,7 @@ mod inner {
 		/// assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, Step::Done(5)), Step::Done(10));
 		/// ```
 		fn apply<FnBrand: CloneableFn, A: Clone, B>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			match (ff, fa) {
@@ -534,7 +534,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -569,14 +568,14 @@ mod inner {
 		/// 	0
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
+		fn fold_right<FnBrand, A, B, F>(
 			func: F,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			F: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			F: Fn(A, B) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa {
 				Step::Done(a) => func(a, initial),
@@ -590,7 +589,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -625,14 +623,14 @@ mod inner {
 		/// 	0
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
+		fn fold_left<FnBrand, A, B, F>(
 			func: F,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			F: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			F: Fn(B, A) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa {
 				Step::Done(a) => func(initial, a),
@@ -646,7 +644,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the monoid.",
@@ -683,14 +680,13 @@ mod inner {
 		/// 	"".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, F>(
+		fn fold_map<FnBrand, A, M: Monoid, F>(
 			func: F,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			F: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
+			F: Fn(A) -> M,
+			FnBrand: CloneableFn,
 		{
 			match fa {
 				Step::Done(a) => func(a),
@@ -789,8 +785,8 @@ mod inner {
 		/// );
 		/// ```
 		fn sequence<A: Clone, F: Applicative>(
-			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>>)>)
-		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>>)>)
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
+		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)>)
 		where
 			Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
 			Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone,
@@ -810,7 +806,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function wrapper.",
 			"The element type.",
 			"The monoid type."
@@ -845,14 +840,14 @@ mod inner {
 		/// let x_loop: Step<i32, i32> = Step::Loop(1);
 		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, x_loop), "".to_string());
 		/// ```
-		fn par_fold_map<'a, FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fn par_fold_map<FnBrand, A, M>(
+			func: <FnBrand as SendCloneableFn>::SendOf<A, M>,
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
+			FnBrand: SendCloneableFn,
+			A: Clone + Send + Sync,
+			M: Monoid + Send + Sync,
 		{
 			match fa {
 				Step::Done(a) => func(a),
@@ -866,7 +861,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The brand of the cloneable function wrapper.",
 			"The element type.",
 			"The accumulator type."
@@ -899,15 +893,15 @@ mod inner {
 		/// let x_loop: Step<i32, i32> = Step::Loop(1);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, 10, x_loop), 10);
 		/// ```
-		fn par_fold_right<'a, FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
+		fn par_fold_right<FnBrand, A, B>(
+			func: <FnBrand as SendCloneableFn>::SendOf<(A, B), B>,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			FnBrand: 'a + SendCloneableFn,
-			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
+			FnBrand: SendCloneableFn,
+			A: Clone + Send + Sync,
+			B: Send + Sync,
 		{
 			match fa {
 				Step::Done(a) => func((a, initial)),
@@ -1109,7 +1103,7 @@ mod inner {
 		/// assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, Step::Loop(5)), Step::Loop(10));
 		/// ```
 		fn apply<FnBrand: CloneableFn, A: Clone, B>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			match (ff, fa) {
@@ -1435,8 +1429,8 @@ mod inner {
 		/// );
 		/// ```
 		fn sequence<A: Clone, F: Applicative>(
-			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>>)>)
-		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>>)>)
+			ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<A>)>)
+		) -> Apply!(<F as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<A>)>)
 		where
 			Apply!(<F as Kind!( type Of<T>; )>::Of<A>): Clone,
 			Apply!(<Self as Kind!( type Of<T>; )>::Of<A>): Clone,
@@ -1491,13 +1485,13 @@ mod inner {
 		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, x_done), "".to_string());
 		/// ```
 		fn par_fold_map<FnBrand, A, M>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'static, A, M>,
+			func: <FnBrand as SendCloneableFn>::SendOf<A, M>,
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
 			FnBrand: SendCloneableFn,
 			A: Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'static,
+			M: Monoid + Send + Sync,
 		{
 			match fa {
 				Step::Loop(e) => func(e),
@@ -1544,14 +1538,14 @@ mod inner {
 		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, 10, x_done), 10);
 		/// ```
 		fn par_fold_right<FnBrand, A, B>(
-			func: <FnBrand as SendCloneableFn>::SendOf<'static, (A, B), B>,
+			func: <FnBrand as SendCloneableFn>::SendOf<(A, B), B>,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
 			FnBrand: SendCloneableFn,
 			A: Clone + Send + Sync,
-			B: Send + Sync + 'static,
+			B: Send + Sync,
 		{
 			match fa {
 				Step::Loop(e) => func((e, initial)),

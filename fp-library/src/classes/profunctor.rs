@@ -84,6 +84,10 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, D>)
 	where
+		A: 'static,
+		B: 'static,
+		C: 'static,
+		D: 'static,
 		FuncAB: Fn(A) -> B + 'static,
 		FuncCD: Fn(C) -> D + 'static;
 
@@ -128,9 +132,12 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, C>)
 	where
+		A: 'static,
+		B: 'static,
+		C: 'static,
 		FuncAB: Fn(A) -> B + 'static,
 	{
-		Self::dimap(ab, crate::functions::identity, pbc)
+		Self::dimap::<A, B, C, C, FuncAB, _>(ab, crate::functions::identity, pbc)
 	}
 
 	/// Maps covariantly over the second argument.
@@ -174,9 +181,12 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, C>)
 	where
+		A: 'static,
+		B: 'static,
+		C: 'static,
 		FuncBC: Fn(B) -> C + 'static,
 	{
-		Self::dimap(crate::functions::identity, bc, pab)
+		Self::dimap::<A, A, B, C, _, FuncBC>(crate::functions::identity, bc, pab)
 	}
 }
 

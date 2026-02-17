@@ -65,7 +65,7 @@ pub trait Strong: Profunctor {
 	/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
-	fn first<A, B, C>(
+	fn first<A: 'static, B: 'static, C: 'static>(
 		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>);
 
@@ -101,8 +101,17 @@ pub trait Strong: Profunctor {
 	/// ```
 	fn second<A, B, C>(
 		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
-	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(C, A), (C, B)>) {
-		Self::dimap(|(c, a)| (a, c), |(b, c)| (c, b), Self::first(pab))
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(C, A), (C, B)>)
+	where
+		A: 'static,
+		B: 'static,
+		C: 'static,
+	{
+		Self::dimap::<(C, A), (A, C), (B, C), (C, B), _, _>(
+			|(c, a)| (a, c),
+			|(b, c)| (c, b),
+			Self::first::<A, B, C>(pab),
+		)
 	}
 }
 

@@ -336,39 +336,37 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, E, Config> From<Lazy<'a, A, Config>> for TryThunk<'a, A, E>
+	impl<A, E, Config> From<Lazy<A, Config>> for TryThunk<'static, A, E>
 	where
-		A: Clone + 'a,
-		E: 'a,
+		A: Clone + 'static,
+		E: 'static,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(memo: Lazy<'a, A, Config>) -> Self {
+		fn from(memo: Lazy<A, Config>) -> Self {
 			TryThunk::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, E, Config> From<TryLazy<'a, A, E, Config>> for TryThunk<'a, A, E>
+	impl<A, E, Config> From<TryLazy<A, E, Config>> for TryThunk<'static, A, E>
 	where
-		A: Clone + 'a,
-		E: Clone + 'a,
+		A: Clone + 'static,
+		E: Clone + 'static,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
+		fn from(memo: TryLazy<A, E, Config>) -> Self {
 			TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 		}
 	}
@@ -599,7 +597,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
 		fn apply<FnBrand: CloneableFn, A: Clone, B>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.bind(move |f| {
@@ -699,6 +697,8 @@ mod inner {
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
+			A: 'static,
+			B: 'static,
 			F: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
 				+ Clone
 				+ 'static,
@@ -758,7 +758,9 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B,
+			A: 'static,
+			B: 'static,
+			Func: Fn(A, B) -> B + 'static,
 			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
@@ -1184,7 +1186,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
 		fn apply<FnBrand: CloneableFn, E1: Clone, E2>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, E1, E2>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E1>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>) {
 			TryThunk::new(move || match (ff.evaluate(), fa.evaluate()) {

@@ -70,7 +70,11 @@ pub trait Choice: Profunctor {
 	/// ```
 	fn left<A, B, C>(
 		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
-	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>);
+	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>)
+	where
+		A: 'static,
+		B: 'static,
+		C: 'static;
 
 	/// Lift a profunctor to operate on the right (Ok) variant of a Result.
 	///

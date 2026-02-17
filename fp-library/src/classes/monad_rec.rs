@@ -89,8 +89,9 @@ pub trait MonadRec: Monad {
 		initial: A,
 	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
-			+ Clone;
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>) + Clone + 'static;
 }
 
 /// Performs tail-recursive monadic computation.

@@ -79,7 +79,7 @@ pub trait SendCloneableFn: CloneableFn {
 	/// handle.join().unwrap();
 	/// ```
 	fn send_cloneable_fn_new<A, B>(
-		f: impl Fn(A) -> B + Send + Sync
+		f: impl Fn(A) -> B + Send + Sync + 'static
 	) -> <Self as SendCloneableFn>::SendOf<A, B>;
 }
 

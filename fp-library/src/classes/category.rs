@@ -51,7 +51,7 @@ pub trait Category: Semigroupoid {
 	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<A>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>);
+	fn identity<A: 'static>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>);
 }
 
 /// Returns the identity morphism.
@@ -79,7 +79,7 @@ pub trait Category: Semigroupoid {
 /// let id = category_identity::<RcFnBrand, i32>();
 /// assert_eq!(id(5), 5);
 /// ```
-pub fn identity<Brand: Category, A>()
+pub fn identity<Brand: Category, A: 'static>()
 -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, A>) {
-	Brand::identity()
+	Brand::identity::<A>()
 }

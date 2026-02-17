@@ -135,7 +135,12 @@ mod inner {
 		fn compose<B, C, D>(
 			f: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<C, D>),
 			g: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
-		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>) {
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>)
+		where
+			B: 'static,
+			C: 'static,
+			D: 'static,
+		{
 			P::coerce_fn(move |b| f(g(b)))
 		}
 	}
@@ -164,7 +169,7 @@ mod inner {
 		/// let id = category_identity::<RcFnBrand, i32>();
 		/// assert_eq!(id(5), 5);
 		/// ```
-		fn identity<A>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>) {
+		fn identity<A: 'static>() -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, A>) {
 			P::coerce_fn(|a| a)
 		}
 	}

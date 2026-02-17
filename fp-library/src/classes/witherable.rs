@@ -83,7 +83,10 @@ pub trait Witherable: Filterable + Traversable {
 		Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 	)>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>),
+		A: 'static,
+		E: 'static,
+		O: 'static,
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>) + 'static,
 		Apply!(<Self as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
 	{
@@ -134,9 +137,11 @@ pub trait Witherable: Filterable + Traversable {
 		ta: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>),
-		Apply!(<Self as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
-		Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>) + 'static,
+		Apply!(<Self as Kind!( type Of<T>; )>::Of<Option<B>>): Clone + 'static,
+		Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone + 'static,
 	{
 		M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M, Func>(func, ta))
 	}
@@ -189,9 +194,12 @@ pub fn wilt<F: Witherable, M: Applicative, A: Clone, E: Clone, O: Clone, Func>(
 	Apply!(<F as Kind!( type Of<T>; )>::Of<O>),
 )>)
 where
-	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>),
-	Apply!(<F as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
-	Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone,
+	A: 'static,
+	E: 'static,
+	O: 'static,
+	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>) + 'static,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone + 'static,
+	Apply!(<M as Kind!( type Of<T>; )>::Of<Result<O, E>>): Clone + 'static,
 {
 	F::wilt::<M, A, E, O, Func>(func, ta)
 }
@@ -238,9 +246,11 @@ pub fn wither<F: Witherable, M: Applicative, A: Clone, B: Clone, Func>(
 	ta: Apply!(<F as Kind!( type Of<T>; )>::Of<A>),
 ) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Apply!(<F as Kind!( type Of<T>; )>::Of<B>)>)
 where
-	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>),
-	Apply!(<F as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
-	Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone,
+	A: 'static,
+	B: 'static,
+	Func: Fn(A) -> Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>) + 'static,
+	Apply!(<F as Kind!( type Of<T>; )>::Of<Option<B>>): Clone + 'static,
+	Apply!(<M as Kind!( type Of<T>; )>::Of<Option<B>>): Clone + 'static,
 {
 	F::wither::<M, A, B, Func>(func, ta)
 }

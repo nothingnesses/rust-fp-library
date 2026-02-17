@@ -60,7 +60,7 @@ pub trait Arrow: Category + Strong {
 	/// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn arrow<A, B>(
+	fn arrow<A: 'static, B: 'static>(
 		f: impl Fn(A) -> B + 'static
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>);
 }
@@ -69,10 +69,10 @@ impl<Brand> Arrow for Brand
 where
 	Brand: Category + Strong,
 {
-	fn arrow<A, B>(
+	fn arrow<A: 'static, B: 'static>(
 		f: impl Fn(A) -> B + 'static
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>) {
-		Brand::lmap(f, Brand::identity())
+		Brand::rmap::<A, A, B, _>(f, Brand::identity::<A>())
 	}
 }
 

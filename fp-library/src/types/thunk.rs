@@ -271,18 +271,17 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, Config> From<Lazy<'a, A, Config>> for Thunk<'a, A>
+	impl<A, Config> From<Lazy<A, Config>> for Thunk<'static, A>
 	where
-		A: Clone + 'a,
+		A: Clone + 'static,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(lazy: Lazy<'a, A, Config>) -> Self {
+		fn from(lazy: Lazy<A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
 	}
@@ -487,7 +486,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		fn apply<FnBrand: CloneableFn, A: Clone, B>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.bind(move |f| {
@@ -578,6 +577,8 @@ mod inner {
 			a: A,
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
+			A: 'static,
+			B: 'static,
 			F: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
 				+ Clone
 				+ 'static,

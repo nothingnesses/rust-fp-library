@@ -709,6 +709,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
+			A: 'static,
+			B: 'static,
 			F: FnOnce(&A) -> B + 'static,
 		{
 			let fa = fa.clone();

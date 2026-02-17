@@ -21,6 +21,7 @@ The refactor has been successfully applied to the core type class definitions an
     - `Identity`, `Option`, `Vec`, `Result`, `Tuple1`, `Pair`, `Tuple2`, `CatList`, `String`.
 - **Computation Type Migrations**: `Thunk`, `TryThunk`, `Lazy`, `TryLazy`, `Free`, `Trampoline`, `TryTrampoline`, `Step`.
     - These types now use a lifetime-free `Kind` and are forced to `'static` for HKT compatibility.
+    - **Update**: `Step` has been fully migrated, including its `Foldable` and `ParFoldable` implementations.
 - **HKT Branding Updates**: `impl_kind!` blocks for these types now use `type Of<A>` or `type Of<A, B>`.
 - **Optics Refactor**: `Optic`, `Lens`, and `LensPrime` have been updated to use the lifetime-free profunctor brand.
 

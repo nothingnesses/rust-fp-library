@@ -82,7 +82,10 @@ pub trait Filterable: Compactable + Functor {
 		Apply!(<Self as Kind!( type Of<T>; )>::Of<O>),
 	)
 	where
-		Func: Fn(A) -> Result<O, E>,
+		A: 'static,
+		E: 'static,
+		O: 'static,
+		Func: Fn(A) -> Result<O, E> + 'static,
 	{
 		Self::separate::<E, O>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
@@ -128,7 +131,8 @@ pub trait Filterable: Compactable + Functor {
 		Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	)
 	where
-		Func: Fn(A) -> bool,
+		A: 'static,
+		Func: Fn(A) -> bool + 'static,
 	{
 		Self::partition_map(move |a| if func(a.clone()) { Ok(a) } else { Err(a) }, fa)
 	}
@@ -169,7 +173,9 @@ pub trait Filterable: Compactable + Functor {
 		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> Option<B>,
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> Option<B> + 'static,
 	{
 		Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
 	}

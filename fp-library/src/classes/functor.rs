@@ -66,7 +66,9 @@ pub trait Functor: Kind_ad6c20556a82a1f0 {
 		fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 	) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 	where
-		Func: Fn(A) -> B;
+		A: 'static,
+		B: 'static,
+		Func: Fn(A) -> B + 'static;
 }
 
 /// Maps a function over the values in the functor context.
@@ -107,7 +109,9 @@ pub fn map<Brand: Functor, A, B, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<T>; )>::Of<A>),
 ) -> Apply!(<Brand as Kind!( type Of<T>; )>::Of<B>)
 where
-	Func: Fn(A) -> B,
+	A: 'static,
+	B: 'static,
+	Func: Fn(A) -> B + 'static,
 {
 	Brand::map::<A, B, Func>(f, fa)
 }
