@@ -45,7 +45,7 @@ mod inner {
 	/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct Endofunction<FnBrand: CloneableFn, A>(
+	pub struct Endofunction<FnBrand: CloneableFn, A: 'static>(
 		pub <FnBrand as CloneableFn>::Of<A, A>,
 	);
 
@@ -53,7 +53,7 @@ mod inner {
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: CloneableFn, A> Endofunction<FnBrand, A> {
+	impl<FnBrand: CloneableFn, A: 'static> Endofunction<FnBrand, A> {
 		/// Creates a new `Endofunction`.
 		///
 		/// This function wraps a function `a -> a` in an `Endofunction` struct.
@@ -87,7 +87,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<FnBrand: CloneableFn, A> Clone for Endofunction<FnBrand, A> {
+	impl<FnBrand: CloneableFn, A: 'static> Clone for Endofunction<FnBrand, A> {
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
@@ -99,7 +99,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<FnBrand: CloneableFn, A> Debug for Endofunction<FnBrand, A>
+	impl<FnBrand: CloneableFn, A: 'static> Debug for Endofunction<FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<A, A>: Debug,
 	{
@@ -117,7 +117,7 @@ mod inner {
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: CloneableFn, A> Eq for Endofunction<FnBrand, A> where
+	impl<FnBrand: CloneableFn, A: 'static> Eq for Endofunction<FnBrand, A> where
 		<FnBrand as CloneableFn>::Of<A, A>: Eq
 	{
 	}
@@ -127,7 +127,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<FnBrand: CloneableFn, A> Hash for Endofunction<FnBrand, A>
+	impl<FnBrand: CloneableFn, A: 'static> Hash for Endofunction<FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<A, A>: Hash,
 	{
@@ -147,7 +147,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: CloneableFn, A> Ord for Endofunction<FnBrand, A>
+	impl<FnBrand: CloneableFn, A: 'static> Ord for Endofunction<FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<A, A>: Ord,
 	{
@@ -166,7 +166,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: CloneableFn, A> PartialEq for Endofunction<FnBrand, A>
+	impl<FnBrand: CloneableFn, A: 'static> PartialEq for Endofunction<FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<A, A>: PartialEq,
 	{
@@ -185,7 +185,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: CloneableFn, A> PartialOrd for Endofunction<FnBrand, A>
+	impl<FnBrand: CloneableFn, A: 'static> PartialOrd for Endofunction<FnBrand, A>
 	where
 		<FnBrand as CloneableFn>::Of<A, A>: PartialOrd,
 	{
@@ -203,7 +203,7 @@ mod inner {
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: CloneableFn, A> Semigroup for Endofunction<FnBrand, A> {
+	impl<FnBrand: CloneableFn, A: 'static> Semigroup for Endofunction<FnBrand, A> {
 		/// The result of combining the two values using the semigroup operation.
 		///
 		/// This method composes two endofunctions into a single endofunction.
@@ -251,7 +251,7 @@ mod inner {
 		"The brand of the function (e.g., `RcFnBrand`).",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: CloneableFn, A> Monoid for Endofunction<FnBrand, A> {
+	impl<FnBrand: CloneableFn, A: 'static> Monoid for Endofunction<FnBrand, A> {
 		/// The identity element.
 		///
 		/// This method returns the identity endofunction, which wraps the identity function.

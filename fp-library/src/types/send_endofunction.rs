@@ -47,7 +47,7 @@ mod inner {
 	/// ));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct SendEndofunction<FnBrand: SendCloneableFn, A>(
+	pub struct SendEndofunction<FnBrand: SendCloneableFn, A: 'static>(
 		pub <FnBrand as SendCloneableFn>::SendOf<A, A>,
 	);
 
@@ -55,7 +55,7 @@ mod inner {
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: SendCloneableFn, A> SendEndofunction<FnBrand, A> {
+	impl<FnBrand: SendCloneableFn, A: 'static> SendEndofunction<FnBrand, A> {
 		/// Creates a new `SendEndofunction`.
 		///
 		/// This function wraps a thread-safe function `a -> a` in a `SendEndofunction` struct.
@@ -91,7 +91,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to clone.")]
-	impl<FnBrand: SendCloneableFn, A> Clone for SendEndofunction<FnBrand, A> {
+	impl<FnBrand: SendCloneableFn, A: 'static> Clone for SendEndofunction<FnBrand, A> {
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
@@ -103,7 +103,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to format.")]
-	impl<FnBrand: SendCloneableFn, A> Debug for SendEndofunction<FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: 'static> Debug for SendEndofunction<FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: Debug,
 	{
@@ -121,7 +121,7 @@ mod inner {
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: SendCloneableFn, A> Eq for SendEndofunction<FnBrand, A> where
+	impl<FnBrand: SendCloneableFn, A: 'static> Eq for SendEndofunction<FnBrand, A> where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: Eq
 	{
 	}
@@ -131,7 +131,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to hash.")]
-	impl<FnBrand: SendCloneableFn, A> Hash for SendEndofunction<FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: 'static> Hash for SendEndofunction<FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: Hash,
 	{
@@ -151,7 +151,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: SendCloneableFn, A> Ord for SendEndofunction<FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: 'static> Ord for SendEndofunction<FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: Ord,
 	{
@@ -170,7 +170,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: SendCloneableFn, A> PartialEq for SendEndofunction<FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: 'static> PartialEq for SendEndofunction<FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: PartialEq,
 	{
@@ -189,7 +189,7 @@ mod inner {
 		"The input and output type of the function."
 	)]
 	#[document_parameters("The function to compare.")]
-	impl<FnBrand: SendCloneableFn, A> PartialOrd for SendEndofunction<FnBrand, A>
+	impl<FnBrand: SendCloneableFn, A: 'static> PartialOrd for SendEndofunction<FnBrand, A>
 	where
 		<FnBrand as SendCloneableFn>::SendOf<A, A>: PartialOrd,
 	{
@@ -207,7 +207,7 @@ mod inner {
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: SendCloneableFn, A: Send + Sync> Semigroup
+	impl<FnBrand: SendCloneableFn, A: Send + Sync + 'static> Semigroup
 		for SendEndofunction<FnBrand, A>
 	{
 		/// The result of combining the two values using the semigroup operation.
@@ -261,7 +261,7 @@ mod inner {
 		"The brand of the thread-safe cloneable function wrapper.",
 		"The input and output type of the function."
 	)]
-	impl<FnBrand: SendCloneableFn, A: Send + Sync> Monoid
+	impl<FnBrand: SendCloneableFn, A: Send + Sync + 'static> Monoid
 		for SendEndofunction<FnBrand, A>
 	{
 		/// The identity element.

@@ -61,7 +61,7 @@ pub trait CloneableFn: Function {
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<A, B>(f: impl Fn(A) -> B) -> <Self as CloneableFn>::Of<A, B>;
+	fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as CloneableFn>::Of<A, B>;
 }
 
 /// Creates a new cloneable function wrapper.
@@ -91,6 +91,6 @@ pub trait CloneableFn: Function {
 /// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<Brand: CloneableFn, A, B>(f: impl Fn(A) -> B) -> <Brand as CloneableFn>::Of<A, B> {
+pub fn new<Brand: CloneableFn, A, B>(f: impl Fn(A) -> B + 'static) -> <Brand as CloneableFn>::Of<A, B> {
 	<Brand as CloneableFn>::new(f)
 }

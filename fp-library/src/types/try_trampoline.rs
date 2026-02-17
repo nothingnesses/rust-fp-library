@@ -332,7 +332,7 @@ mod inner {
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
+	impl<A, E, Config> From<Lazy<A, Config>> for TryTrampoline<A, E>
 	where
 		A: Clone + Send + 'static,
 		E: Send + 'static,
@@ -340,7 +340,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(memo: Lazy<'static, A, Config>) -> Self {
+		fn from(memo: Lazy<A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
 	}
@@ -350,7 +350,7 @@ mod inner {
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
+	impl<A, E, Config> From<TryLazy<A, E, Config>> for TryTrampoline<A, E>
 	where
 		A: Clone + Send + 'static,
 		E: Clone + Send + 'static,
@@ -358,7 +358,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
+		fn from(memo: TryLazy<A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
 	}

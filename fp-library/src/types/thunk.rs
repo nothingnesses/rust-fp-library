@@ -294,10 +294,9 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
-	impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
+	impl<A> Deferrable<'static> for Thunk<'static, A> {
 		/// Creates a `Thunk` from a computation that produces it.
 		#[document_signature]
 		///
@@ -324,7 +323,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
+			F: FnOnce() -> Self + 'static,
 			Self: Sized,
 		{
 			Thunk::defer(f)

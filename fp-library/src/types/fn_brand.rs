@@ -20,7 +20,7 @@ mod inner {
 
 	impl_kind! {
 		impl<P: UnsizedCoercible> for FnBrand<P> {
-			type Of<A, B> = <P as RefCountedPointer>::CloneableOf<dyn Fn(A) -> B>;
+			type Of<A, B> = <P as RefCountedPointer>::CloneableOf<dyn Fn(A) -> B + 'static>;
 		}
 	}
 
@@ -219,6 +219,10 @@ mod inner {
 		where
 			FuncAB: Fn(A) -> B + 'static,
 			FuncCD: Fn(C) -> D + 'static,
+			A: 'static,
+			B: 'static,
+			C: 'static,
+			D: 'static,
 		{
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
@@ -257,8 +261,13 @@ mod inner {
 		/// assert_eq!(g((10, 20)), (11, 20));
 		/// ```
 		fn first<A, B, C>(
-			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
-		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>) {
+			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>),
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<(A, C), (B, C)>)
+		where
+			A: 'static,
+			B: 'static,
+			C: 'static,
+		{
 			P::coerce_fn(move |(a, c)| (pab(a), c))
 		}
 	}
@@ -297,8 +306,13 @@ mod inner {
 		/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 		/// ```
 		fn left<A, B, C>(
-			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>)
-		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>) {
+			pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>),
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<Result<C, A>, Result<C, B>>)
+		where
+			A: 'static,
+			B: 'static,
+			C: 'static,
+		{
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
 					Err(a) => Err(pab(a)),

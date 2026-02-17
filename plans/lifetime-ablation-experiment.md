@@ -19,7 +19,10 @@ The refactor has been successfully applied to the core type class definitions an
 - **Lifetime Removal in Signatures**: Explicit `'a` lifetimes and `A: 'a` bounds have been removed from the methods of the above traits.
 - **Container Type Migrations**: The following types have been updated to the new model:
     - `Identity`, `Option`, `Vec`, `Result`, `Tuple1`, `Pair`, `Tuple2`, `CatList`, `String`.
+- **Computation Type Migrations**: `Thunk`, `TryThunk`, `Lazy`, `TryLazy`, `Free`, `Trampoline`, `TryTrampoline`, `Step`.
+    - These types now use a lifetime-free `Kind` and are forced to `'static` for HKT compatibility.
 - **HKT Branding Updates**: `impl_kind!` blocks for these types now use `type Of<A>` or `type Of<A, B>`.
+- **Optics Refactor**: `Optic`, `Lens`, and `LensPrime` have been updated to use the lifetime-free profunctor brand.
 
 ## Files Edited
 - `fp-library/src/classes/*.rs` (All trait definitions, including `Function`, `Profunctor`, `Category`, etc.)
@@ -38,6 +41,15 @@ The refactor has been successfully applied to the core type class definitions an
 - `fp-library/src/types/send_endofunction.rs`
 - `fp-library/src/types/endomorphism.rs`
 - `fp-library/src/types/fn_brand.rs`
+- `fp-library/src/types/thunk.rs`
+- `fp-library/src/types/try_thunk.rs`
+- `fp-library/src/types/lazy.rs`
+- `fp-library/src/types/try_lazy.rs`
+- `fp-library/src/types/free.rs`
+- `fp-library/src/types/trampoline.rs`
+- `fp-library/src/types/try_trampoline.rs`
+- `fp-library/src/types/step.rs`
+- `fp-library/src/types/optics.rs`
 
 ## Analyses and Findings
 
@@ -78,6 +90,16 @@ The transition to a lifetime-free `Kind` model for category-theoretic traits (`S
 ## Conclusion (Postponed)
 The experiment has demonstrated that while lifetime-free HKTs are ideal for data containers, they struggle to represent the full power of Rust's borrowing system in the context of deferred execution and category-theoretic abstractions.
 
-While the ablation significantly cleans up passive data structures, the "closure hurdle" creates a cascade of incompatibilities that would require either forcing all HKT-compatible computations to be `'static` or abandoning safety and flexibility for function-like types.
+A complete migration to a lifetime-free `Kind` model has been performed across the `types/` directory. This involved:
+1.  **Forcing `'static`**: Computation types like `Thunk`, `Lazy`, and `Free` now implement the lifetime-free `Kind` by fixing their internal lifetime to `'static`.
+2.  **Constraint Propagation**: Forcing `'static` at the HKT level cascaded into many trait implementations (e.g., `Functor`, `MonadRec`, `Profunctor`), requiring them to add `'static` bounds to their generic parameters and closure types.
+3.  **Optics Impact**: Optics like `Lens` and `LensPrime` now require `'static` data and functions to be compatible with the new profunctor branding.
 
-The high volume of compilation errors (500+) and the significant regression in functionality for types like `Endomorphism` and `Trampoline` suggest that a pure arity-1 HKT model is insufficient for this library's scope in Rust.
+**Finding**: While the ablation results in a significantly simpler API for the user (no turbofish lifetimes, cleaner signatures), it comes at the cost of **losing all support for non-static borrowing** in HKT-aware code. This is a severe limitation for a library intended for general-purpose Rust development.
+
+**Current State**: The library is in a non-compiling state with approximately 140 errors remaining. These errors primarily consist of:
+- `E0310`: Generic parameters (like `A`, `B`, `Func`) need explicit `'static` bounds because they are now used in contexts (like `Thunk<'static, A>`) that require them to be valid for `'static`.
+- `E0053`: Trait implementation signatures no longer match the trait definitions because of missing or extra `'static` bounds.
+- `E0195`: Lifetime parameters on associated functions (like `map`) no longer match the updated (lifetime-free) trait declarations.
+
+The volume of errors and the architectural compromise (forcing everything to `'static`) suggests that a pure arity-1 HKT model, while elegant in languages with garbage collection, creates significant friction with Rust's ownership and borrowing model.

@@ -20,7 +20,6 @@ mod inner {
 	/// The computation runs at most once. If it succeeds, the value is cached.
 	/// If it fails, the error is cached. Subsequent accesses return the cached result.
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error.",
 		"The memoization configuration."
@@ -31,25 +30,17 @@ mod inner {
 	/// The higher-kinded representation of this type constructor is [`TryLazyBrand<E, Config>`](crate::brands::TryLazyBrand),
 	/// which is parameterized by both the error type and the `LazyConfig`, and is polymorphic over the success value type.
 	#[document_fields("The internal lazy cell.")]
-	pub struct TryLazy<'a, A, E, Config: LazyConfig = RcLazyConfig>(
-		pub(crate) Config::TryLazy<'a, A, E>,
-	)
-	where
-		A: 'a,
-		E: 'a;
+	pub struct TryLazy<A, E, Config: LazyConfig = RcLazyConfig>(
+		pub(crate) Config::TryLazy<A, E>,
+	);
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error.",
 		"The memoization configuration."
 	)]
 	#[document_parameters("The instance to clone.")]
-	impl<'a, A, E, Config: LazyConfig> Clone for TryLazy<'a, A, E, Config>
-	where
-		A: 'a,
-		E: 'a,
-	{
+	impl<A, E, Config: LazyConfig> Clone for TryLazy<A, E, Config> {
 		#[document_signature]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
@@ -57,17 +48,12 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error.",
 		"The memoization configuration."
 	)]
 	#[document_parameters("The `TryLazy` instance.")]
-	impl<'a, A, E, Config: LazyConfig> TryLazy<'a, A, E, Config>
-	where
-		A: 'a,
-		E: 'a,
-	{
+	impl<A, E, Config: LazyConfig> TryLazy<A, E, Config> {
 		/// Gets the memoized result, computing on first access.
 		#[document_signature]
 		///
@@ -89,15 +75,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> TryLazy<'a, A, E, RcLazyConfig>
-	where
-		A: 'a,
-		E: 'a,
-	{
+	impl<A, E> TryLazy<A, E, RcLazyConfig> {
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		#[document_signature]
 		///
@@ -119,31 +100,29 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'a,
+			F: FnOnce() -> Result<A, E> + 'static,
 		{
 			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
+	impl<A, E> From<TryThunk<'static, A, E>> for TryLazy<A, E, RcLazyConfig> {
 		#[document_signature]
 		#[document_parameters("The fallible thunk to convert.")]
-		fn from(eval: TryThunk<'a, A, E>) -> Self {
+		fn from(eval: TryThunk<'static, A, E>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<TryTrampoline<A, E>> for TryLazy<'a, A, E, RcLazyConfig>
+	impl<A, E> From<TryTrampoline<A, E>> for TryLazy<A, E, RcLazyConfig>
 	where
 		A: Send,
 		E: Send,
@@ -156,47 +135,40 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<Lazy<'a, A, ArcLazyConfig>> for TryLazy<'a, A, E, ArcLazyConfig>
+	impl<A, E> From<Lazy<A, ArcLazyConfig>> for TryLazy<A, E, ArcLazyConfig>
 	where
-		A: Clone + Send + Sync + 'a,
-		E: Send + Sync + 'a,
+		A: Clone + Send + Sync,
+		E: Send + Sync,
 	{
 		#[document_signature]
 		#[document_parameters("The thread-safe lazy value to convert.")]
-		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
+		fn from(memo: Lazy<A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> From<Lazy<'a, A, RcLazyConfig>> for TryLazy<'a, A, E, RcLazyConfig>
+	impl<A, E> From<Lazy<A, RcLazyConfig>> for TryLazy<A, E, RcLazyConfig>
 	where
-		A: Clone + 'a,
-		E: 'a,
+		A: Clone,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
+		fn from(memo: Lazy<A, RcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value."
 	)]
-	impl<'a, A> TryLazy<'a, A, String, RcLazyConfig>
-	where
-		A: 'a,
-	{
+	impl<A> TryLazy<A, String, RcLazyConfig> {
 		/// Creates a `TryLazy` that catches unwinds (panics).
 		#[document_signature]
 		///
@@ -223,7 +195,7 @@ mod inner {
 		/// ```
 		pub fn catch_unwind<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + std::panic::UnwindSafe + 'a,
+			F: FnOnce() -> A + std::panic::UnwindSafe + 'static,
 		{
 			Self::new(move || {
 				std::panic::catch_unwind(f).map_err(|e| {
@@ -240,15 +212,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> TryLazy<'a, A, E, ArcLazyConfig>
-	where
-		A: 'a,
-		E: 'a,
-	{
+	impl<A, E> TryLazy<A, E, ArcLazyConfig> {
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		#[document_signature]
 		///
@@ -270,21 +237,20 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + Send + 'a,
+			F: FnOnce() -> Result<A, E> + Send + 'static,
 		{
 			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> Deferrable<'a> for TryLazy<'a, A, E, RcLazyConfig>
+	impl<A, E> Deferrable<'static> for TryLazy<A, E, RcLazyConfig>
 	where
-		A: Clone + 'a,
-		E: Clone + 'a,
+		A: Clone,
+		E: Clone,
 	{
 		/// Defers a computation that produces a `TryLazy` value.
 		///
@@ -315,7 +281,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
+			F: FnOnce() -> Self + 'static,
 			Self: Sized,
 		{
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
@@ -325,19 +291,18 @@ mod inner {
 	impl_kind! {
 		impl<E: 'static, Config: LazyConfig> for TryLazyBrand<E, Config> {
 			#[document_default]
-			type Of<'a, A: 'a>: 'a = TryLazy<'a, A, E, Config>;
+			type Of<A> = TryLazy<A, E, Config>;
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the computed value.",
 		"The type of the error."
 	)]
-	impl<'a, A, E> SendDeferrable<'a> for TryLazy<'a, A, E, ArcLazyConfig>
+	impl<A, E> SendDeferrable<'static> for TryLazy<A, E, ArcLazyConfig>
 	where
-		A: Clone + Send + Sync + 'a,
-		E: Clone + Send + Sync + 'a,
+		A: Clone + Send + Sync,
+		E: Clone + Send + Sync,
 	{
 		/// Defers a computation that produces a thread-safe `TryLazy` value.
 		///
@@ -367,7 +332,7 @@ mod inner {
 		/// ```
 		fn send_defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + Send + Sync + 'a,
+			F: FnOnce() -> Self + Send + Sync + 'static,
 			Self: Sized,
 		{
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
@@ -375,10 +340,10 @@ mod inner {
 	}
 
 	/// Single-threaded fallible memoization alias.
-	pub type RcTryLazy<'a, A, E> = TryLazy<'a, A, E, RcLazyConfig>;
+	pub type RcTryLazy<A, E> = TryLazy<A, E, RcLazyConfig>;
 
 	/// Thread-safe fallible memoization alias.
-	pub type ArcTryLazy<'a, A, E> = TryLazy<'a, A, E, ArcLazyConfig>;
+	pub type ArcTryLazy<A, E> = TryLazy<A, E, ArcLazyConfig>;
 }
 pub use inner::*;
 

@@ -112,7 +112,7 @@ mod inner {
 		///
 		/// This variant represents a computation that is suspended in the functor `F`.
 		/// The functor contains the next step of the computation.
-		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+		Wrap(Apply!(<F as Kind!( type Of<T>; )>::Of<Free<F, A>>)),
 
 		/// A bind operation.
 		///
@@ -227,7 +227,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::wrap(eval);
 		/// ```
 		pub fn wrap(
-			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
+			fa: Apply!(<F as Kind!( type Of<T>; )>::Of<Free<F, A>>)
 		) -> Self {
 			Free(Some(FreeInner::Wrap(fa)))
 		}
@@ -268,7 +268,7 @@ mod inner {
 		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
 		/// assert_eq!(computation.evaluate(), 25);
 		/// ```
-		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
+		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<T>; )>::Of<A>)) -> Self {
 			// Map the value to a pure Free, then wrap it
 			Free::wrap(F::map(Free::pure, fa))
 		}
