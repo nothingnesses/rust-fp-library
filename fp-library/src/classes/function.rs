@@ -61,7 +61,7 @@ pub trait Function: Arrow {
 	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as Function>::Of<A, B>;
+	fn new<A, B>(f: impl Fn(A) -> B) -> <Self as Function>::Of<A, B>;
 }
 
 /// Creates a new function wrapper.
@@ -91,7 +91,7 @@ pub trait Function: Arrow {
 /// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 /// assert_eq!(f(5), 10);
 /// ```
-pub fn new<Brand, A, B>(f: impl Fn(A) -> B + 'static) -> <Brand as Function>::Of<A, B>
+pub fn new<Brand, A, B>(f: impl Fn(A) -> B) -> <Brand as Function>::Of<A, B>
 where
 	Brand: Function,
 {

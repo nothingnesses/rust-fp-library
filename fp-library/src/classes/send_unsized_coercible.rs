@@ -18,7 +18,7 @@ use {
 };
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
-pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'static {
+pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer {
 	/// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
 	#[document_signature]
 	///
@@ -45,7 +45,7 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	/// assert_eq!(f(1), 2);
 	/// ```
 	fn coerce_send_fn<A, B>(
-		f: impl Fn(A) -> B + Send + Sync + 'static
+		f: impl Fn(A) -> B + Send + Sync
 	) -> Self::SendOf<dyn Fn(A) -> B + Send + Sync>;
 }
 
@@ -83,7 +83,7 @@ pub fn coerce_send_fn<Brand: SendUnsizedCoercible, A, B, Func>(
 	func: Func
 ) -> Brand::SendOf<dyn Fn(A) -> B + Send + Sync>
 where
-	Func: Fn(A) -> B + Send + Sync + 'static,
+	Func: Fn(A) -> B + Send + Sync,
 {
 	Brand::coerce_send_fn::<A, B>(func)
 }

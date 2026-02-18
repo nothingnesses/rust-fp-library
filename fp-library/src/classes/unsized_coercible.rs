@@ -18,7 +18,7 @@ use {
 };
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
-pub trait UnsizedCoercible: RefCountedPointer + 'static {
+pub trait UnsizedCoercible: RefCountedPointer {
 	/// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
 	#[document_signature]
 	///
@@ -44,7 +44,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Self::CloneableOf<dyn Fn(A) -> B>;
+	fn coerce_fn<A, B>(f: impl Fn(A) -> B) -> Self::CloneableOf<dyn Fn(A) -> B>;
 }
 
 /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
@@ -81,7 +81,7 @@ pub fn coerce_fn<Brand: UnsizedCoercible, A, B, Func>(
 	func: Func
 ) -> Brand::CloneableOf<dyn Fn(A) -> B>
 where
-	Func: Fn(A) -> B + 'static,
+	Func: Fn(A) -> B,
 {
 	Brand::coerce_fn::<A, B>(func)
 }

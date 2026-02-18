@@ -84,8 +84,8 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, D>)
 	where
-		FuncAB: Fn(A) -> B + 'static,
-		FuncCD: Fn(C) -> D + 'static;
+		FuncAB: Fn(A) -> B,
+		FuncCD: Fn(C) -> D;
 
 	/// Maps contravariantly over the first argument.
 	///
@@ -128,7 +128,7 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, C>)
 	where
-		FuncAB: Fn(A) -> B + 'static,
+		FuncAB: Fn(A) -> B,
 	{
 		Self::dimap(ab, crate::functions::identity, pbc)
 	}
@@ -174,7 +174,7 @@ pub trait Profunctor: Kind_5b1bcedfd80bdc16 {
 		pab: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>),
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, C>)
 	where
-		FuncBC: Fn(B) -> C + 'static,
+		FuncBC: Fn(B) -> C,
 	{
 		Self::dimap(crate::functions::identity, bc, pab)
 	}
@@ -227,8 +227,8 @@ pub fn dimap<Brand: Profunctor, A, B, C, D, FuncAB, FuncCD>(
 	pbc: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, D>)
 where
-	FuncAB: Fn(A) -> B + 'static,
-	FuncCD: Fn(C) -> D + 'static,
+	FuncAB: Fn(A) -> B,
+	FuncCD: Fn(C) -> D,
 {
 	Brand::dimap(ab, cd, pbc)
 }
@@ -275,7 +275,7 @@ pub fn lmap<Brand: Profunctor, A, B, C, FuncAB>(
 	pbc: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, C>)
 where
-	FuncAB: Fn(A) -> B + 'static,
+	FuncAB: Fn(A) -> B,
 {
 	Brand::lmap(ab, pbc)
 }
@@ -319,7 +319,7 @@ pub fn rmap<Brand: Profunctor, A, B, C, FuncBC>(
 	pab: Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>),
 ) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, C>)
 where
-	FuncBC: Fn(B) -> C + 'static,
+	FuncBC: Fn(B) -> C,
 {
 	Brand::rmap(bc, pab)
 }

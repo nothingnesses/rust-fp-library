@@ -18,7 +18,7 @@ use fp_macros::{document_parameters, document_signature, document_type_parameter
 /// A trait for deferred lazy evaluation with thread-safe thunks.
 ///
 /// This is similar to [`Deferrable`](crate::classes::Deferrable), but the thunk must be `Send + Sync`.
-pub trait SendDeferrable<'a> {
+pub trait SendDeferrable {
 	/// Creates a deferred value from a thread-safe thunk.
 	#[document_signature]
 	///
@@ -44,7 +44,7 @@ pub trait SendDeferrable<'a> {
 	/// ```
 	fn send_defer<F>(f: F) -> Self
 	where
-		F: FnOnce() -> Self + Send + Sync + 'a,
+		F: FnOnce() -> Self + Send + Sync,
 		Self: Sized;
 }
 
@@ -54,7 +54,6 @@ pub trait SendDeferrable<'a> {
 #[document_signature]
 ///
 #[document_type_parameters(
-	"The lifetime of the computation",
 	"The type of the deferred value.",
 	"The type of the thunk."
 )]
@@ -77,10 +76,10 @@ pub trait SendDeferrable<'a> {
 /// let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
 /// assert_eq!(*memo.evaluate(), 42);
 /// ```
-pub fn send_defer<'a, D, F>(f: F) -> D
+pub fn send_defer<D, F>(f: F) -> D
 where
-	D: SendDeferrable<'a>,
-	F: FnOnce() -> D + Send + Sync + 'a,
+	D: SendDeferrable,
+	F: FnOnce() -> D + Send + Sync,
 {
 	D::send_defer(f)
 }

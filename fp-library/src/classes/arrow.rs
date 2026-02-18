@@ -61,7 +61,7 @@ pub trait Arrow: Category + Strong {
 	/// assert_eq!(f(5), 10);
 	/// ```
 	fn arrow<A, B>(
-		f: impl Fn(A) -> B + 'static
+		f: impl Fn(A) -> B
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>);
 }
 
@@ -70,7 +70,7 @@ where
 	Brand: Category + Strong,
 {
 	fn arrow<A, B>(
-		f: impl Fn(A) -> B + 'static
+		f: impl Fn(A) -> B
 	) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, B>) {
 		Brand::lmap(f, Brand::identity())
 	}
@@ -105,7 +105,7 @@ where
 /// assert_eq!(f(5), 10);
 /// ```
 pub fn arrow<Brand, A, B>(
-	f: impl Fn(A) -> B + 'static
+	f: impl Fn(A) -> B
 ) -> Apply!(<Brand as Kind!( type Of<T, U>; )>::Of<A, B>)
 where
 	Brand: Arrow,
