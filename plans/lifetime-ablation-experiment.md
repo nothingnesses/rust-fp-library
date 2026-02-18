@@ -3,10 +3,10 @@
 ## Background
 This experiment explores the feasibility and impact of removing explicit lifetime parameters from the library's Higher-Kinded Type (HKT) simulation. 
 
-The goal is to replace the arity-2 `Kind` trait:
+The goal is to replace `Kind` traits containing lifetime constraints, e.g.:
 `Kind_cdc7cd43dac7585f` (associated type `type Of<'a, A: 'a>: 'a`)
 
-With a simpler arity-1 `Kind` trait:
+With a simpler `Kind` trait not containing lifetime constraints:
 `Kind_ad6c20556a82a1f0` (associated type `type Of<A>`)
 
 This change simplifies the internal macro-generated code and the public signatures of HKT-aware traits like `Functor` and `Monad`.
@@ -51,33 +51,9 @@ The experiment reached an "inflection point" when attempting to migrate `Thunk<'
 
 **The Conflict**:
 - The ablated `Functor` trait requires `ThunkBrand::Of<A>` to resolve to a concrete type.
-- Since the trait provides no lifetime, we must fix it to `'static` in the `impl_kind!`.
-- This prevents `map` from working with closures that capture local variables, as they would produce `Thunk<'a, B>` instead of the required `Thunk<'static, B>`.
-- Similarly, for `Profunctor` and `Arrow`, removing the lifetime from `compose` and `arrow` forces the input closures to be `'static`.
-
-### 3. Impact on Pointer Abstractions
-Ablating lifetimes in `UnsizedCoercible` and `SendUnsizedCoercible` forces all coerced closures to be `'static`. While this simplifies the traits, it prevents the use of these pointers for temporary closures that borrow from the stack, significantly limiting the library's utility in non-long-lived scenarios.
-
-### 4. Cascade of Incompatibilities
-The transition to a lifetime-free `Kind` model for category-theoretic traits (`Semigroupoid`, `Category`, `Arrow`) created a massive wave of compilation errors (over 500 detected during the experiment).
-- `Endomorphism` and `Endofunction` became unusable with non-`'static` closures.
-- `Trampoline` and `TryTrampoline`, which are built on `Free` and `Thunk`, became disconnected from the HKT system because their underlying brands no longer matched the expected trait signatures.
-- Many traits like `Arrow` and `Profunctor` had their internal logic and default implementations broken because they could no longer express the necessary lifetime relationships between input and output.
 
 ## Possible Next Steps
-
-1.  **Strict 'static Policy**: 
-    Force all HKT-compatible computations to be `'static`. This preserves the simplicity of the ablated model but restricts the library to "owned" data or `'static` references.
-2.  **Hybrid Model**:
-    Maintain two versions of HKT traits or two versions of "closure" types (e.g., `Thunk<A>` for `'static` HKT use and `BorrowedThunk<'a, A>` for non-HKT use).
-3.  **Partial Ablation**:
-    Acknowledge that `Kind<A>` and `Kind<'a, A>` are both necessary. The experiment would conclude that ablation is beneficial for containers but harmful for computation types.
-4.  **Lifetime Erasure (Unsafe)**:
-    Use `unsafe` to cast lifetimes. This is deemed unacceptable for a library prioritizing safety.
+TBD
 
 ## Conclusion (Postponed)
-The experiment has demonstrated that while lifetime-free HKTs are ideal for data containers, they struggle to represent the full power of Rust's borrowing system in the context of deferred execution and category-theoretic abstractions.
-
-While the ablation significantly cleans up passive data structures, the "closure hurdle" creates a cascade of incompatibilities that would require either forcing all HKT-compatible computations to be `'static` or abandoning safety and flexibility for function-like types.
-
-The high volume of compilation errors (500+) and the significant regression in functionality for types like `Endomorphism` and `Trampoline` suggest that a pure arity-1 HKT model is insufficient for this library's scope in Rust.
+TBD
