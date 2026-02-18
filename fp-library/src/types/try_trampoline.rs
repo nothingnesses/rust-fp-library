@@ -38,11 +38,11 @@ mod inner {
 	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
 	/// assert_eq!(task.evaluate(), Ok(10));
 	/// ```
-	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
+	pub struct TryTrampoline<A, E>(Trampoline<Result<A, E>>);
 
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	#[document_parameters("The fallible trampoline computation.")]
-	impl<A: 'static + Send, E: 'static + Send> TryTrampoline<A, E> {
+	impl<A: Send, E: Send> TryTrampoline<A, E> {
 		/// Creates a successful `TryTrampoline`.
 		#[document_signature]
 		///
@@ -106,7 +106,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'static,
+			F: FnOnce() -> Result<A, E>,
 		{
 			TryTrampoline(Trampoline::new(f))
 		}
@@ -156,7 +156,7 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> TryTrampoline<A, E> + 'static,
+			F: FnOnce() -> TryTrampoline<A, E>,
 		{
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}
@@ -183,12 +183,12 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
-		pub fn map<B: 'static + Send, Func>(
+		pub fn map<B: Send, Func>(
 			self,
 			func: Func,
 		) -> TryTrampoline<B, E>
 		where
-			Func: FnOnce(A) -> B + 'static,
+			Func: FnOnce(A) -> B,
 		{
 			TryTrampoline(self.0.map(|result| result.map(func)))
 		}
@@ -216,12 +216,12 @@ mod inner {
 		/// 	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
 		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
 		/// ```
-		pub fn map_err<E2: 'static + Send, Func>(
+		pub fn map_err<E2: Send, Func>(
 			self,
 			func: Func,
 		) -> TryTrampoline<A, E2>
 		where
-			Func: FnOnce(E) -> E2 + 'static,
+			Func: FnOnce(E) -> E2,
 		{
 			TryTrampoline(self.0.map(|result| result.map_err(func)))
 		}
@@ -248,12 +248,12 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
-		pub fn bind<B: 'static + Send, F>(
+		pub fn bind<B: Send, F>(
 			self,
 			f: F,
 		) -> TryTrampoline<B, E>
 		where
-			F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
+			F: FnOnce(A) -> TryTrampoline<B, E>,
 		{
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => f(a).0,
@@ -286,7 +286,7 @@ mod inner {
 			f: F,
 		) -> Self
 		where
-			F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
+			F: FnOnce(E) -> TryTrampoline<A, E>,
 		{
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => Trampoline::pure(Ok(a)),
@@ -317,8 +317,8 @@ mod inner {
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
 	impl<A, E> From<Trampoline<A>> for TryTrampoline<A, E>
 	where
-		A: Send + 'static,
-		E: Send + 'static,
+		A: Send,
+		E: Send,
 	{
 		#[document_signature]
 		#[document_parameters("The trampoline computation to convert.")]
@@ -332,15 +332,15 @@ mod inner {
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<A, E, Config> From<Lazy<'static, A, Config>> for TryTrampoline<A, E>
+	impl<A, E, Config> From<Lazy<A, Config>> for TryTrampoline<A, E>
 	where
-		A: Clone + Send + 'static,
-		E: Send + 'static,
+		A: Clone + Send,
+		E: Send,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(memo: Lazy<'static, A, Config>) -> Self {
+		fn from(memo: Lazy<A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
 	}
@@ -350,24 +350,24 @@ mod inner {
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<A, E, Config> From<TryLazy<'static, A, E, Config>> for TryTrampoline<A, E>
+	impl<A, E, Config> From<TryLazy<A, E, Config>> for TryTrampoline<A, E>
 	where
-		A: Clone + Send + 'static,
-		E: Clone + Send + 'static,
+		A: Clone + Send,
+		E: Clone + Send,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
+		fn from(memo: TryLazy<A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
 	}
 
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
-	impl<A, E> Deferrable<'static> for TryTrampoline<A, E>
+	impl<A, E> Deferrable for TryTrampoline<A, E>
 	where
-		A: 'static + Send,
-		E: 'static + Send,
+		A: Send,
+		E: Send,
 	{
 		/// Creates a value from a computation that produces the value.
 		#[document_signature]
@@ -395,7 +395,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
+			F: FnOnce() -> Self,
 			Self: Sized,
 		{
 			TryTrampoline(Trampoline::defer(move || f().0))

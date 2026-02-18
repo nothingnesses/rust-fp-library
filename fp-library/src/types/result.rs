@@ -91,13 +91,13 @@ mod inner {
 
 	impl_kind! {
 		#[document_type_parameters("The error type.")]
-		impl<E: 'static> for ResultWithErrBrand<E> {
+		impl<E> for ResultWithErrBrand<E> {
 			type Of<A> = Result<A, E>;
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Functor for ResultWithErrBrand<E> {
+	impl<E> Functor for ResultWithErrBrand<E> {
 		/// Maps a function over the value in the result.
 		///
 		/// This method applies a function to the value inside the result if it is `Ok`, producing a new result with the transformed value. If the result is `Err`, it is returned unchanged.
@@ -138,7 +138,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> Lift for ResultWithErrBrand<E> {
+	impl<E: Clone> Lift for ResultWithErrBrand<E> {
 		/// Lifts a binary function into the result context.
 		///
 		/// This method lifts a binary function to operate on values within the result context.
@@ -203,7 +203,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Pointed for ResultWithErrBrand<E> {
+	impl<E> Pointed for ResultWithErrBrand<E> {
 		/// Wraps a value in a result.
 		///
 		/// This method wraps a value in the `Ok` variant of a `Result`.
@@ -233,13 +233,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> ApplyFirst for ResultWithErrBrand<E> {}
+	impl<E: Clone> ApplyFirst for ResultWithErrBrand<E> {}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> ApplySecond for ResultWithErrBrand<E> {}
+	impl<E: Clone> ApplySecond for ResultWithErrBrand<E> {}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> Semiapplicative for ResultWithErrBrand<E> {
+	impl<E: Clone> Semiapplicative for ResultWithErrBrand<E> {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a result to a value wrapped in a result.
@@ -292,7 +292,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> Semimonad for ResultWithErrBrand<E> {
+	impl<E: Clone> Semimonad for ResultWithErrBrand<E> {
 		/// Chains result computations.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.
@@ -337,7 +337,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Foldable for ResultWithErrBrand<E> {
+	impl<E> Foldable for ResultWithErrBrand<E> {
 		/// Folds the result from the right.
 		///
 		/// This method performs a right-associative fold of the result.
@@ -490,7 +490,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: Clone + 'static> Traversable for ResultWithErrBrand<E> {
+	impl<E: Clone> Traversable for ResultWithErrBrand<E> {
 		/// Traverses the result with an applicative function.
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context.
@@ -599,13 +599,13 @@ mod inner {
 
 	impl_kind! {
 		#[document_type_parameters("The success type.")]
-		impl<T: 'static> for ResultWithOkBrand<T> {
+		impl<T> for ResultWithOkBrand<T> {
 			type Of<A> = Result<T, A>;
 		}
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> Functor for ResultWithOkBrand<T> {
+	impl<T> Functor for ResultWithOkBrand<T> {
 		/// Maps a function over the error value in the result.
 		///
 		/// This method applies a function to the error value inside the result if it is `Err`, producing a new result with the transformed error. If the result is `Ok`, it is returned unchanged.
@@ -649,7 +649,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> Lift for ResultWithOkBrand<T> {
+	impl<T: Clone> Lift for ResultWithOkBrand<T> {
 		/// Lifts a binary function into the result context (over error).
 		///
 		/// This method lifts a binary function to operate on error values within the result context.
@@ -714,7 +714,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> Pointed for ResultWithOkBrand<T> {
+	impl<T> Pointed for ResultWithOkBrand<T> {
 		/// Wraps a value in a result (as error).
 		///
 		/// This method wraps a value in the `Err` variant of a `Result`.
@@ -744,13 +744,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> ApplyFirst for ResultWithOkBrand<T> {}
+	impl<T: Clone> ApplyFirst for ResultWithOkBrand<T> {}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> ApplySecond for ResultWithOkBrand<T> {}
+	impl<T: Clone> ApplySecond for ResultWithOkBrand<T> {}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> Semiapplicative for ResultWithOkBrand<T> {
+	impl<T: Clone> Semiapplicative for ResultWithOkBrand<T> {
 		/// Applies a wrapped function to a wrapped value (over error).
 		///
 		/// This method applies a function wrapped in a result (as error) to a value wrapped in a result (as error).
@@ -803,7 +803,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> Semimonad for ResultWithOkBrand<T> {
+	impl<T: Clone> Semimonad for ResultWithOkBrand<T> {
 		/// Chains result computations (over error).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over error).
@@ -848,7 +848,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> Foldable for ResultWithOkBrand<T> {
+	impl<T> Foldable for ResultWithOkBrand<T> {
 		/// Folds the result from the right (over error).
 		///
 		/// This method performs a right-associative fold of the result (over error).
@@ -1001,7 +1001,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: Clone + 'static> Traversable for ResultWithOkBrand<T> {
+	impl<T: Clone> Traversable for ResultWithOkBrand<T> {
 		/// Traverses the result with an applicative function (over error).
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
@@ -1107,7 +1107,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> ParFoldable for ResultWithErrBrand<E> {
+	impl<E> ParFoldable for ResultWithErrBrand<E> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the result to a monoid and then returns it. The mapping operation may be executed in parallel.
@@ -1218,7 +1218,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<T: 'static> ParFoldable for ResultWithOkBrand<T> {
+	impl<T> ParFoldable for ResultWithOkBrand<T> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over error).
 		///
 		/// This method maps the element of the result to a monoid and then returns it (over error). The mapping operation may be executed in parallel.

@@ -60,7 +60,6 @@ mod inner {
 	/// - ✅ [`Functor`], [`Foldable`], [`Semimonad`]/Monad, [`Semiapplicative`]/Applicative
 	/// - ❌ [`Traversable`](crate::classes::Traversable) (requires `Clone`)
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	///
@@ -78,14 +77,13 @@ mod inner {
 	/// let result = computation.evaluate();
 	/// assert_eq!(result, 11);
 	/// ```
-	pub struct Thunk<'a, A>(Box<dyn FnOnce() -> A + 'a>);
+	pub struct Thunk<A>(Box<dyn FnOnce() -> A>);
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
 	#[document_parameters("The thunk instance.")]
-	impl<'a, A: 'a> Thunk<'a, A> {
+	impl<A> Thunk<A> {
 		/// Creates a new `Thunk` from a thunk.
 		#[document_signature]
 		///
@@ -107,7 +105,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + 'a,
+			F: FnOnce() -> A,
 		{
 			Thunk(Box::new(f))
 		}
@@ -133,10 +131,7 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(42);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn pure(a: A) -> Self
-		where
-			A: 'a,
-		{
+		pub fn pure(a: A) -> Self {
 			Thunk::new(move || a)
 		}
 
@@ -165,7 +160,7 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Thunk<'a, A> + 'a,
+			F: FnOnce() -> Thunk<A>,
 		{
 			Thunk::new(move || f().evaluate())
 		}
@@ -198,12 +193,12 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn bind<B: 'a, F>(
+		pub fn bind<B, F>(
 			self,
 			f: F,
-		) -> Thunk<'a, B>
+		) -> Thunk<B>
 		where
-			F: FnOnce(A) -> Thunk<'a, B> + 'a,
+			F: FnOnce(A) -> Thunk<B>,
 		{
 			Thunk::new(move || {
 				let a = (self.0)();
@@ -237,12 +232,12 @@ mod inner {
 		/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
 		/// assert_eq!(thunk.evaluate(), 42);
 		/// ```
-		pub fn map<B: 'a, F>(
+		pub fn map<B, F>(
 			self,
 			f: F,
-		) -> Thunk<'a, B>
+		) -> Thunk<B>
 		where
-			F: FnOnce(A) -> B + 'a,
+			F: FnOnce(A) -> B,
 		{
 			Thunk::new(move || f((self.0)()))
 		}
@@ -271,33 +266,31 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, Config> From<Lazy<'a, A, Config>> for Thunk<'a, A>
+	impl<A, Config> From<Lazy<A, Config>> for Thunk<A>
 	where
-		A: Clone + 'a,
+		A: Clone,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(lazy: Lazy<'a, A, Config>) -> Self {
+		fn from(lazy: Lazy<A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
 	}
 
 	impl_kind! {
 		for ThunkBrand {
-			type Of<A> = Thunk<'static, A>;
+			type Of<A> = Thunk<A>;
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
-	impl<'a, A: 'a> Deferrable<'a> for Thunk<'a, A> {
+	impl<A> Deferrable for Thunk<A> {
 		/// Creates a `Thunk` from a computation that produces it.
 		#[document_signature]
 		///
@@ -324,7 +317,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
+			F: FnOnce() -> Self,
 			Self: Sized,
 		{
 			Thunk::defer(f)
@@ -488,7 +481,7 @@ mod inner {
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
 		fn apply<FnBrand: CloneableFn, A: Clone, B>(
-			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<'static, A, B>>),
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.bind(move |f| {
@@ -580,8 +573,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
 			F: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
-				+ Clone
-				+ 'static,
+				+ Clone,
 		{
 			Thunk::new(move || {
 				let mut current = a;
@@ -760,10 +752,9 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
-	impl<'a, A: Semigroup + 'a> Semigroup for Thunk<'a, A> {
+	impl<A: Semigroup> Semigroup for Thunk<A> {
 		/// Combines two `Thunk`s by combining their results.
 		#[document_signature]
 		///
@@ -796,10 +787,9 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation."
 	)]
-	impl<'a, A: Monoid + 'a> Monoid for Thunk<'a, A> {
+	impl<A: Monoid> Monoid for Thunk<A> {
 		/// Returns the identity `Thunk`.
 		#[document_signature]
 		///

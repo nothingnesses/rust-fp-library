@@ -1,6 +1,6 @@
 //! Stack-safe Free monad over a functor with O(1) [`bind`](crate::functions::bind) operations.
 //!
-//! Enables building computation chains without stack overflow by using a catenable list of continuations. Note: requires `'static` types and cannot implement the library's HKT traits due to type erasure.
+//! Enables building computation chains without stack overflow by using a catenable list of continuations.
 //!
 //! ## Comparison with PureScript
 //!
@@ -100,8 +100,7 @@ mod inner {
 	#[document_fields]
 	pub enum FreeInner<F, A>
 	where
-		F: Functor + 'static,
-		A: 'static,
+		F: Functor,
 	{
 		/// A pure value.
 		///
@@ -112,7 +111,7 @@ mod inner {
 		///
 		/// This variant represents a computation that is suspended in the functor `F`.
 		/// The functor contains the next step of the computation.
-		Wrap(Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)),
+		Wrap(Apply!(<F as Kind!( type Of<T>; )>::Of<Free<F, A>>)),
 
 		/// A bind operation.
 		///
@@ -137,15 +136,6 @@ mod inner {
 	/// # HKT and Lifetime Limitations
 	///
 	/// `Free` does not implement HKT traits (like `Functor`, `Monad`) from this library.
-	///
-	/// ## The Conflict
-	/// * **The Traits**: The `Kind` trait implemented by the `Functor` hierarchy requires the type
-	///   constructor to accept *any* lifetime `'a` (e.g., `type Of<'a, A> = Free<F, A>`).
-	/// * **The Implementation**: This implementation uses [`Box<dyn Any>`] to type-erase continuations
-	///   for the "Reflection without Remorse" optimization. `dyn Any` strictly requires `A: 'static`.
-	///
-	/// This creates an unresolvable conflict: `Free` cannot support non-static references (like `&'a str`),
-	/// so it cannot satisfy the `Kind` signature.
 	///
 	/// ## Why not use the "Naive" Recursive Definition?
 	///
@@ -172,15 +162,13 @@ mod inner {
 	/// ```
 	pub struct Free<F, A>(pub(crate) Option<FreeInner<F, A>>)
 	where
-		F: Functor + 'static,
-		A: 'static;
+		F: Functor;
 
 	#[document_type_parameters("The base functor.", "The result type.")]
 	#[document_parameters("The Free monad instance to operate on.")]
 	impl<F, A> Free<F, A>
 	where
-		F: Functor + 'static,
-		A: 'static,
+		F: Functor,
 	{
 		/// Creates a pure `Free` value.
 		#[document_signature]
@@ -227,7 +215,7 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::wrap(eval);
 		/// ```
 		pub fn wrap(
-			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
+			fa: Apply!(<F as Kind!( type Of<T>; )>::Of<Free<F, A>>)
 		) -> Self {
 			Free(Some(FreeInner::Wrap(fa)))
 		}
@@ -268,7 +256,7 @@ mod inner {
 		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
 		/// assert_eq!(computation.evaluate(), 25);
 		/// ```
-		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
+		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<T>; )>::Of<A>)) -> Self {
 			// Map the value to a pure Free, then wrap it
 			Free::wrap(F::map(Free::pure, fa))
 		}
@@ -294,9 +282,9 @@ mod inner {
 		///
 		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
 		/// ```
-		pub fn bind<B: 'static>(
+		pub fn bind<B>(
 			mut self,
-			f: impl FnOnce(A) -> Free<F, B> + 'static,
+			f: impl FnOnce(A) -> Free<F, B>,
 		) -> Free<F, B> {
 			// Type-erase the continuation
 			let erased_f: Continuation<F> = Box::new(move |val: TypeErasedValue| {
@@ -431,8 +419,7 @@ mod inner {
 	#[document_parameters("The free monad instance to drop.")]
 	impl<F, A> Drop for Free<F, A>
 	where
-		F: Functor + 'static,
-		A: 'static,
+		F: Functor,
 	{
 		#[document_signature]
 		fn drop(&mut self) {
@@ -454,7 +441,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The result type.")]
-	impl<A: 'static> Deferrable<'static> for Free<ThunkBrand, A> {
+	impl<A> Deferrable for Free<ThunkBrand, A> {
 		/// Creates a `Free` computation from a thunk.
 		///
 		/// This delegates to `Free::wrap` and `Thunk::new`.
@@ -483,7 +470,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
+			F: FnOnce() -> Self,
 			Self: Sized,
 		{
 			Self::wrap(Thunk::new(f))

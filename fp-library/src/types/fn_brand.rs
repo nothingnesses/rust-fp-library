@@ -55,7 +55,7 @@ mod inner {
 		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as Function>::Of<A, B> {
+		fn new<A, B>(f: impl Fn(A) -> B) -> <Self as Function>::Of<A, B> {
 			P::coerce_fn(f)
 		}
 	}
@@ -91,7 +91,7 @@ mod inner {
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<A, B>(f: impl Fn(A) -> B + 'static) -> <Self as CloneableFn>::Of<A, B> {
+		fn new<A, B>(f: impl Fn(A) -> B) -> <Self as CloneableFn>::Of<A, B> {
 			P::coerce_fn(f)
 		}
 	}
@@ -217,8 +217,8 @@ mod inner {
 			pbc: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, C>),
 		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, D>)
 		where
-			FuncAB: Fn(A) -> B + 'static,
-			FuncCD: Fn(C) -> D + 'static,
+			FuncAB: Fn(A) -> B,
+			FuncCD: Fn(C) -> D,
 		{
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
@@ -340,7 +340,7 @@ mod inner {
 		/// assert_eq!(f(5), 10);
 		/// ```
 		fn send_cloneable_fn_new<A, B>(
-			f: impl Fn(A) -> B + Send + Sync + 'static
+			f: impl Fn(A) -> B + Send + Sync
 		) -> Self::SendOf<A, B> {
 			P::coerce_send_fn(f)
 		}

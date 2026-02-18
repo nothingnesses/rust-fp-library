@@ -170,7 +170,7 @@ mod inner {
 		/// let f = coerce_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Arc<dyn Fn(A) -> B> {
+		fn coerce_fn<A, B>(f: impl Fn(A) -> B) -> Arc<dyn Fn(A) -> B> {
 			Arc::new(f)
 		}
 	}
@@ -202,7 +202,7 @@ mod inner {
 		/// assert_eq!(f(1), 2);
 		/// ```
 		fn coerce_send_fn<A, B>(
-			f: impl Fn(A) -> B + Send + Sync + 'static
+			f: impl Fn(A) -> B + Send + Sync
 		) -> Arc<dyn Fn(A) -> B + Send + Sync> {
 			Arc::new(f)
 		}

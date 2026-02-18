@@ -112,13 +112,13 @@ mod inner {
 
 	impl_kind! {
 		#[document_type_parameters("The type of the first value in the pair.")]
-		impl<First: 'static> for PairWithFirstBrand<First> {
+		impl<First> for PairWithFirstBrand<First> {
 			type Of<A> = Pair<First, A>;
 		}
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: 'static> Functor for PairWithFirstBrand<First> {
+	impl<First> Functor for PairWithFirstBrand<First> {
 		/// Maps a function over the second value in the pair.
 		///
 		/// This method applies a function to the second value inside the pair, producing a new pair with the transformed second value. The first value remains unchanged.
@@ -162,7 +162,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + 'static> Lift for PairWithFirstBrand<First>
+	impl<First: Clone> Lift for PairWithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -221,7 +221,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + 'static> Pointed for PairWithFirstBrand<First>
+	impl<First: Clone> Pointed for PairWithFirstBrand<First>
 	where
 		First: Monoid,
 	{
@@ -255,13 +255,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + Semigroup + 'static> ApplyFirst for PairWithFirstBrand<First> {}
+	impl<First: Clone + Semigroup> ApplyFirst for PairWithFirstBrand<First> {}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + Semigroup + 'static> ApplySecond for PairWithFirstBrand<First> {}
+	impl<First: Clone + Semigroup> ApplySecond for PairWithFirstBrand<First> {}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + 'static> Semiapplicative for PairWithFirstBrand<First>
+	impl<First: Clone> Semiapplicative for PairWithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -309,7 +309,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + 'static> Semimonad for PairWithFirstBrand<First>
+	impl<First: Clone> Semimonad for PairWithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -362,7 +362,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the first value in the pair.")]
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: 'static> Foldable for PairWithFirstBrand<First> {
+	impl<First> Foldable for PairWithFirstBrand<First> {
 		/// Folds the pair from the right (over second).
 		///
 		/// This method performs a right-associative fold of the pair (over second).
@@ -502,7 +502,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the first value in the pair.")]
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: Clone + 'static> Traversable for PairWithFirstBrand<First> {
+	impl<First: Clone> Traversable for PairWithFirstBrand<First> {
 		/// Traverses the pair with an applicative function (over second).
 		///
 		/// This method maps the element of the pair to a computation, evaluates it, and combines the result into an applicative context (over second).
@@ -594,7 +594,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the first value in the pair.")]
 	#[document_type_parameters("The type of the first value in the pair.")]
-	impl<First: 'static> ParFoldable for PairWithFirstBrand<First> {
+	impl<First> ParFoldable for PairWithFirstBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
 		/// This method maps the element of the pair to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
@@ -691,13 +691,13 @@ mod inner {
 
 	impl_kind! {
 		#[document_type_parameters("The type of the second value in the pair.")]
-		impl<Second: 'static> for PairWithSecondBrand<Second> {
+		impl<Second> for PairWithSecondBrand<Second> {
 			type Of<A> = Pair<A, Second>;
 		}
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: 'static> Functor for PairWithSecondBrand<Second> {
+	impl<Second> Functor for PairWithSecondBrand<Second> {
 		/// Maps a function over the first value in the pair.
 		///
 		/// This method applies a function to the first value inside the pair, producing a new pair with the transformed first value. The second value remains unchanged.
@@ -738,7 +738,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + 'static> Lift for PairWithSecondBrand<Second>
+	impl<Second: Clone> Lift for PairWithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -797,7 +797,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + 'static> Pointed for PairWithSecondBrand<Second>
+	impl<Second: Clone> Pointed for PairWithSecondBrand<Second>
 	where
 		Second: Monoid,
 	{
@@ -831,13 +831,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + Semigroup + 'static> ApplyFirst for PairWithSecondBrand<Second> {}
+	impl<Second: Clone + Semigroup> ApplyFirst for PairWithSecondBrand<Second> {}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + Semigroup + 'static> ApplySecond for PairWithSecondBrand<Second> {}
+	impl<Second: Clone + Semigroup> ApplySecond for PairWithSecondBrand<Second> {}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + 'static> Semiapplicative for PairWithSecondBrand<Second>
+	impl<Second: Clone> Semiapplicative for PairWithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -885,7 +885,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + 'static> Semimonad for PairWithSecondBrand<Second>
+	impl<Second: Clone> Semimonad for PairWithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -938,7 +938,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the second value in the pair.")]
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: 'static> Foldable for PairWithSecondBrand<Second> {
+	impl<Second> Foldable for PairWithSecondBrand<Second> {
 		/// Folds the pair from the right (over first).
 		///
 		/// This method performs a right-associative fold of the result (over error).
@@ -1077,7 +1077,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the second value in the pair.")]
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: Clone + 'static> Traversable for PairWithSecondBrand<Second> {
+	impl<Second: Clone> Traversable for PairWithSecondBrand<Second> {
 		/// Traverses the pair with an applicative function (over first).
 		///
 		/// This method maps the element of the result to a computation, evaluates it, and combines the result into an applicative context (over error).
@@ -1166,7 +1166,7 @@ mod inner {
 
 	#[document_type_parameters("The type of the second value in the pair.")]
 	#[document_type_parameters("The type of the second value in the pair.")]
-	impl<Second: 'static> ParFoldable for PairWithSecondBrand<Second> {
+	impl<Second> ParFoldable for PairWithSecondBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
 		/// This method maps the element of the pair to a monoid and then returns it (over first). The mapping operation may be executed in parallel.

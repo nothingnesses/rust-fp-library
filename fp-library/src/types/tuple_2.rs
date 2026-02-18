@@ -78,13 +78,13 @@ mod inner {
 	// Tuple2WithFirstBrand<First> (Functor over Second)
 
 	impl_kind! {
-		impl<First: 'static> for Tuple2WithFirstBrand<First> {
+		impl<First> for Tuple2WithFirstBrand<First> {
 			type Of<A> = (First, A);
 		}
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: 'static> Functor for Tuple2WithFirstBrand<First> {
+	impl<First> Functor for Tuple2WithFirstBrand<First> {
 		/// Maps a function over the second value in the tuple.
 		///
 		/// This method applies a function to the second value inside the tuple, producing a new tuple with the transformed second value. The first value remains unchanged.
@@ -127,7 +127,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + 'static> Lift for Tuple2WithFirstBrand<First>
+	impl<First: Clone> Lift for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -185,7 +185,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + 'static> Pointed for Tuple2WithFirstBrand<First>
+	impl<First: Clone> Pointed for Tuple2WithFirstBrand<First>
 	where
 		First: Monoid,
 	{
@@ -218,12 +218,12 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithFirstBrand<First> {}
+	impl<First: Clone + Semigroup> ApplyFirst for Tuple2WithFirstBrand<First> {}
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + Semigroup + 'static> ApplySecond for Tuple2WithFirstBrand<First> {}
+	impl<First: Clone + Semigroup> ApplySecond for Tuple2WithFirstBrand<First> {}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + 'static> Semiapplicative for Tuple2WithFirstBrand<First>
+	impl<First: Clone> Semiapplicative for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -270,7 +270,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + 'static> Semimonad for Tuple2WithFirstBrand<First>
+	impl<First: Clone> Semimonad for Tuple2WithFirstBrand<First>
 	where
 		First: Semigroup,
 	{
@@ -321,7 +321,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: 'static> Foldable for Tuple2WithFirstBrand<First> {
+	impl<First> Foldable for Tuple2WithFirstBrand<First> {
 		/// Folds the tuple from the right (over second).
 		///
 		/// This method performs a right-associative fold of the tuple (over second).
@@ -457,7 +457,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: Clone + 'static> Traversable for Tuple2WithFirstBrand<First> {
+	impl<First: Clone> Traversable for Tuple2WithFirstBrand<First> {
 		/// Traverses the tuple with an applicative function (over second).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over second).
@@ -543,7 +543,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the tuple.")]
-	impl<First: 'static> ParFoldable for Tuple2WithFirstBrand<First> {
+	impl<First> ParFoldable for Tuple2WithFirstBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over second). The mapping operation may be executed in parallel.
@@ -641,13 +641,13 @@ mod inner {
 	// Tuple2WithSecondBrand<Second> (Functor over First)
 
 	impl_kind! {
-		impl<Second: 'static> for Tuple2WithSecondBrand<Second> {
+		impl<Second> for Tuple2WithSecondBrand<Second> {
 			type Of<A> = (A, Second);
 		}
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: 'static> Functor for Tuple2WithSecondBrand<Second> {
+	impl<Second> Functor for Tuple2WithSecondBrand<Second> {
 		/// Maps a function over the first value in the tuple.
 		///
 		/// This method applies a function to the first value inside the tuple, producing a new tuple with the transformed first value. The second value remains unchanged.
@@ -690,7 +690,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + 'static> Lift for Tuple2WithSecondBrand<Second>
+	impl<Second: Clone> Lift for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -748,7 +748,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + 'static> Pointed for Tuple2WithSecondBrand<Second>
+	impl<Second: Clone> Pointed for Tuple2WithSecondBrand<Second>
 	where
 		Second: Monoid,
 	{
@@ -781,12 +781,12 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + Semigroup + 'static> ApplyFirst for Tuple2WithSecondBrand<Second> {}
+	impl<Second: Clone + Semigroup> ApplyFirst for Tuple2WithSecondBrand<Second> {}
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + Semigroup + 'static> ApplySecond for Tuple2WithSecondBrand<Second> {}
+	impl<Second: Clone + Semigroup> ApplySecond for Tuple2WithSecondBrand<Second> {}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + 'static> Semiapplicative for Tuple2WithSecondBrand<Second>
+	impl<Second: Clone> Semiapplicative for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -833,7 +833,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + 'static> Semimonad for Tuple2WithSecondBrand<Second>
+	impl<Second: Clone> Semimonad for Tuple2WithSecondBrand<Second>
 	where
 		Second: Semigroup,
 	{
@@ -884,7 +884,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: 'static> Foldable for Tuple2WithSecondBrand<Second> {
+	impl<Second> Foldable for Tuple2WithSecondBrand<Second> {
 		/// Folds the tuple from the right (over first).
 		///
 		/// This method performs a right-associative fold of the tuple (over first).
@@ -1016,7 +1016,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: Clone + 'static> Traversable for Tuple2WithSecondBrand<Second> {
+	impl<Second: Clone> Traversable for Tuple2WithSecondBrand<Second> {
 		/// Traverses the tuple with an applicative function (over first).
 		///
 		/// This method maps the element of the tuple to a computation, evaluates it, and combines the result into an applicative context (over first).
@@ -1099,7 +1099,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the tuple.")]
-	impl<Second: 'static> ParFoldable for Tuple2WithSecondBrand<Second> {
+	impl<Second> ParFoldable for Tuple2WithSecondBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).
 		///
 		/// This method maps the element of the tuple to a monoid and then returns it (over first). The mapping operation may be executed in parallel.

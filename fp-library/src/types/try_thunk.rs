@@ -24,7 +24,6 @@ mod inner {
 	/// Like [`Thunk`], this is NOT memoized. Each [`TryThunk::evaluate`] re-executes.
 	/// Unlike [`Thunk`], the result is [`Result<A, E>`].
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the value produced by the computation on success.",
 		"The type of the error produced by the computation on failure."
 	)]
@@ -49,15 +48,14 @@ mod inner {
 	/// 	Err(_) => panic!("Should not fail"),
 	/// }
 	/// ```
-	pub struct TryThunk<'a, A, E>(Box<dyn FnOnce() -> Result<A, E> + 'a>);
+	pub struct TryThunk<A, E>(Box<dyn FnOnce() -> Result<A, E>>);
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value."
 	)]
 	#[document_parameters("The `TryThunk` instance.")]
-	impl<'a, A: 'a, E: 'a> TryThunk<'a, A, E> {
+	impl<A, E> TryThunk<A, E> {
 		/// Creates a new `TryThunk` from a thunk.
 		#[document_signature]
 		///
@@ -79,7 +77,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'a,
+			F: FnOnce() -> Result<A, E>,
 		{
 			TryThunk(Box::new(f))
 		}
@@ -101,10 +99,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
-		pub fn pure(a: A) -> Self
-		where
-			A: 'a,
-		{
+		pub fn pure(a: A) -> Self {
 			TryThunk::new(move || Ok(a))
 		}
 
@@ -129,7 +124,7 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> TryThunk<'a, A, E> + 'a,
+			F: FnOnce() -> TryThunk<A, E>,
 		{
 			TryThunk::new(move || f().evaluate())
 		}
@@ -153,10 +148,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
-		pub fn ok(a: A) -> Self
-		where
-			A: 'a,
-		{
+		pub fn ok(a: A) -> Self {
 			Self::pure(a)
 		}
 
@@ -177,10 +169,7 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
 		/// assert_eq!(try_thunk.evaluate(), Err("error"));
 		/// ```
-		pub fn err(e: E) -> Self
-		where
-			E: 'a,
-		{
+		pub fn err(e: E) -> Self {
 			TryThunk::new(move || Err(e))
 		}
 
@@ -206,12 +195,12 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
-		pub fn bind<B: 'a, F>(
+		pub fn bind<B, F>(
 			self,
 			f: F,
-		) -> TryThunk<'a, B, E>
+		) -> TryThunk<B, E>
 		where
-			F: FnOnce(A) -> TryThunk<'a, B, E> + 'a,
+			F: FnOnce(A) -> TryThunk<B, E>,
 		{
 			TryThunk::new(move || match (self.0)() {
 				Ok(a) => (f(a).0)(),
@@ -241,12 +230,12 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
-		pub fn map<B: 'a, Func>(
+		pub fn map<B, Func>(
 			self,
 			func: Func,
-		) -> TryThunk<'a, B, E>
+		) -> TryThunk<B, E>
 		where
-			Func: FnOnce(A) -> B + 'a,
+			Func: FnOnce(A) -> B,
 		{
 			TryThunk::new(move || (self.0)().map(func))
 		}
@@ -273,12 +262,12 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
 		/// assert_eq!(try_thunk.evaluate(), Err(42));
 		/// ```
-		pub fn map_err<E2: 'a, F>(
+		pub fn map_err<E2, F>(
 			self,
 			f: F,
-		) -> TryThunk<'a, A, E2>
+		) -> TryThunk<A, E2>
 		where
-			F: FnOnce(E) -> E2 + 'a,
+			F: FnOnce(E) -> E2,
 		{
 			TryThunk::new(move || (self.0)().map_err(f))
 		}
@@ -307,7 +296,7 @@ mod inner {
 			f: F,
 		) -> Self
 		where
-			F: FnOnce(E) -> TryThunk<'a, A, E> + 'a,
+			F: FnOnce(E) -> TryThunk<A, E>,
 		{
 			TryThunk::new(move || match (self.0)() {
 				Ok(a) => Ok(a),
@@ -336,66 +325,57 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, E, Config> From<Lazy<'a, A, Config>> for TryThunk<'a, A, E>
+	impl<A, E, Config> From<Lazy<A, Config>> for TryThunk<A, E>
 	where
-		A: Clone + 'a,
-		E: 'a,
+		A: Clone,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(memo: Lazy<'a, A, Config>) -> Self {
+		fn from(memo: Lazy<A, Config>) -> Self {
 			TryThunk::new(move || Ok(memo.evaluate().clone()))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value.",
 		"The memoization configuration."
 	)]
-	impl<'a, A, E, Config> From<TryLazy<'a, A, E, Config>> for TryThunk<'a, A, E>
+	impl<A, E, Config> From<TryLazy<A, E, Config>> for TryThunk<A, E>
 	where
-		A: Clone + 'a,
-		E: Clone + 'a,
+		A: Clone,
+		E: Clone,
 		Config: LazyConfig,
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
+		fn from(memo: TryLazy<A, E, Config>) -> Self {
 			TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value."
 	)]
-	impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
+	impl<A, E> From<Thunk<A>> for TryThunk<A, E> {
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
-		fn from(eval: Thunk<'a, A>) -> Self {
+		fn from(eval: Thunk<A>) -> Self {
 			TryThunk::new(move || Ok(eval.evaluate()))
 		}
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The type of the success value.",
 		"The type of the error value."
 	)]
-	impl<'a, A, E> Deferrable<'a> for TryThunk<'a, A, E>
-	where
-		A: 'a,
-		E: 'a,
-	{
+	impl<A, E> Deferrable for TryThunk<A, E> {
 		/// Creates a `TryThunk` from a computation that produces it.
 		#[document_signature]
 		///
@@ -422,7 +402,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
+			F: FnOnce() -> Self,
 			Self: Sized,
 		{
 			TryThunk::defer(f)
@@ -430,19 +410,18 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<E: 'static> for TryThunkWithErrBrand<E> {
+		impl<E> for TryThunkWithErrBrand<E> {
 			#[document_default]
-			type Of<'a, A: 'a>: 'a = TryThunk<'a, A, E>;
+			type Of<A> = TryThunk<A, E>;
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Functor for TryThunkWithErrBrand<E> {
+	impl<E> Functor for TryThunkWithErrBrand<E> {
 		/// Maps a function over the result of a `TryThunk` computation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value inside the `TryThunk`.",
 			"The type of the result of the transformation.",
 			"The type of the transformation function."
@@ -470,24 +449,23 @@ mod inner {
 		/// let mapped = map::<TryThunkWithErrBrand<()>, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Ok(20));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
+		fn map<A, B, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> B + 'a,
+			Func: Fn(A) -> B,
 		{
 			fa.map(func)
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Pointed for TryThunkWithErrBrand<E> {
+	impl<E> Pointed for TryThunkWithErrBrand<E> {
 		/// Wraps a value in a `TryThunk` context.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value to wrap."
 		)]
 		///
@@ -509,18 +487,17 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkWithErrBrand<()>, _>(42);
 		/// assert_eq!(try_thunk.evaluate(), Ok(42));
 		/// ```
-		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		fn pure<A>(a: A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<A>) {
 			TryThunk::pure(a)
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Lift for TryThunkWithErrBrand<E> {
+	impl<E> Lift for TryThunkWithErrBrand<E> {
 		/// Lifts a binary function into the `TryThunk` context.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the first value.",
 			"The type of the second value.",
 			"The type of the result.",
@@ -551,34 +528,32 @@ mod inner {
 		/// let result = lift2::<TryThunkWithErrBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
+		fn lift2<A, B, C, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+			fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
-			A: Clone + 'a,
-			B: Clone + 'a,
-			C: 'a,
+			Func: Fn(A, B) -> C,
+			A: Clone,
+			B: Clone,
 		{
 			fa.bind(move |a| fb.map(move |b| func(a, b)))
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> ApplyFirst for TryThunkWithErrBrand<E> {}
+	impl<E> ApplyFirst for TryThunkWithErrBrand<E> {}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> ApplySecond for TryThunkWithErrBrand<E> {}
+	impl<E> ApplySecond for TryThunkWithErrBrand<E> {}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Semiapplicative for TryThunkWithErrBrand<E> {
+	impl<E> Semiapplicative for TryThunkWithErrBrand<E> {
 		/// Applies a function wrapped in `TryThunk` to a value wrapped in `TryThunk`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function wrapper.",
 			"The type of the input.",
 			"The type of the result."
@@ -608,10 +583,10 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkWithErrBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		fn apply<FnBrand: CloneableFn, A: Clone, B>(
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<A, B>>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>) {
 			ff.bind(move |f| {
 				fa.map(
 					#[allow(clippy::redundant_closure)] // Required for move semantics
@@ -622,12 +597,11 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Semimonad for TryThunkWithErrBrand<E> {
+	impl<E> Semimonad for TryThunkWithErrBrand<E> {
 		/// Chains `TryThunk` computations.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the result of the first computation.",
 			"The type of the result of the new computation.",
 			"The type of the function to apply."
@@ -657,24 +631,23 @@ mod inner {
 		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+		fn bind<A, B, Func>(
+			ma: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>),
 		{
 			ma.bind(func)
 		}
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> MonadRec for TryThunkWithErrBrand<E> {
+	impl<E> MonadRec for TryThunkWithErrBrand<E> {
 		/// Performs tail-recursive monadic computation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the initial value and loop state.",
 			"The type of the result.",
 			"The type of the step function."
@@ -706,14 +679,13 @@ mod inner {
 		/// );
 		/// assert_eq!(result.evaluate(), Ok(1000));
 		/// ```
-		fn tail_rec_m<'a, A: 'a, B: 'a, F>(
+		fn tail_rec_m<A, B, F>(
 			f: F,
 			a: A,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<B>)
 		where
-			F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-				+ Clone
-				+ 'a,
+			F: Fn(A) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<Step<A, B>>)
+				+ Clone,
 		{
 			TryThunk::new(move || {
 				let mut current = a;
@@ -729,12 +701,11 @@ mod inner {
 	}
 
 	#[document_type_parameters("The error type.")]
-	impl<E: 'static> Foldable for TryThunkWithErrBrand<E> {
+	impl<E> Foldable for TryThunkWithErrBrand<E> {
 		/// Folds the `TryThunk` from the right.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -765,14 +736,14 @@ mod inner {
 		/// 	fold_right::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_right<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(A, B) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Ok(a) => func(a, initial),
@@ -784,7 +755,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -815,14 +785,14 @@ mod inner {
 		/// 	fold_left::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
+		fn fold_left<FnBrand, A, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(B, A) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Ok(a) => func(initial, a),
@@ -834,7 +804,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the monoid.",
@@ -861,14 +830,14 @@ mod inner {
 		/// 	fold_map::<RcFnBrand, TryThunkWithErrBrand<()>, _, _, _>(|a| a.to_string(), try_thunk);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
+		fn fold_map<FnBrand, A, M, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<A>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
+			M: Monoid,
+			Func: Fn(A) -> M,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Ok(a) => func(a),
@@ -878,11 +847,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The success value type.",
 		"The error value type."
 	)]
-	impl<'a, A: Semigroup + 'a, E: 'a> Semigroup for TryThunk<'a, A, E> {
+	impl<A: Semigroup, E> Semigroup for TryThunk<A, E> {
 		/// Combines two `TryThunk`s by combining their results.
 		#[document_signature]
 		///
@@ -920,11 +888,10 @@ mod inner {
 	}
 
 	#[document_type_parameters(
-		"The lifetime of the computation.",
 		"The success value type.",
 		"The error value type."
 	)]
-	impl<'a, A: Monoid + 'a, E: 'a> Monoid for TryThunk<'a, A, E> {
+	impl<A: Monoid, E> Monoid for TryThunk<A, E> {
 		/// Returns the identity `TryThunk`.
 		#[document_signature]
 		///
@@ -956,7 +923,7 @@ mod inner {
 		/// programming expectations (like Haskell's `Either e a`) where the success
 		/// type is the last parameter.
 		for TryThunkBrand {
-			type Of<'a, E: 'a, A: 'a>: 'a = TryThunk<'a, A, E>;
+			type Of<E, A> = TryThunk<A, E>;
 		}
 	}
 
@@ -967,7 +934,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the values.",
 			"The type of the error value.",
 			"The type of the mapped error value.",
 			"The type of the success value.",
@@ -1008,14 +974,14 @@ mod inner {
 		/// 	Err(6)
 		/// );
 		/// ```
-		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
+		fn bimap<A, B, C, D, F, G>(
 			f: F,
 			g: G,
-			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
+			p: Apply!(<Self as Kind!( type Of<T, U>; )>::Of<A, C>),
+		) -> Apply!(<Self as Kind!( type Of<T, U>; )>::Of<B, D>)
 		where
-			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a,
+			F: Fn(A) -> B,
+			G: Fn(C) -> D,
 		{
 			TryThunk::new(move || match p.evaluate() {
 				Ok(c) => Ok(g(c)),
@@ -1025,19 +991,18 @@ mod inner {
 	}
 
 	impl_kind! {
-		impl<A: 'static> for TryThunkWithOkBrand<A> {
+		impl<A> for TryThunkWithOkBrand<A> {
 			#[document_default]
-			type Of<'a, E: 'a>: 'a = TryThunk<'a, A, E>;
+			type Of<E> = TryThunk<A, E>;
 		}
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Functor for TryThunkWithOkBrand<A> {
+	impl<A> Functor for TryThunkWithOkBrand<A> {
 		/// Maps a function over the error value in the `TryThunk`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the error value inside the `TryThunk`.",
 			"The type of the result of the transformation.",
 			"The type of the transformation function."
@@ -1062,24 +1027,23 @@ mod inner {
 		/// let mapped = map::<TryThunkWithOkBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Err(20));
 		/// ```
-		fn map<'a, E: 'a, E2: 'a, Func>(
+		fn map<E, E2, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>)
 		where
-			Func: Fn(E) -> E2 + 'a,
+			Func: Fn(E) -> E2,
 		{
 			fa.map_err(func)
 		}
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Pointed for TryThunkWithOkBrand<A> {
+	impl<A> Pointed for TryThunkWithOkBrand<A> {
 		/// Wraps a value in a `TryThunk` context (as error).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the value to wrap."
 		)]
 		///
@@ -1101,18 +1065,17 @@ mod inner {
 		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkWithOkBrand<i32>, _>(42);
 		/// assert_eq!(try_thunk.evaluate(), Err(42));
 		/// ```
-		fn pure<'a, E: 'a>(e: E) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
+		fn pure<E>(e: E) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E>) {
 			TryThunk::err(e)
 		}
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Lift for TryThunkWithOkBrand<A> {
+	impl<A> Lift for TryThunkWithOkBrand<A> {
 		/// Lifts a binary function into the `TryThunk` context (over error).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the first error value.",
 			"The type of the second error value.",
 			"The type of the result error value.",
@@ -1143,16 +1106,15 @@ mod inner {
 		/// let result = lift2::<TryThunkWithOkBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
-		fn lift2<'a, E1, E2, E3, Func>(
+		fn lift2<E1, E2, E3, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
-			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E3>)
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E1>),
+			fb: Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E3>)
 		where
-			Func: Fn(E1, E2) -> E3 + 'a,
-			E1: Clone + 'a,
-			E2: Clone + 'a,
-			E3: 'a,
+			Func: Fn(E1, E2) -> E3,
+			E1: Clone,
+			E2: Clone,
 		{
 			TryThunk::new(move || match (fa.evaluate(), fb.evaluate()) {
 				(Err(e1), Err(e2)) => Err(func(e1, e2)),
@@ -1163,18 +1125,17 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> ApplyFirst for TryThunkWithOkBrand<A> {}
+	impl<A> ApplyFirst for TryThunkWithOkBrand<A> {}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> ApplySecond for TryThunkWithOkBrand<A> {}
+	impl<A> ApplySecond for TryThunkWithOkBrand<A> {}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Semiapplicative for TryThunkWithOkBrand<A> {
+	impl<A> Semiapplicative for TryThunkWithOkBrand<A> {
 		/// Applies a function wrapped in `TryThunk` (as error) to a value wrapped in `TryThunk` (as error).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function wrapper.",
 			"The type of the input error.",
 			"The type of the result error."
@@ -1204,10 +1165,10 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
-		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
-			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) {
+		fn apply<FnBrand: CloneableFn, E1: Clone, E2>(
+			ff: Apply!(<Self as Kind!( type Of<T>; )>::Of<<FnBrand as CloneableFn>::Of<E1, E2>>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E1>),
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>) {
 			TryThunk::new(move || match (ff.evaluate(), fa.evaluate()) {
 				(Err(f), Err(e)) => Err(f(e)),
 				(Ok(a), _) => Ok(a),
@@ -1217,12 +1178,11 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Semimonad for TryThunkWithOkBrand<A> {
+	impl<A> Semimonad for TryThunkWithOkBrand<A> {
 		/// Chains `TryThunk` computations (over error).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The type of the result of the first computation (error).",
 			"The type of the result of the new computation (error).",
 			"The type of the function to apply."
@@ -1252,12 +1212,12 @@ mod inner {
 		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
 		/// ```
-		fn bind<'a, E1: 'a, E2: 'a, Func>(
-			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
+		fn bind<E1, E2, Func>(
+			ma: Apply!(<Self as Kind!( type Of<T>; )>::Of<E1>),
 			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>)
+		) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>)
 		where
-			Func: Fn(E1) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) + 'a,
+			Func: Fn(E1) -> Apply!(<Self as Kind!( type Of<T>; )>::Of<E2>),
 		{
 			TryThunk::new(move || match ma.evaluate() {
 				Ok(a) => Ok(a),
@@ -1267,12 +1227,11 @@ mod inner {
 	}
 
 	#[document_type_parameters("The success type.")]
-	impl<A: 'static> Foldable for TryThunkWithOkBrand<A> {
+	impl<A> Foldable for TryThunkWithOkBrand<A> {
 		/// Folds the `TryThunk` from the right (over error).
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -1303,14 +1262,14 @@ mod inner {
 		/// 	fold_right::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, E: 'a, B: 'a, Func>(
+		fn fold_right<FnBrand, E, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
 		) -> B
 		where
-			Func: Fn(E, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(E, B) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Err(e) => func(e, initial),
@@ -1322,7 +1281,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the accumulator.",
@@ -1353,14 +1311,14 @@ mod inner {
 		/// 	fold_left::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, E: 'a, B: 'a, Func>(
+		fn fold_left<FnBrand, E, B, Func>(
 			func: Func,
 			initial: B,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
 		) -> B
 		where
-			Func: Fn(B, E) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
+			Func: Fn(B, E) -> B,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Err(e) => func(initial, e),
@@ -1372,7 +1330,6 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_type_parameters(
-			"The lifetime of the computation.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
 			"The type of the monoid.",
@@ -1399,14 +1356,14 @@ mod inner {
 		/// 	fold_map::<RcFnBrand, TryThunkWithOkBrand<i32>, _, _, _>(|a| a.to_string(), try_thunk);
 		/// assert_eq!(result, "10");
 		/// ```
-		fn fold_map<'a, FnBrand, E: 'a, M, Func>(
+		fn fold_map<FnBrand, E, M, Func>(
 			func: Func,
-			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
+			fa: Apply!(<Self as Kind!( type Of<T>; )>::Of<E>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			Func: Fn(E) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
+			M: Monoid,
+			Func: Fn(E) -> M,
+			FnBrand: CloneableFn,
 		{
 			match fa.evaluate() {
 				Err(e) => func(e),

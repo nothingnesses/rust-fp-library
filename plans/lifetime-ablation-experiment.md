@@ -12,48 +12,62 @@ With a simpler `Kind` trait not containing lifetime constraints:
 This change simplifies the internal macro-generated code and the public signatures of HKT-aware traits like `Functor` and `Monad`.
 
 ## Current Status
-The refactor has been successfully applied to the core type class definitions and several container types. However, a significant architectural hurdle has been encountered with types that wrap closures.
+The experiment has been expanded to cover almost all types and traits in the library. All explicit lifetime parameters (`'a`) and `'static` constraints have been removed from the core data structures and trait implementations in `types/` and `classes/`.
+
+The project is currently in a non-compiling state. This is expected, as the removal of lifetimes from types that wrap closures (like `Thunk`, `Lazy`, `Free`) forces those closures to be `'static`.
 
 ## Summary of Changes Made
-- **Trait Redefinitions**: `Functor`, `Applicative`, `Semimonad`, `Foldable`, `Traversable`, `Bifunctor`, `Compactable`, `Filterable`, and `Witherable` have been updated to use the lifetime-free `Kind` traits.
-- **Lifetime Removal in Signatures**: Explicit `'a` lifetimes and `A: 'a` bounds have been removed from the methods of the above traits.
-- **Container Type Migrations**: The following types have been updated to the new model:
-    - `Identity`, `Option`, `Vec`, `Result`, `Tuple1`, `Pair`, `Tuple2`, `CatList`, `String`.
-- **HKT Branding Updates**: `impl_kind!` blocks for these types now use `type Of<A>` or `type Of<A, B>`.
+- **Trait Redefinitions**: Core traits (`Functor`, `Applicative`, `Monad`, etc.) were previously updated to use lifetime-free `Kind` traits.
+- **Data Type Migrations**: The following types have had their lifetime parameters and `'static` bounds removed from their definitions and implementations:
+    - `Thunk`, `Lazy`, `TryThunk`, `TryLazy`, `Step`, `Trampoline`, `Free`.
+    - `Pair`, `Tuple2`, `Result` (and their respective brands).
+    - `Optics` (`Optic`, `Lens`, `LensPrime`, `Composed`).
+    - `FnBrand`, `ArcBrand`, `RcBrand`.
+- **HKT Branding Updates**: `impl_kind!` blocks and `Apply!` macro calls have been simplified to use the `type Of<A>` or `type Of<A, B>` model without lifetimes.
 
 ## Files Edited
-- `fp-library/src/classes/*.rs` (All trait definitions, including `Function`, `Profunctor`, `Category`, etc.)
-- `fp-library/src/types/identity.rs`
-- `fp-library/src/types/option.rs`
-- `fp-library/src/types/vec.rs`
-- `fp-library/src/types/result.rs`
-- `fp-library/src/types/tuple_1.rs`
+- `fp-library/src/classes/*.rs` (All trait definitions)
+- `fp-library/src/types/thunk.rs`
+- `fp-library/src/types/lazy.rs`
+- `fp-library/src/types/try_thunk.rs`
+- `fp-library/src/types/try_lazy.rs`
+- `fp-library/src/types/step.rs`
+- `fp-library/src/types/trampoline.rs`
+- `fp-library/src/types/free.rs`
 - `fp-library/src/types/pair.rs`
 - `fp-library/src/types/tuple_2.rs`
-- `fp-library/src/types/cat_list.rs`
-- `fp-library/src/types/string.rs`
+- `fp-library/src/types/result.rs`
+- `fp-library/src/types/optics.rs`
+- `fp-library/src/types/fn_brand.rs`
 - `fp-library/src/types/arc_ptr.rs`
 - `fp-library/src/types/rc_ptr.rs`
-- `fp-library/src/types/endofunction.rs`
-- `fp-library/src/types/send_endofunction.rs`
-- `fp-library/src/types/endomorphism.rs`
-- `fp-library/src/types/fn_brand.rs`
 
 ## Analyses and Findings
 
-### 1. Successful Ablation for "Passive" Containers
-For types that simply hold data (`Vec<A>`, `Option<A>`, etc.), ablation is highly successful. It results in much cleaner code and simplifies HKT integration. The loss of lifetime-parameterized application (e.g., `Option<&'a T>`) via HKT traits is a minor regression compared to the gain in simplicity.
+### 1. Simplified HKT Model
+The removal of lifetimes significantly simplifies the `Kind` trait and all downstream traits (`Functor`, `Monad`, etc.). The code is much cleaner and easier to read.
 
-### 2. The "Closure Hurdle"
-The experiment reached an "inflection point" when attempting to migrate `Thunk<'a, A>`, `Lazy<'a, A>`, `Free<F, A>`, and especially the function-related traits like `Function` and `Profunctor`. These types wrap closures that may capture borrowed data.
+### 2. The "Closure Hurdle" (Confirmed)
+Removing lifetimes from types that store trait objects (e.g., `Box<dyn Fn()>`) makes them implicitly `'static`. 
+- **Pros**: Matches the model of GC-based functional languages; simplifies type signatures.
+- **Cons**: Prevents these types from capturing local, non-static data. This is a significant restriction for a Rust library.
 
-**Key Finding**: Types that store `Box<dyn Fn... + 'a>` are fundamentally higher-arity in Rust. They require *both* a lifetime parameter and a type parameter to be safe and flexible.
+## Instructions for Next Agent
 
-**The Conflict**:
-- The ablated `Functor` trait requires `ThunkBrand::Of<A>` to resolve to a concrete type.
+### 1. Review and Clean Up Documentation
+Documentation and comments in the modified files still contain references to lifetimes and `'static` requirements (e.g., in `lib.rs`, `thunk.rs`, `free.rs`). These should be updated to reflect the new lifetime-free model.
 
-## Possible Next Steps
-TBD
+### 2. Resolve Compilation Errors
+Run `cargo check -p fp-library`. Most errors fall into these categories:
+- **`'static` Requirement**: Closures passed to `Thunk::new`, `Lazy::new`, etc., now need to be `'static`. You may need to add `+ 'static` bounds to some generic functions or examples.
+- **Trait Implementation Mismatches**: Some manual trait implementations might still have residual lifetime parameters or use the wrong `Kind` trait ID.
+- **`Apply!` Macro Inconsistency**: Ensure all `Apply!` calls are using the ablated signature.
+
+### 3. Verify Remaining Types
+Double-check simple container types like `Identity`, `Option`, `Vec`, `String`, `Tuple1` to ensure their implementations are fully consistent with the ablated model (though most are already done).
+
+### 4. Categorical Optics
+The `optics.rs` file was heavily modified. Pay special attention to how `evaluate` and the lens constructors work without lifetimes.
 
 ## Conclusion (Postponed)
-TBD
+The structural ablation is complete. The next phase is to achieve compilation and evaluate whether the resulting `'static`-only limitation for closure-based types is an acceptable trade-off for the increased simplicity.

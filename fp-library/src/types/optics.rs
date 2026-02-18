@@ -87,18 +87,13 @@ mod inner {
 		/// This method applies the optic transformation to a profunctor value.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		///
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<P: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a;
+			pab: Apply!(<P as Kind!( type Of<U, V>; )>::Of<A, B>),
+		) -> Apply!(<P as Kind!( type Of<U, V>; )>::Of<S, T>);
 	}
 
 	/// Composition of two optics.
@@ -165,22 +160,14 @@ mod inner {
 	where
 		O1: Optic<S, T, M, N>,
 		O2: Optic<M, N, A, B>,
-		M: 'static,
-		N: 'static,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<P: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a,
-		{
+			pab: Apply!(<P as Kind!( type Of<U, V>; )>::Of<A, B>),
+		) -> Apply!(<P as Kind!( type Of<U, V>; )>::Of<S, T>) {
 			let pmn = self.second.evaluate::<P>(pab);
 			self.first.evaluate::<P>(pmn)
 		}
@@ -281,9 +268,9 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		/// Getter function.
-		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
+		pub view: Apply!(<FnBrand<P> as Kind!( type Of<U, V>; )>::Of<S, A>),
 		/// Setter function.
-		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, B), T>),
+		pub set: Apply!(<FnBrand<P> as Kind!( type Of<U, V>; )>::Of<(S, B), T>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -315,8 +302,8 @@ mod inner {
 		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::new(|x| x, |(_, s)| s);
 		/// ```
 		pub fn new(
-			view: impl 'static + Fn(S) -> A,
-			set: impl 'static + Fn((S, B)) -> T,
+			view: impl Fn(S) -> A,
+			set: impl Fn((S, B)) -> T,
 		) -> Self {
 			Lens {
 				view: <FnBrand<P> as CloneableFn>::new(view),
@@ -387,18 +374,12 @@ mod inner {
 		S: Clone,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, Q: Strong + Choice>(
+		fn evaluate<Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a,
-		{
+			pab: Apply!(<Q as Kind!( type Of<U, V>; )>::Of<A, B>),
+		) -> Apply!(<Q as Kind!( type Of<U, V>; )>::Of<S, T>) {
 			let view = self.view.clone();
 			let set = self.set.clone();
 
@@ -423,8 +404,8 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 	{
-		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
-		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, A), S>),
+		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<U, V>; )>::Of<S, A>),
+		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<U, V>; )>::Of<(S, A), S>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -474,8 +455,8 @@ mod inner {
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// ```
 		pub fn new(
-			view: impl 'static + Fn(S) -> A,
-			set: impl 'static + Fn((S, A)) -> S,
+			view: impl Fn(S) -> A,
+			set: impl Fn((S, A)) -> S,
 		) -> Self {
 			LensPrime {
 				view_fn: <FnBrand<P> as CloneableFn>::new(view),
@@ -574,16 +555,12 @@ mod inner {
 		S: Clone,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, Q: Strong + Choice>(
+		fn evaluate<Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, A>),
-		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, S>)
-		where
-			A: 'a,
-			S: 'a,
-		{
+			pab: Apply!(<Q as Kind!( type Of<U, V>; )>::Of<A, A>),
+		) -> Apply!(<Q as Kind!( type Of<U, V>; )>::Of<S, S>) {
 			let view_fn = self.view_fn.clone();
 			let set_fn = self.set_fn.clone();
 

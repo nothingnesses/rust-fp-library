@@ -137,7 +137,7 @@ mod inner {
 		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<A, B>(f: impl Fn(A) -> B + 'static) -> Rc<dyn Fn(A) -> B> {
+		fn coerce_fn<A, B>(f: impl Fn(A) -> B) -> Rc<dyn Fn(A) -> B> {
 			Rc::new(f)
 		}
 	}

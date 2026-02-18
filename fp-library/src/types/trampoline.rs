@@ -45,7 +45,7 @@ mod inner {
 	/// # When to Use `Trampoline` vs [`Thunk`]
 	///
 	/// - Use **`Trampoline<A>`** for deep recursion, heavy monadic pipelines.
-	/// - Use **`Thunk<'a, A>`** for HKT integration, borrowed references, glue code.
+	/// - Use **`Thunk<A>`** for HKT integration, glue code.
 	///
 	/// # Memoization
 	///
@@ -74,11 +74,11 @@ mod inner {
 	///
 	/// assert_eq!(task.evaluate(), 14);
 	/// ```
-	pub struct Trampoline<A: 'static>(Free<ThunkBrand, A>);
+	pub struct Trampoline<A>(Free<ThunkBrand, A>);
 
 	#[document_type_parameters("The type of the value produced by the task.")]
 	#[document_parameters("The `Trampoline` instance.")]
-	impl<A: 'static + Send> Trampoline<A> {
+	impl<A: Send> Trampoline<A> {
 		/// Creates a `Trampoline` from an already-computed value.
 		///
 		/// ### Complexity
@@ -138,7 +138,7 @@ mod inner {
 		#[inline]
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + 'static,
+			F: FnOnce() -> A,
 		{
 			Trampoline(Free::wrap(Thunk::new(move || Free::pure(f()))))
 		}
@@ -181,7 +181,7 @@ mod inner {
 		#[inline]
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Trampoline<A> + 'static,
+			F: FnOnce() -> Trampoline<A>,
 		{
 			Trampoline(Free::wrap(Thunk::new(move || f().0)))
 		}
@@ -215,12 +215,12 @@ mod inner {
 		/// }
 		/// ```
 		#[inline]
-		pub fn bind<B: 'static + Send, F>(
+		pub fn bind<B: Send, F>(
 			self,
 			f: F,
 		) -> Trampoline<B>
 		where
-			F: FnOnce(A) -> Trampoline<B> + 'static,
+			F: FnOnce(A) -> Trampoline<B>,
 		{
 			Trampoline(self.0.bind(move |a| f(a).0))
 		}
@@ -248,12 +248,12 @@ mod inner {
 		/// assert_eq!(task.evaluate(), 20);
 		/// ```
 		#[inline]
-		pub fn map<B: 'static + Send, F>(
+		pub fn map<B: Send, F>(
 			self,
 			f: F,
 		) -> Trampoline<B>
 		where
-			F: FnOnce(A) -> B + 'static,
+			F: FnOnce(A) -> B,
 		{
 			self.bind(move |a| Trampoline::pure(f(a)))
 		}
@@ -307,13 +307,13 @@ mod inner {
 		/// let t3 = t1.lift2(t2, |a, b| a + b);
 		/// assert_eq!(t3.evaluate(), 30);
 		/// ```
-		pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
+		pub fn lift2<B: Send, C: Send, F>(
 			self,
 			other: Trampoline<B>,
 			f: F,
 		) -> Trampoline<C>
 		where
-			F: FnOnce(A, B) -> C + 'static,
+			F: FnOnce(A, B) -> C,
 		{
 			self.bind(move |a| other.map(move |b| f(a, b)))
 		}
@@ -339,7 +339,7 @@ mod inner {
 		/// let t3 = t1.then(t2);
 		/// assert_eq!(t3.evaluate(), 20);
 		/// ```
-		pub fn then<B: 'static + Send>(
+		pub fn then<B: Send>(
 			self,
 			other: Trampoline<B>,
 		) -> Trampoline<B> {
@@ -393,20 +393,20 @@ mod inner {
 		///
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
-		pub fn tail_rec_m<S: 'static + Send, F>(
+		pub fn tail_rec_m<S: Send, F>(
 			f: F,
 			initial: S,
 		) -> Self
 		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
+			F: Fn(S) -> Trampoline<Step<S, A>> + Clone,
 		{
 			// Use defer to ensure each step is trampolined.
-			fn go<A: 'static + Send, B: 'static + Send, F>(
+			fn go<A: Send, B: Send, F>(
 				f: F,
 				a: A,
 			) -> Trampoline<B>
 			where
-				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static,
+				F: Fn(A) -> Trampoline<Step<A, B>> + Clone,
 			{
 				let f_clone = f.clone();
 				Trampoline::defer(move || {
@@ -467,12 +467,12 @@ mod inner {
 		/// 	100,
 		/// );
 		/// ```
-		pub fn arc_tail_rec_m<S: 'static + Send, F>(
+		pub fn arc_tail_rec_m<S: Send, F>(
 			f: F,
 			initial: S,
 		) -> Self
 		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + 'static,
+			F: Fn(S) -> Trampoline<Step<S, A>>,
 		{
 			use std::sync::Arc;
 			let f = Arc::new(f);
@@ -488,18 +488,18 @@ mod inner {
 		"The type of the value produced by the task.",
 		"The memoization configuration."
 	)]
-	impl<A: 'static + Send + Clone, Config: LazyConfig> From<Lazy<'static, A, Config>>
+	impl<A: Send + Clone, Config: LazyConfig> From<Lazy<A, Config>>
 		for Trampoline<A>
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		fn from(lazy: Lazy<'static, A, Config>) -> Self {
+		fn from(lazy: Lazy<A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}
 	}
 
 	#[document_type_parameters("The type of the value produced by the task.")]
-	impl<A: 'static + Send> Deferrable<'static> for Trampoline<A> {
+	impl<A: Send> Deferrable for Trampoline<A> {
 		/// Creates a `Trampoline` from a computation that produces it.
 		#[document_signature]
 		///
@@ -526,7 +526,7 @@ mod inner {
 		/// ```
 		fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
+			F: FnOnce() -> Self,
 			Self: Sized,
 		{
 			Trampoline::defer(f)
