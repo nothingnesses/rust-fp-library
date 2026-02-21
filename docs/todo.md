@@ -1,24 +1,5 @@
 ### Tasks to do & ideas to look into
 
-* Determine if lifetimes for Functor hierarchy are actually needed, or if they can be removed.
-* Add Contravariant functor.
-* See if making Kind traits used by these can be the same/made consistent.
-* Make blanket impls and default implementations for:
-```
-instance (Bifunctor p) => Functor (p a) where
-    fmap = second
-```
-
-```
-instance (Profunctor p) => Functor (p a) where
-    fmap = rmap
-```
-
-```
-instance (Profunctor p) => Contravariant (Flip p c) where
-    contramap = lmap
-```
-Will need to create brands to represent constructors where p is fixed and where the type parameters are flipped.
 * `Wander` type class (required for `Traversal`).
 * `Closed` type class (required for `Grate`).
 * Optics:
