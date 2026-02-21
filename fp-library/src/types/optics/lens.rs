@@ -1,7 +1,17 @@
 //! Lens optics for product types.
 
 use {
-	super::base::Optic,
+	super::{
+		base::{
+			FoldOptic,
+			GetterOptic,
+			LensOptic,
+			Optic,
+			SetterOptic,
+			TraversalOptic,
+		},
+		forget::ForgetBrand,
+	},
 	crate::{
 		Apply,
 		brands::FnBrand,
@@ -9,6 +19,8 @@ use {
 			CloneableFn,
 			Strong,
 			UnsizedCoercible,
+			monoid::Monoid,
+			wander::Wander,
 		},
 		kinds::*,
 	},
@@ -179,6 +191,70 @@ where
 		let set = self.set.clone();
 
 		Q::dimap(move |s: S| (view(s.clone()), s), move |(b, s): (B, S)| set((s, b)), Q::first(pab))
+	}
+}
+
+impl<'a, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
+	for Lens<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Strong>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		Optic::<Q, S, T, A, B>::evaluate(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
+	for Lens<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		LensOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> GetterOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
+	for Lens<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		LensOptic::evaluate::<FnBrand<Q>>(self, pab)
 	}
 }
 
@@ -399,5 +475,66 @@ where
 			move |(a, s): (A, S)| set_fn((s, a)),
 			Q::first(pab),
 		)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> TraversalOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> GetterOptic<'a, S, A> for LensPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for LensPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a + Clone, A: 'a> SetterOptic<'a, Q, S, S, A, A> for LensPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		LensOptic::evaluate::<FnBrand<Q>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> LensOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Strong>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<Q, S, S, A, A>::evaluate(self, pab)
 	}
 }

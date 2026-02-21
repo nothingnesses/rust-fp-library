@@ -235,3 +235,123 @@ fn test_composed_deep() {
 	// We can also use evaluate with Category::identity to just view (using Forget profunctor would be better but we don't have it here)
 	// For now, let's just test that evaluate works on the composed optic.
 }
+
+#[test]
+fn test_polymorphic_view_composed() {
+	#[derive(Clone, Debug, PartialEq)]
+	struct Address {
+		street: String,
+	}
+
+	#[derive(Clone, Debug, PartialEq)]
+	struct User {
+		address: Address,
+	}
+
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+		|u: User| u.address.clone(),
+		|(_, a)| User {
+			address: a,
+		},
+	);
+	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+		|a: Address| a.street.clone(),
+		|(_, s)| Address {
+			street: s,
+		},
+	);
+
+	let user_street = optics_compose(address_lens, street_lens);
+	let user = User {
+		address: Address {
+			street: "High St".to_string(),
+		},
+	};
+
+	// Now we can use optics_view on a Composed optic!
+	// This was not possible before Approach 4.
+	let street = optics_view(&user_street, user);
+	assert_eq!(street, "High St");
+}
+
+#[test]
+fn test_polymorphic_set_composed() {
+	#[derive(Clone, Debug, PartialEq)]
+	struct Address {
+		street: String,
+	}
+
+	#[derive(Clone, Debug, PartialEq)]
+	struct User {
+		address: Address,
+	}
+
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+		|u: User| u.address.clone(),
+		|(_, a)| User {
+			address: a,
+		},
+	);
+	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+		|a: Address| a.street.clone(),
+		|(_, s)| Address {
+			street: s,
+		},
+	);
+
+	let user_street = optics_compose(address_lens, street_lens);
+	let user = User {
+		address: Address {
+			street: "High St".to_string(),
+		},
+	};
+
+	let updated = optics_set::<RcBrand, _, _, _>(&user_street, user, "Main St".to_string());
+	assert_eq!(updated.address.street, "Main St");
+}
+
+#[test]
+fn test_polymorphic_preview_prism() {
+	let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+		PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+	assert_eq!(optics_preview(&ok_prism, Ok(42)), Some(42));
+	assert_eq!(optics_preview(&ok_prism, Err("error".to_string())), None);
+}
+
+#[test]
+fn test_polymorphic_preview_composed_lens_prism() {
+	#[derive(Clone, Debug, PartialEq)]
+	struct Address {
+		street: String,
+	}
+
+	#[derive(Clone, Debug, PartialEq)]
+	struct User {
+		address: Address,
+	}
+
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+		|u: User| u.address.clone(),
+		|(_, a)| User {
+			address: a,
+		},
+	);
+
+	let street_prism: PrismPrime<RcBrand, Address, String> = PrismPrime::new(
+		|a: Address| Some(a.street.clone()),
+		|s| Address {
+			street: s,
+		},
+	);
+
+	let user_street = optics_compose(address_lens, street_prism);
+	let user = User {
+		address: Address {
+			street: "High St".to_string(),
+		},
+	};
+
+	let street = optics_preview(&user_street, user);
+	assert_eq!(street, Some("High St".to_string()));
+}

@@ -1,16 +1,38 @@
 //! Isomorphism optics for bidirectional conversions.
 
 use {
-	super::base::Optic,
+	super::{
+		base::{
+			FoldOptic,
+			GetterOptic,
+			GrateOptic,
+			IsoOptic,
+			LensOptic,
+			Optic,
+			PrismOptic,
+			SetterOptic,
+			TraversalOptic,
+		},
+		forget::ForgetBrand,
+	},
 	crate::{
 		Apply,
 		brands::FnBrand,
 		classes::{
+			Choice,
 			CloneableFn,
 			Profunctor,
+			Strong,
 			UnsizedCoercible,
+			closed::Closed,
+			monoid::Monoid,
+			wander::Wander,
 		},
 		kinds::*,
+		types::optics::{
+			ReviewOptic,
+			TaggedBrand,
+		},
 	},
 	fp_macros::{
 		document_parameters,
@@ -185,6 +207,116 @@ where
 		// The Profunctor encoding of an Iso is:
 		// iso from to = dimap from to
 		Q::dimap(move |s| from(s), move |b| to(b), pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> IsoOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Profunctor>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		Optic::<Q, S, T, A, B>::evaluate(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> GrateOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Closed>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Strong>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> PrismOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Choice>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for Iso<'a, P, S, S, A, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for Iso<'a, P, S, S, A, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		IsoOptic::evaluate::<FnBrand<Q>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> ReviewOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let to = self.to.clone();
+		crate::types::optics::tagged::Tagged::new(to(pab.0))
 	}
 }
 
@@ -395,5 +527,115 @@ where
 		// The Profunctor encoding of an Iso is:
 		// iso from to = dimap from to
 		Q::dimap(move |s| from_fn(s), move |a| to_fn(a), pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> GrateOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Closed>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> LensOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Strong>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> PrismOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Choice>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		IsoOptic::evaluate::<FnBrand<Q>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> ReviewOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let to_fn = self.to_fn.clone();
+		crate::types::optics::tagged::Tagged::new(to_fn(pab.0))
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> IsoOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Profunctor>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<Q, S, S, A, A>::evaluate(self, pab)
 	}
 }

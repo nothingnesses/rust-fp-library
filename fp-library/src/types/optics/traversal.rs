@@ -4,15 +4,23 @@
 //! and update them while maintaining the structure.
 
 use {
+	super::forget::ForgetBrand,
 	crate::{
 		Apply,
+		brands::FnBrand,
 		classes::{
 			UnsizedCoercible,
 			Wander,
+			monoid::Monoid,
 			wander::TraversalFunc,
 		},
 		kinds::*,
-		types::optics::base::Optic,
+		types::optics::base::{
+			FoldOptic,
+			Optic,
+			SetterOptic,
+			TraversalOptic,
+		},
 	},
 	fp_macros::document_type_parameters,
 	std::marker::PhantomData,
@@ -144,5 +152,55 @@ where
 		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 		Q::wander(self.traversal.clone(), pab)
+	}
+}
+
+impl<'a, P, S, T, A, B, F> TraversalOptic<'a, S, T, A, B> for Traversal<'a, P, S, T, A, B, F>
+where
+	P: UnsizedCoercible,
+	F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
+	S: 'a,
+	T: 'a,
+	A: 'a,
+	B: 'a,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		Optic::<Q, S, T, A, B>::evaluate(self, pab)
+	}
+}
+
+impl<'a, P, S, A, F> FoldOptic<'a, S, A> for Traversal<'a, P, S, S, A, A, F>
+where
+	P: UnsizedCoercible,
+	F: TraversalFunc<'a, S, S, A, A> + Clone + 'a,
+	S: 'a,
+	A: 'a,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		TraversalOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S, T, A, B, F> SetterOptic<'a, Q, S, T, A, B> for Traversal<'a, P, S, T, A, B, F>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+	F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
+	S: 'a,
+	T: 'a,
+	A: 'a,
+	B: 'a,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		TraversalOptic::evaluate::<FnBrand<Q>>(self, pab)
 	}
 }

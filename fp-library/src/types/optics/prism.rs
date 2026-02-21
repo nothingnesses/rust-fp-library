@@ -1,7 +1,16 @@
 //! Prism optics for sum types.
 
 use {
-	super::base::Optic,
+	super::{
+		base::{
+			FoldOptic,
+			Optic,
+			PrismOptic,
+			SetterOptic,
+			TraversalOptic,
+		},
+		forget::ForgetBrand,
+	},
 	crate::{
 		Apply,
 		brands::FnBrand,
@@ -9,8 +18,14 @@ use {
 			Choice,
 			CloneableFn,
 			UnsizedCoercible,
+			monoid::Monoid,
+			wander::Wander,
 		},
 		kinds::*,
+		types::optics::{
+			ReviewOptic,
+			TaggedBrand,
+		},
 	},
 	fp_macros::{
 		document_parameters,
@@ -195,6 +210,69 @@ where
 			},
 			Q::right(pab),
 		)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> PrismOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Choice>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		Optic::<Q, S, T, A, B>::evaluate(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		PrismOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for Prism<'a, P, S, S, A, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
+	for Prism<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		PrismOptic::evaluate::<FnBrand<Q>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> ReviewOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let review = self.review.clone();
+		crate::types::optics::tagged::Tagged::new(review(pab.0))
 	}
 }
 
@@ -427,5 +505,67 @@ where
 			},
 			Q::right(pab),
 		)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> PrismOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Choice>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<Q, S, S, A, A>::evaluate(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> TraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<Q: Wander>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<Q>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<ForgetBrand<R>>(self, pab)
+	}
+}
+
+impl<'a, Q, P, S: 'a + Clone, A: 'a> SetterOptic<'a, Q, S, S, A, A> for PrismPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<FnBrand<Q>>(self, pab)
+	}
+}
+
+impl<'a, P, S: 'a + Clone, A: 'a> ReviewOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+where
+	P: UnsizedCoercible,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let review_fn = self.review_fn.clone();
+		crate::types::optics::tagged::Tagged::new(review_fn(pab.0))
 	}
 }

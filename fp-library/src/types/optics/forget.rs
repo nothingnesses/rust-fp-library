@@ -10,6 +10,7 @@ use {
 			Profunctor,
 			Strong,
 			monoid::Monoid,
+			wander::Wander,
 		},
 		impl_kind,
 		kinds::*,
@@ -89,6 +90,25 @@ impl<R: 'static> Strong for ForgetBrand<R> {
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
 		Forget::new(move |(a, _)| (pab.0)(a))
+	}
+}
+
+impl<R: 'static + Monoid> Wander for ForgetBrand<R> {
+	fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+		traversal: TFunc,
+		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
+	where
+		TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a, {
+		use crate::types::const_val::ConstBrand;
+		Forget::new(move |s| {
+			let pab = pab.clone();
+			(traversal.apply::<ConstBrand<R>>(
+				Box::new(move |a| crate::types::const_val::Const::new((pab.0)(a))),
+				s,
+			))
+			.0
+		})
 	}
 }
 

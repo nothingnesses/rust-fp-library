@@ -15,6 +15,7 @@
 
 pub mod arc_ptr;
 pub mod cat_list;
+pub mod const_val;
 pub mod endofunction;
 pub mod endomorphism;
 pub mod fn_brand;

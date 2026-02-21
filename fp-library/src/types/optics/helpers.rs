@@ -2,18 +2,28 @@
 
 use {
 	super::{
-		base::Optic,
-		iso::IsoPrime,
-		lens::LensPrime,
-		prism::PrismPrime,
+		base::{
+			FoldOptic,
+			GetterOptic,
+			Optic,
+			ReviewOptic,
+			SetterOptic,
+		},
+		forget::Forget,
+		tagged::Tagged,
 	},
 	crate::{
 		Apply,
+		brands::FnBrand,
 		classes::{
+			Function,
 			Profunctor,
 			UnsizedCoercible,
+			monoid::Monoid,
+			semigroup::Semigroup,
 		},
 		kinds::*,
+		types::optics::IsoOptic,
 	},
 	fp_macros::{
 		document_parameters,
@@ -29,7 +39,7 @@ use {
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -48,15 +58,15 @@ use {
 /// 	LensPrime::new(|(x, _)| x, |(_, x)| (x, "".to_string()));
 /// assert_eq!(optics_view(&l, (42, "hello".to_string())), 42);
 /// ```
-pub fn optics_view<'a, P, S, A>(
-	optic: &LensPrime<'a, P, S, A>,
+pub fn optics_view<'a, O, S, A>(
+	optic: &O,
 	s: S,
 ) -> A
 where
-	P: UnsizedCoercible,
+	O: GetterOptic<'a, S, A>,
 	S: 'a,
-	A: 'a, {
-	optic.view(s)
+	A: 'a + 'static, {
+	(optic.evaluate(Forget::new(|a| a)).0)(s)
 }
 
 /// Set the focus of a lens-like optic.
@@ -66,7 +76,8 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The pointer brand for the function.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -83,18 +94,23 @@ where
 ///
 /// let l: LensPrime<RcBrand, (i32, String), i32> =
 /// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-/// assert_eq!(optics_set(&l, (42, "hello".to_string()), 99), (99, "hello".to_string()));
+/// assert_eq!(
+/// 	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
+/// 	(99, "hello".to_string())
+/// );
 /// ```
-pub fn optics_set<'a, P, S, A>(
-	optic: &LensPrime<'a, P, S, A>,
+pub fn optics_set<'a, Q, O, S, A>(
+	optic: &O,
 	s: S,
 	a: A,
 ) -> S
 where
-	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+	O: SetterOptic<'a, Q, S, S, A, A>,
 	S: 'a,
-	A: 'a, {
-	optic.set(s, a)
+	A: 'a + Clone, {
+	let f = <FnBrand<Q> as Function>::new(move |_| a.clone());
+	(optic.evaluate(f))(s)
 }
 
 /// Modify the focus of a lens-like optic using a function.
@@ -104,7 +120,8 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The pointer brand for the function.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus.",
 	"The type of the modification function."
@@ -126,19 +143,24 @@ where
 ///
 /// let l: LensPrime<RcBrand, (i32, String), i32> =
 /// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-/// assert_eq!(optics_over(&l, (42, "hello".to_string()), |x| x * 2), (84, "hello".to_string()));
+/// assert_eq!(
+/// 	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
+/// 	(84, "hello".to_string())
+/// );
 /// ```
-pub fn optics_over<'a, P, S, A, F>(
-	optic: &LensPrime<'a, P, S, A>,
+pub fn optics_over<'a, Q, O, S, A, F>(
+	optic: &O,
 	s: S,
 	f: F,
 ) -> S
 where
-	P: UnsizedCoercible,
-	S: 'a + Clone,
+	Q: UnsizedCoercible,
+	O: SetterOptic<'a, Q, S, S, A, A>,
+	S: 'a,
 	A: 'a,
-	F: Fn(A) -> A, {
-	optic.over(s, f)
+	F: Fn(A) -> A + 'a, {
+	let f = <FnBrand<Q> as Function>::new(f);
+	(optic.evaluate(f))(s)
 }
 
 /// Preview the focus of a prism-like optic.
@@ -148,7 +170,7 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -168,15 +190,33 @@ where
 /// assert_eq!(optics_preview(&ok_prism, Ok(42)), Some(42));
 /// assert_eq!(optics_preview(&ok_prism, Err("error".to_string())), None);
 /// ```
-pub fn optics_preview<'a, P, S, A>(
-	optic: &PrismPrime<'a, P, S, A>,
+pub fn optics_preview<'a, O, S, A>(
+	optic: &O,
 	s: S,
 ) -> Option<A>
 where
-	P: UnsizedCoercible,
+	O: FoldOptic<'a, S, A>,
 	S: 'a,
-	A: 'a, {
-	optic.preview(s)
+	A: 'a + 'static, {
+	#[derive(Clone)]
+	struct First<A>(Option<A>);
+	impl<A> Semigroup for First<A> {
+		fn append(
+			a: Self,
+			b: Self,
+		) -> Self {
+			First(a.0.or(b.0))
+		}
+	}
+	impl<A> Monoid for First<A> {
+		fn empty() -> Self {
+			First(None)
+		}
+	}
+
+	let forget = Forget::new(|a| First(Some(a)));
+	let result_forget = optic.evaluate::<First<A>>(forget);
+	(result_forget.0)(s).0
 }
 
 /// Review a focus value into a structure using a prism-like optic.
@@ -186,7 +226,7 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -205,15 +245,15 @@ where
 /// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 /// assert_eq!(optics_review(&ok_prism, 42), Ok(42));
 /// ```
-pub fn optics_review<'a, P, S, A>(
-	optic: &PrismPrime<'a, P, S, A>,
+pub fn optics_review<'a, O, S, A>(
+	optic: &O,
 	a: A,
 ) -> S
 where
-	P: UnsizedCoercible,
+	O: ReviewOptic<'a, S, S, A, A>,
 	S: 'a,
 	A: 'a, {
-	optic.review(a)
+	(optic.evaluate(Tagged::new(a))).0
 }
 
 /// Apply an isomorphism in the forward direction.
@@ -223,7 +263,7 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -241,15 +281,20 @@ where
 /// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 /// assert_eq!(optics_from(&iso, (42,)), 42);
 /// ```
-pub fn optics_from<'a, P, S, A>(
-	optic: &IsoPrime<'a, P, S, A>,
+pub fn optics_from<'a, O, S, A>(
+	optic: &O,
 	s: S,
 ) -> A
 where
-	P: UnsizedCoercible,
+	O: IsoOptic<'a, S, S, A, A>,
 	S: 'a,
-	A: 'a, {
-	optic.from(s)
+	A: 'a + 'static, {
+	use super::exchange::{
+		Exchange,
+		ExchangeBrand,
+	};
+	let exchange = Exchange::new(|a| a, |a| a);
+	(optic.evaluate::<ExchangeBrand<A, A>>(exchange).get)(s)
 }
 
 /// Apply an isomorphism in the backward direction.
@@ -259,7 +304,7 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
-	"The reference-counted pointer type.",
+	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
 )]
@@ -277,15 +322,20 @@ where
 /// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 /// assert_eq!(optics_to(&iso, 42), (42,));
 /// ```
-pub fn optics_to<'a, P, S, A>(
-	optic: &IsoPrime<'a, P, S, A>,
+pub fn optics_to<'a, O, S, A>(
+	optic: &O,
 	a: A,
 ) -> S
 where
-	P: UnsizedCoercible,
+	O: IsoOptic<'a, S, S, A, A>,
 	S: 'a,
-	A: 'a, {
-	optic.to(a)
+	A: 'a + 'static, {
+	use super::exchange::{
+		Exchange,
+		ExchangeBrand,
+	};
+	let exchange = Exchange::new(|a| a, |a| a);
+	(optic.evaluate::<ExchangeBrand<A, A>>(exchange).set)(a)
 }
 
 /// Evaluate an optic with a profunctor.

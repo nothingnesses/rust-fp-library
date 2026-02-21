@@ -1,9 +1,22 @@
 //! Core optic trait and composition.
 
 use {
+	super::{
+		forget::ForgetBrand,
+		tagged::TaggedBrand,
+	},
 	crate::{
 		Apply,
-		classes::Profunctor,
+		brands::FnBrand,
+		classes::{
+			Choice,
+			Closed,
+			Profunctor,
+			Strong,
+			UnsizedCoercible,
+			monoid::Monoid,
+			wander::Wander,
+		},
 		kinds::*,
 	},
 	fp_macros::{
@@ -56,7 +69,87 @@ pub trait Optic<'a, P: Profunctor, S: 'a, T: 'a, A: 'a, B: 'a> {
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 }
 
-/// Composition of two optics.
+/// An isomorphism optic.
+pub trait IsoOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with any profunctor.
+	fn evaluate<P: Profunctor>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A lens optic.
+pub trait LensOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a strong profunctor.
+	fn evaluate<P: Strong>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A prism optic.
+pub trait PrismOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a choice profunctor.
+	fn evaluate<P: Choice>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A traversal optic.
+pub trait TraversalOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a wander profunctor.
+	fn evaluate<P: Wander>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A getter optic.
+pub trait GetterOptic<'a, S: 'a, A: 'a> {
+	/// Evaluate the optic with the forget profunctor.
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+}
+
+/// A fold optic.
+pub trait FoldOptic<'a, S: 'a, A: 'a> {
+	/// Evaluate the optic with the forget profunctor for any monoid.
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+}
+
+/// A setter optic.
+pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with the function profunctor.
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A grate optic.
+pub trait GrateOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a closed profunctor.
+	fn evaluate<P: Closed>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// A review optic.
+pub trait ReviewOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with the tagged profunctor.
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
 ///
 /// This struct represents the composition of two optics, allowing them to be
 /// combined into a single optic that applies both transformations.
@@ -155,6 +248,148 @@ where
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 		let pmn = self.second.evaluate(pab);
 		self.first.evaluate(pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> IsoOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: IsoOptic<'a, S, T, M, N>,
+	O2: IsoOptic<'a, M, N, A, B>,
+{
+	fn evaluate<P: Profunctor>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = IsoOptic::evaluate::<P>(&self.second, pab);
+		IsoOptic::evaluate::<P>(&self.first, pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> LensOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: LensOptic<'a, S, T, M, N>,
+	O2: LensOptic<'a, M, N, A, B>,
+{
+	fn evaluate<P: Strong>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = LensOptic::evaluate::<P>(&self.second, pab);
+		LensOptic::evaluate::<P>(&self.first, pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> PrismOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: PrismOptic<'a, S, T, M, N>,
+	O2: PrismOptic<'a, M, N, A, B>,
+{
+	fn evaluate<P: Choice>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = PrismOptic::evaluate::<P>(&self.second, pab);
+		PrismOptic::evaluate::<P>(&self.first, pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> TraversalOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: TraversalOptic<'a, S, T, M, N>,
+	O2: TraversalOptic<'a, M, N, A, B>,
+{
+	fn evaluate<P: Wander>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = TraversalOptic::evaluate::<P>(&self.second, pab);
+		TraversalOptic::evaluate::<P>(&self.first, pmn)
+	}
+}
+
+impl<'a, S, A, M, O1, O2> GetterOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
+where
+	O1: GetterOptic<'a, S, M>,
+	O2: GetterOptic<'a, M, A>,
+	M: 'a,
+	A: 'a,
+{
+	fn evaluate<R: 'a + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let pmn = GetterOptic::evaluate::<R>(&self.second, pab);
+		GetterOptic::evaluate::<R>(&self.first, pmn)
+	}
+}
+
+impl<'a, S, A, M, O1, O2> FoldOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
+where
+	O1: FoldOptic<'a, S, M>,
+	O2: FoldOptic<'a, M, A>,
+	M: 'a,
+	A: 'a,
+{
+	fn evaluate<R: 'a + Monoid + 'static>(
+		&self,
+		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let pmn = FoldOptic::evaluate::<R>(&self.second, pab);
+		FoldOptic::evaluate::<R>(&self.first, pmn)
+	}
+}
+
+impl<'a, Q, S, T, M, N, A, B, O1, O2> SetterOptic<'a, Q, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	Q: UnsizedCoercible,
+	O1: SetterOptic<'a, Q, S, T, M, N>,
+	O2: SetterOptic<'a, Q, M, N, A, B>,
+	M: 'a,
+	N: 'a,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = SetterOptic::evaluate(&self.second, pab);
+		SetterOptic::evaluate(&self.first, pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> ReviewOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: ReviewOptic<'a, S, T, M, N>,
+	O2: ReviewOptic<'a, M, N, A, B>,
+	M: 'a,
+	N: 'a,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = ReviewOptic::evaluate(&self.second, pab);
+		ReviewOptic::evaluate(&self.first, pmn)
+	}
+}
+
+impl<'a, S, T, M, N, A, B, O1, O2> GrateOptic<'a, S, T, A, B>
+	for Composed<'a, S, T, M, N, A, B, O1, O2>
+where
+	O1: GrateOptic<'a, S, T, M, N>,
+	O2: GrateOptic<'a, M, N, A, B>,
+{
+	fn evaluate<P: Closed>(
+		&self,
+		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		let pmn = GrateOptic::evaluate::<P>(&self.second, pab);
+		GrateOptic::evaluate::<P>(&self.first, pmn)
 	}
 }
 

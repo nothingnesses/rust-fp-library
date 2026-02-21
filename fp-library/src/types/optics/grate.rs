@@ -4,7 +4,11 @@
 //! to construct it from values extracted from functions.
 
 use {
-	super::base::Optic,
+	super::base::{
+		GrateOptic,
+		Optic,
+		SetterOptic,
+	},
 	crate::{
 		Apply,
 		brands::FnBrand,
@@ -117,5 +121,34 @@ where
 			move |f| grate(f),
 			Q::closed(pab),
 		)
+	}
+}
+
+impl<'a, P, S, T, A, B> GrateOptic<'a, S, T, A, B> for Grate<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+	S: 'a + Clone,
+	A: 'a + Clone,
+{
+	fn evaluate<Q: Closed>(
+		&self,
+		pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		Optic::<Q, S, T, A, B>::evaluate(self, pab)
+	}
+}
+
+impl<'a, Q, P, S, T, A, B> SetterOptic<'a, Q, S, T, A, B> for Grate<'a, P, S, T, A, B>
+where
+	P: UnsizedCoercible,
+	Q: UnsizedCoercible,
+	S: 'a + Clone,
+	A: 'a + Clone,
+{
+	fn evaluate(
+		&self,
+		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+		GrateOptic::evaluate::<FnBrand<Q>>(self, pab)
 	}
 }
