@@ -1,6 +1,13 @@
 use {
-	criterion::{BatchSize, BenchmarkId, Criterion},
-	fp_library::classes::{monoid::empty, semigroup::append},
+	criterion::{
+		BatchSize,
+		BenchmarkId,
+		Criterion,
+	},
+	fp_library::classes::{
+		monoid::empty,
+		semigroup::append,
+	},
 };
 
 pub fn bench_string(c: &mut Criterion) {

@@ -3,7 +3,10 @@
 //! This module provides a newtype wrapper around projection keys to prevent
 //! tuple ordering errors and improve API clarity.
 
-use std::hash::{Hash, Hasher};
+use std::hash::{
+	Hash,
+	Hasher,
+};
 
 /// Type-safe key for projection resolution.
 ///
@@ -122,7 +125,12 @@ impl ProjectionKey {
 	/// # Arguments
 	/// * `tuple` - `(type_path, trait_path, assoc_name)`
 	pub fn from_tuple(tuple: (String, Option<String>, String)) -> Self {
-		Self { type_path: tuple.0, trait_path: tuple.1, assoc_name: tuple.2, signature_hash: None }
+		Self {
+			type_path: tuple.0,
+			trait_path: tuple.1,
+			assoc_name: tuple.2,
+			signature_hash: None,
+		}
 	}
 }
 
@@ -140,7 +148,12 @@ impl Hash for ProjectionKey {
 
 impl From<(String, Option<String>, String)> for ProjectionKey {
 	fn from(tuple: (String, Option<String>, String)) -> Self {
-		Self { type_path: tuple.0, trait_path: tuple.1, assoc_name: tuple.2, signature_hash: None }
+		Self {
+			type_path: tuple.0,
+			trait_path: tuple.1,
+			assoc_name: tuple.2,
+			signature_hash: None,
+		}
 	}
 }
 

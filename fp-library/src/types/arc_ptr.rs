@@ -20,7 +20,10 @@ mod inner {
 		crate::{
 			brands::ArcBrand,
 			classes::{
-				Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible,
+				Pointer,
+				RefCountedPointer,
+				SendRefCountedPointer,
+				SendUnsizedCoercible,
 				UnsizedCoercible,
 			},
 		},
@@ -90,7 +93,10 @@ mod inner {
 		/// Attempts to unwrap the inner value if this is the sole reference.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the wrapped value.", "The type of the wrapped value.")]
+		#[document_type_parameters(
+			"The lifetime of the wrapped value.",
+			"The type of the wrapped value."
+		)]
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
@@ -216,7 +222,9 @@ mod tests {
 	use crate::{
 		brands::ArcBrand,
 		classes::{
-			RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new,
+			RefCountedPointer,
+			pointer::new,
+			ref_counted_pointer::cloneable_new,
 			send_ref_counted_pointer::send_new,
 		},
 	};

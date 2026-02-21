@@ -15,7 +15,11 @@
 
 use {
 	super::Pointer,
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 	std::ops::Deref,
 };
 
@@ -58,7 +62,10 @@ pub trait RefCountedPointer: Pointer {
 	/// Attempts to unwrap the inner value if this is the sole reference.
 	#[document_signature]
 	///
-	#[document_type_parameters("The lifetime of the wrapped value.", "The type of the wrapped value.")]
+	#[document_type_parameters(
+		"The lifetime of the wrapped value.",
+		"The type of the wrapped value."
+	)]
 	///
 	#[document_parameters("The pointer to attempt to unwrap.")]
 	///
@@ -89,7 +96,11 @@ pub trait RefCountedPointer: Pointer {
 /// Free function version that dispatches to [the type class' associated function][`RefCountedPointer::try_unwrap`].
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The lifetime of the wrapped value.", "The type of the wrapped value.")]
+#[document_type_parameters(
+	"The pointer brand.",
+	"The lifetime of the wrapped value.",
+	"The type of the wrapped value."
+)]
 ///
 #[document_parameters("The pointer to attempt to unwrap.")]
 ///
@@ -112,14 +123,20 @@ pub trait RefCountedPointer: Pointer {
 /// let ptr2 = ptr1.clone();
 /// assert!(try_unwrap::<RcBrand, _>(ptr1).is_err());
 /// ```
-pub fn try_unwrap<'a, P: RefCountedPointer, T: 'a>(ptr: P::CloneableOf<'a, T>) -> Result<T, P::CloneableOf<'a, T>> {
+pub fn try_unwrap<'a, P: RefCountedPointer, T: 'a>(
+	ptr: P::CloneableOf<'a, T>
+) -> Result<T, P::CloneableOf<'a, T>> {
 	P::try_unwrap(ptr)
 }
 
 /// Wraps a sized value in a cloneable pointer.
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The lifetime of the value.", "The type of the value to wrap.")]
+#[document_type_parameters(
+	"The pointer brand.",
+	"The lifetime of the value.",
+	"The type of the value to wrap."
+)]
 ///
 #[document_parameters("The value to wrap.")]
 ///
@@ -142,7 +159,6 @@ pub fn try_unwrap<'a, P: RefCountedPointer, T: 'a>(ptr: P::CloneableOf<'a, T>) -
 /// ```
 pub fn cloneable_new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::CloneableOf<'a, T>
 where
-	P::CloneableOf<'a, T>: Sized,
-{
+	P::CloneableOf<'a, T>: Sized, {
 	P::cloneable_new(value)
 }

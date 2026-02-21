@@ -27,6 +27,7 @@ pub mod category;
 pub mod choice;
 pub mod cloneable_fn;
 pub mod compactable;
+pub mod contravariant;
 pub mod deferrable;
 pub mod evaluable;
 pub mod filterable;

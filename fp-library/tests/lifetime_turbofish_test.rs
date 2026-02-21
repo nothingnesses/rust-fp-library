@@ -46,16 +46,14 @@ fn early_bound_trait<'a, T: 'a>(x: &'a T) -> &'a T {
 // Lifetime used as a type parameter constraint - EARLY BOUND
 fn early_bound_complex<'a, T>(x: &'a T) -> &'a T
 where
-	T: std::fmt::Debug + 'a,
-{
+	T: std::fmt::Debug + 'a, {
 	x
 }
 
 // Using const generics with lifetime - EARLY BOUND
 fn early_bound_const<'a, T, const N: usize>(x: &'a [T; N]) -> &'a [T; N]
 where
-	T: 'a,
-{
+	T: 'a, {
 	x
 }
 

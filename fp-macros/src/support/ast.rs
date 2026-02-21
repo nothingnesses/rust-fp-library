@@ -2,7 +2,13 @@ use {
 	crate::support::parsing::parse_with_dispatch,
 	proc_macro2::TokenStream,
 	quote::ToTokens,
-	syn::{Attribute, ImplItemFn, ItemFn, Signature, TraitItemFn},
+	syn::{
+		Attribute,
+		ImplItemFn,
+		ItemFn,
+		Signature,
+		TraitItemFn,
+	},
 };
 
 /// A generic item that can represent various Rust syntax items.

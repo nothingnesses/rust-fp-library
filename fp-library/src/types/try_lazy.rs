@@ -7,12 +7,26 @@ mod inner {
 	use {
 		crate::{
 			brands::TryLazyBrand,
-			classes::{Deferrable, SendDeferrable},
+			classes::{
+				Deferrable,
+				SendDeferrable,
+			},
 			impl_kind,
 			kinds::*,
-			types::{ArcLazyConfig, Lazy, LazyConfig, RcLazyConfig, TryThunk, TryTrampoline},
+			types::{
+				ArcLazyConfig,
+				Lazy,
+				LazyConfig,
+				RcLazyConfig,
+				TryThunk,
+				TryTrampoline,
+			},
 		},
-		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		fp_macros::{
+			document_fields,
+			document_parameters,
+			document_type_parameters,
+		},
 	};
 
 	/// A lazily-computed, memoized value that may fail.
@@ -119,8 +133,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'a,
-		{
+			F: FnOnce() -> Result<A, E> + 'a, {
 			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
@@ -223,8 +236,7 @@ mod inner {
 		/// ```
 		pub fn catch_unwind<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + std::panic::UnwindSafe + 'a,
-		{
+			F: FnOnce() -> A + std::panic::UnwindSafe + 'a, {
 			Self::new(move || {
 				std::panic::catch_unwind(f).map_err(|e| {
 					if let Some(s) = e.downcast_ref::<&str>() {
@@ -270,8 +282,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + Send + 'a,
-		{
+			F: FnOnce() -> Result<A, E> + Send + 'a, {
 			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
@@ -316,8 +327,7 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
-			Self: Sized,
-		{
+			Self: Sized, {
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 		}
 	}
@@ -368,8 +378,7 @@ mod inner {
 		fn send_defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + Send + Sync + 'a,
-			Self: Sized,
-		{
+			Self: Sized, {
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 		}
 	}
@@ -386,8 +395,15 @@ pub use inner::*;
 mod tests {
 	use {
 		super::*,
-		crate::types::{RcLazy, TryThunk, TryTrampoline},
-		std::{cell::RefCell, rc::Rc},
+		crate::types::{
+			RcLazy,
+			TryThunk,
+			TryTrampoline,
+		},
+		std::{
+			cell::RefCell,
+			rc::Rc,
+		},
 	};
 
 	/// Tests that `TryLazy` caches successful results.

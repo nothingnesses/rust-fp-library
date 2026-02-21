@@ -4,12 +4,20 @@ use {
 	crate::{
 		core::{
 			config::Config,
-			constants::{brands, macros, markers, traits},
+			constants::{
+				brands,
+				macros,
+				markers,
+				traits,
+			},
 		},
 		hm::HmAst,
 		support::last_path_segment,
 	},
-	std::collections::{HashMap, HashSet},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
 };
 
 #[derive(Debug, PartialEq)]

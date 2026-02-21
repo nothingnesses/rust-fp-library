@@ -1,11 +1,27 @@
 use {
-	crate::core::constants::{configuration, re_export},
+	crate::core::constants::{
+		configuration,
+		re_export,
+	},
 	proc_macro2::TokenStream,
 	quote::quote,
-	std::{collections::HashMap, fs, path::Path},
+	std::{
+		collections::HashMap,
+		fs,
+		path::Path,
+	},
 	syn::{
-		Ident, Item, LitStr, Result, Token, Visibility, braced,
-		parse::{Parse, ParseStream},
+		Ident,
+		Item,
+		LitStr,
+		Result,
+		Token,
+		Visibility,
+		braced,
+		parse::{
+			Parse,
+			ParseStream,
+		},
 		parse_file,
 	},
 };
@@ -144,7 +160,10 @@ impl Parse for ReExportInput {
 			}
 		}
 
-		Ok(ReExportInput { path, aliases })
+		Ok(ReExportInput {
+			path,
+			aliases,
+		})
 	}
 }
 
@@ -176,8 +195,7 @@ fn collect_items<V, F>(
 ) -> Vec<String>
 where
 	V: FnMut(&Item) -> bool,
-	F: FnMut(&Item) -> Option<String>,
-{
+	F: FnMut(&Item) -> Option<String>, {
 	if let Some(module_name) = reexport_module {
 		// Collect items from the re-exported nested module
 		file.items
@@ -235,8 +253,7 @@ fn collect_public_items<F>(
 	item_filter: F,
 ) -> Vec<String>
 where
-	F: FnMut(&Item) -> Option<String>,
-{
+	F: FnMut(&Item) -> Option<String>, {
 	collect_items(file, reexport_module, is_public_item, item_filter)
 }
 
@@ -343,5 +360,8 @@ fn parse_base_path_from_input(input: &ReExportInput) -> syn::Path {
 		});
 	}
 
-	syn::Path { leading_colon: None, segments }
+	syn::Path {
+		leading_colon: None,
+		segments,
+	}
 }

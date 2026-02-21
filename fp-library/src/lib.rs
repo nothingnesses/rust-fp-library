@@ -207,4 +207,9 @@ pub mod functions;
 pub mod kinds;
 pub mod types;
 
-pub use fp_macros::{Apply, Kind, impl_kind, trait_kind};
+pub use fp_macros::{
+	Apply,
+	Kind,
+	impl_kind,
+	trait_kind,
+};

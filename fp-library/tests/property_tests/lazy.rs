@@ -1,5 +1,8 @@
 use {
-	fp_library::types::{ArcLazy, RcLazy},
+	fp_library::types::{
+		ArcLazy,
+		RcLazy,
+	},
 	quickcheck_macros::quickcheck,
 };
 
@@ -103,7 +106,10 @@ fn prop_arc_memo_thread_safety() {
 	use std::{
 		sync::{
 			Arc,
-			atomic::{AtomicUsize, Ordering},
+			atomic::{
+				AtomicUsize,
+				Ordering,
+			},
 		},
 		thread,
 	};
@@ -118,7 +124,7 @@ fn prop_arc_memo_thread_safety() {
 	});
 
 	let mut handles = vec![];
-	for _ in 0..10 {
+	for _ in 0 .. 10 {
 		let memo_clone = memo.clone();
 		handles.push(thread::spawn(move || {
 			assert_eq!(*memo_clone.evaluate(), 42);

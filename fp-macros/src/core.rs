@@ -9,4 +9,8 @@ pub mod constants;
 pub mod error_handling;
 
 // Re-export commonly used types
-pub use error_handling::{Error, Result, ToCompileError};
+pub use error_handling::{
+	Error,
+	Result,
+	ToCompileError,
+};

@@ -19,8 +19,15 @@
 
 use {
 	super::profunctor::Profunctor,
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for strong profunctors.

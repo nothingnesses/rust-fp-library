@@ -1,5 +1,8 @@
 use {
-	fp_library::{Apply, kinds::*},
+	fp_library::{
+		Apply,
+		kinds::*,
+	},
 	fp_macros::document_fields,
 };
 
@@ -34,9 +37,16 @@ pub struct Point3D {
 #[test]
 fn test_document_fields_usage() {
 	// Just verify they compile
-	let point = Point3D { x: 1.0, y: 2.0, z: 3.0 };
+	let point = Point3D {
+		x: 1.0,
+		y: 2.0,
+		z: 3.0,
+	};
 	assert_eq!(point.x, 1.0);
 
-	let tagged = Tagged { value: 42, metadata: Some("answer".to_string()) };
+	let tagged = Tagged {
+		value: 42,
+		metadata: Some("answer".to_string()),
+	};
 	assert_eq!(tagged.value, 42);
 }

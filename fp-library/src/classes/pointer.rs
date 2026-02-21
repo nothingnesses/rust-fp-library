@@ -21,7 +21,11 @@
 //! ```
 
 use {
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 	std::ops::Deref,
 };
 
@@ -71,7 +75,11 @@ pub trait Pointer {
 /// Wraps a sized value in the pointer.
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The lifetime of the value.", "The type of the value to wrap.")]
+#[document_type_parameters(
+	"The pointer brand.",
+	"The lifetime of the value.",
+	"The type of the value to wrap."
+)]
 ///
 #[document_parameters("The value to wrap.")]
 ///
@@ -92,7 +100,6 @@ pub trait Pointer {
 /// ```
 pub fn new<'a, P: Pointer, T: 'a>(value: T) -> P::Of<'a, T>
 where
-	P::Of<'a, T>: Sized,
-{
+	P::Of<'a, T>: Sized, {
 	P::new(value)
 }

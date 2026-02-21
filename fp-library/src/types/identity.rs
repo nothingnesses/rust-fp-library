@@ -9,13 +9,29 @@ mod inner {
 			Apply,
 			brands::IdentityBrand,
 			classes::{
-				Applicative, ApplyFirst, ApplySecond, CloneableFn, Foldable, Functor, Lift, Monoid,
-				ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn, Traversable,
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
 			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		fp_macros::{
+			document_fields,
+			document_parameters,
+			document_type_parameters,
+		},
 	};
 
 	/// Wraps a value.
@@ -90,8 +106,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a,
-		{
+			Func: Fn(A) -> B + 'a, {
 			Identity(func(fa.0))
 		}
 	}
@@ -143,8 +158,7 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: 'a,
 			B: 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			Identity(func(fa.0, fb.0))
 		}
 	}
@@ -267,8 +281,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 			func(ma.0)
 		}
 	}
@@ -317,8 +330,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0, initial)
 		}
 
@@ -365,8 +377,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.0)
 		}
 
@@ -409,8 +420,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			func(fa.0)
 		}
 	}
@@ -457,8 +467,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			F::map(|b| Identity(b), func(ta.0))
 		}
 
@@ -497,8 +506,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			F::map(|a| Identity(a), ta.0)
 		}
 	}
@@ -543,8 +551,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			func(fa.0)
 		}
 
@@ -592,8 +599,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
-		{
+			B: Send + Sync + 'a, {
 			func((fa.0, initial))
 		}
 	}
@@ -605,12 +611,22 @@ mod tests {
 	use {
 		super::inner::Identity,
 		crate::{
-			brands::{IdentityBrand, OptionBrand, RcFnBrand},
+			brands::{
+				IdentityBrand,
+				OptionBrand,
+				RcFnBrand,
+			},
 			classes::{
-				cloneable_fn::CloneableFn, functor::map, pointed::pure, semiapplicative::apply,
+				cloneable_fn::CloneableFn,
+				functor::map,
+				pointed::pure,
+				semiapplicative::apply,
 				semimonad::bind,
 			},
-			functions::{compose, identity},
+			functions::{
+				compose,
+				identity,
+			},
 		},
 		quickcheck_macros::quickcheck,
 	};
@@ -783,7 +799,10 @@ mod tests {
 	/// Tests `par_fold_map`.
 	#[test]
 	fn par_fold_map_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = Identity(1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
@@ -793,7 +812,10 @@ mod tests {
 	/// Tests `par_fold_right`.
 	#[test]
 	fn par_fold_right_test() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		let x = Identity(1);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);

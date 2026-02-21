@@ -1,5 +1,8 @@
 use fp_macros::{
-	document_module, document_parameters, document_signature, document_type_parameters,
+	document_module,
+	document_parameters,
+	document_signature,
+	document_type_parameters,
 };
 
 #[document_type_parameters(

@@ -5,20 +5,33 @@
 
 use {
 	super::{
-		AssociatedType as AssociatedTypeInput, AssociatedTypeBase, AssociatedTypes, generate_name,
+		AssociatedType as AssociatedTypeInput,
+		AssociatedTypeBase,
+		AssociatedTypes,
+		generate_name,
 	},
 	crate::{
 		core::Result,
 		support::{
 			attributes,
-			parsing::{parse_many, parse_non_empty},
+			parsing::{
+				parse_many,
+				parse_non_empty,
+			},
 		},
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
-		Generics, Token, Type, WhereClause, braced,
-		parse::{Parse, ParseStream},
+		Generics,
+		Token,
+		Type,
+		WhereClause,
+		braced,
+		parse::{
+			Parse,
+			ParseStream,
+		},
 	},
 };
 
@@ -114,7 +127,13 @@ impl Parse for AssociatedType {
 
 		let semi_token: Token![;] = input.parse()?;
 
-		Ok(AssociatedType { signature, _eq_token: eq_token, target_type, where_clause, semi_token })
+		Ok(AssociatedType {
+			signature,
+			_eq_token: eq_token,
+			target_type,
+			where_clause,
+			semi_token,
+		})
 	}
 }
 

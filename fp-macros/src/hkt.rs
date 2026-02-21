@@ -17,10 +17,19 @@ pub mod trait_kind;
 #[cfg(test)]
 pub use canonicalizer::Canonicalizer;
 pub use {
-	apply::{ApplyInput, apply_worker},
+	apply::{
+		ApplyInput,
+		apply_worker,
+	},
 	associated_type::AssociatedTypeBase,
 	canonicalizer::generate_name,
-	impl_kind::{ImplKindInput, impl_kind_worker},
-	input::{AssociatedType, AssociatedTypes},
+	impl_kind::{
+		ImplKindInput,
+		impl_kind_worker,
+	},
+	input::{
+		AssociatedType,
+		AssociatedTypes,
+	},
 	trait_kind::trait_kind_worker,
 };

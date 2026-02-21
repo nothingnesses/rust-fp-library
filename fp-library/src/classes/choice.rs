@@ -21,8 +21,15 @@
 
 use {
 	super::profunctor::Profunctor,
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for choice profunctors.
@@ -114,7 +121,8 @@ pub trait Choice: Profunctor {
 	/// ```
 	fn right<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>) {
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
+	{
 		Self::dimap(
 			|r: Result<A, C>| match r {
 				Ok(a) => Err(a),
@@ -163,7 +171,8 @@ pub trait Choice: Profunctor {
 /// ```
 pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
+{
 	Brand::left(pab)
 }
 
@@ -202,6 +211,7 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 /// ```
 pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>) {
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
+{
 	Brand::right(pab)
 }

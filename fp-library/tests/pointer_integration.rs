@@ -1,9 +1,16 @@
 //! Integration tests for the pointer abstraction.
 
 use {
-	fp_library::{brands::*, functions::*, types::*},
+	fp_library::{
+		brands::*,
+		functions::*,
+		types::*,
+	},
 	std::{
-		sync::{Arc, Mutex},
+		sync::{
+			Arc,
+			Mutex,
+		},
 		thread,
 	},
 };
@@ -125,7 +132,10 @@ fn test_rc_memo_basic() {
 /// This ensures that `RcLazy` implements "call-by-need" semantics with shared state.
 #[test]
 fn test_rc_memo_shared_memoization() {
-	use std::{cell::RefCell, rc::Rc};
+	use std::{
+		cell::RefCell,
+		rc::Rc,
+	};
 
 	let counter = Rc::new(RefCell::new(0));
 	let counter_clone = counter.clone();

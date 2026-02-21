@@ -7,12 +7,24 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{Category, Monoid, Semigroup},
+			classes::{
+				Category,
+				Monoid,
+				Semigroup,
+			},
 			kinds::*,
 		},
-		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		fp_macros::{
+			document_fields,
+			document_parameters,
+			document_type_parameters,
+		},
 		std::{
-			fmt::{self, Debug, Formatter},
+			fmt::{
+				self,
+				Debug,
+				Formatter,
+			},
 			hash::Hash,
 		},
 	};
@@ -87,7 +99,9 @@ mod inner {
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>)) -> Self {
+		pub fn new(
+			f: Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>)
+		) -> Self {
 			Self(f)
 		}
 	}
@@ -305,7 +319,11 @@ mod tests {
 		super::*,
 		crate::{
 			brands::RcFnBrand,
-			classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
+			classes::{
+				cloneable_fn::CloneableFn,
+				monoid::empty,
+				semigroup::append,
+			},
 		},
 		quickcheck_macros::quickcheck,
 	};

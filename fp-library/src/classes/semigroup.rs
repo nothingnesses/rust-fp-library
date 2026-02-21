@@ -11,7 +11,11 @@
 //! assert_eq!(z, "Hello, World!".to_string());
 //! ```
 
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+use fp_macros::{
+	document_parameters,
+	document_signature,
+	document_type_parameters,
+};
 /// A type class for types that support an associative binary operation.
 ///
 /// `Semigroup` instances must satisfy the associative law:

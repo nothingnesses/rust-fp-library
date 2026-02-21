@@ -3,7 +3,10 @@
 //! This module provides helper functions for common operations on methods and impl blocks,
 //! such as detecting receiver parameters.
 
-use syn::{FnArg, ImplItem};
+use syn::{
+	FnArg,
+	ImplItem,
+};
 
 /// Check if a method has a receiver parameter (self, &self, &mut self, etc.)
 pub fn has_receiver(method: &syn::ImplItemFn) -> bool {

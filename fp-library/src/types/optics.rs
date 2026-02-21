@@ -30,7 +30,7 @@
 //! same lifetime.
 //!
 //! This change was necessary because of the unification of profunctor and arrow hierarchies on
-//! [`Kind_266801a817966495`], which requires that type arguments to a Kind outlive the
+//! [`Kind_266801a817966495`](crate::kinds::Kind_266801a817966495), which requires that type arguments to a Kind outlive the
 //! lifetime argument (`type Of<'a, T: 'a, U: 'a>: 'a;`).
 //!
 //! ### Examples
@@ -75,10 +75,19 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{Choice, CloneableFn, Strong, UnsizedCoercible},
+			classes::{
+				Choice,
+				CloneableFn,
+				Strong,
+				UnsizedCoercible,
+			},
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_signature,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -155,7 +164,11 @@ mod inner {
 			first: O1,
 			second: O2,
 		) -> Self {
-			Composed { first, second, _phantom: PhantomData }
+			Composed {
+				first,
+				second,
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -171,7 +184,8 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
+	impl<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
 		O1: Optic<'a, S, T, M, N>,
 		O2: Optic<'a, M, N, A, B>,
@@ -263,8 +277,7 @@ mod inner {
 	) -> Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
 		O1: Optic<'a, S, T, M, N>,
-		O2: Optic<'a, M, N, A, B>,
-	{
+		O2: Optic<'a, M, N, A, B>, {
 		Composed::new(first, second)
 	}
 
@@ -286,8 +299,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Getter function.
 		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		/// Setter function.
@@ -405,8 +417,7 @@ mod inner {
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
-		{
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			let view = self.view.clone();
 			let set = self.set.clone();
 
@@ -432,8 +443,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, A), S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -568,8 +578,7 @@ mod inner {
 			f: impl Fn(A) -> A,
 		) -> S
 		where
-			S: Clone,
-		{
+			S: Clone, {
 			let a = self.view(s.clone());
 			self.set(s, f(a))
 		}
@@ -596,8 +605,7 @@ mod inner {
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
-		{
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
 			let view_fn = self.view_fn.clone();
 			let set_fn = self.set_fn.clone();
 

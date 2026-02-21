@@ -1,4 +1,8 @@
-use fp_library::{brands::*, functions::*, types::optics::*};
+use fp_library::{
+	brands::*,
+	functions::*,
+	types::optics::*,
+};
 
 #[test]
 fn test_lens_optic() {
@@ -8,10 +12,18 @@ fn test_lens_optic() {
 		age: i32,
 	}
 
-	let age_lens: LensPrime<RcBrand, Person, i32> =
-		LensPrime::new(|p: Person| p.age, |(p, age)| Person { age, ..p });
+	let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::new(
+		|p: Person| p.age,
+		|(p, age)| Person {
+			age,
+			..p
+		},
+	);
 
-	let person = Person { name: "Alice".to_string(), age: 30 };
+	let person = Person {
+		name: "Alice".to_string(),
+		age: 30,
+	};
 
 	// To use 'evaluate', we must provide a concrete Profunctor implementation.
 	// `RcFnBrand` provides a Strong + Choice Profunctor for reference-counted closures.
@@ -50,17 +62,29 @@ fn test_composition() {
 		inner: Inner,
 	}
 
-	let outer_lens: LensPrime<RcBrand, Outer, Inner> =
-		LensPrime::new(|o: Outer| o.inner.clone(), |(_, i)| Outer { inner: i });
-	let inner_lens: LensPrime<RcBrand, Inner, i32> =
-		LensPrime::new(|i: Inner| i.val, |(_, v)| Inner { val: v });
+	let outer_lens: LensPrime<RcBrand, Outer, Inner> = LensPrime::new(
+		|o: Outer| o.inner.clone(),
+		|(_, i)| Outer {
+			inner: i,
+		},
+	);
+	let inner_lens: LensPrime<RcBrand, Inner, i32> = LensPrime::new(
+		|i: Inner| i.val,
+		|(_, v)| Inner {
+			val: v,
+		},
+	);
 
 	// Compose: Outer -> Inner -> i32
 	// O1: Lens<Outer, Inner>
 	// O2: Lens<Inner, i32>
 	let composed = optics_compose(outer_lens, inner_lens);
 
-	let obj = Outer { inner: Inner { val: 10 } };
+	let obj = Outer {
+		inner: Inner {
+			val: 10,
+		},
+	};
 
 	let modify_val = |x: i32| x * 2;
 	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_val);
@@ -133,10 +157,16 @@ fn test_lens_polymorphic() {
 	}
 
 	// Lens that changes Poly<i32> to Poly<String>
-	let l: Lens<RcBrand, Poly<i32>, Poly<String>, i32, String> =
-		Lens::new(|p: Poly<i32>| p.val, |(_, s)| Poly { val: s });
+	let l: Lens<RcBrand, Poly<i32>, Poly<String>, i32, String> = Lens::new(
+		|p: Poly<i32>| p.val,
+		|(_, s)| Poly {
+			val: s,
+		},
+	);
 
-	let p = Poly { val: 42 };
+	let p = Poly {
+		val: 42,
+	};
 	assert_eq!(l.view(p.clone()), 42);
 
 	let p2 = l.set(p, "hello".to_string());
@@ -164,14 +194,35 @@ fn test_composed_deep() {
 		b: B,
 	}
 
-	let a_b: LensPrime<RcBrand, A, B> = LensPrime::new(|a: A| a.b.clone(), |(_, b)| A { b });
-	let b_c: LensPrime<RcBrand, B, C> = LensPrime::new(|b: B| b.c.clone(), |(_, c)| B { c });
-	let c_val: LensPrime<RcBrand, C, i32> = LensPrime::new(|c: C| c.val, |(_, val)| C { val });
+	let a_b: LensPrime<RcBrand, A, B> = LensPrime::new(
+		|a: A| a.b.clone(),
+		|(_, b)| A {
+			b,
+		},
+	);
+	let b_c: LensPrime<RcBrand, B, C> = LensPrime::new(
+		|b: B| b.c.clone(),
+		|(_, c)| B {
+			c,
+		},
+	);
+	let c_val: LensPrime<RcBrand, C, i32> = LensPrime::new(
+		|c: C| c.val,
+		|(_, val)| C {
+			val,
+		},
+	);
 
 	let a_c = optics_compose(a_b, b_c);
 	let a_val = optics_compose(a_c, c_val);
 
-	let obj = A { b: B { c: C { val: 1 } } };
+	let obj = A {
+		b: B {
+			c: C {
+				val: 1,
+			},
+		},
+	};
 
 	// Composed optics don't have .view()/.set() directly, but can be used via evaluate
 	let modifier =

@@ -6,24 +6,41 @@ use {
 			Result as OurResult,
 			config::Config,
 			constants::attributes::{
-				DOCUMENT_MODULE, DOCUMENT_PARAMETERS, DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS,
+				DOCUMENT_MODULE,
+				DOCUMENT_PARAMETERS,
+				DOCUMENT_SIGNATURE,
+				DOCUMENT_TYPE_PARAMETERS,
 			},
 			error_handling::ErrorCollector,
 		},
 		resolution::get_context,
 		support::{
 			attributes::has_attribute,
-			method_utils::{has_non_receiver_parameters, impl_has_receiver_methods},
-			parsing::{parse_many, parse_non_empty, parse_with_dispatch},
+			method_utils::{
+				has_non_receiver_parameters,
+				impl_has_receiver_methods,
+			},
+			parsing::{
+				parse_many,
+				parse_non_empty,
+				parse_with_dispatch,
+			},
 		},
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
-		Item, ItemMod,
-		parse::{Parse, ParseStream},
+		Item,
+		ItemMod,
+		parse::{
+			Parse,
+			ParseStream,
+		},
 		spanned::Spanned,
-		visit_mut::{self, VisitMut},
+		visit_mut::{
+			self,
+			VisitMut,
+		},
 	},
 };
 
@@ -35,7 +52,9 @@ impl Parse for DocumentModuleInput {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let items = parse_many(input)?;
 		let items = parse_non_empty(items, "Module documentation must contain at least one item")?;
-		Ok(DocumentModuleInput { items })
+		Ok(DocumentModuleInput {
+			items,
+		})
 	}
 }
 
@@ -216,10 +235,13 @@ fn apply_to_nested_modules<F>(
 	config: &mut Config,
 ) -> syn::Result<()>
 where
-	F: Fn(&[Item], &mut Config) -> syn::Result<()> + Copy,
-{
+	F: Fn(&[Item], &mut Config) -> syn::Result<()> + Copy, {
 	let mut errors = ErrorCollector::new();
-	let mut visitor = ModuleVisitor { operation, config, errors: &mut errors };
+	let mut visitor = ModuleVisitor {
+		operation,
+		config,
+		errors: &mut errors,
+	};
 
 	for item in items {
 		visitor.visit_item_mut(item);
@@ -235,10 +257,13 @@ fn apply_to_nested_modules_immut<F>(
 	config: &Config,
 ) -> syn::Result<()>
 where
-	F: Fn(&mut [Item], &Config) -> syn::Result<()> + Copy,
-{
+	F: Fn(&mut [Item], &Config) -> syn::Result<()> + Copy, {
 	let mut errors = ErrorCollector::new();
-	let mut visitor = ModuleVisitorImmut { operation, config, errors: &mut errors };
+	let mut visitor = ModuleVisitorImmut {
+		operation,
+		config,
+		errors: &mut errors,
+	};
 
 	for item in items {
 		visitor.visit_item_mut(item);
@@ -250,8 +275,7 @@ where
 /// Generic visitor for applying operations to nested modules (mutable config).
 struct ModuleVisitor<'a, F>
 where
-	F: Fn(&[Item], &mut Config) -> syn::Result<()>,
-{
+	F: Fn(&[Item], &mut Config) -> syn::Result<()>, {
 	operation: F,
 	config: &'a mut Config,
 	errors: &'a mut ErrorCollector,
@@ -278,8 +302,7 @@ where
 /// Generic visitor for applying operations to nested modules (immutable config).
 struct ModuleVisitorImmut<'a, F>
 where
-	F: Fn(&mut [Item], &Config) -> syn::Result<()>,
-{
+	F: Fn(&mut [Item], &Config) -> syn::Result<()>, {
 	operation: F,
 	config: &'a Config,
 	errors: &'a mut ErrorCollector,

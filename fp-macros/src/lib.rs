@@ -19,13 +19,26 @@ mod property_tests;
 
 use {
 	crate::core::ToCompileError,
-	codegen::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker},
+	codegen::{
+		FunctionFormatter,
+		ReExportInput,
+		TraitFormatter,
+		generate_re_exports_worker,
+	},
 	documentation::{
-		document_fields_worker, document_module_worker, document_parameters_worker,
-		document_signature_worker, document_type_parameters_worker,
+		document_fields_worker,
+		document_module_worker,
+		document_parameters_worker,
+		document_signature_worker,
+		document_type_parameters_worker,
 	},
 	hkt::{
-		ApplyInput, AssociatedTypes, ImplKindInput, apply_worker, generate_name, impl_kind_worker,
+		ApplyInput,
+		AssociatedTypes,
+		ImplKindInput,
+		apply_worker,
+		generate_name,
+		impl_kind_worker,
 		trait_kind_worker,
 	},
 	proc_macro::TokenStream,

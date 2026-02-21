@@ -9,11 +9,29 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::{OptionBrand, VecBrand},
+			brands::{
+				OptionBrand,
+				VecBrand,
+			},
 			classes::{
-				Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable,
-				Foldable, Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup,
-				Semimonad, SendCloneableFn, Traversable, Witherable,
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				CloneableFn,
+				Compactable,
+				Filterable,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semigroup,
+				Semimonad,
+				SendCloneableFn,
+				Traversable,
+				Witherable,
 			},
 			impl_kind,
 			kinds::*,
@@ -63,8 +81,7 @@ mod inner {
 			tail: Vec<A>,
 		) -> Vec<A>
 		where
-			A: Clone,
-		{
+			A: Clone, {
 			[vec![head], tail].concat()
 		}
 
@@ -96,8 +113,7 @@ mod inner {
 		/// ```
 		pub fn deconstruct<A>(slice: &[A]) -> Option<(A, Vec<A>)>
 		where
-			A: Clone,
-		{
+			A: Clone, {
 			match slice {
 				[] => None,
 				[head, tail @ ..] => Some((head.clone(), tail.to_vec())),
@@ -139,8 +155,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a,
-		{
+			Func: Fn(A) -> B + 'a, {
 			fa.into_iter().map(func).collect()
 		}
 	}
@@ -191,8 +206,7 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			fa.iter().flat_map(|a| fb.iter().map(|b| func(a.clone(), b.clone()))).collect()
 		}
 	}
@@ -311,8 +325,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 			ma.into_iter().flat_map(func).collect()
 		}
 	}
@@ -357,8 +370,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 		}
 
@@ -405,8 +417,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().fold(initial, func)
 		}
 
@@ -449,8 +460,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
 	}
@@ -501,8 +511,7 @@ mod inner {
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			let len = ta.len();
 			ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
 				F::lift2(
@@ -551,8 +560,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			let len = ta.len();
 			ta.into_iter().fold(F::pure(Vec::with_capacity(len)), |acc, x| {
 				F::lift2(
@@ -661,8 +669,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			#[cfg(feature = "rayon")]
 			{
 				fa.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
@@ -800,8 +807,7 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 		)
 		where
-			Func: Fn(A) -> Result<O, E> + 'a,
-		{
+			Func: Fn(A) -> Result<O, E> + 'a, {
 			let mut oks = Vec::new();
 			let mut errs = Vec::new();
 			for a in fa {
@@ -851,8 +857,7 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		)
 		where
-			Func: Fn(A) -> bool + 'a,
-		{
+			Func: Fn(A) -> bool + 'a, {
 			let (satisfied, not_satisfied): (Vec<A>, Vec<A>) =
 				fa.into_iter().partition(|a| func(a.clone()));
 			(not_satisfied, satisfied)
@@ -893,8 +898,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Option<B> + 'a,
-		{
+			Func: Fn(A) -> Option<B> + 'a, {
 			fa.into_iter().filter_map(func).collect()
 		}
 
@@ -932,8 +936,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
-			Func: Fn(A) -> bool + 'a,
-		{
+			Func: Fn(A) -> bool + 'a, {
 			fa.into_iter().filter(|a| func(a.clone())).collect()
 		}
 	}
@@ -988,8 +991,7 @@ mod inner {
 			Func:
 				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 			ta.into_iter().fold(M::pure((Vec::new(), Vec::new())), |acc, x| {
 				M::lift2(
 					|mut pair, res| {
@@ -1055,8 +1057,7 @@ mod inner {
 		where
 			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 			ta.into_iter().fold(M::pure(Vec::new()), |acc, x| {
 				M::lift2(
 					|mut v, opt_b| {
@@ -1077,7 +1078,11 @@ mod inner {
 mod tests {
 
 	use {
-		crate::{brands::*, classes::CloneableFn, functions::*},
+		crate::{
+			brands::*,
+			classes::CloneableFn,
+			functions::*,
+		},
 		quickcheck_macros::quickcheck,
 	};
 

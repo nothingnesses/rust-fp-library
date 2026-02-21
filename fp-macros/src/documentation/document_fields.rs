@@ -1,17 +1,28 @@
 use {
 	crate::{
 		core::{
-			Error as CoreError, Result, constants::attributes::DOCUMENT_FIELDS,
+			Error as CoreError,
+			Result,
+			constants::attributes::DOCUMENT_FIELDS,
 			error_handling::ErrorCollector,
 		},
 		support::{
 			attributes::AttributeExt,
-			document_field::{DocumentFieldParameters, FieldDocumenter, FieldInfo},
+			document_field::{
+				DocumentFieldParameters,
+				FieldDocumenter,
+				FieldInfo,
+			},
 		},
 	},
 	proc_macro2::TokenStream,
 	quote::ToTokens,
-	syn::{ItemEnum, ItemStruct, Variant, spanned::Spanned},
+	syn::{
+		ItemEnum,
+		ItemStruct,
+		Variant,
+		spanned::Spanned,
+	},
 };
 
 /// Processes an enum with `#[document_fields]` on variants.
@@ -111,7 +122,11 @@ pub fn document_fields_worker(
 
 #[cfg(test)]
 mod tests {
-	use {super::*, crate::support::generate_documentation::get_doc, quote::quote};
+	use {
+		super::*,
+		crate::support::generate_documentation::get_doc,
+		quote::quote,
+	};
 
 	#[test]
 	fn test_document_fields_named_struct() {

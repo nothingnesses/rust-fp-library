@@ -4,7 +4,7 @@
 //!
 //! ### Hierarchy Unification
 //!
-//! `FnBrand` Kind implementation has been updated to use [`Kind_266801a817966495`], which enforces
+//! `FnBrand` Kind implementation has been updated to use [`Kind_266801a817966495`](crate::kinds::Kind_266801a817966495), which enforces
 //! that input and output types outlive the function wrapper's lifetime. This change allows
 //! `FnBrand` to be used consistently across the unified profunctor and arrow hierarchies, while
 //! supporting non-static types where the lifetimes are correctly tracked.
@@ -16,8 +16,17 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Category, Choice, CloneableFn, Function, Profunctor, RefCountedPointer,
-				Semigroupoid, SendCloneableFn, SendUnsizedCoercible, Strong, UnsizedCoercible,
+				Category,
+				Choice,
+				CloneableFn,
+				Function,
+				Profunctor,
+				RefCountedPointer,
+				Semigroupoid,
+				SendCloneableFn,
+				SendUnsizedCoercible,
+				Strong,
+				UnsizedCoercible,
 			},
 			impl_kind,
 			kinds::*,
@@ -33,7 +42,8 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
+		type Of<'a, A: 'a, B: 'a> =
+			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
 		/// Creates a new function wrapper.
 		///
@@ -70,7 +80,8 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
-		type Of<'a, A: 'a, B: 'a> = Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
+		type Of<'a, A: 'a, B: 'a> =
+			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
 		/// Creates a new cloneable function wrapper.
 		///
@@ -174,7 +185,8 @@ mod inner {
 		/// let id = category_identity::<RcFnBrand, i32>();
 		/// assert_eq!(id(5), 5);
 		/// ```
-		fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
+		fn identity<'a, A>()
+		-> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
 			P::coerce_fn(|a| a)
 		}
 	}
@@ -229,8 +241,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 		where
 			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a,
-		{
+			FuncCD: Fn(C) -> D + 'a, {
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
 	}
@@ -311,7 +322,8 @@ mod inner {
 		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
+		{
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
 					Err(a) => Err(pab(a)),
@@ -366,7 +378,11 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{category::Category, cloneable_fn::CloneableFn, semigroupoid::Semigroupoid},
+			classes::{
+				category::Category,
+				cloneable_fn::CloneableFn,
+				semigroupoid::Semigroupoid,
+			},
 		},
 		quickcheck_macros::quickcheck,
 	};

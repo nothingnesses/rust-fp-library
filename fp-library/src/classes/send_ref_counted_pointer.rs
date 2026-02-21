@@ -14,7 +14,11 @@
 
 use {
 	super::RefCountedPointer,
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 	std::ops::Deref,
 };
 
@@ -58,7 +62,11 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// Wraps a sized value in a thread-safe pointer.
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The lifetime of the value.", "The type of the value to wrap.")]
+#[document_type_parameters(
+	"The pointer brand.",
+	"The lifetime of the value.",
+	"The type of the value to wrap."
+)]
 ///
 #[document_parameters("The value to wrap.")]
 ///
@@ -79,7 +87,6 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// ```
 pub fn send_new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(value: T) -> P::SendOf<'a, T>
 where
-	P::SendOf<'a, T>: Sized,
-{
+	P::SendOf<'a, T>: Sized, {
 	P::send_new(value)
 }

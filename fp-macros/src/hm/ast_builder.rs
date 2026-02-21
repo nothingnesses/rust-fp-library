@@ -5,22 +5,42 @@
 
 use {
 	crate::{
-		analysis::{get_apply_macro_parameters, get_fn_brand_info, traits::format_brand_name},
+		analysis::{
+			get_apply_macro_parameters,
+			get_fn_brand_info,
+			traits::format_brand_name,
+		},
 		core::{
 			config::Config,
-			constants::{markers, types},
+			constants::{
+				markers,
+				types,
+			},
 		},
 		hm::{
 			HmAst,
 			converter::{
-				get_smart_pointer_inner, is_phantom_data_path, is_smart_pointer,
+				get_smart_pointer_inner,
+				is_phantom_data_path,
+				is_smart_pointer,
 				trait_bound_to_hm_type,
 			},
 		},
-		support::{TypeVisitor, last_path_segment},
+		support::{
+			TypeVisitor,
+			last_path_segment,
+		},
 	},
-	std::collections::{HashMap, HashSet},
-	syn::{GenericArgument, PathArguments, ReturnType, TypeParamBound},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericArgument,
+		PathArguments,
+		ReturnType,
+		TypeParamBound,
+	},
 };
 
 /// Visitor that builds HM type representations from Rust types.
@@ -79,13 +99,12 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 
 			// Merge constructor and args
 			match constructor_type {
-				HmAst::Variable(name) => {
+				HmAst::Variable(name) =>
 					if args_list.is_empty() {
 						HmAst::Variable(name)
 					} else {
 						HmAst::Constructor(name, args_list)
-					}
-				}
+					},
 				HmAst::Constructor(name, mut prev_args) => {
 					prev_args.extend(args_list);
 					HmAst::Constructor(name, prev_args)
@@ -227,13 +246,12 @@ impl<'a> TypeVisitor for HmAstBuilder<'a> {
 			let type_args: Vec<_> = args.iter().map(|ty| self.visit(ty)).collect();
 
 			match constructor_type {
-				HmAst::Variable(name) => {
+				HmAst::Variable(name) =>
 					if type_args.is_empty() {
 						HmAst::Variable(name)
 					} else {
 						HmAst::Constructor(name, type_args)
-					}
-				}
+					},
 				HmAst::Constructor(name, mut prev_args) => {
 					prev_args.extend(type_args);
 					HmAst::Constructor(name, prev_args)

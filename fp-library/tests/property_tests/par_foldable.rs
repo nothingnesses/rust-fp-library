@@ -1,8 +1,16 @@
 use {
 	super::common::Sum,
 	fp_library::{
-		brands::{ArcFnBrand, VecBrand},
-		classes::{Foldable, Monoid, ParFoldable, SendCloneableFn},
+		brands::{
+			ArcFnBrand,
+			VecBrand,
+		},
+		classes::{
+			Foldable,
+			Monoid,
+			ParFoldable,
+			SendCloneableFn,
+		},
 	},
 	quickcheck_macros::quickcheck,
 };
@@ -11,7 +19,7 @@ use {
 /// without overflow or errors, ensuring basic correctness for large datasets.
 #[test]
 fn test_large_vector_par_fold_map() {
-	let xs: Vec<i32> = (0..100000).collect();
+	let xs: Vec<i32> = (0 .. 100000).collect();
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 	let res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 	assert_eq!(res, Sum(4999950000));

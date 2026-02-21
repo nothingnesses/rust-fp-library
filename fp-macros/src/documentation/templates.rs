@@ -5,7 +5,12 @@
 
 use {
 	crate::{
-		core::constants::macros::{APPLY_MACRO, IMPL_KIND_MACRO, KIND_MACRO, TRAIT_KIND_MACRO},
+		core::constants::macros::{
+			APPLY_MACRO,
+			IMPL_KIND_MACRO,
+			KIND_MACRO,
+			TRAIT_KIND_MACRO,
+		},
 		hkt::AssociatedType,
 	},
 	proc_macro2::Ident,
@@ -25,7 +30,10 @@ impl<'a> DocumentationBuilder<'a> {
 		name: &'a Ident,
 		assoc_types: &'a [AssociatedType],
 	) -> Self {
-		Self { name, assoc_types }
+		Self {
+			name,
+			assoc_types,
+		}
 	}
 
 	/// Build the complete documentation string.
@@ -203,7 +211,10 @@ The trait name `{name}` is a deterministic hash of the canonical signature, ensu
 
 #[cfg(test)]
 mod tests {
-	use {super::*, syn::parse_quote};
+	use {
+		super::*,
+		syn::parse_quote,
+	};
 
 	#[test]
 	fn test_documentation_builder_single_assoc() {

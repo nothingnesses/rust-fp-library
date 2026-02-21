@@ -19,10 +19,18 @@
 use {
 	crate::{
 		Apply,
-		classes::{Applicative, Filterable, Traversable},
+		classes::{
+			Applicative,
+			Filterable,
+			Traversable,
+		},
 		kinds::*,
 	},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for data structures that can be traversed and filtered.
@@ -89,8 +97,7 @@ pub trait Witherable: Filterable + Traversable {
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-	{
+		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 		M::map(
 			|res| Self::separate::<E, O>(res),
 			Self::traverse::<A, Result<O, E>, M, Func>(func, ta),
@@ -144,8 +151,7 @@ pub trait Witherable: Filterable + Traversable {
 	where
 		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-	{
+		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 		M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M, Func>(func, ta))
 	}
 }
@@ -190,7 +196,15 @@ pub trait Witherable: Filterable + Traversable {
 /// );
 /// assert_eq!(y, Some((None, Some(5))));
 /// ```
-pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
+pub fn wilt<
+	'a,
+	F: Witherable,
+	M: Applicative,
+	A: 'a + Clone,
+	E: 'a + Clone,
+	O: 'a + Clone,
+	Func,
+>(
 	func: Func,
 	ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
@@ -203,8 +217,7 @@ pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 
 where
 	Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-{
+	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 	F::wilt::<M, A, E, O, Func>(func, ta)
 }
 
@@ -256,7 +269,6 @@ pub fn wither<'a, F: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone, F
 where
 	Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-{
+	Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 	F::wither::<M, A, B, Func>(func, ta)
 }

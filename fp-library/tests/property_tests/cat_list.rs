@@ -1,5 +1,6 @@
 use {
-	fp_library::types::cat_list::CatList, quickcheck_macros::quickcheck,
+	fp_library::types::cat_list::CatList,
+	quickcheck_macros::quickcheck,
 	std::collections::LinkedList,
 };
 
@@ -122,17 +123,16 @@ fn prop_uncons_correct(xs: Vec<i32>) -> bool {
 
 	match list.uncons() {
 		None => xs.is_empty(),
-		Some((head, tail)) => {
+		Some((head, tail)) =>
 			if xs.is_empty() {
 				false
 			} else {
 				let expected_head = xs[0];
-				let expected_tail = &xs[1..];
+				let expected_tail = &xs[1 ..];
 				let tail_vec: Vec<_> = tail.into_iter().collect();
 
 				head == expected_head && tail_vec == expected_tail
-			}
-		}
+			},
 	}
 }
 

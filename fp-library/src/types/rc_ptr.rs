@@ -19,7 +19,11 @@ mod inner {
 	use {
 		crate::{
 			brands::RcBrand,
-			classes::{Pointer, RefCountedPointer, UnsizedCoercible},
+			classes::{
+				Pointer,
+				RefCountedPointer,
+				UnsizedCoercible,
+			},
 		},
 		fp_macros::document_parameters,
 		std::rc::Rc,
@@ -87,7 +91,10 @@ mod inner {
 		/// Attempts to unwrap the inner value if this is the sole reference.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the wrapped value.", "The type of the wrapped value.")]
+		#[document_type_parameters(
+			"The lifetime of the wrapped value.",
+			"The type of the wrapped value."
+		)]
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
@@ -149,7 +156,11 @@ mod tests {
 
 	use crate::{
 		brands::RcBrand,
-		classes::{RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new},
+		classes::{
+			RefCountedPointer,
+			pointer::new,
+			ref_counted_pointer::cloneable_new,
+		},
 	};
 
 	/// Tests that `pointer_new` correctly creates an `Rc` wrapping the value.

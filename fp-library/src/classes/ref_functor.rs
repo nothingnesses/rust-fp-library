@@ -15,8 +15,15 @@
 //! ```
 
 use {
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for types that can be mapped over, returning references.
@@ -104,7 +111,6 @@ pub fn ref_map<'a, Brand: RefFunctor, A: 'a, B: 'a, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	Func: FnOnce(&A) -> B + 'a,
-{
+	Func: FnOnce(&A) -> B + 'a, {
 	Brand::ref_map::<A, B, Func>(func, fa)
 }

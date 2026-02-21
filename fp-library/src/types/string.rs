@@ -6,7 +6,10 @@
 mod inner {
 	use {
 		crate::{
-			classes::{Monoid, Semigroup},
+			classes::{
+				Monoid,
+				Semigroup,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -76,7 +79,10 @@ mod inner {
 #[cfg(test)]
 mod tests {
 	use {
-		crate::classes::{monoid::Monoid, semigroup::append},
+		crate::classes::{
+			monoid::Monoid,
+			semigroup::append,
+		},
 		quickcheck_macros::quickcheck,
 	};
 
