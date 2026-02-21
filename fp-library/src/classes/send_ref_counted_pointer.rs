@@ -26,12 +26,12 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	/// The thread-safe pointer type constructor.
 	///
 	/// For `ArcBrand`, this is `Arc<T>` where `T: Send + Sync`.
-	type SendOf<T: ?Sized + Send + Sync>: Clone + Send + Sync + Deref<Target = T>;
+	type SendOf<'a, T: ?Sized + Send + Sync + 'a>: Clone + Send + Sync + Deref<Target = T> + 'a;
 
 	/// Wraps a sized value in a thread-safe pointer.
 	#[document_signature]
 	///
-	#[document_type_parameters("The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -50,15 +50,15 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 	/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 	/// assert_eq!(*ptr, 42);
 	/// ```
-	fn send_new<T: Send + Sync>(value: T) -> Self::SendOf<T>
+	fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Self::SendOf<'a, T>
 	where
-		Self::SendOf<T>: Sized;
+		Self::SendOf<'a, T>: Sized;
 }
 
 /// Wraps a sized value in a thread-safe pointer.
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
+#[document_type_parameters("The pointer brand.", "The lifetime of the value.", "The type of the value to wrap.")]
 ///
 #[document_parameters("The value to wrap.")]
 ///
@@ -77,9 +77,9 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 /// assert_eq!(*ptr, 42);
 /// ```
-pub fn send_new<P: SendRefCountedPointer, T: Send + Sync>(value: T) -> P::SendOf<T>
+pub fn send_new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(value: T) -> P::SendOf<'a, T>
 where
-	P::SendOf<T>: Sized,
+	P::SendOf<'a, T>: Sized,
 {
 	P::send_new(value)
 }

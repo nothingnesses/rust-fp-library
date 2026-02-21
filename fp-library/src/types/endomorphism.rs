@@ -28,6 +28,12 @@ mod inner {
 	/// * The identity element [empty][Monoid::empty] is the [identity morphism][Category::identity].
 	///
 	/// The wrapped morphism can be accessed directly via the [`.0` field][Endomorphism#structfield.0].
+	///
+	/// ### Hierarchy Unification
+	///
+	/// `Endomorphism` now requires that its object type `A` outlive the lifetime `'a` of the
+	/// endomorphism itself (`A: 'a`). This is necessary to satisfy the requirements of the
+	/// unified [`Kind_266801a817966495`] used by the [`Category`] hierarchy.
 	#[document_type_parameters(
 		"The lifetime of the function and its captured data.",
 		"The category of the morphism.",
@@ -48,8 +54,8 @@ mod inner {
 	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 	/// assert_eq!(f.0(5), 10);
 	/// ```
-	pub struct Endomorphism<'a, C: Category, A>(
-		pub Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>),
+	pub struct Endomorphism<'a, C: Category, A: 'a>(
+		pub Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>),
 	);
 
 	#[document_type_parameters(
@@ -57,7 +63,7 @@ mod inner {
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Endomorphism<'a, C, A> {
+	impl<'a, C: Category, A: 'a> Endomorphism<'a, C, A> {
 		/// Creates a new `Endomorphism`.
 		///
 		/// This function wraps a morphism `c a a` in an `Endomorphism` struct.
@@ -81,7 +87,7 @@ mod inner {
 		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
 		/// assert_eq!(f.0(5), 10);
 		/// ```
-		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>)) -> Self {
+		pub fn new(f: Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>)) -> Self {
 			Self(f)
 		}
 	}
@@ -92,9 +98,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to clone.")]
-	impl<'a, C: Category, A> Clone for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Clone for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Clone,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Clone,
 	{
 		#[document_signature]
 		fn clone(&self) -> Self {
@@ -108,9 +114,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to format.")]
-	impl<'a, C: Category, A> Debug for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Debug for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Debug,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Debug,
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
@@ -127,8 +133,8 @@ mod inner {
 		"The category of the morphism.",
 		"The object of the morphism."
 	)]
-	impl<'a, C: Category, A> Eq for Endomorphism<'a, C, A> where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Eq
+	impl<'a, C: Category, A: 'a> Eq for Endomorphism<'a, C, A> where
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Eq
 	{
 	}
 
@@ -138,9 +144,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to hash.")]
-	impl<'a, C: Category, A> Hash for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Hash for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Hash,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Hash,
 	{
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
@@ -159,9 +165,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> Ord for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> Ord for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): Ord,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Ord,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
@@ -179,9 +185,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialEq for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> PartialEq for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialEq,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): PartialEq,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
@@ -199,9 +205,9 @@ mod inner {
 		"The object of the morphism."
 	)]
 	#[document_parameters("The morphism to compare.")]
-	impl<'a, C: Category, A> PartialOrd for Endomorphism<'a, C, A>
+	impl<'a, C: Category, A: 'a> PartialOrd for Endomorphism<'a, C, A>
 	where
-		Apply!(<C as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>): PartialOrd,
+		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): PartialOrd,
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]

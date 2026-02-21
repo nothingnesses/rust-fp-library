@@ -29,12 +29,12 @@ mod inner {
 	};
 
 	impl Pointer for ArcBrand {
-		type Of<T: ?Sized> = Arc<T>;
+		type Of<'a, T: ?Sized + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the value to wrap.")]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -53,18 +53,18 @@ mod inner {
 		/// let ptr = pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn new<T>(value: T) -> Arc<T> {
+		fn new<'a, T: 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 	}
 
 	impl RefCountedPointer for ArcBrand {
-		type CloneableOf<T: ?Sized> = Arc<T>;
+		type CloneableOf<'a, T: ?Sized + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the value to wrap.")]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -83,14 +83,14 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn cloneable_new<T>(value: T) -> Arc<T> {
+		fn cloneable_new<'a, T: 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 
 		/// Attempts to unwrap the inner value if this is the sole reference.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the wrapped value.")]
+		#[document_type_parameters("The lifetime of the wrapped value.", "The type of the wrapped value.")]
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
@@ -109,18 +109,18 @@ mod inner {
 		/// let ptr = ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(try_unwrap::<ArcBrand, _>(ptr), Ok(42));
 		/// ```
-		fn try_unwrap<T>(ptr: Arc<T>) -> Result<T, Arc<T>> {
+		fn try_unwrap<'a, T: 'a>(ptr: Arc<T>) -> Result<T, Arc<T>> {
 			Arc::try_unwrap(ptr)
 		}
 	}
 
 	impl SendRefCountedPointer for ArcBrand {
-		type SendOf<T: ?Sized + Send + Sync> = Arc<T>;
+		type SendOf<'a, T: ?Sized + Send + Sync + 'a> = Arc<T>;
 
 		/// Wraps a sized value in an `Arc`.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the value to wrap.")]
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 		///
 		#[document_parameters("The value to wrap.")]
 		///
@@ -139,7 +139,7 @@ mod inner {
 		/// let ptr = send_ref_counted_pointer_new::<ArcBrand, _>(42);
 		/// assert_eq!(*ptr, 42);
 		/// ```
-		fn send_new<T: Send + Sync>(value: T) -> Arc<T> {
+		fn send_new<'a, T: Send + Sync + 'a>(value: T) -> Arc<T> {
 			Arc::new(value)
 		}
 	}
@@ -171,7 +171,7 @@ mod inner {
 		/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
+		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
 			Arc::new(f)
 		}
 	}
@@ -203,7 +203,7 @@ mod inner {
 		/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
-		fn coerce_send_fn<'a, A, B>(
+		fn coerce_send_fn<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Arc<dyn 'a + Fn(A) -> B + Send + Sync> {
 			Arc::new(f)

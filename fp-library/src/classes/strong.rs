@@ -28,6 +28,12 @@ use {
 /// A strong profunctor can lift a profunctor through product types (tuples).
 /// This is the profunctor constraint that characterizes lenses.
 ///
+/// ### Hierarchy Unification
+///
+/// This trait uses the strict Kind signature from [`Kind_266801a817966495`]. This ensures
+/// that when lifting a profunctor, the secondary component of the product type (the context)
+/// correctly satisfies lifetime requirements relative to the profunctor's application.
+///
 /// ### Laws
 ///
 /// `Strong` instances must satisfy the following laws:
@@ -67,8 +73,8 @@ pub trait Strong: Profunctor {
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
 	fn first<'a, A: 'a, B: 'a, C>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>);
+		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>);
 
 	/// Lift a profunctor to operate on the second component of a pair.
 	///
@@ -102,8 +108,8 @@ pub trait Strong: Profunctor {
 	/// assert_eq!(g((20, 10)), (20, 11));
 	/// ```
 	fn second<'a, A: 'a, B: 'a, C: 'a>(
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
+		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {
 		Self::dimap(|(c, a)| (a, c), |(b, c)| (c, b), Self::first(pab))
 	}
 }
@@ -140,8 +146,8 @@ pub trait Strong: Profunctor {
 /// assert_eq!(g((10, 20)), (11, 20));
 /// ```
 pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
+	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
 	Brand::first(pab)
 }
 
@@ -177,7 +183,7 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// assert_eq!(g((20, 10)), (20, 11));
 /// ```
 pub fn second<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, (C, A), (C, B)>) {
+	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {
 	Brand::second(pab)
 }

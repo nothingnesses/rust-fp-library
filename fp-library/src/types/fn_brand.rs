@@ -1,6 +1,13 @@
 //! Reference-counted cloneable function wrappers with [`Semigroupoid`](crate::classes::Semigroupoid) and [`Category`](crate::classes::Category) instances.
 //!
 //! Provides the [`FnBrand`](crate::brands::FnBrand) abstraction for wrapping closures in `Rc<dyn Fn>` or `Arc<dyn Fn>` for use in higher-kinded contexts.
+//!
+//! ### Hierarchy Unification
+//!
+//! `FnBrand` Kind implementation has been updated to use [`Kind_266801a817966495`], which enforces
+//! that input and output types outlive the function wrapper's lifetime. This change allows
+//! `FnBrand` to be used consistently across the unified profunctor and arrow hierarchies, while
+//! supporting non-static types where the lifetimes are correctly tracked.
 
 #[fp_macros::document_module]
 mod inner {
@@ -20,13 +27,13 @@ mod inner {
 
 	impl_kind! {
 		impl<P: UnsizedCoercible> for FnBrand<P> {
-			type Of<'a, A, B> = <P as RefCountedPointer>::CloneableOf<dyn 'a + Fn(A) -> B>;
+			type Of<'a, A: 'a, B: 'a>: 'a = <P as RefCountedPointer>::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> Function for FnBrand<P> {
-		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+		type Of<'a, A: 'a, B: 'a> = Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
 		/// Creates a new function wrapper.
 		///
@@ -56,14 +63,14 @@ mod inner {
 		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
-		type Of<'a, A, B> = Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+		type Of<'a, A: 'a, B: 'a> = Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 
 		/// Creates a new cloneable function wrapper.
 		///
@@ -93,7 +100,7 @@ mod inner {
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
+		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
 	}
@@ -136,9 +143,9 @@ mod inner {
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
 		fn compose<'a, B: 'a, C: 'a, D: 'a>(
-			f: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, C, D>),
-			g: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, D>) {
+			f: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
+			g: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, D>) {
 			P::coerce_fn(move |b| f(g(b)))
 		}
 	}
@@ -167,7 +174,7 @@ mod inner {
 		/// let id = category_identity::<RcFnBrand, i32>();
 		/// assert_eq!(id(5), 5);
 		/// ```
-		fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
+		fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
 			P::coerce_fn(|a| a)
 		}
 	}
@@ -218,8 +225,8 @@ mod inner {
 		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
-			pbc: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, D>)
+			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 		where
 			FuncAB: Fn(A) -> B + 'a,
 			FuncCD: Fn(C) -> D + 'a,
@@ -262,8 +269,8 @@ mod inner {
 		/// assert_eq!(g((10, 20)), (11, 20));
 		/// ```
 		fn first<'a, A: 'a, B: 'a, C>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, (A, C), (B, C)>) {
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
 			P::coerce_fn(move |(a, c)| (pab(a), c))
 		}
 	}
@@ -303,8 +310,8 @@ mod inner {
 		/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
 		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, Result<C, A>, Result<C, B>>) {
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>) {
 			P::coerce_fn(move |r: Result<C, A>| -> Result<C, B> {
 				match r {
 					Err(a) => Err(pab(a)),
@@ -316,7 +323,7 @@ mod inner {
 
 	#[document_type_parameters("The reference-counted pointer type.")]
 	impl<P: SendUnsizedCoercible> SendCloneableFn for FnBrand<P> {
-		type SendOf<'a, A, B> = P::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+		type SendOf<'a, A: 'a, B: 'a> = P::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 
 		/// Creates a new thread-safe cloneable function wrapper.
 		///
@@ -346,7 +353,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
 		/// assert_eq!(f(5), 10);
 		/// ```
-		fn send_cloneable_fn_new<'a, A, B>(
+		fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Self::SendOf<'a, A, B> {
 			P::coerce_send_fn(f)

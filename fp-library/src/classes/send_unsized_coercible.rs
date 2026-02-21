@@ -45,9 +45,9 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 	/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	fn coerce_send_fn<'a, A, B>(
+	fn coerce_send_fn<'a, A: 'a, B: 'a>(
 		f: impl 'a + Fn(A) -> B + Send + Sync
-	) -> Self::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>;
+	) -> Self::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>;
 }
 
 /// Coerces a sized Send+Sync closure to a `dyn Fn + Send + Sync`.
@@ -81,9 +81,9 @@ pub trait SendUnsizedCoercible: UnsizedCoercible + SendRefCountedPointer + 'stat
 /// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A, B, Func>(
+pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A: 'a, B: 'a, Func>(
 	func: Func
-) -> Brand::SendOf<dyn 'a + Fn(A) -> B + Send + Sync>
+) -> Brand::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>
 where
 	Func: 'a + Fn(A) -> B + Send + Sync,
 {

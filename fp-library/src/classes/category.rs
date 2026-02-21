@@ -24,6 +24,12 @@ use {
 ///
 /// A category consists of objects and morphisms between them, with composition and identity.
 ///
+/// ### Hierarchy Unification
+///
+/// By inheriting from [`Semigroupoid`], this trait now implicitly requires [`Kind_266801a817966495`].
+/// This unification ensures that categorical identity morphisms also satisfy the strict lifetime
+/// requirements where the object type must outlive the morphism's application lifetime.
+///
 /// ### Laws
 ///
 /// `Category` instances must satisfy the identity law:
@@ -51,7 +57,7 @@ pub trait Category: Semigroupoid {
 	/// let id = category_identity::<RcFnBrand, i32>();
 	/// assert_eq!(id(5), 5);
 	/// ```
-	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>);
+	fn identity<'a, A>() -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>);
 }
 
 /// Returns the identity morphism.
@@ -81,6 +87,6 @@ pub trait Category: Semigroupoid {
 /// assert_eq!(id(5), 5);
 /// ```
 pub fn identity<'a, Brand: Category, A>()
--> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, A>) {
+-> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
 	Brand::identity()
 }

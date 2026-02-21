@@ -29,16 +29,22 @@ use {
 ///
 /// This is the minimal abstraction: any type that can wrap a value and
 /// dereference to it. Does NOT require Clone — that's added by subtraits.
+///
+/// By explicitly requiring that the type parameter `T` outlives the application lifetime `'a`,
+/// we provide the compiler with the necessary guarantees to handle trait objects
+/// (like `dyn Fn`) commonly used in pointer implementations. This resolves potential
+/// E0310 errors where the compiler cannot otherwise prove that captured variables in
+/// closures satisfy the required lifetime bounds.
 pub trait Pointer {
 	/// The pointer type constructor.
 	///
 	/// For `RcBrand`, this is `Rc<T>`. For `ArcBrand`, this is `Arc<T>`.
-	type Of<T: ?Sized>: Deref<Target = T>;
+	type Of<'a, T: ?Sized + 'a>: Deref<Target = T> + 'a;
 
 	/// Wraps a sized value in the pointer.
 	#[document_signature]
 	///
-	#[document_type_parameters("The type of the value to wrap.")]
+	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
 	///
 	#[document_parameters("The value to wrap.")]
 	///
@@ -57,15 +63,15 @@ pub trait Pointer {
 	/// let ptr = <RcBrand as Pointer>::new(42);
 	/// assert_eq!(*ptr, 42);
 	/// ```
-	fn new<T>(value: T) -> Self::Of<T>
+	fn new<'a, T: 'a>(value: T) -> Self::Of<'a, T>
 	where
-		Self::Of<T>: Sized;
+		Self::Of<'a, T>: Sized;
 }
 
 /// Wraps a sized value in the pointer.
 #[document_signature]
 ///
-#[document_type_parameters("The pointer brand.", "The type of the value to wrap.")]
+#[document_type_parameters("The pointer brand.", "The lifetime of the value.", "The type of the value to wrap.")]
 ///
 #[document_parameters("The value to wrap.")]
 ///
@@ -84,9 +90,9 @@ pub trait Pointer {
 /// let ptr = pointer_new::<RcBrand, _>(42);
 /// assert_eq!(*ptr, 42);
 /// ```
-pub fn new<P: Pointer, T>(value: T) -> P::Of<T>
+pub fn new<'a, P: Pointer, T: 'a>(value: T) -> P::Of<'a, T>
 where
-	P::Of<T>: Sized,
+	P::Of<'a, T>: Sized,
 {
 	P::new(value)
 }

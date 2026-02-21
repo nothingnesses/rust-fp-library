@@ -33,7 +33,7 @@ pub trait CloneableFn: Function {
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
 	/// that implements `Clone` and dereferences to the underlying closure.
-	type Of<'a, A, B>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Of<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new cloneable function wrapper.
 	///
@@ -62,7 +62,7 @@ pub trait CloneableFn: Function {
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B>;
 }
 
 /// Creates a new cloneable function wrapper.

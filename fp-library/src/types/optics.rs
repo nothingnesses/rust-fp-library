@@ -22,6 +22,17 @@
 //! Lenses in this library use [`FnBrand`](crate::brands::FnBrand) to support
 //! capturing closures and reference-counted storage.
 //!
+//! ### Lifetime Support
+//!
+//! The optics hierarchy has been updated to include a lifetime parameter `'a`. This allows
+//! optics to work with non-static types (e.g., types containing references like `&str`) by
+//! ensuring that the captured functions and the types they operate on are valid for the
+//! same lifetime.
+//!
+//! This change was necessary because of the unification of profunctor and arrow hierarchies on
+//! [`Kind_266801a817966495`], which requires that type arguments to a Kind outlive the
+//! lifetime argument (`type Of<'a, T: 'a, U: 'a>: 'a;`).
+//!
 //! ### Examples
 //!
 //! ```
@@ -76,29 +87,25 @@ mod inner {
 	/// This trait allows optics to be first-class values that can be composed
 	/// and stored while preserving their polymorphism over profunctor types.
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub trait Optic<S, T, A, B> {
+	pub trait Optic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
 		/// Evaluate the optic with a profunctor.
 		///
 		/// This method applies the optic transformation to a profunctor value.
 		#[document_signature]
 		///
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		///
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<P: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a;
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 	}
 
 	/// Composition of two optics.
@@ -106,6 +113,7 @@ mod inner {
 	/// This struct represents the composition of two optics, allowing them to be
 	/// combined into a single optic that applies both transformations.
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -116,15 +124,16 @@ mod inner {
 		"The second optic."
 	)]
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-	pub struct Composed<S, T, M, N, A, B, O1, O2> {
+	pub struct Composed<'a, S, T, M, N, A, B, O1, O2> {
 		/// The outer optic (applied second).
 		pub first: O1,
 		/// The inner optic (applied first).
 		pub second: O2,
-		pub(crate) _phantom: PhantomData<(S, T, M, N, A, B)>,
+		pub(crate) _phantom: PhantomData<&'a (S, T, M, N, A, B)>,
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -134,7 +143,7 @@ mod inner {
 		"The first optic.",
 		"The second optic."
 	)]
-	impl<S, T, M, N, A, B, O1, O2> Composed<S, T, M, N, A, B, O1, O2> {
+	impl<'a, S, T, M, N, A, B, O1, O2> Composed<'a, S, T, M, N, A, B, O1, O2> {
 		/// Create a new composed optic.
 		#[document_signature]
 		///
@@ -151,6 +160,7 @@ mod inner {
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -161,26 +171,18 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<S, T, M, N, A, B, O1, O2> Optic<S, T, A, B> for Composed<S, T, M, N, A, B, O1, O2>
+	impl<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		O1: Optic<S, T, M, N>,
-		O2: Optic<M, N, A, B>,
-		M: 'static,
-		N: 'static,
+		O1: Optic<'a, S, T, M, N>,
+		O2: Optic<'a, M, N, A, B>,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, P: Strong + Choice>(
+		fn evaluate<P: Strong + Choice>(
 			&self,
-			pab: Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<P as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a,
-		{
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			let pmn = self.second.evaluate::<P>(pab);
 			self.first.evaluate::<P>(pmn)
 		}
@@ -196,6 +198,7 @@ mod inner {
 	#[document_signature]
 	///
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -254,13 +257,13 @@ mod inner {
 	///
 	/// assert_eq!(updated.address.street, "HIGH ST");
 	/// ```
-	pub fn optics_compose<S, T, M, N, A, B, O1, O2>(
+	pub fn optics_compose<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>(
 		first: O1,
 		second: O2,
-	) -> Composed<S, T, M, N, A, B, O1, O2>
+	) -> Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		O1: Optic<S, T, M, N>,
-		O2: Optic<M, N, A, B>,
+		O1: Optic<'a, S, T, M, N>,
+		O2: Optic<'a, M, N, A, B>,
 	{
 		Composed::new(first, second)
 	}
@@ -270,24 +273,30 @@ mod inner {
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub struct Lens<P, S, T, A, B>
+	pub struct Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
 	{
 		/// Getter function.
-		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
+		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		/// Setter function.
-		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, B), T>),
+		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, B), T>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -295,7 +304,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<P, S, T, A, B> Lens<P, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
 	{
@@ -315,8 +324,8 @@ mod inner {
 		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::new(|x| x, |(_, s)| s);
 		/// ```
 		pub fn new(
-			view: impl 'static + Fn(S) -> A,
-			set: impl 'static + Fn((S, B)) -> T,
+			view: impl 'a + Fn(S) -> A,
+			set: impl 'a + Fn((S, B)) -> T,
 		) -> Self {
 			Lens {
 				view: <FnBrand<P> as CloneableFn>::new(view),
@@ -374,6 +383,7 @@ mod inner {
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -381,23 +391,21 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<P, S, T, A, B> Optic<S, T, A, B> for Lens<P, S, T, A, B>
+	impl<'a, P, S, T, A, B> Optic<'a, S, T, A, B> for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
-		S: Clone,
+		S: 'a + Clone,
+		T: 'a,
+		A: 'a,
+		B: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, Q: Strong + Choice>(
+		fn evaluate<Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, B>),
-		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, T>)
-		where
-			A: 'a,
-			B: 'a,
-			S: 'a,
-			T: 'a,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
 		{
 			let view = self.view.clone();
 			let set = self.set.clone();
@@ -415,28 +423,34 @@ mod inner {
 	///
 	/// Uses [`FnBrand`](crate::brands::FnBrand) to support capturing closures.
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct LensPrime<P, S, A>
+	pub struct LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
+		S: 'a,
+		A: 'a,
 	{
-		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, S, A>),
-		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'a, U, V>; )>::Of<'static, (S, A), S>),
+		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
+		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, A), S>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<P, S, A> Clone for LensPrime<P, S, A>
+	impl<'a, P, S, A> Clone for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
+		S: 'a,
+		A: 'a,
 	{
 		#[document_signature]
 		fn clone(&self) -> Self {
@@ -449,12 +463,13 @@ mod inner {
 	}
 
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<P, S, A> LensPrime<P, S, A>
+	impl<'a, P, S: 'a, A: 'a> LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -474,8 +489,8 @@ mod inner {
 		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
 		/// ```
 		pub fn new(
-			view: impl 'static + Fn(S) -> A,
-			set: impl 'static + Fn((S, A)) -> S,
+			view: impl 'a + Fn(S) -> A,
+			set: impl 'a + Fn((S, A)) -> S,
 		) -> Self {
 			LensPrime {
 				view_fn: <FnBrand<P> as CloneableFn>::new(view),
@@ -563,26 +578,25 @@ mod inner {
 	// Optic implementation for LensPrime<P, S, A>
 	// Note: This implements monomorphic update (S -> S, A -> A)
 	#[document_type_parameters(
+		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<P, S, A> Optic<S, S, A, A> for LensPrime<P, S, A>
+	impl<'a, P, S, A> Optic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
-		S: Clone,
+		S: 'a + Clone,
+		A: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters("The lifetime of the values.", "The profunctor type.")]
+		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<'a, Q: Strong + Choice>(
+		fn evaluate<Q: Strong + Choice>(
 			&self,
-			pab: Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, A, A>),
-		) -> Apply!(<Q as Kind!( type Of<'a, U, V>; )>::Of<'a, S, S>)
-		where
-			A: 'a,
-			S: 'a,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			let view_fn = self.view_fn.clone();
 			let set_fn = self.set_fn.clone();

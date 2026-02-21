@@ -23,6 +23,18 @@ use {
 /// A `Functor` represents a context or container that allows functions to be applied
 /// to values within that context without altering the structure of the context itself.
 ///
+/// ### Hierarchy Unification
+///
+/// This trait now inherits from [`Kind_cdc7cd43dac7585f`], ensuring that all functor
+/// contexts satisfy the strict lifetime requirements where the type argument must
+/// outlive the context's application lifetime.
+///
+/// By explicitly requiring that the type parameter outlives the application lifetime `'a`,
+/// we provide the compiler with the necessary guarantees to handle trait objects
+/// (like `dyn Fn`) commonly used in functor implementations. This resolves potential
+/// E0310 errors where the compiler cannot otherwise prove that captured variables in
+/// closures satisfy the required lifetime bounds.
+///
 /// ### Laws
 ///
 /// `Functor` instances must satisfy the following laws:

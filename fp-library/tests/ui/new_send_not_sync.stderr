@@ -21,7 +21,7 @@ note: required because it's used within this closure
 note: required by a bound in `fp_library::classes::SendCloneableFn::send_cloneable_fn_new`
   --> src/classes/send_cloneable_fn.rs
    |
-   |     fn send_cloneable_fn_new<'a, A, B>(
+   |     fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
    |        --------------------- required by a bound in this associated function
    |         f: impl 'a + Fn(A) -> B + Send + Sync
    |                                          ^^^^ required by this bound in `SendCloneableFn::send_cloneable_fn_new`

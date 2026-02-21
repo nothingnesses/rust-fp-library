@@ -31,12 +31,25 @@ use {
 /// and covariant in its second type parameter. This means it can pre-compose with a
 /// function on the input and post-compose with a function on the output.
 ///
+/// ### Hierarchy Unification
+///
+/// This trait is now the root of the unified profunctor and arrow hierarchies on
+/// [`Kind_266801a817966495`]. This unification ensures that all profunctor-based abstractions
+/// (including lenses and prisms) share a consistent higher-kinded representation with
+/// strict lifetime bounds (`type Of<'a, T: 'a, U: 'a>: 'a;`).
+///
+/// By explicitly requiring that both type parameters outlive the application lifetime `'a`,
+/// we provide the compiler with the necessary guarantees to handle trait objects
+/// (like `dyn Fn`) commonly used in profunctor implementations. This resolves potential
+/// E0310 errors where the compiler cannot otherwise prove that captured variables in
+/// closures satisfy the required lifetime bounds.
+///
 /// ### Laws
 ///
 /// `Profunctor` instances must satisfy the following laws:
 /// * Identity: `dimap(identity, identity, p) = p`.
 /// * Composition: `dimap(f1 ∘ f2, g2 ∘ g1, p) = dimap(f1, g1, dimap(f2, g2, p))`.
-pub trait Profunctor: Kind_140eb1e35dc7afb3 {
+pub trait Profunctor: Kind_266801a817966495 {
 	/// Maps over both arguments of the profunctor.
 	///
 	/// This method applies a contravariant function to the first argument and a covariant
@@ -79,11 +92,11 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// );
 	/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 	/// ```
-	fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
+	fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 		ab: FuncAB,
 		cd: FuncCD,
-		pbc: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, D>)
+		pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 	where
 		FuncAB: Fn(A) -> B + 'a,
 		FuncCD: Fn(C) -> D + 'a;
@@ -125,10 +138,10 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// );
 	/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 	/// ```
-	fn lmap<'a, A, B: 'a, C: 'a, FuncAB>(
+	fn lmap<'a, A: 'a, B: 'a, C: 'a, FuncAB>(
 		ab: FuncAB,
-		pbc: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, C>)
+		pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 	where
 		FuncAB: Fn(A) -> B + 'a,
 	{
@@ -172,10 +185,10 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 	/// );
 	/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 	/// ```
-	fn rmap<'a, A: 'a, B: 'a, C, FuncBC>(
+	fn rmap<'a, A: 'a, B: 'a, C: 'a, FuncBC>(
 		bc: FuncBC,
-		pab: Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, C>)
+		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 	where
 		FuncBC: Fn(B) -> C + 'a,
 	{
@@ -225,11 +238,11 @@ pub trait Profunctor: Kind_140eb1e35dc7afb3 {
 /// );
 /// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 /// ```
-pub fn dimap<'a, Brand: Profunctor, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
+pub fn dimap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 	ab: FuncAB,
 	cd: FuncCD,
-	pbc: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, D>)
+	pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 where
 	FuncAB: Fn(A) -> B + 'a,
 	FuncCD: Fn(C) -> D + 'a,
@@ -275,10 +288,10 @@ where
 /// );
 /// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 /// ```
-pub fn lmap<'a, Brand: Profunctor, A, B: 'a, C: 'a, FuncAB>(
+pub fn lmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncAB>(
 	ab: FuncAB,
-	pbc: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, B, C>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, C>)
+	pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 where
 	FuncAB: Fn(A) -> B + 'a,
 {
@@ -320,10 +333,10 @@ where
 /// );
 /// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 /// ```
-pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C, FuncBC>(
+pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncBC>(
 	bc: FuncBC,
-	pab: Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>),
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, C>)
+	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 where
 	FuncBC: Fn(B) -> C + 'a,
 {

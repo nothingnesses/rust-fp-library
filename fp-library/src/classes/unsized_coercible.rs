@@ -45,7 +45,7 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 	/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 	/// assert_eq!(f(1), 2);
 	/// ```
-	fn coerce_fn<'a, A, B>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<dyn 'a + Fn(A) -> B>;
+	fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Self::CloneableOf<'a, dyn 'a + Fn(A) -> B>;
 }
 
 /// Coerces a sized closure to a `dyn Fn` wrapped in this pointer type.
@@ -79,9 +79,9 @@ pub trait UnsizedCoercible: RefCountedPointer + 'static {
 /// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
 /// assert_eq!(f(1), 2);
 /// ```
-pub fn coerce_fn<'a, Brand: UnsizedCoercible, A, B, Func>(
+pub fn coerce_fn<'a, Brand: UnsizedCoercible, A: 'a, B: 'a, Func>(
 	func: Func
-) -> Brand::CloneableOf<dyn 'a + Fn(A) -> B>
+) -> Brand::CloneableOf<'a, dyn 'a + Fn(A) -> B>
 where
 	Func: 'a + Fn(A) -> B,
 {

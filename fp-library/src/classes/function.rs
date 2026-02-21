@@ -33,7 +33,7 @@ pub trait Function: Arrow {
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
 	/// that dereferences to the underlying closure.
-	type Of<'a, A, B>: Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Of<'a, A: 'a, B: 'a>: Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new function wrapper.
 	///
@@ -62,7 +62,7 @@ pub trait Function: Arrow {
 	/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// assert_eq!(f(5), 10);
 	/// ```
-	fn new<'a, A, B>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B>;
+	fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B>;
 }
 
 /// Creates a new function wrapper.

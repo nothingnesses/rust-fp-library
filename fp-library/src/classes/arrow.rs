@@ -26,6 +26,18 @@ use {
 /// An arrow is a [`Category`] that is also a [`Strong`] profunctor.
 /// It provides the `arrow` method to lift a pure function into the arrow context.
 ///
+/// ### Hierarchy Unification
+///
+/// By inheriting from both [`Category`] and [`Strong`], this trait is now part of the
+/// unified hierarchy based on [`Kind_266801a817966495`]. This ensures that any lifted
+/// pure function correctly respects lifetime bounds on its input and output types.
+///
+/// By explicitly requiring that both type parameters outlive the application lifetime `'a`,
+/// we provide the compiler with the necessary guarantees to handle trait objects
+/// (like `dyn Fn`) commonly used in arrow implementations. This resolves potential
+/// E0310 errors where the compiler cannot otherwise prove that captured variables in
+/// closures satisfy the required lifetime bounds.
+///
 /// ### Laws
 ///
 /// `Arrow` instances must satisfy the following laws (in addition to `Category` and `Strong` laws):
@@ -63,7 +75,7 @@ pub trait Arrow: Category + Strong {
 	/// ```
 	fn arrow<'a, A, B: 'a>(
 		f: impl 'a + Fn(A) -> B
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>);
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
 }
 
 impl<Brand> Arrow for Brand
@@ -72,7 +84,7 @@ where
 {
 	fn arrow<'a, A, B: 'a>(
 		f: impl 'a + Fn(A) -> B
-	) -> Apply!(<Self as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>) {
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
 		Brand::lmap(f, Brand::identity())
 	}
 }
@@ -108,7 +120,7 @@ where
 /// ```
 pub fn arrow<'a, Brand, A, B: 'a>(
 	f: impl 'a + Fn(A) -> B
-) -> Apply!(<Brand as Kind!( type Of<'a, T, U>; )>::Of<'a, A, B>)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 where
 	Brand: Arrow,
 {

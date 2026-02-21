@@ -23,6 +23,18 @@ use {
 /// A `Bifunctor` represents a context or container with two type parameters,
 /// allowing functions to be applied to values of both types.
 ///
+/// ### Hierarchy Unification
+///
+/// This trait now inherits from [`Kind_266801a817966495`], ensuring that all bifunctor
+/// contexts satisfy the strict lifetime requirements where both type arguments must
+/// outlive the context's application lifetime.
+///
+/// By explicitly requiring that both type parameters outlive the application lifetime `'a`,
+/// we provide the compiler with the necessary guarantees to handle trait objects
+/// (like `dyn Fn`) commonly used in bifunctor implementations. This resolves potential
+/// E0310 errors where the compiler cannot otherwise prove that captured variables in
+/// closures satisfy the required lifetime bounds.
+///
 /// ### Laws
 ///
 /// `Bifunctor` instances must satisfy the following laws:

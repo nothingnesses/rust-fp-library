@@ -5,8 +5,8 @@ use {
 
 // Example: Using document_fields on a tuple struct similar to Endomorphism
 #[document_fields("The wrapped morphism from an object to itself")]
-pub struct MyEndomorphism<'a, C: fp_library::classes::Category, A>(
-	pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
+pub struct MyEndomorphism<'a, C: fp_library::classes::Category, A: 'a>(
+	pub Apply!(<C as Kind!(type Of<'a, T: 'a, U: 'a>: 'a;)>::Of<'a, A, A>),
 );
 
 // Example: Using document_fields on a named struct
