@@ -43,7 +43,7 @@ fn test_lens_optic() {
 	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_age);
 
 	// Evaluate the optic to get the modifier function
-	let modifier = age_lens.evaluate::<RcFnBrand>(p_modify);
+	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&age_lens, p_modify);
 
 	let updated = modifier(person.clone());
 	assert_eq!(updated.age, 31);
@@ -89,7 +89,7 @@ fn test_composition() {
 	let modify_val = |x: i32| x * 2;
 	let p_modify = cloneable_fn_new::<RcFnBrand, _, _>(modify_val);
 
-	let modifier = composed.evaluate::<RcFnBrand>(p_modify);
+	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&composed, p_modify);
 
 	let result = modifier(obj);
 	assert_eq!(result.inner.val, 20);
@@ -225,8 +225,10 @@ fn test_composed_deep() {
 	};
 
 	// Composed optics don't have .view()/.set() directly, but can be used via evaluate
-	let modifier =
-		a_val.evaluate::<RcFnBrand>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10));
+	let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(
+		&a_val,
+		cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 10),
+	);
 	let result = modifier(obj.clone());
 	assert_eq!(result.b.c.val, 11);
 

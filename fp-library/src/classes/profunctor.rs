@@ -20,8 +20,6 @@
 //! assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 //! ```
 
-use fp_macros::impl_kind;
-
 use {
 	crate::{
 		Apply,
@@ -31,6 +29,7 @@ use {
 		document_parameters,
 		document_signature,
 		document_type_parameters,
+		impl_kind,
 	},
 };
 

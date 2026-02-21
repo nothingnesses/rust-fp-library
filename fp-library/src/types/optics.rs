@@ -10,15 +10,20 @@
 //!
 //! | Feature | PureScript | Rust (`fp-library`) |
 //! | :--- | :--- | :--- |
-//! | **Optic Definition** | `p a b -> p s t` | `trait Optic<S, T, A, B>` |
-//! | **Lens** | `Strong p => Optic p s t a b` | `struct Lens<P, S, T, A, B>` |
-//! | **Lens'** | `Lens s s a a` | `struct LensPrime<P, S, A>` |
+//! | **Optic Definition** | `p a b -> p s t` | `trait Optic<'a, P, S, T, A, B>` |
+//! | **Lens** | `Strong p => Optic p s t a b` | `struct Lens<'a, P, S, T, A, B>` |
+//! | **Lens'** | `Lens s s a a` | `struct LensPrime<'a, P, S, A>` |
+//! | **Prism** | `Choice p => Optic p s t a b` | `struct Prism<'a, P, S, T, A, B>` |
+//! | **Prism'** | `Prism s s a a` | `struct PrismPrime<'a, P, S, A>` |
 //! | **Composition** | `Semigroupoid` / `<<<` | `struct Composed` / `optics_compose` |
 //!
 //! While PureScript uses the `Semigroupoid` instance of functions for composition,
 //! this library uses a specialized `Composed` struct. This allows Rust to perform
 //! zero-cost composition through monomorphization while preserving the `Optic` trait
 //! boundaries without needing the rank-2 polymorphism that PureScript relies on.
+//! The `Optic` trait is parameterized over the profunctor `P`, allowing specific optics
+//! to enforce their required bounds (e.g. `Strong` for `Lens`, `Choice` for `Prism`) on
+//! their implementations rather than forcing a universal bound on the trait itself.
 //! Lenses in this library use [`FnBrand`](crate::brands::FnBrand) to support
 //! capturing closures and reference-counted storage.
 //!
@@ -76,8 +81,8 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Choice,
 				CloneableFn,
+				Profunctor,
 				Strong,
 				UnsizedCoercible,
 			},
@@ -97,21 +102,20 @@ mod inner {
 	/// and stored while preserving their polymorphism over profunctor types.
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The profunctor type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub trait Optic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	pub trait Optic<'a, P: Profunctor, S: 'a, T: 'a, A: 'a, B: 'a> {
 		/// Evaluate the optic with a profunctor.
 		///
 		/// This method applies the optic transformation to a profunctor value.
 		#[document_signature]
 		///
-		#[document_type_parameters("The profunctor type.")]
-		///
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<P: Strong + Choice>(
+		fn evaluate(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
@@ -174,6 +178,7 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The profunctor type.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -184,21 +189,21 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, P, S, T, A, B>
 		for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		O1: Optic<'a, S, T, M, N>,
-		O2: Optic<'a, M, N, A, B>,
+		P: Profunctor,
+		O1: Optic<'a, P, S, T, M, N>,
+		O2: Optic<'a, P, M, N, A, B>,
 	{
 		#[document_signature]
-		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<P: Strong + Choice>(
+		fn evaluate(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			let pmn = self.second.evaluate::<P>(pab);
-			self.first.evaluate::<P>(pmn)
+			let pmn = self.second.evaluate(pab);
+			self.first.evaluate(pmn)
 		}
 	}
 
@@ -207,7 +212,7 @@ mod inner {
 	/// While PureScript uses the `Semigroupoid` operator (`<<<`) for composition because
 	/// its optics are functions, this library uses a specialized `Composed` struct.
 	/// This is necessary because Rust represents the polymorphic profunctor constraint
-	/// as a trait method (`Optic::evaluate<P>`), and the `Composed` struct enables
+	/// as a parameterized trait (`Optic<'a, P, ...>`), and the `Composed` struct enables
 	/// static dispatch and zero-cost composition through monomorphization.
 	#[document_signature]
 	///
@@ -266,7 +271,7 @@ mod inner {
 	/// // Composed optics are evaluated through a profunctor instance (e.g., RcFnBrand).
 	/// // This lifts a function on the focus (A -> B) to a function on the structure (S -> T).
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
-	/// let modifier = user_street.evaluate::<RcFnBrand>(f);
+	/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&user_street, f);
 	/// let updated = modifier(user);
 	///
 	/// assert_eq!(updated.address.street, "HIGH ST");
@@ -274,10 +279,7 @@ mod inner {
 	pub fn optics_compose<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>(
 		first: O1,
 		second: O2,
-	) -> Composed<'a, S, T, M, N, A, B, O1, O2>
-	where
-		O1: Optic<'a, S, T, M, N>,
-		O2: Optic<'a, M, N, A, B>, {
+	) -> Composed<'a, S, T, M, N, A, B, O1, O2> {
 		Composed::new(first, second)
 	}
 
@@ -396,6 +398,7 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The profunctor type.",
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -403,8 +406,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S, T, A, B> Optic<'a, S, T, A, B> for Lens<'a, P, S, T, A, B>
+	impl<'a, Q, P, S, T, A, B> Optic<'a, Q, S, T, A, B> for Lens<'a, P, S, T, A, B>
 	where
+		Q: Strong,
 		P: UnsizedCoercible,
 		S: 'a + Clone,
 		T: 'a,
@@ -412,9 +416,8 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<Q: Strong + Choice>(
+		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
@@ -588,21 +591,22 @@ mod inner {
 	// Note: This implements monomorphic update (S -> S, A -> A)
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The profunctor type.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, P, S, A> Optic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+	impl<'a, Q, P, S, A> Optic<'a, Q, S, S, A, A> for LensPrime<'a, P, S, A>
 	where
+		Q: Strong,
 		P: UnsizedCoercible,
 		S: 'a + Clone,
 		A: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		fn evaluate<Q: Strong + Choice>(
+		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
