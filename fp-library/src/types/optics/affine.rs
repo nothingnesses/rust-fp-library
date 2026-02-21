@@ -229,11 +229,11 @@ impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for AffineTraversal<'a, P,
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		Optic::<ForgetBrand<R>, S, S, A, A>::evaluate(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<ForgetBrand<Q, R>, S, S, A, A>::evaluate(self, pab)
 	}
 }
 
@@ -498,11 +498,11 @@ impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for AffineTraversalPrime<'
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		Optic::<ForgetBrand<R>, S, S, A, A>::evaluate(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<ForgetBrand<Q, R>, S, S, A, A>::evaluate(self, pab)
 	}
 }
 

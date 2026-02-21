@@ -179,11 +179,11 @@ where
 	S: 'a,
 	A: 'a,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		TraversalOptic::evaluate::<ForgetBrand<R>>(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		TraversalOptic::evaluate::<ForgetBrand<Q, R>>(self, pab)
 	}
 }
 

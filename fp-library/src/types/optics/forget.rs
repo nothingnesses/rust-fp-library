@@ -1,14 +1,17 @@
 //! The `Forget` profunctor, used for folds and getters.
 //!
-//! `Forget<R, A, B>` wraps a function `A -> R`, ignoring the `B` parameter.
+//! `Forget<P, R, A, B>` wraps a function `A -> R`, ignoring the `B` parameter.
 
 use {
 	crate::{
 		Apply,
+		brands::FnBrand,
 		classes::{
 			Choice,
+			CloneableFn,
 			Profunctor,
 			Strong,
+			UnsizedCoercible,
 			monoid::Monoid,
 			wander::Wander,
 		},
@@ -21,58 +24,70 @@ use {
 
 /// The `Forget` profunctor.
 ///
-/// `Forget<R, A, B>` is a profunctor that ignores its second type argument `B`
+/// `Forget<P, R, A, B>` is a profunctor that ignores its second type argument `B`
 /// and instead stores a function from `A` to `R`.
 #[document_type_parameters(
 	"The lifetime of the values.",
+	"The pointer brand.",
 	"The return type of the function.",
 	"The input type of the function.",
 	"The ignored type."
 )]
-pub struct Forget<'a, R, A, B>(pub Box<dyn Fn(A) -> R + 'a>, PhantomData<B>);
+pub struct Forget<'a, P, R, A, B>(
+	pub Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, R>),
+	PhantomData<B>,
+)
+where
+	P: UnsizedCoercible,
+	R: 'a,
+	A: 'a;
 
-impl<'a, R, A, B> Forget<'a, R, A, B> {
+impl<'a, P, R, A, B> Forget<'a, P, R, A, B>
+where
+	P: UnsizedCoercible,
+	R: 'a,
+	A: 'a,
+{
 	/// Creates a new `Forget` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::optics::Forget;
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::Forget,
+	/// };
 	///
-	/// let forget = Forget::<i32, String, i32>::new(|s: String| s.len() as i32);
+	/// let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
+	/// // Access via the underlying function wrapper, which implements Deref
 	/// assert_eq!((forget.0)("hello".to_string()), 5);
 	/// ```
 	pub fn new(f: impl Fn(A) -> R + 'a) -> Self {
-		Forget(Box::new(f), PhantomData)
+		Forget(<FnBrand<P> as CloneableFn>::new(f), PhantomData)
 	}
 }
 
-impl<'a, R, A, B> Clone for Forget<'a, R, A, B>
+impl<'a, P, R, A, B> Clone for Forget<'a, P, R, A, B>
 where
+	P: UnsizedCoercible,
 	R: 'a,
 	A: 'a,
 {
 	fn clone(&self) -> Self {
-		// This is tricky because Box<dyn Fn> is not Clone.
-		// In a real implementation, we'd use Rc or similar.
-		// Since this is for optics, and optics are often evaluated immediately,
-		// we might need to change this to use a pointer brand like FnBrand.
-		panic!(
-			"Forget cannot be cloned directly. Use a pointer-wrapped version if cloning is needed."
-		)
+		Forget(self.0.clone(), PhantomData)
 	}
 }
 
 /// Brand for the `Forget` profunctor.
-pub struct ForgetBrand<R>(PhantomData<R>);
+pub struct ForgetBrand<P, R>(PhantomData<(P, R)>);
 
 impl_kind! {
-	impl<R: 'static> for ForgetBrand<R> {
-		type Of<'a, A: 'a, B: 'a>: 'a = Forget<'a, R, A, B>;
+	impl<P: UnsizedCoercible + 'static, R: 'static> for ForgetBrand<P, R> {
+		type Of<'a, A: 'a, B: 'a>: 'a = Forget<'a, P, R, A, B>;
 	}
 }
 
-impl<R: 'static> Profunctor for ForgetBrand<R> {
+impl<P: UnsizedCoercible + 'static, R: 'static> Profunctor for ForgetBrand<P, R> {
 	fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 		ab: FuncAB,
 		_cd: FuncCD,
@@ -85,7 +100,7 @@ impl<R: 'static> Profunctor for ForgetBrand<R> {
 	}
 }
 
-impl<R: 'static> Strong for ForgetBrand<R> {
+impl<P: UnsizedCoercible + 'static, R: 'static> Strong for ForgetBrand<P, R> {
 	fn first<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
@@ -93,7 +108,7 @@ impl<R: 'static> Strong for ForgetBrand<R> {
 	}
 }
 
-impl<R: 'static + Monoid> Wander for ForgetBrand<R> {
+impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Wander for ForgetBrand<P, R> {
 	fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
 		traversal: TFunc,
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
@@ -112,7 +127,7 @@ impl<R: 'static + Monoid> Wander for ForgetBrand<R> {
 	}
 }
 
-impl<R: 'static + Monoid> Choice for ForgetBrand<R> {
+impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Choice for ForgetBrand<P, R> {
 	fn left<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)

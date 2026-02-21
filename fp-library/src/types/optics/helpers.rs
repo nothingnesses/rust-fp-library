@@ -39,6 +39,7 @@ use {
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
+	"The pointer brand for the function.",
 	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
@@ -56,17 +57,18 @@ use {
 ///
 /// let l: LensPrime<RcBrand, (i32, String), i32> =
 /// 	LensPrime::new(|(x, _)| x, |(_, x)| (x, "".to_string()));
-/// assert_eq!(optics_view(&l, (42, "hello".to_string())), 42);
+/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
 /// ```
-pub fn optics_view<'a, O, S, A>(
+pub fn optics_view<'a, P, O, S, A>(
 	optic: &O,
 	s: S,
 ) -> A
 where
+	P: UnsizedCoercible + 'static,
 	O: GetterOptic<'a, S, A>,
 	S: 'a,
 	A: 'a + 'static, {
-	(optic.evaluate(Forget::new(|a| a)).0)(s)
+	(optic.evaluate::<A, P>(Forget::new(|a| a)).0)(s)
 }
 
 /// Set the focus of a lens-like optic.
@@ -170,6 +172,7 @@ where
 ///
 #[document_type_parameters(
 	"The lifetime of the values.",
+	"The pointer brand for the function.",
 	"The optic type.",
 	"The type of the structure.",
 	"The type of the focus."
@@ -187,14 +190,15 @@ where
 ///
 /// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 /// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-/// assert_eq!(optics_preview(&ok_prism, Ok(42)), Some(42));
-/// assert_eq!(optics_preview(&ok_prism, Err("error".to_string())), None);
+/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
+/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
 /// ```
-pub fn optics_preview<'a, O, S, A>(
+pub fn optics_preview<'a, P, O, S, A>(
 	optic: &O,
 	s: S,
 ) -> Option<A>
 where
+	P: UnsizedCoercible + 'static,
 	O: FoldOptic<'a, S, A>,
 	S: 'a,
 	A: 'a + 'static, {
@@ -215,7 +219,7 @@ where
 	}
 
 	let forget = Forget::new(|a| First(Some(a)));
-	let result_forget = optic.evaluate::<First<A>>(forget);
+	let result_forget = optic.evaluate::<First<A>, P>(forget);
 	(result_forget.0)(s).0
 }
 

@@ -104,7 +104,6 @@ where
 
 	/// Preview the focus of the prism in a structure.
 	#[document_signature]
-	///
 	#[document_parameters("The structure to preview.")]
 	///
 	/// ### Examples
@@ -241,11 +240,11 @@ impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for Prism<'a, P, S, S, A, A>
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		PrismOptic::evaluate::<ForgetBrand<R>>(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<ForgetBrand<Q, R>>(self, pab)
 	}
 }
 
@@ -536,11 +535,11 @@ impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, P, S, A
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		PrismOptic::evaluate::<ForgetBrand<R>>(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		PrismOptic::evaluate::<ForgetBrand<Q, R>>(self, pab)
 	}
 }
 

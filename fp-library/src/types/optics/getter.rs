@@ -97,9 +97,10 @@ where
 	}
 }
 
-impl<'a, P, S, T, A, B, R> Optic<'a, ForgetBrand<R>, S, T, A, B> for Getter<'a, P, S, T, A, B>
+impl<'a, P, S, T, A, B, R, Q> Optic<'a, ForgetBrand<Q, R>, S, T, A, B> for Getter<'a, P, S, T, A, B>
 where
 	P: UnsizedCoercible,
+	Q: UnsizedCoercible + 'static,
 	S: 'a,
 	T: 'a,
 	A: 'a,
@@ -108,11 +109,11 @@ where
 {
 	fn evaluate(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
 		let view_fn = self.view_fn.clone();
 		use crate::classes::Profunctor;
-		ForgetBrand::<R>::dimap(
+		ForgetBrand::<Q, R>::dimap(
 			move |s: S| view_fn(s),
 			|_b: B| unreachable!("Forget ignores the second function"),
 			pab,
@@ -180,20 +181,21 @@ where
 	}
 }
 
-impl<'a, P, S, A, R> Optic<'a, ForgetBrand<R>, S, S, A, A> for GetterPrime<'a, P, S, A>
+impl<'a, P, S, A, R, Q> Optic<'a, ForgetBrand<Q, R>, S, S, A, A> for GetterPrime<'a, P, S, A>
 where
 	P: UnsizedCoercible,
+	Q: UnsizedCoercible + 'static,
 	S: 'a,
 	A: 'a,
 	R: 'a + 'static,
 {
 	fn evaluate(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
 		let view_fn = self.view_fn.clone();
 		use crate::classes::Profunctor;
-		ForgetBrand::<R>::dimap(
+		ForgetBrand::<Q, R>::dimap(
 			move |s: S| view_fn(s),
 			|_a: A| unreachable!("Forget ignores the second function"),
 			pab,
@@ -205,11 +207,11 @@ impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for GetterPrime<'a, P, S, A>
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + 'static>(
+	fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
-		Optic::<ForgetBrand<R>, S, S, A, A>::evaluate(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<ForgetBrand<Q, R>, S, S, A, A>::evaluate(self, pab)
 	}
 }
 
@@ -217,10 +219,10 @@ impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for GetterPrime<'a, P, S, A>
 where
 	P: UnsizedCoercible,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
-		Optic::<ForgetBrand<R>, S, S, A, A>::evaluate(self, pab)
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+		Optic::<ForgetBrand<Q, R>, S, S, A, A>::evaluate(self, pab)
 	}
 }

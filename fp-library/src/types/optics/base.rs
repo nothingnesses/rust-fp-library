@@ -108,19 +108,19 @@ pub trait TraversalOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
 /// A getter optic.
 pub trait GetterOptic<'a, S: 'a, A: 'a> {
 	/// Evaluate the optic with the forget profunctor.
-	fn evaluate<R: 'a + 'static>(
+	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// A fold optic.
 pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	/// Evaluate the optic with the forget profunctor for any monoid.
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// A setter optic.
@@ -318,12 +318,12 @@ where
 	M: 'a,
 	A: 'a,
 {
-	fn evaluate<R: 'a + 'static>(
+	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		let pmn = GetterOptic::evaluate::<R>(&self.second, pab);
-		GetterOptic::evaluate::<R>(&self.first, pmn)
+		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let pmn = GetterOptic::evaluate::<R, P>(&self.second, pab);
+		GetterOptic::evaluate::<R, P>(&self.first, pmn)
 	}
 }
 
@@ -334,12 +334,12 @@ where
 	M: 'a,
 	A: 'a,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		let pmn = FoldOptic::evaluate::<R>(&self.second, pab);
-		FoldOptic::evaluate::<R>(&self.first, pmn)
+		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+		let pmn = FoldOptic::evaluate::<R, P>(&self.second, pab);
+		FoldOptic::evaluate::<R, P>(&self.first, pmn)
 	}
 }
 

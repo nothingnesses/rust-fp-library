@@ -101,12 +101,12 @@ where
 	A: 'a,
 	B: 'a,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
 		let to_vec = self.to_vec_fn.clone();
-		super::forget::Forget::new(move |s: S| {
+		super::forget::Forget::<Q, R, S, S>::new(move |s: S| {
 			let mut result = R::empty();
 			for a in to_vec(s) {
 				result = R::append(result, (pab.0)(a));
@@ -182,12 +182,12 @@ where
 	S: 'a,
 	A: 'a,
 {
-	fn evaluate<R: 'a + Monoid + 'static>(
+	fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
+		pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>) {
 		let to_vec = self.to_vec_fn.clone();
-		super::forget::Forget::new(move |s: S| {
+		super::forget::Forget::<Q, R, S, S>::new(move |s: S| {
 			let mut result = R::empty();
 			for a in to_vec(s) {
 				result = R::append(result, (pab.0)(a));
