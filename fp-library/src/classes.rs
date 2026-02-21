@@ -26,6 +26,7 @@ pub mod bifunctor;
 pub mod category;
 pub mod choice;
 pub mod cloneable_fn;
+pub mod closed;
 pub mod compactable;
 pub mod contravariant;
 pub mod deferrable;
@@ -55,6 +56,7 @@ pub mod send_unsized_coercible;
 pub mod strong;
 pub mod traversable;
 pub mod unsized_coercible;
+pub mod wander;
 pub mod witherable;
 
 // Automatically re-export all traits defined in submodules.

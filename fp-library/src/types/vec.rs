@@ -1463,27 +1463,27 @@ mod tests {
 	/// Tests `compact` on an empty vector.
 	#[test]
 	fn compact_empty() {
-		assert_eq!(compact::<VecBrand, _>(vec![] as Vec<Option<i32>>), vec![]);
+		assert_eq!(compact::<VecBrand, i32>(vec![] as Vec<Option<i32>>), vec![] as Vec<i32>);
 	}
 
 	/// Tests `compact` on a vector with `None`.
 	#[test]
 	fn compact_with_none() {
-		assert_eq!(compact::<VecBrand, _>(vec![Some(1), None, Some(2)]), vec![1, 2]);
+		assert_eq!(compact::<VecBrand, i32>(vec![Some(1), None, Some(2)]), vec![1, 2]);
 	}
 
 	/// Tests `separate` on an empty vector.
 	#[test]
 	fn separate_empty() {
-		let (errs, oks) = separate::<VecBrand, _, _>(vec![] as Vec<Result<i32, i32>>);
-		assert_eq!(oks, vec![]);
-		assert_eq!(errs, vec![]);
+		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![] as Vec<Result<i32, i32>>);
+		assert_eq!(oks, vec![] as Vec<i32>);
+		assert_eq!(errs, vec![] as Vec<i32>);
 	}
 
 	/// Tests `separate` on a vector with `Ok` and `Err`.
 	#[test]
 	fn separate_mixed() {
-		let (errs, oks) = separate::<VecBrand, _, _>(vec![Ok(1), Err(2), Ok(3)]);
+		let (errs, oks) = separate::<VecBrand, i32, i32>(vec![Ok(1), Err(2), Ok(3)]);
 		assert_eq!(oks, vec![1, 3]);
 		assert_eq!(errs, vec![2]);
 	}
@@ -1491,29 +1491,33 @@ mod tests {
 	/// Tests `partition_map` on an empty vector.
 	#[test]
 	fn partition_map_empty() {
-		let (errs, oks) = partition_map::<VecBrand, _, _, _, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
-		assert_eq!(oks, vec![]);
-		assert_eq!(errs, vec![]);
+		let (errs, oks) =
+			partition_map::<VecBrand, i32, i32, i32, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+		assert_eq!(oks, vec![] as Vec<i32>);
+		assert_eq!(errs, vec![] as Vec<i32>);
 	}
 
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|x: i32| x > 0, vec![]);
-		assert_eq!(satisfied, vec![]);
-		assert_eq!(not_satisfied, vec![]);
+		let (not_satisfied, satisfied) = partition::<VecBrand, i32, _>(|x: i32| x > 0, vec![]);
+		assert_eq!(satisfied, vec![] as Vec<i32>);
+		assert_eq!(not_satisfied, vec![] as Vec<i32>);
 	}
 
 	/// Tests `filter_map` on an empty vector.
 	#[test]
 	fn filter_map_empty() {
-		assert_eq!(filter_map::<VecBrand, _, _, _>(|x: i32| Some(x), vec![]), vec![]);
+		assert_eq!(
+			filter_map::<VecBrand, i32, i32, _>(|x: i32| Some(x), vec![]),
+			vec![] as Vec<i32>
+		);
 	}
 
 	/// Tests `filter` on an empty vector.
 	#[test]
 	fn filter_empty() {
-		assert_eq!(filter::<VecBrand, _, _>(|x: i32| x > 0, vec![]), vec![]);
+		assert_eq!(filter::<VecBrand, i32, _>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
 	}
 
 	/// Tests `wilt` on an empty vector.

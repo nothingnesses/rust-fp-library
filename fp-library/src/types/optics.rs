@@ -81,16 +81,42 @@
 
 mod affine;
 mod base;
+mod exchange;
+mod fold;
+mod forget;
+mod getter;
+mod grate;
+mod grating;
 mod helpers;
 mod iso;
 mod lens;
+mod market;
 mod prism;
+mod review;
+mod setter;
+mod shop;
+mod stall;
+mod tagged;
+mod traversal;
 
 pub use {
 	affine::*,
 	base::*,
+	exchange::*,
+	fold::*,
+	forget::*,
+	getter::*,
+	grate::*,
+	grating::*,
 	helpers::*,
 	iso::*,
 	lens::*,
+	market::*,
 	prism::*,
+	review::*,
+	setter::*,
+	shop::*,
+	stall::*,
+	tagged::*,
+	traversal::*,
 };

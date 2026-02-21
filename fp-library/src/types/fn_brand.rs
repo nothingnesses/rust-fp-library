@@ -19,6 +19,7 @@ mod inner {
 				Category,
 				Choice,
 				CloneableFn,
+				Closed,
 				Function,
 				Profunctor,
 				RefCountedPointer,
@@ -27,6 +28,7 @@ mod inner {
 				SendUnsizedCoercible,
 				Strong,
 				UnsizedCoercible,
+				wander::Wander,
 			},
 			impl_kind,
 			kinds::*,
@@ -329,6 +331,116 @@ mod inner {
 					Err(a) => Err(pab(a)),
 					Ok(c) => Ok(c),
 				}
+			})
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> Closed for FnBrand<P> {
+		/// Lift a profunctor to operate on functions.
+		///
+		/// This method takes a function `A -> B` and returns `(X -> A) -> (X -> B)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The input type of the functions.",
+			"The source type of the profunctor.",
+			"The target type of the profunctor."
+		)]
+		///
+		#[document_parameters("The function instance to lift.")]
+		///
+		/// ### Returns
+		///
+		/// A new function that operates on functions.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Closed,
+		/// };
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Closed>::closed::<String, i32, i32>(f);
+		/// let h = Box::new(|s: String| s.len() as i32) as Box<dyn Fn(String) -> i32>;
+		/// let result = g(h);
+		/// assert_eq!(result("hi".to_string()), 3);
+		/// ```
+		fn closed<'a, X: 'a, A: 'a, B: 'a>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>)
+		{
+			P::coerce_fn(move |f: Box<dyn Fn(X) -> A + 'a>| -> Box<dyn Fn(X) -> B + 'a> {
+				let pab = pab.clone();
+				Box::new(move |x| pab(f(x)))
+			})
+		}
+	}
+
+	#[document_type_parameters("The reference-counted pointer type.")]
+	impl<P: UnsizedCoercible> Wander for FnBrand<P> {
+		/// Lift a profunctor to operate on a traversable structure.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The source type of the structure.",
+			"The target type of the structure.",
+			"The source type of the focus.",
+			"The target type of the focus.",
+			"The type of the traversal function."
+		)]
+		///
+		#[document_parameters("The traversal function.", "The profunctor instance.")]
+		///
+		/// ### Returns
+		///
+		/// A new function that operates on the structure.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Applicative,
+		/// 		wander::{
+		/// 			TraversalFunc,
+		/// 			Wander,
+		/// 		},
+		/// 	},
+		/// 	kinds::*,
+		/// };
+		///
+		/// struct ListTraversal;
+		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// 	fn apply<M: Applicative>(
+		/// 		&self,
+		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		_s: Vec<A>,
+		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		/// 		unreachable!()
+		/// 	}
+		/// }
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let _g = <RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, f);
+		/// ```
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+			traversal: TFunc,
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
+		where
+			TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a, {
+			P::coerce_fn(move |s| {
+				let pab = pab.clone();
+				traversal
+					.apply::<crate::brands::OptionBrand>(Box::new(move |a| Some(pab(a))), s)
+					.unwrap()
 			})
 		}
 	}
