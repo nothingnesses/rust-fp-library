@@ -22,7 +22,11 @@
 
 use {
 	super::cloneable_fn::CloneableFn,
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 	std::ops::Deref,
 };
 
@@ -136,7 +140,6 @@ pub fn new<'a, Brand, A, B>(
 	f: impl 'a + Fn(A) -> B + Send + Sync
 ) -> <Brand as SendCloneableFn>::SendOf<'a, A, B>
 where
-	Brand: SendCloneableFn,
-{
+	Brand: SendCloneableFn, {
 	<Brand as SendCloneableFn>::send_cloneable_fn_new(f)
 }

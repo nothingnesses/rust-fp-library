@@ -19,7 +19,10 @@
 //! assert_eq!(y, Some(10));
 //! ```
 
-use {crate::classes::RefCountedPointer, std::marker::PhantomData};
+use {
+	crate::classes::RefCountedPointer,
+	std::marker::PhantomData,
+};
 
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

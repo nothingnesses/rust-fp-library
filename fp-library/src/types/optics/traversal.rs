@@ -9,11 +9,25 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{UnsizedCoercible, Wander, monoid::Monoid, wander::TraversalFunc},
+			classes::{
+				UnsizedCoercible,
+				Wander,
+				monoid::Monoid,
+				wander::TraversalFunc,
+			},
 			kinds::*,
-			types::optics::{FoldOptic, Optic, SetterOptic, TraversalOptic, ForgetBrand},
+			types::optics::{
+				FoldOptic,
+				ForgetBrand,
+				Optic,
+				SetterOptic,
+				TraversalOptic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -36,8 +50,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// The traversal function.
 		///
 		/// In PureScript this is `(forall f. Applicative f => (a -> f b) -> s -> f t)`.
@@ -78,21 +91,101 @@ mod inner {
 		/// 	types::optics::Traversal,
 		/// };
 		///
+		/// #[derive(Clone)]
 		/// struct ListTraversal;
-		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		_s: Vec<A>,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		unreachable!()
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
 		/// 	}
 		/// }
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+		/// assert_eq!(traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]), Some(vec![2, 3]));
 		/// ```
 		pub fn new(traversal: F) -> Self {
-			Traversal { traversal, _phantom: PhantomData }
+			Traversal {
+				traversal,
+				_phantom: PhantomData,
+			}
+		}
+	}
+
+	/// A monomorphic traversal.
+	///
+	/// Matches PureScript's `Traversal' s a`.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus.",
+		"The type of the traversal function."
+	)]
+	pub struct TraversalPrime<'a, P, S, A, F>
+	where
+		P: UnsizedCoercible,
+		F: TraversalFunc<'a, S, S, A, A> + 'a,
+		S: 'a,
+		A: 'a, {
+		/// The traversal function.
+		pub traversal: F,
+		pub(crate) _phantom: PhantomData<(&'a (S, A), P)>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus.",
+		"The type of the traversal function."
+	)]
+	impl<'a, P, S, A, F> TraversalPrime<'a, P, S, A, F>
+	where
+		P: UnsizedCoercible,
+		F: TraversalFunc<'a, S, S, A, A> + 'a,
+	{
+		/// Creates a new `TraversalPrime` instance.
+		#[document_signature]
+		///
+		#[document_parameters("The traversal function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Applicative,
+		/// 		wander::TraversalFunc,
+		/// 	},
+		/// 	kinds::*,
+		/// 	types::optics::TraversalPrime,
+		/// };
+		///
+		/// #[derive(Clone)]
+		/// struct ListTraversal;
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// 	fn apply<M: Applicative>(
+		/// 		&self,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
+		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
+		/// 	}
+		/// }
+		///
+		/// let traversal = TraversalPrime::<'_, RcBrand, Vec<i32>, i32, _>::new(ListTraversal);
+		/// assert_eq!(traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]), Some(vec![2, 3]));
+		/// ```
+		pub fn new(traversal: F) -> Self {
+			TraversalPrime {
+				traversal,
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -140,27 +233,23 @@ mod inner {
 		/// 	},
 		/// };
 		///
+		/// #[derive(Clone)]
 		/// struct ListTraversal;
-		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		_s: Vec<A>,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		unreachable!()
-		/// 	}
-		/// }
-		///
-		/// impl Clone for ListTraversal {
-		/// 	fn clone(&self) -> Self {
-		/// 		ListTraversal
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
 		/// 	}
 		/// }
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let _result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
 		/// 	Optic::<'_, RcFnBrand, _, _, _, _>::evaluate(&traversal, f);
+		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
 		/// ```
 		fn evaluate(
 			&self,
@@ -206,32 +295,28 @@ mod inner {
 		/// 	},
 		/// 	kinds::*,
 		/// 	types::optics::{
-		/// 		TraversalOptic,
 		/// 		Traversal,
+		/// 		TraversalOptic,
 		/// 	},
 		/// };
 		///
+		/// #[derive(Clone)]
 		/// struct ListTraversal;
-		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		_s: Vec<A>,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		unreachable!()
-		/// 	}
-		/// }
-		///
-		/// impl Clone for ListTraversal {
-		/// 	fn clone(&self) -> Self {
-		/// 		ListTraversal
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
 		/// 	}
 		/// }
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let _result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
 		/// 	TraversalOptic::evaluate(&traversal, f);
+		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
 		/// ```
 		fn evaluate<Q: Wander>(
 			&self,
@@ -281,26 +366,22 @@ mod inner {
 		/// 	},
 		/// };
 		///
+		/// #[derive(Clone)]
 		/// struct ListTraversal;
-		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		_s: Vec<A>,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		unreachable!()
-		/// 	}
-		/// }
-		///
-		/// impl Clone for ListTraversal {
-		/// 	fn clone(&self) -> Self {
-		/// 		ListTraversal
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
 		/// 	}
 		/// }
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-		/// let _result = FoldOptic::evaluate(&traversal, f);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+		/// let result = FoldOptic::evaluate(&traversal, f);
+		/// assert_eq!(result.run(vec![1, 2]), "12".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
@@ -353,26 +434,22 @@ mod inner {
 		/// 	},
 		/// };
 		///
+		/// #[derive(Clone)]
 		/// struct ListTraversal;
-		/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 		/// 	fn apply<M: Applicative>(
 		/// 		&self,
-		/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		_s: Vec<A>,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
 		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		unreachable!()
-		/// 	}
-		/// }
-		///
-		/// impl Clone for ListTraversal {
-		/// 	fn clone(&self) -> Self {
-		/// 		ListTraversal
+		/// 		fp_library::classes::Traversable::traverse::<A, A, M, _>(|a| f(a), s)
 		/// 	}
 		/// }
 		///
 		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let _result = SetterOptic::evaluate(&traversal, f);
+		/// let result = SetterOptic::evaluate(&traversal, f);
+		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
 		/// ```
 		fn evaluate(
 			&self,

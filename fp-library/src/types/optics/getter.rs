@@ -8,11 +8,23 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, UnsizedCoercible, monoid::Monoid},
+			classes::{
+				CloneableFn,
+				UnsizedCoercible,
+				monoid::Monoid,
+			},
 			kinds::*,
-			types::optics::{FoldOptic, GetterOptic, Optic, ForgetBrand},
+			types::optics::{
+				FoldOptic,
+				ForgetBrand,
+				GetterOptic,
+				Optic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -33,8 +45,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Function to view the focus of the getter in a structure.
 		pub view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) _phantom: PhantomData<&'a (T, B)>,
@@ -71,7 +82,10 @@ mod inner {
 		/// let cloned = g.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			Getter { view_fn: self.view_fn.clone(), _phantom: PhantomData }
+			Getter {
+				view_fn: self.view_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -108,7 +122,10 @@ mod inner {
 		/// let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
-			Getter { view_fn: <FnBrand<P> as CloneableFn>::new(view), _phantom: PhantomData }
+			Getter {
+				view_fn: <FnBrand<P> as CloneableFn>::new(view),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// View the focus of the getter in a structure.
@@ -201,8 +218,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		/// Function to view the focus of the getter in a structure.
 		pub view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -235,7 +251,10 @@ mod inner {
 		/// let cloned = g.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			GetterPrime { view_fn: self.view_fn.clone(), _phantom: PhantomData }
+			GetterPrime {
+				view_fn: self.view_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -268,7 +287,10 @@ mod inner {
 		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
-			GetterPrime { view_fn: <FnBrand<P> as CloneableFn>::new(view), _phantom: PhantomData }
+			GetterPrime {
+				view_fn: <FnBrand<P> as CloneableFn>::new(view),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// View the focus of the getter in a structure.

@@ -230,10 +230,16 @@
 
 use {
 	crate::{
-		analysis::{format_brand_name, get_type_parameters},
+		analysis::{
+			format_brand_name,
+			get_type_parameters,
+		},
 		core::{
 			config::Config,
-			constants::{macros, types},
+			constants::{
+				macros,
+				types,
+			},
 			error_handling::ErrorCollector,
 		},
 		hkt::ApplyInput,
@@ -242,9 +248,15 @@ use {
 	quote::quote,
 	std::collections::HashMap,
 	syn::{
-		Error, GenericParam, Signature, parse_quote,
+		Error,
+		GenericParam,
+		Signature,
+		parse_quote,
 		spanned::Spanned,
-		visit_mut::{self, VisitMut},
+		visit_mut::{
+			self,
+			VisitMut,
+		},
 	},
 };
 
@@ -274,9 +286,8 @@ pub fn get_self_type_info(
 	impl_generics: &syn::Generics,
 ) -> (Option<String>, Vec<String>) {
 	let base_name = match self_ty {
-		syn::Type::Path(type_path) => {
-			type_path.path.segments.last().map(|seg| seg.ident.to_string())
-		}
+		syn::Type::Path(type_path) =>
+			type_path.path.segments.last().map(|seg| seg.ident.to_string()),
 		_ => None,
 	};
 
@@ -663,7 +674,9 @@ pub fn type_uses_self_assoc(ty: &syn::Type) -> bool {
 			syn::visit::visit_type_path(self, i);
 		}
 	}
-	let mut visitor = SelfAssocVisitor { found: false };
+	let mut visitor = SelfAssocVisitor {
+		found: false,
+	};
 	syn::visit::visit_type(&mut visitor, ty);
 	visitor.found
 }
@@ -746,7 +759,10 @@ pub(crate) fn substitute_generics(
 		}
 	}
 
-	let mut visitor = SubstitutionVisitor { mapping: &mapping, const_mapping: &const_mapping };
+	let mut visitor = SubstitutionVisitor {
+		mapping: &mapping,
+		const_mapping: &const_mapping,
+	};
 	visitor.visit_type_mut(&mut ty);
 	ty
 }
@@ -802,7 +818,9 @@ pub fn normalize_type(
 		}
 	}
 
-	let mut visitor = NormalizationVisitor { mapping: &mapping };
+	let mut visitor = NormalizationVisitor {
+		mapping: &mapping,
+	};
 	visitor.visit_type_mut(&mut ty);
 	ty
 }

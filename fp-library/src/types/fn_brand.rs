@@ -16,8 +16,18 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Category, Choice, CloneableFn, Closed, Function, Profunctor, RefCountedPointer,
-				Semigroupoid, SendCloneableFn, SendUnsizedCoercible, Strong, UnsizedCoercible,
+				Category,
+				Choice,
+				CloneableFn,
+				Closed,
+				Function,
+				Profunctor,
+				RefCountedPointer,
+				Semigroupoid,
+				SendCloneableFn,
+				SendUnsizedCoercible,
+				Strong,
+				UnsizedCoercible,
 				wander::Wander,
 			},
 			impl_kind,
@@ -233,8 +243,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 		where
 			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a,
-		{
+			FuncCD: Fn(C) -> D + 'a, {
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
 	}
@@ -360,7 +369,7 @@ mod inner {
 		/// let result = g(h);
 		/// assert_eq!(result("hi".to_string()), 3);
 		/// ```
-		fn closed<'a, X: 'a, A: 'a, B: 'a>(
+		fn closed<'a, X: 'a + Clone, A: 'a, B: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>)
 		{
@@ -426,8 +435,7 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		where
-			TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a,
-		{
+			TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a, {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
 				traversal
@@ -482,7 +490,11 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{category::Category, cloneable_fn::CloneableFn, semigroupoid::Semigroupoid},
+			classes::{
+				category::Category,
+				cloneable_fn::CloneableFn,
+				semigroupoid::Semigroupoid,
+			},
 		},
 		quickcheck_macros::quickcheck,
 	};

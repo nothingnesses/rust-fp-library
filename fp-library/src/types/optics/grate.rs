@@ -9,11 +9,22 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, Closed, UnsizedCoercible},
+			classes::{
+				CloneableFn,
+				Closed,
+				UnsizedCoercible,
+			},
 			kinds::*,
-			types::optics::{GrateOptic, Optic, SetterOptic},
+			types::optics::{
+				GrateOptic,
+				Optic,
+				SetterOptic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -34,10 +45,13 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Grating function.
-		pub grate: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>, T>),
+		pub grate: <FnBrand<P> as CloneableFn>::Of<
+			'a,
+			<FnBrand<P> as CloneableFn>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, S, A>, B>,
+			T,
+		>,
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -67,17 +81,28 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::CloneableFn,
 		/// 	types::optics::Grate,
 		/// };
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// 	// f is now wrapped in RcFnBrand, so we need to call it.
+		/// 	// f: Rc<dyn Fn(Rc<dyn Fn(S) -> A>) -> B>
+		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|(x, _)| x);
+		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|(_, y)| y);
+		/// 	(f(get_x), f(get_y))
 		/// });
 		/// ```
 		pub fn new(
-			grate: impl Fn(Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>) -> T + 'a
+			grate: impl Fn(
+				<FnBrand<P> as CloneableFn>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, S, A>, B>,
+			) -> T
+			+ 'a
 		) -> Self {
-			Grate { grate: <FnBrand<P> as CloneableFn>::new(grate), _phantom: PhantomData }
+			Grate {
+				grate: <FnBrand<P> as CloneableFn>::new(grate),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -117,8 +142,10 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f: Box<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
+		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|(x, _)| x);
+		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|(_, y)| y);
+		/// 	(f(get_x), f(get_y))
 		/// });
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = Optic::<'_, RcFnBrand, _, _, _, _>::evaluate(&grate, f);
@@ -133,10 +160,15 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_inner = s.clone();
-					Box::new(move |f: Box<dyn Fn(S) -> A + 'a>| f(s_inner.clone()))
-						as Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> A + 'a>
+					Box::new(move |f: <FnBrand<P> as CloneableFn>::Of<'a, S, A>| -> A {
+						// f is FnBrand<P>::Of<S, A>.
+						(f)(s_inner.clone())
+					}) as Box<dyn Fn(<FnBrand<P> as CloneableFn>::Of<'a, S, A>) -> A + 'a>
 				},
-				move |f| grate(f),
+				move |f: Box<dyn Fn(<FnBrand<P> as CloneableFn>::Of<'a, S, A>) -> B + 'a>| {
+					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					grate(f_brand)
+				},
 				Q::closed(pab),
 			)
 		}
@@ -248,9 +280,12 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
-		pub(crate) grate_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> A + 'a>, S>),
+		A: 'a, {
+		pub(crate) grate_fn: <FnBrand<P> as CloneableFn>::Of<
+			'a,
+			<FnBrand<P> as CloneableFn>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, S, A>, A>,
+			S,
+		>,
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -277,13 +312,16 @@ mod inner {
 		/// 	types::optics::GratePrime,
 		/// };
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Box<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
+		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
 		/// });
 		/// let cloned = grate.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			GratePrime { grate_fn: self.grate_fn.clone(), _phantom: PhantomData }
+			GratePrime {
+				grate_fn: self.grate_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -312,14 +350,20 @@ mod inner {
 		/// 	types::optics::GratePrime,
 		/// };
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Box<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
+		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
 		/// });
 		/// ```
 		pub fn new(
-			grate: impl Fn(Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> A + 'a>) -> S + 'a
+			grate: impl Fn(
+				<FnBrand<P> as CloneableFn>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, S, A>, A>,
+			) -> S
+			+ 'a
 		) -> Self {
-			GratePrime { grate_fn: <FnBrand<P> as CloneableFn>::new(grate), _phantom: PhantomData }
+			GratePrime {
+				grate_fn: <FnBrand<P> as CloneableFn>::new(grate),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -355,8 +399,8 @@ mod inner {
 		/// 	},
 		/// };
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Box<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
+		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
 		/// });
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = Optic::<'_, RcFnBrand, _, _, _, _>::evaluate(&grate, f);
@@ -371,10 +415,14 @@ mod inner {
 			Q::dimap(
 				move |s: S| {
 					let s_inner = s.clone();
-					Box::new(move |f: Box<dyn Fn(S) -> A + 'a>| f(s_inner.clone()))
-						as Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> A + 'a>
+					Box::new(move |f: <FnBrand<P> as CloneableFn>::Of<'a, S, A>| {
+						(f)(s_inner.clone())
+					}) as Box<dyn Fn(<FnBrand<P> as CloneableFn>::Of<'a, S, A>) -> A + 'a>
 				},
-				move |f| grate(f),
+				move |f: Box<dyn Fn(<FnBrand<P> as CloneableFn>::Of<'a, S, A>) -> A + 'a>| {
+					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					grate(f_brand)
+				},
 				Q::closed(pab),
 			)
 		}
@@ -404,13 +452,13 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::Closed,
 		/// 	types::optics::{
-		/// 		GratePrime,
 		/// 		GrateOptic,
+		/// 		GratePrime,
 		/// 	},
 		/// };
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(f(Box::new(|(x, _)| x)), f(Box::new(|(_, y)| y)))
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Box<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
+		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
 		/// });
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let g = GrateOptic::evaluate::<RcFnBrand>(&grate, f);

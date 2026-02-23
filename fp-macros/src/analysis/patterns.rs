@@ -6,11 +6,20 @@
 
 use {
 	crate::{
-		analysis::traits::{TraitCategory, classify_trait},
-		core::{config::Config, constants::macros},
+		analysis::traits::{
+			TraitCategory,
+			classify_trait,
+		},
+		core::{
+			config::Config,
+			constants::macros,
+		},
 		hkt::ApplyInput,
 	},
-	syn::{GenericArgument, PathArguments},
+	syn::{
+		GenericArgument,
+		PathArguments,
+	},
 };
 
 // ============================================================================
@@ -56,7 +65,10 @@ pub fn get_fn_brand_info(
 
 				if !type_args.is_empty() {
 					let output = type_args.pop()?;
-					return Some(FnBrandInfo { inputs: type_args, output });
+					return Some(FnBrandInfo {
+						inputs: type_args,
+						output,
+					});
 				}
 			}
 		}

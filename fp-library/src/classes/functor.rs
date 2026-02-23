@@ -14,8 +14,15 @@
 //! ```
 
 use {
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for types that can be mapped over.
@@ -121,7 +128,6 @@ pub fn map<'a, Brand: Functor, A: 'a, B: 'a, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	Func: Fn(A) -> B + 'a,
-{
+	Func: Fn(A) -> B + 'a, {
 	Brand::map::<A, B, Func>(f, fa)
 }

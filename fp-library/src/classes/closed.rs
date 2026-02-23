@@ -4,8 +4,16 @@
 //! This is the profunctor constraint that characterizes grates.
 
 use {
-	crate::{Apply, classes::profunctor::Profunctor, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		classes::profunctor::Profunctor,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for closed profunctors.
@@ -49,7 +57,7 @@ pub trait Closed: Profunctor {
 	/// let result = g(h);
 	/// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 	/// ```
-	fn closed<'a, X: 'a, A: 'a, B: 'a>(
+	fn closed<'a, X: 'a + Clone, A: 'a, B: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>);
 }
@@ -88,7 +96,7 @@ pub trait Closed: Profunctor {
 /// let result = g(h);
 /// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 /// ```
-pub fn closed<'a, Brand: Closed, X: 'a, A: 'a, B: 'a>(
+pub fn closed<'a, Brand: Closed, X: 'a + Clone, A: 'a, B: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>)
 {

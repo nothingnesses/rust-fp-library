@@ -14,7 +14,11 @@
 
 use {
 	super::function::Function,
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 	std::ops::Deref,
 };
 
@@ -33,7 +37,7 @@ pub trait CloneableFn: Function {
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
 	/// that implements `Clone` and dereferences to the underlying closure.
-	type Of<'a, A: 'a, B: 'a>: Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
+	type Of<'a, A: 'a, B: 'a>: 'a + Clone + Deref<Target = dyn 'a + Fn(A) -> B>;
 
 	/// Creates a new cloneable function wrapper.
 	///
@@ -95,7 +99,6 @@ pub trait CloneableFn: Function {
 /// ```
 pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as CloneableFn>::Of<'a, A, B>
 where
-	Brand: CloneableFn,
-{
+	Brand: CloneableFn, {
 	<Brand as CloneableFn>::new(f)
 }

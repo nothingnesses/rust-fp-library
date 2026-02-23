@@ -21,8 +21,16 @@
 //! ```
 
 use {
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters, impl_kind},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+		impl_kind,
+	},
 };
 
 /// A type class for profunctors.
@@ -143,8 +151,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 		pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 	where
-		FuncAB: Fn(A) -> B + 'a,
-	{
+		FuncAB: Fn(A) -> B + 'a, {
 		Self::dimap(ab, crate::functions::identity, pbc)
 	}
 
@@ -190,8 +197,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 	where
-		FuncBC: Fn(B) -> C + 'a,
-	{
+		FuncBC: Fn(B) -> C + 'a, {
 		Self::dimap(crate::functions::identity, bc, pab)
 	}
 }
@@ -245,8 +251,7 @@ pub fn dimap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 where
 	FuncAB: Fn(A) -> B + 'a,
-	FuncCD: Fn(C) -> D + 'a,
-{
+	FuncCD: Fn(C) -> D + 'a, {
 	Brand::dimap(ab, cd, pbc)
 }
 
@@ -293,8 +298,7 @@ pub fn lmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncAB>(
 	pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 where
-	FuncAB: Fn(A) -> B + 'a,
-{
+	FuncAB: Fn(A) -> B + 'a, {
 	Brand::lmap(ab, pbc)
 }
 
@@ -338,13 +342,15 @@ pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncBC>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
 where
-	FuncBC: Fn(B) -> C + 'a,
-{
+	FuncBC: Fn(B) -> C + 'a, {
 	Brand::rmap(bc, pab)
 }
 
 use {
-	crate::classes::{Contravariant, Functor},
+	crate::classes::{
+		Contravariant,
+		Functor,
+	},
 	core::marker::PhantomData,
 };
 
@@ -383,8 +389,7 @@ impl<Brand: Profunctor, A: 'static> Functor for ProfunctorFixedFirst<Brand, A> {
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		Func: Fn(B) -> C + 'a,
-	{
+		Func: Fn(B) -> C + 'a, {
 		Brand::rmap(f, fa)
 	}
 }
@@ -425,8 +430,7 @@ impl<Brand: Profunctor, B: 'static> Contravariant for ProfunctorFixedSecond<Bran
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		Func: Fn(C) -> A + 'a,
-	{
+		Func: Fn(C) -> A + 'a, {
 		Brand::lmap(f, fa)
 	}
 }

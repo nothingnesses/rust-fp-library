@@ -7,16 +7,36 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Choice, CloneableFn, Profunctor, Strong, UnsizedCoercible, closed::Closed,
-				monoid::Monoid, wander::Wander,
+				Choice,
+				CloneableFn,
+				Profunctor,
+				Strong,
+				UnsizedCoercible,
+				closed::Closed,
+				monoid::Monoid,
+				wander::Wander,
 			},
 			kinds::*,
 			types::optics::{
-				FoldOptic, GetterOptic, GrateOptic, IsoOptic, LensOptic, Optic, PrismOptic,
-				SetterOptic, TraversalOptic, ReviewOptic, TaggedBrand, ForgetBrand, Tagged
+				FoldOptic,
+				ForgetBrand,
+				GetterOptic,
+				GrateOptic,
+				IsoOptic,
+				LensOptic,
+				Optic,
+				PrismOptic,
+				ReviewOptic,
+				SetterOptic,
+				Tagged,
+				TaggedBrand,
+				TraversalOptic,
 			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -39,8 +59,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Forward conversion: from structure to focus.
 		pub from: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		/// Backward conversion: from focus to structure.
@@ -440,10 +459,7 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The monoid type.",
-			"The reference-counted pointer type."
-		)]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
@@ -456,14 +472,14 @@ mod inner {
 		/// };
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&iso, f);
-		/// assert_eq!(folded.run((42,)), 42);
+		/// assert_eq!(folded.run((42,)), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-			) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			IsoOptic::evaluate::<ForgetBrand<Q, R>>(self, pab)
 		}
@@ -562,8 +578,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		pub(crate) from_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) to_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -963,10 +978,7 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The monoid type.",
-			"The reference-counted pointer type."
-		)]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
@@ -979,9 +991,9 @@ mod inner {
 		/// };
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&iso, f);
-		/// assert_eq!(folded.run((42,)), 42);
+		/// assert_eq!(folded.run((42,)), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,

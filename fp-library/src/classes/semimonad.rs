@@ -14,8 +14,15 @@
 //! ```
 
 use {
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -104,7 +111,6 @@ pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, Func>(
 	f: Func,
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-{
+	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 	Brand::bind::<A, B, Func>(ma, f)
 }

@@ -7,11 +7,18 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{CloneableFn, Closed, Profunctor},
+			classes::{
+				CloneableFn,
+				Closed,
+				Profunctor,
+			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -26,8 +33,11 @@ mod inner {
 	)]
 	pub struct Grating<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Grating function.
-		pub run:
-			<FnBrand as CloneableFn>::Of<'a, Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>, T>,
+		pub run: <FnBrand as CloneableFn>::Of<
+			'a,
+			<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, S, A>, B>,
+			T,
+		>,
 		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
@@ -49,23 +59,31 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
+		/// 	brands::*,
+		/// 	functions::*,
 		/// 	types::optics::Grating,
 		/// };
 		///
-		/// let grating = Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(|f| {
-		/// 	f(Box::new(|(x, _)| x)) + f(Box::new(|(_, y)| y))
-		/// }));
+		/// let grating =
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 		|f| {
+		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			f(get_x) + f(get_y)
+		/// 		},
+		/// 	));
 		/// ```
 		pub fn new(
 			run: <FnBrand as CloneableFn>::Of<
 				'a,
-				Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>,
+				<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, S, A>, B>,
 				T,
 			>
 		) -> Self {
-			Grating { run, _phantom: PhantomData }
+			Grating {
+				run,
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -129,19 +147,24 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
 		where
 			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a,
-		{
+			FuncUV: Fn(U) -> V + 'a, {
 			let run = puv.run;
 			let st = <FnBrand as CloneableFn>::new(st);
 			let uv = <FnBrand as CloneableFn>::new(uv);
 			Grating::<FnBrand, A, B, S, V>::new(<FnBrand as CloneableFn>::new(
-				move |f: Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>| {
+				move |f: <FnBrand as CloneableFn>::Of<
+					'a,
+					<FnBrand as CloneableFn>::Of<'a, S, A>,
+					B,
+				>| {
 					let st = st.clone();
 					let uv = uv.clone();
-					(*uv)((*run)(Box::new(move |g| {
-						let st = st.clone();
-						f(Box::new(move |s| g((*st)(s))))
-					})))
+					(*uv)((*run)(<FnBrand as CloneableFn>::new(
+						move |g: <FnBrand as CloneableFn>::Of<'a, T, A>| {
+							let st = st.clone();
+							f(<FnBrand as CloneableFn>::new(move |s| g((*st)(s))))
+						},
+					)))
 				},
 			))
 		}
@@ -172,21 +195,59 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	functions::*,
 		/// 	classes::*,
 		/// 	types::optics::*,
 		/// };
 		///
-		/// // Grating::closed is currently unimplemented
+		/// let grating =
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 		|f| {
+		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			f(get_x) + f(get_y)
+		/// 		},
+		/// 	));
+		///
+		/// let closed_grating =
+		/// 	<GratingBrand<RcFnBrand, i32, i32> as Closed>::closed::<String, (i32, i32), i32>(grating);
+		///
+		/// let run_closed = closed_grating.run;
+		/// let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter| {
+		/// 	// getter: (String -> (i32, i32)) -> i32
+		/// 	// We provide a function that produces a pair from a string
+		/// 	getter(cloneable_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
+		/// }));
+		///
+		/// assert_eq!(result_fn("hello".to_string()), 5 + 10);
 		/// ```
-		fn closed<'a, X: 'a, S: 'a, T: 'a>(
-			_pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
+		fn closed<'a, X: 'a + Clone, S: 'a, T: 'a>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> S + 'a>, Box<dyn Fn(X) -> T + 'a>>)
 		{
-			// This is currently unimplemented because the profunctor encoding of Grate
-			// requires cloning the input X to support structure reconstruction,
-			// which cannot be expressed within the current trait constraints.
-			panic!(
-				"Grating::closed is not yet implemented for all X. Please use concrete Grate types instead."
+			let run = pab.run;
+			Grating::<FnBrand, A, B, Box<dyn Fn(X) -> S + 'a>, Box<dyn Fn(X) -> T + 'a>>::new(
+				<FnBrand as CloneableFn>::new(
+					move |g: <FnBrand as CloneableFn>::Of<
+						'a,
+						<FnBrand as CloneableFn>::Of<'a, Box<dyn Fn(X) -> S + 'a>, A>,
+						B,
+					>| {
+						let run = run.clone();
+						Box::new(move |x: X| {
+							let g = g.clone();
+							let x = x.clone();
+							(*run)(<FnBrand as CloneableFn>::new(
+								move |h: <FnBrand as CloneableFn>::Of<'a, S, A>| {
+									let x = x.clone();
+									g(<FnBrand as CloneableFn>::new(
+										move |k: Box<dyn Fn(X) -> S + 'a>| h(k(x.clone())),
+									))
+								},
+							))
+						}) as Box<dyn Fn(X) -> T + 'a>
+					},
+				),
 			)
 		}
 	}

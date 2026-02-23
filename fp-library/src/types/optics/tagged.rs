@@ -7,11 +7,17 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{Choice, Profunctor},
+			classes::{
+				Choice,
+				Profunctor,
+			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -91,11 +97,7 @@ mod inner {
 		/// };
 		///
 		/// let tagged: Tagged<String, usize> = Tagged::new(123);
-		/// let transformed = Profunctor::dimap(
-		/// 	|s: &str| s.to_string(),
-		/// 	|n: usize| n.to_string(),
-		/// 	tagged
-		/// );
+		/// let transformed = Profunctor::dimap(|s: &str| s.to_string(), |n: usize| n.to_string(), tagged);
 		/// ```
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			_ab: FuncAB,
@@ -104,8 +106,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
 		where
 			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a,
-		{
+			FuncCD: Fn(C) -> D + 'a, {
 			Tagged::new(cd(pbc.0))
 		}
 	}

@@ -7,16 +7,42 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::{TryThunkBrand, TryThunkWithErrBrand, TryThunkWithOkBrand},
+			brands::{
+				TryThunkBrand,
+				TryThunkWithErrBrand,
+				TryThunkWithOkBrand,
+			},
 			classes::{
-				ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Deferrable, Foldable, Functor,
-				Lift, MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
+				ApplyFirst,
+				ApplySecond,
+				Bifunctor,
+				CloneableFn,
+				Deferrable,
+				Foldable,
+				Functor,
+				Lift,
+				MonadRec,
+				Monoid,
+				Pointed,
+				Semiapplicative,
+				Semigroup,
+				Semimonad,
 			},
 			impl_kind,
 			kinds::*,
-			types::{Lazy, LazyConfig, Step, Thunk, TryLazy},
+			types::{
+				Lazy,
+				LazyConfig,
+				Step,
+				Thunk,
+				TryLazy,
+			},
 		},
-		fp_macros::{document_fields, document_parameters, document_type_parameters},
+		fp_macros::{
+			document_fields,
+			document_parameters,
+			document_type_parameters,
+		},
 	};
 
 	/// A deferred computation that may fail with error type `E`.
@@ -79,8 +105,7 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'a,
-		{
+			F: FnOnce() -> Result<A, E> + 'a, {
 			TryThunk(Box::new(f))
 		}
 
@@ -103,8 +128,7 @@ mod inner {
 		/// ```
 		pub fn pure(a: A) -> Self
 		where
-			A: 'a,
-		{
+			A: 'a, {
 			TryThunk::new(move || Ok(a))
 		}
 
@@ -129,8 +153,7 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> TryThunk<'a, A, E> + 'a,
-		{
+			F: FnOnce() -> TryThunk<'a, A, E> + 'a, {
 			TryThunk::new(move || f().evaluate())
 		}
 
@@ -155,8 +178,7 @@ mod inner {
 		/// ```
 		pub fn ok(a: A) -> Self
 		where
-			A: 'a,
-		{
+			A: 'a, {
 			Self::pure(a)
 		}
 
@@ -179,8 +201,7 @@ mod inner {
 		/// ```
 		pub fn err(e: E) -> Self
 		where
-			E: 'a,
-		{
+			E: 'a, {
 			TryThunk::new(move || Err(e))
 		}
 
@@ -211,8 +232,7 @@ mod inner {
 			f: F,
 		) -> TryThunk<'a, B, E>
 		where
-			F: FnOnce(A) -> TryThunk<'a, B, E> + 'a,
-		{
+			F: FnOnce(A) -> TryThunk<'a, B, E> + 'a, {
 			TryThunk::new(move || match (self.0)() {
 				Ok(a) => (f(a).0)(),
 				Err(e) => Err(e),
@@ -246,8 +266,7 @@ mod inner {
 			func: Func,
 		) -> TryThunk<'a, B, E>
 		where
-			Func: FnOnce(A) -> B + 'a,
-		{
+			Func: FnOnce(A) -> B + 'a, {
 			TryThunk::new(move || (self.0)().map(func))
 		}
 
@@ -278,8 +297,7 @@ mod inner {
 			f: F,
 		) -> TryThunk<'a, A, E2>
 		where
-			F: FnOnce(E) -> E2 + 'a,
-		{
+			F: FnOnce(E) -> E2 + 'a, {
 			TryThunk::new(move || (self.0)().map_err(f))
 		}
 
@@ -307,8 +325,7 @@ mod inner {
 			f: F,
 		) -> Self
 		where
-			F: FnOnce(E) -> TryThunk<'a, A, E> + 'a,
-		{
+			F: FnOnce(E) -> TryThunk<'a, A, E> + 'a, {
 			TryThunk::new(move || match (self.0)() {
 				Ok(a) => Ok(a),
 				Err(e) => (f(e).0)(),
@@ -423,8 +440,7 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
-			Self: Sized,
-		{
+			Self: Sized, {
 			TryThunk::defer(f)
 		}
 	}
@@ -475,8 +491,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a,
-		{
+			Func: Fn(A) -> B + 'a, {
 			fa.map(func)
 		}
 	}
@@ -560,8 +575,7 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			fa.bind(move |a| fb.map(move |b| func(a, b)))
 		}
 	}
@@ -662,8 +676,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 			ma.bind(func)
 		}
 	}
@@ -713,8 +726,7 @@ mod inner {
 		where
 			F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 				+ Clone
-				+ 'a,
-		{
+				+ 'a, {
 			TryThunk::new(move || {
 				let mut current = a;
 				loop {
@@ -772,8 +784,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a, initial),
 				Err(_) => initial,
@@ -822,8 +833,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(initial, a),
 				Err(_) => initial,
@@ -868,8 +878,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -1015,8 +1024,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
 		where
 			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a,
-		{
+			G: Fn(C) -> D + 'a, {
 			TryThunk::new(move || match p.evaluate() {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
@@ -1067,8 +1075,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>)
 		where
-			Func: Fn(E) -> E2 + 'a,
-		{
+			Func: Fn(E) -> E2 + 'a, {
 			fa.map_err(func)
 		}
 	}
@@ -1152,8 +1159,7 @@ mod inner {
 			Func: Fn(E1, E2) -> E3 + 'a,
 			E1: Clone + 'a,
 			E2: Clone + 'a,
-			E3: 'a,
-		{
+			E3: 'a, {
 			TryThunk::new(move || match (fa.evaluate(), fb.evaluate()) {
 				(Err(e1), Err(e2)) => Err(func(e1, e2)),
 				(Ok(a), _) => Ok(a),
@@ -1257,8 +1263,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>)
 		where
-			Func: Fn(E1) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) + 'a,
-		{
+			Func: Fn(E1) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E2>) + 'a, {
 			TryThunk::new(move || match ma.evaluate() {
 				Ok(a) => Ok(a),
 				Err(e) => func(e).evaluate(),
@@ -1310,8 +1315,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(E, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e, initial),
 				Ok(_) => initial,
@@ -1360,8 +1364,7 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, E) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(initial, e),
 				Ok(_) => initial,
@@ -1406,8 +1409,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(E) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa.evaluate() {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
@@ -1419,7 +1421,10 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use {super::*, crate::types::Thunk};
+	use {
+		super::*,
+		crate::types::Thunk,
+	};
 
 	/// Tests success path.
 	///
@@ -1550,7 +1555,10 @@ mod tests {
 	/// Tests `TryThunkWithErrBrand` (Functor over Success).
 	#[test]
 	fn test_try_thunk_with_err_brand() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		// Functor (map over success)
 		let try_thunk: TryThunk<i32, ()> = TryThunk::pure(10);
@@ -1581,7 +1589,10 @@ mod tests {
 	/// Tests `Bifunctor` for `TryThunkBrand`.
 	#[test]
 	fn test_bifunctor() {
-		use crate::{brands::*, classes::bifunctor::*};
+		use crate::{
+			brands::*,
+			classes::bifunctor::*,
+		};
 
 		let x: TryThunk<i32, i32> = TryThunk::pure(5);
 		assert_eq!(
@@ -1599,7 +1610,10 @@ mod tests {
 	/// Tests `TryThunkWithOkBrand` (Functor over Error).
 	#[test]
 	fn test_try_thunk_with_ok_brand() {
-		use crate::{brands::*, functions::*};
+		use crate::{
+			brands::*,
+			functions::*,
+		};
 
 		// Functor (map over error)
 		let try_thunk: TryThunk<i32, i32> = TryThunk::err(10);

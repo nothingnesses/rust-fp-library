@@ -14,8 +14,16 @@
 //! ```
 
 use {
-	crate::{Apply, brands::OptionBrand, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	crate::{
+		Apply,
+		brands::OptionBrand,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for data structures that can be compacted and separated.

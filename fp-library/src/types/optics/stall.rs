@@ -7,11 +7,19 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{Choice, CloneableFn, Profunctor, Strong},
+			classes::{
+				Choice,
+				CloneableFn,
+				Profunctor,
+				Strong,
+			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -57,7 +65,7 @@ mod inner {
 		///
 		/// let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
 		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1))
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
 		/// );
 		/// assert_eq!((stall.get)((10, 20)), Ok(10));
 		/// assert_eq!((stall.set)(((10, 20), 30)), (30, 20));
@@ -66,7 +74,11 @@ mod inner {
 			get: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 			set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
 		) -> Self {
-			Stall { get, set, _phantom: PhantomData }
+			Stall {
+				get,
+				set,
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -130,8 +142,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
 		where
 			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a,
-		{
+			FuncUV: Fn(U) -> V + 'a, {
 			let get = puv.get;
 			let set = puv.set;
 			let st = <FnBrand as CloneableFn>::new(st);

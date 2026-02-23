@@ -7,15 +7,31 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Function, Profunctor, UnsizedCoercible, monoid::Monoid, semigroup::Semigroup,
+				Function,
+				Profunctor,
+				UnsizedCoercible,
+				monoid::Monoid,
+				semigroup::Semigroup,
 			},
 			kinds::*,
 			types::optics::{
-				FoldOptic, GetterOptic, Optic, ReviewOptic, SetterOptic, IsoOptic,
-				Forget, Tagged, Exchange, ExchangeBrand
+				Exchange,
+				ExchangeBrand,
+				FoldOptic,
+				Forget,
+				GetterOptic,
+				IsoOptic,
+				Optic,
+				ReviewOptic,
+				SetterOptic,
+				Tagged,
 			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_signature,
+			document_type_parameters,
+		},
 	};
 
 	/// View the focus of a lens-like optic.
@@ -57,8 +73,7 @@ mod inner {
 		P: UnsizedCoercible + 'static,
 		O: GetterOptic<'a, S, A>,
 		S: 'a,
-		A: 'a + 'static,
-	{
+		A: 'a + 'static, {
 		(optic.evaluate::<A, P>(Forget::new(|a| a)).0)(s)
 	}
 
@@ -105,8 +120,7 @@ mod inner {
 		Q: UnsizedCoercible,
 		O: SetterOptic<'a, Q, S, S, A, A>,
 		S: 'a,
-		A: 'a + Clone,
-	{
+		A: 'a + Clone, {
 		let f = <FnBrand<Q> as Function>::new(move |_| a.clone());
 		(optic.evaluate(f))(s)
 	}
@@ -160,8 +174,7 @@ mod inner {
 		O: SetterOptic<'a, Q, S, S, A, A>,
 		S: 'a,
 		A: 'a,
-		F: Fn(A) -> A + 'a,
-	{
+		F: Fn(A) -> A + 'a, {
 		let f = <FnBrand<Q> as Function>::new(f);
 		(optic.evaluate(f))(s)
 	}
@@ -206,8 +219,7 @@ mod inner {
 		P: UnsizedCoercible + 'static,
 		O: FoldOptic<'a, S, A>,
 		S: 'a,
-		A: 'a + 'static,
-	{
+		A: 'a + 'static, {
 		#[derive(Clone)]
 		struct First<A>(Option<A>);
 		impl<A> Semigroup for First<A> {
@@ -266,8 +278,7 @@ mod inner {
 	where
 		O: ReviewOptic<'a, S, S, A, A>,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		(optic.evaluate(Tagged::new(a))).0
 	}
 
@@ -307,8 +318,7 @@ mod inner {
 	where
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
-		A: 'a + 'static,
-	{
+		A: 'a + 'static, {
 		let exchange = Exchange::new(|a| a, |a| a);
 		(optic.evaluate::<ExchangeBrand<A, A>>(exchange).get)(s)
 	}
@@ -349,8 +359,7 @@ mod inner {
 	where
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
-		A: 'a + 'static,
-	{
+		A: 'a + 'static, {
 		let exchange = Exchange::new(|a| a, |a| a);
 		(optic.evaluate::<ExchangeBrand<A, A>>(exchange).set)(a)
 	}
@@ -399,8 +408,7 @@ mod inner {
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
 	where
 		P: Profunctor,
-		O: Optic<'a, P, S, T, A, B>,
-	{
+		O: Optic<'a, P, S, T, A, B>, {
 		optic.evaluate(pab)
 	}
 }

@@ -8,11 +8,22 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, UnsizedCoercible, monoid::Monoid},
+			classes::{
+				CloneableFn,
+				UnsizedCoercible,
+				monoid::Monoid,
+			},
 			kinds::*,
-			types::optics::{FoldOptic, ForgetBrand, Forget},
+			types::optics::{
+				FoldOptic,
+				Forget,
+				ForgetBrand,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -33,8 +44,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Function that collects all focuses of the fold in a structure.
 		pub to_vec_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Vec<A>>),
 		pub(crate) _phantom: PhantomData<&'a (T, B)>,
@@ -71,7 +81,10 @@ mod inner {
 		/// let cloned = f.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			Fold { to_vec_fn: self.to_vec_fn.clone(), _phantom: PhantomData }
+			Fold {
+				to_vec_fn: self.to_vec_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -108,7 +121,10 @@ mod inner {
 		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
 		/// ```
 		pub fn new(to_vec: impl 'a + Fn(S) -> Vec<A>) -> Self {
-			Fold { to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec), _phantom: PhantomData }
+			Fold {
+				to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// Collect all the focuses of the fold in a structure.
@@ -202,8 +218,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		/// Function that collects all focuses of the fold in a structure.
 		pub to_vec_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Vec<A>>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -236,7 +251,10 @@ mod inner {
 		/// let cloned = f.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			FoldPrime { to_vec_fn: self.to_vec_fn.clone(), _phantom: PhantomData }
+			FoldPrime {
+				to_vec_fn: self.to_vec_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -269,7 +287,10 @@ mod inner {
 		/// let f: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
 		/// ```
 		pub fn new(to_vec: impl 'a + Fn(S) -> Vec<A>) -> Self {
-			FoldPrime { to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec), _phantom: PhantomData }
+			FoldPrime {
+				to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// Collect all the focuses of the fold in a structure.

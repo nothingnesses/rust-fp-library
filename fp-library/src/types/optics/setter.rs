@@ -8,11 +8,21 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, Function, UnsizedCoercible},
+			classes::{
+				CloneableFn,
+				Function,
+				UnsizedCoercible,
+			},
 			kinds::*,
-			types::optics::{Optic, SetterOptic},
+			types::optics::{
+				Optic,
+				SetterOptic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -33,8 +43,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Function to update the focus in a structure.
 		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> B + 'a>), T>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -68,11 +77,14 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let cloned = s.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			Setter { over_fn: self.over_fn.clone(), _phantom: PhantomData }
+			Setter {
+				over_fn: self.over_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -107,10 +119,13 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
-			Setter { over_fn: <FnBrand<P> as CloneableFn>::new(over), _phantom: PhantomData }
+			Setter {
+				over_fn: <FnBrand<P> as CloneableFn>::new(over),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// Update the focus of the setter in a structure using a function.
@@ -127,7 +142,7 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
 		pub fn over(
@@ -171,7 +186,7 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
@@ -221,7 +236,7 @@ mod inner {
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Setter::new(|(s, f)| (f(s.0), s.1));
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = SetterOptic::evaluate(&s, f);
@@ -248,8 +263,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		/// Function to update the focus in a structure.
 		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> A + 'a>), S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -278,12 +292,14 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let cloned = s.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			SetterPrime { over_fn: self.over_fn.clone(), _phantom: PhantomData }
+			SetterPrime {
+				over_fn: self.over_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -313,11 +329,13 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
-			SetterPrime { over_fn: <FnBrand<P> as CloneableFn>::new(over), _phantom: PhantomData }
+			SetterPrime {
+				over_fn: <FnBrand<P> as CloneableFn>::new(over),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// Update the focus of the setter in a structure using a function.
@@ -333,8 +351,7 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
 		pub fn over(
@@ -373,8 +390,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
@@ -419,8 +435,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = SetterOptic::evaluate(&s, f);

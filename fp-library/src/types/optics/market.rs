@@ -7,11 +7,18 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::{Choice, CloneableFn, Profunctor},
+			classes::{
+				Choice,
+				CloneableFn,
+				Profunctor,
+			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -56,7 +63,9 @@ mod inner {
 		/// };
 		///
 		/// let market = Market::<RcFnBrand, i32, String, String, String>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.parse::<i32>().map_err(|_| "error".to_string())),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
+		/// 		s.parse::<i32>().map_err(|_| "error".to_string())
+		/// 	}),
 		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
 		/// );
 		/// assert_eq!((market.preview)("123".to_string()), Ok(123));
@@ -66,7 +75,11 @@ mod inner {
 			preview: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 			review: <FnBrand as CloneableFn>::Of<'a, B, T>,
 		) -> Self {
-			Market { preview, review, _phantom: PhantomData }
+			Market {
+				preview,
+				review,
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -130,8 +143,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
 		where
 			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a,
-		{
+			FuncUV: Fn(U) -> V + 'a, {
 			let preview = puv.preview;
 			let review = puv.review;
 			let st = <FnBrand as CloneableFn>::new(st);

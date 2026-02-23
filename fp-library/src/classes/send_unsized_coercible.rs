@@ -13,8 +13,15 @@
 //! ```
 
 use {
-	super::{SendRefCountedPointer, UnsizedCoercible},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	super::{
+		SendRefCountedPointer,
+		UnsizedCoercible,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// Extension trait for pointer brands that can coerce to thread-safe `dyn Fn + Send + Sync`.
@@ -85,7 +92,6 @@ pub fn coerce_send_fn<'a, Brand: SendUnsizedCoercible, A: 'a, B: 'a, Func>(
 	func: Func
 ) -> Brand::SendOf<'a, dyn 'a + Fn(A) -> B + Send + Sync>
 where
-	Func: 'a + Fn(A) -> B + Send + Sync,
-{
+	Func: 'a + Fn(A) -> B + Send + Sync, {
 	Brand::coerce_send_fn::<A, B>(func)
 }

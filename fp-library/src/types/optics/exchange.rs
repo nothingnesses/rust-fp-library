@@ -5,8 +5,16 @@
 #[fp_macros::document_module]
 mod inner {
 	use {
-		crate::{Apply, classes::Profunctor, impl_kind, kinds::*},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		crate::{
+			Apply,
+			classes::Profunctor,
+			impl_kind,
+			kinds::*,
+		},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -52,7 +60,11 @@ mod inner {
 			get: impl Fn(S) -> A + 'a,
 			set: impl Fn(B) -> T + 'a,
 		) -> Self {
-			Exchange { get: Box::new(get), set: Box::new(set), _phantom: PhantomData }
+			Exchange {
+				get: Box::new(get),
+				set: Box::new(set),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -106,11 +118,7 @@ mod inner {
 		/// let exchange: Exchange<usize, String, String, usize> =
 		/// 	Exchange::new(|s: String| s.len(), |n: usize| n.to_string());
 		///
-		/// let transformed = Profunctor::dimap(
-		/// 	|s: &str| s.to_string(),
-		/// 	|s: String| s.len(),
-		/// 	exchange
-		/// );
+		/// let transformed = Profunctor::dimap(|s: &str| s.to_string(), |s: String| s.len(), exchange);
 		/// ```
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
@@ -119,8 +127,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
 		where
 			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a,
-		{
+			FuncUV: Fn(U) -> V + 'a, {
 			let get = puv.get;
 			let set = puv.set;
 			Exchange::new(move |s| get(st(s)), move |b| uv(set(b)))

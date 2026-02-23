@@ -16,9 +16,20 @@
 //! ```
 
 use {
-	super::{cloneable_fn::CloneableFn, functor::Functor, lift::Lift},
-	crate::{Apply, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	super::{
+		cloneable_fn::CloneableFn,
+		functor::Functor,
+		lift::Lift,
+	},
+	crate::{
+		Apply,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for applying functions within a context to values within a context.

@@ -17,7 +17,9 @@
 //! ```
 
 use super::{
-	apply_first::ApplyFirst, apply_second::ApplySecond, pointed::Pointed,
+	apply_first::ApplyFirst,
+	apply_second::ApplySecond,
+	pointed::Pointed,
 	semiapplicative::Semiapplicative,
 };
 

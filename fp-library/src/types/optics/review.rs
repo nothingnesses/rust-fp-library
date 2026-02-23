@@ -8,11 +8,22 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, UnsizedCoercible},
+			classes::{
+				CloneableFn,
+				UnsizedCoercible,
+			},
 			kinds::*,
-			types::optics::{Optic, ReviewOptic, TaggedBrand, Tagged},
+			types::optics::{
+				Optic,
+				ReviewOptic,
+				Tagged,
+				TaggedBrand,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -33,8 +44,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Function to construct a structure from a focus value.
 		pub review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
 		pub(crate) _phantom: PhantomData<&'a (S, A)>,
@@ -71,7 +81,10 @@ mod inner {
 		/// let cloned = r.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			Review { review_fn: self.review_fn.clone(), _phantom: PhantomData }
+			Review {
+				review_fn: self.review_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 
@@ -108,7 +121,10 @@ mod inner {
 		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
 		/// ```
 		pub fn new(review: impl 'a + Fn(B) -> T) -> Self {
-			Review { review_fn: <FnBrand<P> as CloneableFn>::new(review), _phantom: PhantomData }
+			Review {
+				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				_phantom: PhantomData,
+			}
 		}
 
 		/// Review a focus value into a structure.
@@ -233,8 +249,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		/// Function to construct a structure from a focus value.
 		pub review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -267,7 +282,10 @@ mod inner {
 		/// let cloned = r.clone();
 		/// ```
 		fn clone(&self) -> Self {
-			ReviewPrime { review_fn: self.review_fn.clone(), _phantom: PhantomData }
+			ReviewPrime {
+				review_fn: self.review_fn.clone(),
+				_phantom: PhantomData,
+			}
 		}
 	}
 

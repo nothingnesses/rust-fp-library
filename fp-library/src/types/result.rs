@@ -7,16 +7,35 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::{ResultBrand, ResultWithErrBrand, ResultWithOkBrand},
+			brands::{
+				ResultBrand,
+				ResultWithErrBrand,
+				ResultWithOkBrand,
+			},
 			classes::{
-				Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor,
-				Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
+				Applicative,
+				ApplyFirst,
+				ApplySecond,
+				Bifunctor,
+				CloneableFn,
+				Foldable,
+				Functor,
+				Lift,
+				Monoid,
+				ParFoldable,
+				Pointed,
+				Semiapplicative,
+				Semimonad,
+				SendCloneableFn,
 				Traversable,
 			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 	};
 
 	impl_kind! {
@@ -88,8 +107,7 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
 		where
 			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a,
-		{
+			G: Fn(C) -> D + 'a, {
 			match p {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
@@ -142,8 +160,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a,
-		{
+			Func: Fn(A) -> B + 'a, {
 			fa.map(func)
 		}
 	}
@@ -207,8 +224,7 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			match (fa, fb) {
 				(Ok(a), Ok(b)) => Ok(func(a, b)),
 				(Err(e), _) => Err(e),
@@ -347,8 +363,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 			ma.and_then(func)
 		}
 	}
@@ -398,8 +413,7 @@ mod inner {
 		) -> B
 		where
 			F: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(a, initial),
 				Err(_) => initial,
@@ -449,8 +463,7 @@ mod inner {
 		) -> B
 		where
 			F: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(initial, a),
 				Err(_) => initial,
@@ -500,8 +513,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			F: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -560,8 +572,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			match ta {
 				Ok(a) => F::map(|b| Ok(b), func(a)),
 				Err(e) => F::pure(Err(e)),
@@ -608,8 +619,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			match ta {
 				Ok(fa) => F::map(|a| Ok(a), fa),
 				Err(e) => F::pure(Err(e)),
@@ -662,8 +672,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a,
-		{
+			Func: Fn(A) -> B + 'a, {
 			match fa {
 				Ok(t) => Ok(t),
 				Err(e) => Err(func(e)),
@@ -730,8 +739,7 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a,
-		{
+			C: 'a, {
 			match (fa, fb) {
 				(Err(a), Err(b)) => Err(func(a, b)),
 				(Ok(t), _) => Ok(t),
@@ -867,8 +875,7 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-		{
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
 			match ma {
 				Ok(t) => Ok(t),
 				Err(e) => func(e),
@@ -921,8 +928,7 @@ mod inner {
 		) -> B
 		where
 			F: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(e, initial),
 				Ok(_) => initial,
@@ -972,8 +978,7 @@ mod inner {
 		) -> B
 		where
 			F: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(initial, e),
 				Ok(_) => initial,
@@ -1023,8 +1028,7 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a,
-		{
+			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
@@ -1083,8 +1087,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			match ta {
 				Err(e) => F::map(|b| Err(b), func(e)),
 				Ok(t) => F::pure(Ok(t)),
@@ -1131,8 +1134,7 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		{
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 			match ta {
 				Err(fe) => F::map(|e| Err(e), fe),
 				Ok(t) => F::pure(Ok(t)),
@@ -1190,8 +1192,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			match fa {
 				Ok(a) => func(a),
 				Err(_) => M::empty(),
@@ -1244,8 +1245,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
-		{
+			B: Send + Sync + 'a, {
 			match fa {
 				Ok(a) => func((a, initial)),
 				Err(_) => initial,
@@ -1303,8 +1303,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a,
-		{
+			M: Monoid + Send + Sync + 'a, {
 			match fa {
 				Err(e) => func(e),
 				Ok(_) => M::empty(),
@@ -1357,8 +1356,7 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a,
-		{
+			B: Send + Sync + 'a, {
 			match fa {
 				Err(e) => func((e, initial)),
 				Ok(_) => initial,
@@ -1373,7 +1371,10 @@ mod tests {
 	use {
 		crate::{
 			brands::*,
-			classes::{CloneableFn, bifunctor::*},
+			classes::{
+				CloneableFn,
+				bifunctor::*,
+			},
 			functions::*,
 		},
 		quickcheck_macros::quickcheck,

@@ -13,7 +13,11 @@
 //! assert_eq!(*memo.evaluate(), 42);
 //! ```
 
-use fp_macros::{document_parameters, document_signature, document_type_parameters};
+use fp_macros::{
+	document_parameters,
+	document_signature,
+	document_type_parameters,
+};
 
 /// A trait for deferred lazy evaluation with thread-safe thunks.
 ///
@@ -80,7 +84,6 @@ pub trait SendDeferrable<'a> {
 pub fn send_defer<'a, D, F>(f: F) -> D
 where
 	D: SendDeferrable<'a>,
-	F: FnOnce() -> D + Send + Sync + 'a,
-{
+	F: FnOnce() -> D + Send + Sync + 'a, {
 	D::send_defer(f)
 }

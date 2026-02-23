@@ -6,11 +6,30 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{Choice, CloneableFn, UnsizedCoercible, monoid::Monoid, wander::Wander},
+			classes::{
+				Choice,
+				CloneableFn,
+				UnsizedCoercible,
+				monoid::Monoid,
+				wander::Wander,
+			},
 			kinds::*,
-			types::optics::{FoldOptic, Optic, PrismOptic, SetterOptic, TraversalOptic, ReviewOptic, TaggedBrand, ForgetBrand, Tagged},
+			types::optics::{
+				FoldOptic,
+				ForgetBrand,
+				Optic,
+				PrismOptic,
+				ReviewOptic,
+				SetterOptic,
+				Tagged,
+				TaggedBrand,
+				TraversalOptic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -33,8 +52,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Preview function: tries to extract the focus, returning the target structure T on failure.
 		pub preview: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, T>>),
 		/// Review function: constructs the structure from a focus value.
@@ -304,9 +322,9 @@ mod inner {
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(folded.run(Some(42)), 42);
+		/// assert_eq!(folded.run(Some(42)), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
@@ -415,8 +433,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Option<A>>),
 		pub(crate) review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -569,8 +586,7 @@ mod inner {
 			f: impl Fn(A) -> A,
 		) -> S
 		where
-			S: Clone,
-		{
+			S: Clone, {
 			match self.preview(s.clone()) {
 				Some(a) => self.review(f(a)),
 				None => s,
@@ -743,9 +759,9 @@ mod inner {
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(folded.run(Ok(42)), 42);
+		/// assert_eq!(folded.run(Ok(42)), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,

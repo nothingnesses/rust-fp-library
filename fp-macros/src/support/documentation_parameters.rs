@@ -1,6 +1,13 @@
 use syn::{
-	Error, Expr, ExprTuple, LitStr, Token,
-	parse::{Parse, ParseStream},
+	Error,
+	Expr,
+	ExprTuple,
+	LitStr,
+	Token,
+	parse::{
+		Parse,
+		ParseStream,
+	},
 	punctuated::Punctuated,
 	spanned::Spanned,
 };
@@ -26,7 +33,9 @@ impl Parse for DocumentationParameter {
 				));
 			}
 			let name = match &tuple.elems[0] {
-				Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) => s.clone(),
+				Expr::Lit(syn::ExprLit {
+					lit: syn::Lit::Str(s), ..
+				}) => s.clone(),
 				_ => {
 					return Err(Error::new(
 						tuple.elems[0].span(),
@@ -35,7 +44,9 @@ impl Parse for DocumentationParameter {
 				}
 			};
 			let desc = match &tuple.elems[1] {
-				Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) => s.clone(),
+				Expr::Lit(syn::ExprLit {
+					lit: syn::Lit::Str(s), ..
+				}) => s.clone(),
 				_ => {
 					return Err(Error::new(
 						tuple.elems[1].span(),
@@ -60,6 +71,8 @@ pub struct DocumentationParameters {
 
 impl Parse for DocumentationParameters {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		Ok(DocumentationParameters { entries: Punctuated::parse_terminated(input)? })
+		Ok(DocumentationParameters {
+			entries: Punctuated::parse_terminated(input)?,
+		})
 	}
 }

@@ -67,12 +67,26 @@ mod inner {
 		crate::{
 			Apply,
 			brands::ThunkBrand,
-			classes::{Deferrable, Evaluable, Functor},
+			classes::{
+				Deferrable,
+				Evaluable,
+				Functor,
+			},
 			kinds::*,
-			types::{CatList, Thunk},
+			types::{
+				CatList,
+				Thunk,
+			},
 		},
-		fp_macros::{document_fields, document_parameters, document_type_parameters},
-		std::{any::Any, marker::PhantomData},
+		fp_macros::{
+			document_fields,
+			document_parameters,
+			document_type_parameters,
+		},
+		std::{
+			any::Any,
+			marker::PhantomData,
+		},
 	};
 
 	/// A type-erased value for internal use.
@@ -101,8 +115,7 @@ mod inner {
 	pub enum FreeInner<F, A>
 	where
 		F: Functor + 'static,
-		A: 'static,
-	{
+		A: 'static, {
 		/// A pure value.
 		///
 		/// This variant represents a computation that has finished and produced a value.
@@ -330,7 +343,11 @@ mod inner {
 				}
 
 				// Bind: snoc the new continuation onto the CatList (O(1)!)
-				FreeInner::Bind { head, continuations: conts, .. } => Free(Some(FreeInner::Bind {
+				FreeInner::Bind {
+					head,
+					continuations: conts,
+					..
+				} => Free(Some(FreeInner::Bind {
 					head,
 					continuations: conts.snoc(erased_f),
 					_marker: PhantomData,
@@ -350,9 +367,15 @@ mod inner {
 					let erased = F::map(|inner: Free<F, A>| inner.erase_type(), fa);
 					Free(Some(FreeInner::Wrap(erased)))
 				}
-				FreeInner::Bind { head, continuations, .. } => {
-					Free(Some(FreeInner::Bind { head, continuations, _marker: PhantomData }))
-				}
+				FreeInner::Bind {
+					head,
+					continuations,
+					..
+				} => Free(Some(FreeInner::Bind {
+					head,
+					continuations,
+					_marker: PhantomData,
+				})),
 			}
 		}
 
@@ -385,8 +408,7 @@ mod inner {
 		/// ```
 		pub fn evaluate(self) -> A
 		where
-			F: Evaluable,
-		{
+			F: Evaluable, {
 			// Start with a type-erased version
 			let mut current: Free<F, TypeErasedValue> = self.erase_type();
 			let mut continuations: CatList<Continuation<F>> = CatList::empty();
@@ -416,7 +438,11 @@ mod inner {
 						current = <F as Evaluable>::evaluate(fa);
 					}
 
-					FreeInner::Bind { head, continuations: inner_continuations, .. } => {
+					FreeInner::Bind {
+						head,
+						continuations: inner_continuations,
+						..
+					} => {
 						// Merge the inner continuations with outer ones
 						// This is where CatList's O(1) append shines!
 						current = *head;
@@ -440,13 +466,19 @@ mod inner {
 			let inner = self.0.take();
 
 			// If the top level is a Bind, we need to start the iterative drop chain.
-			if let Some(FreeInner::Bind { mut head, .. }) = inner {
+			if let Some(FreeInner::Bind {
+				mut head, ..
+			}) = inner
+			{
 				// head is Box<Free<F, TypeEraseValue>>.
 				// We take its inner value to continue the chain.
 				// From now on, everything is typed as FreeInner<F, TypeEraseValue>.
 				let mut current = head.0.take();
 
-				while let Some(FreeInner::Bind { mut head, .. }) = current {
+				while let Some(FreeInner::Bind {
+					mut head, ..
+				}) = current
+				{
 					current = head.0.take();
 				}
 			}
@@ -484,8 +516,7 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,
-			Self: Sized,
-		{
+			Self: Sized, {
 			Self::wrap(Thunk::new(f))
 		}
 	}
@@ -496,7 +527,10 @@ pub use inner::*;
 mod tests {
 	use {
 		super::*,
-		crate::{brands::ThunkBrand, types::thunk::Thunk},
+		crate::{
+			brands::ThunkBrand,
+			types::thunk::Thunk,
+		},
 	};
 
 	/// Tests `Free::pure`.

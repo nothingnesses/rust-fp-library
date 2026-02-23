@@ -8,13 +8,31 @@ use {
 		analysis::traits::format_brand_name,
 		core::{
 			config::Config,
-			constants::{traits, types},
+			constants::{
+				traits,
+				types,
+			},
 		},
-		hm::{HmAst, ast_builder::HmAstBuilder},
-		support::{TypeVisitor, last_path_segment},
+		hm::{
+			HmAst,
+			ast_builder::HmAstBuilder,
+		},
+		support::{
+			TypeVisitor,
+			last_path_segment,
+		},
 	},
-	std::collections::{HashMap, HashSet},
-	syn::{GenericArgument, PathArguments, ReturnType, TraitBound, Type},
+	std::collections::{
+		HashMap,
+		HashSet,
+	},
+	syn::{
+		GenericArgument,
+		PathArguments,
+		ReturnType,
+		TraitBound,
+		Type,
+	},
 };
 
 // ============================================================================
@@ -31,7 +49,11 @@ pub fn type_to_hm(
 	generic_names: &HashSet<String>,
 	config: &Config,
 ) -> HmAst {
-	let mut visitor = HmAstBuilder { fn_bounds, generic_names, config };
+	let mut visitor = HmAstBuilder {
+		fn_bounds,
+		generic_names,
+		config,
+	};
 	visitor.visit(ty)
 }
 

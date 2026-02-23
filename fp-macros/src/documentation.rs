@@ -16,7 +16,9 @@ pub mod generation;
 pub mod templates;
 
 pub use {
-	document_fields::document_fields_worker, document_module::document_module_worker,
-	document_parameters::document_parameters_worker, document_signature::document_signature_worker,
+	document_fields::document_fields_worker,
+	document_module::document_module_worker,
+	document_parameters::document_parameters_worker,
+	document_signature::document_signature_worker,
 	document_type_parameters::document_type_parameters_worker,
 };

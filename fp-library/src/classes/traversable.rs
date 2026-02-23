@@ -14,9 +14,21 @@
 //! ```
 
 use {
-	super::{Applicative, Foldable, Functor},
-	crate::{Apply, functions::identity, kinds::*},
-	fp_macros::{document_parameters, document_signature, document_type_parameters},
+	super::{
+		Applicative,
+		Foldable,
+		Functor,
+	},
+	crate::{
+		Apply,
+		functions::identity,
+		kinds::*,
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
 };
 
 /// A type class for traversable functors.
@@ -69,8 +81,7 @@ pub trait Traversable: Functor + Foldable {
 	where
 		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-	{
+		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 		Self::sequence::<B, F>(Self::map::<
 			A,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -112,8 +123,7 @@ pub trait Traversable: Functor + Foldable {
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 	where
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-	{
+		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 		Self::traverse::<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A, F, _>(
 			identity, ta,
 		)
@@ -162,8 +172,7 @@ pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applica
 where
 	Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-{
+	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 	Brand::traverse::<A, B, F, Func>(func, ta)
 }
 
@@ -202,7 +211,6 @@ pub fn sequence<'a, Brand: Traversable, A: 'a + Clone, F: Applicative>(
 ) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 where
 	Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-{
+	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
 	Brand::sequence::<A, F>(ta)
 }

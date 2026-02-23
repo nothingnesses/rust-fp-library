@@ -1,11 +1,33 @@
 use {
-	criterion::{BatchSize, BenchmarkId, Criterion},
+	criterion::{
+		BatchSize,
+		BenchmarkId,
+		Criterion,
+	},
 	fp_library::{
-		brands::{ArcFnBrand, OptionBrand, RcFnBrand, ResultWithErrBrand, VecBrand},
+		brands::{
+			ArcFnBrand,
+			OptionBrand,
+			RcFnBrand,
+			ResultWithErrBrand,
+			VecBrand,
+		},
 		classes::{
-			compactable::{compact, separate},
-			filterable::{filter, filter_map, partition, partition_map},
-			foldable::{fold_left, fold_map, fold_right},
+			compactable::{
+				compact,
+				separate,
+			},
+			filterable::{
+				filter,
+				filter_map,
+				partition,
+				partition_map,
+			},
+			foldable::{
+				fold_left,
+				fold_map,
+				fold_right,
+			},
 			functor::map,
 			lift::lift2,
 			monoid::empty,
@@ -14,16 +36,25 @@ use {
 			semiapplicative::apply,
 			semigroup::append,
 			semimonad::bind,
-			traversable::{sequence, traverse},
-			witherable::{wilt, wither},
+			traversable::{
+				sequence,
+				traverse,
+			},
+			witherable::{
+				wilt,
+				wither,
+			},
 		},
-		functions::{cloneable_fn_new, send_cloneable_fn_new},
+		functions::{
+			cloneable_fn_new,
+			send_cloneable_fn_new,
+		},
 	},
 };
 
 pub fn bench_vec(c: &mut Criterion) {
 	let size = 1000;
-	let v_orig: Vec<i32> = (0..size).collect();
+	let v_orig: Vec<i32> = (0 .. size).collect();
 
 	// Map
 	{
@@ -110,7 +141,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Traverse (Result)
 	// std: map().collect::<Result<Vec<_>, _>>()
-	let v_res: Vec<Result<i32, i32>> = (0..size).map(|x| Ok(x)).collect();
+	let v_res: Vec<Result<i32, i32>> = (0 .. size).map(|x| Ok(x)).collect();
 	{
 		let mut group = c.benchmark_group("Vec Traverse");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {
@@ -348,7 +379,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Compact
 	let v_nested: Vec<Option<i32>> =
-		(0..size).map(|x| if x % 2 == 0 { Some(x) } else { None }).collect();
+		(0 .. size).map(|x| if x % 2 == 0 { Some(x) } else { None }).collect();
 	{
 		let mut group = c.benchmark_group("Vec Compact");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {
@@ -370,7 +401,7 @@ pub fn bench_vec(c: &mut Criterion) {
 
 	// Separate
 	let v_res_sep: Vec<Result<i32, i32>> =
-		(0..size).map(|x| if x % 2 == 0 { Ok(x) } else { Err(x) }).collect();
+		(0 .. size).map(|x| if x % 2 == 0 { Ok(x) } else { Err(x) }).collect();
 	{
 		let mut group = c.benchmark_group("Vec Separate");
 		group.bench_with_input(BenchmarkId::new("std", size), &size, |b, &_| {

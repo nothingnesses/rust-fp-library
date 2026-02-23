@@ -6,11 +6,28 @@ mod inner {
 		crate::{
 			Apply,
 			brands::FnBrand,
-			classes::{CloneableFn, Strong, UnsizedCoercible, monoid::Monoid, wander::Wander},
+			classes::{
+				CloneableFn,
+				Strong,
+				UnsizedCoercible,
+				monoid::Monoid,
+				wander::Wander,
+			},
 			kinds::*,
-			types::optics::{FoldOptic, GetterOptic, LensOptic, Optic, SetterOptic, TraversalOptic, ForgetBrand},
+			types::optics::{
+				FoldOptic,
+				ForgetBrand,
+				GetterOptic,
+				LensOptic,
+				Optic,
+				SetterOptic,
+				TraversalOptic,
+			},
 		},
-		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		fp_macros::{
+			document_parameters,
+			document_type_parameters,
+		},
 		std::marker::PhantomData,
 	};
 
@@ -32,8 +49,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-	{
+		B: 'a, {
 		/// Getter function.
 		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		/// Setter function.
@@ -320,10 +336,7 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The monoid type.",
-			"The reference-counted pointer type."
-		)]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
@@ -338,9 +351,9 @@ mod inner {
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&l, f);
-		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
@@ -408,8 +421,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
-	{
+		A: 'a, {
 		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, A), S>),
 		pub(crate) _phantom: PhantomData<P>,
@@ -556,8 +568,7 @@ mod inner {
 			f: impl Fn(A) -> A,
 		) -> S
 		where
-			S: Clone,
-		{
+			S: Clone, {
 			let a = self.view(s.clone());
 			self.set(s, f(a))
 		}
@@ -710,10 +721,7 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The monoid type.",
-			"The reference-counted pointer type."
-		)]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
@@ -728,9 +736,9 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&l, f);
-		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
