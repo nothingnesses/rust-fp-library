@@ -239,7 +239,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = IsoOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Profunctor>(
@@ -278,7 +278,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = GrateOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = GrateOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Closed>(
@@ -317,7 +317,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = LensOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Strong>(
@@ -356,7 +356,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = PrismOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = PrismOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Choice>(
@@ -395,7 +395,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = TraversalOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = TraversalOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -514,7 +514,7 @@ mod inner {
 		///
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = SetterOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = SetterOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate(
@@ -803,7 +803,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = GrateOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = GrateOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Closed>(
@@ -840,7 +840,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = LensOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Strong>(
@@ -877,7 +877,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = PrismOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = PrismOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Choice>(
@@ -914,7 +914,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = TraversalOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = TraversalOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -1031,7 +1031,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = SetterOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = SetterOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate(
@@ -1105,7 +1105,7 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = IsoOptic::evaluate(&iso, f);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
 		fn evaluate<Q: Profunctor>(

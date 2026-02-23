@@ -115,10 +115,14 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let exchange: Exchange<usize, String, String, usize> =
+		/// let exchange: Exchange<usize, usize, String, String> =
 		/// 	Exchange::new(|s: String| s.len(), |n: usize| n.to_string());
 		///
-		/// let transformed = Profunctor::dimap(|s: &str| s.to_string(), |s: String| s.len(), exchange);
+		/// let transformed = <ExchangeBrand<usize, usize> as Profunctor>::dimap(
+		/// 	|s: &str| s.to_string(),
+		/// 	|s: String| s.len(),
+		/// 	exchange,
+		/// );
 		/// ```
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,

@@ -66,7 +66,7 @@ mod inner {
 		///
 		/// let grating =
 		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
-		/// 		|f| {
+		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
 		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
 		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
 		/// 			f(get_x) + f(get_y)
@@ -202,7 +202,7 @@ mod inner {
 		///
 		/// let grating =
 		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
-		/// 		|f| {
+		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
 		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
 		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
 		/// 			f(get_x) + f(get_y)
