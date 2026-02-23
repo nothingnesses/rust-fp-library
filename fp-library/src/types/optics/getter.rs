@@ -436,7 +436,7 @@ mod inner {
 		///
 		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-		/// let folded = FoldOptic::evaluate(&g, f);
+		/// let folded: Forget<RcBrand, String, (i32, String), (i32, String)> = FoldOptic::evaluate(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(

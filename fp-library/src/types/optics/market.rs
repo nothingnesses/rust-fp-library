@@ -62,7 +62,7 @@ mod inner {
 		/// 	types::optics::Market,
 		/// };
 		///
-		/// let market = Market::<RcFnBrand, i32, String, String, String>::new(
+		/// let market = Market::<RcFnBrand, i32, i32, String, String>::new(
 		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
 		/// 		s.parse::<i32>().map_err(|_| "error".to_string())
 		/// 	}),

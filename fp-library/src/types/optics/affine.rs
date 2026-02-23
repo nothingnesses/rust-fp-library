@@ -185,7 +185,13 @@ mod inner {
 		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&at, f);
+		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as Optic<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// >>::evaluate(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -243,7 +249,13 @@ mod inner {
 		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as TraversalOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&at, f);
+		/// let modifier =
+		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as TraversalOptic<
+		/// 		(i32, String),
+		/// 		(i32, String),
+		/// 		i32,
+		/// 		i32,
+		/// 	>>::evaluate::<RcFnBrand>(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -285,7 +297,10 @@ mod inner {
 		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as FoldOptic<(i32, String), i32>>::evaluate::<String, RcBrand>(&at, f);
+		/// let folded = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as FoldOptic<
+		/// 	(i32, String),
+		/// 	i32,
+		/// >>::evaluate::<String, RcBrand>(&at, f);
 		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
@@ -329,7 +344,14 @@ mod inner {
 		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as SetterOptic<RcBrand, _, _, _, _>>::evaluate(&at, f);
+		/// let modifier =
+		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as SetterOptic<
+		/// 		RcBrand,
+		/// 		_,
+		/// 		_,
+		/// 		_,
+		/// 		_,
+		/// 	>>::evaluate(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -548,7 +570,13 @@ mod inner {
 		/// 	AffineTraversalPrime::new(|(x, _)| Some(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&at, f);
+		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as Optic<
+		/// 	RcFnBrand,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// >>::evaluate(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -601,7 +629,12 @@ mod inner {
 		/// 	AffineTraversalPrime::new(|(x, _)| Some(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as TraversalOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&at, f);
+		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as TraversalOptic<
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate::<RcFnBrand>(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -643,7 +676,10 @@ mod inner {
 		/// 	AffineTraversalPrime::new(|(x, _)| Some(x), |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <AffineTraversalPrime<RcBrand, (i32, String), i32> as FoldOptic<(i32, String), i32>>::evaluate::<String, RcBrand>(&at, f);
+		/// let folded = <AffineTraversalPrime<RcBrand, (i32, String), i32> as FoldOptic<
+		/// 	(i32, String),
+		/// 	i32,
+		/// >>::evaluate::<String, RcBrand>(&at, f);
 		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
@@ -685,7 +721,13 @@ mod inner {
 		/// 	AffineTraversalPrime::new(|(x, _)| Some(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as SetterOptic<RcBrand, _, _, _, _>>::evaluate(&at, f);
+		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as SetterOptic<
+		/// 	RcBrand,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// 	_,
+		/// >>::evaluate(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(

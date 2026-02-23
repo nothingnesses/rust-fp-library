@@ -195,8 +195,8 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	functions::*,
 		/// 	classes::*,
+		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
 		///
@@ -213,10 +213,11 @@ mod inner {
 		/// 	<GratingBrand<RcFnBrand, i32, i32> as Closed>::closed::<String, (i32, i32), i32>(grating);
 		///
 		/// let run_closed = closed_grating.run;
-		/// let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter| {
+		/// type GetterFn = std::rc::Rc<dyn Fn(Box<dyn Fn(String) -> (i32, i32)>) -> i32>;
+		/// let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter: GetterFn| {
 		/// 	// getter: (String -> (i32, i32)) -> i32
 		/// 	// We provide a function that produces a pair from a string
-		/// 	getter(cloneable_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
+		/// 	getter(Box::new(|s: String| (s.len() as i32, 10)))
 		/// }));
 		///
 		/// assert_eq!(result_fn("hello".to_string()), 5 + 10);

@@ -186,7 +186,7 @@ mod inner {
 		///
 		/// let f_optic: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-		/// let folded = FoldOptic::evaluate(&f_optic, f);
+		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
@@ -348,7 +348,7 @@ mod inner {
 		///
 		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-		/// let folded = FoldOptic::evaluate(&f_optic, f);
+		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(

@@ -229,17 +229,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = SetterOptic::evaluate(&s, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 		/// ```
 		fn evaluate(
@@ -292,7 +296,8 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let cloned = s.clone();
 		/// ```
 		fn clone(&self) -> Self {
@@ -329,7 +334,8 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
 			SetterPrime {
@@ -351,7 +357,8 @@ mod inner {
 		/// 	types::optics::SetterPrime,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
 		/// ```
 		pub fn over(
@@ -390,7 +397,8 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
@@ -429,16 +437,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-		/// let modifier = SetterOptic::evaluate(&s, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
 		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 		/// ```
 		fn evaluate(

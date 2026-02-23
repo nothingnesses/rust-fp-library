@@ -230,17 +230,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = PrismOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// ```
 		fn evaluate<Q: Choice>(
@@ -271,17 +275,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = TraversalOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -357,17 +365,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
 		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = SetterOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// ```
 		fn evaluate(
@@ -669,17 +681,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = PrismOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
 		/// ```
 		fn evaluate<Q: Choice>(
@@ -708,17 +724,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = TraversalOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -791,17 +811,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = SetterOptic::evaluate(&ok_prism, f);
+		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
 		/// assert_eq!(modifier(Ok(21)), Ok(42));
 		/// ```
 		fn evaluate(

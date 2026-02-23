@@ -97,7 +97,10 @@ mod inner {
 		/// let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
 		/// assert_eq!(forget.run("hello".to_string()), 5);
 		/// ```
-		pub fn run(&self, a: A) -> R {
+		pub fn run(
+			&self,
+			a: A,
+		) -> R {
 			(self.0)(a)
 		}
 	}
@@ -178,7 +181,11 @@ mod inner {
 		///
 		/// let forget: Forget<RcBrand, usize, String, usize> = Forget::new(|s: String| s.len());
 		///
-		/// let transformed = <ForgetBrand<RcBrand, usize> as Profunctor>::dimap(|s: &str| s.to_string(), |s: usize| s, forget);
+		/// let transformed = <ForgetBrand<RcBrand, usize> as Profunctor>::dimap(
+		/// 	|s: &str| s.to_string(),
+		/// 	|s: usize| s,
+		/// 	forget,
+		/// );
 		/// assert_eq!(transformed.run("hello"), 5);
 		/// ```
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
@@ -256,9 +263,7 @@ mod inner {
 		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
 		///
 		/// // We use a manual implementation for the example to avoid complex trait bounds
-		/// let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| {
-		///     v.join("")
-		/// });
+		/// let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| v.join(""));
 		/// assert_eq!(transformed.run(vec!["a".to_string(), "b".to_string()]), "ab".to_string());
 		/// ```
 		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
@@ -304,7 +309,8 @@ mod inner {
 		///
 		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
 		///
-		/// let transformed = <ForgetBrand<RcBrand, String> as Choice>::left::<String, String, String>(forget);
+		/// let transformed =
+		/// 	<ForgetBrand<RcBrand, String> as Choice>::left::<String, String, String>(forget);
 		/// assert_eq!(transformed.run(Err("hello".to_string())), "hello".to_string());
 		/// assert_eq!(transformed.run(Ok("world".to_string())), "".to_string());
 		/// ```
@@ -341,7 +347,8 @@ mod inner {
 		///
 		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
 		///
-		/// let transformed = <ForgetBrand<RcBrand, String> as Choice>::right::<String, String, String>(forget);
+		/// let transformed =
+		/// 	<ForgetBrand<RcBrand, String> as Choice>::right::<String, String, String>(forget);
 		/// assert_eq!(transformed.run(Ok("hello".to_string())), "hello".to_string());
 		/// assert_eq!(transformed.run(Err("world".to_string())), "".to_string());
 		/// ```

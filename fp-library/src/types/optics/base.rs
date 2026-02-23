@@ -62,7 +62,8 @@ mod inner {
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <LensPrime<RcBrand, (i32, String), i32> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&l, f);
+		/// let modifier =
+		/// 	<LensPrime<RcBrand, (i32, String), i32> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -98,7 +99,9 @@ mod inner {
 		///
 		/// let iso: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <IsoPrime<RcBrand, i32, i32> as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&iso, f);
+		/// let modifier = <IsoPrime<RcBrand, i32, i32> as IsoOptic<i32, i32, i32, i32>>::evaluate::<
+		/// 	RcFnBrand,
+		/// >(&iso, f);
 		/// assert_eq!(modifier(21), 42);
 		/// ```
 		fn evaluate<P: Profunctor>(
@@ -135,7 +138,12 @@ mod inner {
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <LensPrime<RcBrand, (i32, String), i32> as LensOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&l, f);
+		/// let modifier = <LensPrime<RcBrand, (i32, String), i32> as LensOptic<
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate<P: Strong>(
@@ -171,7 +179,12 @@ mod inner {
 		///
 		/// let p: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::new(|o| o, Some);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <PrismPrime<RcBrand, Option<i32>, i32> as PrismOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate::<RcFnBrand>(&p, f);
+		/// let modifier = <PrismPrime<RcBrand, Option<i32>, i32> as PrismOptic<
+		/// 	Option<i32>,
+		/// 	Option<i32>,
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate::<RcFnBrand>(&p, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// ```
 		fn evaluate<P: Choice>(
@@ -245,7 +258,11 @@ mod inner {
 		///
 		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
 		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-		/// let folded = <GetterPrime<RcBrand, (i32, String), i32> as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&g, f);
+		/// let folded =
+		/// 	<GetterPrime<RcBrand, (i32, String), i32> as GetterOptic<(i32, String), i32>>::evaluate::<
+		/// 		i32,
+		/// 		RcBrand,
+		/// 	>(&g, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
 		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
@@ -273,14 +290,16 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::Monoid,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
-		///
-		/// use fp_library::classes::Monoid;
 		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <FoldPrime<RcBrand, Vec<i32>, i32> as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&f_optic, f);
+		/// let folded = <FoldPrime<RcBrand, Vec<i32>, i32> as FoldOptic<Vec<i32>, i32>>::evaluate::<
+		/// 	String,
+		/// 	RcBrand,
+		/// >(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
@@ -313,9 +332,16 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let s: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<RcBrand, (i32, String), (i32, String), i32, i32>>::evaluate(&s, f);
+		/// let modifier = <SetterPrime<RcBrand, (i32, String), i32> as SetterOptic<
+		/// 	RcBrand,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate(&s, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate(
@@ -386,7 +412,12 @@ mod inner {
 		///
 		/// let r: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::new(|o| o, Some);
 		/// let f = Tagged::new(21);
-		/// let reviewed = <PrismPrime<RcBrand, Option<i32>, i32> as ReviewOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate(&r, f);
+		/// let reviewed = <PrismPrime<RcBrand, Option<i32>, i32> as ReviewOptic<
+		/// 	Option<i32>,
+		/// 	Option<i32>,
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate(&r, f);
 		/// assert_eq!(reviewed.0, Some(21));
 		/// ```
 		fn evaluate(
@@ -453,7 +484,17 @@ mod inner {
 		/// let composed = Composed::new(l1, l2);
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, LensPrime<RcBrand, (i32, String), i32>, LensPrime<RcBrand, i32, i32>> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	LensPrime<RcBrand, i32, i32>,
+		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		pub fn new(
@@ -506,7 +547,17 @@ mod inner {
 		/// let composed = Composed::new(l1, l2);
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, LensPrime<RcBrand, (i32, String), i32>, LensPrime<RcBrand, i32, i32>> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	LensPrime<RcBrand, i32, i32>,
+		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate(
@@ -553,7 +604,17 @@ mod inner {
 		/// let iso2: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
 		/// let composed = Composed::new(iso1, iso2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, i32, i32, i32, i32, i32, i32, IsoPrime<RcBrand, i32, i32>, IsoPrime<RcBrand, i32, i32>> as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	IsoPrime<RcBrand, i32, i32>,
+		/// 	IsoPrime<RcBrand, i32, i32>,
+		/// > as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
 		/// assert_eq!(modifier(21), 42);
 		/// ```
 		fn evaluate<P: Profunctor>(
@@ -601,7 +662,19 @@ mod inner {
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, LensPrime<RcBrand, (i32, String), i32>, LensPrime<RcBrand, i32, i32>> as LensOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	LensPrime<RcBrand, i32, i32>,
+		/// > as LensOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
+		/// 	&composed, f
+		/// );
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate<P: Strong>(
@@ -648,7 +721,18 @@ mod inner {
 		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::new(Some, |x| x);
 		/// let composed = Composed::new(p1, p2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, Option<i32>, Option<i32>, i32, i32, i32, i32, PrismPrime<RcBrand, Option<i32>, i32>, PrismPrime<RcBrand, i32, i32>> as PrismOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
+		/// let modifier =
+		/// 	<Composed<
+		/// 		'_,
+		/// 		Option<i32>,
+		/// 		Option<i32>,
+		/// 		i32,
+		/// 		i32,
+		/// 		i32,
+		/// 		i32,
+		/// 		PrismPrime<RcBrand, Option<i32>, i32>,
+		/// 		PrismPrime<RcBrand, i32, i32>,
+		/// 	> as PrismOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
 		/// assert_eq!(modifier(Some(21)), Some(42));
 		/// ```
 		fn evaluate<P: Choice>(
@@ -697,7 +781,17 @@ mod inner {
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, LensPrime<RcBrand, (i32, String), i32>, LensPrime<RcBrand, i32, i32>> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	LensPrime<RcBrand, i32, i32>,
+		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate<P: Wander>(
@@ -745,7 +839,17 @@ mod inner {
 		/// let g2: GetterPrime<RcBrand, i32, i32> = GetterPrime::new(|x| x);
 		/// let composed = Composed::new(g1, g2);
 		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-		/// let folded = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, GetterPrime<RcBrand, (i32, String), i32>, GetterPrime<RcBrand, i32, i32>> as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
+		/// let folded = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	GetterPrime<RcBrand, (i32, String), i32>,
+		/// 	GetterPrime<RcBrand, i32, i32>,
+		/// > as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
 		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
@@ -783,16 +887,25 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::Monoid,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
-		///
-		/// use fp_library::classes::Monoid;
 		/// let f1: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
 		/// let f2: FoldPrime<RcBrand, i32, i32> = FoldPrime::new(|x| vec![x]);
 		/// let composed = Composed::new(f1, f2);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <Composed<'_, Vec<i32>, Vec<i32>, i32, i32, i32, i32, FoldPrime<RcBrand, Vec<i32>, i32>, FoldPrime<RcBrand, i32, i32>> as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
+		/// let folded = <Composed<
+		/// 	'_,
+		/// 	Vec<i32>,
+		/// 	Vec<i32>,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	FoldPrime<RcBrand, Vec<i32>, i32>,
+		/// 	FoldPrime<RcBrand, i32, i32>,
+		/// > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
@@ -839,11 +952,24 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let s1: SetterPrime<RcBrand, (i32, String), i32> = SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-		/// let s2: SetterPrime<RcBrand, i32, i32> = SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
+		/// let s1: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let s2: SetterPrime<RcBrand, i32, i32> =
+		/// 	SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
 		/// let composed = Composed::new(s1, s2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, SetterPrime<RcBrand, (i32, String), i32>, SetterPrime<RcBrand, i32, i32>> as SetterOptic<RcBrand, (i32, String), (i32, String), i32, i32>>::evaluate(&composed, f);
+		/// let modifier =
+		/// 	<Composed<
+		/// 		'_,
+		/// 		(i32, String),
+		/// 		(i32, String),
+		/// 		i32,
+		/// 		i32,
+		/// 		i32,
+		/// 		i32,
+		/// 		SetterPrime<RcBrand, (i32, String), i32>,
+		/// 		SetterPrime<RcBrand, i32, i32>,
+		/// 	> as SetterOptic<RcBrand, (i32, String), (i32, String), i32, i32>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
 		fn evaluate(
@@ -891,7 +1017,17 @@ mod inner {
 		/// let r2: ReviewPrime<RcBrand, i32, i32> = ReviewPrime::new(|x| x);
 		/// let composed = Composed::new(r1, r2);
 		/// let f = Tagged::new(21);
-		/// let reviewed = <Composed<'_, Option<i32>, Option<i32>, i32, i32, i32, i32, ReviewPrime<RcBrand, Option<i32>, i32>, ReviewPrime<RcBrand, i32, i32>> as ReviewOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate(&composed, f);
+		/// let reviewed = <Composed<
+		/// 	'_,
+		/// 	Option<i32>,
+		/// 	Option<i32>,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	ReviewPrime<RcBrand, Option<i32>, i32>,
+		/// 	ReviewPrime<RcBrand, i32, i32>,
+		/// > as ReviewOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate(&composed, f);
 		/// assert_eq!(reviewed.0, Some(21));
 		/// ```
 		fn evaluate(
@@ -940,7 +1076,17 @@ mod inner {
 		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<'_, (i32, String), (i32, String), i32, i32, i32, i32, LensPrime<RcBrand, (i32, String), i32>, LensPrime<RcBrand, i32, i32>> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	LensPrime<RcBrand, i32, i32>,
+		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "test".to_string())), (42, "test".to_string()));
 		/// ```
 		fn evaluate<P: Closed>(
@@ -1014,7 +1160,17 @@ mod inner {
 	/// };
 	///
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
-	/// let modifier = <Composed<'_, User, User, Address, Address, String, String, LensPrime<RcBrand, User, Address>, LensPrime<RcBrand, Address, String>> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&user_street, f);
+	/// let modifier = <Composed<
+	/// 	'_,
+	/// 	User,
+	/// 	User,
+	/// 	Address,
+	/// 	Address,
+	/// 	String,
+	/// 	String,
+	/// 	LensPrime<RcBrand, User, Address>,
+	/// 	LensPrime<RcBrand, Address, String>,
+	/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&user_street, f);
 	/// let updated = modifier(user);
 	///
 	/// assert_eq!(updated.address.street, "HIGH ST");

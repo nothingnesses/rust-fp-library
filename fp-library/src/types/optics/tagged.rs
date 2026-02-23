@@ -97,7 +97,11 @@ mod inner {
 		/// };
 		///
 		/// let tagged: Tagged<String, usize> = Tagged::new(123);
-		/// let transformed = Profunctor::dimap(|s: &str| s.to_string(), |n: usize| n.to_string(), tagged);
+		/// let transformed = <TaggedBrand as Profunctor>::dimap(
+		/// 	|s: &str| s.to_string(),
+		/// 	|n: usize| n.to_string(),
+		/// 	tagged,
+		/// );
 		/// ```
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			_ab: FuncAB,
@@ -133,8 +137,9 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let tagged: Tagged<String, usize> = Tagged::new(123);
-		/// let transformed = Choice::left::<usize, usize, String>(tagged);
+		/// let tagged: Tagged<usize, usize> = Tagged::new(123);
+		/// let transformed = <TaggedBrand as Choice>::left::<usize, usize, String>(tagged);
+		/// assert_eq!(transformed.0, Err(123));
 		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
@@ -164,8 +169,9 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let tagged: Tagged<String, usize> = Tagged::new(123);
-		/// let transformed = Choice::right::<usize, usize, String>(tagged);
+		/// let tagged: Tagged<usize, usize> = Tagged::new(123);
+		/// let transformed = <TaggedBrand as Choice>::right::<usize, usize, String>(tagged);
+		/// assert_eq!(transformed.0, Ok(123));
 		/// ```
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)

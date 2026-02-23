@@ -169,17 +169,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -218,17 +222,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = LensOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Strong>(
@@ -260,17 +268,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = TraversalOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -386,17 +398,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
 		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = SetterOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -597,17 +613,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -645,17 +665,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = TraversalOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Wander>(
@@ -768,17 +792,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = SetterOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate(
@@ -807,17 +835,21 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
 		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = LensOptic::evaluate(&l, f);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
 		fn evaluate<Q: Strong>(

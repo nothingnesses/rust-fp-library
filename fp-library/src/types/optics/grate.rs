@@ -133,26 +133,25 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	Kind,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		CloneableFn,
-		/// 		Closed,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::CloneableFn,
+		/// 		types::optics::{
+		/// 			Grate,
+		/// 			Optic,
+		/// 		},
 		/// 	},
-		/// 	types::optics::{
-		/// 		Grate,
-		/// 		Optic,
-		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f: Rc<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|(x, _)| x);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|(_, y)| y);
-		/// 	(f(get_x), f(get_y))
-		/// });
+		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(
+		/// 	|f: Rc<dyn Fn(Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 		let get_x = <RcFnBrand as CloneableFn>::new(|(x, _)| x);
+		/// 		let get_y = <RcFnBrand as CloneableFn>::new(|(_, y)| y);
+		/// 		(f(get_x), f(get_y))
+		/// 	},
+		/// );
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
 		/// let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
@@ -202,18 +201,23 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::Closed,
-		/// 	types::optics::{
-		/// 		Grate,
-		/// 		GrateOptic,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::Closed,
+		/// 		types::optics::{
+		/// 			Grate,
+		/// 			GrateOptic,
+		/// 		},
 		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>), f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>))
+		/// 	(
+		/// 		f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 		f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 	)
 		/// });
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
 		/// let g = GrateOptic::evaluate::<RcFnBrand>(&grate, f);
@@ -250,21 +254,27 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::Closed,
-		/// 	types::optics::{
-		/// 		Grate,
-		/// 		SetterOptic,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::Closed,
+		/// 		types::optics::{
+		/// 			Grate,
+		/// 			SetterOptic,
+		/// 		},
 		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
 		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>), f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>))
+		/// 	(
+		/// 		f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 		f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 	)
 		/// });
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = SetterOptic::evaluate(&grate, f);
+		/// let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
 		/// ```
 		fn evaluate(
@@ -315,18 +325,23 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	Kind,
-		/// 	brands::*,
-		/// 	classes::CloneableFn,
-		/// 	types::optics::GratePrime,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::CloneableFn,
+		/// 		types::optics::GratePrime,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Rc<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
-		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
-		/// });
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+		/// 	|f: Rc<dyn Fn(Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 		(
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)),
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)),
+		/// 		)
+		/// 	},
+		/// );
 		/// let cloned = grate.clone();
 		/// ```
 		fn clone(&self) -> Self {
@@ -357,18 +372,23 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	Kind,
-		/// 	brands::*,
-		/// 	classes::CloneableFn,
-		/// 	types::optics::GratePrime,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::CloneableFn,
+		/// 		types::optics::GratePrime,
+		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Rc<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
-		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
-		/// });
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+		/// 	|f: Rc<dyn Fn(Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 		(
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)),
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)),
+		/// 		)
+		/// 	},
+		/// );
 		/// ```
 		pub fn new(
 			grate: impl Fn(
@@ -406,24 +426,26 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	Kind,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		CloneableFn,
-		/// 		Closed,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::CloneableFn,
+		/// 		types::optics::{
+		/// 			GratePrime,
+		/// 			Optic,
+		/// 		},
 		/// 	},
-		/// 	types::optics::{
-		/// 		GratePrime,
-		/// 		Optic,
-		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Rc<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
-		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
-		/// });
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+		/// 	|f: Rc<dyn Fn(Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 		(
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)),
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)),
+		/// 		)
+		/// 	},
+		/// );
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
 		/// let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
@@ -470,24 +492,26 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	Kind,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		CloneableFn,
-		/// 		Closed,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::CloneableFn,
+		/// 		types::optics::{
+		/// 			GrateOptic,
+		/// 			GratePrime,
+		/// 		},
 		/// 	},
-		/// 	types::optics::{
-		/// 		GrateOptic,
-		/// 		GratePrime,
-		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f: Rc<dyn Fn(Apply!(<RcFnBrand as Kind!(type Of<'b, U: 'b, V: 'b>: 'b;)>::Of<'_, (i32, i32), i32>)) -> i32>| {
-		/// 	(f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)), f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)))
-		/// });
+		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+		/// 	|f: Rc<dyn Fn(Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 		(
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(x, _)| x)),
+		/// 			f(<RcFnBrand as CloneableFn>::new(|(_, y)| y)),
+		/// 		)
+		/// 	},
+		/// );
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
 		/// let g = GrateOptic::evaluate::<RcFnBrand>(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
@@ -521,21 +545,27 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::Closed,
-		/// 	types::optics::{
-		/// 		GratePrime,
-		/// 		SetterOptic,
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::Closed,
+		/// 		types::optics::{
+		/// 			GratePrime,
+		/// 			SetterOptic,
+		/// 		},
 		/// 	},
+		/// 	std::rc::Rc,
 		/// };
-		/// use std::rc::Rc;
 		///
 		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>), f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>))
+		/// 	(
+		/// 		f(Rc::new(|(x, _)| x) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 		f(Rc::new(|(_, y)| y) as Rc<dyn Fn((i32, i32)) -> i32>),
+		/// 	)
 		/// });
 		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = SetterOptic::evaluate(&grate, f);
+		/// let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
 		/// ```
 		fn evaluate(
