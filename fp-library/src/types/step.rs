@@ -21,35 +21,16 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::{
-				StepBrand,
-				StepWithDoneBrand,
-				StepWithLoopBrand,
-			},
+			brands::{StepBrand, StepWithDoneBrand, StepWithLoopBrand},
 			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				Bifunctor,
-				CloneableFn,
-				Foldable,
-				Functor,
-				Lift,
-				Monoid,
-				ParFoldable,
-				Pointed,
-				Semiapplicative,
-				Semimonad,
-				SendCloneableFn,
+				Applicative, ApplyFirst, ApplySecond, Bifunctor, CloneableFn, Foldable, Functor,
+				Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semimonad, SendCloneableFn,
 				Traversable,
 			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_parameters, document_type_parameters},
 	};
 
 	/// Represents the result of a single step in a tail-recursive computation.
@@ -292,7 +273,8 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
 		where
 			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a, {
+			G: Fn(C) -> D + 'a,
+		{
 			p.bimap(f, g)
 		}
 	}
@@ -344,7 +326,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a, {
+			Func: Fn(A) -> B + 'a,
+		{
 			fa.map_done(func)
 		}
 	}
@@ -409,7 +392,8 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a, {
+			C: 'a,
+		{
 			match (fa, fb) {
 				(Step::Done(a), Step::Done(b)) => Step::Done(func(a, b)),
 				(Step::Loop(e), _) => Step::Loop(e),
@@ -545,7 +529,8 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
 			match ma {
 				Step::Done(a) => func(a),
 				Step::Loop(e) => Step::Loop(e),
@@ -603,7 +588,8 @@ mod inner {
 		) -> B
 		where
 			F: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Done(a) => func(a, initial),
 				Step::Loop(_) => initial,
@@ -658,7 +644,8 @@ mod inner {
 		) -> B
 		where
 			F: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Done(a) => func(initial, a),
 				Step::Loop(_) => initial,
@@ -715,7 +702,8 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			F: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Done(a) => func(a),
 				Step::Loop(_) => M::empty(),
@@ -771,7 +759,8 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		{
 			match ta {
 				Step::Done(a) => F::map(|b| Step::Done(b), func(a)),
 				Step::Loop(e) => F::pure(Step::Loop(e)),
@@ -818,7 +807,8 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		{
 			match ta {
 				Step::Done(fa) => F::map(|a| Step::Done(a), fa),
 				Step::Loop(e) => F::pure(Step::Loop(e)),
@@ -876,7 +866,8 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
+			M: Monoid + Send + Sync + 'a,
+		{
 			match fa {
 				Step::Done(a) => func(a),
 				Step::Loop(_) => M::empty(),
@@ -930,7 +921,8 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
+			B: Send + Sync + 'a,
+		{
 			match fa {
 				Step::Done(a) => func((a, initial)),
 				Step::Loop(_) => initial,
@@ -985,7 +977,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a, {
+			Func: Fn(A) -> B + 'a,
+		{
 			fa.map_loop(func)
 		}
 	}
@@ -1050,7 +1043,8 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a, {
+			C: 'a,
+		{
 			match (fa, fb) {
 				(Step::Loop(a), Step::Loop(b)) => Step::Loop(func(a, b)),
 				(Step::Done(t), _) => Step::Done(t),
@@ -1183,7 +1177,8 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
 			match ma {
 				Step::Done(t) => Step::Done(t),
 				Step::Loop(e) => func(e),
@@ -1245,7 +1240,8 @@ mod inner {
 		) -> B
 		where
 			F: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Loop(e) => func(e, initial),
 				Step::Done(_) => initial,
@@ -1304,7 +1300,8 @@ mod inner {
 		) -> B
 		where
 			F: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Loop(e) => func(initial, e),
 				Step::Done(_) => initial,
@@ -1361,7 +1358,8 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			F: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			match fa {
 				Step::Loop(e) => func(e),
 				Step::Done(_) => M::empty(),
@@ -1417,7 +1415,8 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		{
 			match ta {
 				Step::Loop(e) => F::map(|b| Step::Loop(b), func(e)),
 				Step::Done(t) => F::pure(Step::Done(t)),
@@ -1464,7 +1463,8 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		{
 			match ta {
 				Step::Loop(fe) => F::map(|e| Step::Loop(e), fe),
 				Step::Done(t) => F::pure(Step::Done(t)),
@@ -1522,7 +1522,8 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
+			M: Monoid + Send + Sync + 'a,
+		{
 			match fa {
 				Step::Loop(e) => func(e),
 				Step::Done(_) => M::empty(),
@@ -1576,7 +1577,8 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			B: Send + Sync + 'a, {
+			B: Send + Sync + 'a,
+		{
 			match fa {
 				Step::Loop(e) => func((e, initial)),
 				Step::Done(_) => initial,
@@ -1593,22 +1595,12 @@ mod tests {
 		crate::{
 			brands::*,
 			classes::{
-				bifunctor::*,
-				foldable::*,
-				functor::*,
-				lift::*,
-				par_foldable::*,
-				pointed::*,
-				semiapplicative::*,
-				semimonad::*,
-				traversable::*,
+				bifunctor::*, foldable::*, functor::*, lift::*, par_foldable::*, pointed::*,
+				semiapplicative::*, semimonad::*, traversable::*,
 			},
 			functions::*,
 		},
-		quickcheck::{
-			Arbitrary,
-			Gen,
-		},
+		quickcheck::{Arbitrary, Gen},
 		quickcheck_macros::quickcheck,
 	};
 

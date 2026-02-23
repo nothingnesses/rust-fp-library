@@ -5,21 +5,12 @@
 
 use {
 	super::AssociatedTypes,
-	crate::{
-		core::Result,
-		generate_name,
-	},
+	crate::{core::Result, generate_name},
 	proc_macro2::TokenStream,
 	quote::quote,
 	syn::{
-		AngleBracketedGenericArguments,
-		Ident,
-		Token,
-		Type,
-		parse::{
-			Parse,
-			ParseStream,
-		},
+		AngleBracketedGenericArguments, Ident, Token, Type,
+		parse::{Parse, ParseStream},
 	},
 };
 
@@ -75,12 +66,7 @@ impl Parse for ApplyInput {
 		// Parse `<...>` Args
 		let args: AngleBracketedGenericArguments = input.parse()?;
 
-		Ok(ApplyInput {
-			brand,
-			kind_input,
-			assoc_name,
-			args,
-		})
+		Ok(ApplyInput { brand, kind_input, assoc_name, args })
 	}
 }
 
@@ -98,10 +84,7 @@ pub fn apply_worker(input: ApplyInput) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-	use {
-		super::*,
-		syn::parse_str,
-	};
+	use {super::*, syn::parse_str};
 
 	#[test]
 	fn test_parse_apply_new_syntax() {

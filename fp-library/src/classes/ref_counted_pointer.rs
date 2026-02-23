@@ -15,11 +15,7 @@
 
 use {
 	super::Pointer,
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 	std::ops::Deref,
 };
 
@@ -159,6 +155,7 @@ pub fn try_unwrap<'a, P: RefCountedPointer, T: 'a>(
 /// ```
 pub fn cloneable_new<'a, P: RefCountedPointer, T: 'a>(value: T) -> P::CloneableOf<'a, T>
 where
-	P::CloneableOf<'a, T>: Sized, {
+	P::CloneableOf<'a, T>: Sized,
+{
 	P::cloneable_new(value)
 }

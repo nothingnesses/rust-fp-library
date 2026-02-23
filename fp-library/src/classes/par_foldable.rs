@@ -17,21 +17,9 @@
 //! ```
 
 use {
-	super::{
-		foldable::Foldable,
-		monoid::Monoid,
-		send_cloneable_fn::SendCloneableFn,
-	},
-	crate::{
-		Apply,
-		kinds::*,
-		types::SendEndofunction,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	super::{foldable::Foldable, monoid::Monoid, send_cloneable_fn::SendCloneableFn},
+	crate::{Apply, kinds::*, types::SendEndofunction},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for data structures that can be folded in parallel.
@@ -177,7 +165,8 @@ pub trait ParFoldable: Foldable {
 	where
 		A: 'a + Clone + Send + Sync,
 		B: Send + Sync + 'a,
-		FnBrand: 'a + SendCloneableFn, {
+		FnBrand: 'a + SendCloneableFn,
+	{
 		let f_clone = func.clone();
 		let endo = Self::par_fold_map::<FnBrand, _, _>(
 			<FnBrand as SendCloneableFn>::send_cloneable_fn_new(move |a: A| {
@@ -237,7 +226,8 @@ where
 	FnBrand: 'a + SendCloneableFn,
 	F: ParFoldable,
 	A: 'a + Clone + Send + Sync,
-	M: Monoid + Send + Sync + 'a, {
+	M: Monoid + Send + Sync + 'a,
+{
 	F::par_fold_map::<FnBrand, A, M>(func, fa)
 }
 
@@ -286,6 +276,7 @@ where
 	FnBrand: SendCloneableFn + 'a,
 	F: ParFoldable,
 	A: 'a + Clone + Send + Sync,
-	B: Send + Sync + 'a, {
+	B: Send + Sync + 'a,
+{
 	F::par_fold_right::<FnBrand, A, B>(func, initial, fa)
 }

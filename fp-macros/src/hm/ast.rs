@@ -35,12 +35,13 @@ impl HmAst {
 			| HmAst::MutableReference(_)
 			| HmAst::TraitObject(_) => 3,
 			// Application: binds tight
-			HmAst::Constructor(_, args) =>
+			HmAst::Constructor(_, args) => {
 				if args.is_empty() {
 					3
 				} else {
 					2
-				},
+				}
+			}
 			// Arrow: binds loose
 			HmAst::Arrow(..) => 1,
 		}

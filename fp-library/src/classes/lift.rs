@@ -15,15 +15,8 @@
 //! ```
 
 use {
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for lifting binary functions into a context.
@@ -118,6 +111,7 @@ where
 	Func: Fn(A, B) -> C + 'a,
 	A: Clone + 'a,
 	B: Clone + 'a,
-	C: 'a, {
+	C: 'a,
+{
 	Brand::lift2::<A, B, C, Func>(func, fa, fb)
 }

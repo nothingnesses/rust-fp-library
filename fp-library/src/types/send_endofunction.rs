@@ -6,24 +6,12 @@
 mod inner {
 	use {
 		crate::{
-			classes::{
-				Monoid,
-				Semigroup,
-				SendCloneableFn,
-			},
+			classes::{Monoid, Semigroup, SendCloneableFn},
 			functions::identity,
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 		std::{
-			fmt::{
-				self,
-				Debug,
-				Formatter,
-			},
+			fmt::{self, Debug, Formatter},
 			hash::Hash,
 		},
 	};

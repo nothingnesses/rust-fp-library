@@ -6,18 +6,10 @@
 use {
 	crate::{
 		Apply,
-		classes::{
-			Choice,
-			Strong,
-			applicative::Applicative,
-		},
+		classes::{Choice, Strong, applicative::Applicative},
 		kinds::*,
 	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A trait for traversal functions.

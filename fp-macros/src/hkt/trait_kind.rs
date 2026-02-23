@@ -4,11 +4,7 @@
 
 use {
 	super::AssociatedTypes,
-	crate::{
-		core::Result,
-		documentation::templates::DocumentationBuilder,
-		generate_name,
-	},
+	crate::{core::Result, documentation::templates::DocumentationBuilder, generate_name},
 	proc_macro2::TokenStream,
 	quote::quote,
 };

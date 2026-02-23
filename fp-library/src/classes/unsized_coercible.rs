@@ -14,11 +14,7 @@
 
 use {
 	super::RefCountedPointer,
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// Trait for pointer brands that can perform unsized coercion to `dyn Fn`.
@@ -89,6 +85,7 @@ pub fn coerce_fn<'a, Brand: UnsizedCoercible, A: 'a, B: 'a, Func>(
 	func: Func
 ) -> Brand::CloneableOf<'a, dyn 'a + Fn(A) -> B>
 where
-	Func: 'a + Fn(A) -> B, {
+	Func: 'a + Fn(A) -> B,
+{
 	Brand::coerce_fn::<A, B>(func)
 }

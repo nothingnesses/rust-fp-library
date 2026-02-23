@@ -3,51 +3,25 @@ use {
 		analysis::get_all_parameters,
 		core::{
 			config::Config,
-			constants::attributes::{
-				DOCUMENT_SIGNATURE,
-				DOCUMENT_TYPE_PARAMETERS,
-				DOCUMENT_USE,
-			},
-			error_handling::{
-				CollectErrors,
-				ErrorCollector,
-			},
+			constants::attributes::{DOCUMENT_SIGNATURE, DOCUMENT_TYPE_PARAMETERS, DOCUMENT_USE},
+			error_handling::{CollectErrors, ErrorCollector},
 		},
 		documentation::document_signature::generate_signature,
 		resolution::{
 			ImplKey,
 			resolver::{
-				SelfSubstitutor,
-				get_concrete_type_name,
-				get_self_type_info,
-				merge_generics,
+				SelfSubstitutor, get_concrete_type_name, get_self_type_info, merge_generics,
 			},
 		},
 		support::{
-			attributes::{
-				AttributeExt,
-				find_attribute,
-			},
-			documentation_parameters::{
-				DocumentationParameter,
-				DocumentationParameters,
-			},
+			attributes::{AttributeExt, find_attribute},
+			documentation_parameters::{DocumentationParameter, DocumentationParameters},
 			generate_documentation::format_parameter_doc,
-			parsing::{
-				self,
-				parse_parameter_documentation_pairs,
-			},
+			parsing::{self, parse_parameter_documentation_pairs},
 		},
 	},
 	quote::quote,
-	syn::{
-		ImplItem,
-		Item,
-		Result,
-		parse_quote,
-		spanned::Spanned,
-		visit_mut::VisitMut,
-	},
+	syn::{ImplItem, Item, Result, parse_quote, spanned::Spanned, visit_mut::VisitMut},
 };
 
 /// Process the `#[document_signature]` attribute on a method.

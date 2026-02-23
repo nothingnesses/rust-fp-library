@@ -16,14 +16,8 @@
 
 use {
 	super::semigroupoid::Semigroupoid,
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_signature, document_type_parameters},
 };
 
 /// A type class for categories, which are semigroupoids with an identity element.

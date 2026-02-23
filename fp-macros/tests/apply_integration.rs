@@ -1,8 +1,4 @@
-use fp_macros::{
-	Apply,
-	impl_kind,
-	trait_kind,
-};
+use fp_macros::{Apply, impl_kind, trait_kind};
 
 // Define a `Kind` with 1 type parameter and no bounds
 trait_kind!(
@@ -46,9 +42,7 @@ fn test_apply_in_struct_field() {
 		item: Apply!(<BoxBrand as Kind!( type Of<T>; )>::Of<String>),
 	}
 
-	let i = Item {
-		item: BoxWrapper(Box::new("hello".to_string())),
-	};
+	let i = Item { item: BoxWrapper(Box::new("hello".to_string())) };
 	assert_eq!(*i.item.0, "hello");
 }
 

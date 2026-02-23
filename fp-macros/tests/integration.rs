@@ -1,9 +1,5 @@
 use {
-	fp_macros::{
-		Apply,
-		impl_kind,
-		trait_kind,
-	},
+	fp_macros::{Apply, impl_kind, trait_kind},
 	std::fmt::Display,
 };
 

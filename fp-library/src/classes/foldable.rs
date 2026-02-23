@@ -17,18 +17,11 @@ use {
 	super::monoid::Monoid,
 	crate::{
 		Apply,
-		classes::{
-			cloneable_fn::CloneableFn,
-			semigroup::Semigroup,
-		},
+		classes::{cloneable_fn::CloneableFn, semigroup::Semigroup},
 		kinds::*,
 		types::Endofunction,
 	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for structures that can be folded to a single value.
@@ -87,7 +80,8 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	) -> B
 	where
 		Func: Fn(A, B) -> B + 'a,
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: CloneableFn + 'a,
+	{
 		let f = <FnBrand as CloneableFn>::new(move |(a, b)| func(a, b));
 		let m = Self::fold_map::<FnBrand, A, Endofunction<FnBrand, B>, _>(
 			move |a: A| {
@@ -143,7 +137,8 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	) -> B
 	where
 		Func: Fn(B, A) -> B + 'a,
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: CloneableFn + 'a,
+	{
 		let f = <FnBrand as CloneableFn>::new(move |(b, a)| func(b, a));
 		let m = Self::fold_right::<FnBrand, A, Endofunction<FnBrand, B>, _>(
 			move |a: A, k: Endofunction<'a, FnBrand, B>| {
@@ -206,7 +201,8 @@ pub trait Foldable: Kind_cdc7cd43dac7585f {
 	where
 		M: Monoid + 'a,
 		Func: Fn(A) -> M + 'a,
-		FnBrand: CloneableFn + 'a, {
+		FnBrand: CloneableFn + 'a,
+	{
 		Self::fold_right::<FnBrand, A, M, _>(move |a, m| M::append(func(a), m), M::empty(), fa)
 	}
 }
@@ -254,7 +250,8 @@ pub fn fold_right<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a, Func>(
 ) -> B
 where
 	Func: Fn(A, B) -> B + 'a,
-	FnBrand: CloneableFn + 'a, {
+	FnBrand: CloneableFn + 'a,
+{
 	Brand::fold_right::<FnBrand, A, B, Func>(func, initial, fa)
 }
 
@@ -301,7 +298,8 @@ pub fn fold_left<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a, Func>(
 ) -> B
 where
 	Func: Fn(B, A) -> B + 'a,
-	FnBrand: CloneableFn + 'a, {
+	FnBrand: CloneableFn + 'a,
+{
 	Brand::fold_left::<FnBrand, A, B, Func>(func, initial, fa)
 }
 
@@ -344,6 +342,7 @@ pub fn fold_map<'a, FnBrand, Brand: Foldable, A: 'a + Clone, M, Func>(
 where
 	M: Monoid + 'a,
 	Func: Fn(A) -> M + 'a,
-	FnBrand: CloneableFn + 'a, {
+	FnBrand: CloneableFn + 'a,
+{
 	Brand::fold_map::<FnBrand, A, M, Func>(func, fa)
 }

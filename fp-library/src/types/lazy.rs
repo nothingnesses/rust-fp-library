@@ -8,31 +8,18 @@ mod inner {
 		crate::{
 			Apply,
 			brands::LazyBrand,
-			classes::{
-				Deferrable,
-				RefFunctor,
-				SendDeferrable,
-			},
+			classes::{Deferrable, RefFunctor, SendDeferrable},
 			impl_kind,
 			kinds::*,
-			types::{
-				Thunk,
-				Trampoline,
-			},
+			types::{Thunk, Trampoline},
 		},
 		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_signature,
-			document_type_parameters,
+			document_fields, document_parameters, document_signature, document_type_parameters,
 		},
 		std::{
 			cell::LazyCell,
 			rc::Rc,
-			sync::{
-				Arc,
-				LazyLock,
-			},
+			sync::{Arc, LazyLock},
 		},
 	};
 
@@ -512,7 +499,8 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + 'a, {
+			F: FnOnce() -> A + 'a,
+		{
 			Lazy(RcLazyConfig::lazy_new(Box::new(f)))
 		}
 
@@ -587,7 +575,8 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + Send + 'a, {
+			F: FnOnce() -> A + Send + 'a,
+		{
 			Lazy(ArcLazyConfig::lazy_new(Box::new(f)))
 		}
 
@@ -613,7 +602,8 @@ mod inner {
 		/// ```
 		pub fn pure(a: A) -> Self
 		where
-			A: Send, {
+			A: Send,
+		{
 			Lazy(ArcLazyConfig::lazy_new(Box::new(move || a)))
 		}
 	}
@@ -665,7 +655,8 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
-			Self: Sized, {
+			Self: Sized,
+		{
 			RcLazy::new(move || f().evaluate().clone())
 		}
 	}
@@ -704,7 +695,8 @@ mod inner {
 		fn send_defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + Send + Sync + 'a,
-			Self: Sized, {
+			Self: Sized,
+		{
 			ArcLazy::new(move || f().evaluate().clone())
 		}
 	}
@@ -744,7 +736,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			F: FnOnce(&A) -> B + 'a, {
+			F: FnOnce(&A) -> B + 'a,
+		{
 			let fa = fa.clone();
 			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
 			Lazy(RcLazyConfig::lazy_new(init))
@@ -758,15 +751,8 @@ pub use inner::*;
 mod tests {
 	use {
 		super::inner::*,
-		crate::types::{
-			Thunk,
-			Trampoline,
-		},
-		std::{
-			cell::RefCell,
-			rc::Rc,
-			sync::Arc,
-		},
+		crate::types::{Thunk, Trampoline},
+		std::{cell::RefCell, rc::Rc, sync::Arc},
 	};
 
 	/// Tests that `Lazy` caches the result of the computation.
@@ -813,10 +799,7 @@ mod tests {
 	#[test]
 	fn test_arc_memo_thread_safety() {
 		use std::{
-			sync::atomic::{
-				AtomicUsize,
-				Ordering,
-			},
+			sync::atomic::{AtomicUsize, Ordering},
 			thread,
 		};
 
@@ -828,7 +811,7 @@ mod tests {
 		});
 
 		let mut handles = vec![];
-		for _ in 0 .. 10 {
+		for _ in 0..10 {
 			let memo_clone = memo.clone();
 			handles.push(thread::spawn(move || {
 				assert_eq!(*memo_clone.evaluate(), 42);
@@ -917,7 +900,7 @@ mod tests {
 		let lazy = ArcLazy::pure(42);
 
 		let mut handles = vec![];
-		for _ in 0 .. 10 {
+		for _ in 0..10 {
 			let lazy_clone = lazy.clone();
 			handles.push(thread::spawn(move || {
 				assert_eq!(*lazy_clone.evaluate(), 42);

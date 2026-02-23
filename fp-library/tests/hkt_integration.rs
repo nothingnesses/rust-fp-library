@@ -1,20 +1,7 @@
 use fp_library::{
-	brands::{
-		LazyBrand,
-		RcFnBrand,
-		ThunkBrand,
-	},
-	classes::{
-		foldable::Foldable,
-		monad_rec::tail_rec_m,
-		ref_functor::ref_map,
-	},
-	types::{
-		Lazy,
-		RcLazyConfig,
-		Step,
-		Thunk,
-	},
+	brands::{LazyBrand, RcFnBrand, ThunkBrand},
+	classes::{foldable::Foldable, monad_rec::tail_rec_m, ref_functor::ref_map},
+	types::{Lazy, RcLazyConfig, Step, Thunk},
 };
 
 #[test]

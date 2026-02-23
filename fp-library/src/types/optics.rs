@@ -100,23 +100,7 @@ mod tagged;
 mod traversal;
 
 pub use {
-	affine::*,
-	base::*,
-	exchange::*,
-	fold::*,
-	forget::*,
-	getter::*,
-	grate::*,
-	grating::*,
-	helpers::*,
-	iso::*,
-	lens::*,
-	market::*,
-	prism::*,
-	review::*,
-	setter::*,
-	shop::*,
-	stall::*,
-	tagged::*,
-	traversal::*,
+	affine::*, base::*, exchange::*, fold::*, forget::*, getter::*, grate::*, grating::*,
+	helpers::*, iso::*, lens::*, market::*, prism::*, review::*, setter::*, shop::*, stall::*,
+	tagged::*, traversal::*,
 };

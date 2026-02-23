@@ -21,11 +21,7 @@
 //! ```
 
 use {
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 	std::ops::Deref,
 };
 
@@ -100,6 +96,7 @@ pub trait Pointer {
 /// ```
 pub fn new<'a, P: Pointer, T: 'a>(value: T) -> P::Of<'a, T>
 where
-	P::Of<'a, T>: Sized, {
+	P::Of<'a, T>: Sized,
+{
 	P::new(value)
 }

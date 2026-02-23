@@ -16,19 +16,9 @@
 //! ```
 
 use {
-	super::{
-		category::Category,
-		strong::Strong,
-	},
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	super::{category::Category, strong::Strong},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for arrows.
@@ -132,6 +122,7 @@ pub fn arrow<'a, Brand, A, B: 'a>(
 	f: impl 'a + Fn(A) -> B
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 where
-	Brand: Arrow, {
+	Brand: Arrow,
+{
 	Brand::arrow(f)
 }

@@ -17,16 +17,8 @@
 //! ```
 
 use {
-	crate::{
-		Apply,
-		classes::functor::Functor,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, classes::functor::Functor, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A functor whose effects can be evaluated to produce the inner value.
@@ -95,6 +87,7 @@ pub trait Evaluable: Functor {
 pub fn evaluate<'a, F, A>(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)) -> A
 where
 	F: Evaluable,
-	A: 'a, {
+	A: 'a,
+{
 	F::evaluate(fa)
 }

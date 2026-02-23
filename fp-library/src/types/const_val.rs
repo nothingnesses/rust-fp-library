@@ -4,15 +4,9 @@ use {
 	crate::{
 		Apply,
 		classes::{
-			apply_first::ApplyFirst,
-			apply_second::ApplySecond,
-			cloneable_fn::CloneableFn,
-			functor::Functor,
-			lift::Lift,
-			monoid::Monoid,
-			pointed::Pointed,
-			semiapplicative::Semiapplicative,
-			semigroup::Semigroup,
+			apply_first::ApplyFirst, apply_second::ApplySecond, cloneable_fn::CloneableFn,
+			functor::Functor, lift::Lift, monoid::Monoid, pointed::Pointed,
+			semiapplicative::Semiapplicative, semigroup::Semigroup,
 		},
 		impl_kind,
 		kinds::*,
@@ -50,7 +44,8 @@ impl<R: 'static> Functor for ConstBrand<R> {
 		fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>)
 	where
-		F: Fn(A) -> B + 'a, {
+		F: Fn(A) -> B + 'a,
+	{
 		Const::new(fa.0)
 	}
 }
@@ -65,7 +60,8 @@ impl<R: 'static + Semigroup> Lift for ConstBrand<R> {
 		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
-		C: 'a, {
+		C: 'a,
+	{
 		Const::new(R::append(fa.0, fb.0))
 	}
 }

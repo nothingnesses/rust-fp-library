@@ -28,17 +28,8 @@
 //! ```
 
 use {
-	crate::{
-		Apply,
-		classes::monad::Monad,
-		kinds::*,
-		types::step::Step,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, classes::monad::Monad, kinds::*, types::step::Step},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for monads that support stack-safe tail recursion.
@@ -148,6 +139,7 @@ pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, Func>(
 where
 	Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 		+ Clone
-		+ 'a, {
+		+ 'a,
+{
 	Brand::tail_rec_m(func, initial)
 }

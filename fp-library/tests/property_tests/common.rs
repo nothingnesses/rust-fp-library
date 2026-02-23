@@ -1,7 +1,4 @@
-use fp_library::classes::{
-	Monoid,
-	Semigroup,
-};
+use fp_library::classes::{Monoid, Semigroup};
 
 // Monoid for testing (Sum of i64 using wrapping_add to avoid overflow)
 #[derive(Clone, Debug, PartialEq, Eq)]

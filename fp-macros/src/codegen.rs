@@ -5,9 +5,4 @@
 
 pub mod re_export;
 
-pub use re_export::{
-	FunctionFormatter,
-	ReExportInput,
-	TraitFormatter,
-	generate_re_exports_worker,
-};
+pub use re_export::{FunctionFormatter, ReExportInput, TraitFormatter, generate_re_exports_worker};

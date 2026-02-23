@@ -4,12 +4,7 @@ use {
 	proc_macro2::TokenStream,
 	quote::ToTokens,
 	syn::{
-		Attribute,
-		Generics,
-		Ident,
-		Token,
-		TypeParamBound,
-		parse::ParseStream,
+		Attribute, Generics, Ident, Token, TypeParamBound, parse::ParseStream,
 		punctuated::Punctuated,
 	},
 };

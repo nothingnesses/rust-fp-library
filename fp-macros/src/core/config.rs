@@ -8,23 +8,14 @@
 use {
 	crate::{
 		core::constants::{
-			configuration::{
-				self,
-				CONFIG_SECTION,
-			},
+			configuration::{self, CONFIG_SECTION},
 			traits,
 		},
-		resolution::{
-			ImplKey,
-			ProjectionKey,
-		},
+		resolution::{ImplKey, ProjectionKey},
 	},
 	serde::Deserialize,
 	std::{
-		collections::{
-			HashMap,
-			HashSet,
-		},
+		collections::{HashMap, HashSet},
 		sync::LazyLock,
 	},
 };

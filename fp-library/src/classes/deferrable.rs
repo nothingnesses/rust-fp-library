@@ -13,11 +13,7 @@
 //! assert_eq!(eval.evaluate(), 42);
 //! ```
 
-use fp_macros::{
-	document_parameters,
-	document_signature,
-	document_type_parameters,
-};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 
 /// A type class for types that can be constructed lazily.
 pub trait Deferrable<'a> {
@@ -84,6 +80,7 @@ pub trait Deferrable<'a> {
 pub fn defer<'a, D, F>(f: F) -> D
 where
 	D: Deferrable<'a>,
-	F: FnOnce() -> D + 'a, {
+	F: FnOnce() -> D + 'a,
+{
 	D::defer(f)
 }

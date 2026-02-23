@@ -1,18 +1,11 @@
 use {
 	crate::support::{
 		ast::RustAst,
-		documentation_parameters::{
-			DocumentationParameter,
-			DocumentationParameters,
-		},
+		documentation_parameters::{DocumentationParameter, DocumentationParameters},
 		parsing::parse_parameter_documentation_pairs,
 	},
 	proc_macro2::TokenStream,
-	syn::{
-		Error,
-		parse_quote,
-		spanned::Spanned,
-	},
+	syn::{Error, parse_quote, spanned::Spanned},
 };
 
 /// Generate documentation comments for parameters.
@@ -35,7 +28,8 @@ pub fn generate_doc_comments<F>(
 	get_targets: F,
 ) -> crate::core::Result<TokenStream>
 where
-	F: FnOnce(&RustAst) -> Result<Vec<String>, Error>, {
+	F: FnOnce(&RustAst) -> Result<Vec<String>, Error>,
+{
 	let mut generic_item = RustAst::parse(item_tokens).map_err(crate::core::Error::Parse)?;
 
 	let args =

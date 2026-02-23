@@ -20,11 +20,7 @@
 //! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
-use fp_macros::{
-	document_parameters,
-	document_signature,
-	document_type_parameters,
-};
+use fp_macros::{document_parameters, document_signature, document_type_parameters};
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,
@@ -79,7 +75,8 @@ pub fn compose<A, B, C, F, G>(
 ) -> impl Fn(A) -> C
 where
 	F: Fn(B) -> C,
-	G: Fn(A) -> B, {
+	G: Fn(A) -> B,
+{
 	move |a| f(g(a))
 }
 
@@ -150,7 +147,8 @@ pub fn constant<A: Clone, B>(
 /// ```
 pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
 where
-	F: Fn(A, B) -> C, {
+	F: Fn(A, B) -> C,
+{
 	move |b, a| f(a, b)
 }
 

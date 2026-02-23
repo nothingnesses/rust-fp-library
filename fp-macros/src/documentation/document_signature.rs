@@ -1,42 +1,20 @@
 use {
 	crate::{
-		analysis::{
-			TraitCategory,
-			analyze_generics,
-			classify_trait,
-			format_brand_name,
-		},
+		analysis::{TraitCategory, analyze_generics, classify_trait, format_brand_name},
 		core::{
-			Error,
-			Result,
-			config::{
-				Config,
-				get_config,
-			},
+			Error, Result,
+			config::{Config, get_config},
 			constants::attributes::DOCUMENT_SIGNATURE,
 		},
-		hm::{
-			HmAst,
-			type_to_hm,
-		},
+		hm::{HmAst, type_to_hm},
 		support::{
-			ast::RustAst,
-			generate_documentation::insert_doc_comment,
-			is_phantom_data,
+			ast::RustAst, generate_documentation::insert_doc_comment, is_phantom_data,
 			parsing::parse_empty_attributes,
 		},
 	},
 	proc_macro2::TokenStream,
-	std::collections::{
-		HashMap,
-		HashSet,
-	},
-	syn::{
-		GenericParam,
-		ReturnType,
-		TypeParamBound,
-		WherePredicate,
-	},
+	std::collections::{HashMap, HashSet},
+	syn::{GenericParam, ReturnType, TypeParamBound, WherePredicate},
 };
 
 pub fn document_signature_worker(
@@ -155,12 +133,7 @@ pub fn generate_signature(
 	// through the regular generic parameter collection. Trait constraints are also
 	// handled through the normal constraint collection process.
 
-	SignatureData {
-		forall,
-		constraints,
-		params,
-		return_type: ret,
-	}
+	SignatureData { forall, constraints, params, return_type: ret }
 }
 
 fn format_generics(
@@ -223,13 +196,14 @@ fn format_trait_bound(
 
 	match classify_trait(&trait_name, config) {
 		TraitCategory::FnTrait | TraitCategory::FnBrand => None,
-		TraitCategory::Other(name) =>
+		TraitCategory::Other(name) => {
 			if config.ignored_traits().contains(&name) {
 				None
 			} else {
 				let name = format_brand_name(&name, config);
 				Some(format!("{name} {type_var}"))
-			},
+			}
+		}
 		_ => None,
 	}
 }
@@ -255,10 +229,11 @@ fn format_parameters(
 					params.push(self_ty);
 				}
 			}
-			syn::FnArg::Typed(pat_type) =>
+			syn::FnArg::Typed(pat_type) => {
 				if !is_phantom_data(&pat_type.ty) {
 					params.push(type_to_hm(&pat_type.ty, fn_bounds, generic_names, config));
-				},
+				}
+			}
 		}
 	}
 	params
@@ -281,10 +256,7 @@ mod tests {
 	use {
 		super::*,
 		crate::support::generate_documentation::get_doc,
-		syn::{
-			ItemFn,
-			parse_quote,
-		},
+		syn::{ItemFn, parse_quote},
 	};
 
 	#[test]

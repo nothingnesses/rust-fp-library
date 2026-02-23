@@ -21,15 +21,8 @@
 //! ```
 
 use {
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for types that can be mapped over contravariantly.
@@ -137,6 +130,7 @@ pub fn contramap<'a, Brand: Contravariant, A: 'a, B: 'a, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	Func: Fn(B) -> A + 'a, {
+	Func: Fn(B) -> A + 'a,
+{
 	Brand::contramap::<A, B, Func>(f, fa)
 }

@@ -14,11 +14,7 @@
 
 use {
 	super::arrow::Arrow,
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 	std::ops::Deref,
 };
 
@@ -99,6 +95,7 @@ pub trait Function: Arrow {
 /// ```
 pub fn new<'a, Brand, A, B>(f: impl 'a + Fn(A) -> B) -> <Brand as Function>::Of<'a, A, B>
 where
-	Brand: Function, {
+	Brand: Function,
+{
 	Brand::new(f)
 }

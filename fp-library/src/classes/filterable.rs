@@ -16,17 +16,10 @@
 use {
 	crate::{
 		Apply,
-		classes::{
-			compactable::Compactable,
-			functor::Functor,
-		},
+		classes::{compactable::Compactable, functor::Functor},
 		kinds::*,
 	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for data structures that can be filtered and partitioned.
@@ -90,7 +83,8 @@ pub trait Filterable: Compactable + Functor {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 	)
 	where
-		Func: Fn(A) -> Result<O, E> + 'a, {
+		Func: Fn(A) -> Result<O, E> + 'a,
+	{
 		Self::separate::<E, O>(Self::map::<A, Result<O, E>, Func>(func, fa))
 	}
 
@@ -136,7 +130,8 @@ pub trait Filterable: Compactable + Functor {
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	)
 	where
-		Func: Fn(A) -> bool + 'a, {
+		Func: Fn(A) -> bool + 'a,
+	{
 		Self::partition_map(move |a| if func(a.clone()) { Ok(a) } else { Err(a) }, fa)
 	}
 
@@ -177,7 +172,8 @@ pub trait Filterable: Compactable + Functor {
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 	where
-		Func: Fn(A) -> Option<B> + 'a, {
+		Func: Fn(A) -> Option<B> + 'a,
+	{
 		Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
 	}
 
@@ -215,7 +211,8 @@ pub trait Filterable: Compactable + Functor {
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 	where
-		Func: Fn(A) -> bool + 'a, {
+		Func: Fn(A) -> bool + 'a,
+	{
 		Self::filter_map(move |a| if func(a.clone()) { Some(a) } else { None }, fa)
 	}
 }
@@ -265,7 +262,8 @@ pub fn partition_map<'a, Brand: Filterable, A: 'a, E: 'a, O: 'a, Func>(
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 )
 where
-	Func: Fn(A) -> Result<O, E> + 'a, {
+	Func: Fn(A) -> Result<O, E> + 'a,
+{
 	Brand::partition_map::<A, E, O, Func>(func, fa)
 }
 
@@ -310,7 +308,8 @@ pub fn partition<'a, Brand: Filterable, A: 'a + Clone, Func>(
 	Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 )
 where
-	Func: Fn(A) -> bool + 'a, {
+	Func: Fn(A) -> bool + 'a,
+{
 	Brand::partition(func, fa)
 }
 
@@ -353,7 +352,8 @@ pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 where
-	Func: Fn(A) -> Option<B> + 'a, {
+	Func: Fn(A) -> Option<B> + 'a,
+{
 	Brand::filter_map::<A, B, Func>(func, fa)
 }
 
@@ -392,6 +392,7 @@ pub fn filter<'a, Brand: Filterable, A: 'a + Clone, Func>(
 	fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 where
-	Func: Fn(A) -> bool + 'a, {
+	Func: Fn(A) -> bool + 'a,
+{
 	Brand::filter(func, fa)
 }

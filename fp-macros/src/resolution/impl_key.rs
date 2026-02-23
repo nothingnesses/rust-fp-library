@@ -3,10 +3,7 @@
 //! This module provides a newtype wrapper for uniquely identifying impl blocks,
 //! used for storing impl-level metadata like type parameter documentation.
 
-use std::hash::{
-	Hash,
-	Hasher,
-};
+use std::hash::{Hash, Hasher};
 
 /// Type-safe key for impl block identification.
 ///
@@ -30,10 +27,7 @@ impl ImplKey {
 	/// // Represents: impl Free<F, A> { ... }
 	/// ```
 	pub fn new(type_path: impl Into<String>) -> Self {
-		Self {
-			type_path: type_path.into(),
-			trait_path: None,
-		}
+		Self { type_path: type_path.into(), trait_path: None }
 	}
 
 	/// Create a new impl key for a trait impl.
@@ -47,10 +41,7 @@ impl ImplKey {
 		type_path: impl Into<String>,
 		trait_path: impl Into<String>,
 	) -> Self {
-		Self {
-			type_path: type_path.into(),
-			trait_path: Some(trait_path.into()),
-		}
+		Self { type_path: type_path.into(), trait_path: Some(trait_path.into()) }
 	}
 
 	/// Create an impl key from type and optional trait paths.

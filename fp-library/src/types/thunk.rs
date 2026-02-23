@@ -9,34 +9,14 @@ mod inner {
 			Apply,
 			brands::ThunkBrand,
 			classes::{
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Deferrable,
-				Evaluable,
-				Foldable,
-				Functor,
-				Lift,
-				MonadRec,
-				Monoid,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
+				ApplyFirst, ApplySecond, CloneableFn, Deferrable, Evaluable, Foldable, Functor,
+				Lift, MonadRec, Monoid, Pointed, Semiapplicative, Semigroup, Semimonad,
 			},
 			impl_kind,
 			kinds::*,
-			types::{
-				Lazy,
-				LazyConfig,
-				Step,
-			},
+			types::{Lazy, LazyConfig, Step},
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
 
 	/// A deferred computation that produces a value of type `A`.
@@ -127,7 +107,8 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + 'a, {
+			F: FnOnce() -> A + 'a,
+		{
 			Thunk(Box::new(f))
 		}
 
@@ -154,7 +135,8 @@ mod inner {
 		/// ```
 		pub fn pure(a: A) -> Self
 		where
-			A: 'a, {
+			A: 'a,
+		{
 			Thunk::new(move || a)
 		}
 
@@ -183,7 +165,8 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Thunk<'a, A> + 'a, {
+			F: FnOnce() -> Thunk<'a, A> + 'a,
+		{
 			Thunk::new(move || f().evaluate())
 		}
 
@@ -220,7 +203,8 @@ mod inner {
 			f: F,
 		) -> Thunk<'a, B>
 		where
-			F: FnOnce(A) -> Thunk<'a, B> + 'a, {
+			F: FnOnce(A) -> Thunk<'a, B> + 'a,
+		{
 			Thunk::new(move || {
 				let a = (self.0)();
 				let thunk_b = f(a);
@@ -258,7 +242,8 @@ mod inner {
 			f: F,
 		) -> Thunk<'a, B>
 		where
-			F: FnOnce(A) -> B + 'a, {
+			F: FnOnce(A) -> B + 'a,
+		{
 			Thunk::new(move || f((self.0)()))
 		}
 
@@ -340,7 +325,8 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
-			Self: Sized, {
+			Self: Sized,
+		{
 			Thunk::defer(f)
 		}
 	}
@@ -382,7 +368,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a, {
+			Func: Fn(A) -> B + 'a,
+		{
 			fa.map(func)
 		}
 	}
@@ -463,7 +450,8 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a, {
+			C: 'a,
+		{
 			fa.bind(move |a| fb.map(move |b| func(a, b)))
 		}
 	}
@@ -554,7 +542,8 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
 			ma.bind(func)
 		}
 	}
@@ -599,7 +588,8 @@ mod inner {
 		where
 			F: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
 				+ Clone
-				+ 'a, {
+				+ 'a,
+		{
 			Thunk::new(move || {
 				let mut current = a;
 				loop {
@@ -688,7 +678,8 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			func(fa.evaluate(), initial)
 		}
 
@@ -732,7 +723,8 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			func(initial, fa.evaluate())
 		}
 
@@ -772,7 +764,8 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			func(fa.evaluate())
 		}
 	}
@@ -916,11 +909,7 @@ mod tests {
 	/// Verifies that `append` correctly combines two evals.
 	#[test]
 	fn test_eval_semigroup() {
-		use crate::{
-			brands::*,
-			classes::semigroup::append,
-			functions::*,
-		};
+		use crate::{brands::*, classes::semigroup::append, functions::*};
 		let t1 = pure::<ThunkBrand, _>("Hello".to_string());
 		let t2 = pure::<ThunkBrand, _>(" World".to_string());
 		let t3 = append(t1, t2);

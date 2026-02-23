@@ -14,11 +14,7 @@
 
 use {
 	super::RefCountedPointer,
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 	std::ops::Deref,
 };
 
@@ -87,6 +83,7 @@ pub trait SendRefCountedPointer: RefCountedPointer {
 /// ```
 pub fn send_new<'a, P: SendRefCountedPointer, T: Send + Sync + 'a>(value: T) -> P::SendOf<'a, T>
 where
-	P::SendOf<'a, T>: Sized, {
+	P::SendOf<'a, T>: Sized,
+{
 	P::send_new(value)
 }

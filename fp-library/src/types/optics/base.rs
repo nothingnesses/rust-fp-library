@@ -1,192 +1,971 @@
 //! Core optic trait and composition.
 
-use {
-	super::{
-		forget::ForgetBrand,
-		tagged::TaggedBrand,
-	},
-	crate::{
-		Apply,
-		brands::FnBrand,
-		classes::{
-			Choice,
-			Closed,
-			Profunctor,
-			Strong,
-			UnsizedCoercible,
-			monoid::Monoid,
-			wander::Wander,
+#[fp_macros::document_module]
+mod inner {
+	use {
+		crate::{
+			Apply,
+			brands::FnBrand,
+			classes::{
+				Choice, Closed, Profunctor, Strong, UnsizedCoercible, monoid::Monoid,
+				wander::Wander,
+			},
+			kinds::*,
+			types::optics::{ForgetBrand, TaggedBrand},
 		},
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
-	std::marker::PhantomData,
-};
+		fp_macros::{document_parameters, document_signature, document_type_parameters},
+		std::marker::PhantomData,
+	};
 
-/// A trait for optics that can be evaluated with any profunctor constraint.
-///
-/// This trait allows optics to be first-class values that can be composed
-/// and stored while preserving their polymorphism over profunctor types.
-#[document_type_parameters(
-	"The lifetime of the values.",
-	"The profunctor type.",
-	"The source type of the structure.",
-	"The target type of the structure after an update.",
-	"The source type of the focus.",
-	"The target type of the focus after an update."
-)]
-pub trait Optic<'a, P: Profunctor, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with a profunctor.
+	/// A trait for optics that can be evaluated with any profunctor constraint.
 	///
-	/// This method applies the optic transformation to a profunctor value.
+	/// This trait allows optics to be first-class values that can be composed
+	/// and stored while preserving their polymorphism over profunctor types.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait Optic<'a, P: Profunctor, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a profunctor.
+		///
+		/// This method applies the optic transformation to a profunctor value.
+		#[document_signature]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// An isomorphism optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait IsoOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with any profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = IsoOptic::evaluate(&iso, f);
+		/// assert_eq!(modifier(21), 42);
+		/// ```
+		fn evaluate<P: Profunctor>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A lens optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait LensOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a strong profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = LensOptic::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate<P: Strong>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A prism optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait PrismOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a choice profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let p: PrismPrime<RcBrand, Option<i32>, i32> =
+		/// 	PrismPrime::new(|o| o.ok_or(None), Some);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = PrismOptic::evaluate(&p, f);
+		/// assert_eq!(modifier(Some(21)), Some(42));
+		/// ```
+		fn evaluate<P: Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A traversal optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait TraversalOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a wander profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let t: TraversalPrime<RcBrand, Vec<i32>, i32> = TraversalPrime::new(
+		/// 	|f, v| v.into_iter().map(f).collect()
+		/// );
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = TraversalOptic::evaluate(&t, f);
+		/// assert_eq!(modifier(vec![1, 2, 3]), vec![2, 4, 6]);
+		/// ```
+		fn evaluate<P: Wander>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A getter optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	pub trait GetterOptic<'a, S: 'a, A: 'a> {
+		/// Evaluate the optic with the forget profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The return type of the forget profunctor.",
+			"The reference-counted pointer type."
+		)]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: Getter<RcBrand, (i32, String), i32> = Getter::new(|(x, _)| x);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&g, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
+		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+	}
+
+	/// A fold optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	pub trait FoldOptic<'a, S: 'a, A: 'a> {
+		/// Evaluate the optic with the forget profunctor for any monoid.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The monoid type.",
+			"The reference-counted pointer type."
+		)]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let f_optic: Fold<RcBrand, Vec<i32>, i32> = Fold::new(|f, v| {
+		/// 	v.into_iter().map(f).fold(0, |acc, x| acc + x)
+		/// });
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = FoldOptic::evaluate(&f_optic, f);
+		/// assert_eq!(folded.run(vec![1, 2, 3]), 6);
+		/// ```
+		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+	}
+
+	/// A setter optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with the function profunctor.
+		#[document_signature]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|f, (x, s)| (f(x), s));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = SetterOptic::evaluate(&s, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A grate optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait GrateOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a closed profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: GratePrime<RcBrand, (i32, i32), i32> = GratePrime::new(|f| (f(|(x, _)| x), f(|(_, y)| y)));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = GrateOptic::evaluate(&g, f);
+		/// assert_eq!(modifier((21, 10)), (42, 20));
+		/// ```
+		fn evaluate<P: Closed>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	/// A review optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait ReviewOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with the tagged profunctor.
+		#[document_signature]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+		/// let f = Tagged::new(21);
+		/// let reviewed = ReviewOptic::evaluate(&r, f);
+		/// assert_eq!(reviewed.0, Some(21));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
+	///
+	/// This struct represents the composition of two optics, allowing them to be
+	/// combined into a single optic that applies both transformations.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub struct Composed<'a, S, T, M, N, A, B, O1, O2> {
+		/// The outer optic (applied second).
+		pub first: O1,
+		/// The inner optic (applied first).
+		pub second: O2,
+		pub(crate) _phantom: PhantomData<&'a (S, T, M, N, A, B)>,
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	impl<'a, S, T, M, N, A, B, O1, O2> Composed<'a, S, T, M, N, A, B, O1, O2> {
+		/// Create a new composed optic.
+		#[document_signature]
+		///
+		#[document_parameters(
+			"The outer optic (applied second).",
+			"The inner optic (applied first)."
+		)]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::new(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, x)| x);
+		/// let composed = Composed::new(l1, l2);
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&composed, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		pub fn new(
+			first: O1,
+			second: O2,
+		) -> Self {
+			Composed { first, second, _phantom: PhantomData }
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, P, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, P, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		P: Profunctor,
+		O1: Optic<'a, P, S, T, M, N>,
+		O2: Optic<'a, P, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::new(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, x)| x);
+		/// let composed = Composed::new(l1, l2);
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&composed, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = self.second.evaluate(pab);
+			self.first.evaluate(pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> IsoOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: IsoOptic<'a, S, T, M, N>,
+		O2: IsoOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso1: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
+		/// let iso2: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
+		/// let composed = Composed::new(iso1, iso2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = IsoOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier(21), 42);
+		/// ```
+		fn evaluate<P: Profunctor>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = IsoOptic::evaluate::<P>(&self.second, pab);
+			IsoOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> LensOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: LensOptic<'a, S, T, M, N>,
+		O2: LensOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
+		/// let composed = Composed::new(l1, l2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = LensOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate<P: Strong>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = LensOptic::evaluate::<P>(&self.second, pab);
+			LensOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> PrismOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: PrismOptic<'a, S, T, M, N>,
+		O2: PrismOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let p1: PrismPrime<RcBrand, Option<i32>, i32> =
+		/// 	PrismPrime::new(|o| o.ok_or(None), Some);
+		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::new(Ok, |x| x);
+		/// let composed = Composed::new(p1, p2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = PrismOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier(Some(21)), Some(42));
+		/// ```
+		fn evaluate<P: Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = PrismOptic::evaluate::<P>(&self.second, pab);
+			PrismOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> TraversalOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: TraversalOptic<'a, S, T, M, N>,
+		O2: TraversalOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let t1: TraversalPrime<RcBrand, Vec<i32>, i32> = TraversalPrime::new(
+		/// 	|f, v| v.into_iter().map(f).collect()
+		/// );
+		/// let t2: TraversalPrime<RcBrand, i32, i32> = TraversalPrime::new(|f, x| f(x));
+		/// let composed = Composed::new(t1, t2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = TraversalOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier(vec![1, 2, 3]), vec![2, 4, 6]);
+		/// ```
+		fn evaluate<P: Wander>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = TraversalOptic::evaluate::<P>(&self.second, pab);
+			TraversalOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The focus type.",
+		"The intermediate type.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, A, M, O1, O2> GetterOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
+	where
+		O1: GetterOptic<'a, S, M>,
+		O2: GetterOptic<'a, M, A>,
+		M: 'a,
+		A: 'a,
+	{
+		#[document_signature]
+		#[document_type_parameters(
+			"The return type of the forget profunctor.",
+			"The reference-counted pointer type."
+		)]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g1: Getter<RcBrand, (i32, String), i32> = Getter::new(|(x, _)| x);
+		/// let g2: Getter<RcBrand, i32, i32> = Getter::new(|x| x);
+		/// let composed = Composed::new(g1, g2);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&composed, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
+		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			let pmn = GetterOptic::evaluate::<R, P>(&self.second, pab);
+			GetterOptic::evaluate::<R, P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The focus type.",
+		"The intermediate type.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, A, M, O1, O2> FoldOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
+	where
+		O1: FoldOptic<'a, S, M>,
+		O2: FoldOptic<'a, M, A>,
+		M: 'a,
+		A: 'a,
+	{
+		#[document_signature]
+		#[document_type_parameters(
+			"The monoid type.",
+			"The reference-counted pointer type."
+		)]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let f1: Fold<RcBrand, Vec<i32>, i32> = Fold::new(|f, v| {
+		/// 	v.into_iter().map(f).fold(0, |acc, x| acc + x)
+		/// });
+		/// let f2: Fold<RcBrand, i32, i32> = Fold::new(|f, x| f(x));
+		/// let composed = Composed::new(f1, f2);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = FoldOptic::evaluate(&composed, f);
+		/// assert_eq!(folded.run(vec![1, 2, 3]), 6);
+		/// ```
+		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			let pmn = FoldOptic::evaluate::<R, P>(&self.second, pab);
+			FoldOptic::evaluate::<R, P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type for the Setter brand.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, Q, S, T, M, N, A, B, O1, O2> SetterOptic<'a, Q, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		Q: UnsizedCoercible,
+		O1: SetterOptic<'a, Q, S, T, M, N>,
+		O2: SetterOptic<'a, Q, M, N, A, B>,
+		M: 'a,
+		N: 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let s1: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|f, (x, s)| (f(x), s));
+		/// let s2: SetterPrime<RcBrand, i32, i32> = SetterPrime::new(|f, x| f(x));
+		/// let composed = Composed::new(s1, s2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = SetterOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = SetterOptic::evaluate(&self.second, pab);
+			SetterOptic::evaluate(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> ReviewOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: ReviewOptic<'a, S, T, M, N>,
+		O2: ReviewOptic<'a, M, N, A, B>,
+		M: 'a,
+		N: 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let r1: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+		/// let r2: ReviewPrime<RcBrand, i32, i32> = ReviewPrime::new(|x| x);
+		/// let composed = Composed::new(r1, r2);
+		/// let f = Tagged::new(21);
+		/// let reviewed = ReviewOptic::evaluate(&composed, f);
+		/// assert_eq!(reviewed.0, Some(21));
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = ReviewOptic::evaluate(&self.second, pab);
+			ReviewOptic::evaluate(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> GrateOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: GrateOptic<'a, S, T, M, N>,
+		O2: GrateOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g1: GratePrime<RcBrand, (i32, i32), i32> = GratePrime::new(|f| (f(|(x, _)| x), f(|(_, y)| y)));
+		/// let g2: GratePrime<RcBrand, i32, i32> = GratePrime::new(|f| f(0));
+		/// let composed = Composed::new(g1, g2);
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = GrateOptic::evaluate(&composed, f);
+		/// assert_eq!(modifier((21, 10)), (0, 0));
+		/// ```
+		fn evaluate<P: Closed>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = GrateOptic::evaluate::<P>(&self.second, pab);
+			GrateOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	/// Compose two optics into a single optic.
+	///
+	/// While PureScript uses the `Semigroupoid` operator (`<<<`) for composition because
+	/// its optics are functions, this library uses a specialized `Composed` struct.
+	/// This is necessary because Rust represents the polymorphic profunctor constraint
+	/// as a parameterized trait (`Optic<'a, P, ...>`), and the `Composed` struct enables
+	/// static dispatch and zero-cost composition through monomorphization.
 	#[document_signature]
 	///
-	#[document_parameters("The profunctor value to transform.")]
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
-	/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-	/// ```
-	fn evaluate(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// An isomorphism optic.
-pub trait IsoOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with any profunctor.
-	fn evaluate<P: Profunctor>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A lens optic.
-pub trait LensOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with a strong profunctor.
-	fn evaluate<P: Strong>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A prism optic.
-pub trait PrismOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with a choice profunctor.
-	fn evaluate<P: Choice>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A traversal optic.
-pub trait TraversalOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with a wander profunctor.
-	fn evaluate<P: Wander>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A getter optic.
-pub trait GetterOptic<'a, S: 'a, A: 'a> {
-	/// Evaluate the optic with the forget profunctor.
-	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
-		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
-}
-
-/// A fold optic.
-pub trait FoldOptic<'a, S: 'a, A: 'a> {
-	/// Evaluate the optic with the forget profunctor for any monoid.
-	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
-		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
-}
-
-/// A setter optic.
-pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with the function profunctor.
-	fn evaluate(
-		&self,
-		pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A grate optic.
-pub trait GrateOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with a closed profunctor.
-	fn evaluate<P: Closed>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-/// A review optic.
-pub trait ReviewOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
-	/// Evaluate the optic with the tagged profunctor.
-	fn evaluate(
-		&self,
-		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
-}
-
-///
-/// This struct represents the composition of two optics, allowing them to be
-/// combined into a single optic that applies both transformations.
-#[document_type_parameters(
-	"The lifetime of the values.",
-	"The source type of the outer structure.",
-	"The target type of the outer structure.",
-	"The source type of the intermediate structure.",
-	"The target type of the intermediate structure.",
-	"The source type of the focus.",
-	"The target type of the focus.",
-	"The first optic.",
-	"The second optic."
-)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Composed<'a, S, T, M, N, A, B, O1, O2> {
-	/// The outer optic (applied second).
-	pub first: O1,
-	/// The inner optic (applied first).
-	pub second: O2,
-	pub(crate) _phantom: PhantomData<&'a (S, T, M, N, A, B)>,
-}
-
-#[document_type_parameters(
-	"The lifetime of the values.",
-	"The source type of the outer structure.",
-	"The target type of the outer structure.",
-	"The source type of the intermediate structure.",
-	"The target type of the intermediate structure.",
-	"The source type of the focus.",
-	"The target type of the focus.",
-	"The first optic.",
-	"The second optic."
-)]
-impl<'a, S, T, M, N, A, B, O1, O2> Composed<'a, S, T, M, N, A, B, O1, O2> {
-	/// Create a new composed optic.
-	#[document_signature]
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
 	///
 	#[document_parameters("The outer optic (applied second).", "The inner optic (applied first).")]
 	///
@@ -199,270 +978,46 @@ impl<'a, S, T, M, N, A, B, O1, O2> Composed<'a, S, T, M, N, A, B, O1, O2> {
 	/// 	types::optics::*,
 	/// };
 	///
-	/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-	/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, x)| x);
-	/// let composed = Composed::new(l1, l2);
+	/// #[derive(Clone, Debug, PartialEq)]
+	/// struct Address {
+	/// 	street: String,
+	/// }
+	/// #[derive(Clone, Debug, PartialEq)]
+	/// struct User {
+	/// 	address: Address,
+	/// }
 	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&composed, f);
-	/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	/// 	|u: User| u.address.clone(),
+	/// 	|(_, a)| User {
+	/// 		address: a,
+	/// 	},
+	/// );
+	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+	/// 	|a: Address| a.street.clone(),
+	/// 	|(_, s)| Address {
+	/// 		street: s,
+	/// 	},
+	/// );
+	///
+	/// let user_street = optics_compose(address_lens, street_lens);
+	/// let user = User {
+	/// 	address: Address {
+	/// 		street: "High St".to_string(),
+	/// 	},
+	/// };
+	///
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
+	/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&user_street, f);
+	/// let updated = modifier(user);
+	///
+	/// assert_eq!(updated.address.street, "HIGH ST");
 	/// ```
-	pub fn new(
+	pub fn optics_compose<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>(
 		first: O1,
 		second: O2,
-	) -> Self {
-		Composed {
-			first,
-			second,
-			_phantom: PhantomData,
-		}
+	) -> Composed<'a, S, T, M, N, A, B, O1, O2> {
+		Composed::new(first, second)
 	}
 }
-
-#[document_type_parameters(
-	"The lifetime of the values.",
-	"The profunctor type.",
-	"The source type of the outer structure.",
-	"The target type of the outer structure.",
-	"The source type of the intermediate structure.",
-	"The target type of the intermediate structure.",
-	"The source type of the focus.",
-	"The target type of the focus.",
-	"The first optic.",
-	"The second optic."
-)]
-#[document_parameters("The composed optic instance.")]
-impl<'a, P, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2> Optic<'a, P, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	P: Profunctor,
-	O1: Optic<'a, P, S, T, M, N>,
-	O2: Optic<'a, P, M, N, A, B>,
-{
-	#[document_signature]
-	#[document_parameters("The profunctor value to transform.")]
-	fn evaluate(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = self.second.evaluate(pab);
-		self.first.evaluate(pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> IsoOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: IsoOptic<'a, S, T, M, N>,
-	O2: IsoOptic<'a, M, N, A, B>,
-{
-	fn evaluate<P: Profunctor>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = IsoOptic::evaluate::<P>(&self.second, pab);
-		IsoOptic::evaluate::<P>(&self.first, pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> LensOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: LensOptic<'a, S, T, M, N>,
-	O2: LensOptic<'a, M, N, A, B>,
-{
-	fn evaluate<P: Strong>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = LensOptic::evaluate::<P>(&self.second, pab);
-		LensOptic::evaluate::<P>(&self.first, pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> PrismOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: PrismOptic<'a, S, T, M, N>,
-	O2: PrismOptic<'a, M, N, A, B>,
-{
-	fn evaluate<P: Choice>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = PrismOptic::evaluate::<P>(&self.second, pab);
-		PrismOptic::evaluate::<P>(&self.first, pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> TraversalOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: TraversalOptic<'a, S, T, M, N>,
-	O2: TraversalOptic<'a, M, N, A, B>,
-{
-	fn evaluate<P: Wander>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = TraversalOptic::evaluate::<P>(&self.second, pab);
-		TraversalOptic::evaluate::<P>(&self.first, pmn)
-	}
-}
-
-impl<'a, S, A, M, O1, O2> GetterOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
-where
-	O1: GetterOptic<'a, S, M>,
-	O2: GetterOptic<'a, M, A>,
-	M: 'a,
-	A: 'a,
-{
-	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
-		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		let pmn = GetterOptic::evaluate::<R, P>(&self.second, pab);
-		GetterOptic::evaluate::<R, P>(&self.first, pmn)
-	}
-}
-
-impl<'a, S, A, M, O1, O2> FoldOptic<'a, S, A> for Composed<'a, S, S, M, M, A, A, O1, O2>
-where
-	O1: FoldOptic<'a, S, M>,
-	O2: FoldOptic<'a, M, A>,
-	M: 'a,
-	A: 'a,
-{
-	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
-		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-		let pmn = FoldOptic::evaluate::<R, P>(&self.second, pab);
-		FoldOptic::evaluate::<R, P>(&self.first, pmn)
-	}
-}
-
-impl<'a, Q, S, T, M, N, A, B, O1, O2> SetterOptic<'a, Q, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	Q: UnsizedCoercible,
-	O1: SetterOptic<'a, Q, S, T, M, N>,
-	O2: SetterOptic<'a, Q, M, N, A, B>,
-	M: 'a,
-	N: 'a,
-{
-	fn evaluate(
-		&self,
-		pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = SetterOptic::evaluate(&self.second, pab);
-		SetterOptic::evaluate(&self.first, pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> ReviewOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: ReviewOptic<'a, S, T, M, N>,
-	O2: ReviewOptic<'a, M, N, A, B>,
-	M: 'a,
-	N: 'a,
-{
-	fn evaluate(
-		&self,
-		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = ReviewOptic::evaluate(&self.second, pab);
-		ReviewOptic::evaluate(&self.first, pmn)
-	}
-}
-
-impl<'a, S, T, M, N, A, B, O1, O2> GrateOptic<'a, S, T, A, B>
-	for Composed<'a, S, T, M, N, A, B, O1, O2>
-where
-	O1: GrateOptic<'a, S, T, M, N>,
-	O2: GrateOptic<'a, M, N, A, B>,
-{
-	fn evaluate<P: Closed>(
-		&self,
-		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-		let pmn = GrateOptic::evaluate::<P>(&self.second, pab);
-		GrateOptic::evaluate::<P>(&self.first, pmn)
-	}
-}
-
-/// Compose two optics into a single optic.
-///
-/// While PureScript uses the `Semigroupoid` operator (`<<<`) for composition because
-/// its optics are functions, this library uses a specialized `Composed` struct.
-/// This is necessary because Rust represents the polymorphic profunctor constraint
-/// as a parameterized trait (`Optic<'a, P, ...>`), and the `Composed` struct enables
-/// static dispatch and zero-cost composition through monomorphization.
-#[document_signature]
-///
-#[document_type_parameters(
-	"The lifetime of the values.",
-	"The source type of the outer structure.",
-	"The target type of the outer structure.",
-	"The source type of the intermediate structure.",
-	"The target type of the intermediate structure.",
-	"The source type of the focus.",
-	"The target type of the focus.",
-	"The first optic.",
-	"The second optic."
-)]
-///
-#[document_parameters("The outer optic (applied second).", "The inner optic (applied first).")]
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::{
-/// 	brands::*,
-/// 	functions::*,
-/// 	types::optics::*,
-/// };
-///
-/// #[derive(Clone, Debug, PartialEq)]
-/// struct Address {
-/// 	street: String,
-/// }
-/// #[derive(Clone, Debug, PartialEq)]
-/// struct User {
-/// 	address: Address,
-/// }
-///
-/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
-/// 	|u: User| u.address.clone(),
-/// 	|(_, a)| User {
-/// 		address: a,
-/// 	},
-/// );
-/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
-/// 	|a: Address| a.street.clone(),
-/// 	|(_, s)| Address {
-/// 		street: s,
-/// 	},
-/// );
-///
-/// let user_street = optics_compose(address_lens, street_lens);
-/// let user = User {
-/// 	address: Address {
-/// 		street: "High St".to_string(),
-/// 	},
-/// };
-///
-/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
-/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&user_street, f);
-/// let updated = modifier(user);
-///
-/// assert_eq!(updated.address.street, "HIGH ST");
-/// ```
-pub fn optics_compose<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>(
-	first: O1,
-	second: O2,
-) -> Composed<'a, S, T, M, N, A, B, O1, O2> {
-	Composed::new(first, second)
-}
+pub use inner::*;

@@ -16,15 +16,8 @@
 
 use {
 	super::lift::Lift,
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for types that support combining two contexts, keeping the second value.

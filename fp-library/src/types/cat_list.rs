@@ -25,45 +25,20 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::{
-				CatListBrand,
-				OptionBrand,
-			},
+			brands::{CatListBrand, OptionBrand},
 			classes::{
-				Applicative,
-				ApplyFirst,
-				ApplySecond,
-				CloneableFn,
-				Compactable,
-				Filterable,
-				Foldable,
-				Functor,
-				Lift,
-				Monoid,
-				ParFoldable,
-				Pointed,
-				Semiapplicative,
-				Semigroup,
-				Semimonad,
-				SendCloneableFn,
-				Traversable,
-				Witherable,
+				Applicative, ApplyFirst, ApplySecond, CloneableFn, Compactable, Filterable,
+				Foldable, Functor, Lift, Monoid, ParFoldable, Pointed, Semiapplicative, Semigroup,
+				Semimonad, SendCloneableFn, Traversable, Witherable,
 			},
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 		std::{
 			cmp::Ordering,
 			collections::VecDeque,
-			hash::{
-				Hash,
-				Hasher,
-			},
+			hash::{Hash, Hasher},
 		},
 	};
 
@@ -242,7 +217,8 @@ mod inner {
 		/// ```
 		pub fn deconstruct<A>(list: &CatList<A>) -> Option<(A, CatList<A>)>
 		where
-			A: Clone, {
+			A: Clone,
+		{
 			list.clone().uncons()
 		}
 	}
@@ -285,7 +261,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> B + 'a, {
+			Func: Fn(A) -> B + 'a,
+		{
 			fa.into_iter().map(func).collect()
 		}
 	}
@@ -338,7 +315,8 @@ mod inner {
 			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
-			C: 'a, {
+			C: 'a,
+		{
 			fa.into_iter()
 				.flat_map(|a| {
 					let f = &func;
@@ -470,7 +448,8 @@ mod inner {
 			func: Func,
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		{
 			ma.into_iter().flat_map(func).collect()
 		}
 	}
@@ -514,7 +493,8 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(A, B) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			fa.into_iter()
 				.collect::<Vec<_>>()
 				.into_iter()
@@ -564,7 +544,8 @@ mod inner {
 		) -> B
 		where
 			Func: Fn(B, A) -> B + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			fa.into_iter().fold(initial, func)
 		}
 
@@ -609,7 +590,8 @@ mod inner {
 		where
 			M: Monoid + 'a,
 			Func: Fn(A) -> M + 'a,
-			FnBrand: CloneableFn + 'a, {
+			FnBrand: CloneableFn + 'a,
+		{
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
 	}
@@ -658,7 +640,8 @@ mod inner {
 		where
 			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
-			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
+			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
+		{
 			ta.into_iter().fold(F::pure(CatList::empty()), |acc, x| {
 				F::lift2(|list, b| list.snoc(b), acc, func(x))
 			})
@@ -700,7 +683,8 @@ mod inner {
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
-			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
+			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
+		{
 			ta.into_iter()
 				.fold(F::pure(CatList::empty()), |acc, x| F::lift2(|list, a| list.snoc(a), acc, x))
 		}
@@ -750,7 +734,8 @@ mod inner {
 		where
 			FnBrand: 'a + SendCloneableFn,
 			A: 'a + Clone + Send + Sync,
-			M: Monoid + Send + Sync + 'a, {
+			M: Monoid + Send + Sync + 'a,
+		{
 			// CatList doesn't support parallel iteration directly, so we collect to Vec first.
 			let vec: Vec<_> = fa.into_iter().collect();
 			#[cfg(feature = "rayon")]
@@ -900,7 +885,8 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
 		)
 		where
-			Func: Fn(A) -> Result<O, E> + 'a, {
+			Func: Fn(A) -> Result<O, E> + 'a,
+		{
 			let mut oks = CatList::empty();
 			let mut errs = CatList::empty();
 			for a in fa {
@@ -953,7 +939,8 @@ mod inner {
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		)
 		where
-			Func: Fn(A) -> bool + 'a, {
+			Func: Fn(A) -> bool + 'a,
+		{
 			let mut satisfied = CatList::empty();
 			let mut not_satisfied = CatList::empty();
 			for a in fa {
@@ -1004,7 +991,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
 		where
-			Func: Fn(A) -> Option<B> + 'a, {
+			Func: Fn(A) -> Option<B> + 'a,
+		{
 			fa.into_iter().filter_map(func).collect()
 		}
 
@@ -1044,7 +1032,8 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		where
-			Func: Fn(A) -> bool + 'a, {
+			Func: Fn(A) -> bool + 'a,
+		{
 			fa.into_iter().filter(|a| func(a.clone())).collect()
 		}
 	}
@@ -1104,7 +1093,8 @@ mod inner {
 			Func:
 				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
+		{
 			ta.into_iter().fold(M::pure((CatList::empty(), CatList::empty())), |acc, x| {
 				M::lift2(
 					|mut pair, res| {
@@ -1169,7 +1159,8 @@ mod inner {
 		where
 			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
-			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
+			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
+		{
 			ta.into_iter().fold(M::pure(CatList::empty()), |acc, x| {
 				M::lift2(
 					|list, opt_b| {
@@ -1593,9 +1584,9 @@ mod tests {
 	/// We verify that the iterator yields all elements in the correct order.
 	#[test]
 	fn test_iteration() {
-		let list: CatList<_> = (0 .. 10).collect();
+		let list: CatList<_> = (0..10).collect();
 		let vec: Vec<_> = list.into_iter().collect();
-		assert_eq!(vec, (0 .. 10).collect::<Vec<_>>());
+		assert_eq!(vec, (0..10).collect::<Vec<_>>());
 	}
 
 	/// Tests the O(1) length tracking.
@@ -1603,7 +1594,7 @@ mod tests {
 	/// We verify that the length is reported correctly as 100.
 	#[test]
 	fn test_len() {
-		let list: CatList<_> = (0 .. 100).collect();
+		let list: CatList<_> = (0..100).collect();
 		assert_eq!(list.len(), 100);
 	}
 
@@ -1711,11 +1702,7 @@ mod tests {
 	}
 
 	use {
-		crate::{
-			brands::*,
-			classes::CloneableFn,
-			functions::*,
-		},
+		crate::{brands::*, classes::CloneableFn, functions::*},
 		quickcheck_macros::quickcheck,
 	};
 

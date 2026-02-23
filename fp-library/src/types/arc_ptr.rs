@@ -20,10 +20,7 @@ mod inner {
 		crate::{
 			brands::ArcBrand,
 			classes::{
-				Pointer,
-				RefCountedPointer,
-				SendRefCountedPointer,
-				SendUnsizedCoercible,
+				Pointer, RefCountedPointer, SendRefCountedPointer, SendUnsizedCoercible,
 				UnsizedCoercible,
 			},
 		},
@@ -222,9 +219,7 @@ mod tests {
 	use crate::{
 		brands::ArcBrand,
 		classes::{
-			RefCountedPointer,
-			pointer::new,
-			ref_counted_pointer::cloneable_new,
+			RefCountedPointer, pointer::new, ref_counted_pointer::cloneable_new,
 			send_ref_counted_pointer::send_new,
 		},
 	};

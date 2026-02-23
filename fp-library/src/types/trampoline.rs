@@ -20,19 +20,9 @@ mod inner {
 		crate::{
 			brands::ThunkBrand,
 			classes::Deferrable,
-			types::{
-				Free,
-				Lazy,
-				LazyConfig,
-				Step,
-				Thunk,
-			},
+			types::{Free, Lazy, LazyConfig, Step, Thunk},
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
 
 	/// A lazy, stack-safe computation that produces a value of type `A`.
@@ -148,7 +138,8 @@ mod inner {
 		#[inline]
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> A + 'static, {
+			F: FnOnce() -> A + 'static,
+		{
 			Trampoline(Free::wrap(Thunk::new(move || Free::pure(f()))))
 		}
 
@@ -190,7 +181,8 @@ mod inner {
 		#[inline]
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Trampoline<A> + 'static, {
+			F: FnOnce() -> Trampoline<A> + 'static,
+		{
 			Trampoline(Free::wrap(Thunk::new(move || f().0)))
 		}
 
@@ -228,7 +220,8 @@ mod inner {
 			f: F,
 		) -> Trampoline<B>
 		where
-			F: FnOnce(A) -> Trampoline<B> + 'static, {
+			F: FnOnce(A) -> Trampoline<B> + 'static,
+		{
 			Trampoline(self.0.bind(move |a| f(a).0))
 		}
 
@@ -260,7 +253,8 @@ mod inner {
 			f: F,
 		) -> Trampoline<B>
 		where
-			F: FnOnce(A) -> B + 'static, {
+			F: FnOnce(A) -> B + 'static,
+		{
 			self.bind(move |a| Trampoline::pure(f(a)))
 		}
 
@@ -319,7 +313,8 @@ mod inner {
 			f: F,
 		) -> Trampoline<C>
 		where
-			F: FnOnce(A, B) -> C + 'static, {
+			F: FnOnce(A, B) -> C + 'static,
+		{
 			self.bind(move |a| other.map(move |b| f(a, b)))
 		}
 
@@ -403,14 +398,16 @@ mod inner {
 			initial: S,
 		) -> Self
 		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static, {
+			F: Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
+		{
 			// Use defer to ensure each step is trampolined.
 			fn go<A: 'static + Send, B: 'static + Send, F>(
 				f: F,
 				a: A,
 			) -> Trampoline<B>
 			where
-				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static, {
+				F: Fn(A) -> Trampoline<Step<A, B>> + Clone + 'static,
+			{
 				let f_clone = f.clone();
 				Trampoline::defer(move || {
 					f(a).bind(move |step| match step {
@@ -475,7 +472,8 @@ mod inner {
 			initial: S,
 		) -> Self
 		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + 'static, {
+			F: Fn(S) -> Trampoline<Step<S, A>> + 'static,
+		{
 			use std::sync::Arc;
 			let f = Arc::new(f);
 			let wrapper = move |s: S| {
@@ -529,7 +527,8 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,
-			Self: Sized, {
+			Self: Sized,
+		{
 			Trampoline::defer(f)
 		}
 	}
@@ -538,10 +537,7 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use {
-		super::*,
-		crate::types::step::Step,
-	};
+	use {super::*, crate::types::step::Step};
 
 	/// Tests `Trampoline::pure`.
 	///
@@ -638,10 +634,7 @@ mod tests {
 	fn test_task_arc_tail_rec_m() {
 		use std::sync::{
 			Arc,
-			atomic::{
-				AtomicUsize,
-				Ordering,
-			},
+			atomic::{AtomicUsize, Ordering},
 		};
 
 		let counter = Arc::new(AtomicUsize::new(0));
@@ -669,14 +662,8 @@ mod tests {
 	#[test]
 	fn test_task_from_memo() {
 		use {
-			crate::types::{
-				Lazy,
-				RcLazyConfig,
-			},
-			std::{
-				cell::RefCell,
-				rc::Rc,
-			},
+			crate::types::{Lazy, RcLazyConfig},
+			std::{cell::RefCell, rc::Rc},
 		};
 
 		let counter = Rc::new(RefCell::new(0));
@@ -704,14 +691,8 @@ mod tests {
 	#[test]
 	fn test_task_from_arc_memo() {
 		use {
-			crate::types::{
-				ArcLazyConfig,
-				Lazy,
-			},
-			std::sync::{
-				Arc,
-				Mutex,
-			},
+			crate::types::{ArcLazyConfig, Lazy},
+			std::sync::{Arc, Mutex},
 		};
 
 		let counter = Arc::new(Mutex::new(0));

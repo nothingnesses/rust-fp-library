@@ -1,44 +1,20 @@
 use {
 	crate::{
 		core::{
-			Error as CoreError,
-			Result,
-			config::get_config,
-			constants::attributes::DOCUMENT_PARAMETERS,
-			error_handling::ErrorCollector,
+			Error as CoreError, Result, config::get_config,
+			constants::attributes::DOCUMENT_PARAMETERS, error_handling::ErrorCollector,
 		},
 		support::{
 			Parameter,
-			attributes::{
-				find_attribute,
-				remove_attribute_tokens,
-			},
-			documentation_parameters::{
-				DocumentationParameter,
-				DocumentationParameters,
-			},
-			generate_documentation::{
-				generate_doc_comments,
-				insert_doc_comments_batch,
-			},
-			get_parameters,
-			has_receiver,
-			impl_has_receiver_methods,
-			parsing,
+			attributes::{find_attribute, remove_attribute_tokens},
+			documentation_parameters::{DocumentationParameter, DocumentationParameters},
+			generate_documentation::{generate_doc_comments, insert_doc_comments_batch},
+			get_parameters, has_receiver, impl_has_receiver_methods, parsing,
 		},
 	},
 	proc_macro2::TokenStream,
-	quote::{
-		ToTokens,
-		quote,
-	},
-	syn::{
-		ImplItem,
-		ImplItemFn,
-		LitStr,
-		parse::Parse,
-		spanned::Spanned,
-	},
+	quote::{ToTokens, quote},
+	syn::{ImplItem, ImplItemFn, LitStr, parse::Parse, spanned::Spanned},
 };
 
 /// Parse single string literal for receiver documentation
@@ -49,9 +25,7 @@ struct ReceiverDoc {
 impl Parse for ReceiverDoc {
 	fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
 		let description = input.parse()?;
-		Ok(ReceiverDoc {
-			description,
-		})
+		Ok(ReceiverDoc { description })
 	}
 }
 
@@ -138,16 +112,19 @@ fn process_method_in_impl(
 	// Add other parameters
 	for (param, entry) in logical_params.iter().zip(entries) {
 		let (name, desc) = match (param, entry) {
-			(Parameter::Explicit(_pat), DocumentationParameter::Override(n, d)) =>
-				(n.value(), d.value()),
+			(Parameter::Explicit(_pat), DocumentationParameter::Override(n, d)) => {
+				(n.value(), d.value())
+			}
 			(Parameter::Explicit(pat), DocumentationParameter::Description(d)) => {
 				let name = pat.to_token_stream().to_string().replace(" , ", ", ");
 				(name, d.value())
 			}
-			(Parameter::Implicit(_), DocumentationParameter::Override(n, d)) =>
-				(n.value(), d.value()),
-			(Parameter::Implicit(_), DocumentationParameter::Description(d)) =>
-				("_".to_string(), d.value()),
+			(Parameter::Implicit(_), DocumentationParameter::Override(n, d)) => {
+				(n.value(), d.value())
+			}
+			(Parameter::Implicit(_), DocumentationParameter::Description(d)) => {
+				("_".to_string(), d.value())
+			}
 		};
 		param_names.push(name);
 		param_descs.push(desc);
@@ -255,12 +232,7 @@ pub fn document_parameters_worker(
 
 #[cfg(test)]
 mod tests {
-	use {
-		super::*,
-		crate::support::generate_documentation::get_doc,
-		quote::quote,
-		syn::ItemFn,
-	};
+	use {super::*, crate::support::generate_documentation::get_doc, quote::quote, syn::ItemFn};
 
 	#[test]
 	fn test_doc_params_basic() {

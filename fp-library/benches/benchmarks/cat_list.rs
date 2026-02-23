@@ -1,14 +1,7 @@
 use {
-	criterion::{
-		BatchSize,
-		BenchmarkId,
-		Criterion,
-	},
+	criterion::{BatchSize, BenchmarkId, Criterion},
 	fp_library::types::cat_list::CatList,
-	std::{
-		collections::LinkedList,
-		hint::black_box,
-	},
+	std::{collections::LinkedList, hint::black_box},
 };
 
 /// Benchmarks for CatList operations.
@@ -34,7 +27,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| CatList::empty(),
 				|mut list| {
-					for i in 0 .. s {
+					for i in 0..s {
 						list = list.cons(i);
 					}
 					list
@@ -46,7 +39,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| LinkedList::new(),
 				|mut list| {
-					for i in 0 .. s {
+					for i in 0..s {
 						list.push_front(i);
 					}
 					list
@@ -58,7 +51,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| Vec::new(),
 				|mut list| {
-					for i in 0 .. s {
+					for i in 0..s {
 						list.insert(0, i);
 					}
 					list
@@ -76,7 +69,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| CatList::empty(),
 				|mut list| {
-					for i in 0 .. s {
+					for i in 0..s {
 						list = list.snoc(i);
 					}
 					list
@@ -88,7 +81,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| Vec::new(),
 				|mut list| {
-					for i in 0 .. s {
+					for i in 0..s {
 						list.push(i);
 					}
 					list
@@ -101,10 +94,10 @@ pub fn bench_cat_list(c: &mut Criterion) {
 
 	// Append (Concatenation)
 	{
-		let list1: CatList<i32> = (0 .. size).collect();
-		let list2: CatList<i32> = (0 .. size).collect();
-		let vec1: Vec<i32> = (0 .. size).collect();
-		let vec2: Vec<i32> = (0 .. size).collect();
+		let list1: CatList<i32> = (0..size).collect();
+		let list2: CatList<i32> = (0..size).collect();
+		let vec1: Vec<i32> = (0..size).collect();
+		let vec2: Vec<i32> = (0..size).collect();
 
 		let mut group = c.benchmark_group("CatList Append");
 		group.bench_with_input(BenchmarkId::new("CatList", &input_desc), &size, |b, &_| {
@@ -129,9 +122,9 @@ pub fn bench_cat_list(c: &mut Criterion) {
 
 	// Uncons (Head/Tail)
 	{
-		let list: CatList<i32> = (0 .. size).collect();
-		let vec: Vec<i32> = (0 .. size).collect();
-		let linked_list: LinkedList<i32> = (0 .. size).collect();
+		let list: CatList<i32> = (0..size).collect();
+		let vec: Vec<i32> = (0..size).collect();
+		let linked_list: LinkedList<i32> = (0..size).collect();
 
 		let mut group = c.benchmark_group("CatList Uncons");
 		group.bench_with_input(BenchmarkId::new("CatList", &input_desc), &size, |b, &_| {
@@ -178,7 +171,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| CatList::singleton(0i32),
 				|mut list| {
-					for i in 1 .. s {
+					for i in 1..s {
 						// Left-associated: (list ++ singleton(i))
 						list = list.append(CatList::singleton(i));
 					}
@@ -191,7 +184,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			b.iter_batched(
 				|| vec![0i32],
 				|mut v| {
-					for i in 1 .. s {
+					for i in 1..s {
 						// Vec extend is O(m) where m is the size of the appended data
 						// But repeated left-associated appends lead to O(n²) total
 						v.extend(vec![i]);
@@ -209,7 +202,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 					l
 				},
 				|mut l| {
-					for i in 1 .. s {
+					for i in 1..s {
 						let mut other = LinkedList::new();
 						other.push_back(i);
 						l.append(&mut other);
@@ -225,9 +218,9 @@ pub fn bench_cat_list(c: &mut Criterion) {
 	// Iteration (Measures overhead of flattening the internal structure)
 	// CatList iteration involves dynamic flattening, which is more expensive than Vec iteration.
 	{
-		let cat_list: CatList<i32> = (0 .. size).collect();
-		let vec_list: Vec<i32> = (0 .. size).collect();
-		let linked_list: LinkedList<i32> = (0 .. size).collect();
+		let cat_list: CatList<i32> = (0..size).collect();
+		let vec_list: Vec<i32> = (0..size).collect();
+		let linked_list: LinkedList<i32> = (0..size).collect();
 
 		let mut group = c.benchmark_group("CatList Iteration");
 		group.bench_with_input(BenchmarkId::new("CatList", &input_desc), &size, |b, &_| {
@@ -276,7 +269,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 	// This verifies that the flattening logic in uncons is efficient.
 	{
 		// Build a deeply nested CatList via left-associated appends
-		let nested_cat_list: CatList<i32> = (0 .. size).fold(CatList::empty(), |acc, i| {
+		let nested_cat_list: CatList<i32> = (0..size).fold(CatList::empty(), |acc, i| {
 			if acc.is_empty() { CatList::singleton(i) } else { acc.append(CatList::singleton(i)) }
 		});
 
@@ -297,7 +290,7 @@ pub fn bench_cat_list(c: &mut Criterion) {
 			},
 		);
 		// Compare with a flat CatList built via snoc (simpler structure)
-		let flat_cat_list: CatList<i32> = (0 .. size).collect();
+		let flat_cat_list: CatList<i32> = (0..size).collect();
 		group.bench_with_input(BenchmarkId::new("CatList (flat)", &input_desc), &size, |b, &_| {
 			b.iter_batched(
 				|| flat_cat_list.clone(),

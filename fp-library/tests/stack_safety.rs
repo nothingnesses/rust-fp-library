@@ -3,10 +3,7 @@
 //! This module contains tests to verify that `Trampoline` is stack-safe for deep recursion,
 //! deep bind chains, and deep defer chains.
 
-use fp_library::types::{
-	Step,
-	Trampoline,
-};
+use fp_library::types::{Step, Trampoline};
 
 /// Tests deep recursion using `tail_rec_m`.
 ///
@@ -36,7 +33,7 @@ fn test_deep_recursion() {
 #[test]
 fn test_deep_bind_chain() {
 	let mut task = Trampoline::pure(0);
-	for _ in 0 .. 100_000 {
+	for _ in 0..100_000 {
 		task = task.bind(|x| Trampoline::pure(x + 1));
 	}
 	assert_eq!(task.evaluate(), 100_000);

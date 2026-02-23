@@ -18,18 +18,9 @@ mod inner {
 	use {
 		crate::{
 			classes::Deferrable,
-			types::{
-				Lazy,
-				LazyConfig,
-				Trampoline,
-				TryLazy,
-			},
+			types::{Lazy, LazyConfig, Trampoline, TryLazy},
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 	};
 
 	/// A lazy, stack-safe computation that may fail with an error.
@@ -115,7 +106,8 @@ mod inner {
 		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
-			F: FnOnce() -> Result<A, E> + 'static, {
+			F: FnOnce() -> Result<A, E> + 'static,
+		{
 			TryTrampoline(Trampoline::new(f))
 		}
 
@@ -164,7 +156,8 @@ mod inner {
 		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
-			F: FnOnce() -> TryTrampoline<A, E> + 'static, {
+			F: FnOnce() -> TryTrampoline<A, E> + 'static,
+		{
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}
 
@@ -195,7 +188,8 @@ mod inner {
 			func: Func,
 		) -> TryTrampoline<B, E>
 		where
-			Func: FnOnce(A) -> B + 'static, {
+			Func: FnOnce(A) -> B + 'static,
+		{
 			TryTrampoline(self.0.map(|result| result.map(func)))
 		}
 
@@ -227,7 +221,8 @@ mod inner {
 			func: Func,
 		) -> TryTrampoline<A, E2>
 		where
-			Func: FnOnce(E) -> E2 + 'static, {
+			Func: FnOnce(E) -> E2 + 'static,
+		{
 			TryTrampoline(self.0.map(|result| result.map_err(func)))
 		}
 
@@ -258,7 +253,8 @@ mod inner {
 			f: F,
 		) -> TryTrampoline<B, E>
 		where
-			F: FnOnce(A) -> TryTrampoline<B, E> + 'static, {
+			F: FnOnce(A) -> TryTrampoline<B, E> + 'static,
+		{
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => f(a).0,
 				Err(e) => Trampoline::pure(Err(e)),
@@ -290,7 +286,8 @@ mod inner {
 			f: F,
 		) -> Self
 		where
-			F: FnOnce(E) -> TryTrampoline<A, E> + 'static, {
+			F: FnOnce(E) -> TryTrampoline<A, E> + 'static,
+		{
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => Trampoline::pure(Ok(a)),
 				Err(e) => f(e).0,
@@ -399,7 +396,8 @@ mod inner {
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,
-			Self: Sized, {
+			Self: Sized,
+		{
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}
 	}
@@ -408,10 +406,7 @@ pub use inner::*;
 
 #[cfg(test)]
 mod tests {
-	use {
-		super::*,
-		crate::types::Trampoline,
-	};
+	use {super::*, crate::types::Trampoline};
 
 	/// Tests `TryTrampoline::ok`.
 	///

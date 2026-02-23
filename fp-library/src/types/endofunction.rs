@@ -6,24 +6,12 @@
 mod inner {
 	use {
 		crate::{
-			classes::{
-				CloneableFn,
-				Monoid,
-				Semigroup,
-			},
+			classes::{CloneableFn, Monoid, Semigroup},
 			functions::identity,
 		},
-		fp_macros::{
-			document_fields,
-			document_parameters,
-			document_type_parameters,
-		},
+		fp_macros::{document_fields, document_parameters, document_type_parameters},
 		std::{
-			fmt::{
-				self,
-				Debug,
-				Formatter,
-			},
+			fmt::{self, Debug, Formatter},
 			hash::Hash,
 		},
 	};
@@ -309,11 +297,7 @@ mod tests {
 		super::*,
 		crate::{
 			brands::RcFnBrand,
-			classes::{
-				cloneable_fn::CloneableFn,
-				monoid::empty,
-				semigroup::append,
-			},
+			classes::{cloneable_fn::CloneableFn, monoid::empty, semigroup::append},
 		},
 		quickcheck_macros::quickcheck,
 	};

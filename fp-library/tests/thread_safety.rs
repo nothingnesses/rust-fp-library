@@ -1,8 +1,5 @@
 use {
-	fp_library::{
-		brands::*,
-		functions::*,
-	},
+	fp_library::{brands::*, functions::*},
 	std::thread,
 };
 

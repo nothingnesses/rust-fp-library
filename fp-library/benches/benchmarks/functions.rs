@@ -1,8 +1,5 @@
 use {
-	criterion::{
-		BenchmarkId,
-		Criterion,
-	},
+	criterion::{BenchmarkId, Criterion},
 	fp_library::functions::identity,
 };
 

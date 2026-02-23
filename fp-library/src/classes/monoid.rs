@@ -11,10 +11,7 @@
 
 use {
 	super::semigroup::Semigroup,
-	fp_macros::{
-		document_signature,
-		document_type_parameters,
-	},
+	fp_macros::{document_signature, document_type_parameters},
 };
 
 /// A type class for types that have an identity element and an associative binary operation.

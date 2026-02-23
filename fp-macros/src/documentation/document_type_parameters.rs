@@ -1,19 +1,10 @@
 use {
 	crate::{
-		core::{
-			Result,
-			constants::attributes::DOCUMENT_TYPE_PARAMETERS,
-		},
-		support::{
-			generate_documentation::generate_doc_comments,
-			parsing,
-		},
+		core::{Result, constants::attributes::DOCUMENT_TYPE_PARAMETERS},
+		support::{generate_documentation::generate_doc_comments, parsing},
 	},
 	proc_macro2::TokenStream,
-	syn::{
-		GenericParam,
-		spanned::Spanned,
-	},
+	syn::{GenericParam, spanned::Spanned},
 };
 
 pub fn document_type_parameters_worker(
@@ -45,12 +36,7 @@ pub fn document_type_parameters_worker(
 
 #[cfg(test)]
 mod doc_type_params_tests {
-	use {
-		super::*,
-		crate::support::generate_documentation::get_doc,
-		quote::quote,
-		syn::ItemFn,
-	};
+	use {super::*, crate::support::generate_documentation::get_doc, quote::quote, syn::ItemFn};
 
 	#[test]
 	fn test_doc_type_params_basic() {

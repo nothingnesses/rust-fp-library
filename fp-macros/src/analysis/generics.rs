@@ -211,23 +211,9 @@
 //!    external context, while semantic analysis (bounds) does.
 
 use {
-	crate::{
-		analysis::traits::get_fn_type_from_bound,
-		core::config::Config,
-		hm::HmAst,
-	},
-	std::collections::{
-		HashMap,
-		HashSet,
-	},
-	syn::{
-		GenericParam,
-		Generics,
-		Signature,
-		Type,
-		TypeParamBound,
-		WherePredicate,
-	},
+	crate::{analysis::traits::get_fn_type_from_bound, core::config::Config, hm::HmAst},
+	std::collections::{HashMap, HashSet},
+	syn::{GenericParam, Generics, Signature, Type, TypeParamBound, WherePredicate},
 };
 
 /// Extracts only type parameter names.

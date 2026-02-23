@@ -4,16 +4,8 @@
 //! This is the profunctor constraint that characterizes grates.
 
 use {
-	crate::{
-		Apply,
-		classes::profunctor::Profunctor,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
+	crate::{Apply, classes::profunctor::Profunctor, kinds::*},
+	fp_macros::{document_parameters, document_signature, document_type_parameters},
 };
 
 /// A type class for closed profunctors.

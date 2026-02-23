@@ -7,23 +7,9 @@
 //! - **Lifetime Name Independence**: Lifetime names don't affect canonical representation
 
 use {
-	crate::hkt::{
-		AssociatedTypes,
-		Canonicalizer,
-		generate_name,
-	},
-	quickcheck::{
-		Arbitrary,
-		Gen,
-		quickcheck,
-	},
-	syn::{
-		Generics,
-		Token,
-		TypeParamBound,
-		parse_quote,
-		punctuated::Punctuated,
-	},
+	crate::hkt::{AssociatedTypes, Canonicalizer, generate_name},
+	quickcheck::{Arbitrary, Gen, quickcheck},
+	syn::{Generics, Token, TypeParamBound, parse_quote, punctuated::Punctuated},
 };
 
 // ===========================================================================
@@ -63,9 +49,7 @@ const TRAIT_NAMES: &[&str] = &[
 impl Arbitrary for ArbTraitBound {
 	fn arbitrary(g: &mut Gen) -> Self {
 		let idx = usize::arbitrary(g) % TRAIT_NAMES.len();
-		ArbTraitBound {
-			name: TRAIT_NAMES[idx].to_string(),
-		}
+		ArbTraitBound { name: TRAIT_NAMES[idx].to_string() }
 	}
 }
 
@@ -82,9 +66,7 @@ const TYPE_NAMES: &[&str] =
 impl Arbitrary for ArbTypeName {
 	fn arbitrary(g: &mut Gen) -> Self {
 		let idx = usize::arbitrary(g) % TYPE_NAMES.len();
-		ArbTypeName {
-			name: TYPE_NAMES[idx].to_string(),
-		}
+		ArbTypeName { name: TYPE_NAMES[idx].to_string() }
 	}
 }
 
@@ -99,9 +81,7 @@ impl Arbitrary for ArbLifetime {
 		// Generate lifetimes 'a through 'z
 		let idx = usize::arbitrary(g) % 26;
 		let name = (b'a' + idx as u8) as char;
-		ArbLifetime {
-			name,
-		}
+		ArbLifetime { name }
 	}
 }
 
@@ -116,17 +96,15 @@ impl Arbitrary for UniqueLifetimes {
 		// Generate 0-4 unique lifetimes
 		let count = usize::arbitrary(g) % 5;
 		let mut names = Vec::with_capacity(count);
-		let available: Vec<char> = ('a' ..= 'z').collect();
+		let available: Vec<char> = ('a'..='z').collect();
 
-		for i in 0 .. count {
+		for i in 0..count {
 			if i < available.len() {
 				names.push(available[i]);
 			}
 		}
 
-		UniqueLifetimes {
-			names,
-		}
+		UniqueLifetimes { names }
 	}
 }
 
@@ -143,7 +121,7 @@ impl Arbitrary for UniqueBounds {
 		let mut bounds = Vec::with_capacity(count);
 		let mut used = std::collections::HashSet::new();
 
-		for _ in 0 .. count {
+		for _ in 0..count {
 			let arb = ArbTraitBound::arbitrary(g);
 			if !used.contains(&arb.name) {
 				used.insert(arb.name.clone());
@@ -151,9 +129,7 @@ impl Arbitrary for UniqueBounds {
 			}
 		}
 
-		UniqueBounds {
-			bounds,
-		}
+		UniqueBounds { bounds }
 	}
 }
 
@@ -221,7 +197,7 @@ fn prop_hash_determinism_repeated() {
 			generate_name(&input).unwrap().to_string()
 		};
 
-		for _ in 0 .. iterations {
+		for _ in 0..iterations {
 			let input: AssociatedTypes = syn::parse_str(input_str).unwrap();
 			let name = generate_name(&input).unwrap().to_string();
 			if name != first_name {
@@ -610,9 +586,7 @@ const SIMPLE_TYPES: &[&str] = &["i32", "u32", "i64", "u64", "bool", "String", "u
 impl Arbitrary for ArbSimpleType {
 	fn arbitrary(g: &mut Gen) -> Self {
 		let idx = usize::arbitrary(g) % SIMPLE_TYPES.len();
-		ArbSimpleType {
-			name: SIMPLE_TYPES[idx].to_string(),
-		}
+		ArbSimpleType { name: SIMPLE_TYPES[idx].to_string() }
 	}
 }
 

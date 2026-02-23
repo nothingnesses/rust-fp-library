@@ -1,8 +1,4 @@
-use fp_macros::{
-	document_module,
-	impl_kind,
-	trait_kind,
-};
+use fp_macros::{document_module, impl_kind, trait_kind};
 
 #[document_module(no_validation)]
 mod test_mod {
@@ -56,10 +52,7 @@ fn test_positional_matching() {
 
 #[document_module(no_validation)]
 mod test_collision {
-	use fp_macros::{
-		impl_kind,
-		trait_kind,
-	};
+	use fp_macros::{impl_kind, trait_kind};
 	trait_kind!(
 		type Of<T>;
 	);
