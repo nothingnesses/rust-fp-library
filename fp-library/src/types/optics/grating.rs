@@ -6,6 +6,7 @@ use {
 	crate::{
 		Apply,
 		classes::{
+			CloneableFn,
 			Closed,
 			Profunctor,
 		},
@@ -16,42 +17,46 @@ use {
 };
 
 /// The `Grating` profunctor.
-pub struct Grating<'a, A, B, S, T> {
+pub struct Grating<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 	/// Grating function.
-	pub run: Box<dyn Fn(Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>) -> T + 'a>,
+	pub run: <FnBrand as CloneableFn>::Of<'a, Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>, T>,
 	pub(crate) _phantom: PhantomData<(A, B)>,
 }
 
-impl<'a, A, B, S, T> Grating<'a, A, B, S, T> {
+impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Grating<'a, FnBrand, A, B, S, T> {
 	/// Creates a new `Grating` instance.
 	///
 	/// ### Examples
 	///
 	/// ```
-	/// use fp_library::types::optics::Grating;
+	/// use fp_library::{
+	/// 	brands::RcFnBrand,
+	/// 	classes::cloneable_fn::new as cloneable_fn_new,
+	/// 	types::optics::Grating,
+	/// };
 	///
-	/// let grating = Grating::<i32, i32, (i32, i32), i32>::new(|f| {
+	/// let grating = Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(|f| {
 	/// 	f(Box::new(|(x, _)| x)) + f(Box::new(|(_, y)| y))
-	/// });
+	/// }));
 	/// ```
-	pub fn new(run: impl Fn(Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>) -> T + 'a) -> Self {
+	pub fn new(run: <FnBrand as CloneableFn>::Of<'a, Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>, T>) -> Self {
 		Grating {
-			run: Box::new(run),
+			run,
 			_phantom: PhantomData,
 		}
 	}
 }
 
 /// Brand for the `Grating` profunctor.
-pub struct GratingBrand<A, B>(PhantomData<(A, B)>);
+pub struct GratingBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
 
 impl_kind! {
-	impl<A: 'static, B: 'static> for GratingBrand<A, B> {
-		type Of<'a, S: 'a, T: 'a>: 'a = Grating<'a, A, B, S, T>;
+	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for GratingBrand<FnBrand, A, B> {
+		type Of<'a, S: 'a, T: 'a>: 'a = Grating<'a, FnBrand, A, B, S, T>;
 	}
 }
 
-impl<A: 'static, B: 'static> Profunctor for GratingBrand<A, B> {
+impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor for GratingBrand<FnBrand, A, B> {
 	fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 		st: FuncST,
 		uv: FuncUV,
@@ -61,20 +66,20 @@ impl<A: 'static, B: 'static> Profunctor for GratingBrand<A, B> {
 		FuncST: Fn(S) -> T + 'a,
 		FuncUV: Fn(U) -> V + 'a, {
 		let run = puv.run;
-		let st = std::rc::Rc::new(st);
-		let uv = std::rc::Rc::new(uv);
-		Grating::new(move |f| {
+		let st = <FnBrand as CloneableFn>::new(st);
+		let uv = <FnBrand as CloneableFn>::new(uv);
+		Grating::<FnBrand, A, B, S, V>::new(<FnBrand as CloneableFn>::new(move |f: Box<dyn Fn(Box<dyn Fn(S) -> A + 'a>) -> B + 'a>| {
 			let st = st.clone();
 			let uv = uv.clone();
-			uv(run(Box::new(move |g| {
+			(*uv)((*run)(Box::new(move |g| {
 				let st = st.clone();
-				f(Box::new(move |s| g(st(s))))
+				f(Box::new(move |s| g((*st)(s))))
 			})))
-		})
+		}))
 	}
 }
 
-impl<A: 'static, B: 'static> Closed for GratingBrand<A, B> {
+impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Closed for GratingBrand<FnBrand, A, B> {
 	fn closed<'a, X: 'a, S: 'a, T: 'a>(
 		_pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> S + 'a>, Box<dyn Fn(X) -> T + 'a>>)
