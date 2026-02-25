@@ -50,10 +50,8 @@ mod inner {
 		T: 'a,
 		A: 'a,
 		B: 'a, {
-		/// Getter function.
-		pub view: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
-		/// Setter function.
-		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, B), T>),
+		/// Internal storage.
+		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -88,10 +86,50 @@ mod inner {
 		pub fn new(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, B)) -> T,
+		) -> Self
+		where
+			S: Clone, {
+			let view_brand = <FnBrand<P> as CloneableFn>::new(view);
+			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+
+			Lens {
+				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+					let s_clone = s.clone();
+					let set_brand = set_brand.clone();
+					(
+						view_brand(s),
+						<FnBrand<P> as CloneableFn>::new(move |b| set_brand((s_clone.clone(), b))),
+					)
+				}),
+				_phantom: PhantomData,
+			}
+		}
+
+		/// Create a new polymorphic lens without requiring `S: Clone`.
+		/// This matches PureScript's `lens'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	brands::RcFnBrand,
+		/// 	classes::CloneableFn,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::lens_prime(|x| {
+		/// 	(x, <RcFnBrand as CloneableFn>::new(|s| s))
+		/// });
+		/// ```
+		pub fn lens_prime(
+			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>),
 		) -> Self {
 			Lens {
-				view: <FnBrand<P> as CloneableFn>::new(view),
-				set: <FnBrand<P> as CloneableFn>::new(set),
+				to: <FnBrand<P> as CloneableFn>::new(to),
 				_phantom: PhantomData,
 			}
 		}
@@ -116,7 +154,7 @@ mod inner {
 			&self,
 			s: S,
 		) -> A {
-			(self.view)(s)
+			(self.to)(s).0
 		}
 
 		/// Set the focus of the lens in a structure.
@@ -140,7 +178,7 @@ mod inner {
 			s: S,
 			b: B,
 		) -> T {
-			(self.set)((s, b))
+			((self.to)(s).1)(b)
 		}
 	}
 
@@ -158,7 +196,7 @@ mod inner {
 	where
 		Q: Strong,
 		P: UnsizedCoercible,
-		S: 'a + Clone,
+		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a,
@@ -190,12 +228,11 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			let view = self.view.clone();
-			let set = self.set.clone();
+			let to = self.to.clone();
 
 			Q::dimap(
-				move |s: S| (view(s.clone()), s),
-				move |(b, s): (B, S)| set((s, b)),
+				move |s: S| to(s),
+				move |(b, f): (B, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)| f(b),
 				Q::first(pab),
 			)
 		}
@@ -210,7 +247,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
 		for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -256,7 +293,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
 		for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -300,7 +337,7 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> GetterOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
+	impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -343,7 +380,7 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
+	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for Lens<'a, P, S, S, A, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -386,7 +423,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, Q, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
+	impl<'a, Q, P, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
 		for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -438,8 +475,7 @@ mod inner {
 		P: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
-		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, A), S>),
+		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -471,8 +507,7 @@ mod inner {
 		/// ```
 		fn clone(&self) -> Self {
 			LensPrime {
-				view_fn: self.view_fn.clone(),
-				set_fn: self.set_fn.clone(),
+				to: self.to.clone(),
 				_phantom: PhantomData,
 			}
 		}
@@ -507,10 +542,50 @@ mod inner {
 		pub fn new(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, A)) -> S,
+		) -> Self
+		where
+			S: Clone, {
+			let view_brand = <FnBrand<P> as CloneableFn>::new(view);
+			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+
+			LensPrime {
+				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+					let s_clone = s.clone();
+					let set_brand = set_brand.clone();
+					(
+						view_brand(s),
+						<FnBrand<P> as CloneableFn>::new(move |a| set_brand((s_clone.clone(), a))),
+					)
+				}),
+				_phantom: PhantomData,
+			}
+		}
+
+		/// Create a new monomorphic lens without requiring `S: Clone`.
+		/// This matches PureScript's `lens'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	brands::RcFnBrand,
+		/// 	classes::CloneableFn,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::lens_prime(|x| {
+		/// 	(x, <RcFnBrand as CloneableFn>::new(|s| s))
+		/// });
+		/// ```
+		pub fn lens_prime(
+			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>),
 		) -> Self {
 			LensPrime {
-				view_fn: <FnBrand<P> as CloneableFn>::new(view),
-				set_fn: <FnBrand<P> as CloneableFn>::new(set),
+				to: <FnBrand<P> as CloneableFn>::new(to),
 				_phantom: PhantomData,
 			}
 		}
@@ -535,7 +610,7 @@ mod inner {
 			&self,
 			s: S,
 		) -> A {
-			(self.view_fn)(s)
+			(self.to)(s).0
 		}
 
 		/// Set the focus of the lens in a structure.
@@ -559,7 +634,7 @@ mod inner {
 			s: S,
 			a: A,
 		) -> S {
-			(self.set_fn)((s, a))
+			((self.to)(s).1)(a)
 		}
 
 		/// Update the focus of the lens in a structure using a function.
@@ -582,11 +657,9 @@ mod inner {
 			&self,
 			s: S,
 			f: impl Fn(A) -> A,
-		) -> S
-		where
-			S: Clone, {
-			let a = self.view(s.clone());
-			self.set(s, f(a))
+		) -> S {
+			let (a, set) = (self.to)(s);
+			set(f(a))
 		}
 	}
 
@@ -604,7 +677,7 @@ mod inner {
 	where
 		Q: Strong,
 		P: UnsizedCoercible,
-		S: 'a + Clone,
+		S: 'a,
 		A: 'a,
 	{
 		#[document_signature]
@@ -634,14 +707,13 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			let view_fn = self.view_fn.clone();
-			let set_fn = self.set_fn.clone();
+			let to = self.to.clone();
 
 			// The Profunctor encoding of a Lens is:
 			// lens get set = dimap (\s -> (get s, s)) (\(b, s) -> set s b) . first
 			Q::dimap(
-				move |s: S| (view_fn(s.clone()), s),
-				move |(a, s): (A, S)| set_fn((s, a)),
+				move |s: S| to(s),
+				move |(a, f): (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)| f(a),
 				Q::first(pab),
 			)
 		}
@@ -654,7 +726,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> TraversalOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -697,7 +769,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> GetterOptic<'a, S, A> for LensPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -740,7 +812,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for LensPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -781,7 +853,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, Q, P, S: 'a + Clone, A: 'a> SetterOptic<'a, Q, S, S, A, A> for LensPrime<'a, P, S, A>
+	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 		Q: UnsizedCoercible,
@@ -824,7 +896,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic lens instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> LensOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> LensOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
