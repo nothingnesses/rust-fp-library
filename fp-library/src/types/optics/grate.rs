@@ -122,7 +122,7 @@ mod inner {
 		P: UnsizedCoercible,
 		S: 'a + Clone,
 		T: 'a,
-		A: 'a + Clone,
+		A: 'a,
 		B: 'a,
 	{
 		/// Evaluates the grate with a profunctor.
@@ -192,7 +192,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a + Clone,
-		A: 'a + Clone,
+		A: 'a,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -246,7 +246,7 @@ mod inner {
 		P: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a + Clone,
-		A: 'a + Clone,
+		A: 'a,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -416,7 +416,7 @@ mod inner {
 		Q: Closed,
 		P: UnsizedCoercible,
 		S: 'a + Clone,
-		A: 'a + Clone,
+		A: 'a,
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
@@ -483,7 +483,7 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 		S: 'a + Clone,
-		A: 'a + Clone,
+		A: 'a,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -537,7 +537,7 @@ mod inner {
 		P: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a + Clone,
-		A: 'a + Clone,
+		A: 'a,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
