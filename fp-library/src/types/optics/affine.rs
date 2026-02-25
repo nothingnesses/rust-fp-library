@@ -52,10 +52,8 @@ mod inner {
 		T: 'a,
 		A: 'a,
 		B: 'a, {
-		/// Preview function: tries to extract the focus from the structure, returning T on failure.
-		pub preview: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, T>>),
-		/// Set function: updates the structure with a new focus value.
-		pub set: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, B), T>),
+		/// Internal storage avoiding S: Clone.
+		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -92,10 +90,52 @@ mod inner {
 		pub fn new(
 			preview: impl 'a + Fn(S) -> Result<A, T>,
 			set: impl 'a + Fn((S, B)) -> T,
+		) -> Self
+		where
+			S: Clone, {
+			let preview_brand = <FnBrand<P> as CloneableFn>::new(preview);
+			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+
+			AffineTraversal {
+				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+					let s_clone = s.clone();
+					let set_brand = set_brand.clone();
+					match preview_brand(s) {
+						Ok(a) => Ok((
+							a,
+							<FnBrand<P> as CloneableFn>::new(move |b| set_brand((s_clone.clone(), b))),
+						)),
+						Err(t) => Err(t),
+					}
+				}),
+				_phantom: PhantomData,
+			}
+		}
+
+		/// Create a new polymorphic affine traversal without requiring `S: Clone`.
+		/// This matches PureScript's `affineTraversal'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	brands::RcFnBrand,
+		/// 	classes::CloneableFn,
+		/// 	types::optics::AffineTraversal,
+		/// };
+		///
+		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	AffineTraversal::affine_traversal_prime(|(x, s)| Ok((x, <RcFnBrand as CloneableFn>::new(move |b| (b, s.clone())))));
+		/// ```
+		pub fn affine_traversal_prime(
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>,
 		) -> Self {
 			AffineTraversal {
-				preview: <FnBrand<P> as CloneableFn>::new(preview),
-				set: <FnBrand<P> as CloneableFn>::new(set),
+				to: <FnBrand<P> as CloneableFn>::new(to),
 				_phantom: PhantomData,
 			}
 		}
@@ -121,7 +161,7 @@ mod inner {
 			&self,
 			s: S,
 		) -> Result<A, T> {
-			(self.preview)(s)
+			(self.to)(s).map(|(a, _)| a)
 		}
 
 		/// Set the focus in the structure.
@@ -138,7 +178,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, _)| Ok(x), |((_, s), x)| (x, s));
 		/// assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));
 		/// ```
 		pub fn set(
@@ -146,7 +186,10 @@ mod inner {
 			s: S,
 			b: B,
 		) -> T {
-			(self.set)((s, b))
+			match (self.to)(s) {
+				Ok((_, f)) => f(b),
+				Err(t) => t,
+			}
 		}
 	}
 
@@ -164,7 +207,7 @@ mod inner {
 	where
 		Q: Strong + Choice,
 		P: UnsizedCoercible,
-		S: 'a + Clone,
+		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a,
@@ -198,19 +241,12 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			let preview = self.preview.clone();
-			let set = self.set.clone();
+			let to = self.to.clone();
 
-			// affine preview set = dimap split merge . right . first
-			// Q::first(pab) is p (A, S) (B, S)
-			// Q::right(...) is p (Result<(A, S), T>) (Result<(B, S), T>)
 			Q::dimap(
-				move |s: S| match preview(s.clone()) {
-					Ok(a) => Ok((a, s)),
-					Err(t) => Err(t),
-				},
-				move |result: Result<(B, S), T>| match result {
-					Ok((b, s)) => set((s, b)),
+				move |s: S| to(s),
+				move |result: Result<(B, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>| match result {
+					Ok((b, f)) => f(b),
 					Err(t) => t,
 				},
 				Q::right(Q::first(pab)),
@@ -227,7 +263,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The affine traversal instance.")]
-	impl<'a, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
 		for AffineTraversal<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -273,7 +309,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The affine traversal instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for AffineTraversal<'a, P, S, S, A, A>
+	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for AffineTraversal<'a, P, S, S, A, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -322,7 +358,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The affine traversal instance.")]
-	impl<'a, Q, P, S: 'a + Clone, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
+	impl<'a, Q, P, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
 		for AffineTraversal<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -372,13 +408,12 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct AffineTraversalPrime<'a, P, S, A>
+		pub struct AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Option<A>>),
-		pub(crate) set_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, A), S>),
+		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
 
@@ -412,8 +447,7 @@ mod inner {
 		/// ```
 		fn clone(&self) -> Self {
 			AffineTraversalPrime {
-				preview_fn: self.preview_fn.clone(),
-				set_fn: self.set_fn.clone(),
+				to: self.to.clone(),
 				_phantom: PhantomData,
 			}
 		}
@@ -450,10 +484,52 @@ mod inner {
 		pub fn new(
 			preview: impl 'a + Fn(S) -> Option<A>,
 			set: impl 'a + Fn((S, A)) -> S,
+		) -> Self
+		where
+			S: Clone, {
+			let preview_brand = <FnBrand<P> as CloneableFn>::new(preview);
+			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+
+			AffineTraversalPrime {
+				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+					let s_clone = s.clone();
+					let set_brand = set_brand.clone();
+					match preview_brand(s.clone()) {
+						Some(a) => Ok((
+							a,
+							<FnBrand<P> as CloneableFn>::new(move |a| set_brand((s_clone.clone(), a))),
+						)),
+						None => Err(s),
+					}
+				}),
+				_phantom: PhantomData,
+			}
+		}
+
+		/// Create a new monomorphic affine traversal without requiring `S: Clone`.
+		/// This matches PureScript's `affineTraversal'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	brands::RcFnBrand,
+		/// 	classes::CloneableFn,
+		/// 	types::optics::AffineTraversalPrime,
+		/// };
+		///
+		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+		/// 	AffineTraversalPrime::affine_traversal_prime(|(x, s)| Ok((x, <RcFnBrand as CloneableFn>::new(move |a| (a, s.clone())))));
+		/// ```
+		pub fn affine_traversal_prime(
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>,
 		) -> Self {
 			AffineTraversalPrime {
-				preview_fn: <FnBrand<P> as CloneableFn>::new(preview),
-				set_fn: <FnBrand<P> as CloneableFn>::new(set),
+				to: <FnBrand<P> as CloneableFn>::new(to),
 				_phantom: PhantomData,
 			}
 		}
@@ -479,7 +555,7 @@ mod inner {
 			&self,
 			s: S,
 		) -> Option<A> {
-			(self.preview_fn)(s)
+			(self.to)(s).ok().map(|(a, _)| a)
 		}
 
 		/// Set the focus in the structure.
@@ -504,7 +580,10 @@ mod inner {
 			s: S,
 			a: A,
 		) -> S {
-			(self.set_fn)((s, a))
+			match (self.to)(s) {
+				Ok((_, f)) => f(a),
+				Err(s) => s,
+			}
 		}
 
 		/// Modify the focus if it exists.
@@ -528,12 +607,10 @@ mod inner {
 			&self,
 			s: S,
 			f: impl Fn(A) -> A,
-		) -> S
-		where
-			S: Clone, {
-			match self.preview(s.clone()) {
-				Some(a) => self.set(s, f(a)),
-				None => s,
+		) -> S {
+			match (self.to)(s) {
+				Ok((a, set)) => set(f(a)),
+				Err(s) => s,
 			}
 		}
 	}
@@ -551,7 +628,7 @@ mod inner {
 	where
 		Q: Strong + Choice,
 		P: UnsizedCoercible,
-		S: 'a + Clone,
+		S: 'a,
 		A: 'a,
 	{
 		#[document_signature]
@@ -583,16 +660,12 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			let preview_fn = self.preview_fn.clone();
-			let set_fn = self.set_fn.clone();
+			let to = self.to.clone();
 
 			Q::dimap(
-				move |s: S| match preview_fn(s.clone()) {
-					Some(a) => Ok((a, s)),
-					None => Err(s),
-				},
-				move |result: Result<(A, S), S>| match result {
-					Ok((a, s)) => set_fn((s, a)),
+				move |s: S| to(s),
+				move |result: Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>| match result {
+					Ok((a, f)) => f(a),
 					Err(s) => s,
 				},
 				Q::right(Q::first(pab)),
@@ -607,7 +680,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic affine traversal instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> TraversalOptic<'a, S, S, A, A>
+	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
 		for AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
@@ -634,6 +707,7 @@ mod inner {
 		/// 	(i32, String),
 		/// 	i32,
 		/// 	i32,
+		/// 	i32,
 		/// >>::evaluate::<RcFnBrand>(&at, f);
 		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 		/// ```
@@ -652,7 +726,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic affine traversal instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for AffineTraversalPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -699,7 +773,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic affine traversal instance.")]
-	impl<'a, Q, P, S: 'a + Clone, A: 'a> SetterOptic<'a, Q, S, S, A, A>
+	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
 		for AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
