@@ -84,7 +84,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		/// assert_eq!(at.preview((42, "hi".to_string())), Ok(42));
 		/// ```
 		pub fn new(
@@ -103,7 +103,9 @@ mod inner {
 					match preview_brand(s) {
 						Ok(a) => Ok((
 							a,
-							<FnBrand<P> as CloneableFn>::new(move |b| set_brand((s_clone.clone(), b))),
+							<FnBrand<P> as CloneableFn>::new(move |b| {
+								set_brand((s_clone.clone(), b))
+							}),
 						)),
 						Err(t) => Err(t),
 					}
@@ -122,17 +124,21 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
 		/// 	classes::CloneableFn,
 		/// 	types::optics::AffineTraversal,
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::affine_traversal_prime(|(x, s)| Ok((x, <RcFnBrand as CloneableFn>::new(move |b| (b, s.clone())))));
+		/// 	AffineTraversal::affine_traversal_prime(|(x, s): (i32, String)| {
+		/// 		Ok((x, <RcFnBrand as CloneableFn>::new(move |b| (b, s.clone()))))
+		/// 	});
 		/// ```
 		pub fn affine_traversal_prime(
-			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>,
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>
 		) -> Self {
 			AffineTraversal {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -154,7 +160,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		/// assert_eq!(at.preview((42, "hi".to_string())), Ok(42));
 		/// ```
 		pub fn preview(
@@ -225,7 +231,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as Optic<
@@ -245,9 +251,11 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |result: Result<(B, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>| match result {
-					Ok((b, f)) => f(b),
-					Err(t) => t,
+				move |result: Result<(B, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>| {
+					match result {
+						Ok((b, f)) => f(b),
+						Err(t) => t,
+					}
 				},
 				Q::right(Q::first(pab)),
 			)
@@ -282,7 +290,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
@@ -330,7 +338,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as FoldOptic<
@@ -377,7 +385,7 @@ mod inner {
 		/// };
 		///
 		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s)| Ok(x), |((_, s), x)| (x, s));
+		/// 	AffineTraversal::new(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
@@ -408,7 +416,7 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-		pub struct AffineTraversalPrime<'a, P, S, A>
+	pub struct AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 		S: 'a,
@@ -497,7 +505,9 @@ mod inner {
 					match preview_brand(s.clone()) {
 						Some(a) => Ok((
 							a,
-							<FnBrand<P> as CloneableFn>::new(move |a| set_brand((s_clone.clone(), a))),
+							<FnBrand<P> as CloneableFn>::new(move |a| {
+								set_brand((s_clone.clone(), a))
+							}),
 						)),
 						None => Err(s),
 					}
@@ -516,17 +526,21 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
 		/// 	classes::CloneableFn,
 		/// 	types::optics::AffineTraversalPrime,
 		/// };
 		///
 		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::affine_traversal_prime(|(x, s)| Ok((x, <RcFnBrand as CloneableFn>::new(move |a| (a, s.clone())))));
+		/// 	AffineTraversalPrime::affine_traversal_prime(|(x, s): (i32, String)| {
+		/// 		Ok((x, <RcFnBrand as CloneableFn>::new(move |a| (a, s.clone()))))
+		/// 	});
 		/// ```
 		pub fn affine_traversal_prime(
-			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>,
+			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>
 		) -> Self {
 			AffineTraversalPrime {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -664,9 +678,11 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| to(s),
-				move |result: Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>| match result {
-					Ok((a, f)) => f(a),
-					Err(s) => s,
+				move |result: Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>| {
+					match result {
+						Ok((a, f)) => f(a),
+						Err(s) => s,
+					}
 				},
 				Q::right(Q::first(pab)),
 			)
@@ -680,8 +696,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic affine traversal instance.")]
-	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
-		for AffineTraversalPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A> for AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -705,7 +720,6 @@ mod inner {
 		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as TraversalOptic<
 		/// 	(i32, String),
 		/// 	(i32, String),
-		/// 	i32,
 		/// 	i32,
 		/// 	i32,
 		/// >>::evaluate::<RcFnBrand>(&at, f);
@@ -773,8 +787,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic affine traversal instance.")]
-	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
-		for AffineTraversalPrime<'a, P, S, A>
+	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A> for AffineTraversalPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 		Q: UnsizedCoercible,

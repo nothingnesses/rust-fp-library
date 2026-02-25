@@ -115,18 +115,19 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
 		/// 	classes::CloneableFn,
 		/// 	types::optics::Lens,
 		/// };
 		///
-		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::lens_prime(|x| {
-		/// 	(x, <RcFnBrand as CloneableFn>::new(|s| s))
-		/// });
+		/// let l: Lens<RcBrand, i32, String, i32, String> =
+		/// 	Lens::lens_prime(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
 		/// ```
 		pub fn lens_prime(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>),
+			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)
 		) -> Self {
 			Lens {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -247,8 +248,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B>
-		for Lens<'a, P, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> LensOptic<'a, S, T, A, B> for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
 	{
@@ -293,8 +293,7 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The lens instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
-		for Lens<'a, P, S, T, A, B>
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B> for Lens<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
 	{
@@ -571,18 +570,19 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
 		/// 	classes::CloneableFn,
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::lens_prime(|x| {
-		/// 	(x, <RcFnBrand as CloneableFn>::new(|s| s))
-		/// });
+		/// let l: LensPrime<RcBrand, i32, i32> =
+		/// 	LensPrime::lens_prime(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
 		/// ```
 		pub fn lens_prime(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>),
+			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)
 		) -> Self {
 			LensPrime {
 				to: <FnBrand<P> as CloneableFn>::new(to),

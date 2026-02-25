@@ -549,9 +549,11 @@ mod inner {
 		where
 			S: Clone, {
 			PrismPrime {
-				preview_fn: <FnBrand<P> as CloneableFn>::new(move |s: S| match preview(s.clone()) {
-					Some(a) => Ok(a),
-					None => Err(s),
+				preview_fn: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+					match preview(s.clone()) {
+						Some(a) => Ok(a),
+						None => Err(s),
+					}
 				}),
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
 				_phantom: PhantomData,
