@@ -446,7 +446,7 @@ mod inner {
 		P: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Option<A>>),
+		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, S>>),
 		pub(crate) review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
 		pub(crate) _phantom: PhantomData<P>,
 	}
@@ -498,6 +498,34 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 	{
+		/// Create a new monomorphic prism from preview and review functions without requiring `S: Clone`.
+		/// This uses a `Result<A, S>` which is closer to the true `Either` encoding.
+		#[document_signature]
+		///
+		#[document_parameters("The preview function.", "The review function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::PrismPrime,
+		/// };
+		///
+		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+		/// 	PrismPrime::new_with(|r: Result<i32, String>| r.map_err(|e| Err(e)?), |x| Ok(x));
+		/// ```
+		pub fn new_with(
+			preview: impl 'a + Fn(S) -> Result<A, S>,
+			review: impl 'a + Fn(A) -> S,
+		) -> Self {
+			PrismPrime {
+				preview_fn: <FnBrand<P> as CloneableFn>::new(preview),
+				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				_phantom: PhantomData,
+			}
+		}
+
 		/// Create a new monomorphic prism from preview and review functions.
 		#[document_signature]
 		///
@@ -517,9 +545,14 @@ mod inner {
 		pub fn new(
 			preview: impl 'a + Fn(S) -> Option<A>,
 			review: impl 'a + Fn(A) -> S,
-		) -> Self {
+		) -> Self
+		where
+			S: Clone, {
 			PrismPrime {
-				preview_fn: <FnBrand<P> as CloneableFn>::new(preview),
+				preview_fn: <FnBrand<P> as CloneableFn>::new(move |s: S| match preview(s.clone()) {
+					Some(a) => Ok(a),
+					None => Err(s),
+				}),
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
 				_phantom: PhantomData,
 			}
@@ -547,7 +580,7 @@ mod inner {
 			&self,
 			s: S,
 		) -> Option<A> {
-			(self.preview_fn)(s)
+			(self.preview_fn)(s).ok()
 		}
 
 		/// Review the focus into the structure.
@@ -619,7 +652,7 @@ mod inner {
 	where
 		Q: Choice,
 		P: UnsizedCoercible,
-		S: 'a + Clone,
+		S: 'a,
 		A: 'a,
 	{
 		#[document_signature]
@@ -650,10 +683,7 @@ mod inner {
 			let review_fn = self.review_fn.clone();
 
 			Q::dimap(
-				move |s: S| match preview_fn(s.clone()) {
-					Some(a) => Ok(a),
-					None => Err(s),
-				},
+				move |s: S| preview_fn(s),
 				move |result: Result<A, S>| match result {
 					Ok(a) => review_fn(a),
 					Err(s) => s,
