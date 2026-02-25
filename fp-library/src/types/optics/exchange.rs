@@ -7,7 +7,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::Profunctor,
+			classes::{
+				CloneableFn,
+				Profunctor,
+			},
 			impl_kind,
 			kinds::*,
 		},
@@ -21,27 +24,29 @@ mod inner {
 	/// The `Exchange` profunctor.
 	#[document_type_parameters(
 		"The lifetime of the functions.",
+		"The cloneable function brand.",
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function.",
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Exchange<'a, A, B, S, T> {
+	pub struct Exchange<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Forward function.
-		pub get: Box<dyn Fn(S) -> A + 'a>,
+		pub get: <FnBrand as CloneableFn>::Of<'a, S, A>,
 		/// Backward function.
-		pub set: Box<dyn Fn(B) -> T + 'a>,
+		pub set: <FnBrand as CloneableFn>::Of<'a, B, T>,
 		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
 	#[document_type_parameters(
 		"The lifetime of the functions.",
+		"The cloneable function brand.",
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function.",
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, A, B, S, T> Exchange<'a, A, B, S, T> {
+	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Exchange<'a, FnBrand, A, B, S, T> {
 		/// Creates a new `Exchange` instance.
 		#[document_signature]
 		///
@@ -50,19 +55,26 @@ mod inner {
 		/// ### Examples
 		///
 		/// ```
-		/// use fp_library::types::optics::Exchange;
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::cloneable_fn::new as cloneable_fn_new,
+		/// 	types::optics::Exchange,
+		/// };
 		///
-		/// let exchange = Exchange::new(|s: String| s.len(), |n: usize| n.to_string());
+		/// let exchange = Exchange::<RcFnBrand, _, _, _, _>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
+		/// );
 		/// assert_eq!((exchange.get)("hello".to_string()), 5);
 		/// assert_eq!((exchange.set)(10), "10".to_string());
 		/// ```
 		pub fn new(
-			get: impl Fn(S) -> A + 'a,
-			set: impl Fn(B) -> T + 'a,
+			get: <FnBrand as CloneableFn>::Of<'a, S, A>,
+			set: <FnBrand as CloneableFn>::Of<'a, B, T>,
 		) -> Self {
 			Exchange {
-				get: Box::new(get),
-				set: Box::new(set),
+				get,
+				set,
 				_phantom: PhantomData,
 			}
 		}
@@ -70,23 +82,27 @@ mod inner {
 
 	/// Brand for the `Exchange` profunctor.
 	#[document_type_parameters(
+		"The cloneable function brand.",
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function."
 	)]
-	pub struct ExchangeBrand<A, B>(PhantomData<(A, B)>);
+	pub struct ExchangeBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
 
 	impl_kind! {
-		impl<A: 'static, B: 'static> for ExchangeBrand<A, B> {
+		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for ExchangeBrand<FnBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Exchange<'a, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Exchange<'a, FnBrand, A, B, S, T>;
 		}
 	}
 
 	#[document_type_parameters(
+		"The cloneable function brand.",
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function."
 	)]
-	impl<A: 'static, B: 'static> Profunctor for ExchangeBrand<A, B> {
+	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for ExchangeBrand<FnBrand, A, B>
+	{
 		/// Maps functions over the input and output of the `Exchange` profunctor.
 		#[document_signature]
 		///
@@ -112,13 +128,17 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::*,
 		/// 	classes::*,
+		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let exchange: Exchange<usize, usize, String, String> =
-		/// 	Exchange::new(|s: String| s.len(), |n: usize| n.to_string());
+		/// let exchange: Exchange<RcFnBrand, usize, usize, String, String> =
+		/// 	Exchange::<RcFnBrand, _, _, _, _>::new(
+		/// 		cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
+		/// 		cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
+		/// 	);
 		///
-		/// let transformed = <ExchangeBrand<usize, usize> as Profunctor>::dimap(
+		/// let transformed = <ExchangeBrand<RcFnBrand, usize, usize> as Profunctor>::dimap(
 		/// 	|s: &str| s.to_string(),
 		/// 	|s: String| s.len(),
 		/// 	exchange,
@@ -134,7 +154,12 @@ mod inner {
 			FuncUV: Fn(U) -> V + 'a, {
 			let get = puv.get;
 			let set = puv.set;
-			Exchange::new(move |s| get(st(s)), move |b| uv(set(b)))
+			let st = <FnBrand as CloneableFn>::new(st);
+			let uv = <FnBrand as CloneableFn>::new(uv);
+			Exchange::new(
+				<FnBrand as CloneableFn>::new(move |s: S| (*get)((*st)(s))),
+				<FnBrand as CloneableFn>::new(move |b: B| (*uv)((*set)(b))),
+			)
 		}
 	}
 }

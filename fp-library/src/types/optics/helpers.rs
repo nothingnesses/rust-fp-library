@@ -7,6 +7,7 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
+				CloneableFn,
 				Function,
 				Profunctor,
 				UnsizedCoercible,
@@ -289,6 +290,7 @@ mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The cloneable function brand.",
 		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -304,23 +306,28 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	///
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_from(&iso, (42,)), 42);
+	/// assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);
 	/// ```
-	pub fn optics_from<'a, O, S, A>(
+	pub fn optics_from<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
 	) -> A
 	where
+		P: CloneableFn + 'static,
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
-		let exchange = Exchange::new(|a| a, |a| a);
-		(optic.evaluate::<ExchangeBrand<A, A>>(exchange).get)(s)
+		let exchange =
+			Exchange::new(<P as CloneableFn>::new(|a| a), <P as CloneableFn>::new(|a| a));
+		(optic.evaluate::<ExchangeBrand<P, A, A>>(exchange).get)(s)
 	}
 
 	/// Apply an isomorphism in the backward direction.
@@ -330,6 +337,7 @@ mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The cloneable function brand.",
 		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -345,23 +353,28 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	///
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_to(&iso, 42), (42,));
+	/// assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));
 	/// ```
-	pub fn optics_to<'a, O, S, A>(
+	pub fn optics_to<'a, P, O, S, A>(
 		optic: &O,
 		a: A,
 	) -> S
 	where
+		P: CloneableFn + 'static,
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
-		let exchange = Exchange::new(|a| a, |a| a);
-		(optic.evaluate::<ExchangeBrand<A, A>>(exchange).set)(a)
+		let exchange =
+			Exchange::new(<P as CloneableFn>::new(|a| a), <P as CloneableFn>::new(|a| a));
+		(optic.evaluate::<ExchangeBrand<P, A, A>>(exchange).set)(a)
 	}
 
 	/// Evaluate an optic with a profunctor.

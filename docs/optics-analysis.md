@@ -216,10 +216,10 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 
 | Aspect | PureScript | Rust |
 |--------|-----------|------|
-| Data | `Exchange (s -> a) (b -> t)` | `Exchange { get: Box<dyn Fn(S) -> A>, set: Box<dyn Fn(B) -> T> }` |
+| Data | `Exchange (s -> a) (b -> t)` | `Exchange { get, set }` using `FnBrand` |
 | Instances | `Profunctor` | `Profunctor` (via `ExchangeBrand`) |
 
-**Issue:** Rust uses `Box<dyn Fn>` instead of `FnBrand<P>`. This is inconsistent with the other profunctors (Shop, Market, Stall, Grating) which use `FnBrand<P>`. The `Exchange` type should be parameterized over a pointer brand for consistency.
+**Assessment:** Correct. `Exchange` is now parameterized over a cloneable function brand (`ExchangeBrand<FnBrand, A, B>`), consistent with `Shop`, `Market`, `Stall`, and `Grating`. The helper functions `optics_from` and `optics_to` require an explicit `FnBrand` parameter (e.g., `optics_from::<RcFnBrand, _, _, _>`).
 
 ### 3.2 Shop (Lens)
 
@@ -420,11 +420,7 @@ This is a fundamental limitation of the profunctor encoding in Rust. PureScript 
 
 **Recommendation:** Consider providing alternative constructors like PureScript's `lens'` that take `s -> (a, b -> t)`, avoiding the clone.
 
-### 7.2 `Exchange` Inconsistency
-
-`Exchange` uses `Box<dyn Fn>` for its stored functions while all other profunctors (`Shop`, `Market`, `Stall`, `Grating`) use `FnBrand<P>`. This creates an inconsistency where `Exchange` is not parameterized over the pointer brand and always uses heap allocation.
-
-### 7.3 `Prism` Encoding: `right` vs `left`
+### 7.2 `Prism` Encoding: `right` vs `left`
 
 PureScript's `prism` uses `right`:
 
@@ -444,7 +440,7 @@ However, PureScript applies `rmap to` to `pab` before `right`, while Rust applie
 
 These produce the same result. **No bug here.**
 
-### 7.4 `AffineTraversal` Encoding Difference
+### 7.3 `AffineTraversal` Encoding Difference
 
 PureScript uses `second (right pab)`:
 
@@ -486,7 +482,7 @@ Both are valid. PureScript pairs the setter `(b -> t)` with `Either t a` and app
 
 1. **Core profunctor encoding** is faithfully translated from PureScript
 2. **All primary optic families** are present (Iso, Lens, Prism, AffineTraversal, Traversal, Grate, Getter, Setter, Fold, Review)
-3. **All concrete profunctors** are implemented (Exchange, Shop, Market, Stall, Forget, Tagged, Grating)
+3. **All concrete profunctors** are implemented (Exchange, Shop, Market, Stall, Forget, Tagged, Grating) and consistently parameterized over `FnBrand`
 4. **Profunctor class hierarchy** correctly maps (Profunctor, Strong, Choice, Closed, Wander)
 5. **Optic subtyping** is correctly modeled through manual trait implementations
 6. **Composition** works correctly for same-family optics
@@ -494,10 +490,9 @@ Both are valid. PureScript pairs the setter `(b -> t)` with `Either t a` and app
 
 ### What Has Issues
 
-1. **`Exchange` uses `Box<dyn Fn>` inconsistently** — should use `FnBrand<P>` like other profunctors
-2. **`Clone` requirements** on Lens, PrismPrime, AffineTraversal, and Grate types where PureScript requires none
-3. **Missing `AffineTraversalOptic` trait** — breaks the subtyping hierarchy for cross-family composition
-4. **Cross-family composition** (Lens + Prism -> AffineTraversal) is not supported at the optic trait level
+1. **`Clone` requirements** on Lens, PrismPrime, AffineTraversal, and Grate types where PureScript requires none
+2. **Missing `AffineTraversalOptic` trait** — breaks the subtyping hierarchy for cross-family composition
+3. **Cross-family composition** (Lens + Prism -> AffineTraversal) is not supported at the optic trait level
 
 ### What is Missing
 
