@@ -289,6 +289,7 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The cloneable function brand used by the profunctor's `Closed` instance.",
 		"The reference-counted pointer type.",
 		"The source type of the structure.",
 		"The target type of the structure after an update.",
@@ -296,7 +297,8 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The iso instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> GrateOptic<'a, S, T, A, B> for Iso<'a, P, S, T, A, B>
+	impl<'a, FP: CloneableFn, P, S: 'a, T: 'a, A: 'a, B: 'a> GrateOptic<'a, FP, S, T, A, B>
+		for Iso<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
 	{
@@ -317,10 +319,10 @@ mod inner {
 		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-		/// 	GrateOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// 	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
-		fn evaluate<Q: Closed>(
+		fn evaluate<Q: Closed<FP>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
@@ -868,12 +870,13 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The cloneable function brand used by the profunctor's `Closed` instance.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic iso instance.")]
-	impl<'a, P, S: 'a, A: 'a> GrateOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+	impl<'a, FP: CloneableFn, P, S: 'a, A: 'a> GrateOptic<'a, FP, S, S, A, A> for IsoPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -894,10 +897,10 @@ mod inner {
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
 		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-		/// 	GrateOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// 	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
-		fn evaluate<Q: Closed>(
+		fn evaluate<Q: Closed<FP>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {

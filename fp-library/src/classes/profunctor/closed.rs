@@ -6,7 +6,10 @@
 use {
 	crate::{
 		Apply,
-		classes::profunctor::Profunctor,
+		classes::{
+			CloneableFn,
+			profunctor::Profunctor,
+		},
 		kinds::*,
 	},
 	fp_macros::{
@@ -20,20 +23,26 @@ use {
 ///
 /// A `Closed` profunctor can be closed under exponentiation.
 ///
+/// The type parameter `FP` is the cloneable function brand used to wrap the
+/// input and output functions produced by [`closed`](Self::closed). This
+/// allows callers to choose between `Rc`-backed and `Arc`-backed functions.
+///
 /// ### Hierarchy Unification
 ///
 /// This trait inherits from [`Profunctor`].
-pub trait Closed: Profunctor {
+pub trait Closed<FP: CloneableFn>: Profunctor {
 	/// Lift a profunctor to operate on functions.
 	///
-	/// This method takes a profunctor `P A B` and returns `P (X -> A) (X -> B)`.
+	/// This method takes a profunctor `P A B` and returns
+	/// `P (FP(X, A)) (FP(X, B))`, where `FP(X, A)` is
+	/// the cloneable function type `X -> A` wrapped via `FP`.
 	#[document_signature]
 	///
 	#[document_type_parameters(
 		"The lifetime of the profunctor.",
-		"The input type of the functions.",
 		"The source type of the profunctor.",
-		"The target type of the profunctor."
+		"The target type of the profunctor.",
+		"The input type of the functions."
 	)]
 	///
 	#[document_parameters("The profunctor value to transform.")]
@@ -51,15 +60,15 @@ pub trait Closed: Profunctor {
 	/// };
 	///
 	/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-	/// let g = <RcFnBrand as Closed>::closed::<String, i32, i32>(f);
+	/// let g = <RcFnBrand as Closed<RcFnBrand>>::closed::<i32, i32, String>(f);
 	/// // g is now a function: (String -> i32) -> (String -> i32)
-	/// let h = Box::new(|s: String| s.len() as i32) as Box<dyn Fn(String) -> i32>;
+	/// let h = std::rc::Rc::new(|s: String| s.len() as i32) as std::rc::Rc<dyn Fn(String) -> i32>;
 	/// let result = g(h);
 	/// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 	/// ```
-	fn closed<'a, X: 'a + Clone, A: 'a, B: 'a>(
+	fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>);
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FP as CloneableFn>::Of<'a, X, A>, <FP as CloneableFn>::Of<'a, X, B>>);
 }
 
 /// Lift a profunctor to operate on functions.
@@ -70,9 +79,10 @@ pub trait Closed: Profunctor {
 #[document_type_parameters(
 	"The lifetime of the profunctor.",
 	"The brand of the closed profunctor.",
-	"The input type of the functions.",
+	"The cloneable function brand for wrapping the input/output functions.",
 	"The source type of the profunctor.",
-	"The target type of the profunctor."
+	"The target type of the profunctor.",
+	"The input type of the functions."
 )]
 ///
 #[document_parameters("The profunctor value to transform.")]
@@ -90,15 +100,15 @@ pub trait Closed: Profunctor {
 /// };
 ///
 /// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-/// let g = closed::<RcFnBrand, String, i32, i32>(f);
+/// let g = closed::<RcFnBrand, RcFnBrand, i32, i32, String>(f);
 /// // g is now a function: (String -> i32) -> (String -> i32)
-/// let h = Box::new(|s: String| s.len() as i32) as Box<dyn Fn(String) -> i32>;
+/// let h = std::rc::Rc::new(|s: String| s.len() as i32) as std::rc::Rc<dyn Fn(String) -> i32>;
 /// let result = g(h);
 /// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 /// ```
-pub fn closed<'a, Brand: Closed, X: 'a + Clone, A: 'a, B: 'a>(
+pub fn closed<'a, Brand: Closed<FP>, FP: CloneableFn, A: 'a, B: 'a, X: 'a + Clone>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FP as CloneableFn>::Of<'a, X, A>, <FP as CloneableFn>::Of<'a, X, B>>)
 {
-	Brand::closed::<X, A, B>(pab)
+	Brand::closed::<A, B, X>(pab)
 }

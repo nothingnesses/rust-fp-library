@@ -338,17 +338,18 @@ mod inner {
 	}
 
 	#[document_type_parameters("The reference-counted pointer type.")]
-	impl<P: UnsizedCoercible> Closed for FnBrand<P> {
+	impl<P: UnsizedCoercible> Closed<FnBrand<P>> for FnBrand<P> {
 		/// Lift a profunctor to operate on functions.
 		///
-		/// This method takes a function `A -> B` and returns `(X -> A) -> (X -> B)`.
+		/// This method takes a function `A -> B` and returns `(X -> A) -> (X -> B)`,
+		/// where the input and output functions are wrapped in `FnBrand<P>`.
 		#[document_signature]
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
-			"The input type of the functions.",
 			"The source type of the profunctor.",
-			"The target type of the profunctor."
+			"The target type of the profunctor.",
+			"The input type of the functions."
 		)]
 		///
 		#[document_parameters("The function instance to lift.")]
@@ -366,18 +367,18 @@ mod inner {
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g = <RcFnBrand as Closed>::closed::<String, i32, i32>(f);
-		/// let h = Box::new(|s: String| s.len() as i32) as Box<dyn Fn(String) -> i32>;
+		/// let g = <RcFnBrand as Closed<RcFnBrand>>::closed::<i32, i32, String>(f);
+		/// let h = std::rc::Rc::new(|s: String| s.len() as i32) as std::rc::Rc<dyn Fn(String) -> i32>;
 		/// let result = g(h);
 		/// assert_eq!(result("hi".to_string()), 3);
 		/// ```
-		fn closed<'a, X: 'a + Clone, A: 'a, B: 'a>(
+		fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Box<dyn Fn(X) -> A + 'a>, Box<dyn Fn(X) -> B + 'a>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, X, A>, <FnBrand<P> as CloneableFn>::Of<'a, X, B>>)
 		{
-			P::coerce_fn(move |f: Box<dyn Fn(X) -> A + 'a>| -> Box<dyn Fn(X) -> B + 'a> {
+			P::coerce_fn(move |f: <FnBrand<P> as CloneableFn>::Of<'a, X, A>| -> <FnBrand<P> as CloneableFn>::Of<'a, X, B> {
 				let pab = pab.clone();
-				Box::new(move |x| pab(f(x)))
+				P::coerce_fn(move |x: X| pab(f(x)))
 			})
 		}
 	}

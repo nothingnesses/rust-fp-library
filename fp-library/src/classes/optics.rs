@@ -9,6 +9,7 @@ use {
 		brands::FnBrand,
 		classes::{
 			UnsizedCoercible,
+			cloneable_fn::CloneableFn,
 			monoid::Monoid,
 			profunctor::*,
 		},
@@ -407,12 +408,13 @@ pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
 /// A grate optic.
 #[document_type_parameters(
 	"The lifetime of the values.",
+	"The cloneable function brand used by the profunctor's `Closed` instance.",
 	"The source type of the structure.",
 	"The target type of the structure after an update.",
 	"The source type of the focus.",
 	"The target type of the focus after an update."
 )]
-pub trait GrateOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+pub trait GrateOptic<'a, FP: CloneableFn, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// Evaluate the optic with a closed profunctor.
 	#[document_signature]
 	///
@@ -436,7 +438,7 @@ pub trait GrateOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// assert_eq!(f(pair.0), 42);
 	/// assert_eq!(f(pair.1), 20);
 	/// ```
-	fn evaluate<P: Closed>(
+	fn evaluate<P: Closed<FP>>(
 		&self,
 		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);

@@ -80,7 +80,7 @@
 //! ```
 
 mod affine;
-mod base;
+mod composed;
 mod exchange;
 mod fold;
 mod forget;
@@ -98,10 +98,11 @@ mod shop;
 mod stall;
 mod tagged;
 mod traversal;
+mod zipping;
 
 pub use {
 	affine::*,
-	base::*,
+	composed::*,
 	exchange::*,
 	fold::*,
 	forget::*,
@@ -119,4 +120,5 @@ pub use {
 	stall::*,
 	tagged::*,
 	traversal::*,
+	zipping::*,
 };

@@ -1,38 +1,40 @@
-//! Core optic trait and composition.
+//! The `Composed` struct for composing optics.
+
+use {
+	crate::{
+		Apply,
+		brands::FnBrand,
+		classes::{
+			CloneableFn,
+			UnsizedCoercible,
+			monoid::Monoid,
+			optics::*,
+			profunctor::{
+				Choice,
+				Closed,
+				Profunctor,
+				Strong,
+				Wander,
+			},
+		},
+		kinds::*,
+		types::optics::{
+			ForgetBrand,
+			TaggedBrand,
+		},
+	},
+	fp_macros::{
+		document_parameters,
+		document_signature,
+		document_type_parameters,
+	},
+	std::marker::PhantomData,
+};
 
 #[fp_macros::document_module]
 mod inner {
-	use {
-		crate::{
-			Apply,
-			brands::FnBrand,
-			classes::{
-				UnsizedCoercible,
-				monoid::Monoid,
-				optics::*,
-				profunctor::{
-					Choice,
-					Closed,
-					Profunctor,
-					Strong,
-					Wander,
-				},
-			},
-			kinds::*,
-			types::optics::{
-				ForgetBrand,
-				TaggedBrand,
-			},
-		},
-		fp_macros::{
-			document_parameters,
-			document_signature,
-			document_type_parameters,
-		},
-		std::marker::PhantomData,
-	};
+	use super::*;
 
-	///
 	/// This struct represents the composition of two optics, allowing them to be
 	/// combined into a single optic that applies both transformations.
 	#[document_type_parameters(
@@ -722,6 +724,7 @@ mod inner {
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
+		"The cloneable function brand used by the profunctor's `Closed` instance.",
 		"The source type of the outer structure.",
 		"The target type of the outer structure.",
 		"The source type of the intermediate structure.",
@@ -732,11 +735,11 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, S, T, M, N, A, B, O1, O2> GrateOptic<'a, S, T, A, B>
+	impl<'a, FP: CloneableFn, S, T, M, N, A, B, O1, O2> GrateOptic<'a, FP, S, T, A, B>
 		for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		O1: GrateOptic<'a, S, T, M, N>,
-		O2: GrateOptic<'a, M, N, A, B>,
+		O1: GrateOptic<'a, FP, S, T, M, N>,
+		O2: GrateOptic<'a, FP, M, N, A, B>,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -771,12 +774,12 @@ mod inner {
 		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "test".to_string())), (42, "test".to_string()));
 		/// ```
-		fn evaluate<P: Closed>(
+		fn evaluate<P: Closed<FP>>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			let pmn = GrateOptic::evaluate::<P>(&self.second, pab);
-			GrateOptic::evaluate::<P>(&self.first, pmn)
+			let pmn = GrateOptic::<FP, M, N, A, B>::evaluate::<P>(&self.second, pab);
+			GrateOptic::<FP, S, T, M, N>::evaluate::<P>(&self.first, pmn)
 		}
 	}
 

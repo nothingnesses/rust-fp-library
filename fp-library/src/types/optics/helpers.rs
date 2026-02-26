@@ -21,6 +21,8 @@ mod inner {
 				ExchangeBrand,
 				Forget,
 				Tagged,
+				Zipping,
+				ZippingBrand,
 			},
 		},
 		fp_macros::{
@@ -426,6 +428,82 @@ mod inner {
 		P: Profunctor,
 		O: Optic<'a, P, S, T, A, B>, {
 		optic.evaluate(pab)
+	}
+
+	/// Zip two structures together using a grate optic and a combining function.
+	///
+	/// Matches PureScript's `zipWithOf :: Grate s t a b -> (a -> a -> b) -> s -> s -> t`.
+	///
+	/// Uses the `Zipping` profunctor internally: the grate optic lifts the combining
+	/// function into a `Zipping<S, T>` (a binary function on `S`), which is then applied
+	/// to the two input structures.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function brand for `Zipping`.",
+		"The optic type.",
+		"The source type of the structure.",
+		"The target type of the structure.",
+		"The source type of the focus.",
+		"The target type of the focus."
+	)]
+	///
+	#[document_parameters(
+		"The grate optic.",
+		"The combining function, taking a pair `(A, A)` and returning `B`.",
+		"The first structure.",
+		"The second structure."
+	)]
+	///
+	/// ### Returns
+	///
+	/// The combined structure.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use {
+	/// 	fp_library::{
+	/// 		brands::{
+	/// 			RcBrand,
+	/// 			RcFnBrand,
+	/// 		},
+	/// 		classes::CloneableFn,
+	/// 		types::optics::{
+	/// 			GratePrime,
+	/// 			zip_with_of,
+	/// 		},
+	/// 	},
+	/// 	std::rc::Rc,
+	/// };
+	///
+	/// let grate = GratePrime::<RcBrand, (i32, i32), i32>::new(|f| {
+	/// 	(
+	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	/// 	)
+	/// });
+	/// let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
+	/// assert_eq!(result, (11, 22));
+	/// ```
+	pub fn zip_with_of<'a, P, O, S, T, A, B>(
+		optic: &O,
+		f: impl Fn((A, A)) -> B + 'a,
+		s1: S,
+		s2: S,
+	) -> T
+	where
+		P: CloneableFn + 'static,
+		O: GrateOptic<'a, P, S, T, A, B>,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a, {
+		let zipping = Zipping::<P, A, B>::new(f);
+		let result: Zipping<'a, P, S, T> =
+			GrateOptic::<P, S, T, A, B>::evaluate::<ZippingBrand<P>>(optic, zipping);
+		(*result.run)((s1, s2))
 	}
 }
 pub use inner::*;
