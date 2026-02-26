@@ -8,10 +8,12 @@ mod inner {
 		crate::{
 			Apply,
 			classes::{
-				Choice,
 				CloneableFn,
-				Profunctor,
-				Strong,
+				profunctor::{
+					Choice,
+					Profunctor,
+					Strong,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -129,7 +131,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -181,7 +186,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -222,7 +230,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -263,7 +274,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///

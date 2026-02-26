@@ -8,9 +8,11 @@ mod inner {
 		crate::{
 			Apply,
 			classes::{
-				Choice,
 				CloneableFn,
-				Profunctor,
+				profunctor::{
+					Choice,
+					Profunctor,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -130,7 +132,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -181,7 +186,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -219,7 +227,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///

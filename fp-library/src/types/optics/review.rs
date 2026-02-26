@@ -11,11 +11,10 @@ mod inner {
 			classes::{
 				CloneableFn,
 				UnsizedCoercible,
+				optics::*,
 			},
 			kinds::*,
 			types::optics::{
-				Optic,
-				ReviewOptic,
 				Tagged,
 				TaggedBrand,
 			},
@@ -176,6 +175,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -219,6 +219,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -369,6 +370,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -408,6 +410,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };

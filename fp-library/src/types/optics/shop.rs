@@ -9,8 +9,10 @@ mod inner {
 			Apply,
 			classes::{
 				CloneableFn,
-				Profunctor,
-				Strong,
+				profunctor::{
+					Profunctor,
+					Strong,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -128,7 +130,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -180,7 +185,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///

@@ -9,13 +9,15 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Choice,
 				CloneableFn,
-				Profunctor,
-				Strong,
 				UnsizedCoercible,
 				monoid::Monoid,
-				wander::Wander,
+				profunctor::{
+					Choice,
+					Profunctor,
+					Strong,
+					Wander,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -175,7 +177,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -219,7 +225,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -256,7 +266,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -271,7 +284,7 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		where
-			TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a, {
+			TFunc: crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a, {
 			use crate::types::const_val::ConstBrand;
 			Forget::new(move |s| {
 				let pab = pab.clone();
@@ -303,7 +316,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///
@@ -341,7 +358,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		///

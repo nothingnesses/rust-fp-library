@@ -1,5 +1,14 @@
 use fp_library::{
 	brands::*,
+	classes::{
+		optics::*,
+		profunctor::{
+			first,
+			left,
+			right,
+			second,
+		},
+	},
 	functions::*,
 	types::optics::*,
 };

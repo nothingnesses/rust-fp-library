@@ -11,18 +11,12 @@ mod inner {
 			brands::FnBrand,
 			classes::{
 				UnsizedCoercible,
-				Wander,
 				monoid::Monoid,
-				wander::TraversalFunc,
+				optics::*,
+				profunctor::Wander,
 			},
 			kinds::*,
-			types::optics::{
-				FoldOptic,
-				ForgetBrand,
-				Optic,
-				SetterOptic,
-				TraversalOptic,
-			},
+			types::optics::ForgetBrand,
 		},
 		fp_macros::{
 			document_parameters,
@@ -86,8 +80,8 @@ mod inner {
 		/// 	classes::{
 		/// 		Applicative,
 		/// 		lift::Lift,
+		/// 		optics::traversal::TraversalFunc,
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
 		/// 	},
 		/// 	kinds::*,
 		/// 	types::optics::Traversal,
@@ -175,8 +169,8 @@ mod inner {
 		/// 	classes::{
 		/// 		Applicative,
 		/// 		lift::Lift,
+		/// 		optics::traversal::TraversalFunc,
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
 		/// 	},
 		/// 	kinds::*,
 		/// 	types::optics::TraversalPrime,
@@ -251,16 +245,16 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::{
 		/// 		Applicative,
-		/// 		Wander,
 		/// 		lift::Lift,
+		/// 		optics::{
+		/// 			traversal::TraversalFunc,
+		/// 			*,
+		/// 		},
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
+		/// 		profunctor::*,
 		/// 	},
 		/// 	kinds::*,
-		/// 	types::optics::{
-		/// 		Optic,
-		/// 		Traversal,
-		/// 	},
+		/// 	types::optics::Traversal,
 		/// };
 		///
 		/// #[derive(Clone)]
@@ -329,16 +323,16 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::{
 		/// 		Applicative,
-		/// 		Wander,
 		/// 		lift::Lift,
+		/// 		optics::{
+		/// 			traversal::TraversalFunc,
+		/// 			*,
+		/// 		},
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
+		/// 		profunctor::*,
 		/// 	},
 		/// 	kinds::*,
-		/// 	types::optics::{
-		/// 		Traversal,
-		/// 		TraversalOptic,
-		/// 	},
+		/// 	types::optics::Traversal,
 		/// };
 		///
 		/// #[derive(Clone)]
@@ -406,14 +400,16 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::{
 		/// 		Applicative,
-		/// 		Wander,
 		/// 		lift::Lift,
+		/// 		optics::{
+		/// 			traversal::TraversalFunc,
+		/// 			*,
+		/// 		},
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
+		/// 		profunctor::*,
 		/// 	},
 		/// 	kinds::*,
 		/// 	types::optics::{
-		/// 		FoldOptic,
 		/// 		Forget,
 		/// 		Traversal,
 		/// 	},
@@ -486,16 +482,16 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::{
 		/// 		Applicative,
-		/// 		Wander,
 		/// 		lift::Lift,
+		/// 		optics::{
+		/// 			traversal::TraversalFunc,
+		/// 			*,
+		/// 		},
 		/// 		pointed::Pointed,
-		/// 		wander::TraversalFunc,
+		/// 		profunctor::*,
 		/// 	},
 		/// 	kinds::*,
-		/// 	types::optics::{
-		/// 		SetterOptic,
-		/// 		Traversal,
-		/// 	},
+		/// 	types::optics::Traversal,
 		/// };
 		///
 		/// #[derive(Clone)]

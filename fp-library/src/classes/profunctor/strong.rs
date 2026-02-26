@@ -8,6 +8,7 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
+//! 	classes::profunctor::*,
 //! 	functions::*,
 //! };
 //!
@@ -18,9 +19,9 @@
 //! ```
 
 use {
-	super::profunctor::Profunctor,
 	crate::{
 		Apply,
+		classes::profunctor::Profunctor,
 		kinds::*,
 	},
 	fp_macros::{
@@ -72,6 +73,7 @@ pub trait Strong: Profunctor {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -107,6 +109,7 @@ pub trait Strong: Profunctor {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -145,6 +148,7 @@ pub trait Strong: Profunctor {
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///
@@ -182,6 +186,7 @@ pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///

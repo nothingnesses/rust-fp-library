@@ -32,6 +32,17 @@ use {
 		impl_kind,
 	},
 };
+pub use {
+	choice::*,
+	closed::*,
+	strong::*,
+	wander::*,
+};
+
+pub mod choice;
+pub mod closed;
+pub mod strong;
+pub mod wander;
 
 /// A type class for profunctors.
 ///
@@ -89,6 +100,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -136,6 +148,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -182,6 +195,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -233,6 +247,7 @@ pub trait Profunctor: Kind_266801a817966495 {
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///
@@ -283,6 +298,7 @@ where
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///
@@ -327,6 +343,7 @@ where
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///

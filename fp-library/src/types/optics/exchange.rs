@@ -127,7 +127,11 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };

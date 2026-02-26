@@ -17,18 +17,20 @@ mod inner {
 			brands::FnBrand,
 			classes::{
 				Category,
-				Choice,
 				CloneableFn,
-				Closed,
 				Function,
-				Profunctor,
 				RefCountedPointer,
 				Semigroupoid,
 				SendCloneableFn,
 				SendUnsizedCoercible,
-				Strong,
 				UnsizedCoercible,
-				wander::Wander,
+				profunctor::{
+					Choice,
+					Closed,
+					Profunctor,
+					Strong,
+					Wander,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -226,7 +228,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::Profunctor,
+		/// 	classes::profunctor::*,
 		/// };
 		///
 		/// let f = <RcFnBrand as Profunctor>::dimap(
@@ -274,7 +276,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::Strong,
+		/// 	classes::profunctor::*,
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
@@ -314,7 +316,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::Choice,
+		/// 	classes::profunctor::*,
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
@@ -360,7 +362,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
-		/// 	classes::Closed,
+		/// 	classes::profunctor::*,
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
@@ -408,10 +410,8 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::{
 		/// 		Applicative,
-		/// 		wander::{
-		/// 			TraversalFunc,
-		/// 			Wander,
-		/// 		},
+		/// 		optics::traversal::TraversalFunc,
+		/// 		profunctor::*,
 		/// 	},
 		/// 	kinds::*,
 		/// };
@@ -435,7 +435,7 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		where
-			TFunc: crate::classes::wander::TraversalFunc<'a, S, T, A, B> + 'a, {
+			TFunc: crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a, {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
 				traversal

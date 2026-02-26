@@ -16,12 +16,12 @@
 //! ```
 
 use {
-	super::{
-		category::Category,
-		strong::Strong,
-	},
 	crate::{
 		Apply,
+		classes::{
+			Category,
+			profunctor::Strong,
+		},
 		kinds::*,
 	},
 	fp_macros::{

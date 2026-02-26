@@ -7,25 +7,21 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
-				Choice,
 				CloneableFn,
-				Strong,
 				UnsizedCoercible,
 				monoid::Monoid,
-				wander::Wander,
+				optics::*,
+				profunctor::{
+					Choice,
+					Strong,
+					Wander,
+				},
 			},
 			kinds::*,
 			types::optics::{
-				AffineTraversalOptic,
-				FoldOptic,
 				ForgetBrand,
-				Optic,
-				PrismOptic,
-				ReviewOptic,
-				SetterOptic,
 				Tagged,
 				TaggedBrand,
-				TraversalOptic,
 			},
 		},
 		fp_macros::{
@@ -177,6 +173,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -235,6 +232,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -281,6 +279,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -326,6 +325,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -371,6 +371,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -416,6 +417,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -459,6 +461,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -711,6 +714,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -762,6 +766,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -805,6 +810,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -848,6 +854,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -893,6 +900,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -935,6 +943,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -976,6 +985,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };

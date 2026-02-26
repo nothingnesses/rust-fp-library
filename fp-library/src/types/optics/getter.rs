@@ -12,14 +12,10 @@ mod inner {
 				CloneableFn,
 				UnsizedCoercible,
 				monoid::Monoid,
+				optics::*,
 			},
 			kinds::*,
-			types::optics::{
-				FoldOptic,
-				ForgetBrand,
-				GetterOptic,
-				Optic,
-			},
+			types::optics::ForgetBrand,
 		},
 		fp_macros::{
 			document_parameters,
@@ -181,6 +177,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -342,6 +339,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -389,6 +387,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -430,6 +429,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };

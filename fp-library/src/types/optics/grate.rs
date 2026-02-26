@@ -11,16 +11,12 @@ mod inner {
 			brands::FnBrand,
 			classes::{
 				CloneableFn,
-				Closed,
 				RefCountedPointer,
 				UnsizedCoercible,
+				optics::*,
+				profunctor::Closed,
 			},
 			kinds::*,
-			types::optics::{
-				GrateOptic,
-				Optic,
-				SetterOptic,
-			},
 		},
 		fp_macros::{
 			document_parameters,
@@ -158,11 +154,11 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::{
-		/// 			Grate,
-		/// 			Optic,
+		/// 		classes::{
+		/// 			CloneableFn,
+		/// 			optics::*,
 		/// 		},
+		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
@@ -252,12 +248,10 @@ mod inner {
 		/// 		brands::*,
 		/// 		classes::{
 		/// 			CloneableFn,
-		/// 			Closed,
+		/// 			optics::*,
+		/// 			profunctor::*,
 		/// 		},
-		/// 		types::optics::{
-		/// 			Grate,
-		/// 			GrateOptic,
-		/// 		},
+		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
@@ -309,12 +303,10 @@ mod inner {
 		/// 		brands::*,
 		/// 		classes::{
 		/// 			CloneableFn,
-		/// 			Closed,
+		/// 			optics::*,
+		/// 			profunctor::*,
 		/// 		},
-		/// 		types::optics::{
-		/// 			Grate,
-		/// 			SetterOptic,
-		/// 		},
+		/// 		types::optics::Grate,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
@@ -501,11 +493,11 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::{
-		/// 			GratePrime,
-		/// 			Optic,
+		/// 		classes::{
+		/// 			CloneableFn,
+		/// 			optics::*,
 		/// 		},
+		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
@@ -591,11 +583,11 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::{
-		/// 			GrateOptic,
-		/// 			GratePrime,
+		/// 		classes::{
+		/// 			CloneableFn,
+		/// 			optics::*,
 		/// 		},
+		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };
@@ -647,12 +639,10 @@ mod inner {
 		/// 		brands::*,
 		/// 		classes::{
 		/// 			CloneableFn,
-		/// 			Closed,
+		/// 			optics::*,
+		/// 			profunctor::*,
 		/// 		},
-		/// 		types::optics::{
-		/// 			GratePrime,
-		/// 			SetterOptic,
-		/// 		},
+		/// 		types::optics::GratePrime,
 		/// 	},
 		/// 	std::rc::Rc,
 		/// };

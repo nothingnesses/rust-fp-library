@@ -47,7 +47,7 @@ pub trait Closed: Profunctor {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	classes::Closed,
+	/// 	classes::profunctor::*,
 	/// };
 	///
 	/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
@@ -86,11 +86,11 @@ pub trait Closed: Profunctor {
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	classes::Closed,
+/// 	classes::profunctor::*,
 /// };
 ///
 /// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-/// let g = fp_library::functions::closed::<RcFnBrand, String, i32, i32>(f);
+/// let g = closed::<RcFnBrand, String, i32, i32>(f);
 /// // g is now a function: (String -> i32) -> (String -> i32)
 /// let h = Box::new(|s: String| s.len() as i32) as Box<dyn Fn(String) -> i32>;
 /// let result = g(h);

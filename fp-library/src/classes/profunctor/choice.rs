@@ -8,6 +8,7 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
+//! 	classes::profunctor::*,
 //! 	functions::*,
 //! };
 //!
@@ -20,9 +21,9 @@
 //! ```
 
 use {
-	super::profunctor::Profunctor,
 	crate::{
 		Apply,
+		classes::profunctor::Profunctor,
 		kinds::*,
 	},
 	fp_macros::{
@@ -74,6 +75,7 @@ pub trait Choice: Profunctor {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -110,6 +112,7 @@ pub trait Choice: Profunctor {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::profunctor::*,
 	/// 	functions::*,
 	/// };
 	///
@@ -161,6 +164,7 @@ pub trait Choice: Profunctor {
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///
@@ -200,6 +204,7 @@ pub fn left<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 /// ```
 /// use fp_library::{
 /// 	brands::*,
+/// 	classes::profunctor::*,
 /// 	functions::*,
 /// };
 ///

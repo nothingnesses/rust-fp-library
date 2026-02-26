@@ -12,12 +12,9 @@ mod inner {
 				CloneableFn,
 				Function,
 				UnsizedCoercible,
+				optics::*,
 			},
 			kinds::*,
-			types::optics::{
-				Optic,
-				SetterOptic,
-			},
 		},
 		fp_macros::{
 			document_parameters,
@@ -181,6 +178,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -232,6 +230,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},
@@ -393,6 +392,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::*,
+		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -440,6 +440,7 @@ mod inner {
 		/// use {
 		/// 	fp_library::{
 		/// 		brands::*,
+		/// 		classes::optics::*,
 		/// 		functions::*,
 		/// 		types::optics::*,
 		/// 	},

@@ -12,19 +12,14 @@ mod inner {
 				Profunctor,
 				UnsizedCoercible,
 				monoid::Monoid,
+				optics::*,
 				semigroup::Semigroup,
 			},
 			kinds::*,
 			types::optics::{
 				Exchange,
 				ExchangeBrand,
-				FoldOptic,
 				Forget,
-				GetterOptic,
-				IsoOptic,
-				Optic,
-				ReviewOptic,
-				SetterOptic,
 				Tagged,
 			},
 		},
@@ -59,6 +54,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -102,6 +98,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -155,6 +152,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -204,6 +202,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -265,6 +264,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -310,6 +310,7 @@ mod inner {
 	/// 		RcBrand,
 	/// 		RcFnBrand,
 	/// 	},
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -357,6 +358,7 @@ mod inner {
 	/// 		RcBrand,
 	/// 		RcFnBrand,
 	/// 	},
+	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
 	///
@@ -404,6 +406,7 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
+	/// 	classes::optics::*,
 	/// 	functions::*,
 	/// 	types::optics::*,
 	/// };
