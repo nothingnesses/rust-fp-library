@@ -9,12 +9,14 @@ mod inner {
 			classes::{
 				Choice,
 				CloneableFn,
+				Strong,
 				UnsizedCoercible,
 				monoid::Monoid,
 				wander::Wander,
 			},
 			kinds::*,
 			types::optics::{
+				AffineTraversalOptic,
 				FoldOptic,
 				ForgetBrand,
 				Optic,
@@ -252,6 +254,52 @@ mod inner {
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			Optic::<Q, S, T, A, B>::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The prism instance.")]
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
+		for Prism<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+		/// assert_eq!(modifier(Some(21)), Some(42));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			PrismOptic::evaluate::<Q>(self, pab)
 		}
 	}
 
@@ -733,6 +781,49 @@ mod inner {
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
 			Optic::<Q, S, S, A, A>::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	#[document_parameters("The monomorphic prism instance.")]
+	impl<'a, P, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+		/// assert_eq!(modifier(Ok(21)), Ok(42));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+			PrismOptic::evaluate::<Q>(self, pab)
 		}
 	}
 

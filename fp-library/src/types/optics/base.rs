@@ -193,6 +193,48 @@ mod inner {
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 	}
 
+	/// An affine traversal optic.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	pub trait AffineTraversalOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+		/// Evaluate the optic with a strong and choice profunctor.
+		#[document_signature]
+		///
+		#[document_type_parameters("The profunctor type.")]
+		///
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as AffineTraversalOptic<
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate::<RcFnBrand>(&at, f);
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate<P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+	}
+
 	/// A traversal optic.
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -741,6 +783,67 @@ mod inner {
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			let pmn = PrismOptic::evaluate::<P>(&self.second, pab);
 			PrismOptic::evaluate::<P>(&self.first, pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, S, T, M, N, A, B, O1, O2> AffineTraversalOptic<'a, S, T, A, B>
+		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: AffineTraversalOptic<'a, S, T, M, N>,
+		O2: AffineTraversalOptic<'a, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
+		/// let composed = Composed::new(l1, p2);
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = <Composed<
+		/// 	'_,
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	i32,
+		/// 	LensPrime<RcBrand, (i32, String), i32>,
+		/// 	PrismPrime<RcBrand, i32, i32>,
+		/// > as AffineTraversalOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
+		/// 	&composed, f,
+		/// );
+		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
+		/// ```
+		fn evaluate<P: Strong + Choice>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = AffineTraversalOptic::evaluate::<P>(&self.second, pab);
+			AffineTraversalOptic::evaluate::<P>(&self.first, pmn)
 		}
 	}
 

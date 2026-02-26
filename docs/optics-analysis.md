@@ -90,14 +90,13 @@ Composition uses a `Composed` struct to enable static dispatch and zero-cost abs
 
 | Aspect | PureScript | Rust | Match? |
 |--------|-----------|------|--------|
-| Type | `type AffineTraversal ... = Strong p => Choice p => ...` | `AffineTraversal<'a, P, S, T, A, B>` struct | Correct |
+| Type | `type AffineTraversal ... = Strong p => Choice p => ...` | `AffineTraversal<'a, P, S, T, A, B>` struct + `AffineTraversalOptic` trait | Correct |
 | Construction | `affineTraversal :: (s -> b -> t) -> (s -> Either t a)` | `AffineTraversal::new(to: S -> Result<(A, B -> T), T>)` | Correct |
 | Encoding | `dimap ... (second (right pab))` | `dimap(split, merge, right(first(pab)))` | Valid alternative |
 | Concrete (A-) | `AnAffineTraversal` (uses `Stall`) | Uses `StallBrand` | Correct |
 
 **Issues:**
 - **Encoding difference**: PureScript uses `second (right pab)` while Rust uses `right(first(pab))`. Both are valid profunctor encodings of an affine traversal — they apply `Strong` and `Choice` in different orders but are equivalent. This is not a bug.
-- **Missing `AffineTraversalOptic` trait**: Unlike other optics, there is no dedicated `AffineTraversalOptic` trait. The `AffineTraversal` struct implements `TraversalOptic`, `FoldOptic`, and `SetterOptic` but not a unique affine-specific trait. This means composing a Lens with a Prism yields a `Traversal` rather than the more precise `AffineTraversal`.
 - **Missing `cloneAffineTraversal`, `withAffineTraversal`**: Not present.
 
 ### 2.5 Traversal
@@ -204,8 +203,7 @@ PureScript establishes a lattice of optic subtyping through profunctor class inh
   Getter Fold Setter   Review
 ```
 
-*   **Correct**: `Iso`, `Lens`, `Prism`, `Traversal`, `Grate`, `Getter`, `Fold`, `Setter`, `Review` structs all implement the correct super-traits.
-*   **Missing**: `AffineTraversal` does **not** have its own `AffineTraversalOptic` trait. It implements `TraversalOptic`, effectively collapsing it into the Traversal layer in the trait hierarchy. This means cross-family composition (Lens + Prism) degrades to `Traversal` instead of preserving `AffineTraversal`.
+*   **Correct**: `Iso`, `Lens`, `Prism`, `AffineTraversal`, `Traversal`, `Grate`, `Getter`, `Fold`, `Setter`, `Review` structs all implement the correct super-traits.
 
 ---
 
@@ -227,14 +225,13 @@ PureScript's `Re` profunctor allows reversing optics (turning an Iso around, or 
 
 ## 6. Summary of Flaws & Inconsistencies
 
-1.  **Missing `AffineTraversalOptic`**: Breaks the subtyping lattice. `Lens + Prism` should be `AffineTraversal`, but in Rust it degrades to `Traversal`.
-2.  **`Fold` Implementation**: The `Fold` struct is essentially `S -> Vec<A>`, which is strict and allocating. It does not support the full streaming/monoidal nature of a true profunctor fold.
-3.  **Missing Standard Combinators**: The library provides the *types* but very few of the standard *combinators* (`_1`, `_2`, `_Just`, `_Left`, `traversed`) that make optics ergonomic to use.
-4.  **Composition Verbosity**: While necessary, the `Composed` struct makes type signatures for composed optics extremely verbose and complex compared to `.` or `<<<`.
+1.  **`Fold` Implementation**: The `Fold` struct is essentially `S -> Vec<A>`, which is strict and allocating. It does not support the full streaming/monoidal nature of a true profunctor fold.
+2.  **Missing Standard Combinators**: The library provides the *types* but very few of the standard *combinators* (`_1`, `_2`, `_Just`, `_Left`, `traversed`) that make optics ergonomic to use.
+3.  **Composition Verbosity**: While necessary, the `Composed` struct makes type signatures for composed optics extremely verbose and complex compared to `.` or `<<<`.
 
 ## 7. Conclusion
 
 `fp-library` provides a solid, type-safe foundation for profunctor optics in Rust. The core encoding of `Lens`, `Prism`, `Iso` is high-fidelity and correct. However, the library is significantly less mature than `purescript-profunctor-lenses` in terms of:
 1.  **Completeness**: Completely missing Indexed optics.
 2.  **Ecosystem**: Missing standard combinators and convenience functions.
-3.  **Refinement**: `Fold` implementation is suboptimal, and `AffineTraversal` trait is missing.
+3.  **Refinement**: `Fold` implementation is suboptimal.

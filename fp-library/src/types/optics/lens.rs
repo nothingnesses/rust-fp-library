@@ -7,6 +7,7 @@ mod inner {
 			Apply,
 			brands::FnBrand,
 			classes::{
+				Choice,
 				CloneableFn,
 				Strong,
 				UnsizedCoercible,
@@ -15,6 +16,7 @@ mod inner {
 			},
 			kinds::*,
 			types::optics::{
+				AffineTraversalOptic,
 				FoldOptic,
 				ForgetBrand,
 				GetterOptic,
@@ -280,6 +282,52 @@ mod inner {
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			Optic::<Q, S, T, A, B>::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The lens instance.")]
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
+		for Lens<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			LensOptic::evaluate::<Q>(self, pab)
 		}
 	}
 
@@ -713,6 +761,49 @@ mod inner {
 				move |(a, f): (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)| f(a),
 				Q::first(pab),
 			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	#[document_parameters("The monomorphic lens instance.")]
+	impl<'a, P, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A> for LensPrime<'a, P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+			LensOptic::evaluate::<Q>(self, pab)
 		}
 	}
 

@@ -18,6 +18,7 @@ mod inner {
 			},
 			kinds::*,
 			types::optics::{
+				AffineTraversalOptic,
 				FoldOptic,
 				ForgetBrand,
 				GetterOptic,
@@ -247,6 +248,47 @@ mod inner {
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			Optic::<Q, S, T, A, B>::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The iso instance.")]
+	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
+		for Iso<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			IsoOptic::evaluate::<Q>(self, pab)
 		}
 	}
 
@@ -778,6 +820,44 @@ mod inner {
 			// The Profunctor encoding of an Iso is:
 			// iso from to = dimap from to
 			Q::dimap(move |s| from_fn(s), move |a| to_fn(a), pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	#[document_parameters("The monomorphic iso instance.")]
+	impl<'a, P, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A> for IsoPrime<'a, P, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
+		fn evaluate<Q: Strong + Choice>(
+			&self,
+			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+			IsoOptic::evaluate::<Q>(self, pab)
 		}
 	}
 

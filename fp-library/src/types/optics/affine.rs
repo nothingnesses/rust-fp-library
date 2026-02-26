@@ -16,6 +16,7 @@ mod inner {
 			},
 			kinds::*,
 			types::optics::{
+				AffineTraversalOptic,
 				FoldOptic,
 				ForgetBrand,
 				Optic,
@@ -259,6 +260,57 @@ mod inner {
 				},
 				Q::right(Q::first(pab)),
 			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The affine traversal instance.")]
+	impl<'a, P, S, T, A, B> AffineTraversalOptic<'a, S, T, A, B> for AffineTraversal<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier =
+		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as AffineTraversalOptic<
+		/// 		(i32, String),
+		/// 		(i32, String),
+		/// 		i32,
+		/// 		i32,
+		/// 	>>::evaluate::<RcFnBrand>(&at, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
+		fn evaluate<R: Strong + Choice>(
+			&self,
+			pab: Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			Optic::<R, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -686,6 +738,52 @@ mod inner {
 				},
 				Q::right(Q::first(pab)),
 			)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The type of the structure.",
+		"The type of the focus."
+	)]
+	#[document_parameters("The monomorphic affine traversal instance.")]
+	impl<'a, P, S, A> AffineTraversalOptic<'a, S, S, A, A> for AffineTraversalPrime<'a, P, S, A>
+	where
+		P: UnsizedCoercible,
+		S: 'a,
+		A: 'a,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as AffineTraversalOptic<
+		/// 	(i32, String),
+		/// 	(i32, String),
+		/// 	i32,
+		/// 	i32,
+		/// >>::evaluate::<RcFnBrand>(&at, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
+		fn evaluate<R: Strong + Choice>(
+			&self,
+			pab: Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+			Optic::<R, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
