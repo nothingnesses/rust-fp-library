@@ -83,9 +83,8 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Subtyping | Lens is a Traversal, Getter, Setter, Fold | All implemented | Correct |
 
 **Issues:**
-- **`S: Clone` requirement**: The Rust lens encoding requires `S: Clone` because it uses `s.clone()` in the `dimap` input function. PureScript's `lens'` variant avoids this by pairing `(a, b -> t)` instead of `(a, s)`. This is a semantic limitation—Rust lenses cannot work on non-`Clone` types.
-- **Setter signature difference**: PureScript's `lens` takes `(s -> a)` and `(s -> b -> t)` (curried setter). Rust's `Lens::new` takes `(S -> A)` and `((S, B) -> T)` (tuple setter). This is a style choice consistent with the uncurried design, but the `set` field stores `(S, B) -> T` rather than two separate arguments.
-- **Missing `lens'`**: PureScript's `lens' :: (s -> Tuple a (b -> t)) -> Lens s t a b` packages the getter and setter in one pass. Not present in Rust.
+- **`S: Clone` requirement**: The default `Lens::new` constructor requires `S: Clone` because it uses the legacy encoding `dimap(|s| (view(s.clone()), s), ...)`. However, a new constructor `Lens::lens_prime` (and internal encoding) has been added that matches PureScript's `lens'` and **removes the `S: Clone` requirement** from the `Lens` type and its optic implementations.
+- **Setter signature difference**: PureScript's `lens` takes `(s -> a)` and `(s -> b -> t)` (curried setter). Rust's `Lens::new` takes `(S -> A)` and `((S, B) -> T)` (tuple setter). This is a style choice consistent with the uncurried design.
 - **Missing `cloneLens`**: PureScript's `cloneLens :: ALens s t a b -> Lens s t a b`. Not present.
 - **Missing `lensStore`**: PureScript's utility for extracting `Tuple a (b -> t)` from an `ALens`. Not present.
 - **Missing indexed lens**: PureScript has `IndexedLens`, `ilens`, `ilens'`, `cloneIndexedLens`. Not present in Rust.
@@ -102,8 +101,7 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Subtyping | Prism is a Traversal, Fold, Setter, Review | All implemented | Correct |
 
 **Issues:**
-- **`S: Clone` on `PrismPrime`**: The monomorphic prism requires `S: Clone` in its `Optic` impl because it must return `s` when `preview` returns `None`. PureScript avoids this with the `Either t a` representation. The polymorphic `Prism` doesn't have this issue (it uses `Result<A, T>`).
-- **Encoding difference in `PrismPrime`**: PureScript's `prism'` constructs `s -> Either s a`, keeping the original `s` in the `Left`. Rust's `PrismPrime::evaluate` does the same: `match preview(s.clone()) { Some(a) => Ok(a), None => Err(s) }`. This is correct but requires the `Clone`.
+- **`S: Clone` requirement**: `PrismPrime` no longer requires `S: Clone` for its optic implementations. The internal encoding has been updated to use `Result<A, S>` instead of `Option<A>`. The `new` constructor still requires `S: Clone` (to adapt `Option` to `Result`), but a new `new_with` constructor allows creating a prism from a `S -> Result<A, S>` preview function without `Clone`.
 - **Missing `only`, `nearly`**: Convenience prism constructors for equality-based matching. Not present.
 - **Missing `is`, `isn't`**: Boolean predicates for prism matching. Not present.
 - **Missing `matching`**: Extract the `Either t a` from a prism. Not present.
@@ -121,7 +119,8 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Concrete (A-) | `AnAffineTraversal = Optic (Stall a b) s t a b` | Uses `StallBrand<FnBrand, A, B>` | Correct |
 
 **Issues:**
-- **Encoding difference**: PureScript uses `second (right pab)` while Rust uses `right(first(pab))`. Both are valid profunctor encodings of an affine traversal—they use `Strong` and `Choice` in different orders. The PureScript version pairs `(b -> t)` with `Either t a`, then applies `second . right`. The Rust version pairs `(a, s)` inside `Right`, then applies `right . first`. Both produce the correct result, so this is not a bug, just a different decomposition.
+- **`S: Clone` requirement**: The `S: Clone` requirement has been removed from `AffineTraversal` and `AffineTraversalPrime`. A new constructor `affine_traversal_prime` (matching PureScript's `affineTraversal'`) allows creating these optics without `Clone`. The `new` constructor retains `S: Clone` for backward compatibility.
+- **Encoding difference**: PureScript uses `second (right pab)` while Rust uses `right(first(pab))`. Both are valid profunctor encodings of an affine traversal—they use `Strong` and `Choice` in different orders.
 - **Missing `AffineTraversalOptic` trait**: Unlike other optics, there is no dedicated `AffineTraversalOptic` trait. The `AffineTraversal` struct implements `TraversalOptic`, `FoldOptic`, and `SetterOptic` but not a unique affine-specific trait. This means you cannot compose two affine traversals and guarantee the result is affine rather than a general traversal.
 - **Missing `cloneAffineTraversal`**, **`withAffineTraversal`**: Not present.
 
@@ -152,7 +151,7 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Concrete (A-) | `AGrate = Optic (Grating a b) s t a b` | Uses `GratingBrand<FnBrand, A, B>` | Correct |
 
 **Issues:**
-- **`S: Clone` and `A: Clone` requirements**: The Rust grate encoding requires both `S: Clone` and `A: Clone`. PureScript has no such requirement. This comes from the `dimap` input function needing to capture and clone `s`.
+- **`S: Clone` and `A: Clone` requirements**: The `S: Clone` and `A: Clone` requirements have been removed from the `GrateOptic` and `SetterOptic` implementations. The implementation now leverages `RefCountedPointer` to share the structure `S` within the internal closure without requiring the type itself to be `Clone`.
 - **Missing `withGrate`**, **`cloneGrate`**: Not present.
 - **Missing `cotraversed`**: The universal grate for `Distributive` functors. Not present.
 - **Missing `zipWithOf`**, **`zipFWithOf`**, **`collectOf`**: Grate operation functions. Not present.
@@ -407,18 +406,16 @@ None of these exist in the Rust library.
 
 ### 7.1 Clone Requirements
 
-Several optic encodings require `Clone` on types where PureScript has no such constraint:
+Historically, several optic encodings required `Clone` on types where PureScript had no such constraint. This limitation has been largely addressed in recent updates:
 
-| Optic | Rust `Clone` requirement | PureScript equivalent |
-|-------|-------------------------|----------------------|
-| `Lens` | `S: Clone` | No requirement |
-| `PrismPrime` | `S: Clone` | No requirement |
-| `AffineTraversal` | `S: Clone` | No requirement |
-| `Grate` | `S: Clone + A: Clone` | No requirement |
+| Optic | Rust `Clone` requirement | Status |
+|-------|-------------------------|--------|
+| `Lens` | `S: Clone` | **Removed** from optic impl; available via `lens_prime` |
+| `PrismPrime` | `S: Clone` | **Removed** from optic impl; available via `new_with` |
+| `AffineTraversal` | `S: Clone` | **Removed** from optic impl; available via `affine_traversal_prime` |
+| `Grate` | `S: Clone + A: Clone` | **Removed** from optic impl |
 
-This is a fundamental limitation of the profunctor encoding in Rust. PureScript can use `lens' :: (s -> Tuple a (b -> t))` to avoid needing `s` twice, but Rust's encoding `dimap(|s| (get(s.clone()), s), ...)` needs `s` twice—once for the getter and once to pass through for the setter.
-
-**Recommendation:** Consider providing alternative constructors like PureScript's `lens'` that take `s -> (a, b -> t)`, avoiding the clone.
+The fundamental limitation of needing `s` twice (once for the getter, once for the setter) has been resolved by adopting internal encodings closer to PureScript's "prime" variants (e.g., `s -> (a, b -> t)` for Lens), which return the setter closure directly. The legacy constructors (`Lens::new`, etc.) still require `Clone` for backward compatibility and convenience, but the core optic types and their trait implementations no longer impose this constraint.
 
 ### 7.2 `Prism` Encoding: `right` vs `left`
 
@@ -490,9 +487,8 @@ Both are valid. PureScript pairs the setter `(b -> t)` with `Either t a` and app
 
 ### What Has Issues
 
-1. **`Clone` requirements** on Lens, PrismPrime, AffineTraversal, and Grate types where PureScript requires none
-2. **Missing `AffineTraversalOptic` trait** — breaks the subtyping hierarchy for cross-family composition
-3. **Cross-family composition** (Lens + Prism -> AffineTraversal) is not supported at the optic trait level
+1. **Missing `AffineTraversalOptic` trait** — breaks the subtyping hierarchy for cross-family composition
+2. **Cross-family composition** (Lens + Prism -> AffineTraversal) is not supported at the optic trait level
 
 ### What is Missing
 
