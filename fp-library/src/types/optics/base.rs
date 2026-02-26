@@ -336,9 +336,10 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
-		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
+		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <FoldPrime<RcBrand, Vec<i32>, i32> as FoldOptic<Vec<i32>, i32>>::evaluate::<
+		/// let folded = <FoldPrime<RcBrand, Vec<i32>, i32, _> as FoldOptic<Vec<i32>, i32>>::evaluate::<
 		/// 	String,
 		/// 	RcBrand,
 		/// >(&f_optic, f);
@@ -994,8 +995,10 @@ mod inner {
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
-		/// let f1: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
-		/// let f2: FoldPrime<RcBrand, i32, i32> = FoldPrime::new(|x| vec![x]);
+		/// let f1: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// let f2: FoldPrime<RcBrand, i32, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|x: i32| std::iter::once(x)));
 		/// let composed = Composed::new(f1, f2);
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = <Composed<
@@ -1006,8 +1009,8 @@ mod inner {
 		/// 	i32,
 		/// 	i32,
 		/// 	i32,
-		/// 	FoldPrime<RcBrand, Vec<i32>, i32>,
-		/// 	FoldPrime<RcBrand, i32, i32>,
+		/// 	FoldPrime<RcBrand, Vec<i32>, i32, _>,
+		/// 	FoldPrime<RcBrand, i32, i32, _>,
 		/// > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```

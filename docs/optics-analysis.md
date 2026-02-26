@@ -152,10 +152,11 @@ Composition uses a `Composed` struct to enable static dispatch and zero-cost abs
 | Aspect | PureScript | Rust | Match? |
 |--------|-----------|------|--------|
 | Type | `type Fold r ... = Optic (Forget r) ...` | `Fold` struct + `FoldOptic` trait | Correct |
-| Construction | `folded`, `unfolded`, etc. | `Fold::new(to_vec_fn)` | **Simplified/Limited** |
+| Construction | `folded`, `unfolded`, etc. | `Fold::new(F: FoldFunc)` | Correct |
+| Allocation | Zero intermediate allocation | Zero intermediate allocation via `FoldFunc::apply` | Correct |
 
-**Issues:**
-- **Implementation Limitation**: The `Fold` struct in Rust is implemented as holding a `to_vec_fn: S -> Vec<A>`. This forces strict evaluation and allocation of a `Vec` for every fold. PureScript's `Fold` (based on `Forget` with a `Monoid`) allows generic folding without necessarily allocating an intermediate collection. While `FoldOptic::evaluate` works generally with `Forget`, the concrete `Fold` struct is less general and less efficient than it could be.
+**Notes:**
+- **`FoldFunc` trait**: The `Fold` struct stores a generic `F: FoldFunc<'a, S, A>`, where `FoldFunc::apply` folds directly into any `Monoid` without collecting an intermediate `Vec`. `IterableFoldFn<F>` is provided as a convenience adapter for any `Fn(S) -> impl IntoIterator<Item = A>`.
 - **Missing Operations**: `foldOf`, `foldMapOf`, `foldrOf`, `foldlOf`, `toListOf`, `firstOf`, `lastOf`, `maximumOf`, `minimumOf`, `allOf`, `anyOf`, `sumOf`, `lengthOf`, `findOf`, `has`, `filtered`. Rust only has `optics_preview`.
 - **Missing Indexed Folds**: `ifoldMapOf`, `ifindOf`, etc.
 
@@ -203,7 +204,7 @@ PureScript establishes a lattice of optic subtyping through profunctor class inh
   Getter Fold Setter   Review
 ```
 
-*   **Correct**: `Iso`, `Lens`, `Prism`, `AffineTraversal`, `Traversal`, `Grate`, `Getter`, `Fold`, `Setter`, `Review` structs all implement the correct super-traits.
+*   **Correct**: `Iso`, `Lens`, `Prism`, `AffineTraversal`, `Traversal`, `Grate`, `Getter`, `Fold`, `Setter`, `Review` structs all implement the correct super-traits. The specialized optic traits (`IsoOptic`, `LensOptic`, `PrismOptic`, `AffineTraversalOptic`, `TraversalOptic`, `GrateOptic`, `GetterOptic`, `FoldOptic`, `SetterOptic`, `ReviewOptic`) are all defined and implemented, with `AffineTraversalOptic` now completing the chain from `Iso` down through `AffineTraversal`. `Composed` implements all specialized traits, enabling static-dispatch composition across the full hierarchy.
 
 ---
 
@@ -225,13 +226,11 @@ PureScript's `Re` profunctor allows reversing optics (turning an Iso around, or 
 
 ## 6. Summary of Flaws & Inconsistencies
 
-1.  **`Fold` Implementation**: The `Fold` struct is essentially `S -> Vec<A>`, which is strict and allocating. It does not support the full streaming/monoidal nature of a true profunctor fold.
-2.  **Missing Standard Combinators**: The library provides the *types* but very few of the standard *combinators* (`_1`, `_2`, `_Just`, `_Left`, `traversed`) that make optics ergonomic to use.
-3.  **Composition Verbosity**: While necessary, the `Composed` struct makes type signatures for composed optics extremely verbose and complex compared to `.` or `<<<`.
+1.  **Missing Standard Combinators**: The library provides the *types* but very few of the standard *combinators* (`_1`, `_2`, `_Just`, `_Left`, `traversed`) that make optics ergonomic to use.
+2.  **Composition Verbosity**: While necessary, the `Composed` struct makes type signatures for composed optics extremely verbose and complex compared to `.` or `<<<`.
 
 ## 7. Conclusion
 
-`fp-library` provides a solid, type-safe foundation for profunctor optics in Rust. The core encoding of `Lens`, `Prism`, `Iso` is high-fidelity and correct. However, the library is significantly less mature than `purescript-profunctor-lenses` in terms of:
+`fp-library` provides a solid, type-safe foundation for profunctor optics in Rust. The core encoding of `Iso`, `Lens`, `Prism`, `AffineTraversal`, `Traversal`, and `Fold` is high-fidelity and correct, with a complete specialized-trait hierarchy and full `Composed` support across all families. `Fold` in particular folds directly into any `Monoid` via `FoldFunc::apply` with no intermediate allocation, matching the semantic intent of PureScript's profunctor-based `Fold`. However, the library is significantly less mature than `purescript-profunctor-lenses` in terms of:
 1.  **Completeness**: Completely missing Indexed optics.
 2.  **Ecosystem**: Missing standard combinators and convenience functions.
-3.  **Refinement**: `Fold` implementation is suboptimal.

@@ -7,9 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
 			classes::{
-				CloneableFn,
 				UnsizedCoercible,
 				monoid::Monoid,
 			},
@@ -22,10 +20,147 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
+			document_signature,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
+
+	/// A trait for fold functions.
+	///
+	/// A `FoldFunc` represents a way to iterate over the focuses of a structure
+	/// and combine them using a monoid, without requiring an intermediate collection.
+	/// This is the non-allocating equivalent of `Fn(S) -> Vec<A>`.
+	#[document_type_parameters(
+		"The lifetime of the function.",
+		"The source type of the structure.",
+		"The type of the focuses."
+	)]
+	pub trait FoldFunc<'a, S, A> {
+		/// Apply the fold by mapping each focus to a monoid value and combining.
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
+		///
+		#[document_parameters("The mapping function.", "The structure to fold.")]
+		///
+		/// ### Returns
+		///
+		/// The combined monoid value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::monoid::Monoid,
+		/// 	types::optics::{
+		/// 		FoldFunc,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let fold = IterableFoldFn(|v: Vec<i32>| v);
+		/// let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123".to_string());
+		/// ```
+		fn apply<R: Monoid, F: Fn(A) -> R + 'a>(
+			&self,
+			f: F,
+			s: S,
+		) -> R;
+	}
+
+	/// A wrapper that converts a function returning an iterable into a [`FoldFunc`].
+	///
+	/// `IterableFoldFn(f)` where `f: S -> impl IntoIterator<Item = A>` implements
+	/// [`FoldFunc<S, A>`] by iterating over `f(s)` and folding with the monoid.
+	/// This avoids allocating an intermediate `Vec<A>` when the source is already
+	/// an iterable structure (e.g., a `Vec<A>`) or when a lazy iterator suffices.
+	///
+	/// ### Examples
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::{
+	/// 		Fold,
+	/// 		IterableFoldFn,
+	/// 	},
+	/// };
+	///
+	/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+	/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
+	/// ```
+	#[document_type_parameters("The type of the inner function.")]
+	pub struct IterableFoldFn<F>(pub F);
+
+	#[document_type_parameters("The type of the inner function.")]
+	#[document_parameters("The fold instance.")]
+	impl<F: Clone> Clone for IterableFoldFn<F> {
+		#[document_signature]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::types::optics::IterableFoldFn;
+		///
+		/// let f = IterableFoldFn(|v: Vec<i32>| v);
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(vec![1, 2]), vec![1, 2]);
+		/// ```
+		fn clone(&self) -> Self {
+			IterableFoldFn(self.0.clone())
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the function.",
+		"The source type of the structure.",
+		"The type of the focuses.",
+		"The iterable type returned by the function.",
+		"The type of the inner function."
+	)]
+	#[document_parameters("The fold instance.")]
+	impl<'a, S, A, I, F> FoldFunc<'a, S, A> for IterableFoldFn<F>
+	where
+		F: Fn(S) -> I,
+		I: IntoIterator<Item = A>,
+	{
+		#[document_signature]
+		///
+		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
+		///
+		#[document_parameters("The mapping function.", "The structure to fold.")]
+		///
+		/// ### Returns
+		///
+		/// The combined monoid value.
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::monoid::Monoid,
+		/// 	types::optics::{
+		/// 		FoldFunc,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let fold = IterableFoldFn(|v: Vec<i32>| v);
+		/// let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123".to_string());
+		/// ```
+		fn apply<R: Monoid, FArg: Fn(A) -> R + 'a>(
+			&self,
+			f: FArg,
+			s: S,
+		) -> R {
+			(self.0)(s)
+				.into_iter()
+				.fold(R::empty(), |r, a| R::append(r, f(a)))
+		}
+	}
 
 	/// A polymorphic fold.
 	///
@@ -36,18 +171,20 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus."
+		"The target type of the focus.",
+		"The type of the fold function."
 	)]
-	pub struct Fold<'a, P, S, T, A, B>
+	pub struct Fold<'a, P, S, T, A, B, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
-		/// Function that collects all focuses of the fold in a structure.
-		pub to_vec_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Vec<A>>),
-		pub(crate) _phantom: PhantomData<&'a (T, B)>,
+		/// The fold function.
+		pub fold_fn: F,
+		pub(crate) _phantom: PhantomData<(&'a (S, T, A, B), P)>,
 	}
 
 	#[document_type_parameters(
@@ -56,12 +193,14 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus."
+		"The target type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B> Clone for Fold<'a, P, S, T, A, B>
+	impl<'a, P, S, T, A, B, F> Clone for Fold<'a, P, S, T, A, B, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -74,15 +213,19 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::Fold,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// let cloned = f.clone();
 		/// ```
 		fn clone(&self) -> Self {
 			Fold {
-				to_vec_fn: self.to_vec_fn.clone(),
+				fold_fn: self.fold_fn.clone(),
 				_phantom: PhantomData,
 			}
 		}
@@ -94,12 +237,14 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus."
+		"The target type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B> Fold<'a, P, S, T, A, B>
+	impl<'a, P, S, T, A, B, F> Fold<'a, P, S, T, A, B, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -108,46 +253,61 @@ mod inner {
 		/// Create a new polymorphic fold.
 		#[document_signature]
 		///
-		#[document_parameters("The to_vec function.")]
+		#[document_parameters("The fold function.")]
 		///
 		/// ### Examples
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::Fold,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// ```
-		pub fn new(to_vec: impl 'a + Fn(S) -> Vec<A>) -> Self {
+		pub fn new(fold_fn: F) -> Self {
 			Fold {
-				to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec),
+				fold_fn,
 				_phantom: PhantomData,
 			}
 		}
 
-		/// Collect all the focuses of the fold in a structure.
+		/// Collect all the focuses of the fold into a `Vec`.
 		#[document_signature]
 		///
 		#[document_parameters("The structure to fold.")]
+		///
+		/// ### Returns
+		///
+		/// A `Vec` containing all the focuses.
 		///
 		/// ### Examples
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::Fold,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);
 		/// ```
 		pub fn to_vec(
 			&self,
 			s: S,
-		) -> Vec<A> {
-			(self.to_vec_fn)(s)
+		) -> Vec<A>
+		where
+			A: Clone,
+		{
+			self.fold_fn.apply::<Vec<A>, _>(|a| vec![a], s)
 		}
 	}
 
@@ -157,12 +317,14 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus."
+		"The target type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B> FoldOptic<'a, S, A> for Fold<'a, P, S, T, A, B>
+	impl<'a, P, S, T, A, B, F> FoldOptic<'a, S, A> for Fold<'a, P, S, T, A, B, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -184,7 +346,8 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let f_optic: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32> = Fold::new(|v| v);
+		/// let f_optic: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
 		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
@@ -194,13 +357,10 @@ mod inner {
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let to_vec = self.to_vec_fn.clone();
+			let fold_fn = self.fold_fn.clone();
 			Forget::<Q, R, S, S>::new(move |s: S| {
-				let mut result = R::empty();
-				for a in to_vec(s) {
-					result = R::append(result, (pab.0)(a));
-				}
-				result
+				let pab_fn = pab.0.clone();
+				fold_fn.apply::<R, _>(move |a| (pab_fn)(a), s)
 			})
 		}
 	}
@@ -212,28 +372,32 @@ mod inner {
 		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
-		"The type of the focus."
+		"The type of the focus.",
+		"The type of the fold function."
 	)]
-	pub struct FoldPrime<'a, P, S, A>
+	pub struct FoldPrime<'a, P, S, A, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a, {
-		/// Function that collects all focuses of the fold in a structure.
-		pub to_vec_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Vec<A>>),
-		pub(crate) _phantom: PhantomData<P>,
+		/// The fold function.
+		pub fold_fn: F,
+		pub(crate) _phantom: PhantomData<(&'a (S, A), P)>,
 	}
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
-		"The type of the focus."
+		"The type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A> Clone for FoldPrime<'a, P, S, A>
+	impl<'a, P, S, A, F> Clone for FoldPrime<'a, P, S, A, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		A: 'a,
 	{
@@ -244,15 +408,19 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::FoldPrime,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// let cloned = f.clone();
 		/// ```
 		fn clone(&self) -> Self {
 			FoldPrime {
-				to_vec_fn: self.to_vec_fn.clone(),
+				fold_fn: self.fold_fn.clone(),
 				_phantom: PhantomData,
 			}
 		}
@@ -262,58 +430,75 @@ mod inner {
 		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
-		"The type of the focus."
+		"The type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A> FoldPrime<'a, P, S, A>
+	impl<'a, P, S, A, F> FoldPrime<'a, P, S, A, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a,
 	{
 		/// Create a new monomorphic fold.
 		#[document_signature]
 		///
-		#[document_parameters("The to_vec function.")]
+		#[document_parameters("The fold function.")]
 		///
 		/// ### Examples
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::FoldPrime,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// ```
-		pub fn new(to_vec: impl 'a + Fn(S) -> Vec<A>) -> Self {
+		pub fn new(fold_fn: F) -> Self {
 			FoldPrime {
-				to_vec_fn: <FnBrand<P> as CloneableFn>::new(to_vec),
+				fold_fn,
 				_phantom: PhantomData,
 			}
 		}
 
-		/// Collect all the focuses of the fold in a structure.
+		/// Collect all the focuses of the fold into a `Vec`.
 		#[document_signature]
 		///
 		#[document_parameters("The structure to fold.")]
+		///
+		/// ### Returns
+		///
+		/// A `Vec` containing all the focuses.
 		///
 		/// ### Examples
 		///
 		/// ```
 		/// use fp_library::{
 		/// 	brands::RcBrand,
-		/// 	types::optics::FoldPrime,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
 		/// };
 		///
-		/// let f: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);
 		/// ```
 		pub fn to_vec(
 			&self,
 			s: S,
-		) -> Vec<A> {
-			(self.to_vec_fn)(s)
+		) -> Vec<A>
+		where
+			A: Clone,
+		{
+			self.fold_fn.apply::<Vec<A>, _>(|a| vec![a], s)
 		}
 	}
 
@@ -321,12 +506,14 @@ mod inner {
 		"The lifetime of the values.",
 		"The reference-counted pointer type.",
 		"The type of the structure.",
-		"The type of the focus."
+		"The type of the focus.",
+		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A> FoldOptic<'a, S, A> for FoldPrime<'a, P, S, A>
+	impl<'a, P, S, A, F> FoldOptic<'a, S, A> for FoldPrime<'a, P, S, A, F>
 	where
 		P: UnsizedCoercible,
+		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		A: 'a,
 	{
@@ -346,7 +533,8 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32> = FoldPrime::new(|v| v);
+		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
 		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
@@ -356,13 +544,10 @@ mod inner {
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let to_vec = self.to_vec_fn.clone();
+			let fold_fn = self.fold_fn.clone();
 			Forget::<Q, R, S, S>::new(move |s: S| {
-				let mut result = R::empty();
-				for a in to_vec(s) {
-					result = R::append(result, (pab.0)(a));
-				}
-				result
+				let pab_fn = pab.0.clone();
+				fold_fn.apply::<R, _>(move |a| (pab_fn)(a), s)
 			})
 		}
 	}
