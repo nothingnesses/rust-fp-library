@@ -234,3 +234,83 @@ PureScript's `Re` profunctor allows reversing optics (turning an Iso around, or 
 `fp-library` provides a solid, type-safe foundation for profunctor optics in Rust. The core encoding of `Iso`, `Lens`, `Prism`, `AffineTraversal`, `Traversal`, and `Fold` is high-fidelity and correct, with a complete specialized-trait hierarchy and full `Composed` support across all families. `Fold` in particular folds directly into any `Monoid` via `FoldFunc::apply` with no intermediate allocation, matching the semantic intent of PureScript's profunctor-based `Fold`. However, the library is significantly less mature than `purescript-profunctor-lenses` in terms of:
 1.  **Completeness**: Completely missing Indexed optics.
 2.  **Ecosystem**: Missing standard combinators and convenience functions.
+
+---
+
+## 8. Recommended Next Steps
+
+Based on the analysis, the following roadmap is recommended to bring `fp-library` to parity with `purescript-profunctor-lenses`, prioritized by impact and complexity.
+
+### Phase 1: Standard Combinators (High Impact / Low Complexity)
+The library currently lacks the standard combinators that make optics ergonomic to use. Implementing these will provide immediate value.
+
+*   **Tuple Combinators**: `_1`, `_2`, etc. for accessing tuple elements.
+*   **Result/Option Combinators**: `_Ok`, `_Err`, `_Some`, `_None` (often called `_Just`, `_Left`, `_Right` in other ecosystems).
+*   **Collection Combinators**: `traversed` (or `traverse`) for iterating over standard collections like `Vec`, `Option`, `Result`.
+*   **Implementation Location**: These should be added to `fp-library/src/types/optics/combinators.rs` (new module) or `helpers.rs`.
+
+### Phase 2: Internal Machinery (Foundational)
+Implementing these missing internal profunctors is a prerequisite for advanced features like optic reversal and reification.
+
+1.  **`Re` Profunctor**: Required for reversing optics (e.g., `iso.re()`, `getter.re()` to get a `Review`).
+2.  **`Bazaar` Profunctor**: Required for the concrete representation of `Traversal` (enables `cloneTraversal`).
+3.  **`Zipping` Profunctor**: Required for `Grate`.
+4.  **`Costrong` & `Cochoice`**: Required for fully implementing `Re` and other dual concepts.
+
+### Phase 3: Helper Functions (Ergonomics)
+Add helpers to allow extracting internal functions from concrete optics, bridging the gap between the profunctor encoding and concrete data structures.
+
+*   **Extraction**: Implement `withLens`, `withPrism`, `withIso` style helpers (partial support exists via `optics_from`/`to` for Iso).
+*   **Cloning**: Implement `cloneLens`, `clonePrism`, `cloneTraversal` to allow reconstructing optics from their profunctor encoding.
+
+### Phase 4: Indexed Optics (Critical / High Complexity)
+This is the largest missing piece. It requires defining a new hierarchy of traits and profunctors.
+
+1.  **Infrastructure**: Define `Indexed` profunctor trait.
+2.  **Traits**: Define `IndexedOptic`, `IndexedLens`, `IndexedTraversal`, `IndexedFold`, `IndexedGetter`, `IndexedSetter`.
+3.  **Implementations**: Create concrete structs and implementations for these traits.
+4.  **Combinators**: Implement `itraversed`, `iover`, `ifoldMap`, etc.
+
+---
+
+## 9. Phase 2 Component Analysis
+
+This section analyzes the implementation complexity of the missing components identified in Phase 2 to determine the optimal implementation order.
+
+### 9.1 Zipping Profunctor (Low Complexity)
+*   **Purpose**: Enables `Grate` optics.
+*   **PureScript Definition**: `newtype Zipping a b = Zipping (a -> a -> b)`
+*   **Rust Implementation**: `struct Zipping<F>(F)` where `F: Fn(A, A) -> B`.
+*   **Dependencies**: Requires the `Closed` trait, which is already implemented.
+*   **Analysis**: This is the easiest component to implement. It has self-contained logic and relies only on existing traits. It provides a quick win by enabling `Grate` optics.
+
+### 9.2 Costrong / Cochoice Traits (Low/Medium Complexity)
+*   **Purpose**: Required for `Re` to be fully functional (enabling `Re` to be `Strong` and `Choice`).
+*   **PureScript Definition**: Type classes with `unfirst`, `unleft`, etc.
+*   **Rust Implementation**: Traits mirroring `Strong` and `Choice` but with "un-" methods.
+*   **Dependencies**: None.
+*   **Analysis**: These are foundational traits. While the traits themselves are simple definitions, implementing them for existing profunctors might require careful consideration of ownership and closures.
+
+### 9.3 Re Profunctor (Medium Complexity)
+*   **Purpose**: Enables reversing optics (e.g., `iso.re()`).
+*   **PureScript Definition**: `newtype Re p s t a b = Re (p b a -> p t s)`
+*   **Rust Implementation**: `struct Re<P, S, T>(Box<dyn Fn(P::Of<B, A>) -> P::Of<T, S>>)` (conceptual).
+*   **Dependencies**: Strongly benefits from `Costrong` and `Cochoice`. Without them, `Re` is only a `Profunctor` (useful only for `Iso`). To reverse `Lens` and `Prism`, it needs `Strong` (via `Costrong`) and `Choice` (via `Cochoice`).
+*   **Analysis**: The implementation involves wrapping functions that operate on higher-kinded types (`P::Of`). This is a known pattern but more verbose than `Zipping`.
+
+### 9.4 Bazaar Profunctor (High Complexity)
+*   **Purpose**: Concrete representation of `Traversal`, enabling `cloneTraversal`.
+*   **PureScript Definition**: `newtype Bazaar p a b s t = Bazaar (forall f. Applicative f => p a (f b) -> s -> f t)`
+*   **Rust Implementation**: Requires encoding rank-2 polymorphism (`forall f`) and `Applicative` constraints on higher-kinded types.
+*   **Dependencies**: `Wander`.
+*   **Analysis**: This is the most complex component due to Rust's type system limitations regarding higher-ranked trait bounds on higher-kinded types. It requires a sophisticated encoding strategy.
+
+### Conclusion & Recommendation
+
+The **`Zipping` profunctor** is the easiest component to implement. It is isolated, simple, and immediately unlocks `Grate` functionality.
+
+**Recommended Implementation Order:**
+1.  `Zipping` (Enables `Grate`)
+2.  `Costrong` / `Cochoice` (Foundation for `Re`)
+3.  `Re` (Enables optic reversal)
+4.  `Bazaar` (Enables concrete traversals - hardest)
