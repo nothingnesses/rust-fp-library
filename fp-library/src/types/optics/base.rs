@@ -59,7 +59,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
@@ -136,7 +136,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <LensPrime<RcBrand, (i32, String), i32> as LensOptic<
 		/// 	(i32, String),
@@ -177,7 +177,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let p: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::new(|o| o, Some);
+		/// let p: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <PrismPrime<RcBrand, Option<i32>, i32> as PrismOptic<
 		/// 	Option<i32>,
@@ -410,7 +410,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let r: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::new(|o| o, Some);
+		/// let r: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
 		/// let f = Tagged::new(21);
 		/// let reviewed = <PrismPrime<RcBrand, Option<i32>, i32> as ReviewOptic<
 		/// 	Option<i32>,
@@ -479,8 +479,8 @@ mod inner {
 		/// };
 		///
 		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, x)| x);
+		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
@@ -542,8 +542,8 @@ mod inner {
 		/// };
 		///
 		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, x)| x);
+		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
@@ -658,8 +658,8 @@ mod inner {
 		/// };
 		///
 		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
@@ -717,8 +717,8 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let p1: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::new(|o| o, Some);
-		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::new(Some, |x| x);
+		/// let p1: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
 		/// let composed = Composed::new(p1, p2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier =
@@ -777,8 +777,8 @@ mod inner {
 		///
 		/// // Composition combines two optics
 		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
@@ -1072,8 +1072,8 @@ mod inner {
 		///
 		/// // Composition works with lenses too
 		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x| x, |(_, x)| x);
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
 		/// let composed = Composed::new(l1, l2);
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = <Composed<
@@ -1139,13 +1139,13 @@ mod inner {
 	/// 	address: Address,
 	/// }
 	///
-	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
 	/// 	|u: User| u.address.clone(),
 	/// 	|(_, a)| User {
 	/// 		address: a,
 	/// 	},
 	/// );
-	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::from_view_set(
 	/// 	|a: Address| a.street.clone(),
 	/// 	|(_, s)| Address {
 	/// 		street: s,

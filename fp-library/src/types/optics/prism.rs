@@ -475,7 +475,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		/// let cloned = ok_prism.clone();
 		/// ```
 		fn clone(&self) -> Self {
@@ -513,9 +513,9 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new_with(|r: Result<i32, String>| r.map_err(|e| Err(e)?), |x| Ok(x));
+		/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
 		/// ```
-		pub fn new_with(
+		pub fn new(
 			preview: impl 'a + Fn(S) -> Result<A, S>,
 			review: impl 'a + Fn(A) -> S,
 		) -> Self {
@@ -540,9 +540,9 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		/// ```
-		pub fn new(
+		pub fn from_option(
 			preview: impl 'a + Fn(S) -> Option<A>,
 			review: impl 'a + Fn(A) -> S,
 		) -> Self
@@ -574,7 +574,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		/// assert_eq!(ok_prism.preview(Ok(42)), Some(42));
 		/// assert_eq!(ok_prism.preview(Err("error".to_string())), None);
 		/// ```
@@ -599,7 +599,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		/// assert_eq!(ok_prism.review(42), Ok(42));
 		/// ```
 		pub fn review(
@@ -623,7 +623,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		/// assert_eq!(ok_prism.modify(Ok(21), |x| x * 2), Ok(42));
 		/// assert_eq!(ok_prism.modify(Err("error".to_string()), |x| x * 2), Err("error".to_string()));
 		/// ```
@@ -631,12 +631,10 @@ mod inner {
 			&self,
 			s: S,
 			f: impl Fn(A) -> A,
-		) -> S
-		where
-			S: Clone, {
-			match self.preview(s.clone()) {
-				Some(a) => self.review(f(a)),
-				None => s,
+		) -> S {
+			match (self.preview_fn)(s) {
+				Ok(a) => (self.review_fn)(f(a)),
+				Err(s) => s,
 			}
 		}
 	}
@@ -670,7 +668,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
@@ -702,7 +700,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> PrismOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> PrismOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -723,7 +721,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
@@ -745,7 +743,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> TraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -766,7 +764,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
@@ -788,7 +786,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -809,7 +807,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&ok_prism, f);
@@ -832,7 +830,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, Q, P, S: 'a + Clone, A: 'a> SetterOptic<'a, Q, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A> for PrismPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 		Q: UnsizedCoercible,
@@ -853,7 +851,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
@@ -875,7 +873,7 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a + Clone, A: 'a> ReviewOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, P, S: 'a, A: 'a> ReviewOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
 	where
 		P: UnsizedCoercible,
 	{
@@ -892,7 +890,7 @@ mod inner {
 		/// };
 		///
 		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 		///
 		/// let f = Tagged::new(42);
 		/// let reviewed = ReviewOptic::evaluate(&ok_prism, f);

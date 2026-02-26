@@ -12,7 +12,7 @@ fn test_lens_optic() {
 		age: i32,
 	}
 
-	let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::new(
+	let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::from_view_set(
 		|p: Person| p.age,
 		|(p, age)| Person {
 			age,
@@ -62,13 +62,13 @@ fn test_composition() {
 		inner: Inner,
 	}
 
-	let outer_lens: LensPrime<RcBrand, Outer, Inner> = LensPrime::new(
+	let outer_lens: LensPrime<RcBrand, Outer, Inner> = LensPrime::from_view_set(
 		|o: Outer| o.inner.clone(),
 		|(_, i)| Outer {
 			inner: i,
 		},
 	);
-	let inner_lens: LensPrime<RcBrand, Inner, i32> = LensPrime::new(
+	let inner_lens: LensPrime<RcBrand, Inner, i32> = LensPrime::from_view_set(
 		|i: Inner| i.val,
 		|(_, v)| Inner {
 			val: v,
@@ -157,7 +157,7 @@ fn test_lens_polymorphic() {
 	}
 
 	// Lens that changes Poly<i32> to Poly<String>
-	let l: Lens<RcBrand, Poly<i32>, Poly<String>, i32, String> = Lens::new(
+	let l: Lens<RcBrand, Poly<i32>, Poly<String>, i32, String> = Lens::from_view_set(
 		|p: Poly<i32>| p.val,
 		|(_, s)| Poly {
 			val: s,
@@ -175,7 +175,7 @@ fn test_lens_polymorphic() {
 
 #[test]
 fn test_lens_prime_over() {
-	let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+	let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 	assert_eq!(l.over(10, |x| x + 5), 15);
 }
 
@@ -194,19 +194,19 @@ fn test_composed_deep() {
 		b: B,
 	}
 
-	let a_b: LensPrime<RcBrand, A, B> = LensPrime::new(
+	let a_b: LensPrime<RcBrand, A, B> = LensPrime::from_view_set(
 		|a: A| a.b.clone(),
 		|(_, b)| A {
 			b,
 		},
 	);
-	let b_c: LensPrime<RcBrand, B, C> = LensPrime::new(
+	let b_c: LensPrime<RcBrand, B, C> = LensPrime::from_view_set(
 		|b: B| b.c.clone(),
 		|(_, c)| B {
 			c,
 		},
 	);
-	let c_val: LensPrime<RcBrand, C, i32> = LensPrime::new(
+	let c_val: LensPrime<RcBrand, C, i32> = LensPrime::from_view_set(
 		|c: C| c.val,
 		|(_, val)| C {
 			val,
@@ -248,13 +248,13 @@ fn test_polymorphic_view_composed() {
 		address: Address,
 	}
 
-	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
 		|u: User| u.address.clone(),
 		|(_, a)| User {
 			address: a,
 		},
 	);
-	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::from_view_set(
 		|a: Address| a.street.clone(),
 		|(_, s)| Address {
 			street: s,
@@ -286,13 +286,13 @@ fn test_polymorphic_set_composed() {
 		address: Address,
 	}
 
-	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
 		|u: User| u.address.clone(),
 		|(_, a)| User {
 			address: a,
 		},
 	);
-	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::new(
+	let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::from_view_set(
 		|a: Address| a.street.clone(),
 		|(_, s)| Address {
 			street: s,
@@ -313,7 +313,7 @@ fn test_polymorphic_set_composed() {
 #[test]
 fn test_polymorphic_preview_prism() {
 	let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 
 	assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
 	assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
@@ -331,14 +331,14 @@ fn test_polymorphic_preview_composed_lens_prism() {
 		address: Address,
 	}
 
-	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::new(
+	let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
 		|u: User| u.address.clone(),
 		|(_, a)| User {
 			address: a,
 		},
 	);
 
-	let street_prism: PrismPrime<RcBrand, Address, String> = PrismPrime::new(
+	let street_prism: PrismPrime<RcBrand, Address, String> = PrismPrime::from_option(
 		|a: Address| Some(a.street.clone()),
 		|s| Address {
 			street: s,

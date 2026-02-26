@@ -63,7 +63,7 @@ mod inner {
 	/// };
 	///
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _)| x, |(_, x)| (x, "".to_string()));
+	/// 	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
 	/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
 	/// ```
 	pub fn optics_view<'a, P, O, S, A>(
@@ -106,7 +106,7 @@ mod inner {
 	/// };
 	///
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	/// assert_eq!(
 	/// 	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
 	/// 	(99, "hello".to_string())
@@ -159,7 +159,7 @@ mod inner {
 	/// };
 	///
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	/// assert_eq!(
 	/// 	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
 	/// 	(84, "hello".to_string())
@@ -208,7 +208,7 @@ mod inner {
 	/// };
 	///
 	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
 	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
 	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
 	/// ```
@@ -269,7 +269,7 @@ mod inner {
 	/// };
 	///
 	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	/// 	PrismPrime::new(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
 	/// assert_eq!(optics_review(&ok_prism, 42), Ok(42));
 	/// ```
 	pub fn optics_review<'a, O, S, A>(
@@ -409,7 +409,7 @@ mod inner {
 	/// };
 	///
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	///
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);

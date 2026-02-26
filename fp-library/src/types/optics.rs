@@ -60,7 +60,7 @@
 //! }
 //!
 //! // Create a lens for the age field
-//! let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::new(
+//! let age_lens: LensPrime<RcBrand, Person, i32> = LensPrime::from_view_set(
 //! 	|p: Person| p.age,
 //! 	|(p, age)| Person {
 //! 		age,

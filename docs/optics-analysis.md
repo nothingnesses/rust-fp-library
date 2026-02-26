@@ -76,15 +76,15 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Aspect | PureScript | Rust | Match? |
 |--------|-----------|------|--------|
 | Type | `type Lens s t a b = forall p. Strong p => p a b -> p s t` | `Lens<'a, P, S, T, A, B>` struct + `LensOptic` trait | Correct |
-| Construction | `lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b` | `Lens::new(view, set)` | Correct |
-| Encoding | `dimap (\s -> (get s, s)) (\(b, s) -> set s b) (first pab)` | Same: `dimap(|s| (view(s.clone()), s), |(b, s)| set((s, b)), first(pab))` | Correct |
+| Construction | `lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b` | `Lens::new(to: S -> (A, B -> T))` | Correct |
+| Encoding | `dimap (\s -> (get s, s)) (\(b, s) -> set s b) (first pab)` | Same: `dimap(to, |(b, f)| f(b), first(pab))` | Correct |
 | Concrete (A-) | `ALens s t a b = Optic (Shop a b) s t a b` | Uses `ShopBrand<FnBrand, A, B>` | Correct |
 | Extraction | `withLens :: ALens -> ((s -> a) -> (s -> b -> t) -> r) -> r` | `Lens` struct fields are accessible directly | Different but ok |
 | Subtyping | Lens is a Traversal, Getter, Setter, Fold | All implemented | Correct |
 
 **Issues:**
-- **`S: Clone` requirement**: The default `Lens::new` constructor requires `S: Clone` because it uses the legacy encoding `dimap(|s| (view(s.clone()), s), ...)`. However, a new constructor `Lens::lens_prime` (and internal encoding) has been added that matches PureScript's `lens'` and **removes the `S: Clone` requirement** from the `Lens` type and its optic implementations.
-- **Setter signature difference**: PureScript's `lens` takes `(s -> a)` and `(s -> b -> t)` (curried setter). Rust's `Lens::new` takes `(S -> A)` and `((S, B) -> T)` (tuple setter). This is a style choice consistent with the uncurried design.
+- **Setter signature difference**: PureScript's `lens` takes `(s -> a)` and `(s -> b -> t)` (curried setter). Rust's `Lens::new` takes a single function returning both the view and the setter closure `S -> (A, B -> T)`. This avoids `S: Clone`.
+- **Legacy constructors**: Convenience constructors `Lens::from_view_set` are provided that match the old `(S -> A, (S, B) -> T)` signature but require `S: Clone`.
 - **Missing `cloneLens`**: PureScript's `cloneLens :: ALens s t a b -> Lens s t a b`. Not present.
 - **Missing `lensStore`**: PureScript's utility for extracting `Tuple a (b -> t)` from an `ALens`. Not present.
 - **Missing indexed lens**: PureScript has `IndexedLens`, `ilens`, `ilens'`, `cloneIndexedLens`. Not present in Rust.
@@ -97,11 +97,11 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 | Construction | `prism :: (b -> t) -> (s -> Either t a) -> Prism s t a b` | `Prism::new(preview: S -> Result<A, T>, review: B -> T)` | Correct |
 | Encoding | `dimap fro (either id id) (right (rmap to pab))` | `dimap(preview, |r| match r { Ok(b) => review(b), Err(t) => t }, right(pab))` | Correct |
 | Concrete (A-) | `APrism s t a b = Optic (Market a b) s t a b` | Uses `MarketBrand<FnBrand, A, B>` | Correct |
-| `PrismPrime` | Uses `prism'` with `Maybe` | `PrismPrime::new(S -> Option<A>, A -> S)` | Correct |
+| `PrismPrime` | Uses `prism'` with `Maybe` | `PrismPrime::from_option(S -> Option<A>, A -> S)` | Correct |
 | Subtyping | Prism is a Traversal, Fold, Setter, Review | All implemented | Correct |
 
 **Issues:**
-- **`S: Clone` requirement**: `PrismPrime` no longer requires `S: Clone` for its optic implementations. The internal encoding has been updated to use `Result<A, S>` instead of `Option<A>`. The `new` constructor still requires `S: Clone` (to adapt `Option` to `Result`), but a new `new_with` constructor allows creating a prism from a `S -> Result<A, S>` preview function without `Clone`.
+- **`S: Clone` requirement**: `PrismPrime` no longer requires `S: Clone` for its optic implementations. The internal encoding has been updated to use `Result<A, S>` instead of `Option<A>`. The legacy `new` constructor has been renamed to `from_option` (which still requires `S: Clone` to adapt `Option` to `Result`), and `new` now accepts a `S -> Result<A, S>` preview function without `Clone`.
 - **Missing `only`, `nearly`**: Convenience prism constructors for equality-based matching. Not present.
 - **Missing `is`, `isn't`**: Boolean predicates for prism matching. Not present.
 - **Missing `matching`**: Extract the `Either t a` from a prism. Not present.
@@ -114,12 +114,12 @@ Composition uses a `Composed<'a, S, T, M, N, A, B, O1, O2>` struct rather than f
 |--------|-----------|------|--------|
 | Type | `forall p. Strong p => Choice p => p a b -> p s t` | `AffineTraversal<'a, P, S, T, A, B>` struct | Correct |
 | Constraint | `Strong + Choice` | `Strong + Choice` | Correct |
-| Construction | `affineTraversal :: (s -> b -> t) -> (s -> Either t a) -> ...` | `AffineTraversal::new(S -> Result<A, T>, (S, B) -> T)` | Correct |
+| Construction | `affineTraversal :: (s -> b -> t) -> (s -> Either t a) -> ...` | `AffineTraversal::new(to: S -> Result<(A, B -> T), T>)` | Correct |
 | Encoding | `dimap to (\(Tuple b f) -> either identity b f) (second (right pab))` | `dimap(split, merge, right(first(pab)))` | **Different** |
 | Concrete (A-) | `AnAffineTraversal = Optic (Stall a b) s t a b` | Uses `StallBrand<FnBrand, A, B>` | Correct |
 
 **Issues:**
-- **`S: Clone` requirement**: The `S: Clone` requirement has been removed from `AffineTraversal` and `AffineTraversalPrime`. A new constructor `affine_traversal_prime` (matching PureScript's `affineTraversal'`) allows creating these optics without `Clone`. The `new` constructor retains `S: Clone` for backward compatibility.
+- **`S: Clone` requirement**: The `S: Clone` requirement has been removed from `AffineTraversal` and `AffineTraversalPrime`. The `new` constructor now accepts the internal encoding directly. Convenience constructors `from_preview_set` are provided for backward compatibility (requiring `S: Clone`).
 - **Encoding difference**: PureScript uses `second (right pab)` while Rust uses `right(first(pab))`. Both are valid profunctor encodings of an affine traversal—they use `Strong` and `Choice` in different orders.
 - **Missing `AffineTraversalOptic` trait**: Unlike other optics, there is no dedicated `AffineTraversalOptic` trait. The `AffineTraversal` struct implements `TraversalOptic`, `FoldOptic`, and `SetterOptic` but not a unique affine-specific trait. This means you cannot compose two affine traversals and guarantee the result is affine rather than a general traversal.
 - **Missing `cloneAffineTraversal`**, **`withAffineTraversal`**: Not present.
@@ -410,12 +410,12 @@ Historically, several optic encodings required `Clone` on types where PureScript
 
 | Optic | Rust `Clone` requirement | Status |
 |-------|-------------------------|--------|
-| `Lens` | `S: Clone` | **Removed** from optic impl; available via `lens_prime` |
-| `PrismPrime` | `S: Clone` | **Removed** from optic impl; available via `new_with` |
-| `AffineTraversal` | `S: Clone` | **Removed** from optic impl; available via `affine_traversal_prime` |
+| `Lens` | `S: Clone` | **Removed** from `Lens::new` and optic impls. |
+| `PrismPrime` | `S: Clone` | **Removed** from `PrismPrime::new` and optic impls. |
+| `AffineTraversal` | `S: Clone` | **Removed** from `AffineTraversal::new` and optic impls. |
 | `Grate` | `S: Clone + A: Clone` | **Removed** from optic impl |
 
-The fundamental limitation of needing `s` twice (once for the getter, once for the setter) has been resolved by adopting internal encodings closer to PureScript's "prime" variants (e.g., `s -> (a, b -> t)` for Lens), which return the setter closure directly. The legacy constructors (`Lens::new`, etc.) still require `Clone` for backward compatibility and convenience, but the core optic types and their trait implementations no longer impose this constraint.
+The fundamental limitation of needing `s` twice (once for the getter, once for the setter) has been resolved by adopting internal encodings closer to PureScript's "prime" variants (e.g., `s -> (a, b -> t)` for Lens), which return the setter closure directly. The legacy constructors requiring `Clone` have been moved to `from_view_set` / `from_option` / `from_preview_set` for convenience, while the primary `new` constructors now accept the efficient non-cloning encoding.
 
 ### 7.2 `Prism` Encoding: `right` vs `left`
 

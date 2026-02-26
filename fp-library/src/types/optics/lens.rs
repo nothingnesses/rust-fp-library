@@ -69,6 +69,35 @@ mod inner {
 		P: UnsizedCoercible,
 	{
 		/// Create a new polymorphic lens.
+		/// This matches PureScript's `lens'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		FnBrand,
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
+		/// 	classes::CloneableFn,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, String, i32, String> =
+		/// 	Lens::new(|x| (x, <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
+		/// ```
+		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)) -> Self {
+			Lens {
+				to: <FnBrand<P> as CloneableFn>::new(to),
+				_phantom: PhantomData,
+			}
+		}
+
+		/// Create a new polymorphic lens from a getter and setter.
 		#[document_signature]
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
@@ -81,9 +110,9 @@ mod inner {
 		/// 	types::optics::Lens,
 		/// };
 		///
-		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::new(|x| x, |(_, s)| s);
+		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::from_view_set(|x| x, |(_, s)| s);
 		/// ```
-		pub fn new(
+		pub fn from_view_set(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, B)) -> T,
 		) -> Self
@@ -105,36 +134,6 @@ mod inner {
 			}
 		}
 
-		/// Create a new polymorphic lens without requiring `S: Clone`.
-		/// This matches PureScript's `lens'` constructor.
-		#[document_signature]
-		///
-		#[document_parameters("The getter/setter pair function.")]
-		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::CloneableFn,
-		/// 	types::optics::Lens,
-		/// };
-		///
-		/// let l: Lens<RcBrand, i32, String, i32, String> =
-		/// 	Lens::lens_prime(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
-		/// ```
-		pub fn lens_prime(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)
-		) -> Self {
-			Lens {
-				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
-			}
-		}
-
 		/// View the focus of the lens in a structure.
 		#[document_signature]
 		///
@@ -148,7 +147,7 @@ mod inner {
 		/// 	types::optics::Lens,
 		/// };
 		///
-		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
 		/// assert_eq!(l.view(10), 10);
 		/// ```
 		pub fn view(
@@ -171,7 +170,7 @@ mod inner {
 		/// 	types::optics::Lens,
 		/// };
 		///
-		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::new(|x| x, |(_, y)| y);
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
 		pub fn set(
@@ -218,7 +217,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -269,7 +268,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -314,7 +313,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -357,7 +356,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
 		/// let folded = GetterOptic::evaluate(&l, f);
@@ -397,7 +396,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&l, f);
@@ -444,7 +443,7 @@ mod inner {
 		/// };
 		///
 		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	Lens::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -501,7 +500,7 @@ mod inner {
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 		/// let cloned = l.clone();
 		/// ```
 		fn clone(&self) -> Self {
@@ -523,6 +522,34 @@ mod inner {
 	where
 		P: UnsizedCoercible,
 	{
+		/// Create a new monomorphic lens.
+		/// This matches PureScript's `lens'` constructor.
+		#[document_signature]
+		///
+		#[document_parameters("The getter/setter pair function.")]
+		///
+		/// ### Examples
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
+		/// 	classes::CloneableFn,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> =
+		/// 	LensPrime::new(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
+		/// ```
+		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)) -> Self {
+			LensPrime {
+				to: <FnBrand<P> as CloneableFn>::new(to),
+				_phantom: PhantomData,
+			}
+		}
+
 		/// Create a new monomorphic lens from a getter and setter.
 		#[document_signature]
 		///
@@ -536,9 +563,9 @@ mod inner {
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 		/// ```
-		pub fn new(
+		pub fn from_view_set(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, A)) -> S,
 		) -> Self
@@ -560,36 +587,6 @@ mod inner {
 			}
 		}
 
-		/// Create a new monomorphic lens without requiring `S: Clone`.
-		/// This matches PureScript's `lens'` constructor.
-		#[document_signature]
-		///
-		#[document_parameters("The getter/setter pair function.")]
-		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::CloneableFn,
-		/// 	types::optics::LensPrime,
-		/// };
-		///
-		/// let l: LensPrime<RcBrand, i32, i32> =
-		/// 	LensPrime::lens_prime(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
-		/// ```
-		pub fn lens_prime(
-			to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)
-		) -> Self {
-			LensPrime {
-				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
-			}
-		}
-
 		/// View the focus of the lens in a structure.
 		#[document_signature]
 		///
@@ -603,7 +600,7 @@ mod inner {
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.view(42), 42);
 		/// ```
 		pub fn view(
@@ -626,7 +623,7 @@ mod inner {
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.set(10, 20), 20);
 		/// ```
 		pub fn set(
@@ -650,7 +647,7 @@ mod inner {
 		/// 	types::optics::LensPrime,
 		/// };
 		///
-		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::new(|x: i32| x, |(_, y)| y);
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
 		/// assert_eq!(l.over(10, |x| x + 1), 11);
 		/// ```
 		pub fn over(
@@ -696,7 +693,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -747,7 +744,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -790,7 +787,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
 		/// let folded = GetterOptic::evaluate(&l, f);
@@ -830,7 +827,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
 		/// let folded = FoldOptic::evaluate(&l, f);
@@ -874,7 +871,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
@@ -917,7 +914,7 @@ mod inner {
 		/// };
 		///
 		/// let l: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::new(|(x, _)| x, |((_, s), x)| (x, s));
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 		///
 		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
 		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
