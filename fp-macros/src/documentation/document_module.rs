@@ -9,7 +9,7 @@ use {
 				DOCUMENT_ATTR_ORDER,
 				DOCUMENT_MODULE,
 				DOCUMENT_PARAMETERS,
-				DOCUMENT_RETURN,
+				DOCUMENT_RETURNS,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
 			},
@@ -350,7 +350,7 @@ fn validate_no_duplicate_doc_attrs(
 
 /// Check that the ordered documentation attributes appear in the canonical order:
 /// document_signature → document_type_parameters → document_parameters →
-/// document_return → document_examples.
+/// document_returns → document_examples.
 fn validate_doc_attr_order(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,
@@ -443,13 +443,13 @@ fn validate_method_documentation(
 		warnings.push(warning);
 	}
 
-	// Check for document_return if method has a return type
+	// Check for document_returns if method has a return type
 	if let syn::ReturnType::Type(..) = method.sig.output {
-		if !has_attribute(&method.attrs, DOCUMENT_RETURN) {
+		if !has_attribute(&method.attrs, DOCUMENT_RETURNS) {
 			let warning = syn::Error::new(
 				method.span(),
 				format!(
-					"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURN}] attribute",
+					"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURNS}] attribute",
 				),
 			);
 			warnings.push(warning);

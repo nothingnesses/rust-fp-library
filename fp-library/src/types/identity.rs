@@ -30,7 +30,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -85,7 +85,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The identity to map over.")]
 		///
-		#[document_return("A new identity containing the result of applying the function.")]
+		#[document_returns("A new identity containing the result of applying the function.")]
 		///
 		/// ### Examples
 		///
@@ -144,7 +144,7 @@ mod inner {
 		/// let z = lift2::<IdentityBrand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Identity(3));
 		/// ```
-		#[document_return("A new identity containing the result of applying the function.")]
+		#[document_returns("A new identity containing the result of applying the function.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -169,7 +169,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("An identity containing the value.")]
+		#[document_returns("An identity containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -223,7 +223,7 @@ mod inner {
 		/// let y = apply::<RcFnBrand, IdentityBrand, _, _>(f, x);
 		/// assert_eq!(y, Identity(10));
 		/// ```
-		#[document_return("A new identity containing the result of applying the function.")]
+		#[document_returns("A new identity containing the result of applying the function.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -263,7 +263,7 @@ mod inner {
 		/// let y = bind::<IdentityBrand, _, _, _>(x, |i| Identity(i * 2));
 		/// assert_eq!(y, Identity(10));
 		/// ```
-		#[document_return("The result of applying `f` to the value.")]
+		#[document_returns("The result of applying `f` to the value.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -307,7 +307,7 @@ mod inner {
 		/// let y = fold_right::<RcFnBrand, IdentityBrand, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -351,7 +351,7 @@ mod inner {
 		/// let y = fold_left::<RcFnBrand, IdentityBrand, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -378,7 +378,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
-		#[document_return("The monoid value.")]
+		#[document_returns("The monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -437,7 +437,7 @@ mod inner {
 		/// let y = traverse::<IdentityBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Identity(10)));
 		/// ```
-		#[document_return("The identity wrapped in the applicative context.")]
+		#[document_returns("The identity wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -461,7 +461,7 @@ mod inner {
 		///
 		#[document_parameters("The identity containing the applicative value.")]
 		///
-		#[document_return("The result of the traversal.")]
+		#[document_returns("The result of the traversal.")]
 		///
 		/// # Returns
 		///
@@ -505,7 +505,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The identity to fold.")]
 		///
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -564,7 +564,7 @@ mod inner {
 		/// let y = par_fold_right::<ArcFnBrand, IdentityBrand, _, _>(f, 10, x);
 		/// assert_eq!(y, 11);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

@@ -25,7 +25,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -67,7 +67,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new `TryLazy` instance that shares the same underlying memoized result."
 		)]
 		fn clone(&self) -> Self {
@@ -90,7 +90,7 @@ mod inner {
 		/// Gets the memoized result, computing on first access.
 		#[document_signature]
 		///
-		#[document_return("A result containing a reference to the value or error.")]
+		#[document_returns("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -122,7 +122,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
-		#[document_return("A new `TryLazy` instance.")]
+		#[document_returns("A new `TryLazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -148,7 +148,9 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The fallible thunk to convert.")]
 		///
-		#[document_return("A new `TryLazy` instance that will evaluate the thunk on first access.")]
+		#[document_returns(
+			"A new `TryLazy` instance that will evaluate the thunk on first access."
+		)]
 		fn from(eval: TryThunk<'a, A, E>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
@@ -167,7 +169,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The fallible trampoline to convert.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new `TryLazy` instance that will evaluate the trampoline on first access."
 		)]
 		fn from(task: TryTrampoline<A, E>) -> Self {
@@ -188,7 +190,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The thread-safe lazy value to convert.")]
 		///
-		#[document_return("A new `TryLazy` instance that wraps the lazy value.")]
+		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
 		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -207,7 +209,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		///
-		#[document_return("A new `TryLazy` instance that wraps the lazy value.")]
+		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
 		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -228,7 +230,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that might panic.")]
 		///
-		#[document_return("A new `TryLazy` instance where panics are converted to `Err(String)`.")]
+		#[document_returns("A new `TryLazy` instance where panics are converted to `Err(String)`.")]
 		///
 		/// ### Examples
 		///
@@ -277,7 +279,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
-		#[document_return("A new `TryLazy` instance.")]
+		#[document_returns("A new `TryLazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -314,7 +316,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		#[document_return("A new `TryLazy` value.")]
+		#[document_returns("A new `TryLazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -364,7 +366,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		#[document_return("A new `ArcTryLazy` value.")]
+		#[document_returns("A new `ArcTryLazy` value.")]
 		///
 		/// ### Examples
 		///

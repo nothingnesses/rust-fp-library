@@ -20,7 +20,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -56,7 +56,7 @@ mod inner {
 		///
 		#[document_parameters("The preview function.", "The setter function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -125,7 +125,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The stall instance to transform."
 		)]
-		#[document_return("A transformed `Stall` instance.")]
+		#[document_returns("A transformed `Stall` instance.")]
 		///
 		/// ### Examples
 		///
@@ -180,7 +180,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
-		#[document_return("A transformed `Stall` instance that operates on tuples.")]
+		#[document_returns("A transformed `Stall` instance that operates on tuples.")]
 		///
 		/// ### Examples
 		///
@@ -224,7 +224,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
-		#[document_return(
+		#[document_returns(
 			"A transformed `Stall` instance that operates on the left component of a `Result`."
 		)]
 		///
@@ -270,7 +270,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
-		#[document_return(
+		#[document_returns(
 			"A transformed `Stall` instance that operates on the right component of a `Result`."
 		)]
 		///

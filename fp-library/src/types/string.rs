@@ -15,7 +15,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 		},
 	};
 
@@ -33,7 +33,7 @@ mod inner {
 		///
 		#[document_parameters("The first string.", "The second string.")]
 		///
-		#[document_return("The combined string.")]
+		#[document_returns("The combined string.")]
 		///
 		/// ### Examples
 		///
@@ -59,7 +59,7 @@ mod inner {
 		/// This method returns the identity element of the monoid.
 		#[document_signature]
 		///
-		#[document_return("The identity element.")]
+		#[document_returns("The identity element.")]
 		///
 		/// ### Examples
 		///

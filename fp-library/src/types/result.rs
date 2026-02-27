@@ -34,7 +34,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -97,7 +97,7 @@ mod inner {
 		/// let y: Result<i32, i32> = Err(5);
 		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
 		/// ```
-		#[document_return("A new result containing the mapped values.")]
+		#[document_returns("A new result containing the mapped values.")]
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -138,7 +138,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The result to map over.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new result containing the result of applying the function, or the original error."
 		)]
 		///
@@ -209,7 +209,7 @@ mod inner {
 		/// 	Err(1)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"`Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -241,7 +241,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("`Ok(a)`.")]
+		#[document_returns("`Ok(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -302,7 +302,7 @@ mod inner {
 		/// let f_err: Result<_, i32> = Err(1);
 		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
 		/// ```
-		#[document_return("`Ok(f(a))` if both are `Ok`, otherwise the first error encountered.")]
+		#[document_returns("`Ok(f(a))` if both are `Ok`, otherwise the first error encountered.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -346,7 +346,7 @@ mod inner {
 		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
 		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error."
 		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
@@ -376,7 +376,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		#[document_return("`func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.")]
+		#[document_returns("`func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -428,7 +428,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		#[document_return("`func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.")]
+		#[document_returns("`func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -480,7 +480,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
-		#[document_return("`func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.")]
+		#[document_returns("`func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -531,7 +531,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
-		#[document_return("The result wrapped in the applicative context.")]
+		#[document_returns("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -583,7 +583,7 @@ mod inner {
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
-		#[document_return("The result wrapped in the applicative context.")]
+		#[document_returns("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -641,7 +641,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error.", "The result to map over.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new result containing the mapped error, or the original success value."
 		)]
 		///
@@ -715,7 +715,7 @@ mod inner {
 		/// 	Ok(1)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"`Err(f(a, b))` if both results are `Err`, otherwise the first success encountered."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -747,7 +747,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("`Err(a)`.")]
+		#[document_returns("`Err(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -808,7 +808,7 @@ mod inner {
 		/// let f_ok: Result<i32, _> = Ok(1);
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
@@ -839,7 +839,7 @@ mod inner {
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
 		)]
 		///
@@ -885,7 +885,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		#[document_return("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
+		#[document_returns("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -941,7 +941,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		#[document_return("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
+		#[document_returns("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -989,7 +989,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
-		#[document_return("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
+		#[document_returns("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -1040,7 +1040,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
-		#[document_return("The result wrapped in the applicative context.")]
+		#[document_returns("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1092,7 +1092,7 @@ mod inner {
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
-		#[document_return("The result wrapped in the applicative context.")]
+		#[document_returns("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1167,7 +1167,7 @@ mod inner {
 		/// 	"".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1216,7 +1216,7 @@ mod inner {
 		/// let x_err: Result<i32, i32> = Err(1);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, 10, x_err), 10);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -1275,7 +1275,7 @@ mod inner {
 		/// 	"".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1324,7 +1324,7 @@ mod inner {
 		/// let x_ok: Result<i32, i32> = Ok(1);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, 10, x_ok), 10);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

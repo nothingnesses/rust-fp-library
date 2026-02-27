@@ -2,7 +2,7 @@ use {
 	crate::{
 		core::{
 			Result as OurResult,
-			constants::attributes::DOCUMENT_RETURN,
+			constants::attributes::DOCUMENT_RETURNS,
 		},
 		support::{
 			ast::RustAst,
@@ -16,8 +16,8 @@ use {
 	quote::quote,
 };
 
-/// Worker for the `document_return` macro.
-pub fn document_return_worker(
+/// Worker for the `document_returns` macro.
+pub fn document_returns_worker(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> OurResult<TokenStream> {
@@ -25,11 +25,11 @@ pub fn document_return_worker(
 	let mut ast = RustAst::parse(item).map_err(crate::core::Error::Parse)?;
 
 	if ast.signature().is_some() {
-		process_document_return_on_ast(&mut ast, &description);
+		process_document_returns_on_ast(&mut ast, &description);
 	} else {
 		return Err(syn::Error::new_spanned(
 			ast,
-			format!("{DOCUMENT_RETURN} can only be applied to functions"),
+			format!("{DOCUMENT_RETURNS} can only be applied to functions"),
 		)
 		.into());
 	}
@@ -37,7 +37,7 @@ pub fn document_return_worker(
 	Ok(quote!(#ast))
 }
 
-fn process_document_return_on_ast(
+fn process_document_returns_on_ast(
 	ast: &mut RustAst,
 	description: &syn::LitStr,
 ) {

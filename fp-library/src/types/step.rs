@@ -48,7 +48,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -103,7 +103,7 @@ mod inner {
 		/// Returns `true` if this is a `Loop` variant.
 		#[document_signature]
 		///
-		#[document_return("`true` if the step is a loop, `false` otherwise.")]
+		#[document_returns("`true` if the step is a loop, `false` otherwise.")]
 		///
 		/// ### Examples
 		///
@@ -121,7 +121,7 @@ mod inner {
 		/// Returns `true` if this is a `Done` variant.
 		#[document_signature]
 		///
-		#[document_return("`true` if the step is done, `false` otherwise.")]
+		#[document_returns("`true` if the step is done, `false` otherwise.")]
 		///
 		/// ### Examples
 		///
@@ -143,7 +143,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the loop value.")]
 		///
-		#[document_return("A new `Step` with the loop value transformed.")]
+		#[document_returns("A new `Step` with the loop value transformed.")]
 		///
 		/// ### Examples
 		///
@@ -171,7 +171,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the done value.")]
 		///
-		#[document_return("A new `Step` with the done value transformed.")]
+		#[document_returns("A new `Step` with the done value transformed.")]
 		///
 		/// ### Examples
 		///
@@ -211,7 +211,7 @@ mod inner {
 		/// let mapped = step.bimap(|x| x + 1, |x| x * 2);
 		/// assert_eq!(mapped, Step::Loop(2));
 		/// ```
-		#[document_return("A new `Step` with both values transformed.")]
+		#[document_returns("A new `Step` with both values transformed.")]
 		pub fn bimap<C, D>(
 			self,
 			f: impl FnOnce(A) -> C,
@@ -271,7 +271,7 @@ mod inner {
 		/// let x = Step::Loop(1);
 		/// assert_eq!(bimap::<StepBrand, _, _, _, _, _, _>(|a| a + 1, |b: i32| b * 2, x), Step::Loop(2));
 		/// ```
-		#[document_return("A new step containing the mapped values.")]
+		#[document_returns("A new step containing the mapped values.")]
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -308,7 +308,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the done value.", "The step to map over.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new step containing the result of applying the function to the done value."
 		)]
 		///
@@ -383,7 +383,7 @@ mod inner {
 		/// 	Step::Loop(2)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"`Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -415,7 +415,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("`Done(a)`.")]
+		#[document_returns("`Done(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -474,7 +474,9 @@ mod inner {
 		/// 	Step::Done(10)
 		/// );
 		/// ```
-		#[document_return("`Done(f(a))` if both are `Done`, otherwise the first loop encountered.")]
+		#[document_returns(
+			"`Done(f(a))` if both are `Done`, otherwise the first loop encountered."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -520,7 +522,7 @@ mod inner {
 		/// 	Step::Done(10)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop."
 		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
@@ -553,7 +555,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
-		#[document_return("`func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.")]
+		#[document_returns("`func(a, initial)` if `fa` is `Done(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -610,7 +612,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
-		#[document_return("`func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.")]
+		#[document_returns("`func(initial, a)` if `fa` is `Done(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -667,7 +669,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The step to fold.")]
 		///
-		#[document_return("`func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.")]
+		#[document_returns("`func(a)` if `fa` is `Done(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -725,7 +727,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The step to traverse.")]
 		///
-		#[document_return("The step wrapped in the applicative context.")]
+		#[document_returns("The step wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -774,7 +776,7 @@ mod inner {
 		///
 		#[document_parameters("The step containing the applicative value.")]
 		///
-		#[document_return("The step wrapped in the applicative context.")]
+		#[document_returns("The step wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -849,7 +851,7 @@ mod inner {
 		/// 	"".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -899,7 +901,7 @@ mod inner {
 		/// let x_loop: Step<i32, i32> = Step::Loop(1);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f, 10, x_loop), 10);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -940,7 +942,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the loop value.", "The step to map over.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new step containing the result of applying the function to the loop value."
 		)]
 		///
@@ -1015,7 +1017,7 @@ mod inner {
 		/// 	Step::Done(2)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"`Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -1047,7 +1049,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("`Loop(a)`.")]
+		#[document_returns("`Loop(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -1106,7 +1108,9 @@ mod inner {
 		/// 	Step::Loop(10)
 		/// );
 		/// ```
-		#[document_return("`Loop(f(a))` if both are `Loop`, otherwise the first done encountered.")]
+		#[document_returns(
+			"`Loop(f(a))` if both are `Loop`, otherwise the first done encountered."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1135,7 +1139,7 @@ mod inner {
 		///
 		#[document_parameters("The first step.", "The function to apply to the loop value.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done."
 		)]
 		///
@@ -1183,7 +1187,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
-		#[document_return("`func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.")]
+		#[document_returns("`func(a, initial)` if `fa` is `Loop(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -1240,7 +1244,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The step to fold.")]
 		///
-		#[document_return("`func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.")]
+		#[document_returns("`func(initial, a)` if `fa` is `Loop(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -1297,7 +1301,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The step to fold.")]
 		///
-		#[document_return("`func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.")]
+		#[document_returns("`func(a)` if `fa` is `Loop(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -1355,7 +1359,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The step to traverse.")]
 		///
-		#[document_return("The step wrapped in the applicative context.")]
+		#[document_returns("The step wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1404,7 +1408,7 @@ mod inner {
 		///
 		#[document_parameters("The step containing the applicative value.")]
 		///
-		#[document_return("The step wrapped in the applicative context.")]
+		#[document_returns("The step wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1479,7 +1483,7 @@ mod inner {
 		/// 	"".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1529,7 +1533,7 @@ mod inner {
 		/// let x_done: Step<i32, i32> = Step::Done(1);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f, 10, x_done), 10);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

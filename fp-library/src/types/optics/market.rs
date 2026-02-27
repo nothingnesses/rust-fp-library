@@ -19,7 +19,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -55,7 +55,7 @@ mod inner {
 		///
 		#[document_parameters("The preview function.", "The review function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -128,7 +128,7 @@ mod inner {
 			"The market instance to transform."
 		)]
 		///
-		#[document_return("A transformed `Market` instance.")]
+		#[document_returns("A transformed `Market` instance.")]
 		///
 		/// ### Examples
 		///
@@ -184,7 +184,7 @@ mod inner {
 		///
 		#[document_parameters("The market instance to transform.")]
 		///
-		#[document_return("A transformed `Market` instance that operates on `Result` types.")]
+		#[document_returns("A transformed `Market` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///
@@ -227,7 +227,7 @@ mod inner {
 		///
 		#[document_parameters("The market instance to transform.")]
 		///
-		#[document_return("A transformed `Market` instance that operates on `Result` types.")]
+		#[document_returns("A transformed `Market` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///

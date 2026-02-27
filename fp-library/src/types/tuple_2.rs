@@ -35,7 +35,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 		},
 	};
 
@@ -85,7 +85,7 @@ mod inner {
 		/// let x = (1, 5);
 		/// assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 10));
 		/// ```
-		#[document_return("A new tuple containing the mapped values.")]
+		#[document_returns("A new tuple containing the mapped values.")]
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -135,7 +135,7 @@ mod inner {
 		///
 		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple containing the result of applying the function to the second value."
 		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
@@ -189,7 +189,7 @@ mod inner {
 		/// 	("ab".to_string(), 3)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -220,7 +220,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A tuple containing the empty value of the first type and `a`.")]
+		#[document_returns("A tuple containing the empty value of the first type and `a`.")]
 		///
 		/// ### Examples
 		///
@@ -278,7 +278,7 @@ mod inner {
 		/// 	("ab".to_string(), 10)
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple where the first values are combined and the function is applied to the second value."
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
@@ -308,7 +308,7 @@ mod inner {
 		///
 		#[document_parameters("The first tuple.", "The function to apply to the second value.")]
 		///
-		#[document_return("A new tuple where the first values are combined.")]
+		#[document_returns("A new tuple where the first values are combined.")]
 		///
 		/// ### Examples
 		///
@@ -355,7 +355,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
-		#[document_return("`func(a, initial)`.")]
+		#[document_returns("`func(a, initial)`.")]
 		///
 		/// ### Examples
 		///
@@ -413,7 +413,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// ```
-		#[document_return("`func(initial, a)`.")]
+		#[document_returns("`func(initial, a)`.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -440,7 +440,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The tuple to fold.")]
 		///
-		#[document_return("`func(a)`.")]
+		#[document_returns("`func(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -503,7 +503,7 @@ mod inner {
 		/// 	Some(((), 10))
 		/// );
 		/// ```
-		#[document_return("The tuple wrapped in the applicative context.")]
+		#[document_returns("The tuple wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -528,7 +528,7 @@ mod inner {
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
-		#[document_return("The tuple wrapped in the applicative context.")]
+		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -588,7 +588,7 @@ mod inner {
 		/// 	"1".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -630,7 +630,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, Tuple2FirstAppliedBrand<String>, _, _>(f, 10, x), 11);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -681,7 +681,7 @@ mod inner {
 		///
 		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple containing the result of applying the function to the first value."
 		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
@@ -735,7 +735,7 @@ mod inner {
 		/// 	(3, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -766,7 +766,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A tuple containing `a` and the empty value of the second type.")]
+		#[document_returns("A tuple containing `a` and the empty value of the second type.")]
 		///
 		/// ### Examples
 		///
@@ -824,7 +824,7 @@ mod inner {
 		/// 	(10, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new tuple where the function is applied to the first value and the second values are combined."
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
@@ -854,7 +854,7 @@ mod inner {
 		///
 		#[document_parameters("The first tuple.", "The function to apply to the first value.")]
 		///
-		#[document_return("A new tuple where the second values are combined.")]
+		#[document_returns("A new tuple where the second values are combined.")]
 		///
 		/// ### Examples
 		///
@@ -901,7 +901,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
-		#[document_return("`func(a, initial)`.")]
+		#[document_returns("`func(a, initial)`.")]
 		///
 		/// ### Examples
 		///
@@ -946,7 +946,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The tuple to fold.")]
 		///
-		#[document_return("`func(initial, a)`.")]
+		#[document_returns("`func(initial, a)`.")]
 		///
 		/// ### Examples
 		///
@@ -987,7 +987,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The tuple to fold.")]
 		///
-		#[document_return("`func(a)`.")]
+		#[document_returns("`func(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -1034,7 +1034,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The tuple to traverse.")]
 		///
-		#[document_return("The tuple wrapped in the applicative context.")]
+		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1073,7 +1073,7 @@ mod inner {
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
-		#[document_return("The tuple wrapped in the applicative context.")]
+		#[document_returns("The tuple wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1133,7 +1133,7 @@ mod inner {
 		/// 	"1".to_string()
 		/// );
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1175,7 +1175,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, Tuple2SecondAppliedBrand<String>, _, _>(f, 10, x), 11);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

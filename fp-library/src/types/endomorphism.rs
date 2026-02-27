@@ -17,7 +17,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::{
@@ -84,7 +84,7 @@ mod inner {
 		///
 		#[document_parameters("The morphism to wrap.")]
 		///
-		#[document_return("A new `Endomorphism`.")]
+		#[document_returns("A new `Endomorphism`.")]
 		///
 		/// ### Examples
 		///
@@ -117,7 +117,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return("A new `Endomorphism` instance that is a copy of the original.")]
+		#[document_returns("A new `Endomorphism` instance that is a copy of the original.")]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
@@ -136,7 +136,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
 		///
-		#[document_return("The result of the formatting operation.")]
+		#[document_returns("The result of the formatting operation.")]
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -188,7 +188,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
-		#[document_return("The ordering of the values.")]
+		#[document_returns("The ordering of the values.")]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -209,7 +209,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
-		#[document_return("True if the values are equal, false otherwise.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
 		fn eq(
 			&self,
 			other: &Self,
@@ -230,7 +230,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
-		#[document_return("An ordering if the values can be compared, none otherwise.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -273,7 +273,7 @@ mod inner {
 		/// let h = append::<_>(f, g);
 		/// assert_eq!(h.0(5), 12);
 		/// ```
-		#[document_return("The composed morphism `a . b`.")]
+		#[document_returns("The composed morphism `a . b`.")]
 		fn append(
 			a: Self,
 			b: Self,
@@ -293,7 +293,7 @@ mod inner {
 		/// This method returns the identity endomorphism, which wraps the identity morphism of the underlying category.
 		#[document_signature]
 		///
-		#[document_return("The identity endomorphism.")]
+		#[document_returns("The identity endomorphism.")]
 		///
 		/// ### Examples
 		///

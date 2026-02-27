@@ -81,7 +81,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::{
@@ -201,7 +201,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A `Free` computation that produces `a`.")]
+		#[document_returns("A `Free` computation that produces `a`.")]
 		///
 		/// ### Examples
 		///
@@ -223,7 +223,7 @@ mod inner {
 		///
 		#[document_parameters("The functor value containing the next step.")]
 		///
-		#[document_return("A `Free` computation that performs the effect `fa`.")]
+		#[document_returns("A `Free` computation that performs the effect `fa`.")]
 		///
 		/// ### Examples
 		///
@@ -255,7 +255,7 @@ mod inner {
 		/// ```
 		#[document_parameters("The functor value to lift.")]
 		///
-		#[document_return("A `Free` computation that performs the effect and returns the result.")]
+		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
 		///
 		/// ### Examples
 		///
@@ -288,7 +288,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of this computation.")]
 		///
-		#[document_return("A new `Free` computation that chains `f` after this computation.")]
+		#[document_returns("A new `Free` computation that chains `f` after this computation.")]
 		///
 		/// ### Examples
 		///
@@ -350,7 +350,7 @@ mod inner {
 
 		/// Converts to type-erased form.
 		#[document_signature]
-		#[document_return(
+		#[document_returns(
 			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
 		)]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
@@ -377,7 +377,7 @@ mod inner {
 
 		/// Converts to boxed type-erased form.
 		#[document_signature]
-		#[document_return("A boxed `Free` computation where the result type has been erased.")]
+		#[document_returns("A boxed `Free` computation where the result type has been erased.")]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
 		}
@@ -388,7 +388,7 @@ mod inner {
 		/// [`CatList`] of continuations without growing the stack.
 		#[document_signature]
 		///
-		#[document_return("The final result of the computation.")]
+		#[document_returns("The final result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -491,7 +491,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the free computation.")]
 		///
-		#[document_return("The deferred free computation.")]
+		#[document_returns("The deferred free computation.")]
 		///
 		/// ### Examples
 		///

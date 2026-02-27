@@ -28,7 +28,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -58,7 +58,7 @@ mod inner {
 		///
 		#[document_parameters("The success value.")]
 		///
-		#[document_return("A `TryTrampoline` representing success.")]
+		#[document_returns("A `TryTrampoline` representing success.")]
 		///
 		/// ### Examples
 		///
@@ -77,7 +77,7 @@ mod inner {
 		///
 		#[document_parameters("The error value.")]
 		///
-		#[document_return("A `TryTrampoline` representing failure.")]
+		#[document_returns("A `TryTrampoline` representing failure.")]
 		///
 		/// ### Examples
 		///
@@ -98,7 +98,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to execute.")]
 		///
-		#[document_return("A `TryTrampoline` that executes `f` when run.")]
+		#[document_returns("A `TryTrampoline` that executes `f` when run.")]
 		///
 		/// ### Examples
 		///
@@ -123,7 +123,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that returns the next step.")]
 		///
-		#[document_return("A `TryTrampoline` that executes `f` to get the next step.")]
+		#[document_returns("A `TryTrampoline` that executes `f` to get the next step.")]
 		///
 		/// ### Examples
 		///
@@ -171,7 +171,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
-		#[document_return("A new `TryTrampoline` with the transformed success value.")]
+		#[document_returns("A new `TryTrampoline` with the transformed success value.")]
 		///
 		/// ### Examples
 		///
@@ -200,7 +200,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
-		#[document_return("A new `TryTrampoline` with the transformed error value.")]
+		#[document_returns("A new `TryTrampoline` with the transformed error value.")]
 		///
 		/// ### Examples
 		///
@@ -230,7 +230,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
-		#[document_return("A new `TryTrampoline` that chains `f` after this task.")]
+		#[document_returns("A new `TryTrampoline` that chains `f` after this task.")]
 		///
 		/// ### Examples
 		///
@@ -259,7 +259,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
-		#[document_return("A new `TryTrampoline` that attempts to recover from failure.")]
+		#[document_returns("A new `TryTrampoline` that attempts to recover from failure.")]
 		///
 		/// ### Examples
 		///
@@ -285,7 +285,7 @@ mod inner {
 		/// Runs the computation, returning the result.
 		#[document_signature]
 		///
-		#[document_return("The result of the computation.")]
+		#[document_returns("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -309,7 +309,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The trampoline computation to convert.")]
 		///
-		#[document_return("A new `TryTrampoline` instance that wraps the trampoline.")]
+		#[document_returns("A new `TryTrampoline` instance that wraps the trampoline.")]
 		fn from(task: Trampoline<A>) -> Self {
 			TryTrampoline(task.map(Ok))
 		}
@@ -329,7 +329,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		///
-		#[document_return("A new `TryTrampoline` instance that wraps the lazy value.")]
+		#[document_returns("A new `TryTrampoline` instance that wraps the lazy value.")]
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
@@ -349,7 +349,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
 		///
-		#[document_return("A new `TryTrampoline` instance that wraps the fallible lazy value.")]
+		#[document_returns("A new `TryTrampoline` instance that wraps the fallible lazy value.")]
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
@@ -368,7 +368,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the value.")]
 		///
-		#[document_return("The deferred value.")]
+		#[document_returns("The deferred value.")]
 		///
 		/// ### Examples
 		///

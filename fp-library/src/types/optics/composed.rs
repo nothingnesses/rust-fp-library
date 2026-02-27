@@ -25,7 +25,7 @@ use {
 	},
 	fp_macros::{
 		document_parameters,
-		document_return,
+		document_returns,
 		document_signature,
 		document_type_parameters,
 	},
@@ -107,7 +107,7 @@ mod inner {
 		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		pub fn new(
 			first: O1,
 			second: O2,
@@ -143,7 +143,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -205,7 +205,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -264,7 +264,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -326,7 +326,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -386,7 +386,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -449,7 +449,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -511,7 +511,7 @@ mod inner {
 			"The reference-counted pointer type."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -569,7 +569,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -635,7 +635,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -698,7 +698,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -758,7 +758,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

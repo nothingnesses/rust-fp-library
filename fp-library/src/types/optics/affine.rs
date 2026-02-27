@@ -22,7 +22,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -72,7 +72,7 @@ mod inner {
 		///
 		#[document_parameters("The getter/setter pair function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -104,7 +104,7 @@ mod inner {
 		///
 		#[document_parameters("The preview function.", "The set function.")]
 		///
-		#[document_return("A new `AffineTraversal` instance.")]
+		#[document_returns("A new `AffineTraversal` instance.")]
 		///
 		/// ### Examples
 		///
@@ -149,7 +149,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to preview.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A result containing the focus value if it exists, or the original structure (possibly with changed type) if not."
 		)]
 		///
@@ -177,7 +177,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to update.", "The new focus value.")]
 		///
-		#[document_return("The updated structure.")]
+		#[document_returns("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -225,7 +225,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -290,7 +290,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -341,7 +341,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -391,7 +391,7 @@ mod inner {
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -441,7 +441,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -508,7 +508,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return("A new `AffineTraversalPrime` instance that is a copy of the original.")]
+		#[document_returns("A new `AffineTraversalPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -547,7 +547,7 @@ mod inner {
 		///
 		#[document_parameters("The getter/setter pair function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -579,7 +579,7 @@ mod inner {
 		///
 		#[document_parameters("The preview function.", "The set function.")]
 		///
-		#[document_return("A new `AffineTraversalPrime` instance.")]
+		#[document_returns("A new `AffineTraversalPrime` instance.")]
 		///
 		/// ### Examples
 		///
@@ -624,7 +624,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to preview.")]
 		///
-		#[document_return("The focus value if it exists, or `None` if not.")]
+		#[document_returns("The focus value if it exists, or `None` if not.")]
 		///
 		/// ### Examples
 		///
@@ -650,7 +650,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to update.", "The new focus value.")]
 		///
-		#[document_return("The updated structure.")]
+		#[document_returns("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -680,7 +680,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		///
-		#[document_return("The updated structure.")]
+		#[document_returns("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -725,7 +725,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -786,7 +786,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -833,7 +833,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -883,7 +883,7 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -930,7 +930,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

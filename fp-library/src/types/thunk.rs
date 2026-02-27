@@ -35,7 +35,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -114,7 +114,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk to wrap.")]
 		///
-		#[document_return("A new `Thunk` instance.")]
+		#[document_returns("A new `Thunk` instance.")]
 		///
 		/// ### Examples
 		///
@@ -135,7 +135,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A new `Thunk` instance containing the value.")]
+		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -162,7 +162,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that returns a `Thunk`.")]
 		///
-		#[document_return("A new `Thunk` instance.")]
+		#[document_returns("A new `Thunk` instance.")]
 		///
 		/// ### Examples
 		///
@@ -195,7 +195,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		#[document_return("A new `Thunk` instance representing the chained computation.")]
+		#[document_returns("A new `Thunk` instance representing the chained computation.")]
 		///
 		/// ### Examples
 		///
@@ -231,7 +231,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		#[document_return("A new `Thunk` instance with the transformed result.")]
+		#[document_returns("A new `Thunk` instance with the transformed result.")]
 		///
 		/// ### Examples
 		///
@@ -256,7 +256,7 @@ mod inner {
 		/// Forces evaluation and returns the result.
 		#[document_signature]
 		///
-		#[document_return("The result of the computation.")]
+		#[document_returns("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -286,7 +286,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		#[document_return("A thunk that evaluates the lazy value.")]
+		#[document_returns("A thunk that evaluates the lazy value.")]
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
@@ -310,7 +310,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the thunk.")]
 		///
-		#[document_return("The deferred thunk.")]
+		#[document_returns("The deferred thunk.")]
 		///
 		/// ### Examples
 		///
@@ -361,7 +361,7 @@ mod inner {
 		/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
 		/// assert_eq!(mapped.evaluate(), 20);
 		/// ```
-		#[document_return("A new `Thunk` instance with the transformed result.")]
+		#[document_returns("A new `Thunk` instance with the transformed result.")]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -383,7 +383,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A new `Thunk` instance containing the value.")]
+		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -433,7 +433,9 @@ mod inner {
 		/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), 30);
 		/// ```
-		#[document_return("A new `Thunk` instance containing the result of applying the function.")]
+		#[document_returns(
+			"A new `Thunk` instance containing the result of applying the function."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -480,7 +482,9 @@ mod inner {
 		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), 42);
 		/// ```
-		#[document_return("A new `Thunk` instance containing the result of applying the function.")]
+		#[document_returns(
+			"A new `Thunk` instance containing the result of applying the function."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -522,7 +526,7 @@ mod inner {
 		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
 		/// assert_eq!(result.evaluate(), 20);
 		/// ```
-		#[document_return("A new `Thunk` instance representing the chained computation.")]
+		#[document_returns("A new `Thunk` instance representing the chained computation.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -546,7 +550,7 @@ mod inner {
 		///
 		#[document_parameters("The step function.", "The initial value.")]
 		///
-		#[document_return("The result of the computation.")]
+		#[document_returns("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -595,7 +599,7 @@ mod inner {
 		///
 		#[document_parameters("The eval to run.")]
 		///
-		#[document_return("The result of running the thunk.")]
+		#[document_returns("The result of running the thunk.")]
 		///
 		/// ### Examples
 		///
@@ -647,7 +651,7 @@ mod inner {
 		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -688,7 +692,7 @@ mod inner {
 		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
 		/// assert_eq!(result, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -713,7 +717,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The Thunk to fold.")]
 		///
-		#[document_return("The monoid value.")]
+		#[document_returns("The monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -749,7 +753,7 @@ mod inner {
 		///
 		#[document_parameters("The first `Thunk`.", "The second `Thunk`.")]
 		///
-		#[document_return("A new `Thunk` containing the combined result.")]
+		#[document_returns("A new `Thunk` containing the combined result.")]
 		///
 		/// ### Examples
 		///
@@ -781,7 +785,7 @@ mod inner {
 		/// Returns the identity `Thunk`.
 		#[document_signature]
 		///
-		#[document_return("A `Thunk` producing the identity value of `A`.")]
+		#[document_returns("A `Thunk` producing the identity value of `A`.")]
 		///
 		/// ### Examples
 		///

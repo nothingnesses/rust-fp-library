@@ -20,7 +20,7 @@ use {
 	},
 	fp_macros::{
 		document_parameters,
-		document_return,
+		document_returns,
 		document_signature,
 		document_type_parameters,
 	},
@@ -66,7 +66,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 		"The functor instance containing the value(s)."
 	)]
 	///
-	#[document_return("A new functor instance containing the result(s) of applying the function.")]
+	#[document_returns("A new functor instance containing the result(s) of applying the function.")]
 	///
 	/// ### Examples
 	///
@@ -106,7 +106,7 @@ pub trait Functor: Kind_cdc7cd43dac7585f {
 	"The functor instance containing the value(s)."
 )]
 ///
-#[document_return("A new functor instance containing the result(s) of applying the function.")]
+#[document_returns("A new functor instance containing the result(s) of applying the function.")]
 ///
 /// ### Examples
 ///

@@ -19,7 +19,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -55,7 +55,7 @@ mod inner {
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -125,7 +125,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The shop instance to transform."
 		)]
-		#[document_return("A transformed `Shop` instance.")]
+		#[document_returns("A transformed `Shop` instance.")]
 		///
 		/// ### Examples
 		///
@@ -180,7 +180,7 @@ mod inner {
 			"The type of the other component."
 		)]
 		#[document_parameters("The shop instance to transform.")]
-		#[document_return("A transformed `Shop` instance that operates on tuples.")]
+		#[document_returns("A transformed `Shop` instance that operates on tuples.")]
 		///
 		/// ### Examples
 		///

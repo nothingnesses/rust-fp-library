@@ -38,7 +38,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 		},
 	};
 
@@ -75,7 +75,7 @@ mod inner {
 		/// let single_element = VecBrand::construct(42, empty_tail);
 		/// assert_eq!(single_element, vec![42]);
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new vector consisting of the `head` element prepended to the `tail` vector."
 		)]
 		pub fn construct<A>(
@@ -96,7 +96,7 @@ mod inner {
 		///
 		#[document_parameters("The vector slice to deconstruct.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"An [`Option`] containing a tuple of the head element and the remaining tail vector, or [`None`] if the slice is empty."
 		)]
 		///
@@ -137,7 +137,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to each element.", "The vector to map over.")]
 		///
-		#[document_return("A new vector containing the results of applying the function.")]
+		#[document_returns("A new vector containing the results of applying the function.")]
 		///
 		/// ### Examples
 		///
@@ -192,7 +192,7 @@ mod inner {
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new vector containing the results of applying the function to all pairs of elements."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -219,7 +219,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A vector containing the single value.")]
+		#[document_returns("A vector containing the single value.")]
 		///
 		/// ### Examples
 		///
@@ -272,7 +272,7 @@ mod inner {
 		/// ];
 		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new vector containing the results of applying each function to each value."
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
@@ -311,7 +311,7 @@ mod inner {
 		///
 		/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
 		/// ```
-		#[document_return("A new vector containing the flattened results.")]
+		#[document_returns("A new vector containing the flattened results.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -338,7 +338,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The vector to fold.")]
 		///
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		///
 		/// ### Examples
 		///
@@ -396,7 +396,7 @@ mod inner {
 		/// 	6
 		/// );
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -423,7 +423,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The vector to fold.")]
 		///
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -485,7 +485,7 @@ mod inner {
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
-		#[document_return("The vector wrapped in the applicative context.")]
+		#[document_returns("The vector wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -520,7 +520,7 @@ mod inner {
 		///
 		#[document_parameters("The vector containing the applicative values.")]
 		///
-		#[document_return("The vector wrapped in the applicative context.")]
+		#[document_returns("The vector wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -564,7 +564,7 @@ mod inner {
 		///
 		#[document_parameters("The first vector.", "The second vector.")]
 		///
-		#[document_return("The concatenated vector.")]
+		#[document_returns("The concatenated vector.")]
 		///
 		/// ### Examples
 		///
@@ -588,7 +588,7 @@ mod inner {
 		/// This method returns a new, empty vector.
 		#[document_signature]
 		///
-		#[document_return("An empty vector.")]
+		#[document_returns("An empty vector.")]
 		///
 		/// ### Examples
 		///
@@ -634,7 +634,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -665,7 +665,7 @@ mod inner {
 		///
 		#[document_parameters("The vector of options.")]
 		///
-		#[document_return("The flattened vector.")]
+		#[document_returns("The flattened vector.")]
 		///
 		/// ### Examples
 		///
@@ -701,7 +701,7 @@ mod inner {
 		///
 		#[document_parameters("The vector of results.")]
 		///
-		#[document_return("A pair of vectors.")]
+		#[document_returns("A pair of vectors.")]
 		///
 		/// ### Examples
 		///
@@ -750,7 +750,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
 		///
-		#[document_return("A pair of vectors.")]
+		#[document_returns("A pair of vectors.")]
 		///
 		/// ### Examples
 		///
@@ -799,7 +799,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The vector to partition.")]
 		///
-		#[document_return("A pair of vectors.")]
+		#[document_returns("A pair of vectors.")]
 		///
 		/// ### Examples
 		///
@@ -842,7 +842,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The vector to filter and map.")]
 		///
-		#[document_return("The filtered and mapped vector.")]
+		#[document_returns("The filtered and mapped vector.")]
 		///
 		/// ### Examples
 		///
@@ -878,7 +878,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The vector to filter.")]
 		///
-		#[document_return("The filtered vector.")]
+		#[document_returns("The filtered vector.")]
 		///
 		/// ### Examples
 		///
@@ -919,7 +919,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
 		///
-		#[document_return("The partitioned vector wrapped in the applicative context.")]
+		#[document_returns("The partitioned vector wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1002,7 +1002,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, Some(vec![4, 8]));
 		/// ```
-		#[document_return("The filtered and mapped vector wrapped in the applicative context.")]
+		#[document_returns("The filtered and mapped vector wrapped in the applicative context.")]
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

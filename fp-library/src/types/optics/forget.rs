@@ -24,7 +24,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -69,7 +69,7 @@ mod inner {
 		///
 		#[document_parameters("The function to wrap.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -91,7 +91,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The input value.")]
 		///
-		#[document_return("The result of applying the underlying function to the input.")]
+		#[document_returns("The result of applying the underlying function to the input.")]
 		///
 		/// ### Examples
 		///
@@ -127,7 +127,7 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
-		#[document_return("A new `Forget` instance that is a copy of the original.")]
+		#[document_returns("A new `Forget` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -176,7 +176,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The forget instance to transform."
 		)]
-		#[document_return("A transformed `Forget` instance.")]
+		#[document_returns("A transformed `Forget` instance.")]
 		///
 		/// ### Examples
 		///
@@ -224,7 +224,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
-		#[document_return("A transformed `Forget` instance that operates on tuples.")]
+		#[document_returns("A transformed `Forget` instance that operates on tuples.")]
 		///
 		/// ### Examples
 		///
@@ -265,7 +265,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
-		#[document_return("A transformed `Forget` instance that operates on structures.")]
+		#[document_returns("A transformed `Forget` instance that operates on structures.")]
 		///
 		/// ### Examples
 		///
@@ -315,7 +315,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
-		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
+		#[document_returns("A transformed `Forget` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///
@@ -357,7 +357,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
-		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
+		#[document_returns("A transformed `Forget` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///

@@ -55,7 +55,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::{
@@ -114,7 +114,7 @@ mod inner {
 	impl<A: PartialEq + Clone> PartialEq for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
-		#[document_return("True if the values are equal, false otherwise.")]
+		#[document_returns("True if the values are equal, false otherwise.")]
 		fn eq(
 			&self,
 			other: &Self,
@@ -151,7 +151,7 @@ mod inner {
 	impl<A: PartialOrd + Clone> PartialOrd for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
-		#[document_return("An ordering if the values can be compared, none otherwise.")]
+		#[document_returns("An ordering if the values can be compared, none otherwise.")]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -165,7 +165,7 @@ mod inner {
 	impl<A: Ord + Clone> Ord for CatList<A> {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
-		#[document_return("The ordering of the values.")]
+		#[document_returns("The ordering of the values.")]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -190,7 +190,7 @@ mod inner {
 		///
 		#[document_parameters("A value to prepend to the list.", "A list to prepend the value to.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new list consisting of the `head` element prepended to the `tail` list."
 		)]
 		///
@@ -224,7 +224,7 @@ mod inner {
 		///
 		#[document_parameters("The list to deconstruct.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"An [`Option`] containing a tuple of the head element and the remaining tail list, or [`None`] if the list is empty."
 		)]
 		///
@@ -265,7 +265,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to each element.", "The list to map over.")]
 		///
-		#[document_return("A new list containing the results of applying the function.")]
+		#[document_returns("A new list containing the results of applying the function.")]
 		///
 		/// ### Examples
 		///
@@ -326,7 +326,7 @@ mod inner {
 		/// let vec: Vec<_> = lifted.into_iter().collect();
 		/// assert_eq!(vec, vec![11, 21, 12, 22]);
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new list containing the results of applying the function to all pairs of elements."
 		)]
 		fn lift2<'a, A, B, C, Func>(
@@ -358,7 +358,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A list containing the single value.")]
+		#[document_returns("A list containing the single value.")]
 		///
 		/// ### Examples
 		///
@@ -415,7 +415,7 @@ mod inner {
 		/// let vec: Vec<_> = applied.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 3, 2, 4]);
 		/// ```
-		#[document_return(
+		#[document_returns(
 			"A new list containing the results of applying each function to each value."
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
@@ -458,7 +458,7 @@ mod inner {
 		/// let vec: Vec<_> = bound.into_iter().collect();
 		/// assert_eq!(vec, vec![1, 2, 2, 4]);
 		/// ```
-		#[document_return("A new list containing the flattened results.")]
+		#[document_returns("A new list containing the flattened results.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -485,7 +485,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The list to fold.")]
 		///
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		///
 		/// ### Examples
 		///
@@ -545,7 +545,7 @@ mod inner {
 		/// let list = CatList::singleton(1).snoc(2).snoc(3);
 		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -572,7 +572,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The list to fold.")]
 		///
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -634,7 +634,7 @@ mod inner {
 		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![2, 4, 6]);
 		/// ```
-		#[document_return("The list wrapped in the applicative context.")]
+		#[document_returns("The list wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -661,7 +661,7 @@ mod inner {
 		///
 		#[document_parameters("The list containing the applicative values.")]
 		///
-		#[document_return("The list wrapped in the applicative context.")]
+		#[document_returns("The list wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -721,7 +721,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, list), "123".to_string());
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -754,7 +754,7 @@ mod inner {
 		///
 		#[document_parameters("The list of options.")]
 		///
-		#[document_return("The flattened list.")]
+		#[document_returns("The flattened list.")]
 		///
 		/// ### Examples
 		///
@@ -792,7 +792,7 @@ mod inner {
 		///
 		#[document_parameters("The list of results.")]
 		///
-		#[document_return("A pair of lists.")]
+		#[document_returns("A pair of lists.")]
 		///
 		/// ### Examples
 		///
@@ -844,7 +844,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
-		#[document_return("A pair of lists.")]
+		#[document_returns("A pair of lists.")]
 		///
 		/// ### Examples
 		///
@@ -898,7 +898,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The list to partition.")]
 		///
-		#[document_return("A pair of lists.")]
+		#[document_returns("A pair of lists.")]
 		///
 		/// ### Examples
 		///
@@ -951,7 +951,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The list to filter and map.")]
 		///
-		#[document_return("The filtered and mapped list.")]
+		#[document_returns("The filtered and mapped list.")]
 		///
 		/// ### Examples
 		///
@@ -990,7 +990,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The list to filter.")]
 		///
-		#[document_return("The filtered list.")]
+		#[document_returns("The filtered list.")]
 		///
 		/// ### Examples
 		///
@@ -1033,7 +1033,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The list to partition.")]
 		///
-		#[document_return("The partitioned list wrapped in the applicative context.")]
+		#[document_returns("The partitioned list wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1120,7 +1120,7 @@ mod inner {
 		/// let vec: Vec<_> = withered.unwrap().into_iter().collect();
 		/// assert_eq!(vec, vec![4, 8]);
 		/// ```
-		#[document_return("The filtered and mapped list wrapped in the applicative context.")]
+		#[document_returns("The filtered and mapped list wrapped in the applicative context.")]
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1153,7 +1153,7 @@ mod inner {
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
-		#[document_return("The concatenated list.")]
+		#[document_returns("The concatenated list.")]
 		///
 		/// ### Examples
 		///
@@ -1184,7 +1184,7 @@ mod inner {
 		/// This method returns a new, empty list.
 		#[document_signature]
 		///
-		#[document_return("An empty list.")]
+		#[document_returns("An empty list.")]
 		///
 		/// ### Examples
 		///
@@ -1208,7 +1208,7 @@ mod inner {
 		/// Creates an empty CatList.
 		#[document_signature]
 		///
-		#[document_return("An empty `CatList`.")]
+		#[document_returns("An empty `CatList`.")]
 		///
 		/// ### Examples
 		///
@@ -1228,7 +1228,7 @@ mod inner {
 		///
 		#[document_parameters]
 		///
-		#[document_return("`true` if the list is empty, `false` otherwise.")]
+		#[document_returns("`true` if the list is empty, `false` otherwise.")]
 		///
 		/// ### Examples
 		///
@@ -1248,7 +1248,7 @@ mod inner {
 		///
 		#[document_parameters("The element to put in the list.")]
 		///
-		#[document_return("A `CatList` containing the single element.")]
+		#[document_returns("A `CatList` containing the single element.")]
 		///
 		/// ### Examples
 		///
@@ -1268,7 +1268,7 @@ mod inner {
 		///
 		#[document_parameters("The element to prepend.")]
 		///
-		#[document_return("The new list with the element appended to the front.")]
+		#[document_returns("The new list with the element appended to the front.")]
 		///
 		/// ### Examples
 		///
@@ -1290,7 +1290,7 @@ mod inner {
 		///
 		#[document_parameters("The element to append.")]
 		///
-		#[document_return("The new list with the element appended to the back.")]
+		#[document_returns("The new list with the element appended to the back.")]
 		///
 		/// ### Examples
 		///
@@ -1315,7 +1315,7 @@ mod inner {
 		///
 		#[document_parameters("The second list.")]
 		///
-		#[document_return("The concatenated list.")]
+		#[document_returns("The concatenated list.")]
 		///
 		/// ### Examples
 		///
@@ -1340,7 +1340,7 @@ mod inner {
 		///
 		#[document_parameters("The first list.", "The second list.")]
 		///
-		#[document_return("A new list consisting of the two input lists linked together.")]
+		#[document_returns("A new list consisting of the two input lists linked together.")]
 		fn link(
 			left: Self,
 			right: Self,
@@ -1363,7 +1363,7 @@ mod inner {
 		///
 		#[document_parameters]
 		///
-		#[document_return(
+		#[document_returns(
 			"An option containing the first element and the rest of the list, or `None` if empty."
 		)]
 		///
@@ -1401,7 +1401,7 @@ mod inner {
 		///
 		#[document_parameters("The deque of sublists to flatten.")]
 		///
-		#[document_return("A single flattened `CatList`.")]
+		#[document_returns("A single flattened `CatList`.")]
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
@@ -1413,7 +1413,7 @@ mod inner {
 		///
 		#[document_parameters]
 		///
-		#[document_return("The number of elements in the list.")]
+		#[document_returns("The number of elements in the list.")]
 		///
 		/// ### Examples
 		///
@@ -1441,7 +1441,7 @@ mod inner {
 
 		#[document_signature]
 		///
-		#[document_return("An iterator that consumes the list and yields its elements.")]
+		#[document_returns("An iterator that consumes the list and yields its elements.")]
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
 		}
@@ -1460,7 +1460,7 @@ mod inner {
 
 		#[document_signature]
 		///
-		#[document_return("The next element in the list, or `None` if the iterator is exhausted.")]
+		#[document_returns("The next element in the list, or `None` if the iterator is exhausted.")]
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
@@ -1475,7 +1475,7 @@ mod inner {
 		#[document_type_parameters("The iterator type.")]
 		#[document_parameters("The iterator to collect from.")]
 		///
-		#[document_return("A new `CatList` containing the elements from the iterator.")]
+		#[document_returns("A new `CatList` containing the elements from the iterator.")]
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
 		}

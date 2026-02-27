@@ -16,7 +16,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -52,7 +52,7 @@ mod inner {
 		///
 		#[document_parameters("The forward function.", "The backward function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -121,7 +121,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The exchange instance to transform."
 		)]
-		#[document_return("A transformed `Exchange` instance.")]
+		#[document_returns("A transformed `Exchange` instance.")]
 		///
 		/// ### Examples
 		///

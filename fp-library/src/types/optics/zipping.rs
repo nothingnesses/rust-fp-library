@@ -20,7 +20,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -70,7 +70,7 @@ mod inner {
 		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
 		/// assert_eq!((z.run)((1, 2)), 3);
 		/// ```
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		pub fn new(f: impl Fn((S, S)) -> T + 'a) -> Self {
 			Zipping {
 				run: <FnBrand as CloneableFn>::new(f),
@@ -87,7 +87,7 @@ mod inner {
 	#[document_parameters("The zipping instance.")]
 	impl<'a, FnBrand: CloneableFn, S: 'a, T: 'a> Clone for Zipping<'a, FnBrand, S, T> {
 		#[document_signature]
-		#[document_return("A new `Zipping` instance that is a copy of the original.")]
+		#[document_returns("A new `Zipping` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -140,7 +140,7 @@ mod inner {
 			"The covariant function to post-compose on the output.",
 			"The zipping instance to transform."
 		)]
-		#[document_return("A transformed `Zipping` instance.")]
+		#[document_returns("A transformed `Zipping` instance.")]
 		///
 		/// ### Examples
 		///
@@ -190,7 +190,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The zipping instance to lift.")]
-		#[document_return("A transformed `Zipping` instance that operates on functions.")]
+		#[document_returns("A transformed `Zipping` instance that operates on functions.")]
 		///
 		/// ### Examples
 		///

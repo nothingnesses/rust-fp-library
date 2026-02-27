@@ -28,7 +28,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -92,7 +92,7 @@ mod inner {
 		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
 		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
 		/// ```
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(B) -> T,
@@ -108,7 +108,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to convert.")]
 		///
-		#[document_return("The focus value.")]
+		#[document_returns("The focus value.")]
 		///
 		/// ### Examples
 		///
@@ -135,7 +135,7 @@ mod inner {
 		///
 		#[document_parameters("The focus value to convert.")]
 		///
-		#[document_return("The structure value.")]
+		#[document_returns("The structure value.")]
 		///
 		/// ### Examples
 		///
@@ -179,7 +179,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -226,7 +226,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -269,7 +269,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -314,7 +314,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -357,7 +357,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -399,7 +399,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -442,7 +442,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -486,7 +486,7 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -527,7 +527,7 @@ mod inner {
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -571,7 +571,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -613,7 +613,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -673,7 +673,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return("A new `IsoPrime` instance that is a copy of the original.")]
+		#[document_returns("A new `IsoPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -724,7 +724,7 @@ mod inner {
 		/// // Iso between a newtype and its inner value
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// ```
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(A) -> S,
@@ -740,7 +740,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to convert.")]
 		///
-		#[document_return("The focus value.")]
+		#[document_returns("The focus value.")]
 		///
 		/// ### Examples
 		///
@@ -765,7 +765,7 @@ mod inner {
 		///
 		#[document_parameters("The focus value to convert.")]
 		///
-		#[document_return("The structure value.")]
+		#[document_returns("The structure value.")]
 		///
 		/// ### Examples
 		///
@@ -788,7 +788,7 @@ mod inner {
 		/// Reverse the isomorphism.
 		#[document_signature]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new `IsoPrime` instance with the forward and backward conversions swapped."
 		)]
 		///
@@ -832,7 +832,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -877,7 +877,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -919,7 +919,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -960,7 +960,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1000,7 +1000,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1041,7 +1041,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1085,7 +1085,7 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1126,7 +1126,7 @@ mod inner {
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1168,7 +1168,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1208,7 +1208,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -1249,7 +1249,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

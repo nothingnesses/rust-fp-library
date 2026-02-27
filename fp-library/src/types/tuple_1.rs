@@ -29,7 +29,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 		},
 	};
 
@@ -60,7 +60,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The tuple to map over.")]
 		///
-		#[document_return("A new 1-tuple containing the result of applying the function.")]
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
 		///
 		/// ### Examples
 		///
@@ -117,7 +117,7 @@ mod inner {
 		/// let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
-		#[document_return("A new 1-tuple containing the result of applying the function.")]
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -142,7 +142,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A 1-tuple containing the value.")]
+		#[document_returns("A 1-tuple containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -194,7 +194,7 @@ mod inner {
 		/// let y = apply::<RcFnBrand, Tuple1Brand, _, _>(f, x);
 		/// assert_eq!(y, (10,));
 		/// ```
-		#[document_return("A new 1-tuple containing the result of applying the function.")]
+		#[document_returns("A new 1-tuple containing the result of applying the function.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -233,7 +233,7 @@ mod inner {
 		/// let y = bind::<Tuple1Brand, _, _, _>(x, |i| (i * 2,));
 		/// assert_eq!(y, (10,));
 		/// ```
-		#[document_return("The result of applying `f` to the value.")]
+		#[document_returns("The result of applying `f` to the value.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -276,7 +276,7 @@ mod inner {
 		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -319,7 +319,7 @@ mod inner {
 		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -361,7 +361,7 @@ mod inner {
 		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		#[document_return("The monoid value.")]
+		#[document_returns("The monoid value.")]
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -405,7 +405,7 @@ mod inner {
 		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some((10,)));
 		/// ```
-		#[document_return("The 1-tuple wrapped in the applicative context.")]
+		#[document_returns("The 1-tuple wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -429,7 +429,7 @@ mod inner {
 		///
 		#[document_parameters("The tuple containing the applicative value.")]
 		///
-		#[document_return("The 1-tuple wrapped in the applicative context.")]
+		#[document_returns("The 1-tuple wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -484,7 +484,7 @@ mod inner {
 		/// let y = par_fold_map::<ArcFnBrand, Tuple1Brand, _, _>(f, x);
 		/// assert_eq!(y, "1".to_string());
 		/// ```
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -527,7 +527,7 @@ mod inner {
 		/// let y = par_fold_right::<ArcFnBrand, Tuple1Brand, _, _>(f, 10, x);
 		/// assert_eq!(y, 11);
 		/// ```
-		#[document_return("The final accumulator value.")]
+		#[document_returns("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

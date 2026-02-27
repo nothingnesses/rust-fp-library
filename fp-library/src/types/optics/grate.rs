@@ -21,7 +21,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 	};
@@ -82,7 +82,7 @@ mod inner {
 		///
 		#[document_parameters("The grating function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -155,7 +155,7 @@ mod inner {
 		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
 		/// assert_eq!(result, (11, 22));
 		/// ```
-		#[document_return("The combined structure.")]
+		#[document_returns("The combined structure.")]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> B + 'a,
@@ -193,7 +193,7 @@ mod inner {
 		///
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -276,7 +276,7 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -360,7 +360,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -440,7 +440,7 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
-		#[document_return("The cloned grate instance.")]
+		#[document_returns("The cloned grate instance.")]
 		///
 		/// ### Examples
 		///
@@ -488,7 +488,7 @@ mod inner {
 		///
 		#[document_parameters("The grating function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -580,7 +580,7 @@ mod inner {
 		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
 		/// assert_eq!(result, (11, 22));
 		/// ```
-		#[document_return("The combined structure.")]
+		#[document_returns("The combined structure.")]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> A + 'a,
@@ -612,7 +612,7 @@ mod inner {
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -692,7 +692,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -771,7 +771,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

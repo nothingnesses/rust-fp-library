@@ -92,7 +92,7 @@ pub mod attributes {
 	/// Attribute for function parameter documentation
 	pub const DOCUMENT_PARAMETERS: &str = "document_parameters";
 	/// Attribute for function return documentation
-	pub const DOCUMENT_RETURN: &str = "document_return";
+	pub const DOCUMENT_RETURNS: &str = "document_returns";
 	/// Attribute for function examples documentation
 	pub const DOCUMENT_EXAMPLES: &str = "document_examples";
 	/// Attribute for struct field documentation
@@ -106,7 +106,7 @@ pub mod attributes {
 		DOCUMENT_SIGNATURE,
 		DOCUMENT_TYPE_PARAMETERS,
 		DOCUMENT_PARAMETERS,
-		DOCUMENT_RETURN,
+		DOCUMENT_RETURNS,
 		DOCUMENT_EXAMPLES,
 		DOCUMENT_FIELDS,
 		DOCUMENT_MODULE,
@@ -117,7 +117,7 @@ pub mod attributes {
 		DOCUMENT_SIGNATURE,
 		DOCUMENT_TYPE_PARAMETERS,
 		DOCUMENT_PARAMETERS,
-		DOCUMENT_RETURN,
+		DOCUMENT_RETURNS,
 		DOCUMENT_EXAMPLES,
 	];
 }

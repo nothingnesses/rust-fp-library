@@ -29,7 +29,7 @@ use {
 		document_fields_worker,
 		document_module_worker,
 		document_parameters_worker,
-		document_return_worker,
+		document_returns_worker,
 		document_signature_worker,
 		document_type_parameters_worker,
 	},
@@ -694,7 +694,7 @@ pub fn document_parameters(
 /// ### Syntax
 ///
 /// ```ignore
-/// #[document_return("Description of the return value.")]
+/// #[document_returns("Description of the return value.")]
 /// pub fn foo() -> i32 { ... }
 /// ```
 ///
@@ -706,7 +706,7 @@ pub fn document_parameters(
 ///
 /// ```ignore
 /// // Invocation
-/// #[document_return("The sum of x and y.")]
+/// #[document_returns("The sum of x and y.")]
 /// pub fn add(x: i32, y: i32) -> i32 { ... }
 ///
 /// // Expanded code
@@ -715,11 +715,11 @@ pub fn document_parameters(
 /// pub fn add(x: i32, y: i32) -> i32 { ... }
 /// ```
 #[proc_macro_attribute]
-pub fn document_return(
+pub fn document_returns(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> TokenStream {
-	match document_return_worker(attr.into(), item.into()) {
+	match document_returns_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

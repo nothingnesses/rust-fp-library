@@ -18,7 +18,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -47,7 +47,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -91,7 +91,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The tagged instance to transform."
 		)]
-		#[document_return("A transformed `Tagged` instance.")]
+		#[document_returns("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -136,7 +136,7 @@ mod inner {
 			"The type of the right component."
 		)]
 		#[document_parameters("The tagged instance to transform.")]
-		#[document_return(
+		#[document_returns(
 			"A transformed `Tagged` instance that operates on the left component of a `Result`."
 		)]
 		///
@@ -174,7 +174,7 @@ mod inner {
 			"The target type of the right component."
 		)]
 		#[document_parameters("The tagged instance to transform.")]
-		#[document_return(
+		#[document_returns(
 			"A transformed `Tagged` instance that operates on the right component of a `Result`."
 		)]
 		///
@@ -219,7 +219,7 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
-		#[document_return("A transformed `Tagged` instance.")]
+		#[document_returns("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -257,7 +257,7 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
-		#[document_return("A transformed `Tagged` instance.")]
+		#[document_returns("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -297,7 +297,7 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
-		#[document_return("A transformed `Tagged` instance.")]
+		#[document_returns("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -332,7 +332,7 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
-		#[document_return("A transformed `Tagged` instance.")]
+		#[document_returns("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///

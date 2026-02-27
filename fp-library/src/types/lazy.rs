@@ -23,7 +23,7 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_return,
+			document_returns,
 			document_signature,
 			document_type_parameters,
 		},
@@ -181,7 +181,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		#[document_return("A new lazy cell.")]
+		#[document_returns("A new lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -206,7 +206,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		#[document_return("A new fallible lazy cell.")]
+		#[document_returns("A new fallible lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -233,7 +233,7 @@ mod inner {
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
-		#[document_return("A reference to the value.")]
+		#[document_returns("A reference to the value.")]
 		///
 		/// ### Examples
 		///
@@ -259,7 +259,7 @@ mod inner {
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
-		#[document_return("A result containing a reference to the value or error.")]
+		#[document_returns("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -295,7 +295,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		#[document_return("A new lazy cell.")]
+		#[document_returns("A new lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -320,7 +320,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		#[document_return("A new fallible lazy cell.")]
+		#[document_returns("A new fallible lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -347,7 +347,7 @@ mod inner {
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
-		#[document_return("A reference to the value.")]
+		#[document_returns("A reference to the value.")]
 		///
 		/// ### Examples
 		///
@@ -373,7 +373,7 @@ mod inner {
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
-		#[document_return("A result containing a reference to the value or error.")]
+		#[document_returns("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -436,7 +436,7 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
-		#[document_return("A new `Lazy` instance that shares the same underlying memoized value.")]
+		#[document_returns("A new `Lazy` instance that shares the same underlying memoized value.")]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
@@ -455,7 +455,7 @@ mod inner {
 		/// Gets the memoized value, computing on first access.
 		#[document_signature]
 		///
-		#[document_return("A reference to the memoized value.")]
+		#[document_returns("A reference to the memoized value.")]
 		///
 		/// ### Examples
 		///
@@ -482,7 +482,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
-		#[document_return("A new `Lazy` instance.")]
+		#[document_returns("A new `Lazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -505,7 +505,7 @@ mod inner {
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
-		#[document_return("A new `Lazy` instance containing the value.")]
+		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -524,7 +524,7 @@ mod inner {
 	impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
-		#[document_return("A new `Lazy` instance that will evaluate the thunk on first access.")]
+		#[document_returns("A new `Lazy` instance that will evaluate the thunk on first access.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
@@ -538,7 +538,7 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The trampoline to convert.")]
 		///
-		#[document_return(
+		#[document_returns(
 			"A new `Lazy` instance that will evaluate the trampoline on first access."
 		)]
 		fn from(task: Trampoline<A>) -> Self {
@@ -558,7 +558,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
-		#[document_return("A new `Lazy` instance.")]
+		#[document_returns("A new `Lazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -582,7 +582,7 @@ mod inner {
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
-		#[document_return("A new `Lazy` instance containing the value.")]
+		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -626,7 +626,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		#[document_return("A new `Lazy` value.")]
+		#[document_returns("A new `Lazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -664,7 +664,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		#[document_return("A new `ArcLazy` value.")]
+		#[document_returns("A new `ArcLazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -699,7 +699,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The memoized value.")]
 		///
-		#[document_return("A new memoized value.")]
+		#[document_returns("A new memoized value.")]
 		///
 		/// ### Examples
 		///

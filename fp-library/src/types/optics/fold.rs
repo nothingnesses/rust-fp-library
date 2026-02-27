@@ -20,7 +20,7 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_return,
+			document_returns,
 			document_type_parameters,
 		},
 		std::marker::PhantomData,
@@ -57,7 +57,7 @@ mod inner {
 	impl<F: Clone> Clone for IterableFoldFn<F> {
 		#[document_signature]
 		///
-		#[document_return("A new `Fold` instance that is a copy of the original.")]
+		#[document_returns("A new `Fold` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -92,7 +92,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The structure to fold.")]
 		///
-		#[document_return("The combined monoid value.")]
+		#[document_returns("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -164,7 +164,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return("A new `Fold` instance that is a copy of the original.")]
+		#[document_returns("A new `Fold` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -213,7 +213,7 @@ mod inner {
 		///
 		#[document_parameters("The fold function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -241,7 +241,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to fold.")]
 		///
-		#[document_return("A `Vec` containing all the focuses.")]
+		#[document_returns("A `Vec` containing all the focuses.")]
 		///
 		/// ### Examples
 		///
@@ -294,7 +294,7 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -363,7 +363,7 @@ mod inner {
 	{
 		#[document_signature]
 		///
-		#[document_return("A new `FoldPrime` instance that is a copy of the original.")]
+		#[document_returns("A new `FoldPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -407,7 +407,7 @@ mod inner {
 		///
 		#[document_parameters("The fold function.")]
 		///
-		#[document_return("A new instance of the type.")]
+		#[document_returns("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -434,7 +434,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to fold.")]
 		///
-		#[document_return("A `Vec` containing all the focuses.")]
+		#[document_returns("A `Vec` containing all the focuses.")]
 		///
 		/// ### Examples
 		///
@@ -482,7 +482,7 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
-		#[document_return("The transformed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
