@@ -8,7 +8,7 @@ use {
 			ArcFnBrand,
 			OptionBrand,
 			RcFnBrand,
-			ResultWithErrBrand,
+			ResultErrAppliedBrand,
 		},
 		classes::{
 			foldable::{
@@ -40,7 +40,7 @@ pub fn bench_result(c: &mut Criterion) {
 	let val_ok: Result<i32, i32> = Ok(42);
 	let input_desc = "Ok(42)";
 
-	// Map (ResultWithErrBrand - maps Ok)
+	// Map (ResultErrAppliedBrand - maps Ok)
 	{
 		let mut group = c.benchmark_group("Result Map");
 		group.bench_with_input(BenchmarkId::new("std", input_desc), &input_desc, |b, &_| {
@@ -48,7 +48,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				map::<ResultWithErrBrand<i32>, _, _, _>(|x| x * 2, std::hint::black_box(val_ok))
+				map::<ResultErrAppliedBrand<i32>, _, _, _>(|x| x * 2, std::hint::black_box(val_ok))
 			})
 		});
 		group.finish();
@@ -62,7 +62,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
+				fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val_ok),
@@ -80,7 +80,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, ResultWithErrBrand<i32>, _, _, _>(
+				fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val_ok),
@@ -98,7 +98,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<ResultWithErrBrand<i32>, _, _, OptionBrand, _>(
+				traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
 					|x| Some(x * 2),
 					std::hint::black_box(val_ok),
 				)
@@ -119,7 +119,9 @@ pub fn bench_result(c: &mut Criterion) {
 		);
 		group.bench_with_input(BenchmarkId::new("fp", input_desc_opt), &input_desc_opt, |b, &_| {
 			b.iter(|| {
-				sequence::<ResultWithErrBrand<i32>, _, OptionBrand>(std::hint::black_box(val_opt))
+				sequence::<ResultErrAppliedBrand<i32>, _, OptionBrand>(std::hint::black_box(
+					val_opt,
+				))
 			})
 		});
 		group.finish();
@@ -133,10 +135,9 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<ResultWithErrBrand<i32>, _, _, _>(
-					std::hint::black_box(val_ok),
-					|x| Ok(x * 2),
-				)
+				bind::<ResultErrAppliedBrand<i32>, _, _, _>(std::hint::black_box(val_ok), |x| {
+					Ok(x * 2)
+				})
 			})
 		});
 		group.finish();
@@ -153,7 +154,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<ResultWithErrBrand<i32>, _, _, _, _>(
+				lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val_ok),
 					std::hint::black_box(val2),
@@ -170,7 +171,7 @@ pub fn bench_result(c: &mut Criterion) {
 			b.iter(|| Ok::<_, i32>(i))
 		});
 		group.bench_with_input(BenchmarkId::new("fp", "42"), &42, |b, &i| {
-			b.iter(|| pure::<ResultWithErrBrand<i32>, _>(i))
+			b.iter(|| pure::<ResultErrAppliedBrand<i32>, _>(i))
 		});
 		group.finish();
 	}
@@ -188,7 +189,7 @@ pub fn bench_result(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				apply::<RcFnBrand, ResultWithErrBrand<i32>, _, _>(
+				apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 					std::hint::black_box(f.clone()),
 					std::hint::black_box(val_ok),
 				)
@@ -202,7 +203,7 @@ pub fn bench_result(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Result Par Fold Map");
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				par_fold_map::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(
+				par_fold_map::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 					send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string()),
 					std::hint::black_box(val_ok),
 				)
@@ -216,7 +217,7 @@ pub fn bench_result(c: &mut Criterion) {
 		let mut group = c.benchmark_group("Result Par Fold Right");
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				par_fold_right::<ArcFnBrand, ResultWithErrBrand<i32>, _, _>(
+				par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 					send_cloneable_fn_new::<ArcFnBrand, _, _>(|(x, acc)| x + acc),
 					0,
 					std::hint::black_box(val_ok),

@@ -5,14 +5,11 @@
 //! ```
 //! use fp_library::{
 //! 	brands::*,
-//! 	classes::{
-//! 		contravariant::contramap,
-//! 		profunctor::ProfunctorFixedSecond,
-//! 	},
+//! 	classes::contravariant::contramap,
 //! };
 //!
 //! let f = |x: i32| x > 5;
-//! let is_long_int = contramap::<ProfunctorFixedSecond<RcFnBrand, bool>, _, _, _>(
+//! let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
 //! 	|s: String| s.len() as i32,
 //! 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 //! );
@@ -72,14 +69,11 @@ pub trait Contravariant: Kind_cdc7cd43dac7585f {
 	/// ```
 	/// use fp_library::{
 	/// 	brands::*,
-	/// 	classes::{
-	/// 		contravariant::contramap,
-	/// 		profunctor::ProfunctorFixedSecond,
-	/// 	},
+	/// 	classes::contravariant::contramap,
 	/// };
 	///
 	/// let f = |x: i32| x > 5;
-	/// let is_long_int = contramap::<ProfunctorFixedSecond<RcFnBrand, bool>, _, _, _>(
+	/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
 	/// 	|s: String| s.len() as i32,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 	/// );
@@ -118,14 +112,11 @@ pub trait Contravariant: Kind_cdc7cd43dac7585f {
 /// ```
 /// use fp_library::{
 /// 	brands::*,
-/// 	classes::{
-/// 		contravariant::contramap,
-/// 		profunctor::ProfunctorFixedSecond,
-/// 	},
+/// 	classes::contravariant::contramap,
 /// };
 ///
 /// let f = |x: i32| x > 5;
-/// let is_long_int = contramap::<ProfunctorFixedSecond<RcFnBrand, bool>, _, _, _>(
+/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
 /// 	|s: String| s.len() as i32,
 /// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 /// );

@@ -16,6 +16,11 @@
 use {
 	crate::{
 		Apply,
+		brands::{
+			BifunctorFirstAppliedBrand,
+			BifunctorSecondAppliedBrand,
+		},
+		classes::Functor,
 		kinds::*,
 	},
 	fp_macros::{
@@ -145,38 +150,13 @@ where
 	Brand::bimap::<A, B, C, D, F, G>(f, g, p)
 }
 
-use {
-	crate::classes::Functor,
-	core::marker::PhantomData,
-};
-
-/// An adapter that partially applies a `Bifunctor` to its first argument, creating a `Functor`.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::{
-/// 	brands::*,
-/// 	classes::{
-/// 		bifunctor::BifunctorFixedFirst,
-/// 		functor::map,
-/// 	},
-/// };
-///
-/// let x = Result::<i32, i32>::Ok(5);
-/// let y = map::<BifunctorFixedFirst<ResultBrand, i32>, _, _, _>(|s| s * 2, x);
-/// assert_eq!(y, Ok(10));
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BifunctorFixedFirst<Brand, A>(PhantomData<(Brand, A)>);
-
 impl_kind! {
-	impl<Brand: Bifunctor, A: 'static> for BifunctorFixedFirst<Brand, A> {
+	impl<Brand: Bifunctor, A: 'static> for BifunctorFirstAppliedBrand<Brand, A> {
 		type Of<'a, B: 'a>: 'a = Apply!(<Brand as Kind!(type Of<'a, T: 'a, U: 'a>: 'a;)>::Of<'a, A, B>);
 	}
 }
 
-impl<Brand: Bifunctor, A: 'static> Functor for BifunctorFixedFirst<Brand, A> {
+impl<Brand: Bifunctor, A: 'static> Functor for BifunctorFirstAppliedBrand<Brand, A> {
 	fn map<'a, B: 'a, C: 'a, Func>(
 		f: Func,
 		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
@@ -184,5 +164,22 @@ impl<Brand: Bifunctor, A: 'static> Functor for BifunctorFixedFirst<Brand, A> {
 	where
 		Func: Fn(B) -> C + 'a, {
 		Brand::bimap(crate::functions::identity, f, fa)
+	}
+}
+
+impl_kind! {
+	impl<Brand: Bifunctor, B: 'static> for BifunctorSecondAppliedBrand<Brand, B> {
+		type Of<'a, A: 'a>: 'a = Apply!(<Brand as Kind!(type Of<'a, T: 'a, U: 'a>: 'a;)>::Of<'a, A, B>);
+	}
+}
+
+impl<Brand: Bifunctor, B: 'static> Functor for BifunctorSecondAppliedBrand<Brand, B> {
+	fn map<'a, A: 'a, C: 'a, Func>(
+		f: Func,
+		fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
+	where
+		Func: Fn(A) -> C + 'a, {
+		Brand::bimap(f, crate::functions::identity, fa)
 	}
 }

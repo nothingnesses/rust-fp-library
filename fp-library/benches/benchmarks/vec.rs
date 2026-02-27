@@ -9,7 +9,7 @@ use {
 			ArcFnBrand,
 			OptionBrand,
 			RcFnBrand,
-			ResultWithErrBrand,
+			ResultErrAppliedBrand,
 			VecBrand,
 		},
 		classes::{
@@ -154,7 +154,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_orig.clone(),
-				|v| traverse::<VecBrand, _, _, ResultWithErrBrand<i32>, _>(|x| Ok(x * 2), v),
+				|v| traverse::<VecBrand, _, _, ResultErrAppliedBrand<i32>, _>(|x| Ok(x * 2), v),
 				BatchSize::SmallInput,
 			)
 		});
@@ -175,7 +175,7 @@ pub fn bench_vec(c: &mut Criterion) {
 		group.bench_with_input(BenchmarkId::new("fp", size), &size, |b, &_| {
 			b.iter_batched(
 				|| v_res.clone(),
-				|v| sequence::<VecBrand, _, ResultWithErrBrand<i32>>(v),
+				|v| sequence::<VecBrand, _, ResultErrAppliedBrand<i32>>(v),
 				BatchSize::SmallInput,
 			)
 		});

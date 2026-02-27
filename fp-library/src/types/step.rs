@@ -23,8 +23,8 @@ mod inner {
 			Apply,
 			brands::{
 				StepBrand,
-				StepWithDoneBrand,
-				StepWithLoopBrand,
+				StepDoneAppliedBrand,
+				StepLoopAppliedBrand,
 			},
 			classes::{
 				Applicative,
@@ -60,8 +60,8 @@ mod inner {
 	///
 	/// This type has multiple higher-kinded representations:
 	/// - [`StepBrand`](crate::brands::StepBrand): fully polymorphic over both loop and done types (bifunctor).
-	/// - [`StepWithLoopBrand<LoopType>`](crate::brands::StepWithLoopBrand): the loop type is fixed, polymorphic over the done type (functor over done).
-	/// - [`StepWithDoneBrand<DoneType>`](crate::brands::StepWithDoneBrand): the done type is fixed, polymorphic over the loop type (functor over loop).
+	/// - [`StepLoopAppliedBrand<LoopType>`](crate::brands::StepLoopAppliedBrand): the loop type is fixed, polymorphic over the done type (functor over done).
+	/// - [`StepDoneAppliedBrand<DoneType>`](crate::brands::StepDoneAppliedBrand): the done type is fixed, polymorphic over the loop type (functor over loop).
 	///
 	/// ### Serialization
 	///
@@ -297,16 +297,16 @@ mod inner {
 		}
 	}
 
-	// StepWithLoopBrand<LoopType> (Functor over B - Done)
+	// StepLoopAppliedBrand<LoopType> (Functor over B - Done)
 
 	impl_kind! {
-		impl<LoopType: 'static> for StepWithLoopBrand<LoopType> {
+		impl<LoopType: 'static> for StepLoopAppliedBrand<LoopType> {
 			type Of<'a, B: 'a>: 'a = Step<LoopType, B>;
 		}
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: 'static> Functor for StepWithLoopBrand<LoopType> {
+	impl<LoopType: 'static> Functor for StepLoopAppliedBrand<LoopType> {
 		/// Maps a function over the done value in the step.
 		///
 		/// This method applies a function to the done value inside the step, producing a new step with the transformed done value. The loop value remains unchanged.
@@ -335,7 +335,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<StepWithLoopBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Done(5)),
+		/// 	map::<StepLoopAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Done(5)),
 		/// 	Step::Done(10)
 		/// );
 		/// ```
@@ -350,7 +350,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> Lift for StepWithLoopBrand<LoopType> {
+	impl<LoopType: Clone + 'static> Lift for StepLoopAppliedBrand<LoopType> {
 		/// Lifts a binary function into the step context.
 		///
 		/// This method lifts a binary function to operate on values within the step context.
@@ -384,7 +384,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<StepWithLoopBrand<()>, _, _, _, _>(
+		/// 	lift2::<StepLoopAppliedBrand<()>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Step::Done(1),
 		/// 		Step::Done(2)
@@ -392,7 +392,7 @@ mod inner {
 		/// 	Step::Done(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<StepWithLoopBrand<i32>, _, _, _, _>(
+		/// 	lift2::<StepLoopAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Step::Done(1),
 		/// 		Step::Loop(2)
@@ -419,7 +419,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: 'static> Pointed for StepWithLoopBrand<LoopType> {
+	impl<LoopType: 'static> Pointed for StepLoopAppliedBrand<LoopType> {
 		/// Wraps a value in a step.
 		///
 		/// This method wraps a value in the `Done` variant of a `Step`.
@@ -442,7 +442,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(pure::<StepWithLoopBrand<()>, _>(5), Step::Done(5));
+		/// assert_eq!(pure::<StepLoopAppliedBrand<()>, _>(5), Step::Done(5));
 		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Step::Done(a)
@@ -450,13 +450,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> ApplyFirst for StepWithLoopBrand<LoopType> {}
+	impl<LoopType: Clone + 'static> ApplyFirst for StepLoopAppliedBrand<LoopType> {}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> ApplySecond for StepWithLoopBrand<LoopType> {}
+	impl<LoopType: Clone + 'static> ApplySecond for StepLoopAppliedBrand<LoopType> {}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> Semiapplicative for StepWithLoopBrand<LoopType> {
+	impl<LoopType: Clone + 'static> Semiapplicative for StepLoopAppliedBrand<LoopType> {
 		/// Applies a wrapped function to a wrapped value.
 		///
 		/// This method applies a function wrapped in a step to a value wrapped in a step.
@@ -489,7 +489,10 @@ mod inner {
 		/// };
 		///
 		/// let f: Step<_, _> = Step::Done(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, Step::Done(5)), Step::Done(10));
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, StepLoopAppliedBrand<()>, _, _>(f, Step::Done(5)),
+		/// 	Step::Done(10)
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -504,7 +507,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> Semimonad for StepWithLoopBrand<LoopType> {
+	impl<LoopType: Clone + 'static> Semimonad for StepLoopAppliedBrand<LoopType> {
 		/// Chains step computations.
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first.
@@ -536,7 +539,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<StepWithLoopBrand<()>, _, _, _>(Step::Done(5), |x| Step::Done(x * 2)),
+		/// 	bind::<StepLoopAppliedBrand<()>, _, _, _>(Step::Done(5), |x| Step::Done(x * 2)),
 		/// 	Step::Done(10)
 		/// );
 		/// ```
@@ -554,7 +557,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: 'static> Foldable for StepWithLoopBrand<LoopType> {
+	impl<LoopType: 'static> Foldable for StepLoopAppliedBrand<LoopType> {
 		/// Folds the step from the right.
 		///
 		/// This method performs a right-associative fold of the step.
@@ -584,11 +587,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|x, acc| x + acc, 0, Step::Done(5)),
+		/// 	fold_right::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		Step::Done(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, StepLoopAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Step::Loop(1)
@@ -639,11 +646,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|acc, x| acc + x, 0, Step::Done(5)),
+		/// 	fold_left::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		Step::Done(5)
+		/// 	),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, StepLoopAppliedBrand<i32>, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Step::Loop(1)
@@ -694,14 +705,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Step::Done(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, StepLoopAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Step::Loop(1)
 		/// 	),
@@ -724,7 +735,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: Clone + 'static> Traversable for StepWithLoopBrand<LoopType> {
+	impl<LoopType: Clone + 'static> Traversable for StepLoopAppliedBrand<LoopType> {
 		/// Traverses the step with an applicative function.
 		///
 		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context.
@@ -754,11 +765,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Done(5)),
+		/// 	traverse::<StepLoopAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Done(5)),
 		/// 	Some(Step::Done(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(
+		/// 	traverse::<StepLoopAppliedBrand<i32>, _, _, OptionBrand, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Step::Loop(1)
 		/// 	),
@@ -805,11 +816,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	sequence::<StepWithLoopBrand<()>, _, OptionBrand>(Step::Done(Some(5))),
+		/// 	sequence::<StepLoopAppliedBrand<()>, _, OptionBrand>(Step::Done(Some(5))),
 		/// 	Some(Step::Done(5))
 		/// );
 		/// assert_eq!(
-		/// 	sequence::<StepWithLoopBrand<i32>, i32, OptionBrand>(Step::Loop::<i32, Option<i32>>(1)),
+		/// 	sequence::<StepLoopAppliedBrand<i32>, i32, OptionBrand>(Step::Loop::<i32, Option<i32>>(1)),
 		/// 	Some(Step::Loop::<i32, i32>(1))
 		/// );
 		/// ```
@@ -827,7 +838,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The loop type.")]
-	impl<LoopType: 'static> ParFoldable for StepWithLoopBrand<LoopType> {
+	impl<LoopType: 'static> ParFoldable for StepLoopAppliedBrand<LoopType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel.
 		///
 		/// This method maps the element of the step to a monoid and then returns it. The mapping operation may be executed in parallel.
@@ -862,12 +873,15 @@ mod inner {
 		/// let x: Step<i32, i32> = Step::Done(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), x),
+		/// 	par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f.clone(), x),
 		/// 	"5".to_string()
 		/// );
 		///
 		/// let x_loop: Step<i32, i32> = Step::Loop(1);
-		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, x_loop), "".to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f, x_loop),
+		/// 	"".to_string()
+		/// );
 		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
@@ -917,10 +931,10 @@ mod inner {
 		///
 		/// let x: Step<i32, i32> = Step::Done(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f.clone(), 10, x), 15);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f.clone(), 10, x), 15);
 		///
 		/// let x_loop: Step<i32, i32> = Step::Loop(1);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithLoopBrand<i32>, _, _>(f, 10, x_loop), 10);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f, 10, x_loop), 10);
 		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
@@ -938,16 +952,16 @@ mod inner {
 		}
 	}
 
-	// StepWithDoneBrand<DoneType> (Functor over A - Loop)
+	// StepDoneAppliedBrand<DoneType> (Functor over A - Loop)
 
 	impl_kind! {
-		impl<DoneType: 'static> for StepWithDoneBrand<DoneType> {
+		impl<DoneType: 'static> for StepDoneAppliedBrand<DoneType> {
 			type Of<'a, A: 'a>: 'a = Step<A, DoneType>;
 		}
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: 'static> Functor for StepWithDoneBrand<DoneType> {
+	impl<DoneType: 'static> Functor for StepDoneAppliedBrand<DoneType> {
 		/// Maps a function over the loop value in the step.
 		///
 		/// This method applies a function to the loop value inside the step, producing a new step with the transformed loop value. The done value remains unchanged.
@@ -976,7 +990,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	map::<StepWithDoneBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Loop(5)),
+		/// 	map::<StepDoneAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Step::<i32, i32>::Loop(5)),
 		/// 	Step::Loop(10)
 		/// );
 		/// ```
@@ -991,7 +1005,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> Lift for StepWithDoneBrand<DoneType> {
+	impl<DoneType: Clone + 'static> Lift for StepDoneAppliedBrand<DoneType> {
 		/// Lifts a binary function into the step context (over loop).
 		///
 		/// This method lifts a binary function to operate on loop values within the step context.
@@ -1025,7 +1039,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<StepWithDoneBrand<i32>, _, _, _, _>(
+		/// 	lift2::<StepDoneAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Step::Loop(1),
 		/// 		Step::Loop(2)
@@ -1033,7 +1047,7 @@ mod inner {
 		/// 	Step::Loop(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<StepWithDoneBrand<i32>, _, _, _, _>(
+		/// 	lift2::<StepDoneAppliedBrand<i32>, _, _, _, _>(
 		/// 		|x: i32, y: i32| x + y,
 		/// 		Step::Loop(1),
 		/// 		Step::Done(2)
@@ -1060,7 +1074,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: 'static> Pointed for StepWithDoneBrand<DoneType> {
+	impl<DoneType: 'static> Pointed for StepDoneAppliedBrand<DoneType> {
 		/// Wraps a value in a step (as loop).
 		///
 		/// This method wraps a value in the `Loop` variant of a `Step`.
@@ -1083,7 +1097,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(pure::<StepWithDoneBrand<()>, _>(5), Step::Loop(5));
+		/// assert_eq!(pure::<StepDoneAppliedBrand<()>, _>(5), Step::Loop(5));
 		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Step::Loop(a)
@@ -1091,13 +1105,13 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> ApplyFirst for StepWithDoneBrand<DoneType> {}
+	impl<DoneType: Clone + 'static> ApplyFirst for StepDoneAppliedBrand<DoneType> {}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> ApplySecond for StepWithDoneBrand<DoneType> {}
+	impl<DoneType: Clone + 'static> ApplySecond for StepDoneAppliedBrand<DoneType> {}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> Semiapplicative for StepWithDoneBrand<DoneType> {
+	impl<DoneType: Clone + 'static> Semiapplicative for StepDoneAppliedBrand<DoneType> {
 		/// Applies a wrapped function to a wrapped value (over loop).
 		///
 		/// This method applies a function wrapped in a step (as loop) to a value wrapped in a step (as loop).
@@ -1130,7 +1144,10 @@ mod inner {
 		/// };
 		///
 		/// let f: Step<_, ()> = Step::Loop(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, Step::Loop(5)), Step::Loop(10));
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, StepDoneAppliedBrand<()>, _, _>(f, Step::Loop(5)),
+		/// 	Step::Loop(10)
+		/// );
 		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -1145,7 +1162,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> Semimonad for StepWithDoneBrand<DoneType> {
+	impl<DoneType: Clone + 'static> Semimonad for StepDoneAppliedBrand<DoneType> {
 		/// Chains step computations (over loop).
 		///
 		/// This method chains two computations, where the second computation depends on the result of the first (over loop).
@@ -1174,7 +1191,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<StepWithDoneBrand<()>, _, _, _>(Step::Loop(5), |x| Step::Loop(x * 2)),
+		/// 	bind::<StepDoneAppliedBrand<()>, _, _, _>(Step::Loop(5), |x| Step::Loop(x * 2)),
 		/// 	Step::Loop(10)
 		/// );
 		/// ```
@@ -1192,7 +1209,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: 'static> Foldable for StepWithDoneBrand<DoneType> {
+	impl<DoneType: 'static> Foldable for StepDoneAppliedBrand<DoneType> {
 		/// Folds the step from the right (over loop).
 		///
 		/// This method performs a right-associative fold of the step (over loop).
@@ -1222,7 +1239,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, StepDoneAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Step::Loop(1)
@@ -1230,7 +1247,7 @@ mod inner {
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(
+		/// 	fold_right::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(
 		/// 		|x: i32, acc| x + acc,
 		/// 		0,
 		/// 		Step::Done(())
@@ -1281,7 +1298,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Step::Loop(5)
@@ -1289,7 +1306,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(
+		/// 	fold_left::<RcFnBrand, StepDoneAppliedBrand<i32>, _, _, _>(
 		/// 		|acc, x: i32| acc + x,
 		/// 		0,
 		/// 		Step::Done(1)
@@ -1340,14 +1357,14 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Step::Loop(5)
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, StepDoneAppliedBrand<i32>, _, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Step::Done(1)
 		/// 	),
@@ -1370,7 +1387,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: Clone + 'static> Traversable for StepWithDoneBrand<DoneType> {
+	impl<DoneType: Clone + 'static> Traversable for StepDoneAppliedBrand<DoneType> {
 		/// Traverses the step with an applicative function (over loop).
 		///
 		/// This method maps the element of the step to a computation, evaluates it, and combines the result into an applicative context (over loop).
@@ -1400,11 +1417,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Loop(5)),
+		/// 	traverse::<StepDoneAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Step::Loop(5)),
 		/// 	Some(Step::Loop(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(
+		/// 	traverse::<StepDoneAppliedBrand<i32>, _, _, OptionBrand, _>(
 		/// 		|x: i32| Some(x * 2),
 		/// 		Step::Done(1)
 		/// 	),
@@ -1451,11 +1468,11 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	sequence::<StepWithDoneBrand<()>, _, OptionBrand>(Step::Loop(Some(5))),
+		/// 	sequence::<StepDoneAppliedBrand<()>, _, OptionBrand>(Step::Loop(Some(5))),
 		/// 	Some(Step::Loop(5))
 		/// );
 		/// assert_eq!(
-		/// 	sequence::<StepWithDoneBrand<i32>, i32, OptionBrand>(Step::Done::<Option<i32>, _>(1)),
+		/// 	sequence::<StepDoneAppliedBrand<i32>, i32, OptionBrand>(Step::Done::<Option<i32>, _>(1)),
 		/// 	Some(Step::Done::<i32, i32>(1))
 		/// );
 		/// ```
@@ -1473,7 +1490,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The done type.")]
-	impl<DoneType: 'static> ParFoldable for StepWithDoneBrand<DoneType> {
+	impl<DoneType: 'static> ParFoldable for StepDoneAppliedBrand<DoneType> {
 		/// Maps the value to a monoid and returns it, or returns empty, in parallel (over loop).
 		///
 		/// This method maps the element of the step to a monoid and then returns it (over loop). The mapping operation may be executed in parallel.
@@ -1508,12 +1525,15 @@ mod inner {
 		/// let x: Step<i32, i32> = Step::Loop(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
 		/// assert_eq!(
-		/// 	par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), x),
+		/// 	par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f.clone(), x),
 		/// 	"5".to_string()
 		/// );
 		///
 		/// let x_done: Step<i32, i32> = Step::Done(1);
-		/// assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, x_done), "".to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f, x_done),
+		/// 	"".to_string()
+		/// );
 		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
@@ -1563,10 +1583,10 @@ mod inner {
 		///
 		/// let x: Step<i32, i32> = Step::Loop(5);
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f.clone(), 10, x), 15);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f.clone(), 10, x), 15);
 		///
 		/// let x_done: Step<i32, i32> = Step::Done(1);
-		/// assert_eq!(par_fold_right::<ArcFnBrand, StepWithDoneBrand<i32>, _, _>(f, 10, x_done), 10);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f, 10, x_done), 10);
 		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
@@ -1684,24 +1704,30 @@ mod tests {
 		assert_eq!(mapped_done, Step::Done(2));
 	}
 
-	/// Tests `Functor` implementation for `StepWithLoopBrand`.
+	/// Tests `Functor` implementation for `StepLoopAppliedBrand`.
 	#[test]
 	fn test_functor_step_with_loop() {
 		let step: Step<i32, i32> = Step::Done(5);
-		assert_eq!(map::<StepWithLoopBrand<_>, _, _, _>(|x: i32| x * 2, step), Step::Done(10));
+		assert_eq!(map::<StepLoopAppliedBrand<_>, _, _, _>(|x: i32| x * 2, step), Step::Done(10));
 
 		let loop_step: Step<i32, i32> = Step::Loop(5);
-		assert_eq!(map::<StepWithLoopBrand<_>, _, _, _>(|x: i32| x * 2, loop_step), Step::Loop(5));
+		assert_eq!(
+			map::<StepLoopAppliedBrand<_>, _, _, _>(|x: i32| x * 2, loop_step),
+			Step::Loop(5)
+		);
 	}
 
-	/// Tests `Functor` implementation for `StepWithDoneBrand`.
+	/// Tests `Functor` implementation for `StepDoneAppliedBrand`.
 	#[test]
 	fn test_functor_step_with_done() {
 		let step: Step<i32, i32> = Step::Loop(5);
-		assert_eq!(map::<StepWithDoneBrand<_>, _, _, _>(|x: i32| x * 2, step), Step::Loop(10));
+		assert_eq!(map::<StepDoneAppliedBrand<_>, _, _, _>(|x: i32| x * 2, step), Step::Loop(10));
 
 		let done_step: Step<i32, i32> = Step::Done(5);
-		assert_eq!(map::<StepWithDoneBrand<_>, _, _, _>(|x: i32| x * 2, done_step), Step::Done(5));
+		assert_eq!(
+			map::<StepDoneAppliedBrand<_>, _, _, _>(|x: i32| x * 2, done_step),
+			Step::Done(5)
+		);
 	}
 
 	/// Tests `Bifunctor` implementation for `StepBrand`.
@@ -1717,39 +1743,39 @@ mod tests {
 		);
 	}
 
-	// Functor Laws for StepWithLoopBrand
+	// Functor Laws for StepLoopAppliedBrand
 
 	#[quickcheck]
 	fn functor_identity_step_with_loop(x: Step<i32, i32>) -> bool {
-		map::<StepWithLoopBrand<i32>, _, _, _>(identity, x) == x
+		map::<StepLoopAppliedBrand<i32>, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
 	fn functor_composition_step_with_loop(x: Step<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<StepWithLoopBrand<i32>, _, _, _>(compose(f, g), x)
-			== map::<StepWithLoopBrand<i32>, _, _, _>(
+		map::<StepLoopAppliedBrand<i32>, _, _, _>(compose(f, g), x)
+			== map::<StepLoopAppliedBrand<i32>, _, _, _>(
 				f,
-				map::<StepWithLoopBrand<i32>, _, _, _>(g, x),
+				map::<StepLoopAppliedBrand<i32>, _, _, _>(g, x),
 			)
 	}
 
-	// Functor Laws for StepWithDoneBrand
+	// Functor Laws for StepDoneAppliedBrand
 
 	#[quickcheck]
 	fn functor_identity_step_with_done(x: Step<i32, i32>) -> bool {
-		map::<StepWithDoneBrand<i32>, _, _, _>(identity, x) == x
+		map::<StepDoneAppliedBrand<i32>, _, _, _>(identity, x) == x
 	}
 
 	#[quickcheck]
 	fn functor_composition_step_with_done(x: Step<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<StepWithDoneBrand<i32>, _, _, _>(compose(f, g), x)
-			== map::<StepWithDoneBrand<i32>, _, _, _>(
+		map::<StepDoneAppliedBrand<i32>, _, _, _>(compose(f, g), x)
+			== map::<StepDoneAppliedBrand<i32>, _, _, _>(
 				f,
-				map::<StepWithDoneBrand<i32>, _, _, _>(g, x),
+				map::<StepDoneAppliedBrand<i32>, _, _, _>(g, x),
 			)
 	}
 
@@ -1777,7 +1803,7 @@ mod tests {
 
 	// Lift Tests
 
-	/// Tests the `lift2` function for `StepWithLoopBrand`.
+	/// Tests the `lift2` function for `StepLoopAppliedBrand`.
 	///
 	/// Verifies that `lift2` correctly combines two `Step` values using a binary function,
 	/// handling `Done` and `Loop` variants according to the `Lift` implementation.
@@ -1788,16 +1814,16 @@ mod tests {
 		let s3: Step<i32, i32> = Step::Loop(3);
 
 		assert_eq!(
-			lift2::<StepWithLoopBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
+			lift2::<StepLoopAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
 			Step::Done(3)
 		);
 		assert_eq!(
-			lift2::<StepWithLoopBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
+			lift2::<StepLoopAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
 			Step::Loop(3)
 		);
 	}
 
-	/// Tests the `lift2` function for `StepWithDoneBrand`.
+	/// Tests the `lift2` function for `StepDoneAppliedBrand`.
 	///
 	/// Verifies that `lift2` correctly combines two `Step` values using a binary function,
 	/// handling `Done` and `Loop` variants according to the `Lift` implementation.
@@ -1808,276 +1834,308 @@ mod tests {
 		let s3: Step<i32, i32> = Step::Done(3);
 
 		assert_eq!(
-			lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
+			lift2::<StepDoneAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s2),
 			Step::Loop(3)
 		);
 		assert_eq!(
-			lift2::<StepWithDoneBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
+			lift2::<StepDoneAppliedBrand<i32>, _, _, _, _>(|x, y| x + y, s1, s3),
 			Step::Done(3)
 		);
 	}
 
 	// Pointed Tests
 
-	/// Tests the `pure` function for `StepWithLoopBrand`.
+	/// Tests the `pure` function for `StepLoopAppliedBrand`.
 	///
 	/// Verifies that `pure` wraps a value into a `Step::Done` variant.
 	#[test]
 	fn test_pointed_step_with_loop() {
-		assert_eq!(pure::<StepWithLoopBrand<()>, _>(5), Step::Done(5));
+		assert_eq!(pure::<StepLoopAppliedBrand<()>, _>(5), Step::Done(5));
 	}
 
-	/// Tests the `pure` function for `StepWithDoneBrand`.
+	/// Tests the `pure` function for `StepDoneAppliedBrand`.
 	///
 	/// Verifies that `pure` wraps a value into a `Step::Loop` variant.
 	#[test]
 	fn test_pointed_step_with_done() {
-		assert_eq!(pure::<StepWithDoneBrand<()>, _>(5), Step::Loop(5));
+		assert_eq!(pure::<StepDoneAppliedBrand<()>, _>(5), Step::Loop(5));
 	}
 
 	// Semiapplicative Tests
 
-	/// Tests the `apply` function for `StepWithLoopBrand`.
+	/// Tests the `apply` function for `StepLoopAppliedBrand`.
 	///
 	/// Verifies that `apply` correctly applies a wrapped function to a wrapped value,
 	/// handling `Done` and `Loop` variants.
 	#[test]
 	fn test_apply_step_with_loop() {
 		let f =
-			pure::<StepWithLoopBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		let x = pure::<StepWithLoopBrand<()>, _>(5);
-		assert_eq!(apply::<RcFnBrand, StepWithLoopBrand<()>, _, _>(f, x), Step::Done(10));
+			pure::<StepLoopAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
+				x * 2
+			}));
+		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
+		assert_eq!(apply::<RcFnBrand, StepLoopAppliedBrand<()>, _, _>(f, x), Step::Done(10));
 
 		let loop_step: Step<i32, _> = Step::Loop(1);
 		let f_loop =
-			pure::<StepWithLoopBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+			pure::<StepLoopAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
+				x * 2
+			}));
 		assert_eq!(
-			apply::<RcFnBrand, StepWithLoopBrand<i32>, _, _>(f_loop, loop_step),
+			apply::<RcFnBrand, StepLoopAppliedBrand<i32>, _, _>(f_loop, loop_step),
 			Step::Loop(1)
 		);
 	}
 
-	/// Tests the `apply` function for `StepWithDoneBrand`.
+	/// Tests the `apply` function for `StepDoneAppliedBrand`.
 	///
 	/// Verifies that `apply` correctly applies a wrapped function to a wrapped value,
 	/// handling `Done` and `Loop` variants.
 	#[test]
 	fn test_apply_step_with_done() {
 		let f =
-			pure::<StepWithDoneBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		let x = pure::<StepWithDoneBrand<()>, _>(5);
-		assert_eq!(apply::<RcFnBrand, StepWithDoneBrand<()>, _, _>(f, x), Step::Loop(10));
+			pure::<StepDoneAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
+				x * 2
+			}));
+		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
+		assert_eq!(apply::<RcFnBrand, StepDoneAppliedBrand<()>, _, _>(f, x), Step::Loop(10));
 
 		let done_step: Step<_, i32> = Step::Done(1);
 		let f_done =
-			pure::<StepWithDoneBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+			pure::<StepDoneAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| {
+				x * 2
+			}));
 		assert_eq!(
-			apply::<RcFnBrand, StepWithDoneBrand<i32>, _, _>(f_done, done_step),
+			apply::<RcFnBrand, StepDoneAppliedBrand<i32>, _, _>(f_done, done_step),
 			Step::Done(1)
 		);
 	}
 
 	// Semimonad Tests
 
-	/// Tests the `bind` function for `StepWithLoopBrand`.
+	/// Tests the `bind` function for `StepLoopAppliedBrand`.
 	///
 	/// Verifies that `bind` correctly chains computations, handling `Done` and `Loop` variants.
 	#[test]
 	fn test_bind_step_with_loop() {
-		let x = pure::<StepWithLoopBrand<()>, _>(5);
+		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<StepWithLoopBrand<()>, _, _, _>(x, |i| pure::<StepWithLoopBrand<()>, _>(i * 2)),
+			bind::<StepLoopAppliedBrand<()>, _, _, _>(x, |i| pure::<StepLoopAppliedBrand<()>, _>(
+				i * 2
+			)),
 			Step::Done(10)
 		);
 
 		let loop_step: Step<i32, i32> = Step::Loop(1);
 		assert_eq!(
-			bind::<StepWithLoopBrand<i32>, _, _, _>(
-				loop_step,
-				|i| pure::<StepWithLoopBrand<i32>, _>(i * 2)
-			),
+			bind::<StepLoopAppliedBrand<i32>, _, _, _>(loop_step, |i| pure::<
+				StepLoopAppliedBrand<i32>,
+				_,
+			>(i * 2)),
 			Step::Loop(1)
 		);
 	}
 
-	/// Tests the `bind` function for `StepWithDoneBrand`.
+	/// Tests the `bind` function for `StepDoneAppliedBrand`.
 	///
 	/// Verifies that `bind` correctly chains computations, handling `Done` and `Loop` variants.
 	#[test]
 	fn test_bind_step_with_done() {
-		let x = pure::<StepWithDoneBrand<()>, _>(5);
+		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
 		assert_eq!(
-			bind::<StepWithDoneBrand<()>, _, _, _>(x, |i| pure::<StepWithDoneBrand<()>, _>(i * 2)),
+			bind::<StepDoneAppliedBrand<()>, _, _, _>(x, |i| pure::<StepDoneAppliedBrand<()>, _>(
+				i * 2
+			)),
 			Step::Loop(10)
 		);
 
 		let done_step: Step<i32, i32> = Step::Done(1);
 		assert_eq!(
-			bind::<StepWithDoneBrand<i32>, _, _, _>(
-				done_step,
-				|i| pure::<StepWithDoneBrand<i32>, _>(i * 2)
-			),
+			bind::<StepDoneAppliedBrand<i32>, _, _, _>(done_step, |i| pure::<
+				StepDoneAppliedBrand<i32>,
+				_,
+			>(i * 2)),
 			Step::Done(1)
 		);
 	}
 
 	// Foldable Tests
 
-	/// Tests `Foldable` methods for `StepWithLoopBrand`.
+	/// Tests `Foldable` methods for `StepLoopAppliedBrand`.
 	///
 	/// Verifies `fold_right`, `fold_left`, and `fold_map` behavior for `Done` and `Loop` variants.
 	#[test]
 	fn test_foldable_step_with_loop() {
-		let x = pure::<StepWithLoopBrand<()>, _>(5);
+		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|a, b| a + b, 10, x),
+			fold_right::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(|a, b| a + b, 10, x),
 			15
 		);
-		assert_eq!(fold_left::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|b, a| b + a, 10, x), 15);
 		assert_eq!(
-			fold_map::<RcFnBrand, StepWithLoopBrand<()>, _, _, _>(|a: i32| a.to_string(), x),
+			fold_left::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(|b, a| b + a, 10, x),
+			15
+		);
+		assert_eq!(
+			fold_map::<RcFnBrand, StepLoopAppliedBrand<()>, _, _, _>(|a: i32| a.to_string(), x),
 			"5"
 		);
 
 		let loop_step: Step<i32, i32> = Step::Loop(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, StepWithLoopBrand<i32>, _, _, _>(|a, b| a + b, 10, loop_step),
+			fold_right::<RcFnBrand, StepLoopAppliedBrand<i32>, _, _, _>(
+				|a, b| a + b,
+				10,
+				loop_step
+			),
 			10
 		);
 	}
 
-	/// Tests `Foldable` methods for `StepWithDoneBrand`.
+	/// Tests `Foldable` methods for `StepDoneAppliedBrand`.
 	///
 	/// Verifies `fold_right`, `fold_left`, and `fold_map` behavior for `Done` and `Loop` variants.
 	#[test]
 	fn test_foldable_step_with_done() {
-		let x = pure::<StepWithDoneBrand<()>, _>(5);
+		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
 		assert_eq!(
-			fold_right::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|a, b| a + b, 10, x),
+			fold_right::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(|a, b| a + b, 10, x),
 			15
 		);
-		assert_eq!(fold_left::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|b, a| b + a, 10, x), 15);
 		assert_eq!(
-			fold_map::<RcFnBrand, StepWithDoneBrand<()>, _, _, _>(|a: i32| a.to_string(), x),
+			fold_left::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(|b, a| b + a, 10, x),
+			15
+		);
+		assert_eq!(
+			fold_map::<RcFnBrand, StepDoneAppliedBrand<()>, _, _, _>(|a: i32| a.to_string(), x),
 			"5"
 		);
 
 		let done_step: Step<i32, i32> = Step::Done(1);
 		assert_eq!(
-			fold_right::<RcFnBrand, StepWithDoneBrand<i32>, _, _, _>(|a, b| a + b, 10, done_step),
+			fold_right::<RcFnBrand, StepDoneAppliedBrand<i32>, _, _, _>(
+				|a, b| a + b,
+				10,
+				done_step
+			),
 			10
 		);
 	}
 
 	// Traversable Tests
 
-	/// Tests the `traverse` function for `StepWithLoopBrand`.
+	/// Tests the `traverse` function for `StepLoopAppliedBrand`.
 	///
 	/// Verifies that `traverse` correctly maps and sequences effects over `Step`.
 	#[test]
 	fn test_traversable_step_with_loop() {
-		let x = pure::<StepWithLoopBrand<()>, _>(5);
+		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<StepWithLoopBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
+			traverse::<StepLoopAppliedBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
 			Some(Step::Done(10))
 		);
 
 		let loop_step: Step<i32, i32> = Step::Loop(1);
 		assert_eq!(
-			traverse::<StepWithLoopBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), loop_step),
+			traverse::<StepLoopAppliedBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), loop_step),
 			Some(Step::Loop(1))
 		);
 	}
 
-	/// Tests the `traverse` function for `StepWithDoneBrand`.
+	/// Tests the `traverse` function for `StepDoneAppliedBrand`.
 	///
 	/// Verifies that `traverse` correctly maps and sequences effects over `Step`.
 	#[test]
 	fn test_traversable_step_with_done() {
-		let x = pure::<StepWithDoneBrand<()>, _>(5);
+		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
 		assert_eq!(
-			traverse::<StepWithDoneBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
+			traverse::<StepDoneAppliedBrand<()>, _, _, OptionBrand, _>(|a| Some(a * 2), x),
 			Some(Step::Loop(10))
 		);
 
 		let done_step: Step<i32, i32> = Step::Done(1);
 		assert_eq!(
-			traverse::<StepWithDoneBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), done_step),
+			traverse::<StepDoneAppliedBrand<i32>, _, _, OptionBrand, _>(|a| Some(a * 2), done_step),
 			Some(Step::Done(1))
 		);
 	}
 
 	// ParFoldable Tests
 
-	/// Tests `par_fold_map` for `StepWithLoopBrand`.
+	/// Tests `par_fold_map` for `StepLoopAppliedBrand`.
 	///
 	/// Verifies parallel folding behavior (conceptually, as it delegates to sequential for simple types).
 	#[test]
 	fn test_par_foldable_step_with_loop() {
-		let x = pure::<StepWithLoopBrand<()>, _>(5);
+		let x = pure::<StepLoopAppliedBrand<()>, _>(5);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|a: i32| a.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, StepWithLoopBrand<()>, _, _>(f, x), "5");
+		assert_eq!(par_fold_map::<ArcFnBrand, StepLoopAppliedBrand<()>, _, _>(f, x), "5");
 	}
 
-	/// Tests `par_fold_map` for `StepWithDoneBrand`.
+	/// Tests `par_fold_map` for `StepDoneAppliedBrand`.
 	///
 	/// Verifies parallel folding behavior.
 	#[test]
 	fn test_par_foldable_step_with_done() {
-		let x = pure::<StepWithDoneBrand<()>, _>(5);
+		let x = pure::<StepDoneAppliedBrand<()>, _>(5);
 		let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|a: i32| a.to_string());
-		assert_eq!(par_fold_map::<ArcFnBrand, StepWithDoneBrand<()>, _, _>(f, x), "5");
+		assert_eq!(par_fold_map::<ArcFnBrand, StepDoneAppliedBrand<()>, _, _>(f, x), "5");
 	}
 
-	// Monad Laws for StepWithLoopBrand
+	// Monad Laws for StepLoopAppliedBrand
 
-	/// Verifies the Left Identity law for `StepWithLoopBrand` Monad.
+	/// Verifies the Left Identity law for `StepLoopAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_left_identity_step_with_loop(a: i32) -> bool {
-		let f = |x: i32| pure::<StepWithLoopBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<StepWithLoopBrand<i32>, _, _, _>(pure::<StepWithLoopBrand<i32>, _>(a), f) == f(a)
+		let f = |x: i32| pure::<StepLoopAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		bind::<StepLoopAppliedBrand<i32>, _, _, _>(pure::<StepLoopAppliedBrand<i32>, _>(a), f)
+			== f(a)
 	}
 
-	/// Verifies the Right Identity law for `StepWithLoopBrand` Monad.
+	/// Verifies the Right Identity law for `StepLoopAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_right_identity_step_with_loop(x: Step<i32, i32>) -> bool {
-		bind::<StepWithLoopBrand<i32>, _, _, _>(x, pure::<StepWithLoopBrand<i32>, _>) == x
+		bind::<StepLoopAppliedBrand<i32>, _, _, _>(x, pure::<StepLoopAppliedBrand<i32>, _>) == x
 	}
 
-	/// Verifies the Associativity law for `StepWithLoopBrand` Monad.
+	/// Verifies the Associativity law for `StepLoopAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_associativity_step_with_loop(x: Step<i32, i32>) -> bool {
-		let f = |x: i32| pure::<StepWithLoopBrand<i32>, _>(x.wrapping_mul(2));
-		let g = |x: i32| pure::<StepWithLoopBrand<i32>, _>(x.wrapping_add(1));
-		bind::<StepWithLoopBrand<i32>, _, _, _>(bind::<StepWithLoopBrand<i32>, _, _, _>(x, f), g)
-			== bind::<StepWithLoopBrand<i32>, _, _, _>(x, |a| {
-				bind::<StepWithLoopBrand<i32>, _, _, _>(f(a), g)
-			})
+		let f = |x: i32| pure::<StepLoopAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		let g = |x: i32| pure::<StepLoopAppliedBrand<i32>, _>(x.wrapping_add(1));
+		bind::<StepLoopAppliedBrand<i32>, _, _, _>(
+			bind::<StepLoopAppliedBrand<i32>, _, _, _>(x, f),
+			g,
+		) == bind::<StepLoopAppliedBrand<i32>, _, _, _>(x, |a| {
+			bind::<StepLoopAppliedBrand<i32>, _, _, _>(f(a), g)
+		})
 	}
 
-	// Monad Laws for StepWithDoneBrand
+	// Monad Laws for StepDoneAppliedBrand
 
-	/// Verifies the Left Identity law for `StepWithDoneBrand` Monad.
+	/// Verifies the Left Identity law for `StepDoneAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_left_identity_step_with_done(a: i32) -> bool {
-		let f = |x: i32| pure::<StepWithDoneBrand<i32>, _>(x.wrapping_mul(2));
-		bind::<StepWithDoneBrand<i32>, _, _, _>(pure::<StepWithDoneBrand<i32>, _>(a), f) == f(a)
+		let f = |x: i32| pure::<StepDoneAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		bind::<StepDoneAppliedBrand<i32>, _, _, _>(pure::<StepDoneAppliedBrand<i32>, _>(a), f)
+			== f(a)
 	}
 
-	/// Verifies the Right Identity law for `StepWithDoneBrand` Monad.
+	/// Verifies the Right Identity law for `StepDoneAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_right_identity_step_with_done(x: Step<i32, i32>) -> bool {
-		bind::<StepWithDoneBrand<i32>, _, _, _>(x, pure::<StepWithDoneBrand<i32>, _>) == x
+		bind::<StepDoneAppliedBrand<i32>, _, _, _>(x, pure::<StepDoneAppliedBrand<i32>, _>) == x
 	}
 
-	/// Verifies the Associativity law for `StepWithDoneBrand` Monad.
+	/// Verifies the Associativity law for `StepDoneAppliedBrand` Monad.
 	#[quickcheck]
 	fn monad_associativity_step_with_done(x: Step<i32, i32>) -> bool {
-		let f = |x: i32| pure::<StepWithDoneBrand<i32>, _>(x.wrapping_mul(2));
-		let g = |x: i32| pure::<StepWithDoneBrand<i32>, _>(x.wrapping_add(1));
-		bind::<StepWithDoneBrand<i32>, _, _, _>(bind::<StepWithDoneBrand<i32>, _, _, _>(x, f), g)
-			== bind::<StepWithDoneBrand<i32>, _, _, _>(x, |a| {
-				bind::<StepWithDoneBrand<i32>, _, _, _>(f(a), g)
-			})
+		let f = |x: i32| pure::<StepDoneAppliedBrand<i32>, _>(x.wrapping_mul(2));
+		let g = |x: i32| pure::<StepDoneAppliedBrand<i32>, _>(x.wrapping_add(1));
+		bind::<StepDoneAppliedBrand<i32>, _, _, _>(
+			bind::<StepDoneAppliedBrand<i32>, _, _, _>(x, f),
+			g,
+		) == bind::<StepDoneAppliedBrand<i32>, _, _, _>(x, |a| {
+			bind::<StepDoneAppliedBrand<i32>, _, _, _>(f(a), g)
+		})
 	}
 }
