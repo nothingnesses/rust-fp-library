@@ -24,7 +24,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic lens for accessing and updating a field where types can change.
@@ -48,7 +47,6 @@ mod inner {
 		B: 'a, {
 		/// Internal storage.
 		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -89,7 +87,6 @@ mod inner {
 		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)) -> Self {
 			Lens {
 				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -126,7 +123,6 @@ mod inner {
 						<FnBrand<P> as CloneableFn>::new(move |b| set_brand((s_clone.clone(), b))),
 					)
 				}),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -523,7 +519,6 @@ mod inner {
 		S: 'a,
 		A: 'a, {
 		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -555,7 +550,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			LensPrime {
 				to: self.to.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -595,7 +589,6 @@ mod inner {
 		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)) -> Self {
 			LensPrime {
 				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -632,7 +625,6 @@ mod inner {
 						<FnBrand<P> as CloneableFn>::new(move |a| set_brand((s_clone.clone(), a))),
 					)
 				}),
-				_phantom: PhantomData,
 			}
 		}
 

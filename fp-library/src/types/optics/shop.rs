@@ -38,7 +38,6 @@ mod inner {
 		pub get: <FnBrand as CloneableFn>::Of<'a, S, A>,
 		/// Setter function.
 		pub set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
-		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
 	#[document_type_parameters(
@@ -78,7 +77,6 @@ mod inner {
 			Shop {
 				get,
 				set,
-				_phantom: PhantomData,
 			}
 		}
 	}

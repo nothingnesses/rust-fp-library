@@ -30,7 +30,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic isomorphism where types can change.
@@ -57,7 +56,6 @@ mod inner {
 		pub from: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		/// Backward conversion: from focus to structure.
 		pub to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -100,7 +98,6 @@ mod inner {
 			Iso {
 				from: <FnBrand<P> as CloneableFn>::new(from),
 				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -632,7 +629,6 @@ mod inner {
 		A: 'a, {
 		pub(crate) from_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) to_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -665,7 +661,6 @@ mod inner {
 			IsoPrime {
 				from_fn: self.from_fn.clone(),
 				to_fn: self.to_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -707,7 +702,6 @@ mod inner {
 			IsoPrime {
 				from_fn: <FnBrand<P> as CloneableFn>::new(from),
 				to_fn: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -777,7 +771,6 @@ mod inner {
 			IsoPrime {
 				from_fn: self.to_fn.clone(),
 				to_fn: self.from_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}

@@ -28,7 +28,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic prism for sum types where types can change.
@@ -55,7 +54,6 @@ mod inner {
 		pub preview: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, T>>),
 		/// Review function: constructs the structure from a focus value.
 		pub review: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -94,7 +92,6 @@ mod inner {
 			Prism {
 				preview: <FnBrand<P> as CloneableFn>::new(preview),
 				review: <FnBrand<P> as CloneableFn>::new(review),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -499,7 +496,6 @@ mod inner {
 		A: 'a, {
 		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, S>>),
 		pub(crate) review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -533,7 +529,6 @@ mod inner {
 			PrismPrime {
 				preview_fn: self.preview_fn.clone(),
 				review_fn: self.review_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -573,7 +568,6 @@ mod inner {
 			PrismPrime {
 				preview_fn: <FnBrand<P> as CloneableFn>::new(preview),
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -607,7 +601,6 @@ mod inner {
 					}
 				}),
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
-				_phantom: PhantomData,
 			}
 		}
 

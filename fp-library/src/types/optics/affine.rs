@@ -24,7 +24,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic affine traversal where types can change.
@@ -51,7 +50,6 @@ mod inner {
 		B: 'a, {
 		/// Internal storage avoiding S: Clone.
 		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -95,7 +93,6 @@ mod inner {
 		) -> Self {
 			AffineTraversal {
 				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -139,7 +136,6 @@ mod inner {
 						Err(t) => Err(t),
 					}
 				}),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -475,7 +471,6 @@ mod inner {
 		S: 'a,
 		A: 'a, {
 		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -509,7 +504,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			AffineTraversalPrime {
 				to: self.to.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -553,7 +547,6 @@ mod inner {
 		) -> Self {
 			AffineTraversalPrime {
 				to: <FnBrand<P> as CloneableFn>::new(to),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -597,7 +590,6 @@ mod inner {
 						None => Err(s),
 					}
 				}),
-				_phantom: PhantomData,
 			}
 		}
 

@@ -23,7 +23,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic grate.
@@ -58,7 +57,6 @@ mod inner {
 			>,
 			T,
 		>,
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -120,7 +118,6 @@ mod inner {
 			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			Grate {
 				grate: <FnBrand<P> as CloneableFn>::new(grate),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -422,7 +419,6 @@ mod inner {
 			>,
 			S,
 		>,
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -465,7 +461,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			GratePrime {
 				grate_fn: self.grate_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -526,7 +521,6 @@ mod inner {
 			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			GratePrime {
 				grate_fn: <FnBrand<P> as CloneableFn>::new(grate),
-				_phantom: PhantomData,
 			}
 		}
 	}

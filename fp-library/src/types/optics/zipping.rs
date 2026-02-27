@@ -42,7 +42,6 @@ mod inner {
 	pub struct Zipping<'a, FnBrand: CloneableFn, S: 'a, T: 'a> {
 		/// The binary function that zips two `S` values (as a pair) into a `T`.
 		pub run: <FnBrand as CloneableFn>::Of<'a, (S, S), T>,
-		pub(crate) _phantom: PhantomData<FnBrand>,
 	}
 
 	#[document_type_parameters(
@@ -73,7 +72,6 @@ mod inner {
 		pub fn new(f: impl Fn((S, S)) -> T + 'a) -> Self {
 			Zipping {
 				run: <FnBrand as CloneableFn>::new(f),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -103,7 +101,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			Zipping {
 				run: self.run.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}

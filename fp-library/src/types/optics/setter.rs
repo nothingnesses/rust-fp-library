@@ -20,7 +20,6 @@ mod inner {
 			document_parameters,
 			document_type_parameters,
 		},
-		std::marker::PhantomData,
 	};
 
 	/// A polymorphic setter.
@@ -43,7 +42,6 @@ mod inner {
 		B: 'a, {
 		/// Function to update the focus in a structure.
 		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> B + 'a>), T>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -80,7 +78,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			Setter {
 				over_fn: self.over_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -121,7 +118,6 @@ mod inner {
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
 			Setter {
 				over_fn: <FnBrand<P> as CloneableFn>::new(over),
-				_phantom: PhantomData,
 			}
 		}
 
@@ -269,7 +265,6 @@ mod inner {
 		A: 'a, {
 		/// Function to update the focus in a structure.
 		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> A + 'a>), S>),
-		pub(crate) _phantom: PhantomData<P>,
 	}
 
 	#[document_type_parameters(
@@ -302,7 +297,6 @@ mod inner {
 		fn clone(&self) -> Self {
 			SetterPrime {
 				over_fn: self.over_fn.clone(),
-				_phantom: PhantomData,
 			}
 		}
 	}
@@ -339,7 +333,6 @@ mod inner {
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
 			SetterPrime {
 				over_fn: <FnBrand<P> as CloneableFn>::new(over),
-				_phantom: PhantomData,
 			}
 		}
 

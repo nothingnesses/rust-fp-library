@@ -40,7 +40,6 @@ mod inner {
 			<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, S, A>, B>,
 			T,
 		>,
-		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
 	#[document_type_parameters(
@@ -84,7 +83,6 @@ mod inner {
 		) -> Self {
 			Grating {
 				run,
-				_phantom: PhantomData,
 			}
 		}
 	}

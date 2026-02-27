@@ -35,7 +35,6 @@ mod inner {
 		pub get: <FnBrand as CloneableFn>::Of<'a, S, A>,
 		/// Backward function.
 		pub set: <FnBrand as CloneableFn>::Of<'a, B, T>,
-		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
 	#[document_type_parameters(
@@ -75,7 +74,6 @@ mod inner {
 			Exchange {
 				get,
 				set,
-				_phantom: PhantomData,
 			}
 		}
 	}

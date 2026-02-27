@@ -38,7 +38,6 @@ mod inner {
 		pub preview: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 		/// Review function: constructs the structure.
 		pub review: <FnBrand as CloneableFn>::Of<'a, B, T>,
-		pub(crate) _phantom: PhantomData<(A, B)>,
 	}
 
 	#[document_type_parameters(
@@ -80,7 +79,6 @@ mod inner {
 			Market {
 				preview,
 				review,
-				_phantom: PhantomData,
 			}
 		}
 	}
