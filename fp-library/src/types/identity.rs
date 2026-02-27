@@ -30,8 +30,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 

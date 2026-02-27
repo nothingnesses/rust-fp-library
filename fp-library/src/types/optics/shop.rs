@@ -19,8 +19,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -109,6 +109,7 @@ mod inner {
 	{
 		/// Maps functions over the input and output of the `Shop` profunctor.
 		#[document_signature]
+		#[document_return("A transformed `Shop` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -171,6 +172,7 @@ mod inner {
 	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong for ShopBrand<FnBrand, A, B> {
 		/// Lifts the `Shop` profunctor to operate on the first component of a tuple.
 		#[document_signature]
+		#[document_return("A transformed `Shop` instance that operates on tuples.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",

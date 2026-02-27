@@ -31,8 +31,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -317,7 +317,9 @@ mod inner {
 		///
 		#[document_parameters("The second task.")]
 		///
-		#[document_return("A new `Trampoline` that runs both tasks and returns the result of the second.")]
+		#[document_return(
+			"A new `Trampoline` that runs both tasks and returns the result of the second."
+		)]
 		///
 		/// ### Examples
 		///
@@ -474,6 +476,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
+		#[document_return("A trampoline that evaluates the lazy value.")]
 		fn from(lazy: Lazy<'static, A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}

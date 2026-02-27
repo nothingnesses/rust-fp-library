@@ -19,8 +19,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -132,6 +132,8 @@ mod inner {
 			"The grating instance to transform."
 		)]
 		///
+		#[document_return("A transformed `Grating` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -195,6 +197,8 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The grating instance to transform.")]
+		///
+		#[document_return("A transformed `Grating` instance that operates on functions.")]
 		///
 		/// ### Examples
 		///

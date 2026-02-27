@@ -33,7 +33,10 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_return},
+		fp_macros::{
+			document_parameters,
+			document_return,
+		},
 	};
 
 	impl_kind! {
@@ -132,7 +135,9 @@ mod inner {
 		///
 		/// assert_eq!(map::<Tuple2FirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (1, 5)), (1, 10));
 		/// ```
-		#[document_return("A new tuple containing the result of applying the function to the second value.")]
+		#[document_return(
+			"A new tuple containing the result of applying the function to the second value."
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -184,7 +189,9 @@ mod inner {
 		/// 	("ab".to_string(), 3)
 		/// );
 		/// ```
-		#[document_return("A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`.")]
+		#[document_return(
+			"A new tuple where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -271,7 +278,9 @@ mod inner {
 		/// 	("ab".to_string(), 10)
 		/// );
 		/// ```
-		#[document_return("A new tuple where the first values are combined and the function is applied to the second value.")]
+		#[document_return(
+			"A new tuple where the first values are combined and the function is applied to the second value."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -672,7 +681,9 @@ mod inner {
 		///
 		/// assert_eq!(map::<Tuple2SecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, (5, 1)), (10, 1));
 		/// ```
-		#[document_return("A new tuple containing the result of applying the function to the first value.")]
+		#[document_return(
+			"A new tuple containing the result of applying the function to the first value."
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -724,7 +735,9 @@ mod inner {
 		/// 	(3, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return("A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`.")]
+		#[document_return(
+			"A new tuple where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -811,7 +824,9 @@ mod inner {
 		/// 	(10, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return("A new tuple where the function is applied to the first value and the second values are combined.")]
+		#[document_return(
+			"A new tuple where the function is applied to the first value and the second values are combined."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

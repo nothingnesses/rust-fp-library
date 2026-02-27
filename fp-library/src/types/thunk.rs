@@ -35,8 +35,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -286,6 +286,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
+		#[document_return("A thunk that evaluates the lazy value.")]
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}

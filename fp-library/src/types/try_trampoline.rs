@@ -28,8 +28,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -308,6 +308,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The trampoline computation to convert.")]
+		///
+		#[document_return("A new `TryTrampoline` instance that wraps the trampoline.")]
 		fn from(task: Trampoline<A>) -> Self {
 			TryTrampoline(task.map(Ok))
 		}
@@ -326,6 +328,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
+		///
+		#[document_return("A new `TryTrampoline` instance that wraps the lazy value.")]
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
@@ -344,6 +348,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
+		///
+		#[document_return("A new `TryTrampoline` instance that wraps the fallible lazy value.")]
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}

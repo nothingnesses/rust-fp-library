@@ -16,8 +16,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::{
 			fmt::{
@@ -107,6 +107,8 @@ mod inner {
 	#[document_parameters("The function to clone.")]
 	impl<'a, FnBrand: SendCloneableFn, A: 'a> Clone for SendEndofunction<'a, FnBrand, A> {
 		#[document_signature]
+		///
+		#[document_return("A new `SendEndofunction` instance that is a copy of the original.")]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
@@ -124,6 +126,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
+		///
+		#[document_return("The result of the formatting operation.")]
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,

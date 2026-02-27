@@ -23,9 +23,9 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
+			document_return,
 			document_signature,
 			document_type_parameters,
-			document_return,
 		},
 		std::{
 			cell::LazyCell,
@@ -436,6 +436,7 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		#[document_return("A new `Lazy` instance that shares the same underlying memoized value.")]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
@@ -523,6 +524,7 @@ mod inner {
 	impl<'a, A> From<Thunk<'a, A>> for Lazy<'a, A, RcLazyConfig> {
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
+		#[document_return("A new `Lazy` instance that will evaluate the thunk on first access.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
@@ -535,6 +537,10 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The trampoline to convert.")]
+		///
+		#[document_return(
+			"A new `Lazy` instance that will evaluate the trampoline on first access."
+		)]
 		fn from(task: Trampoline<A>) -> Self {
 			Self::new(move || task.evaluate())
 		}

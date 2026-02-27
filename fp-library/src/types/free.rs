@@ -81,8 +81,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::{
 			any::Any,
@@ -350,6 +350,9 @@ mod inner {
 
 		/// Converts to type-erased form.
 		#[document_signature]
+		#[document_return(
+			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
+		)]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 			let inner = self.0.take().expect("Free value already consumed");
 
@@ -374,6 +377,7 @@ mod inner {
 
 		/// Converts to boxed type-erased form.
 		#[document_signature]
+		#[document_return("A boxed `Free` computation where the result type has been erased.")]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
 		}

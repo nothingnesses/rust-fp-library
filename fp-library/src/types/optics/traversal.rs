@@ -20,8 +20,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -242,6 +242,8 @@ mod inner {
 		///
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -320,6 +322,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -396,6 +400,7 @@ mod inner {
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -478,6 +483,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

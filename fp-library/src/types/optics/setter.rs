@@ -18,8 +18,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -63,6 +63,7 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
+		#[document_return("A new `Setter` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -129,6 +130,8 @@ mod inner {
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		///
+		#[document_return("The updated structure.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -171,6 +174,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -222,6 +226,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -285,6 +290,8 @@ mod inner {
 	{
 		#[document_signature]
 		///
+		#[document_return("A new `SetterPrime` instance that is a copy of the original.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -346,6 +353,8 @@ mod inner {
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		///
+		#[document_return("The updated structure.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -383,6 +392,9 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
@@ -431,6 +443,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

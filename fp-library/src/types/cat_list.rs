@@ -55,8 +55,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::{
 			cmp::Ordering,
@@ -190,7 +190,9 @@ mod inner {
 		///
 		#[document_parameters("A value to prepend to the list.", "A list to prepend the value to.")]
 		///
-		#[document_return("A new list consisting of the `head` element prepended to the `tail` list.")]
+		#[document_return(
+			"A new list consisting of the `head` element prepended to the `tail` list."
+		)]
 		///
 		/// ### Examples
 		///
@@ -222,7 +224,9 @@ mod inner {
 		///
 		#[document_parameters("The list to deconstruct.")]
 		///
-		#[document_return("An [`Option`] containing a tuple of the head element and the remaining tail list, or [`None`] if the list is empty.")]
+		#[document_return(
+			"An [`Option`] containing a tuple of the head element and the remaining tail list, or [`None`] if the list is empty."
+		)]
 		///
 		/// ### Examples
 		///
@@ -322,7 +326,9 @@ mod inner {
 		/// let vec: Vec<_> = lifted.into_iter().collect();
 		/// assert_eq!(vec, vec![11, 21, 12, 22]);
 		/// ```
-		#[document_return("A new list containing the results of applying the function to all pairs of elements.")]
+		#[document_return(
+			"A new list containing the results of applying the function to all pairs of elements."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -409,7 +415,9 @@ mod inner {
 		/// let vec: Vec<_> = applied.into_iter().collect();
 		/// assert_eq!(vec, vec![2, 3, 2, 4]);
 		/// ```
-		#[document_return("A new list containing the results of applying each function to each value.")]
+		#[document_return(
+			"A new list containing the results of applying each function to each value."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1355,7 +1363,9 @@ mod inner {
 		///
 		#[document_parameters]
 		///
-		#[document_return("An option containing the first element and the rest of the list, or `None` if empty.")]
+		#[document_return(
+			"An option containing the first element and the rest of the list, or `None` if empty."
+		)]
 		///
 		/// ### Examples
 		///
@@ -1430,6 +1440,8 @@ mod inner {
 		type Item = A;
 
 		#[document_signature]
+		///
+		#[document_return("An iterator that consumes the list and yields its elements.")]
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
 		}
@@ -1447,6 +1459,8 @@ mod inner {
 		type Item = A;
 
 		#[document_signature]
+		///
+		#[document_return("The next element in the list, or `None` if the iterator is exhausted.")]
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
@@ -1460,6 +1474,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The iterator type.")]
 		#[document_parameters("The iterator to collect from.")]
+		///
+		#[document_return("A new `CatList` containing the elements from the iterator.")]
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
 		}

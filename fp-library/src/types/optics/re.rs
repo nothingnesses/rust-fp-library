@@ -33,8 +33,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -130,6 +130,8 @@ mod inner {
 	{
 		#[document_signature]
 		///
+		#[document_return("A new `Re` instance that is a copy of the original.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -199,6 +201,8 @@ mod inner {
 	{
 		/// Maps over both arguments of `Re`, swapping the roles of `f` and `g` on the inner profunctor.
 		#[document_signature]
+		///
+		#[document_return("A transformed `Re` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",

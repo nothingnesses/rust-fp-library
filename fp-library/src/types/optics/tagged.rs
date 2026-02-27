@@ -18,8 +18,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -75,6 +75,7 @@ mod inner {
 	impl Profunctor for TaggedBrand {
 		/// Maps functions over the input and output of the `Tagged` profunctor.
 		#[document_signature]
+		#[document_return("A transformed `Tagged` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -127,6 +128,7 @@ mod inner {
 	impl Choice for TaggedBrand {
 		/// Lifts the `Tagged` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
+		#[document_return("A transformed `Tagged` instance that operates on `Result` types.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -163,6 +165,7 @@ mod inner {
 
 		/// Lifts the `Tagged` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
+		#[document_return("A transformed `Tagged` instance that operates on `Result` types.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -214,6 +217,8 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
+		#[document_return("A transformed `Tagged` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -249,6 +254,8 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The tagged instance to extract from.")]
+		///
+		#[document_return("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -288,6 +295,8 @@ mod inner {
 		///
 		#[document_parameters("The tagged instance to extract from.")]
 		///
+		#[document_return("A transformed `Tagged` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -320,6 +329,8 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The tagged instance to extract from.")]
+		///
+		#[document_return("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///

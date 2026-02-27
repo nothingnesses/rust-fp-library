@@ -20,8 +20,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -110,6 +110,7 @@ mod inner {
 	{
 		/// Maps functions over the input and output of the `Stall` profunctor.
 		#[document_signature]
+		#[document_return("A transformed `Stall` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -172,6 +173,7 @@ mod inner {
 	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong for StallBrand<FnBrand, A, B> {
 		/// Lifts the `Stall` profunctor to operate on the first component of a tuple.
 		#[document_signature]
+		#[document_return("A transformed `Stall` instance that operates on tuples.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -216,6 +218,9 @@ mod inner {
 	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice for StallBrand<FnBrand, A, B> {
 		/// Lifts the `Stall` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
+		#[document_return(
+			"A transformed `Stall` instance that operates on the left component of a `Result`."
+		)]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -260,6 +265,9 @@ mod inner {
 
 		/// Lifts the `Stall` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
+		#[document_return(
+			"A transformed `Stall` instance that operates on the right component of a `Result`."
+		)]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",

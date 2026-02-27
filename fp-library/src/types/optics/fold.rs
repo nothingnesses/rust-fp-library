@@ -20,8 +20,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -56,6 +56,8 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<F: Clone> Clone for IterableFoldFn<F> {
 		#[document_signature]
+		///
+		#[document_return("A new `Fold` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -161,6 +163,8 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
+		///
+		#[document_return("A new `Fold` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -290,6 +294,8 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -356,6 +362,8 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		///
+		#[document_return("A new `FoldPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -473,6 +481,8 @@ mod inner {
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

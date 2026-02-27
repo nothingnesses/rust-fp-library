@@ -24,8 +24,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -91,6 +91,8 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The input value.")]
 		///
+		#[document_return("The result of applying the underlying function to the input.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -125,6 +127,7 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		#[document_return("A new `Forget` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -158,6 +161,8 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static> Profunctor for ForgetBrand<P, R> {
 		/// Maps functions over the input and output of the `Forget` profunctor.
 		#[document_signature]
+		///
+		#[document_return("A transformed `Forget` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -214,6 +219,8 @@ mod inner {
 		/// Lifts the `Forget` profunctor to operate on the first component of a tuple.
 		#[document_signature]
 		///
+		#[document_return("A transformed `Forget` instance that operates on tuples.")]
+		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The type of the first component.",
@@ -252,6 +259,10 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Wander for ForgetBrand<P, R> {
 		/// Lifts the `Forget` profunctor to operate on a structure using a traversal.
 		#[document_signature]
+		///
+		#[document_parameters("The traversal function.", "The forget instance to transform.")]
+		///
+		#[document_return("A transformed `Forget` instance that operates on structures.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -305,6 +316,10 @@ mod inner {
 		/// Lifts the `Forget` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
 		///
+		#[document_parameters("The forget instance to transform.")]
+		///
+		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
+		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The type of the left component.",
@@ -346,6 +361,10 @@ mod inner {
 
 		/// Lifts the `Forget` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
+		///
+		#[document_parameters("The forget instance to transform.")]
+		///
+		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",

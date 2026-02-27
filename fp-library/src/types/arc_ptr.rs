@@ -27,7 +27,10 @@ mod inner {
 				UnsizedCoercible,
 			},
 		},
-		fp_macros::{document_parameters, document_return},
+		fp_macros::{
+			document_parameters,
+			document_return,
+		},
 		std::sync::Arc,
 	};
 

@@ -16,8 +16,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -106,6 +106,7 @@ mod inner {
 	{
 		/// Maps functions over the input and output of the `Exchange` profunctor.
 		#[document_signature]
+		#[document_return("A transformed `Exchange` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",

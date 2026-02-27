@@ -30,7 +30,10 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_return},
+		fp_macros::{
+			document_parameters,
+			document_return,
+		},
 	};
 
 	impl_kind! {
@@ -54,7 +57,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the value.", "The option to map over.")]
 		///
-		#[document_return("A new option containing the result of applying the function, or `None`.")]
+		#[document_return(
+			"A new option containing the result of applying the function, or `None`."
+		)]
 		///
 		/// ### Examples
 		///
@@ -231,7 +236,9 @@ mod inner {
 		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
-		#[document_return("The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.")]
+		#[document_return(
+			"The result of applying `f` to the value if `ma` is `Some`, otherwise `None`."
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,

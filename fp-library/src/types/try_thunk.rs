@@ -41,8 +41,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -347,6 +347,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
+		///
+		#[document_return("A new `TryThunk` instance that wraps the lazy value.")]
 		fn from(memo: Lazy<'a, A, Config>) -> Self {
 			TryThunk::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -366,6 +368,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
+		///
+		#[document_return("A new `TryThunk` instance that wraps the fallible lazy value.")]
 		fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
 			TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 		}
@@ -379,6 +383,8 @@ mod inner {
 	impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
+		///
+		#[document_return("A new `TryThunk` instance that wraps the thunk.")]
 		fn from(eval: Thunk<'a, A>) -> Self {
 			TryThunk::new(move || Ok(eval.evaluate()))
 		}
@@ -536,7 +542,9 @@ mod inner {
 		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
-		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
+		#[document_return(
+			"A new `TryThunk` instance containing the result of applying the function."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -589,7 +597,9 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
-		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
+		#[document_return(
+			"A new `TryThunk` instance containing the result of applying the function."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1090,7 +1100,9 @@ mod inner {
 		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
-		#[document_return("A new `TryThunk` instance containing the result of applying the function to the errors.")]
+		#[document_return(
+			"A new `TryThunk` instance containing the result of applying the function to the errors."
+		)]
 		fn lift2<'a, E1, E2, E3, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
@@ -1147,7 +1159,9 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
-		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
+		#[document_return(
+			"A new `TryThunk` instance containing the result of applying the function."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),

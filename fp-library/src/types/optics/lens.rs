@@ -22,8 +22,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -98,6 +98,8 @@ mod inner {
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
 		///
+		#[document_return("A new `Lens` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -134,6 +136,8 @@ mod inner {
 		///
 		#[document_parameters("The structure to view.")]
 		///
+		#[document_return("The focus value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -156,6 +160,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
+		///
+		#[document_return("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -198,6 +204,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -251,6 +259,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -298,6 +308,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -343,6 +355,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -391,6 +404,8 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -431,6 +446,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -476,6 +493,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -538,6 +557,8 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		///
+		#[document_return("A new `LensPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -602,6 +623,8 @@ mod inner {
 		///
 		#[document_parameters("The getter function.", "The setter function.")]
 		///
+		#[document_return("A new `LensPrime` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -638,6 +661,8 @@ mod inner {
 		///
 		#[document_parameters("The structure to view.")]
 		///
+		#[document_return("The focus value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -660,6 +685,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The new value for the focus.")]
+		///
+		#[document_return("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -684,6 +711,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
+		///
+		#[document_return("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -725,6 +754,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -778,6 +809,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -821,6 +854,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -868,6 +903,7 @@ mod inner {
 			"The reference-counted pointer type."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -909,6 +945,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -951,6 +988,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -995,6 +1033,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

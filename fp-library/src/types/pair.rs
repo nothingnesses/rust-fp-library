@@ -36,8 +36,8 @@ mod inner {
 		fp_macros::{
 			document_fields,
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -172,7 +172,9 @@ mod inner {
 		///
 		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 		/// ```
-		#[document_return("A new pair containing the result of applying the function to the second value.")]
+		#[document_return(
+			"A new pair containing the result of applying the function to the second value."
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -225,7 +227,9 @@ mod inner {
 		/// 	Pair("ab".to_string(), 3)
 		/// );
 		/// ```
-		#[document_return("A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.")]
+		#[document_return(
+			"A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -315,7 +319,9 @@ mod inner {
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
-		#[document_return("A new pair where the first values are combined and the function is applied to the second value.")]
+		#[document_return(
+			"A new pair where the first values are combined and the function is applied to the second value."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -722,7 +728,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the first value.", "The pair to map over.")]
 		///
-		#[document_return("A new pair containing the result of applying the function to the first value.")]
+		#[document_return(
+			"A new pair containing the result of applying the function to the first value."
+		)]
 		///
 		/// ### Examples
 		///
@@ -787,7 +795,9 @@ mod inner {
 		/// 	Pair(3, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return("A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.")]
+		#[document_return(
+			"A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -877,7 +887,9 @@ mod inner {
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
-		#[document_return("`Err(f(a))` if both are `Err`, otherwise the first success encountered.")]
+		#[document_return(
+			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -905,7 +917,9 @@ mod inner {
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
-		#[document_return("The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.")]
+		#[document_return(
+			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
+		)]
 		///
 		/// ### Examples
 		///

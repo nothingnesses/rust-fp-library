@@ -36,7 +36,10 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_return},
+		fp_macros::{
+			document_parameters,
+			document_return,
+		},
 	};
 
 	impl_kind! {
@@ -72,7 +75,9 @@ mod inner {
 		/// let single_element = VecBrand::construct(42, empty_tail);
 		/// assert_eq!(single_element, vec![42]);
 		/// ```
-		#[document_return("A new vector consisting of the `head` element prepended to the `tail` vector.")]
+		#[document_return(
+			"A new vector consisting of the `head` element prepended to the `tail` vector."
+		)]
 		pub fn construct<A>(
 			head: A,
 			tail: Vec<A>,
@@ -91,7 +96,9 @@ mod inner {
 		///
 		#[document_parameters("The vector slice to deconstruct.")]
 		///
-		#[document_return("An [`Option`] containing a tuple of the head element and the remaining tail vector, or [`None`] if the slice is empty.")]
+		#[document_return(
+			"An [`Option`] containing a tuple of the head element and the remaining tail vector, or [`None`] if the slice is empty."
+		)]
 		///
 		/// ### Examples
 		///
@@ -185,7 +192,9 @@ mod inner {
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
-		#[document_return("A new vector containing the results of applying the function to all pairs of elements.")]
+		#[document_return(
+			"A new vector containing the results of applying the function to all pairs of elements."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -263,7 +272,9 @@ mod inner {
 		/// ];
 		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
 		/// ```
-		#[document_return("A new vector containing the results of applying each function to each value.")]
+		#[document_return(
+			"A new vector containing the results of applying each function to each value."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

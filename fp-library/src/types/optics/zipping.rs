@@ -20,8 +20,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -87,6 +87,7 @@ mod inner {
 	#[document_parameters("The zipping instance.")]
 	impl<'a, FnBrand: CloneableFn, S: 'a, T: 'a> Clone for Zipping<'a, FnBrand, S, T> {
 		#[document_signature]
+		#[document_return("A new `Zipping` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -124,6 +125,7 @@ mod inner {
 		///
 		/// Matches PureScript's `dimap f g (Zipping z) = Zipping \a1 a2 -> g (z (f a1) (f a2))`.
 		#[document_signature]
+		#[document_return("A transformed `Zipping` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
@@ -181,6 +183,7 @@ mod inner {
 		/// functions (wrapped in `FnBrand`) and returns an `X -> T` function that applies
 		/// both to the same `x` and combines the results.
 		#[document_signature]
+		#[document_return("A transformed `Zipping` instance that operates on functions.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the values.",

@@ -21,8 +21,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 		std::marker::PhantomData,
 	};
@@ -68,6 +68,7 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
+		#[document_return("A new `Review` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -134,6 +135,8 @@ mod inner {
 		///
 		#[document_parameters("The focus value to review.")]
 		///
+		#[document_return("The structure containing the focus value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -172,6 +175,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -216,6 +220,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -273,6 +278,8 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		///
+		#[document_return("A new `ReviewPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -335,6 +342,8 @@ mod inner {
 		///
 		#[document_parameters("The focus value to review.")]
 		///
+		#[document_return("The structure containing the focus value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -369,6 +378,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -409,6 +420,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

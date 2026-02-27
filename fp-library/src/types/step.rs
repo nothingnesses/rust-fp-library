@@ -48,8 +48,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -308,7 +308,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the done value.", "The step to map over.")]
 		///
-		#[document_return("A new step containing the result of applying the function to the done value.")]
+		#[document_return(
+			"A new step containing the result of applying the function to the done value."
+		)]
 		///
 		/// ### Examples
 		///
@@ -381,7 +383,9 @@ mod inner {
 		/// 	Step::Loop(2)
 		/// );
 		/// ```
-		#[document_return("`Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered.")]
+		#[document_return(
+			"`Done(f(a, b))` if both steps are `Done`, otherwise the first loop encountered."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -516,7 +520,9 @@ mod inner {
 		/// 	Step::Done(10)
 		/// );
 		/// ```
-		#[document_return("The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop.")]
+		#[document_return(
+			"The result of applying `f` to the value if `ma` is `Done`, otherwise the original loop."
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -934,7 +940,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the loop value.", "The step to map over.")]
 		///
-		#[document_return("A new step containing the result of applying the function to the loop value.")]
+		#[document_return(
+			"A new step containing the result of applying the function to the loop value."
+		)]
 		///
 		/// ### Examples
 		///
@@ -1007,7 +1015,9 @@ mod inner {
 		/// 	Step::Done(2)
 		/// );
 		/// ```
-		#[document_return("`Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered.")]
+		#[document_return(
+			"`Loop(f(a, b))` if both steps are `Loop`, otherwise the first done encountered."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1125,7 +1135,9 @@ mod inner {
 		///
 		#[document_parameters("The first step.", "The function to apply to the loop value.")]
 		///
-		#[document_return("The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done.")]
+		#[document_return(
+			"The result of applying `f` to the loop if `ma` is `Loop`, otherwise the original done."
+		)]
 		///
 		/// ### Examples
 		///

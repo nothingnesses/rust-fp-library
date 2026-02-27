@@ -34,8 +34,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -138,7 +138,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The result to map over.")]
 		///
-		#[document_return("A new result containing the result of applying the function, or the original error.")]
+		#[document_return(
+			"A new result containing the result of applying the function, or the original error."
+		)]
 		///
 		/// ### Examples
 		///
@@ -207,7 +209,9 @@ mod inner {
 		/// 	Err(1)
 		/// );
 		/// ```
-		#[document_return("`Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered.")]
+		#[document_return(
+			"`Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -342,7 +346,9 @@ mod inner {
 		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
 		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
 		/// ```
-		#[document_return("The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error.")]
+		#[document_return(
+			"The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error."
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -635,7 +641,9 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error.", "The result to map over.")]
 		///
-		#[document_return("A new result containing the mapped error, or the original success value.")]
+		#[document_return(
+			"A new result containing the mapped error, or the original success value."
+		)]
 		///
 		/// ### Examples
 		///
@@ -707,7 +715,9 @@ mod inner {
 		/// 	Ok(1)
 		/// );
 		/// ```
-		#[document_return("`Err(f(a, b))` if both results are `Err`, otherwise the first success encountered.")]
+		#[document_return(
+			"`Err(f(a, b))` if both results are `Err`, otherwise the first success encountered."
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -798,7 +808,9 @@ mod inner {
 		/// let f_ok: Result<i32, _> = Ok(1);
 		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
 		/// ```
-		#[document_return("`Err(f(a))` if both are `Err`, otherwise the first success encountered.")]
+		#[document_return(
+			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -827,7 +839,9 @@ mod inner {
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
-		#[document_return("The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.")]
+		#[document_return(
+			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
+		)]
 		///
 		/// ### Examples
 		///

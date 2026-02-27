@@ -26,8 +26,8 @@ mod inner {
 		},
 		fp_macros::{
 			document_parameters,
-			document_type_parameters,
 			document_return,
+			document_type_parameters,
 		},
 	};
 
@@ -102,6 +102,10 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The structure to preview.")]
 		///
+		#[document_return(
+			"A result containing the focus value if it exists, or the original structure (possibly with changed type) if not."
+		)]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -125,6 +129,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The focus value.")]
+		///
+		#[document_return("The structure containing the focus value.")]
 		///
 		/// ### Examples
 		///
@@ -167,6 +173,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -226,6 +233,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -273,6 +282,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -318,6 +329,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -365,6 +378,7 @@ mod inner {
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -410,6 +424,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -455,6 +470,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -473,6 +489,7 @@ mod inner {
 		/// let reviewed = ReviewOptic::evaluate(&ok_prism, f);
 		/// assert_eq!(reviewed.0, Some(42));
 		/// ```
+		#[document_return("The transformed profunctor value.")]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -515,6 +532,8 @@ mod inner {
 		A: 'a,
 	{
 		#[document_signature]
+		///
+		#[document_return("A new `PrismPrime` instance that is a copy of the original.")]
 		///
 		/// ### Examples
 		///
@@ -581,6 +600,8 @@ mod inner {
 		///
 		#[document_parameters("The preview function.", "The review function.")]
 		///
+		#[document_return("A new `PrismPrime` instance.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -614,6 +635,8 @@ mod inner {
 		///
 		#[document_parameters("The structure to preview.")]
 		///
+		#[document_return("The focus value if it exists, or `None` if not.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -639,6 +662,8 @@ mod inner {
 		///
 		#[document_parameters("The focus value.")]
 		///
+		#[document_return("The structure containing the focus value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -660,8 +685,8 @@ mod inner {
 
 		/// Modify the focus if it exists.
 		#[document_signature]
-		///
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
+		#[document_return("The updated structure.")]
 		///
 		/// ### Examples
 		///
@@ -706,6 +731,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -757,6 +783,7 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -802,6 +829,8 @@ mod inner {
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -845,6 +874,8 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -893,6 +924,8 @@ mod inner {
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		///
+		#[document_return("The transformed profunctor value.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -934,6 +967,12 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
+		///
+		#[document_return("The transformed profunctor value.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///
@@ -977,6 +1016,8 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
+		///
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

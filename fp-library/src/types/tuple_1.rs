@@ -27,7 +27,10 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::{document_parameters, document_return},
+		fp_macros::{
+			document_parameters,
+			document_return,
+		},
 	};
 
 	impl_kind! {
