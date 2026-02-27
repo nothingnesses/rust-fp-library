@@ -1,6 +1,6 @@
 //! Costrong profunctors, the dual of `Strong`.
 //!
-//! A `Costrong` profunctor provides the inverse operations of [`Strong`]: instead of
+//! A `Costrong` profunctor provides the inverse operations of [`crate::classes::profunctor::Strong`]: instead of
 //! lifting a profunctor through product types, it extracts a profunctor from one that already
 //! operates on product types.
 //!
@@ -33,7 +33,7 @@ use {
 
 /// A type class for costrong profunctors.
 ///
-/// `Costrong` provides the dual operations of [`Strong`]: instead of lifting a profunctor
+/// `Costrong` provides the dual operations of [`crate::classes::profunctor::Strong`]: instead of lifting a profunctor
 /// through product types (tuples), it extracts a profunctor from one that already operates
 /// on product types.
 ///
@@ -45,7 +45,7 @@ use {
 pub trait Costrong: Profunctor {
 	/// Extract a profunctor from one operating on the first component of a pair.
 	///
-	/// This is the dual of [`Strong::first`]. It takes a profunctor
+	/// This is the dual of [`crate::classes::profunctor::Strong::first`]. It takes a profunctor
 	/// `P (A, C) (B, C)` and returns `P A B`.
 	#[document_signature]
 	///
@@ -80,7 +80,7 @@ pub trait Costrong: Profunctor {
 
 	/// Extract a profunctor from one operating on the second component of a pair.
 	///
-	/// This is the dual of [`Strong::second`]. It takes a profunctor
+	/// This is the dual of [`crate::classes::profunctor::Strong::second`]. It takes a profunctor
 	/// `P (C, A) (C, B)` and returns `P A B`.
 	#[document_signature]
 	///

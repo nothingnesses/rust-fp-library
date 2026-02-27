@@ -29,12 +29,12 @@
 //!
 //! This module is organized into submodules for different optic types:
 //!
-//! - [`base`] - The core [`Optic`] trait and [`Composed`] type
-//! - [`lens`] - [`Lens`] and [`LensPrime`] for product types
-//! - [`prism`] - [`Prism`] and [`PrismPrime`] for sum types
-//! - [`iso`] - [`Iso`] and [`IsoPrime`] for isomorphisms
-//! - [`affine`] - [`AffineTraversal`] and [`AffineTraversalPrime`] for optional focusing
-//! - [`helpers`] - Helper functions like [`optics_view`], [`optics_set`], [`optics_over`], [`optics_preview`], [`optics_review`]
+//! - The core [`crate::classes::optics::Optic`] trait and [`Composed`] type
+//! - [`Lens`] and [`LensPrime`] for product types
+//! - [`Prism`] and [`PrismPrime`] for sum types
+//! - [`Iso`] and [`IsoPrime`] for isomorphisms
+//! - [`AffineTraversal`] and [`AffineTraversalPrime`] for optional focusing
+//! - Helper functions like [`optics_view`], [`optics_set`], [`optics_over`], [`optics_preview`], [`optics_review`]
 //!
 //! ### Lifetime Support
 //!

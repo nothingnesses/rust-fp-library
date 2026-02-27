@@ -1,6 +1,6 @@
 //! Cochoice profunctors, the dual of `Choice`.
 //!
-//! A `Cochoice` profunctor provides the inverse operations of [`Choice`]: instead of
+//! A `Cochoice` profunctor provides the inverse operations of [`crate::classes::profunctor::Choice`]: instead of
 //! lifting a profunctor through sum types, it extracts a profunctor from one that already
 //! operates on sum types.
 //!
@@ -33,12 +33,12 @@ use {
 
 /// A type class for cochoice profunctors.
 ///
-/// `Cochoice` provides the dual operations of [`Choice`]: instead of lifting a profunctor
+/// `Cochoice` provides the dual operations of [`crate::classes::profunctor::Choice`]: instead of lifting a profunctor
 /// through sum types, it extracts a profunctor from one that already operates on sum types.
 ///
 /// ### Semantic Mapping
 ///
-/// This trait follows the same semantic mapping as [`Choice`]:
+/// This trait follows the same semantic mapping as [`crate::classes::profunctor::Choice`]:
 /// * [`Cochoice::unleft`] extracts from a profunctor operating on the `Err` variant (the "failure" case), treating it as the `Left` side.
 /// * [`Cochoice::unright`] extracts from a profunctor operating on the `Ok` variant (the "success" case), treating it as the `Right` side.
 ///
@@ -53,7 +53,7 @@ use {
 pub trait Cochoice: Profunctor {
 	/// Extract a profunctor from one operating on the left (Err) variant of a Result.
 	///
-	/// This is the dual of [`Choice::left`]. It takes a profunctor
+	/// This is the dual of [`crate::classes::profunctor::Choice::left`]. It takes a profunctor
 	/// `P (Result<C, A>) (Result<C, B>)` and returns `P A B`.
 	#[document_signature]
 	///
@@ -88,7 +88,7 @@ pub trait Cochoice: Profunctor {
 
 	/// Extract a profunctor from one operating on the right (Ok) variant of a Result.
 	///
-	/// This is the dual of [`Choice::right`]. It takes a profunctor
+	/// This is the dual of [`crate::classes::profunctor::Choice::right`]. It takes a profunctor
 	/// `P (Result<A, C>) (Result<B, C>)` and returns `P A B`.
 	#[document_signature]
 	///
