@@ -110,8 +110,6 @@ mod inner {
 	{
 		/// Maps functions over the input and output of the `Stall` profunctor.
 		#[document_signature]
-		#[document_return("A transformed `Stall` instance.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the new structure.",
@@ -127,6 +125,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The stall instance to transform."
 		)]
+		#[document_return("A transformed `Stall` instance.")]
 		///
 		/// ### Examples
 		///
@@ -173,8 +172,6 @@ mod inner {
 	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong for StallBrand<FnBrand, A, B> {
 		/// Lifts the `Stall` profunctor to operate on the first component of a tuple.
 		#[document_signature]
-		#[document_return("A transformed `Stall` instance that operates on tuples.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the structure.",
@@ -183,6 +180,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
+		#[document_return("A transformed `Stall` instance that operates on tuples.")]
 		///
 		/// ### Examples
 		///
@@ -218,10 +216,6 @@ mod inner {
 	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice for StallBrand<FnBrand, A, B> {
 		/// Lifts the `Stall` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
-		#[document_return(
-			"A transformed `Stall` instance that operates on the left component of a `Result`."
-		)]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the structure.",
@@ -230,6 +224,9 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
+		#[document_return(
+			"A transformed `Stall` instance that operates on the left component of a `Result`."
+		)]
 		///
 		/// ### Examples
 		///
@@ -265,10 +262,6 @@ mod inner {
 
 		/// Lifts the `Stall` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
-		#[document_return(
-			"A transformed `Stall` instance that operates on the right component of a `Result`."
-		)]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the structure.",
@@ -277,6 +270,9 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The stall instance to transform.")]
+		#[document_return(
+			"A transformed `Stall` instance that operates on the right component of a `Result`."
+		)]
 		///
 		/// ### Examples
 		///

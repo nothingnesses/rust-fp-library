@@ -489,7 +489,6 @@ mod inner {
 		/// let reviewed = ReviewOptic::evaluate(&ok_prism, f);
 		/// assert_eq!(reviewed.0, Some(42));
 		/// ```
-		#[document_return("The transformed profunctor value.")]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -967,10 +966,6 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
-		#[document_return("The transformed profunctor value.")]
-		///
-		#[document_return("The transformed profunctor value.")]
 		///
 		#[document_return("The transformed profunctor value.")]
 		///

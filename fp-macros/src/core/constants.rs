@@ -93,6 +93,8 @@ pub mod attributes {
 	pub const DOCUMENT_PARAMETERS: &str = "document_parameters";
 	/// Attribute for function return documentation
 	pub const DOCUMENT_RETURN: &str = "document_return";
+	/// Attribute for function examples documentation
+	pub const DOCUMENT_EXAMPLES: &str = "document_examples";
 	/// Attribute for struct field documentation
 	pub const DOCUMENT_FIELDS: &str = "document_fields";
 	/// Attribute for module documentation
@@ -105,8 +107,18 @@ pub mod attributes {
 		DOCUMENT_TYPE_PARAMETERS,
 		DOCUMENT_PARAMETERS,
 		DOCUMENT_RETURN,
+		DOCUMENT_EXAMPLES,
 		DOCUMENT_FIELDS,
 		DOCUMENT_MODULE,
+	];
+	/// The required order for documentation attributes on a method or impl item.
+	/// Any subset of these attributes must appear in this order.
+	pub const DOCUMENT_ATTR_ORDER: &[&str] = &[
+		DOCUMENT_SIGNATURE,
+		DOCUMENT_TYPE_PARAMETERS,
+		DOCUMENT_PARAMETERS,
+		DOCUMENT_RETURN,
+		DOCUMENT_EXAMPLES,
 	];
 }
 

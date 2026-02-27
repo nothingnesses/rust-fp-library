@@ -125,8 +125,6 @@ mod inner {
 		///
 		/// Matches PureScript's `dimap f g (Zipping z) = Zipping \a1 a2 -> g (z (f a1) (f a2))`.
 		#[document_signature]
-		#[document_return("A transformed `Zipping` instance.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The new input type.",
@@ -142,6 +140,7 @@ mod inner {
 			"The covariant function to post-compose on the output.",
 			"The zipping instance to transform."
 		)]
+		#[document_return("A transformed `Zipping` instance.")]
 		///
 		/// ### Examples
 		///
@@ -183,8 +182,6 @@ mod inner {
 		/// functions (wrapped in `FnBrand`) and returns an `X -> T` function that applies
 		/// both to the same `x` and combines the results.
 		#[document_signature]
-		#[document_return("A transformed `Zipping` instance that operates on functions.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The source type of the profunctor.",
@@ -193,6 +190,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The zipping instance to lift.")]
+		#[document_return("A transformed `Zipping` instance that operates on functions.")]
 		///
 		/// ### Examples
 		///

@@ -393,9 +393,7 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_return("The transformed profunctor value.")]
-		#[document_parameters("The profunctor value to transform.")]
 		///
 		/// ### Examples
 		///

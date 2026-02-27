@@ -611,9 +611,8 @@ mod inner {
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
-		#[document_return("The transformed profunctor value.")]
-		///
 		#[document_parameters("The profunctor value to transform.")]
+		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples
 		///

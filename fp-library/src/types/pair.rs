@@ -381,7 +381,6 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: 'static> Foldable for PairFirstAppliedBrand<First> {
 		/// Folds the pair from the right (over second).
 		///
@@ -525,7 +524,6 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the first value in the pair.")]
-	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: Clone + 'static> Traversable for PairFirstAppliedBrand<First> {
 		/// Traverses the pair with an applicative function (over second).
 		///
@@ -611,7 +609,6 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The type of the first value in the pair.")]
 	#[document_type_parameters("The type of the first value in the pair.")]
 	impl<First: 'static> ParFoldable for PairFirstAppliedBrand<First> {
 		/// Maps the value to a monoid and returns it in parallel (over second).
@@ -951,7 +948,6 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: 'static> Foldable for PairSecondAppliedBrand<Second> {
 		/// Folds the pair from the right (over first).
 		///
@@ -1092,7 +1088,6 @@ mod inner {
 	}
 
 	#[document_type_parameters("The type of the second value in the pair.")]
-	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: Clone + 'static> Traversable for PairSecondAppliedBrand<Second> {
 		/// Traverses the pair with an applicative function (over first).
 		///
@@ -1176,7 +1171,6 @@ mod inner {
 		}
 	}
 
-	#[document_type_parameters("The type of the second value in the pair.")]
 	#[document_type_parameters("The type of the second value in the pair.")]
 	impl<Second: 'static> ParFoldable for PairSecondAppliedBrand<Second> {
 		/// Maps the value to a monoid and returns it in parallel (over first).

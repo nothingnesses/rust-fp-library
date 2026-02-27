@@ -201,9 +201,6 @@ mod inner {
 	{
 		/// Maps over both arguments of `Re`, swapping the roles of `f` and `g` on the inner profunctor.
 		#[document_signature]
-		///
-		#[document_return("A transformed `Re` instance.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The new contravariant type.",
@@ -219,6 +216,7 @@ mod inner {
 			"The covariant function `C -> D`.",
 			"The `Re` instance to transform."
 		)]
+		#[document_return("A transformed `Re` instance.")]
 		///
 		/// ### Examples
 		///

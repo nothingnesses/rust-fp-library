@@ -6,6 +6,7 @@ use {
 			Result as OurResult,
 			config::Config,
 			constants::attributes::{
+				DOCUMENT_ATTR_ORDER,
 				DOCUMENT_MODULE,
 				DOCUMENT_PARAMETERS,
 				DOCUMENT_RETURN,
@@ -327,6 +328,72 @@ where
 	}
 }
 
+/// Check that none of the ordered documentation attributes appear more than once.
+fn validate_no_duplicate_doc_attrs(
+	attrs: &[syn::Attribute],
+	item_span: proc_macro2::Span,
+	item_label: &str,
+	warnings: &mut ErrorCollector,
+) {
+	for name in DOCUMENT_ATTR_ORDER {
+		let count = attrs.iter().filter(|a| a.path().is_ident(name)).count();
+		if count > 1 {
+			warnings.push(syn::Error::new(
+				item_span,
+				format!(
+					"{item_label} has `#[{name}]` applied {count} times; it may only appear once",
+				),
+			));
+		}
+	}
+}
+
+/// Check that the ordered documentation attributes appear in the canonical order:
+/// document_signature → document_type_parameters → document_parameters →
+/// document_return → document_examples.
+fn validate_doc_attr_order(
+	attrs: &[syn::Attribute],
+	item_span: proc_macro2::Span,
+	item_label: &str,
+	warnings: &mut ErrorCollector,
+) {
+	// Collect the index of the first occurrence of each ordered attribute.
+	let positions: Vec<Option<usize>> = DOCUMENT_ATTR_ORDER
+		.iter()
+		.map(|name| attrs.iter().position(|a| a.path().is_ident(name)))
+		.collect();
+
+	// For every pair (i, j) where i comes before j in the canonical order,
+	// their attribute positions must satisfy pos[i] < pos[j].
+	for i in 0 .. DOCUMENT_ATTR_ORDER.len() {
+		for j in (i + 1) .. DOCUMENT_ATTR_ORDER.len() {
+			if let (Some(pos_i), Some(pos_j)) = (positions[i], positions[j]) {
+				if pos_i > pos_j {
+					warnings.push(syn::Error::new(
+						item_span,
+						format!(
+							"{item_label} has `#[{}]` before `#[{}]`, but the required order is: {}",
+							DOCUMENT_ATTR_ORDER[j],
+							DOCUMENT_ATTR_ORDER[i],
+							DOCUMENT_ATTR_ORDER
+								.iter()
+								.filter(|name| positions
+									[DOCUMENT_ATTR_ORDER.iter().position(|n| n == *name).unwrap()]
+								.is_some())
+								.copied()
+								.map(|n| format!("`#[{n}]`"))
+								.collect::<Vec<_>>()
+								.join(" → "),
+						),
+					));
+					// Report at most one ordering violation per item to avoid noise.
+					return;
+				}
+			}
+		}
+	}
+}
+
 /// Validate that a method has appropriate documentation attributes.
 fn validate_method_documentation(
 	method: &syn::ImplItemFn,
@@ -334,6 +401,11 @@ fn validate_method_documentation(
 ) {
 	let method_name = &method.sig.ident;
 	let method_generics = &method.sig.generics;
+	let label = format!("Method `{method_name}`");
+
+	// Check for duplicate and out-of-order documentation attributes
+	validate_no_duplicate_doc_attrs(&method.attrs, method.span(), &label, warnings);
+	validate_doc_attr_order(&method.attrs, method.span(), &label, warnings);
 
 	// Check for document_signature
 	if !has_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
@@ -390,6 +462,10 @@ fn validate_impl_documentation(
 	item_impl: &syn::ItemImpl,
 	warnings: &mut ErrorCollector,
 ) {
+	// Check for duplicate and out-of-order documentation attributes on the impl block itself
+	validate_no_duplicate_doc_attrs(&item_impl.attrs, item_impl.span(), "Impl block", warnings);
+	validate_doc_attr_order(&item_impl.attrs, item_impl.span(), "Impl block", warnings);
+
 	let impl_generics = &item_impl.generics;
 	let has_type_params = !impl_generics.params.is_empty();
 	let has_doc_type_params = has_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS);

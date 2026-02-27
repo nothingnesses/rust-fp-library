@@ -106,8 +106,6 @@ mod inner {
 	{
 		/// Maps functions over the input and output of the `Exchange` profunctor.
 		#[document_signature]
-		#[document_return("A transformed `Exchange` instance.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the new structure.",
@@ -123,6 +121,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The exchange instance to transform."
 		)]
+		#[document_return("A transformed `Exchange` instance.")]
 		///
 		/// ### Examples
 		///

@@ -343,8 +343,6 @@ mod inner {
 		///
 		#[document_return("The transformed profunctor value.")]
 		///
-		#[document_return("The transformed profunctor value.")]
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -393,9 +391,6 @@ mod inner {
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
-		#[document_return("The transformed profunctor value.")]
-		///
 		#[document_return("The transformed profunctor value.")]
 		///
 		/// ### Examples

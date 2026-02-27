@@ -161,9 +161,6 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static> Profunctor for ForgetBrand<P, R> {
 		/// Maps functions over the input and output of the `Forget` profunctor.
 		#[document_signature]
-		///
-		#[document_return("A transformed `Forget` instance.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the new structure.",
@@ -179,6 +176,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The forget instance to transform."
 		)]
+		#[document_return("A transformed `Forget` instance.")]
 		///
 		/// ### Examples
 		///
@@ -218,9 +216,6 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static> Strong for ForgetBrand<P, R> {
 		/// Lifts the `Forget` profunctor to operate on the first component of a tuple.
 		#[document_signature]
-		///
-		#[document_return("A transformed `Forget` instance that operates on tuples.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The type of the first component.",
@@ -229,6 +224,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
+		#[document_return("A transformed `Forget` instance that operates on tuples.")]
 		///
 		/// ### Examples
 		///
@@ -259,11 +255,6 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Wander for ForgetBrand<P, R> {
 		/// Lifts the `Forget` profunctor to operate on a structure using a traversal.
 		#[document_signature]
-		///
-		#[document_parameters("The traversal function.", "The forget instance to transform.")]
-		///
-		#[document_return("A transformed `Forget` instance that operates on structures.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The source type of the structure.",
@@ -274,6 +265,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
+		#[document_return("A transformed `Forget` instance that operates on structures.")]
 		///
 		/// ### Examples
 		///
@@ -315,11 +307,6 @@ mod inner {
 	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Choice for ForgetBrand<P, R> {
 		/// Lifts the `Forget` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
-		///
-		#[document_parameters("The forget instance to transform.")]
-		///
-		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The type of the left component.",
@@ -328,6 +315,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
+		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///
@@ -361,11 +349,6 @@ mod inner {
 
 		/// Lifts the `Forget` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
-		///
-		#[document_parameters("The forget instance to transform.")]
-		///
-		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
-		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
 			"The type of the left component.",
@@ -374,6 +357,7 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The forget instance to transform.")]
+		#[document_return("A transformed `Forget` instance that operates on `Result` types.")]
 		///
 		/// ### Examples
 		///

@@ -75,7 +75,6 @@ mod inner {
 	impl Profunctor for TaggedBrand {
 		/// Maps functions over the input and output of the `Tagged` profunctor.
 		#[document_signature]
-		#[document_return("A transformed `Tagged` instance.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -92,6 +91,7 @@ mod inner {
 			"The function to apply to the output.",
 			"The tagged instance to transform."
 		)]
+		#[document_return("A transformed `Tagged` instance.")]
 		///
 		/// ### Examples
 		///
@@ -128,7 +128,6 @@ mod inner {
 	impl Choice for TaggedBrand {
 		/// Lifts the `Tagged` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
-		#[document_return("A transformed `Tagged` instance that operates on `Result` types.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -136,8 +135,10 @@ mod inner {
 			"The type of the target left component.",
 			"The type of the right component."
 		)]
-		///
 		#[document_parameters("The tagged instance to transform.")]
+		#[document_return(
+			"A transformed `Tagged` instance that operates on the left component of a `Result`."
+		)]
 		///
 		/// ### Examples
 		///
@@ -165,7 +166,6 @@ mod inner {
 
 		/// Lifts the `Tagged` profunctor to operate on the right component of a `Result`.
 		#[document_signature]
-		#[document_return("A transformed `Tagged` instance that operates on `Result` types.")]
 		///
 		#[document_type_parameters(
 			"The lifetime of the functions.",
@@ -173,8 +173,10 @@ mod inner {
 			"The type of the right component.",
 			"The target type of the right component."
 		)]
-		///
 		#[document_parameters("The tagged instance to transform.")]
+		#[document_return(
+			"A transformed `Tagged` instance that operates on the right component of a `Result`."
+		)]
 		///
 		/// ### Examples
 		///
