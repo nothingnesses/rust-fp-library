@@ -29,6 +29,7 @@ use {
 		document_fields_worker,
 		document_module_worker,
 		document_parameters_worker,
+		document_return_worker,
 		document_signature_worker,
 		document_type_parameters_worker,
 	},
@@ -681,6 +682,44 @@ pub fn document_parameters(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_parameters_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Generates documentation for the return value of a function.
+///
+/// This macro adds a "Returns" section to the function's documentation.
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[document_return("Description of the return value.")]
+/// pub fn foo() -> i32 { ... }
+/// ```
+///
+/// ### Generates
+///
+/// A documentation comment describing the return value.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[document_return("The sum of x and y.")]
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+///
+/// // Expanded code
+/// /// ### Returns
+/// /// The sum of x and y.
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+#[proc_macro_attribute]
+pub fn document_return(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	match document_return_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

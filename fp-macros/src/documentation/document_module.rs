@@ -8,6 +8,7 @@ use {
 			constants::attributes::{
 				DOCUMENT_MODULE,
 				DOCUMENT_PARAMETERS,
+				DOCUMENT_RETURN,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
 			},
@@ -368,6 +369,19 @@ fn validate_method_documentation(
 			),
 		);
 		warnings.push(warning);
+	}
+
+	// Check for document_return if method has a return type
+	if let syn::ReturnType::Type(..) = method.sig.output {
+		if !has_attribute(&method.attrs, DOCUMENT_RETURN) {
+			let warning = syn::Error::new(
+				method.span(),
+				format!(
+					"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURN}] attribute",
+				),
+			);
+			warnings.push(warning);
+		}
 	}
 }
 
