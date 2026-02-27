@@ -32,6 +32,7 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -98,9 +99,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that produces the value `a`.
+		#[document_return("A `Trampoline` that produces the value `a`.")]
 		///
 		/// ### Examples
 		///
@@ -128,9 +127,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to execute.")]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that executes `f` when run.
+		#[document_return("A `Trampoline` that executes `f` when run.")]
 		///
 		/// ### Examples
 		///
@@ -163,9 +160,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces a `Trampoline`.")]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that defers the creation of the inner task.
+		#[document_return("A `Trampoline` that defers the creation of the inner task.")]
 		///
 		/// ### Examples
 		///
@@ -207,9 +202,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Trampoline` that chains `f` after this task.
+		#[document_return("A new `Trampoline` that chains `f` after this task.")]
 		///
 		/// ### Examples
 		///
@@ -242,9 +235,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Trampoline` with the transformed result.
+		#[document_return("A new `Trampoline` with the transformed result.")]
 		///
 		/// ### Examples
 		///
@@ -272,9 +263,7 @@ mod inner {
 		///
 		#[document_parameters]
 		///
-		/// ### Returns
-		///
-		/// The result of the computation.
+		#[document_return("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -299,9 +288,7 @@ mod inner {
 		///
 		#[document_parameters("The second task.", "The function to combine the results.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Trampoline` producing the combined result.
+		#[document_return("A new `Trampoline` producing the combined result.")]
 		///
 		/// ### Examples
 		///
@@ -330,9 +317,7 @@ mod inner {
 		///
 		#[document_parameters("The second task.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Trampoline` that runs both tasks and returns the result of the second.
+		#[document_return("A new `Trampoline` that runs both tasks and returns the result of the second.")]
 		///
 		/// ### Examples
 		///
@@ -370,10 +355,6 @@ mod inner {
 			"The initial state."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that performs the recursion.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -398,6 +379,7 @@ mod inner {
 		///
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
+		#[document_return("A `Trampoline` that performs the recursion.")]
 		pub fn tail_rec_m<S: 'static + Send, F>(
 			f: F,
 			initial: S,
@@ -435,10 +417,6 @@ mod inner {
 			"The initial state."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A `Trampoline` that performs the recursion.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -470,6 +448,7 @@ mod inner {
 		/// 	100,
 		/// );
 		/// ```
+		#[document_return("A `Trampoline` that performs the recursion.")]
 		pub fn arc_tail_rec_m<S: 'static + Send, F>(
 			f: F,
 			initial: S,
@@ -509,9 +488,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the trampoline.")]
 		///
-		/// ### Returns
-		///
-		/// The deferred trampoline.
+		#[document_return("The deferred trampoline.")]
 		///
 		/// ### Examples
 		///

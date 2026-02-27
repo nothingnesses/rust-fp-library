@@ -30,7 +30,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::document_parameters,
+		fp_macros::{document_parameters, document_return},
 	};
 
 	impl_kind! {
@@ -54,9 +54,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the value.", "The option to map over.")]
 		///
-		/// ### Returns
-		///
-		/// A new option containing the result of applying the function, or `None`.
+		#[document_return("A new option containing the result of applying the function, or `None`.")]
 		///
 		/// ### Examples
 		///
@@ -100,10 +98,6 @@ mod inner {
 			"The second option."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `Some(f(a, b))` if both options are `Some`, otherwise `None`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -117,6 +111,7 @@ mod inner {
 		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
+		#[document_return("`Some(f(a, b))` if both options are `Some`, otherwise `None`.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -141,9 +136,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// `Some(a)`.
+		#[document_return("`Some(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -182,10 +175,6 @@ mod inner {
 			"The option containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `Some(f(a))` if both are `Some`, otherwise `None`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -200,6 +189,7 @@ mod inner {
 		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
+		#[document_return("`Some(f(a))` if both are `Some`, otherwise `None`.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -229,10 +219,6 @@ mod inner {
 			"The function to apply to the value inside the option."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -245,6 +231,7 @@ mod inner {
 		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
+		#[document_return("The result of applying `f` to the value if `ma` is `Some`, otherwise `None`.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -271,9 +258,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The option to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.
+		#[document_return("`func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -320,10 +305,6 @@ mod inner {
 			"The option to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -336,6 +317,7 @@ mod inner {
 		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
+		#[document_return("`f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -365,9 +347,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.
+		#[document_return("`func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -415,10 +395,6 @@ mod inner {
 			"The option to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The option wrapped in the applicative context.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -431,6 +407,7 @@ mod inner {
 		/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
+		#[document_return("The option wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -456,6 +433,8 @@ mod inner {
 		)]
 		///
 		#[document_parameters("The option containing the applicative value.")]
+		///
+		#[document_return("The result of the traversal.")]
 		///
 		/// # Returns
 		///
@@ -501,9 +480,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The option to fold.")]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
+		#[document_return("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -543,9 +520,7 @@ mod inner {
 		///
 		#[document_parameters("The nested option.")]
 		///
-		/// ### Returns
-		///
-		/// The flattened option.
+		#[document_return("The flattened option.")]
 		///
 		/// ### Examples
 		///
@@ -581,9 +556,7 @@ mod inner {
 		///
 		#[document_parameters("The option of result.")]
 		///
-		/// ### Returns
-		///
-		/// A pair of options.
+		#[document_return("A pair of options.")]
 		///
 		/// ### Examples
 		///
@@ -628,9 +601,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The option to partition.")]
 		///
-		/// ### Returns
-		///
-		/// A pair of options.
+		#[document_return("A pair of options.")]
 		///
 		/// ### Examples
 		///
@@ -677,9 +648,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The option to partition.")]
 		///
-		/// ### Returns
-		///
-		/// A pair of options.
+		#[document_return("A pair of options.")]
 		///
 		/// ### Examples
 		///
@@ -728,9 +697,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The option to filter and map.")]
 		///
-		/// ### Returns
-		///
-		/// The filtered and mapped option.
+		#[document_return("The filtered and mapped option.")]
 		///
 		/// ### Examples
 		///
@@ -766,9 +733,7 @@ mod inner {
 		///
 		#[document_parameters("The predicate.", "The option to filter.")]
 		///
-		/// ### Returns
-		///
-		/// The filtered option.
+		#[document_return("The filtered option.")]
 		///
 		/// ### Examples
 		///
@@ -812,10 +777,6 @@ mod inner {
 			"The option to partition."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The partitioned option wrapped in the applicative context.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -831,6 +792,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
+		#[document_return("The partitioned option wrapped in the applicative context.")]
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -876,10 +838,6 @@ mod inner {
 			"The option to filter and map."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The filtered and mapped option wrapped in the applicative context.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -895,6 +853,7 @@ mod inner {
 		/// );
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
+		#[document_return("The filtered and mapped option wrapped in the applicative context.")]
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

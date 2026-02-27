@@ -27,7 +27,7 @@ mod inner {
 				UnsizedCoercible,
 			},
 		},
-		fp_macros::document_parameters,
+		fp_macros::{document_parameters, document_return},
 		std::sync::Arc,
 	};
 
@@ -41,9 +41,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The value wrapped in an `Arc`.
+		#[document_return("The value wrapped in an `Arc`.")]
 		///
 		/// ### Examples
 		///
@@ -71,9 +69,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The value wrapped in an `Arc`.
+		#[document_return("The value wrapped in an `Arc`.")]
 		///
 		/// ### Examples
 		///
@@ -100,9 +96,7 @@ mod inner {
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
-		/// ### Returns
-		///
-		/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
+		#[document_return("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
 		/// ### Examples
 		///
@@ -130,9 +124,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The value wrapped in an `Arc`.
+		#[document_return("The value wrapped in an `Arc`.")]
 		///
 		/// ### Examples
 		///
@@ -162,9 +154,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
-		///
-		/// The closure wrapped in an `Arc` as a trait object.
+		#[document_return("The closure wrapped in an `Arc` as a trait object.")]
 		///
 		/// ### Examples
 		///
@@ -194,9 +184,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
-		///
-		/// The closure wrapped in an `Arc` as a thread-safe trait object.
+		#[document_return("The closure wrapped in an `Arc` as a thread-safe trait object.")]
 		///
 		/// ### Examples
 		///

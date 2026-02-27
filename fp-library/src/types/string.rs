@@ -13,7 +13,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::document_parameters,
+		fp_macros::{document_parameters, document_return},
 	};
 
 	impl_kind! {
@@ -30,9 +30,7 @@ mod inner {
 		///
 		#[document_parameters("The first string.", "The second string.")]
 		///
-		/// ### Returns
-		///
-		/// The combined string.
+		#[document_return("The combined string.")]
 		///
 		/// ### Examples
 		///
@@ -58,9 +56,7 @@ mod inner {
 		/// This method returns the identity element of the monoid.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// The identity element.
+		#[document_return("The identity element.")]
 		///
 		/// ### Examples
 		///

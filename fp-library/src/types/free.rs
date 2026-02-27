@@ -82,6 +82,7 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 		std::{
 			any::Any,
@@ -200,9 +201,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A `Free` computation that produces `a`.
+		#[document_return("A `Free` computation that produces `a`.")]
 		///
 		/// ### Examples
 		///
@@ -224,9 +223,7 @@ mod inner {
 		///
 		#[document_parameters("The functor value containing the next step.")]
 		///
-		/// ### Returns
-		///
-		/// A `Free` computation that performs the effect `fa`.
+		#[document_return("A `Free` computation that performs the effect `fa`.")]
 		///
 		/// ### Examples
 		///
@@ -258,9 +255,7 @@ mod inner {
 		/// ```
 		#[document_parameters("The functor value to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A `Free` computation that performs the effect and returns the result.
+		#[document_return("A `Free` computation that performs the effect and returns the result.")]
 		///
 		/// ### Examples
 		///
@@ -293,9 +288,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of this computation.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Free` computation that chains `f` after this computation.
+		#[document_return("A new `Free` computation that chains `f` after this computation.")]
 		///
 		/// ### Examples
 		///
@@ -391,9 +384,7 @@ mod inner {
 		/// [`CatList`] of continuations without growing the stack.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// The final result of the computation.
+		#[document_return("The final result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -496,9 +487,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the free computation.")]
 		///
-		/// ### Returns
-		///
-		/// The deferred free computation.
+		#[document_return("The deferred free computation.")]
 		///
 		/// ### Examples
 		///

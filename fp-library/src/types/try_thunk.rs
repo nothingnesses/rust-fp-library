@@ -42,6 +42,7 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -91,9 +92,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance.
+		#[document_return("A new `TryThunk` instance.")]
 		///
 		/// ### Examples
 		///
@@ -114,9 +113,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the value.
+		#[document_return("A new `TryThunk` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -139,9 +136,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that returns a `TryThunk`.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance.
+		#[document_return("A new `TryThunk` instance.")]
 		///
 		/// ### Examples
 		///
@@ -164,9 +159,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the value.
+		#[document_return("A new `TryThunk` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -187,9 +180,7 @@ mod inner {
 		///
 		#[document_parameters("The error to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the error.
+		#[document_return("A new `TryThunk` instance containing the error.")]
 		///
 		/// ### Examples
 		///
@@ -215,9 +206,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance representing the chained computation.
+		#[document_return("A new `TryThunk` instance representing the chained computation.")]
 		///
 		/// ### Examples
 		///
@@ -249,9 +238,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the result of the computation.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance with the transformed result.
+		#[document_return("A new `TryThunk` instance with the transformed result.")]
 		///
 		/// ### Examples
 		///
@@ -280,9 +267,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance with the transformed error.
+		#[document_return("A new `TryThunk` instance with the transformed error.")]
 		///
 		/// ### Examples
 		///
@@ -308,9 +293,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` that attempts to recover from failure.
+		#[document_return("A new `TryThunk` that attempts to recover from failure.")]
 		///
 		/// ### Examples
 		///
@@ -335,9 +318,7 @@ mod inner {
 		/// Forces evaluation and returns the result.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// The result of the computation.
+		#[document_return("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -420,9 +401,7 @@ mod inner {
 		///
 		#[document_parameters("A thunk that produces the try thunk.")]
 		///
-		/// ### Returns
-		///
-		/// The deferred try thunk.
+		#[document_return("The deferred try thunk.")]
 		///
 		/// ### Examples
 		///
@@ -469,10 +448,6 @@ mod inner {
 			"The `TryThunk` instance."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance with the transformed result.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -486,6 +461,7 @@ mod inner {
 		/// let mapped = map::<TryThunkErrAppliedBrand<()>, _, _, _>(|x| x * 2, try_thunk);
 		/// assert_eq!(mapped.evaluate(), Ok(20));
 		/// ```
+		#[document_return("A new `TryThunk` instance with the transformed result.")]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -508,9 +484,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the value.
+		#[document_return("A new `TryThunk` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -548,10 +522,6 @@ mod inner {
 			"The second `TryThunk`."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the result of applying the function.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -566,6 +536,7 @@ mod inner {
 		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Ok(30));
 		/// ```
+		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -603,10 +574,6 @@ mod inner {
 			"The `TryThunk` containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the result of applying the function.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -622,6 +589,7 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Ok(42));
 		/// ```
+		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -652,10 +620,6 @@ mod inner {
 			"The function to apply to the result of the computation."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance representing the chained computation.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -671,6 +635,7 @@ mod inner {
 		/// });
 		/// assert_eq!(result.evaluate(), Ok(20));
 		/// ```
+		#[document_return("A new `TryThunk` instance representing the chained computation.")]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -695,9 +660,7 @@ mod inner {
 		///
 		#[document_parameters("The step function.", "The initial value.")]
 		///
-		/// ### Returns
-		///
-		/// The result of the computation.
+		#[document_return("The result of the computation.")]
 		///
 		/// ### Examples
 		///
@@ -759,10 +722,6 @@ mod inner {
 			"The `TryThunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -777,6 +736,7 @@ mod inner {
 		/// 	fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -808,10 +768,6 @@ mod inner {
 			"The `TryThunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -826,6 +782,7 @@ mod inner {
 		/// 	fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -853,9 +810,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The Thunk to fold.")]
 		///
-		/// ### Returns
-		///
-		/// The monoid value.
+		#[document_return("The monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -897,9 +852,7 @@ mod inner {
 		///
 		#[document_parameters("The first `TryThunk`.", "The second `TryThunk`.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` containing the combined result.
+		#[document_return("A new `TryThunk` containing the combined result.")]
 		///
 		/// ### Examples
 		///
@@ -937,9 +890,7 @@ mod inner {
 		/// Returns the identity `TryThunk`.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// A `TryThunk` producing the identity value of `A`.
+		#[document_return("A `TryThunk` producing the identity value of `A`.")]
 		///
 		/// ### Examples
 		///
@@ -991,10 +942,6 @@ mod inner {
 			"The `TryThunk` to map over."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` containing the mapped values.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1017,6 +964,7 @@ mod inner {
 		/// 	Err(6)
 		/// );
 		/// ```
+		#[document_return("A new `TryThunk` containing the mapped values.")]
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -1053,9 +1001,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the error.", "The `TryThunk` instance.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance with the transformed error.
+		#[document_return("A new `TryThunk` instance with the transformed error.")]
 		///
 		/// ### Examples
 		///
@@ -1092,9 +1038,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the value as an error.
+		#[document_return("A new `TryThunk` instance containing the value as an error.")]
 		///
 		/// ### Examples
 		///
@@ -1132,10 +1076,6 @@ mod inner {
 			"The second `TryThunk`."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the result of applying the function to the errors.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1150,6 +1090,7 @@ mod inner {
 		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
 		/// assert_eq!(result.evaluate(), Err(30));
 		/// ```
+		#[document_return("A new `TryThunk` instance containing the result of applying the function to the errors.")]
 		fn lift2<'a, E1, E2, E3, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
@@ -1191,10 +1132,6 @@ mod inner {
 			"The `TryThunk` containing the value (in Err)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance containing the result of applying the function.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1210,6 +1147,7 @@ mod inner {
 		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
 		/// assert_eq!(result.evaluate(), Err(42));
 		/// ```
+		#[document_return("A new `TryThunk` instance containing the result of applying the function.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
@@ -1239,10 +1177,6 @@ mod inner {
 			"The function to apply to the error result of the computation."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new `TryThunk` instance representing the chained computation.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1258,6 +1192,7 @@ mod inner {
 		/// });
 		/// assert_eq!(result.evaluate(), Err(20));
 		/// ```
+		#[document_return("A new `TryThunk` instance representing the chained computation.")]
 		fn bind<'a, E1: 'a, E2: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 			func: Func,
@@ -1290,10 +1225,6 @@ mod inner {
 			"The `TryThunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1308,6 +1239,7 @@ mod inner {
 		/// 	fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn fold_right<'a, FnBrand, E: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -1339,10 +1271,6 @@ mod inner {
 			"The `TryThunk` to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1357,6 +1285,7 @@ mod inner {
 		/// 	fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
 		/// assert_eq!(result, 15);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn fold_left<'a, FnBrand, E: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -1384,9 +1313,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The Thunk to fold.")]
 		///
-		/// ### Returns
-		///
-		/// The monoid value.
+		#[document_return("The monoid value.")]
 		///
 		/// ### Examples
 		///

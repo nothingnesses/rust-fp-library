@@ -21,6 +21,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 		std::marker::PhantomData,
 	};
@@ -89,9 +90,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The structure to fold.")]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
+		#[document_return("The combined monoid value.")]
 		///
 		/// ### Examples
 		///
@@ -210,6 +209,8 @@ mod inner {
 		///
 		#[document_parameters("The fold function.")]
 		///
+		#[document_return("A new instance of the type.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -236,9 +237,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to fold.")]
 		///
-		/// ### Returns
-		///
-		/// A `Vec` containing all the focuses.
+		#[document_return("A `Vec` containing all the focuses.")]
 		///
 		/// ### Examples
 		///
@@ -400,6 +399,8 @@ mod inner {
 		///
 		#[document_parameters("The fold function.")]
 		///
+		#[document_return("A new instance of the type.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -425,9 +426,7 @@ mod inner {
 		///
 		#[document_parameters("The structure to fold.")]
 		///
-		/// ### Returns
-		///
-		/// A `Vec` containing all the focuses.
+		#[document_return("A `Vec` containing all the focuses.")]
 		///
 		/// ### Examples
 		///

@@ -17,6 +17,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 		std::marker::PhantomData,
 	};
@@ -50,6 +51,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The forward function.", "The backward function.")]
+		///
+		#[document_return("A new instance of the type.")]
 		///
 		/// ### Examples
 		///

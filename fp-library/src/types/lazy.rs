@@ -25,6 +25,7 @@ mod inner {
 			document_parameters,
 			document_signature,
 			document_type_parameters,
+			document_return,
 		},
 		std::{
 			cell::LazyCell,
@@ -180,9 +181,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
-		///
-		/// A new lazy cell.
+		#[document_return("A new lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -207,9 +206,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
-		///
-		/// A new fallible lazy cell.
+		#[document_return("A new fallible lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -236,9 +233,7 @@ mod inner {
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
-		/// ### Returns
-		///
-		/// A reference to the value.
+		#[document_return("A reference to the value.")]
 		///
 		/// ### Examples
 		///
@@ -264,9 +259,7 @@ mod inner {
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
-		/// ### Returns
-		///
-		/// A result containing a reference to the value or error.
+		#[document_return("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -302,9 +295,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
-		///
-		/// A new lazy cell.
+		#[document_return("A new lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -329,9 +320,7 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
-		///
-		/// A new fallible lazy cell.
+		#[document_return("A new fallible lazy cell.")]
 		///
 		/// ### Examples
 		///
@@ -358,9 +347,7 @@ mod inner {
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
-		/// ### Returns
-		///
-		/// A reference to the value.
+		#[document_return("A reference to the value.")]
 		///
 		/// ### Examples
 		///
@@ -386,9 +373,7 @@ mod inner {
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
-		/// ### Returns
-		///
-		/// A result containing a reference to the value or error.
+		#[document_return("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -469,9 +454,7 @@ mod inner {
 		/// Gets the memoized value, computing on first access.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// A reference to the memoized value.
+		#[document_return("A reference to the memoized value.")]
 		///
 		/// ### Examples
 		///
@@ -498,9 +481,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Lazy` instance.
+		#[document_return("A new `Lazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -523,9 +504,7 @@ mod inner {
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Lazy` instance containing the value.
+		#[document_return("A new `Lazy` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -573,9 +552,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Lazy` instance.
+		#[document_return("A new `Lazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -599,9 +576,7 @@ mod inner {
 		///
 		#[document_parameters("The pre-computed value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Lazy` instance containing the value.
+		#[document_return("A new `Lazy` instance containing the value.")]
 		///
 		/// ### Examples
 		///
@@ -645,9 +620,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `Lazy` value.
+		#[document_return("A new `Lazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -685,9 +658,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `ArcLazy` value.
+		#[document_return("A new `ArcLazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -722,9 +693,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The memoized value.")]
 		///
-		/// ### Returns
-		///
-		/// A new memoized value.
+		#[document_return("A new memoized value.")]
 		///
 		/// ### Examples
 		///

@@ -21,6 +21,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 		std::marker::PhantomData,
 	};
@@ -69,6 +70,7 @@ mod inner {
 		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
 		/// assert_eq!((z.run)((1, 2)), 3);
 		/// ```
+		#[document_return("A new instance of the type.")]
 		pub fn new(f: impl Fn((S, S)) -> T + 'a) -> Self {
 			Zipping {
 				run: <FnBrand as CloneableFn>::new(f),

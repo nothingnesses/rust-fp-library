@@ -23,6 +23,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -70,6 +71,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The getter/setter pair function.")]
+		///
+		#[document_return("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -524,6 +527,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The getter/setter pair function.")]
+		///
+		#[document_return("A new instance of the type.")]
 		///
 		/// ### Examples
 		///

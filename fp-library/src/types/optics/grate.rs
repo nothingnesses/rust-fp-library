@@ -22,6 +22,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -81,6 +82,8 @@ mod inner {
 		///
 		#[document_parameters("The grating function.")]
 		///
+		#[document_return("A new instance of the type.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -132,10 +135,6 @@ mod inner {
 			"The second structure."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined structure.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -156,6 +155,7 @@ mod inner {
 		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
 		/// assert_eq!(result, (11, 22));
 		/// ```
+		#[document_return("The combined structure.")]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> B + 'a,
@@ -482,6 +482,8 @@ mod inner {
 		///
 		#[document_parameters("The grating function.")]
 		///
+		#[document_return("A new instance of the type.")]
+		///
 		/// ### Examples
 		///
 		/// ```
@@ -549,10 +551,6 @@ mod inner {
 			"The second structure."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined structure.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -576,6 +574,7 @@ mod inner {
 		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
 		/// assert_eq!(result, (11, 22));
 		/// ```
+		#[document_return("The combined structure.")]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> A + 'a,

@@ -42,7 +42,7 @@ mod inner {
 			impl_kind,
 			kinds::*,
 		},
-		fp_macros::document_parameters,
+		fp_macros::{document_parameters, document_return},
 	};
 
 	impl_kind! {
@@ -69,9 +69,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
 		///
-		/// ### Returns
-		///
-		/// The wrapped function.
+		#[document_return("The wrapped function.")]
 		///
 		/// ### Examples
 		///
@@ -107,9 +105,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to wrap.", "The input value.")]
 		///
-		/// ### Returns
-		///
-		/// The wrapped cloneable function.
+		#[document_return("The wrapped cloneable function.")]
 		///
 		/// ### Examples
 		///
@@ -146,10 +142,6 @@ mod inner {
 			"The first morphism to apply (from B to C)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The composed morphism (from B to D).
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -164,6 +156,7 @@ mod inner {
 		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
 		/// assert_eq!(h(5), 12); // (5 + 1) * 2
 		/// ```
+		#[document_return("The composed morphism (from B to D).")]
 		fn compose<'a, B: 'a, C: 'a, D: 'a>(
 			f: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
 			g: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
@@ -181,9 +174,7 @@ mod inner {
 		///
 		#[document_type_parameters("The lifetime of the morphism.", "The type of the object.")]
 		///
-		/// ### Returns
-		///
-		/// The identity morphism.
+		#[document_return("The identity morphism.")]
 		///
 		/// ### Examples
 		///
@@ -226,10 +217,6 @@ mod inner {
 			"The profunctor instance."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new profunctor instance with transformed input and output types.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -245,6 +232,7 @@ mod inner {
 		/// );
 		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
+		#[document_return("A new profunctor instance with transformed input and output types.")]
 		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
@@ -274,9 +262,7 @@ mod inner {
 		///
 		#[document_parameters("The function instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A new function that operates on pairs.
+		#[document_return("A new function that operates on pairs.")]
 		///
 		/// ### Examples
 		///
@@ -314,9 +300,7 @@ mod inner {
 		///
 		#[document_parameters("The function instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A new function that operates on Result types.
+		#[document_return("A new function that operates on Result types.")]
 		///
 		/// ### Examples
 		///
@@ -361,9 +345,7 @@ mod inner {
 		///
 		#[document_parameters("The function instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A new function that operates on functions.
+		#[document_return("A new function that operates on functions.")]
 		///
 		/// ### Examples
 		///
@@ -406,9 +388,7 @@ mod inner {
 		///
 		#[document_parameters("The traversal function.", "The profunctor instance.")]
 		///
-		/// ### Returns
-		///
-		/// A new function that operates on the structure.
+		#[document_return("A new function that operates on the structure.")]
 		///
 		/// ### Examples
 		///
@@ -470,9 +450,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The wrapped thread-safe cloneable function.
+		#[document_return("The wrapped thread-safe cloneable function.")]
 		///
 		/// ### Examples
 		///

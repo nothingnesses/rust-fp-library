@@ -34,6 +34,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 		std::marker::PhantomData,
 	};
@@ -78,6 +79,8 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_parameters("The function `InnerP::Of<B, A> -> InnerP::Of<T, S>` to wrap.")]
+		///
+		#[document_return("A new instance of the type.")]
 		///
 		/// ### Examples
 		///
@@ -292,9 +295,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance operating on `Result` types.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on the unwrapped types.
+		#[document_return("A `Re` instance operating on the unwrapped types.")]
 		///
 		/// ### Examples
 		///
@@ -342,9 +343,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance operating on `Result` types.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on the unwrapped types.
+		#[document_return("A `Re` instance operating on the unwrapped types.")]
 		///
 		/// ### Examples
 		///
@@ -410,9 +409,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on `Result` types.
+		#[document_return("A `Re` instance operating on `Result` types.")]
 		///
 		/// ### Examples
 		///
@@ -463,9 +460,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on `Result` types.
+		#[document_return("A `Re` instance operating on `Result` types.")]
 		///
 		/// ### Examples
 		///
@@ -531,9 +526,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance operating on pair types.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on the unwrapped types.
+		#[document_return("A `Re` instance operating on the unwrapped types.")]
 		///
 		/// ### Examples
 		///
@@ -586,9 +579,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance operating on pair types.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on the unwrapped types.
+		#[document_return("A `Re` instance operating on the unwrapped types.")]
 		///
 		/// ### Examples
 		///
@@ -659,9 +650,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on pair types.
+		#[document_return("A `Re` instance operating on pair types.")]
 		///
 		/// ### Examples
 		///
@@ -708,9 +697,7 @@ mod inner {
 		///
 		#[document_parameters("The `Re` instance to lift.")]
 		///
-		/// ### Returns
-		///
-		/// A `Re` instance operating on pair types.
+		#[document_return("A `Re` instance operating on pair types.")]
 		///
 		/// ### Examples
 		///

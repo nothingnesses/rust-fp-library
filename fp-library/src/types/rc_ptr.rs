@@ -25,7 +25,7 @@ mod inner {
 				UnsizedCoercible,
 			},
 		},
-		fp_macros::document_parameters,
+		fp_macros::{document_parameters, document_return},
 		std::rc::Rc,
 	};
 
@@ -39,9 +39,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The value wrapped in an `Rc`.
+		#[document_return("The value wrapped in an `Rc`.")]
 		///
 		/// ### Examples
 		///
@@ -69,9 +67,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// The value wrapped in an `Rc`.
+		#[document_return("The value wrapped in an `Rc`.")]
 		///
 		/// ### Examples
 		///
@@ -98,9 +94,7 @@ mod inner {
 		///
 		#[document_parameters("The pointer to attempt to unwrap.")]
 		///
-		/// ### Returns
-		///
-		/// `Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.
+		#[document_return("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
 		/// ### Examples
 		///
@@ -130,9 +124,7 @@ mod inner {
 		///
 		#[document_parameters("The closure to coerce.")]
 		///
-		/// ### Returns
-		///
-		/// The closure wrapped in an `Rc` as a trait object.
+		#[document_return("The closure wrapped in an `Rc` as a trait object.")]
 		///
 		/// ### Examples
 		///

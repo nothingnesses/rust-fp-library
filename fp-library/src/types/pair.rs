@@ -37,6 +37,7 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -105,10 +106,6 @@ mod inner {
 			"The pair to map over."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new pair containing the mapped values.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -122,6 +119,7 @@ mod inner {
 		/// let x = Pair(1, 5);
 		/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
 		/// ```
+		#[document_return("A new pair containing the mapped values.")]
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -163,10 +161,6 @@ mod inner {
 			"The pair to map over."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new pair containing the result of applying the function to the second value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -178,6 +172,7 @@ mod inner {
 		///
 		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 		/// ```
+		#[document_return("A new pair containing the result of applying the function to the second value.")]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -212,10 +207,6 @@ mod inner {
 			"The second pair."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -234,6 +225,7 @@ mod inner {
 		/// 	Pair("ab".to_string(), 3)
 		/// );
 		/// ```
+		#[document_return("A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -262,9 +254,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A pair containing the empty value of the first type and `a`.
+		#[document_return("A pair containing the empty value of the first type and `a`.")]
 		///
 		/// ### Examples
 		///
@@ -310,10 +300,6 @@ mod inner {
 			"The pair containing the value."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new pair where the first values are combined and the function is applied to the second value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -329,6 +315,7 @@ mod inner {
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
+		#[document_return("A new pair where the first values are combined and the function is applied to the second value.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -356,9 +343,7 @@ mod inner {
 		///
 		#[document_parameters("The first pair.", "The function to apply to the second value.")]
 		///
-		/// ### Returns
-		///
-		/// A new pair where the first values are combined.
+		#[document_return("A new pair where the first values are combined.")]
 		///
 		/// ### Examples
 		///
@@ -407,9 +392,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The pair to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a, initial)`.
+		#[document_return("`func(a, initial)`.")]
 		///
 		/// ### Examples
 		///
@@ -459,10 +442,6 @@ mod inner {
 			"The identity to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `func(initial, a)`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -481,6 +460,7 @@ mod inner {
 		/// 	5
 		/// );
 		/// ```
+		#[document_return("`func(initial, a)`.")]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -507,9 +487,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The pair to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a)`.
+		#[document_return("`func(a)`.")]
 		///
 		/// ### Examples
 		///
@@ -561,10 +539,6 @@ mod inner {
 			"The pair to traverse."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The pair wrapped in the applicative context.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -579,6 +553,7 @@ mod inner {
 		/// 	Some(Pair((), 10))
 		/// );
 		/// ```
+		#[document_return("The pair wrapped in the applicative context.")]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -603,9 +578,7 @@ mod inner {
 		///
 		#[document_parameters("The pair containing the applicative value.")]
 		///
-		/// ### Returns
-		///
-		/// The pair wrapped in the applicative context.
+		#[document_return("The pair wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -652,10 +625,6 @@ mod inner {
 			"The pair to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -672,6 +641,7 @@ mod inner {
 		/// 	"1".to_string()
 		/// );
 		/// ```
+		#[document_return("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -701,10 +671,6 @@ mod inner {
 			"The pair to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -718,6 +684,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 10, x), 11);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -755,9 +722,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply to the first value.", "The pair to map over.")]
 		///
-		/// ### Returns
-		///
-		/// A new pair containing the result of applying the function to the first value.
+		#[document_return("A new pair containing the result of applying the function to the first value.")]
 		///
 		/// ### Examples
 		///
@@ -804,10 +769,6 @@ mod inner {
 			"The second pair."
 		)]
 		///
-		/// ### Returns
-		///
-		/// A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -826,6 +787,7 @@ mod inner {
 		/// 	Pair(3, "ab".to_string())
 		/// );
 		/// ```
+		#[document_return("A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`.")]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -854,9 +816,7 @@ mod inner {
 		///
 		#[document_parameters("The value to wrap.")]
 		///
-		/// ### Returns
-		///
-		/// A pair containing `a` and the empty value of the second type.
+		#[document_return("A pair containing `a` and the empty value of the second type.")]
 		///
 		/// ### Examples
 		///
@@ -902,10 +862,6 @@ mod inner {
 			"The pair containing the value (in Err)."
 		)]
 		///
-		/// ### Returns
-		///
-		/// `Err(f(a))` if both are `Err`, otherwise the first success encountered.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -921,6 +877,7 @@ mod inner {
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
+		#[document_return("`Err(f(a))` if both are `Err`, otherwise the first success encountered.")]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -948,9 +905,7 @@ mod inner {
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
 		///
-		/// ### Returns
-		///
-		/// The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.
+		#[document_return("The result of applying `f` to the error if `ma` is `Err`, otherwise the original success.")]
 		///
 		/// ### Examples
 		///
@@ -999,9 +954,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.
+		#[document_return("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -1047,9 +1000,7 @@ mod inner {
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.
+		#[document_return("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
 		/// ### Examples
 		///
@@ -1095,9 +1046,7 @@ mod inner {
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
 		///
-		/// ### Returns
-		///
-		/// `func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.
+		#[document_return("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
 		/// ### Examples
 		///
@@ -1146,9 +1095,7 @@ mod inner {
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
 		///
-		/// ### Returns
-		///
-		/// The result wrapped in the applicative context.
+		#[document_return("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1188,9 +1135,7 @@ mod inner {
 		///
 		#[document_parameters("The result containing the applicative value.")]
 		///
-		/// ### Returns
-		///
-		/// The result wrapped in the applicative context.
+		#[document_return("The result wrapped in the applicative context.")]
 		///
 		/// ### Examples
 		///
@@ -1237,10 +1182,6 @@ mod inner {
 			"The pair to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The combined monoid value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1257,6 +1198,7 @@ mod inner {
 		/// 	"1".to_string()
 		/// );
 		/// ```
+		#[document_return("The combined monoid value.")]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1286,10 +1228,6 @@ mod inner {
 			"The pair to fold."
 		)]
 		///
-		/// ### Returns
-		///
-		/// The final accumulator value.
-		///
 		/// ### Examples
 		///
 		/// ```
@@ -1303,6 +1241,7 @@ mod inner {
 		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
 		/// assert_eq!(par_fold_right::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, 10, x), 11);
 		/// ```
+		#[document_return("The final accumulator value.")]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

@@ -27,6 +27,7 @@ use {
 		document_parameters,
 		document_signature,
 		document_type_parameters,
+		document_return,
 	},
 	std::marker::PhantomData,
 };
@@ -106,6 +107,7 @@ mod inner {
 		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
 		/// ```
+		#[document_return("A new instance of the type.")]
 		pub fn new(
 			first: O1,
 			second: O2,

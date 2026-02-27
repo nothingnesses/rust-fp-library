@@ -26,6 +26,7 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -85,9 +86,7 @@ mod inner {
 		/// Gets the memoized result, computing on first access.
 		#[document_signature]
 		///
-		/// ### Returns
-		///
-		/// A result containing a reference to the value or error.
+		#[document_return("A result containing a reference to the value or error.")]
 		///
 		/// ### Examples
 		///
@@ -119,9 +118,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryLazy` instance.
+		#[document_return("A new `TryLazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -217,9 +214,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that might panic.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryLazy` instance where panics are converted to `Err(String)`.
+		#[document_return("A new `TryLazy` instance where panics are converted to `Err(String)`.")]
 		///
 		/// ### Examples
 		///
@@ -268,9 +263,7 @@ mod inner {
 		///
 		#[document_parameters("The closure that produces the result.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryLazy` instance.
+		#[document_return("A new `TryLazy` instance.")]
 		///
 		/// ### Examples
 		///
@@ -307,9 +300,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `TryLazy` value.
+		#[document_return("A new `TryLazy` value.")]
 		///
 		/// ### Examples
 		///
@@ -359,9 +350,7 @@ mod inner {
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
-		/// ### Returns
-		///
-		/// A new `ArcTryLazy` value.
+		#[document_return("A new `ArcTryLazy` value.")]
 		///
 		/// ### Examples
 		///

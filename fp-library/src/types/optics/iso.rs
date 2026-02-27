@@ -29,6 +29,7 @@ mod inner {
 		fp_macros::{
 			document_parameters,
 			document_type_parameters,
+			document_return,
 		},
 	};
 
@@ -91,6 +92,7 @@ mod inner {
 		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
 		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
 		/// ```
+		#[document_return("A new instance of the type.")]
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(B) -> T,
@@ -695,6 +697,7 @@ mod inner {
 		/// // Iso between a newtype and its inner value
 		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 		/// ```
+		#[document_return("A new instance of the type.")]
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(A) -> S,
