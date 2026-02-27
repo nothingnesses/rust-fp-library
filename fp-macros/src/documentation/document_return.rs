@@ -1,15 +1,19 @@
 use {
-	crate::core::{
-		Result as OurResult,
-		constants::attributes::DOCUMENT_RETURN,
+	crate::{
+		core::{
+			Result as OurResult,
+			constants::attributes::DOCUMENT_RETURN,
+		},
+		support::{
+			ast::RustAst,
+			generate_documentation::{
+				find_insertion_index,
+				insert_doc_comments_batch,
+			},
+		},
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
-	std::fmt::format,
-	syn::{
-		Item,
-		parse_quote,
-	},
 };
 
 /// Worker for the `document_return` macro.
@@ -18,56 +22,32 @@ pub fn document_return_worker(
 	item: TokenStream,
 ) -> OurResult<TokenStream> {
 	let description: syn::LitStr = syn::parse2(attr)?;
-	let mut item: Item = syn::parse2(item)?;
+	let mut ast = RustAst::parse(item).map_err(crate::core::Error::Parse)?;
 
-	if let Item::Fn(ref mut func) = item {
-		process_document_return_on_fn(func, &description);
+	if ast.signature().is_some() {
+		process_document_return_on_ast(&mut ast, &description);
 	} else {
 		return Err(syn::Error::new_spanned(
-			item,
+			ast,
 			format!("{DOCUMENT_RETURN} can only be applied to functions"),
 		)
 		.into());
 	}
 
-	Ok(quote!(#item))
+	Ok(quote!(#ast))
 }
 
-pub fn document_return_on_method(
-	method: &mut syn::ImplItemFn,
-	description: &str,
-) {
-	let header_comment = r#"### Returns
-"#;
-	let desc_comment = format!(
-		"{description}
-"
-	);
-
-	let header_attr: syn::Attribute = parse_quote!(#[doc = #header_comment]);
-	let desc_attr: syn::Attribute = parse_quote!(#[doc = #desc_comment]);
-
-	// Prepend docs
-	method.attrs.insert(0, desc_attr);
-	method.attrs.insert(0, header_attr);
-}
-
-fn process_document_return_on_fn(
-	func: &mut syn::ItemFn,
+fn process_document_return_on_ast(
+	ast: &mut RustAst,
 	description: &syn::LitStr,
 ) {
 	let description_value = description.value();
-	let header_comment = r#"### Returns
-"#;
-	let desc_comment = format!(
-		"{description_value}
-"
-	);
+	let docs = vec![
+		(String::new(), "### Returns\n".to_string()),
+		(String::new(), format!("{description_value}\n")),
+	];
 
-	let header_attr: syn::Attribute = parse_quote!(#[doc = #header_comment]);
-	let desc_attr: syn::Attribute = parse_quote!(#[doc = #desc_comment]);
-
-	// Prepend docs
-	func.attrs.insert(0, desc_attr);
-	func.attrs.insert(0, header_attr);
+	let attrs = ast.attributes();
+	let insert_idx = find_insertion_index(attrs, description.span());
+	insert_doc_comments_batch(attrs, docs, insert_idx);
 }

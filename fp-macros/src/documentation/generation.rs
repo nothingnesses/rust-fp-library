@@ -4,7 +4,6 @@ use {
 		core::{
 			config::Config,
 			constants::attributes::{
-				DOCUMENT_RETURN,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
 				DOCUMENT_USE,
@@ -174,40 +173,6 @@ pub(super) fn process_document_type_parameters(
 			format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
 		));
 	}
-}
-
-/// Process the `#[document_return]` attribute on a method.
-pub(super) fn process_document_return(
-	method: &mut syn::ImplItemFn,
-	attr_pos: usize,
-	errors: &mut ErrorCollector,
-) {
-	let attr = method.attrs.remove(attr_pos);
-
-	// Try to parse the arguments from the attribute
-	let description = match attr.parse_args::<syn::LitStr>() {
-		Ok(lit) => lit.value(),
-		Err(e) => {
-			errors.push(syn::Error::new(
-				attr.span(),
-				format!("Failed to parse {DOCUMENT_RETURN} argument: {e}"),
-			));
-			return;
-		}
-	};
-
-	let header_comment = r#"### Returns
-"#;
-	let desc_comment = format!(
-		"{description}
-"
-	);
-
-	let header_attr: syn::Attribute = parse_quote!(#[doc = #header_comment]);
-	let desc_attr: syn::Attribute = parse_quote!(#[doc = #desc_comment]);
-
-	method.attrs.insert(attr_pos, desc_attr);
-	method.attrs.insert(attr_pos, header_attr);
 }
 
 /// Process method-level documentation (signatures and type parameters).
