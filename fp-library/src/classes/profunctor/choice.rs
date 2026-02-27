@@ -44,6 +44,17 @@ use {
 /// that when lifting a profunctor, the alternative variants of the sum type correctly
 /// satisfy lifetime requirements relative to the profunctor's application.
 ///
+/// ### Semantic Mapping
+///
+/// This trait maps standard `Either` semantics to Rust's `Result` type as follows:
+/// * [`Choice::left`] operates on the `Err` variant (the "failure" case), treating it as the `Left` side.
+/// * [`Choice::right`] operates on the `Ok` variant (the "success" case), treating it as the `Right` side.
+///
+/// Note that this mapping is based on the semantic meaning of Success/Failure (where `Right` matches `Ok`
+/// and `Left` matches `Err`), rather than the structural order of type parameters. In `Result<T, E>`,
+/// the `Ok` variant corresponds to the first type parameter `T`, and `Err` to the second `E`.
+/// However, standard functional programming conventions typically associate `Right` with the success path.
+///
 /// ### Laws
 ///
 /// `Choice` instances must satisfy the following laws:

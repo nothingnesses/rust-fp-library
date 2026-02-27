@@ -38,7 +38,7 @@ use {
 ///
 /// ### Hierarchy Unification
 ///
-/// This trait now inherits from [`Kind_266801a817966495`], ensuring that all bifunctor
+/// This trait inherits from [`Kind_266801a817966495`], ensuring that all bifunctor
 /// contexts satisfy the strict lifetime requirements where both type arguments must
 /// outlive the context's application lifetime.
 ///

@@ -38,7 +38,7 @@ use {
 ///
 /// ### Hierarchy Unification
 ///
-/// By inheriting from both [`Category`] and [`Strong`], this trait is now part of the
+/// By inheriting from both [`Category`] and [`Strong`], this trait is part of the
 /// unified hierarchy based on [`Kind_266801a817966495`]. This ensures that any lifted
 /// pure function correctly respects lifetime bounds on its input and output types.
 ///

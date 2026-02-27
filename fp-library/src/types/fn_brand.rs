@@ -4,10 +4,17 @@
 //!
 //! ### Hierarchy Unification
 //!
-//! `FnBrand` Kind implementation has been updated to use [`Kind_266801a817966495`](crate::kinds::Kind_266801a817966495), which enforces
-//! that input and output types outlive the function wrapper's lifetime. This change allows
-//! `FnBrand` to be used consistently across the unified profunctor and arrow hierarchies, while
-//! supporting non-static types where the lifetimes are correctly tracked.
+//! `FnBrand` uses [`Kind_266801a817966495`](crate::kinds::Kind_266801a817966495), which enforces
+//! that input and output types outlive the function wrapper's lifetime. This allows `FnBrand` to
+//! be used consistently across the unified profunctor and arrow hierarchies, while supporting
+//! non-static types where the lifetimes are correctly tracked.
+//!
+//! ### Notes
+//!
+//! `FnBrand` does **not** implement `Cochoice` or `Costrong`:
+//!
+//! **`Cochoice`**: `unleft` would need to extract `A -> B` from `Result<C, A> -> Result<C, B>`. In Rust's `Result`, the second type parameter is `Err` (Failure), which semantically maps to the `Left` side of `Either` in this library's conventions. Implementing this is unsound for arbitrary functions because strict functions can inspect the `Ok(C)` (Right) variant or return `Ok(C)` even when given `Err(A)` (Left), violating the profunctor morphism structure required to extract the `A -> B` function.
+//! **`Costrong`**: Implementing `unfirst` (`((a, c) -> (b, c)) -> (a -> b)`) is unsafe in a strict language like Rust. It requires a fixed-point iteration where the output `c` is fed back as input `c`. Since functions are strict, this would require reading uninitialized memory (UB) or non-termination if implemented naively. While lazy types like `Trampoline` can support this pattern manually, a generic `Costrong` instance cannot be safely provided for `Fn(A) -> B`.
 
 #[fp_macros::document_module]
 mod inner {

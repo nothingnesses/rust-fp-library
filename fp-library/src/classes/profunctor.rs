@@ -43,12 +43,16 @@ use {
 pub use {
 	choice::*,
 	closed::*,
+	cochoice::*,
+	costrong::*,
 	strong::*,
 	wander::*,
 };
 
 pub mod choice;
 pub mod closed;
+pub mod cochoice;
+pub mod costrong;
 pub mod strong;
 pub mod wander;
 

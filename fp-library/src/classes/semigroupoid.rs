@@ -34,7 +34,7 @@ use {
 ///
 /// ### Hierarchy Unification
 ///
-/// This trait now inherits from [`Kind_266801a817966495`], which uses the strict Kind signature
+/// This trait inherits from [`Kind_266801a817966495`], which uses the strict Kind signature
 /// `type Of<'a, T: 'a, U: 'a>: 'a;`. This unification ensures that all profunctors and arrows
 /// share a consistent higher-kinded representation, and requires that the source and target
 /// types of a morphism outlive the morphism's application lifetime.
