@@ -7,6 +7,7 @@
 //! - #[document_fields] - Field documentation
 //! - #[document_module] - Module-level orchestration
 
+pub mod document_examples;
 pub mod document_fields;
 pub mod document_module;
 pub mod document_parameters;
@@ -17,6 +18,7 @@ pub mod generation;
 pub mod templates;
 
 pub use {
+	document_examples::document_examples_worker,
 	document_fields::document_fields_worker,
 	document_module::document_module_worker,
 	document_parameters::document_parameters_worker,

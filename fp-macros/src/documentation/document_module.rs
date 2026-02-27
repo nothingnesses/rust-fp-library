@@ -7,6 +7,7 @@ use {
 			config::Config,
 			constants::attributes::{
 				DOCUMENT_ATTR_ORDER,
+				DOCUMENT_EXAMPLES,
 				DOCUMENT_MODULE,
 				DOCUMENT_PARAMETERS,
 				DOCUMENT_RETURNS,
@@ -455,6 +456,16 @@ fn validate_method_documentation(
 			warnings.push(warning);
 		}
 	}
+
+	// Check for document_examples (required on all methods)
+	if !has_attribute(&method.attrs, DOCUMENT_EXAMPLES) {
+		warnings.push(syn::Error::new(
+			method.span(),
+			format!(
+				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function annotated by the attribute",
+			),
+		));
+	}
 }
 
 /// Validate that an impl block has appropriate documentation attributes.
@@ -506,11 +517,27 @@ fn validate_impl_documentation(
 	}
 }
 
+/// Validate that a free function has a `document_examples` attribute.
+fn validate_fn_documentation(
+	item_fn: &syn::ItemFn,
+	warnings: &mut ErrorCollector,
+) {
+	let fn_name = &item_fn.sig.ident;
+	if !has_attribute(&item_fn.attrs, DOCUMENT_EXAMPLES) {
+		warnings.push(syn::Error::new(
+			item_fn.span(),
+			format!(
+				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function annotated by the attribute",
+			),
+		));
+	}
+}
+
 /// Validate documentation attributes on all items.
 ///
-/// This function checks that impl blocks and methods have appropriate
-/// documentation attributes based on their characteristics (type parameters,
-/// parameters, etc.).
+/// This function checks that impl blocks, their methods, and free functions have
+/// appropriate documentation attributes based on their characteristics (type
+/// parameters, parameters, etc.).
 ///
 /// Returns a list of warnings (as syn::Error objects) that can be emitted
 /// or collected for reporting.
@@ -518,8 +545,10 @@ fn validate_documentation(items: &[Item]) -> Vec<syn::Error> {
 	let mut warnings = ErrorCollector::new();
 
 	for item in items {
-		if let Item::Impl(item_impl) = item {
-			validate_impl_documentation(item_impl, &mut warnings);
+		match item {
+			Item::Impl(item_impl) => validate_impl_documentation(item_impl, &mut warnings),
+			Item::Fn(item_fn) => validate_fn_documentation(item_fn, &mut warnings),
+			_ => {}
 		}
 	}
 

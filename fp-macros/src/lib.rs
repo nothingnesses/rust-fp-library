@@ -26,6 +26,7 @@ use {
 		generate_re_exports_worker,
 	},
 	documentation::{
+		document_examples_worker,
 		document_fields_worker,
 		document_module_worker,
 		document_parameters_worker,
@@ -720,6 +721,62 @@ pub fn document_returns(
 	item: TokenStream,
 ) -> TokenStream {
 	match document_returns_worker(attr.into(), item.into()) {
+		Ok(tokens) => tokens.into(),
+		Err(e) => e.to_compile_error().into(),
+	}
+}
+
+/// Generates an Examples section in a function's documentation.
+///
+/// This macro adds a fenced code block under a `### Examples` heading.
+/// The provided string must contain at least one assertion macro invocation
+/// (e.g., `assert_eq!`, `assert!`, etc.).
+///
+/// ### Syntax
+///
+/// ```ignore
+/// #[document_examples(r#"
+///     let result = add(1, 2);
+///     assert_eq!(result, 3);
+/// "#)]
+/// pub fn add(x: i32, y: i32) -> i32 { ... }
+/// ```
+///
+/// ### Generates
+///
+/// A `### Examples` heading followed by a fenced code block containing the
+/// provided string.
+///
+/// ### Examples
+///
+/// ```ignore
+/// // Invocation
+/// #[document_examples(r#"
+///     let result = add(1, 2);
+///     assert_eq!(result, 3);
+/// "#)]
+/// pub fn add(x: i32, y: i32) -> i32 { x + y }
+///
+/// // Expanded code
+/// /// ### Examples
+/// ///
+/// /// ```
+/// ///     let result = add(1, 2);
+/// ///     assert_eq!(result, 3);
+/// /// ```
+/// pub fn add(x: i32, y: i32) -> i32 { x + y }
+/// ```
+///
+/// ### Errors
+///
+/// * No string argument is provided.
+/// * The string does not contain an assertion macro invocation.
+#[proc_macro_attribute]
+pub fn document_examples(
+	attr: TokenStream,
+	item: TokenStream,
+) -> TokenStream {
+	match document_examples_worker(attr.into(), item.into()) {
 		Ok(tokens) => tokens.into(),
 		Err(e) => e.to_compile_error().into(),
 	}

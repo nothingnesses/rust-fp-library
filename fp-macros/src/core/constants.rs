@@ -69,6 +69,19 @@ pub mod macros {
 	pub const TRAIT_KIND_MACRO: &str = "trait_kind";
 	/// The `impl_kind!` macro
 	pub const IMPL_KIND_MACRO: &str = "impl_kind";
+	/// Assertion macros that doc examples must invoke at least once.
+	///
+	/// Each entry is the macro name including its trailing `!` so a simple
+	/// substring search on the example string is sufficient.
+	pub const ASSERTION_MACROS: &[&str] = &[
+		"assert!",
+		"assert_eq!",
+		"assert_ne!",
+		"debug_assert!",
+		"debug_assert_eq!",
+		"debug_assert_ne!",
+		"assert_matches!",
+	];
 }
 
 /// Markers and suffixes used for internal analysis
