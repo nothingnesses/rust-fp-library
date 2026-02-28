@@ -87,7 +87,7 @@ mod forget;
 mod getter;
 mod grate;
 mod grating;
-mod helpers;
+mod functions;
 mod iso;
 mod lens;
 mod market;
@@ -110,7 +110,7 @@ pub use {
 	getter::*,
 	grate::*,
 	grating::*,
-	helpers::*,
+	functions::*,
 	iso::*,
 	lens::*,
 	market::*,
