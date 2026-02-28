@@ -368,28 +368,28 @@ fn validate_doc_attr_order(
 	// their attribute positions must satisfy pos[i] < pos[j].
 	for i in 0 .. DOCUMENT_ATTR_ORDER.len() {
 		for j in (i + 1) .. DOCUMENT_ATTR_ORDER.len() {
-			if let (Some(pos_i), Some(pos_j)) = (positions[i], positions[j]) {
-				if pos_i > pos_j {
-					warnings.push(syn::Error::new(
-						item_span,
-						format!(
-							"{item_label} has `#[{}]` before `#[{}]`, but the required order is: {}",
-							DOCUMENT_ATTR_ORDER[j],
-							DOCUMENT_ATTR_ORDER[i],
-							DOCUMENT_ATTR_ORDER
-								.iter()
-								.filter(|name| positions
-									[DOCUMENT_ATTR_ORDER.iter().position(|n| n == *name).unwrap()]
-								.is_some())
-								.copied()
-								.map(|n| format!("`#[{n}]`"))
-								.collect::<Vec<_>>()
-								.join(" → "),
-						),
-					));
-					// Report at most one ordering violation per item to avoid noise.
-					return;
-				}
+			if let (Some(pos_i), Some(pos_j)) = (positions[i], positions[j])
+				&& pos_i > pos_j
+			{
+				warnings.push(syn::Error::new(
+					item_span,
+					format!(
+						"{item_label} has `#[{}]` before `#[{}]`, but the required order is: {}",
+						DOCUMENT_ATTR_ORDER[j],
+						DOCUMENT_ATTR_ORDER[i],
+						DOCUMENT_ATTR_ORDER
+							.iter()
+							.filter(|name| positions
+								[DOCUMENT_ATTR_ORDER.iter().position(|n| n == *name).unwrap()]
+							.is_some())
+							.copied()
+							.map(|n| format!("`#[{n}]`"))
+							.collect::<Vec<_>>()
+							.join(" → "),
+					),
+				));
+				// Report at most one ordering violation per item to avoid noise.
+				return;
 			}
 		}
 	}
@@ -445,16 +445,16 @@ fn validate_method_documentation(
 	}
 
 	// Check for document_returns if method has a return type
-	if let syn::ReturnType::Type(..) = method.sig.output {
-		if !has_attribute(&method.attrs, DOCUMENT_RETURNS) {
-			let warning = syn::Error::new(
-				method.span(),
-				format!(
-					"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURNS}] attribute",
-				),
-			);
-			warnings.push(warning);
-		}
+	if let syn::ReturnType::Type(..) = method.sig.output
+		&& !has_attribute(&method.attrs, DOCUMENT_RETURNS)
+	{
+		let warning = syn::Error::new(
+			method.span(),
+			format!(
+				"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURNS}] attribute",
+			),
+		);
+		warnings.push(warning);
 	}
 
 	// Check for document_examples (required on all methods)
@@ -462,7 +462,7 @@ fn validate_method_documentation(
 		warnings.push(syn::Error::new(
 			method.span(),
 			format!(
-				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function annotated by the attribute",
+				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function",
 			),
 		));
 	}
@@ -527,7 +527,7 @@ fn validate_fn_documentation(
 		warnings.push(syn::Error::new(
 			item_fn.span(),
 			format!(
-				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function annotated by the attribute",
+				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function",
 			),
 		));
 	}

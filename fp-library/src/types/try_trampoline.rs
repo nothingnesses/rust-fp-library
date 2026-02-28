@@ -26,6 +26,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_fields,
 			document_parameters,
 			document_returns,
@@ -40,14 +41,6 @@ mod inner {
 	///
 	#[document_fields("The internal `Trampoline` wrapping a `Result`.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::*;
-	///
-	/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10);
-	/// assert_eq!(task.evaluate(), Ok(10));
-	/// ```
 	pub struct TryTrampoline<A: 'static, E: 'static>(Trampoline<Result<A, E>>);
 
 	#[document_type_parameters("The type of the success value.", "The type of the error value.")]
@@ -60,14 +53,12 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` representing success.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		pub fn ok(a: A) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(a)))
 		}
@@ -79,14 +70,12 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` representing failure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
-		/// assert_eq!(task.evaluate(), Err("error".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::err("error".to_string());
+assert_eq!(task.evaluate(), Err("error".to_string()));"#
+		)]
 		pub fn err(e: E) -> Self {
 			TryTrampoline(Trampoline::pure(Err(e)))
 		}
@@ -100,14 +89,12 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` that executes `f` when run.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Result<A, E> + 'static, {
@@ -125,14 +112,6 @@ mod inner {
 		///
 		#[document_returns("A `TryTrampoline` that executes `f` to get the next step.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
 		///
 		/// Stack-safe recursion:
 		///
@@ -155,6 +134,12 @@ mod inner {
 		/// let task = factorial(5, 1);
 		/// assert_eq!(task.evaluate(), Ok(120));
 		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		pub fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> TryTrampoline<A, E> + 'static, {
@@ -173,14 +158,12 @@ mod inner {
 		///
 		#[document_returns("A new `TryTrampoline` with the transformed success value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
-		/// assert_eq!(task.evaluate(), Ok(20));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
+assert_eq!(task.evaluate(), Ok(20));"#
+		)]
 		pub fn map<B: 'static + Send, Func>(
 			self,
 			func: Func,
@@ -202,15 +185,13 @@ mod inner {
 		///
 		#[document_returns("A new `TryTrampoline` with the transformed error value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> =
-		/// 	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
-		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> =
+	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
+assert_eq!(task.evaluate(), Err("ERROR".to_string()));"#
+		)]
 		pub fn map_err<E2: 'static + Send, Func>(
 			self,
 			func: Func,
@@ -232,14 +213,12 @@ mod inner {
 		///
 		#[document_returns("A new `TryTrampoline` that chains `f` after this task.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
-		/// assert_eq!(task.evaluate(), Ok(20));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
+assert_eq!(task.evaluate(), Ok(20));"#
+		)]
 		pub fn bind<B: 'static + Send, F>(
 			self,
 			f: F,
@@ -261,15 +240,13 @@ mod inner {
 		///
 		#[document_returns("A new `TryTrampoline` that attempts to recover from failure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> =
-		/// 	TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> =
+	TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		pub fn catch<F>(
 			self,
 			f: F,
@@ -287,14 +264,12 @@ mod inner {
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let task: TryTrampoline<i32, String> = TryTrampoline::ok(42);
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		pub fn evaluate(self) -> Result<A, E> {
 			self.0.evaluate()
 		}
@@ -310,6 +285,12 @@ mod inner {
 		#[document_parameters("The trampoline computation to convert.")]
 		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the trampoline.")]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let task = Trampoline::pure(42);
+let try_task: TryTrampoline<i32, ()> = TryTrampoline::from(task);
+assert_eq!(try_task.evaluate(), Ok(42));"#
+		)]
 		fn from(task: Trampoline<A>) -> Self {
 			TryTrampoline(task.map(Ok))
 		}
@@ -330,6 +311,12 @@ mod inner {
 		#[document_parameters("The lazy value to convert.")]
 		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the lazy value.")]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+let try_task: TryTrampoline<i32, ()> = TryTrampoline::from(lazy);
+assert_eq!(try_task.evaluate(), Ok(42));"#
+		)]
 		fn from(memo: Lazy<'static, A, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(Ok(memo.evaluate().clone())))
 		}
@@ -350,6 +337,12 @@ mod inner {
 		#[document_parameters("The fallible lazy value to convert.")]
 		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the fallible lazy value.")]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let lazy = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+let try_task = TryTrampoline::from(lazy);
+assert_eq!(try_task.evaluate(), Ok(42));"#
+		)]
 		fn from(memo: TryLazy<'static, A, E, Config>) -> Self {
 			TryTrampoline(Trampoline::pure(memo.evaluate().cloned().map_err(Clone::clone)))
 		}
@@ -370,19 +363,17 @@ mod inner {
 		///
 		#[document_returns("The deferred value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::Deferrable,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
-		/// assert_eq!(task.evaluate(), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::Deferrable,
+	functions::*,
+	types::*,
+};
+
+let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
+assert_eq!(task.evaluate(), Ok(42));"#
+		)]
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,

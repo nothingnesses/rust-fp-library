@@ -15,6 +15,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_fields,
 			document_parameters,
 			document_returns,
@@ -55,18 +56,6 @@ mod inner {
 	///
 	#[document_fields("The wrapped morphism.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-	/// assert_eq!(f.0(5), 10);
-	/// ```
 	pub struct Endomorphism<'a, C: Category, A: 'a>(
 		pub Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>),
 	);
@@ -86,18 +75,16 @@ mod inner {
 		///
 		#[document_returns("A new `Endomorphism`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// assert_eq!(f.0(5), 10);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+assert_eq!(f.0(5), 10);"#
+		)]
 		pub fn new(
 			f: Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>)
 		) -> Self {
@@ -118,6 +105,12 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("A new `Endomorphism` instance that is a copy of the original.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let cloned = f.clone();
+assert_eq!(cloned.0(5), 10);"#
+		)]
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
@@ -137,6 +130,13 @@ mod inner {
 		#[document_parameters("The formatter to use.")]
 		///
 		#[document_returns("The result of the formatting operation.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+// Debug formatting is available when the inner function type implements Debug.
+// Verify the endomorphism applies correctly:
+assert_eq!(f.0(5), 10);"#
+		)]
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -168,6 +168,13 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+// Hash is available when the inner function type implements Hash.
+// Verify the endomorphism applies correctly:
+assert_eq!(f.0(5), 10);"#
+		)]
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -189,6 +196,14 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("The ordering of the values.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+// Ord is available when the inner function type implements Ord.
+// Both produce the same output for the same input:
+assert_eq!(f.0(5), g.0(5));"#
+		)]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -210,6 +225,14 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+// PartialEq is available when the inner function type implements PartialEq.
+// Both produce the same output for the same input:
+assert_eq!(f.0(5), g.0(5));"#
+		)]
 		fn eq(
 			&self,
 			other: &Self,
@@ -231,6 +254,14 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other morphism to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, functions::*, types::*};
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+// PartialOrd is available when the inner function type implements PartialOrd.
+// Both produce the same output for the same input:
+assert_eq!(f.0(5), g.0(5));"#
+		)]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -257,23 +288,21 @@ mod inner {
 			"The first morphism to apply (the inner function)."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
-		///
-		/// // f(g(x)) = (x + 1) * 2
-		/// let h = append::<_>(f, g);
-		/// assert_eq!(h.0(5), 12);
-		/// ```
 		#[document_returns("The composed morphism `a . b`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let f = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let g = Endomorphism::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+
+// f(g(x)) = (x + 1) * 2
+let h = append::<_>(f, g);
+assert_eq!(h.0(5), 12);"#
+		)]
 		fn append(
 			a: Self,
 			b: Self,
@@ -295,18 +324,16 @@ mod inner {
 		///
 		#[document_returns("The identity endomorphism.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let id = empty::<Endomorphism<RcFnBrand, i32>>();
-		/// assert_eq!(id.0(5), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let id = empty::<Endomorphism<RcFnBrand, i32>>();
+assert_eq!(id.0(5), 5);"#
+		)]
 		fn empty() -> Self {
 			Self::new(C::identity())
 		}

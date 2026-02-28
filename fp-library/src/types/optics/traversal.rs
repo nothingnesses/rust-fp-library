@@ -19,6 +19,7 @@ mod inner {
 			types::optics::ForgetBrand,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -74,49 +75,47 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::traversal::TraversalFunc,
-		/// 		pointed::Pointed,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::Traversal,
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// assert_eq!(
-		/// 	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
-		/// 	Some(vec![2, 3])
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::traversal::TraversalFunc,
+		pointed::Pointed,
+	},
+	kinds::*,
+	types::optics::Traversal,
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+assert_eq!(
+	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
+	Some(vec![2, 3])
+);"#
+		)]
 		pub fn new(traversal: F) -> Self {
 			Traversal {
 				traversal,
@@ -165,49 +164,47 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::traversal::TraversalFunc,
-		/// 		pointed::Pointed,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::TraversalPrime,
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = TraversalPrime::<'_, RcBrand, Vec<i32>, i32, _>::new(ListTraversal);
-		/// assert_eq!(
-		/// 	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
-		/// 	Some(vec![2, 3])
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::traversal::TraversalFunc,
+		pointed::Pointed,
+	},
+	kinds::*,
+	types::optics::TraversalPrime,
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = TraversalPrime::<'_, RcBrand, Vec<i32>, i32, _>::new(ListTraversal);
+assert_eq!(
+	traversal.traversal.apply::<OptionBrand>(Box::new(|x| Some(x + 1)), vec![1, 2]),
+	Some(vec![2, 3])
+);"#
+		)]
 		pub fn new(traversal: F) -> Self {
 			TraversalPrime {
 				traversal,
@@ -244,53 +241,51 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::{
-		/// 			traversal::TraversalFunc,
-		/// 			*,
-		/// 		},
-		/// 		pointed::Pointed,
-		/// 		profunctor::*,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::Traversal,
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-		/// 	Optic::<'_, RcFnBrand, _, _, _, _>::evaluate(&traversal, f);
-		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::{
+			traversal::TraversalFunc,
+			*,
+		},
+		pointed::Pointed,
+		profunctor::*,
+	},
+	kinds::*,
+	types::optics::Traversal,
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+	Optic::<'_, RcFnBrand, _, _, _, _>::evaluate(&traversal, f);
+assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -324,53 +319,51 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::{
-		/// 			traversal::TraversalFunc,
-		/// 			*,
-		/// 		},
-		/// 		pointed::Pointed,
-		/// 		profunctor::*,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::Traversal,
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-		/// 	TraversalOptic::evaluate::<RcFnBrand>(&traversal, f);
-		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::{
+			traversal::TraversalFunc,
+			*,
+		},
+		pointed::Pointed,
+		profunctor::*,
+	},
+	kinds::*,
+	types::optics::Traversal,
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+	TraversalOptic::evaluate::<RcFnBrand>(&traversal, f);
+assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
+		)]
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -402,55 +395,53 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::{
-		/// 			traversal::TraversalFunc,
-		/// 			*,
-		/// 		},
-		/// 		pointed::Pointed,
-		/// 		profunctor::*,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::{
-		/// 		Forget,
-		/// 		Traversal,
-		/// 	},
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-		/// let result = FoldOptic::evaluate(&traversal, f);
-		/// assert_eq!(result.run(vec![1, 2]), "12".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::{
+			traversal::TraversalFunc,
+			*,
+		},
+		pointed::Pointed,
+		profunctor::*,
+	},
+	kinds::*,
+	types::optics::{
+		Forget,
+		Traversal,
+	},
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
+let result = FoldOptic::evaluate(&traversal, f);
+assert_eq!(result.run(vec![1, 2]), "12".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -485,53 +476,51 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	Apply,
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Applicative,
-		/// 		lift::Lift,
-		/// 		optics::{
-		/// 			traversal::TraversalFunc,
-		/// 			*,
-		/// 		},
-		/// 		pointed::Pointed,
-		/// 		profunctor::*,
-		/// 	},
-		/// 	kinds::*,
-		/// 	types::optics::Traversal,
-		/// };
-		///
-		/// #[derive(Clone)]
-		/// struct ListTraversal;
-		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-		/// 	fn apply<M: Applicative>(
-		/// 		&self,
-		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		/// 		s: Vec<A>,
-		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-		/// 			M::lift2(
-		/// 				|mut v: Vec<A>, x: A| {
-		/// 					v.push(x);
-		/// 					v
-		/// 				},
-		/// 				acc,
-		/// 				f(a),
-		/// 			)
-		/// 		})
-		/// 	}
-		/// }
-		///
-		/// let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&traversal, f);
-		/// assert_eq!(result(vec![1, 2]), vec![2, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	Apply,
+	brands::*,
+	classes::{
+		Applicative,
+		lift::Lift,
+		optics::{
+			traversal::TraversalFunc,
+			*,
+		},
+		pointed::Pointed,
+		profunctor::*,
+	},
+	kinds::*,
+	types::optics::Traversal,
+};
+
+#[derive(Clone)]
+struct ListTraversal;
+impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	fn apply<M: Applicative>(
+		&self,
+		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		s: Vec<A>,
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+			M::lift2(
+				|mut v: Vec<A>, x: A| {
+					v.push(x);
+					v
+				},
+				acc,
+				f(a),
+			)
+		})
+	}
+}
+
+let traversal = Traversal::<'_, RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&traversal, f);
+assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),

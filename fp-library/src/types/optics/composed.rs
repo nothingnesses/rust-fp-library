@@ -24,6 +24,7 @@ use {
 		},
 	},
 	fp_macros::{
+		document_examples,
 		document_parameters,
 		document_returns,
 		document_signature,
@@ -78,36 +79,34 @@ mod inner {
 			"The inner optic (applied first)."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
-		/// let composed = Composed::new(l1, l2);
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	LensPrime<RcBrand, i32, i32>,
-		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
 		#[document_returns("A new instance of the type.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
+let composed = Composed::new(l1, l2);
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	LensPrime<RcBrand, i32, i32>,
+> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		pub fn new(
 			first: O1,
 			second: O2,
@@ -145,35 +144,33 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
-		/// let composed = Composed::new(l1, l2);
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	LensPrime<RcBrand, i32, i32>,
-		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, x)| x);
+let composed = Composed::new(l1, l2);
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	LensPrime<RcBrand, i32, i32>,
+> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -207,33 +204,31 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let iso1: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
-		/// let iso2: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
-		/// let composed = Composed::new(iso1, iso2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	IsoPrime<RcBrand, i32, i32>,
-		/// 	IsoPrime<RcBrand, i32, i32>,
-		/// > as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
-		/// assert_eq!(modifier(21), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let iso1: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
+let iso2: IsoPrime<RcBrand, i32, i32> = IsoPrime::new(|x| x, |x| x);
+let composed = Composed::new(iso1, iso2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	i32,
+	i32,
+	i32,
+	i32,
+	i32,
+	i32,
+	IsoPrime<RcBrand, i32, i32>,
+	IsoPrime<RcBrand, i32, i32>,
+> as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
+assert_eq!(modifier(21), 42);"#
+		)]
 		fn evaluate<P: Profunctor>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -266,36 +261,34 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
-		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	LensPrime<RcBrand, i32, i32>,
-		/// > as LensOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
-		/// 	&composed, f
-		/// );
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	LensPrime<RcBrand, i32, i32>,
+> as LensOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
+	&composed, f
+);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		fn evaluate<P: Strong>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -328,34 +321,32 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let p1: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
-		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
-		/// let composed = Composed::new(p1, p2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier =
-		/// 	<Composed<
-		/// 		'_,
-		/// 		Option<i32>,
-		/// 		Option<i32>,
-		/// 		i32,
-		/// 		i32,
-		/// 		i32,
-		/// 		i32,
-		/// 		PrismPrime<RcBrand, Option<i32>, i32>,
-		/// 		PrismPrime<RcBrand, i32, i32>,
-		/// 	> as PrismOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let p1: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
+let composed = Composed::new(p1, p2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier =
+	<Composed<
+		'_,
+		Option<i32>,
+		Option<i32>,
+		i32,
+		i32,
+		i32,
+		i32,
+		PrismPrime<RcBrand, Option<i32>, i32>,
+		PrismPrime<RcBrand, i32, i32>,
+	> as PrismOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
+assert_eq!(modifier(Some(21)), Some(42));"#
+		)]
 		fn evaluate<P: Choice>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -388,37 +379,35 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
-		/// let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
-		/// let composed = Composed::new(l1, p2);
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	PrismPrime<RcBrand, i32, i32>,
-		/// > as AffineTraversalOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
-		/// 	&composed, f,
-		/// );
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _): (i32, String)| x, |((_, s), x)| (x, s));
+let p2: PrismPrime<RcBrand, i32, i32> = PrismPrime::from_option(Some, |x| x);
+let composed = Composed::new(l1, p2);
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	PrismPrime<RcBrand, i32, i32>,
+> as AffineTraversalOptic<(i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(
+	&composed, f,
+);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		fn evaluate<P: Strong + Choice>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -451,35 +440,33 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Composition combines two optics
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
-		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	LensPrime<RcBrand, i32, i32>,
-		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+// Composition combines two optics
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	LensPrime<RcBrand, i32, i32>,
+> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		fn evaluate<P: Wander>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -513,33 +500,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let g1: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-		/// let g2: GetterPrime<RcBrand, i32, i32> = GetterPrime::new(|x| x);
-		/// let composed = Composed::new(g1, g2);
-		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-		/// let folded = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	GetterPrime<RcBrand, (i32, String), i32>,
-		/// 	GetterPrime<RcBrand, i32, i32>,
-		/// > as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
-		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let g1: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+let g2: GetterPrime<RcBrand, i32, i32> = GetterPrime::new(|x| x);
+let composed = Composed::new(g1, g2);
+let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+let folded = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	GetterPrime<RcBrand, (i32, String), i32>,
+	GetterPrime<RcBrand, i32, i32>,
+> as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
+assert_eq!(folded.run((42, "hi".to_string())), 42);"#
+		)]
 		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -571,36 +556,34 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		Monoid,
-		/// 		optics::*,
-		/// 	},
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		/// let f1: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
-		/// let f2: FoldPrime<RcBrand, i32, i32, _> =
-		/// 	FoldPrime::new(IterableFoldFn(|x: i32| std::iter::once(x)));
-		/// let composed = Composed::new(f1, f2);
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <Composed<
-		/// 	'_,
-		/// 	Vec<i32>,
-		/// 	Vec<i32>,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	FoldPrime<RcBrand, Vec<i32>, i32, _>,
-		/// 	FoldPrime<RcBrand, i32, i32, _>,
-		/// > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
-		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		Monoid,
+		optics::*,
+	},
+	functions::*,
+	types::optics::*,
+};
+let f1: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+let f2: FoldPrime<RcBrand, i32, i32, _> =
+	FoldPrime::new(IterableFoldFn(|x: i32| std::iter::once(x)));
+let composed = Composed::new(f1, f2);
+let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+let folded = <Composed<
+	'_,
+	Vec<i32>,
+	Vec<i32>,
+	i32,
+	i32,
+	i32,
+	i32,
+	FoldPrime<RcBrand, Vec<i32>, i32, _>,
+	FoldPrime<RcBrand, i32, i32, _>,
+> as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
+assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -637,36 +620,34 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let s1: SetterPrime<RcBrand, (i32, String), i32> =
-		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-		/// let s2: SetterPrime<RcBrand, i32, i32> =
-		/// 	SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
-		/// let composed = Composed::new(s1, s2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier =
-		/// 	<Composed<
-		/// 		'_,
-		/// 		(i32, String),
-		/// 		(i32, String),
-		/// 		i32,
-		/// 		i32,
-		/// 		i32,
-		/// 		i32,
-		/// 		SetterPrime<RcBrand, (i32, String), i32>,
-		/// 		SetterPrime<RcBrand, i32, i32>,
-		/// 	> as SetterOptic<RcBrand, (i32, String), (i32, String), i32, i32>>::evaluate(&composed, f);
-		/// assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let s1: SetterPrime<RcBrand, (i32, String), i32> =
+	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+let s2: SetterPrime<RcBrand, i32, i32> =
+	SetterPrime::new(|(s, f): (i32, Box<dyn Fn(i32) -> i32>)| f(s));
+let composed = Composed::new(s1, s2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier =
+	<Composed<
+		'_,
+		(i32, String),
+		(i32, String),
+		i32,
+		i32,
+		i32,
+		i32,
+		SetterPrime<RcBrand, (i32, String), i32>,
+		SetterPrime<RcBrand, i32, i32>,
+	> as SetterOptic<RcBrand, (i32, String), (i32, String), i32, i32>>::evaluate(&composed, f);
+assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -700,33 +681,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let r1: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// let r2: ReviewPrime<RcBrand, i32, i32> = ReviewPrime::new(|x| x);
-		/// let composed = Composed::new(r1, r2);
-		/// let f = Tagged::new(21);
-		/// let reviewed = <Composed<
-		/// 	'_,
-		/// 	Option<i32>,
-		/// 	Option<i32>,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	ReviewPrime<RcBrand, Option<i32>, i32>,
-		/// 	ReviewPrime<RcBrand, i32, i32>,
-		/// > as ReviewOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate(&composed, f);
-		/// assert_eq!(reviewed.0, Some(21));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let r1: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+let r2: ReviewPrime<RcBrand, i32, i32> = ReviewPrime::new(|x| x);
+let composed = Composed::new(r1, r2);
+let f = Tagged::new(21);
+let reviewed = <Composed<
+	'_,
+	Option<i32>,
+	Option<i32>,
+	i32,
+	i32,
+	i32,
+	i32,
+	ReviewPrime<RcBrand, Option<i32>, i32>,
+	ReviewPrime<RcBrand, i32, i32>,
+> as ReviewOptic<Option<i32>, Option<i32>, i32, i32>>::evaluate(&composed, f);
+assert_eq!(reviewed.0, Some(21));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -760,35 +739,33 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Composition works with lenses too
-		/// let l1: LensPrime<RcBrand, (i32, String), i32> =
-		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-		/// let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
-		/// let composed = Composed::new(l1, l2);
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <Composed<
-		/// 	'_,
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	i32,
-		/// 	LensPrime<RcBrand, (i32, String), i32>,
-		/// 	LensPrime<RcBrand, i32, i32>,
-		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
-		/// assert_eq!(modifier((21, "test".to_string())), (42, "test".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+// Composition works with lenses too
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x| x, |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	LensPrime<RcBrand, i32, i32>,
+> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
+assert_eq!(modifier((21, "test".to_string())), (42, "test".to_string()));"#
+		)]
 		fn evaluate<P: Closed<FP>>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -821,61 +798,59 @@ mod inner {
 	///
 	#[document_parameters("The outer optic (applied second).", "The inner optic (applied first).")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	classes::optics::*,
-	/// 	functions::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// #[derive(Clone, Debug, PartialEq)]
-	/// struct Address {
-	/// 	street: String,
-	/// }
-	/// #[derive(Clone, Debug, PartialEq)]
-	/// struct User {
-	/// 	address: Address,
-	/// }
-	///
-	/// let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
-	/// 	|u: User| u.address.clone(),
-	/// 	|(_, a)| User {
-	/// 		address: a,
-	/// 	},
-	/// );
-	/// let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::from_view_set(
-	/// 	|a: Address| a.street.clone(),
-	/// 	|(_, s)| Address {
-	/// 		street: s,
-	/// 	},
-	/// );
-	///
-	/// let user_street = optics_compose(address_lens, street_lens);
-	/// let user = User {
-	/// 	address: Address {
-	/// 		street: "High St".to_string(),
-	/// 	},
-	/// };
-	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
-	/// let modifier = <Composed<
-	/// 	'_,
-	/// 	User,
-	/// 	User,
-	/// 	Address,
-	/// 	Address,
-	/// 	String,
-	/// 	String,
-	/// 	LensPrime<RcBrand, User, Address>,
-	/// 	LensPrime<RcBrand, Address, String>,
-	/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&user_street, f);
-	/// let updated = modifier(user);
-	///
-	/// assert_eq!(updated.address.street, "HIGH ST");
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+#[derive(Clone, Debug, PartialEq)]
+struct Address {
+	street: String,
+}
+#[derive(Clone, Debug, PartialEq)]
+struct User {
+	address: Address,
+}
+
+let address_lens: LensPrime<RcBrand, User, Address> = LensPrime::from_view_set(
+	|u: User| u.address.clone(),
+	|(_, a)| User {
+		address: a,
+	},
+);
+let street_lens: LensPrime<RcBrand, Address, String> = LensPrime::from_view_set(
+	|a: Address| a.street.clone(),
+	|(_, s)| Address {
+		street: s,
+	},
+);
+
+let user_street = optics_compose(address_lens, street_lens);
+let user = User {
+	address: Address {
+		street: "High St".to_string(),
+	},
+};
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.to_uppercase());
+let modifier = <Composed<
+	'_,
+	User,
+	User,
+	Address,
+	Address,
+	String,
+	String,
+	LensPrime<RcBrand, User, Address>,
+	LensPrime<RcBrand, Address, String>,
+> as Optic<RcFnBrand, _, _, _, _>>::evaluate(&user_street, f);
+let updated = modifier(user);
+
+assert_eq!(updated.address.street, "HIGH ST");"#
+	)]
 	pub fn optics_compose<'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>(
 		first: O1,
 		second: O2,

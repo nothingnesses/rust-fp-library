@@ -34,8 +34,7 @@ pub fn document_examples_worker(
 		syn::Error::new(
 			e.span(),
 			format!(
-				"#[{DOCUMENT_EXAMPLES}] requires a string argument; \
-				 the string should show example code usage of the function annotated by the attribute"
+				"#[{DOCUMENT_EXAMPLES}] requires a string argument; the string should show example code usage of the function"
 			),
 		)
 	})?;
@@ -46,8 +45,7 @@ pub fn document_examples_worker(
 		return Err(syn::Error::new(
 			example_code.span(),
 			format!(
-				"the example code provided in #[{DOCUMENT_EXAMPLES}] should contain \
-				 assertions about the expected output of the function"
+				"The example code provided in #[{DOCUMENT_EXAMPLES}] should contain assertions about the expected output of the function"
 			),
 		)
 		.into());

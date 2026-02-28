@@ -18,6 +18,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -57,22 +58,20 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
-		/// 	types::optics::Shop,
-		/// };
-		///
-		/// let shop = Shop::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| s.0),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
-		/// );
-		/// assert_eq!((shop.get)((10, 20)), 10);
-		/// assert_eq!((shop.set)(((10, 20), 30)), (30, 20));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	classes::cloneable_fn::new as cloneable_fn_new,
+	types::optics::Shop,
+};
+
+let shop = Shop::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| s.0),
+	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+);
+assert_eq!((shop.get)((10, 20)), 10);
+assert_eq!((shop.set)(((10, 20), 30)), (30, 20));"#
+		)]
 		pub fn new(
 			get: <FnBrand as CloneableFn>::Of<'a, S, A>,
 			set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
@@ -127,20 +126,29 @@ mod inner {
 		)]
 		#[document_returns("A transformed `Shop` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Shop is usually used internally by Lens optics
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		cloneable_fn::new as cloneable_fn_new,
+	},
+	types::optics::*,
+};
+
+// Shop is usually used internally by Lens optics
+let shop = Shop::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| s.0),
+	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+);
+let transformed = <ShopBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
+	|s: (i32, i32)| s,
+	|t: (i32, i32)| t,
+	shop,
+);
+assert_eq!((transformed.get)((10, 20)), 10);"#
+		)]
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,
@@ -182,20 +190,24 @@ mod inner {
 		#[document_parameters("The shop instance to transform.")]
 		#[document_returns("A transformed `Shop` instance that operates on tuples.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Shop is usually used internally by Lens optics
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		cloneable_fn::new as cloneable_fn_new,
+	},
+	types::optics::*,
+};
+
+let shop = Shop::<RcFnBrand, i32, i32, i32, i32>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s| s),
+	cloneable_fn_new::<RcFnBrand, _, _>(|(_, b)| b),
+);
+let first_shop = <ShopBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, i32>(shop);
+assert_eq!((first_shop.get)((42, 10)), 42);"#
+		)]
 		fn first<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (S, C), (T, C)>) {

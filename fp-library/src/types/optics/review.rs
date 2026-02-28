@@ -20,6 +20,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -70,17 +71,16 @@ mod inner {
 		#[document_signature]
 		#[document_returns("A new `Review` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Review,
-		/// };
-		///
-		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
-		/// let cloned = r.clone();
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Review,
+};
+
+let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
+let cloned = r.clone();
+assert_eq!(cloned.review(42), Some(42));"#
+		)]
 		fn clone(&self) -> Self {
 			Review {
 				review_fn: self.review_fn.clone(),
@@ -113,16 +113,15 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Review,
-		/// };
-		///
-		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Review,
+};
+
+let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
+assert_eq!(r.review(42), Some(42));"#
+		)]
 		pub fn new(review: impl 'a + Fn(B) -> T) -> Self {
 			Review {
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
@@ -137,17 +136,15 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Review,
-		/// };
-		///
-		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
-		/// assert_eq!(r.review(42), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Review,
+};
+
+let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
+assert_eq!(r.review(42), Some(42));"#
+		)]
 		pub fn review(
 			&self,
 			b: B,
@@ -177,21 +174,19 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
-		/// let f = Tagged::new(42);
-		/// let reviewed = Optic::<TaggedBrand, _, _, _, _>::evaluate(&r, f);
-		/// assert_eq!(reviewed.0, Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
+let f = Tagged::new(42);
+let reviewed = Optic::<TaggedBrand, _, _, _, _>::evaluate(&r, f);
+assert_eq!(reviewed.0, Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
@@ -222,21 +217,19 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
-		/// let f = Tagged::new(42);
-		/// let reviewed = ReviewOptic::evaluate(&r, f);
-		/// assert_eq!(reviewed.0, Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let r: Review<RcBrand, Option<i32>, Option<i32>, i32, i32> = Review::new(Some);
+let f = Tagged::new(42);
+let reviewed = ReviewOptic::evaluate(&r, f);
+assert_eq!(reviewed.0, Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
@@ -281,17 +274,16 @@ mod inner {
 		///
 		#[document_returns("A new `ReviewPrime` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::ReviewPrime,
-		/// };
-		///
-		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// let cloned = r.clone();
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::ReviewPrime,
+};
+
+let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+let cloned = r.clone();
+assert_eq!(cloned.review(42), Some(42));"#
+		)]
 		fn clone(&self) -> Self {
 			ReviewPrime {
 				review_fn: self.review_fn.clone(),
@@ -320,16 +312,15 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::ReviewPrime,
-		/// };
-		///
-		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::ReviewPrime,
+};
+
+let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+assert_eq!(r.review(42), Some(42));"#
+		)]
 		pub fn new(review: impl 'a + Fn(A) -> S) -> Self {
 			ReviewPrime {
 				review_fn: <FnBrand<P> as CloneableFn>::new(review),
@@ -344,17 +335,15 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::ReviewPrime,
-		/// };
-		///
-		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// assert_eq!(r.review(42), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::ReviewPrime,
+};
+
+let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+assert_eq!(r.review(42), Some(42));"#
+		)]
 		pub fn review(
 			&self,
 			a: A,
@@ -381,21 +370,19 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// let f = Tagged::new(42);
-		/// let reviewed = Optic::<TaggedBrand, _, _, _, _>::evaluate(&r, f);
-		/// assert_eq!(reviewed.0, Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+let f = Tagged::new(42);
+let reviewed = Optic::<TaggedBrand, _, _, _, _>::evaluate(&r, f);
+assert_eq!(reviewed.0, Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
@@ -423,21 +410,19 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
-		/// let f = Tagged::new(42);
-		/// let reviewed = ReviewOptic::evaluate(&r, f);
-		/// assert_eq!(reviewed.0, Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let r: ReviewPrime<RcBrand, Option<i32>, i32> = ReviewPrime::new(Some);
+let f = Tagged::new(42);
+let reviewed = ReviewOptic::evaluate(&r, f);
+assert_eq!(reviewed.0, Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),

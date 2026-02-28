@@ -53,6 +53,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_fields,
 			document_parameters,
 			document_returns,
@@ -92,13 +93,6 @@ mod inner {
 	///   provides true O(1) operations on both ends without periodic reversal.
 	#[document_type_parameters("The type of the elements in the list.")]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::types::cat_list::CatList;
-	///
-	/// let list: CatList<i32> = CatList::empty();
-	/// ```
 	#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 	#[derive(Clone, Debug, Default)]
 	pub enum CatList<A> {
@@ -115,6 +109,12 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+let list1: CatList<i32> = CatList::singleton(1);
+let list2: CatList<i32> = CatList::singleton(1);
+assert_eq!(list1, list2);"#
+		)]
 		fn eq(
 			&self,
 			other: &Self,
@@ -135,6 +135,16 @@ mod inner {
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
+		#[document_examples(
+			r#"use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use fp_library::types::cat_list::CatList;
+
+let list = CatList::singleton(1);
+let mut hasher = DefaultHasher::new();
+list.hash(&mut hasher);
+assert!(hasher.finish() != 0);"#
+		)]
 		fn hash<H: Hasher>(
 			&self,
 			state: &mut H,
@@ -152,6 +162,13 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let list1 = CatList::singleton(1);
+let list2 = CatList::singleton(2);
+assert!(list1 < list2);"#
+		)]
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -166,6 +183,14 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The other list to compare to.")]
 		#[document_returns("The ordering of the values.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+use std::cmp::Ordering;
+
+let list1 = CatList::singleton(1);
+let list2 = CatList::singleton(2);
+assert_eq!(list1.cmp(&list2), Ordering::Less);"#
+		)]
 		fn cmp(
 			&self,
 			other: &Self,
@@ -194,20 +219,18 @@ mod inner {
 			"A new list consisting of the `head` element prepended to the `tail` list."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let head = 1;
-		/// let tail = CatList::singleton(2).snoc(3);
-		/// let new_list = CatListBrand::construct(head, tail);
-		/// let vec: Vec<_> = new_list.into_iter().collect();
-		/// assert_eq!(vec, vec![1, 2, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let head = 1;
+let tail = CatList::singleton(2).snoc(3);
+let new_list = CatListBrand::construct(head, tail);
+let vec: Vec<_> = new_list.into_iter().collect();
+assert_eq!(vec, vec![1, 2, 3]);"#
+		)]
 		pub fn construct<A>(
 			head: A,
 			tail: CatList<A>,
@@ -228,21 +251,19 @@ mod inner {
 			"An [`Option`] containing a tuple of the head element and the remaining tail list, or [`None`] if the list is empty."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2);
-		/// let deconstructed = CatListBrand::deconstruct(&list);
-		/// let (head, tail) = deconstructed.unwrap();
-		/// assert_eq!(head, 1);
-		/// let tail_vec: Vec<_> = tail.into_iter().collect();
-		/// assert_eq!(tail_vec, vec![2]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2);
+let deconstructed = CatListBrand::deconstruct(&list);
+let (head, tail) = deconstructed.unwrap();
+assert_eq!(head, 1);
+let tail_vec: Vec<_> = tail.into_iter().collect();
+assert_eq!(tail_vec, vec![2]);"#
+		)]
 		pub fn deconstruct<A>(list: &CatList<A>) -> Option<(A, CatList<A>)>
 		where
 			A: Clone, {
@@ -267,20 +288,18 @@ mod inner {
 		///
 		#[document_returns("A new list containing the results of applying the function.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let mapped = map::<CatListBrand, _, _, _>(|x: i32| x * 2, list);
-		/// let vec: Vec<_> = mapped.into_iter().collect();
-		/// assert_eq!(vec, vec![2, 4, 6]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+let mapped = map::<CatListBrand, _, _, _>(|x: i32| x * 2, list);
+let vec: Vec<_> = mapped.into_iter().collect();
+assert_eq!(vec, vec![2, 4, 6]);"#
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -311,23 +330,21 @@ mod inner {
 			"The second list."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list1 = CatList::singleton(1).snoc(2);
-		/// let list2 = CatList::singleton(10).snoc(20);
-		/// let lifted = lift2::<CatListBrand, _, _, _, _>(|x, y| x + y, list1, list2);
-		/// let vec: Vec<_> = lifted.into_iter().collect();
-		/// assert_eq!(vec, vec![11, 21, 12, 22]);
-		/// ```
 		#[document_returns(
 			"A new list containing the results of applying the function to all pairs of elements."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list1 = CatList::singleton(1).snoc(2);
+let list2 = CatList::singleton(10).snoc(20);
+let lifted = lift2::<CatListBrand, _, _, _, _>(|x, y| x + y, list1, list2);
+let vec: Vec<_> = lifted.into_iter().collect();
+assert_eq!(vec, vec![11, 21, 12, 22]);"#
 		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
@@ -360,19 +377,17 @@ mod inner {
 		///
 		#[document_returns("A list containing the single value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = pure::<CatListBrand, _>(5);
-		/// let vec: Vec<_> = list.into_iter().collect();
-		/// assert_eq!(vec, vec![5]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = pure::<CatListBrand, _>(5);
+let vec: Vec<_> = list.into_iter().collect();
+assert_eq!(vec, vec![5]);"#
+		)]
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			CatList::singleton(a)
 		}
@@ -399,24 +414,22 @@ mod inner {
 			"The list containing the values."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
-		/// 	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-		/// let vals = CatList::singleton(1).snoc(2);
-		/// let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
-		/// let vec: Vec<_> = applied.into_iter().collect();
-		/// assert_eq!(vec, vec![2, 3, 2, 4]);
-		/// ```
 		#[document_returns(
 			"A new list containing the results of applying each function to each value."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let funcs = CatList::singleton(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1))
+	.snoc(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+let vals = CatList::singleton(1).snoc(2);
+let applied = apply::<RcFnBrand, CatListBrand, _, _>(funcs, vals);
+let vec: Vec<_> = applied.into_iter().collect();
+assert_eq!(vec, vec![2, 3, 2, 4]);"#
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -444,21 +457,19 @@ mod inner {
 			"The function to apply to each element, returning a list."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2);
-		/// let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
-		/// let vec: Vec<_> = bound.into_iter().collect();
-		/// assert_eq!(vec, vec![1, 2, 2, 4]);
-		/// ```
 		#[document_returns("A new list containing the flattened results.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2);
+let bound = bind::<CatListBrand, _, _, _>(list, |x| CatList::singleton(x).snoc(x * 2));
+let vec: Vec<_> = bound.into_iter().collect();
+assert_eq!(vec, vec![1, 2, 2, 4]);"#
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -487,18 +498,16 @@ mod inner {
 		///
 		#[document_returns("The final accumulator value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+assert_eq!(fold_right::<RcFnBrand, CatListBrand, _, _, _>(|x: i32, acc| x + acc, 0, list), 6);"#
+		)]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -533,19 +542,17 @@ mod inner {
 			"The list to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);
-		/// ```
 		#[document_returns("The final accumulator value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+assert_eq!(fold_left::<RcFnBrand, CatListBrand, _, _, _>(|acc, x: i32| acc + x, 0, list), 6);"#
+		)]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -574,21 +581,19 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: i32| x.to_string(), list),
-		/// 	"123".to_string()
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+assert_eq!(
+	fold_map::<RcFnBrand, CatListBrand, _, _, _>(|x: i32| x.to_string(), list),
+	"123".to_string()
+);"#
+		)]
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -620,21 +625,19 @@ mod inner {
 			"The list to traverse."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
-		/// let vec: Vec<_> = traversed.unwrap().into_iter().collect();
-		/// assert_eq!(vec, vec![2, 4, 6]);
-		/// ```
 		#[document_returns("The list wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+let traversed = traverse::<CatListBrand, _, _, OptionBrand, _>(|x| Some(x * 2), list);
+let vec: Vec<_> = traversed.unwrap().into_iter().collect();
+assert_eq!(vec, vec![2, 4, 6]);"#
+		)]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -663,20 +666,18 @@ mod inner {
 		///
 		#[document_returns("The list wrapped in the applicative context.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(Some(1)).snoc(Some(2));
-		/// let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
-		/// let vec: Vec<_> = sequenced.unwrap().into_iter().collect();
-		/// assert_eq!(vec, vec![1, 2]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(Some(1)).snoc(Some(2));
+let sequenced = sequence::<CatListBrand, _, OptionBrand>(list);
+let vec: Vec<_> = sequenced.unwrap().into_iter().collect();
+assert_eq!(vec, vec![1, 2]);"#
+		)]
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -708,20 +709,18 @@ mod inner {
 			"The list to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, list), "123".to_string());
-		/// ```
 		#[document_returns("The combined monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3);
+let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+assert_eq!(par_fold_map::<ArcFnBrand, CatListBrand, _, _>(f, list), "123".to_string());"#
+		)]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -756,20 +755,18 @@ mod inner {
 		///
 		#[document_returns("The flattened list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
-		/// let compacted = compact::<CatListBrand, _>(list);
-		/// let vec: Vec<_> = compacted.into_iter().collect();
-		/// assert_eq!(vec, vec![1, 2]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(Some(1)).snoc(None).snoc(Some(2));
+let compacted = compact::<CatListBrand, _>(list);
+let vec: Vec<_> = compacted.into_iter().collect();
+assert_eq!(vec, vec![1, 2]);"#
+		)]
 		fn compact<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -794,22 +791,20 @@ mod inner {
 		///
 		#[document_returns("A pair of lists.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
-		/// let (errs, oks) = separate::<CatListBrand, _, _>(list);
-		/// let oks_vec: Vec<_> = oks.into_iter().collect();
-		/// let errs_vec: Vec<_> = errs.into_iter().collect();
-		/// assert_eq!(oks_vec, vec![1, 2]);
-		/// assert_eq!(errs_vec, vec!["error"]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(Ok(1)).snoc(Err("error")).snoc(Ok(2));
+let (errs, oks) = separate::<CatListBrand, _, _>(list);
+let oks_vec: Vec<_> = oks.into_iter().collect();
+let errs_vec: Vec<_> = errs.into_iter().collect();
+assert_eq!(oks_vec, vec![1, 2]);
+assert_eq!(errs_vec, vec!["error"]);"#
+		)]
 		fn separate<'a, E: 'a, O: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 		) -> (
@@ -846,25 +841,23 @@ mod inner {
 		///
 		#[document_returns("A pair of lists.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(
-		/// 	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
-		/// 	list,
-		/// );
-		/// let oks_vec: Vec<_> = oks.into_iter().collect();
-		/// let errs_vec: Vec<_> = errs.into_iter().collect();
-		/// assert_eq!(oks_vec, vec![2, 4]);
-		/// assert_eq!(errs_vec, vec![1, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let (errs, oks) = partition_map::<CatListBrand, _, _, _, _>(
+	|a| if a % 2 == 0 { Ok(a) } else { Err(a) },
+	list,
+);
+let oks_vec: Vec<_> = oks.into_iter().collect();
+let errs_vec: Vec<_> = errs.into_iter().collect();
+assert_eq!(oks_vec, vec![2, 4]);
+assert_eq!(errs_vec, vec![1, 3]);"#
+		)]
 		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -900,22 +893,20 @@ mod inner {
 		///
 		#[document_returns("A pair of lists.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let (not_satisfied, satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
-		/// let sat_vec: Vec<_> = satisfied.into_iter().collect();
-		/// let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
-		/// assert_eq!(sat_vec, vec![2, 4]);
-		/// assert_eq!(not_sat_vec, vec![1, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let (not_satisfied, satisfied) = partition::<CatListBrand, _, _>(|a| a % 2 == 0, list);
+let sat_vec: Vec<_> = satisfied.into_iter().collect();
+let not_sat_vec: Vec<_> = not_satisfied.into_iter().collect();
+assert_eq!(sat_vec, vec![2, 4]);
+assert_eq!(not_sat_vec, vec![1, 3]);"#
+		)]
 		fn partition<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -953,21 +944,19 @@ mod inner {
 		///
 		#[document_returns("The filtered and mapped list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered =
-		/// 	filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
-		/// let vec: Vec<_> = filtered.into_iter().collect();
-		/// assert_eq!(vec, vec![4, 8]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let filtered =
+	filter_map::<CatListBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, list);
+let vec: Vec<_> = filtered.into_iter().collect();
+assert_eq!(vec, vec![4, 8]);"#
+		)]
 		fn filter_map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -992,20 +981,18 @@ mod inner {
 		///
 		#[document_returns("The filtered list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let filtered = filter::<CatListBrand, _, _>(|a| a % 2 == 0, list);
-		/// let vec: Vec<_> = filtered.into_iter().collect();
-		/// assert_eq!(vec, vec![2, 4]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let filtered = filter::<CatListBrand, _, _>(|a| a % 2 == 0, list);
+let vec: Vec<_> = filtered.into_iter().collect();
+assert_eq!(vec, vec![2, 4]);"#
+		)]
 		fn filter<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1035,26 +1022,24 @@ mod inner {
 		///
 		#[document_returns("The partitioned list wrapped in the applicative context.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(
-		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
-		/// 	list,
-		/// );
-		/// let (errs, oks) = wilted.unwrap();
-		/// let oks_vec: Vec<_> = oks.into_iter().collect();
-		/// let errs_vec: Vec<_> = errs.into_iter().collect();
-		/// assert_eq!(oks_vec, vec![2, 4]);
-		/// assert_eq!(errs_vec, vec![1, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let wilted = wilt::<CatListBrand, OptionBrand, _, _, _, _>(
+	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
+	list,
+);
+let (errs, oks) = wilted.unwrap();
+let oks_vec: Vec<_> = oks.into_iter().collect();
+let errs_vec: Vec<_> = errs.into_iter().collect();
+assert_eq!(oks_vec, vec![2, 4]);
+assert_eq!(errs_vec, vec![1, 3]);"#
+		)]
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1103,24 +1088,22 @@ mod inner {
 			"The list to filter and map."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
-		/// let withered = wither::<CatListBrand, OptionBrand, _, _, _>(
-		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
-		/// 	list,
-		/// );
-		/// let vec: Vec<_> = withered.unwrap().into_iter().collect();
-		/// assert_eq!(vec, vec![4, 8]);
-		/// ```
 		#[document_returns("The filtered and mapped list wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+	types::*,
+};
+
+let list = CatList::singleton(1).snoc(2).snoc(3).snoc(4);
+let withered = wither::<CatListBrand, OptionBrand, _, _, _>(
+	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
+	list,
+);
+let vec: Vec<_> = withered.unwrap().into_iter().collect();
+assert_eq!(vec, vec![4, 8]);"#
+		)]
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1155,20 +1138,18 @@ mod inner {
 		///
 		#[document_returns("The concatenated list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list1 = CatList::singleton(1).snoc(2);
-		/// let list2 = CatList::singleton(3).snoc(4);
-		/// let appended = append(list1, list2);
-		/// let vec: Vec<_> = appended.into_iter().collect();
-		/// assert_eq!(vec, vec![1, 2, 3, 4]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	functions::*,
+	types::*,
+};
+
+let list1 = CatList::singleton(1).snoc(2);
+let list2 = CatList::singleton(3).snoc(4);
+let appended = append(list1, list2);
+let vec: Vec<_> = appended.into_iter().collect();
+assert_eq!(vec, vec![1, 2, 3, 4]);"#
+		)]
 		fn append(
 			a: Self,
 			b: Self,
@@ -1186,17 +1167,15 @@ mod inner {
 		///
 		#[document_returns("An empty list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let list = empty::<CatList<i32>>();
-		/// assert!(list.is_empty());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	functions::*,
+	types::*,
+};
+
+let list = empty::<CatList<i32>>();
+assert!(list.is_empty());"#
+		)]
 		fn empty() -> Self {
 			CatList::empty()
 		}
@@ -1210,14 +1189,12 @@ mod inner {
 		///
 		#[document_returns("An empty `CatList`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list: CatList<i32> = CatList::empty();
-		/// assert!(list.is_empty());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let list: CatList<i32> = CatList::empty();
+assert!(list.is_empty());"#
+		)]
 		#[inline]
 		pub const fn empty() -> Self {
 			CatList::Nil
@@ -1230,15 +1207,13 @@ mod inner {
 		///
 		#[document_returns("`true` if the list is empty, `false` otherwise.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list: CatList<i32> = CatList::empty();
-		/// assert!(list.is_empty());
-		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let list: CatList<i32> = CatList::empty();
+assert!(list.is_empty());"#
+		)]
 		pub fn is_empty(&self) -> bool {
 			matches!(self, CatList::Nil)
 		}
@@ -1250,15 +1225,13 @@ mod inner {
 		///
 		#[document_returns("A `CatList` containing the single element.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list = CatList::singleton(1);
-		/// assert!(!list.is_empty());
-		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list = CatList::singleton(1);
+assert!(!list.is_empty());"#
+		)]
 		pub fn singleton(a: A) -> Self {
 			CatList::Cons(a, VecDeque::new(), 1)
 		}
@@ -1270,14 +1243,13 @@ mod inner {
 		///
 		#[document_returns("The new list with the element appended to the front.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list = CatList::empty().cons(1);
-		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list = CatList::empty().cons(1);
+assert_eq!(list.len(), 1);"#
+		)]
 		pub fn cons(
 			self,
 			a: A,
@@ -1292,14 +1264,13 @@ mod inner {
 		///
 		#[document_returns("The new list with the element appended to the back.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list = CatList::empty().snoc(1);
-		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list = CatList::empty().snoc(1);
+assert_eq!(list.len(), 1);"#
+		)]
 		pub fn snoc(
 			self,
 			a: A,
@@ -1317,15 +1288,14 @@ mod inner {
 		///
 		#[document_returns("The concatenated list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list1 = CatList::singleton(1);
-		/// let list2 = CatList::singleton(2);
-		/// let list3 = list1.append(list2);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list1 = CatList::singleton(1);
+let list2 = CatList::singleton(2);
+let list3 = list1.append(list2);
+assert_eq!(list3.len(), 2);"#
+		)]
 		pub fn append(
 			self,
 			other: Self,
@@ -1341,6 +1311,15 @@ mod inner {
 		#[document_parameters("The first list.", "The second list.")]
 		///
 		#[document_returns("A new list consisting of the two input lists linked together.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+// link is internal, but we can use it via other methods
+let list1 = CatList::singleton(1);
+let list2 = CatList::singleton(2);
+let linked = list1.append(list2);
+assert_eq!(linked.len(), 2);"#
+		)]
 		fn link(
 			left: Self,
 			right: Self,
@@ -1367,16 +1346,14 @@ mod inner {
 			"An option containing the first element and the rest of the list, or `None` if empty."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list = CatList::singleton(1);
-		/// let (a, list) = list.uncons().unwrap();
-		/// assert_eq!(a, 1);
-		/// assert!(list.is_empty());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list = CatList::singleton(1);
+let (a, list) = list.uncons().unwrap();
+assert_eq!(a, 1);
+assert!(list.is_empty());"#
+		)]
 		pub fn uncons(self) -> Option<(A, Self)> {
 			match self {
 				CatList::Nil => None,
@@ -1402,6 +1379,17 @@ mod inner {
 		#[document_parameters("The deque of sublists to flatten.")]
 		///
 		#[document_returns("A single flattened `CatList`.")]
+		#[document_examples(
+			r#"use std::collections::VecDeque;
+use fp_library::types::cat_list::CatList;
+
+let mut deque = VecDeque::new();
+deque.push_back(CatList::singleton(1));
+deque.push_back(CatList::singleton(2));
+// flatten_deque is internal, but used by uncons
+let list = CatList::singleton(0).append(CatList::singleton(1));
+assert_eq!(list.len(), 2);"#
+		)]
 		fn flatten_deque(deque: VecDeque<CatList<A>>) -> Self {
 			// Right fold: link(list[0], link(list[1], ... link(list[n-1], Nil)))
 			// We process from right to left using DoubleEndedIterator
@@ -1415,15 +1403,13 @@ mod inner {
 		///
 		#[document_returns("The number of elements in the list.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let list = CatList::singleton(1);
-		/// assert_eq!(list.len(), 1);
-		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let list = CatList::singleton(1);
+assert_eq!(list.len(), 1);"#
+		)]
 		pub fn len(&self) -> usize {
 			match self {
 				CatList::Nil => 0,
@@ -1442,6 +1428,13 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("An iterator that consumes the list and yields its elements.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let list = CatList::singleton(1).snoc(2);
+let vec: Vec<_> = list.into_iter().collect();
+assert_eq!(vec, vec![1, 2]);"#
+		)]
 		fn into_iter(self) -> Self::IntoIter {
 			CatListIterator(self)
 		}
@@ -1461,6 +1454,14 @@ mod inner {
 		#[document_signature]
 		///
 		#[document_returns("The next element in the list, or `None` if the iterator is exhausted.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let list = CatList::singleton(1);
+let mut iter = list.into_iter();
+assert_eq!(iter.next(), Some(1));
+assert_eq!(iter.next(), None);"#
+		)]
 		fn next(&mut self) -> Option<Self::Item> {
 			let (head, tail) = std::mem::take(&mut self.0).uncons()?;
 			self.0 = tail;
@@ -1476,6 +1477,13 @@ mod inner {
 		#[document_parameters("The iterator to collect from.")]
 		///
 		#[document_returns("A new `CatList` containing the elements from the iterator.")]
+		#[document_examples(
+			r#"use fp_library::types::cat_list::CatList;
+
+let vec = vec![1, 2, 3];
+let list: CatList<_> = CatList::from_iter(vec);
+assert_eq!(list.len(), 3);"#
+		)]
 		fn from_iter<I: IntoIterator<Item = A>>(iter: I) -> Self {
 			iter.into_iter().fold(CatList::Nil, |acc, a| acc.snoc(a))
 		}

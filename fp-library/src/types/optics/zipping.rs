@@ -19,6 +19,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -59,18 +60,16 @@ mod inner {
 			"The binary function to wrap, taking a pair `(S, S)` and returning `T`."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	types::optics::Zipping,
-		/// };
-		///
-		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
-		/// assert_eq!((z.run)((1, 2)), 3);
-		/// ```
 		#[document_returns("A new instance of the type.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	types::optics::Zipping,
+};
+
+let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
+assert_eq!((z.run)((1, 2)), 3);"#
+		)]
 		pub fn new(f: impl Fn((S, S)) -> T + 'a) -> Self {
 			Zipping {
 				run: <FnBrand as CloneableFn>::new(f),
@@ -89,18 +88,16 @@ mod inner {
 		#[document_signature]
 		#[document_returns("A new `Zipping` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	types::optics::Zipping,
-		/// };
-		///
-		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
-		/// let z2 = z.clone();
-		/// assert_eq!((z2.run)((3, 4)), 7);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	types::optics::Zipping,
+};
+
+let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
+let z2 = z.clone();
+assert_eq!((z2.run)((3, 4)), 7);"#
+		)]
 		fn clone(&self) -> Self {
 			Zipping {
 				run: self.run.clone(),
@@ -142,23 +139,21 @@ mod inner {
 		)]
 		#[document_returns("A transformed `Zipping` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::profunctor::Profunctor,
-		/// 	types::optics::{
-		/// 		Zipping,
-		/// 		ZippingBrand,
-		/// 	},
-		/// };
-		///
-		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
-		/// // dimap (*2) (+1) z = \a1 a2 -> (a1*2 + a2*2) + 1
-		/// let z2 = <ZippingBrand<RcFnBrand> as Profunctor>::dimap(|x: i32| x * 2, |y: i32| y + 1, z);
-		/// assert_eq!((z2.run)((3, 4)), 15); // (3*2 + 4*2) + 1 = 15
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	classes::profunctor::Profunctor,
+	types::optics::{
+		Zipping,
+		ZippingBrand,
+	},
+};
+
+let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
+// dimap (*2) (+1) z = \a1 a2 -> (a1*2 + a2*2) + 1
+let z2 = <ZippingBrand<RcFnBrand> as Profunctor>::dimap(|x: i32| x * 2, |y: i32| y + 1, z);
+assert_eq!((z2.run)((3, 4)), 15); // (3*2 + 4*2) + 1 = 15"#
+		)]
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
@@ -192,32 +187,30 @@ mod inner {
 		#[document_parameters("The zipping instance to lift.")]
 		#[document_returns("A transformed `Zipping` instance that operates on functions.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::{
-		/// 		CloneableFn,
-		/// 		profunctor::{
-		/// 			Closed,
-		/// 			Profunctor,
-		/// 		},
-		/// 	},
-		/// 	types::optics::{
-		/// 		Zipping,
-		/// 		ZippingBrand,
-		/// 	},
-		/// };
-		///
-		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
-		/// let zc = <ZippingBrand<RcFnBrand> as Closed<RcFnBrand>>::closed::<i32, i32, String>(z);
-		/// // (zc.run)(f1, f2)(x) = f1(x) + f2(x)
-		/// let f1 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32);
-		/// let f2 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32 * 2);
-		/// let result = (zc.run)((f1, f2));
-		/// assert_eq!(result("hi".to_string()), 6); // 2 + 4
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	classes::{
+		CloneableFn,
+		profunctor::{
+			Closed,
+			Profunctor,
+		},
+	},
+	types::optics::{
+		Zipping,
+		ZippingBrand,
+	},
+};
+
+let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
+let zc = <ZippingBrand<RcFnBrand> as Closed<RcFnBrand>>::closed::<i32, i32, String>(z);
+// (zc.run)(f1, f2)(x) = f1(x) + f2(x)
+let f1 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32);
+let f2 = <RcFnBrand as CloneableFn>::new(|s: String| s.len() as i32 * 2);
+let result = (zc.run)((f1, f2));
+assert_eq!(result("hi".to_string()), 6); // 2 + 4"#
+		)]
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, X, S>, <FnBrand as CloneableFn>::Of<'a, X, T>>)

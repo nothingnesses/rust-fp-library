@@ -25,6 +25,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -66,6 +67,46 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
+	impl<'a, P, S, T, A, B> Clone for Prism<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+	{
+		#[document_signature]
+		///
+		#[document_returns("A new `Prism` instance that is a copy of the original.")]
+		///
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Prism,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
+let cloned = ok_prism.clone();
+assert_eq!(cloned.preview(Some(42)), Ok(42));"#
+		)]
+		fn clone(&self) -> Self {
+			Prism {
+				preview: self.preview.clone(),
+				review: self.review.clone(),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The prism instance.")]
 	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> Prism<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -77,17 +118,16 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Prism,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Prism,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
+assert_eq!(ok_prism.preview(Some(42)), Ok(42));"#
+		)]
 		pub fn new(
 			preview: impl 'a + Fn(S) -> Result<A, T>,
 			review: impl 'a + Fn(B) -> T,
@@ -106,18 +146,16 @@ mod inner {
 			"A result containing the focus value if it exists, or the original structure (possibly with changed type) if not."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Prism,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
-		/// assert_eq!(ok_prism.preview(Some(42)), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Prism,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
+assert_eq!(ok_prism.preview(Some(42)), Ok(42));"#
+		)]
 		pub fn preview(
 			&self,
 			s: S,
@@ -132,18 +170,16 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Prism,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
-		/// assert_eq!(ok_prism.review(42.0), Some(42.0));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Prism,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<f64>, i32, f64> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |f| Some(f));
+assert_eq!(ok_prism.review(42.0), Some(42.0));"#
+		)]
 		pub fn review(
 			&self,
 			b: B,
@@ -175,24 +211,22 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// assert_eq!(modifier(None), None);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
+assert_eq!(modifier(Some(21)), Some(42));
+assert_eq!(modifier(None), None);"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -235,27 +269,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
-		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Some(21)), Some(42));"#
+		)]
 		fn evaluate<Q: Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -284,27 +316,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
-		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Some(21)), Some(42));"#
+		)]
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -332,27 +362,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
-		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Some(21)), Some(42));"#
+		)]
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -380,23 +408,21 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = FoldOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(folded.run(Some(42)), "42".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+let folded = FoldOptic::evaluate(&ok_prism, f);
+assert_eq!(folded.run(Some(42)), "42".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -426,27 +452,25 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
-		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
-		/// assert_eq!(modifier(Some(21)), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Option<i32>) -> Option<i32>> =
+	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
+assert_eq!(modifier(Some(21)), Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -472,23 +496,21 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
-		/// 	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
-		///
-		/// let f = Tagged::new(42);
-		/// let reviewed = ReviewOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(reviewed.0, Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: Prism<RcBrand, Option<i32>, Option<i32>, i32, i32> =
+	Prism::new(|o: Option<i32>| o.ok_or(None), |x| Some(x));
+
+let f = Tagged::new(42);
+let reviewed = ReviewOptic::evaluate(&ok_prism, f);
+assert_eq!(reviewed.0, Some(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -534,18 +556,17 @@ mod inner {
 		///
 		#[document_returns("A new `PrismPrime` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		/// let cloned = ok_prism.clone();
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+let cloned = ok_prism.clone();
+assert_eq!(cloned.preview(Ok(42)), Some(42));"#
+		)]
 		fn clone(&self) -> Self {
 			PrismPrime {
 				preview_fn: self.preview_fn.clone(),
@@ -573,17 +594,16 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
+assert_eq!(ok_prism.preview(Ok(42)), Some(42));"#
+		)]
 		pub fn new(
 			preview: impl 'a + Fn(S) -> Result<A, S>,
 			review: impl 'a + Fn(A) -> S,
@@ -601,17 +621,16 @@ mod inner {
 		///
 		#[document_returns("A new `PrismPrime` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+assert_eq!(ok_prism.preview(Ok(42)), Some(42));"#
+		)]
 		pub fn from_option(
 			preview: impl 'a + Fn(S) -> Option<A>,
 			review: impl 'a + Fn(A) -> S,
@@ -636,19 +655,17 @@ mod inner {
 		///
 		#[document_returns("The focus value if it exists, or `None` if not.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		/// assert_eq!(ok_prism.preview(Ok(42)), Some(42));
-		/// assert_eq!(ok_prism.preview(Err("error".to_string())), None);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+assert_eq!(ok_prism.preview(Ok(42)), Some(42));
+assert_eq!(ok_prism.preview(Err("error".to_string())), None);"#
+		)]
 		pub fn preview(
 			&self,
 			s: S,
@@ -663,18 +680,16 @@ mod inner {
 		///
 		#[document_returns("The structure containing the focus value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		/// assert_eq!(ok_prism.review(42), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+assert_eq!(ok_prism.review(42), Ok(42));"#
+		)]
 		pub fn review(
 			&self,
 			a: A,
@@ -687,19 +702,17 @@ mod inner {
 		#[document_parameters("The structure to update.", "The function to apply to the focus.")]
 		#[document_returns("The updated structure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::PrismPrime,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		/// assert_eq!(ok_prism.modify(Ok(21), |x| x * 2), Ok(42));
-		/// assert_eq!(ok_prism.modify(Err("error".to_string()), |x| x * 2), Err("error".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::PrismPrime,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+assert_eq!(ok_prism.modify(Ok(21), |x| x * 2), Ok(42));
+assert_eq!(ok_prism.modify(Err("error".to_string()), |x| x * 2), Err("error".to_string()));"#
+		)]
 		pub fn modify(
 			&self,
 			s: S,
@@ -732,24 +745,22 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
-		/// assert_eq!(modifier(Ok(21)), Ok(42));
-		/// assert_eq!(modifier(Err("error".to_string())), Err("error".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&ok_prism, f);
+assert_eq!(modifier(Ok(21)), Ok(42));
+assert_eq!(modifier(Err("error".to_string())), Err("error".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -784,27 +795,25 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
-		/// 	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Ok(21)), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+	PrismOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Ok(21)), Ok(42));"#
+		)]
 		fn evaluate<Q: Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -830,27 +839,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
-		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Ok(21)), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+	AffineTraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Ok(21)), Ok(42));"#
+		)]
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -876,27 +883,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
-		/// 	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
-		/// assert_eq!(modifier(Ok(21)), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+	TraversalOptic::evaluate::<RcFnBrand>(&ok_prism, f);
+assert_eq!(modifier(Ok(21)), Ok(42));"#
+		)]
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -925,23 +930,21 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = FoldOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(folded.run(Ok(42)), "42".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+let folded = FoldOptic::evaluate(&ok_prism, f);
+assert_eq!(folded.run(Ok(42)), "42".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -969,27 +972,25 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::optics::*,
-		/// 		functions::*,
-		/// 		types::optics::*,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
-		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
-		/// assert_eq!(modifier(Ok(21)), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::optics::*,
+		functions::*,
+		types::optics::*,
+	},
+	std::rc::Rc,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier: Rc<dyn Fn(Result<i32, String>) -> Result<i32, String>> =
+	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&ok_prism, f);
+assert_eq!(modifier(Ok(21)), Ok(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1014,23 +1015,21 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-		/// 	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
-		///
-		/// let f = Tagged::new(42);
-		/// let reviewed = ReviewOptic::evaluate(&ok_prism, f);
-		/// assert_eq!(reviewed.0, Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
+
+let f = Tagged::new(42);
+let reviewed = ReviewOptic::evaluate(&ok_prism, f);
+assert_eq!(reviewed.0, Ok(42));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),

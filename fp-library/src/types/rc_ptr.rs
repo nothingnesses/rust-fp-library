@@ -26,6 +26,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 		},
@@ -44,17 +45,15 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let ptr = pointer_new::<RcBrand, _>(42);
-		/// assert_eq!(*ptr, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let ptr = pointer_new::<RcBrand, _>(42);
+assert_eq!(*ptr, 42);"#
+		)]
 		fn new<'a, T: 'a>(value: T) -> Rc<T> {
 			Rc::new(value)
 		}
@@ -72,17 +71,15 @@ mod inner {
 		///
 		#[document_returns("The value wrapped in an `Rc`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
-		/// assert_eq!(*ptr, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
+assert_eq!(*ptr, 42);"#
+		)]
 		fn cloneable_new<'a, T: 'a>(value: T) -> Rc<T> {
 			Rc::new(value)
 		}
@@ -99,17 +96,15 @@ mod inner {
 		///
 		#[document_returns("`Ok(value)` if this is the sole reference, otherwise `Err(ptr)`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
-		/// assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let ptr = ref_counted_pointer_new::<RcBrand, _>(42);
+assert_eq!(try_unwrap::<RcBrand, _>(ptr), Ok(42));"#
+		)]
 		fn try_unwrap<'a, T: 'a>(ptr: Rc<T>) -> Result<T, Rc<T>> {
 			Rc::try_unwrap(ptr)
 		}
@@ -129,17 +124,15 @@ mod inner {
 		///
 		#[document_returns("The closure wrapped in an `Rc` as a trait object.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
-		/// assert_eq!(f(1), 2);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+assert_eq!(f(1), 2);"#
+		)]
 		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {
 			Rc::new(f)
 		}

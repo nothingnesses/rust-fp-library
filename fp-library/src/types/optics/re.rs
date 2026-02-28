@@ -32,6 +32,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -82,27 +83,25 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // Re wraps a function from `Tagged<B, A>` to `Tagged<T, S>`.
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|tagged: Tagged<i32, i32>| {
-		/// 	Tagged::new(tagged.0 + 1)
-		/// });
-		/// assert_eq!((re.run)(Tagged::new(41)).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	types::optics::{
+		Re,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// Re wraps a function from `Tagged<B, A>` to `Tagged<T, S>`.
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|tagged: Tagged<i32, i32>| {
+	Tagged::new(tagged.0 + 1)
+});
+assert_eq!((re.run)(Tagged::new(41)).0, 42);"#
+		)]
 		pub fn new(
 			f: impl 'a
 			+ Fn(
@@ -132,26 +131,24 @@ mod inner {
 		///
 		#[document_returns("A new `Re` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// let re =
-		/// 	Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| Tagged::new(t.0));
-		/// let cloned = re.clone();
-		/// assert_eq!((cloned.run)(Tagged::new(42)).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	types::optics::{
+		Re,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+let re =
+	Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| Tagged::new(t.0));
+let cloned = re.clone();
+assert_eq!((cloned.run)(Tagged::new(42)).0, 42);"#
+		)]
 		fn clone(&self) -> Self {
 			Re {
 				run: self.run.clone(),
@@ -218,37 +215,35 @@ mod inner {
 		)]
 		#[document_returns("A transformed `Re` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Profunctor,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|tagged: Tagged<i32, i32>| {
-		/// 	Tagged::new(tagged.0)
-		/// });
-		/// // dimap(ab=|x| x*2, cd=|x| x+1, re).run(Tagged(5))
-		/// //   = re.run(TaggedBrand::dimap(cd, ab, Tagged(5)))
-		/// //   = re.run(Tagged(ab(5))) = re.run(Tagged(10)) = Tagged(10)
-		/// let transformed = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Profunctor>::dimap(
-		/// 	|x: i32| x * 2,
-		/// 	|x: i32| x + 1,
-		/// 	re,
-		/// );
-		/// assert_eq!((transformed.run)(Tagged::new(5)).0, 10);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Profunctor,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<i32, i32> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|tagged: Tagged<i32, i32>| {
+	Tagged::new(tagged.0)
+});
+// dimap(ab=|x| x*2, cd=|x| x+1, re).run(Tagged(5))
+//   = re.run(TaggedBrand::dimap(cd, ab, Tagged(5)))
+//   = re.run(Tagged(ab(5))) = re.run(Tagged(10)) = Tagged(10)
+let transformed = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Profunctor>::dimap(
+	|x: i32| x * 2,
+	|x: i32| x + 1,
+	re,
+);
+assert_eq!((transformed.run)(Tagged::new(5)).0, 10);"#
+		)]
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
@@ -299,33 +294,31 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on the unwrapped types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Cochoice,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<Result<String, i32>, Result<String, i32>> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, Result<String, i32>, Result<String, i32>>::new(
-		/// 	|t: Tagged<Result<String, i32>, Result<String, i32>>| Tagged::new(t.0.unwrap_err() + 1),
-		/// );
-		/// // unleft(re).run(Tagged(41)) = re.run(TaggedBrand::left(Tagged(41)))
-		/// //   = re.run(Tagged(Err(41))) = Tagged(42)
-		/// let result =
-		/// 	<ReBrand<TaggedBrand, RcBrand, i32, i32> as Cochoice>::unleft::<i32, i32, String>(re);
-		/// assert_eq!((result.run)(Tagged::new(41)).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Cochoice,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<Result<String, i32>, Result<String, i32>> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, Result<String, i32>, Result<String, i32>>::new(
+	|t: Tagged<Result<String, i32>, Result<String, i32>>| Tagged::new(t.0.unwrap_err() + 1),
+);
+// unleft(re).run(Tagged(41)) = re.run(TaggedBrand::left(Tagged(41)))
+//   = re.run(Tagged(Err(41))) = Tagged(42)
+let result =
+	<ReBrand<TaggedBrand, RcBrand, i32, i32> as Cochoice>::unleft::<i32, i32, String>(re);
+assert_eq!((result.run)(Tagged::new(41)).0, 42);"#
+		)]
 		fn unleft<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -347,33 +340,31 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on the unwrapped types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Cochoice,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<Result<i32, String>, Result<i32, String>> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, Result<i32, String>, Result<i32, String>>::new(
-		/// 	|t: Tagged<Result<i32, String>, Result<i32, String>>| Tagged::new(t.0.unwrap() + 1),
-		/// );
-		/// // unright(re).run(Tagged(41)) = re.run(TaggedBrand::right(Tagged(41)))
-		/// //   = re.run(Tagged(Ok(41))) = Tagged(42)
-		/// let result =
-		/// 	<ReBrand<TaggedBrand, RcBrand, i32, i32> as Cochoice>::unright::<i32, i32, String>(re);
-		/// assert_eq!((result.run)(Tagged::new(41)).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Cochoice,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<Result<i32, String>, Result<i32, String>> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, Result<i32, String>, Result<i32, String>>::new(
+	|t: Tagged<Result<i32, String>, Result<i32, String>>| Tagged::new(t.0.unwrap() + 1),
+);
+// unright(re).run(Tagged(41)) = re.run(TaggedBrand::right(Tagged(41)))
+//   = re.run(Tagged(Ok(41))) = Tagged(42)
+let result =
+	<ReBrand<TaggedBrand, RcBrand, i32, i32> as Cochoice>::unright::<i32, i32, String>(re);
+assert_eq!((result.run)(Tagged::new(41)).0, 42);"#
+		)]
 		fn unright<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -413,35 +404,33 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Choice,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // left(re).run(Tagged(Err(41))) = re.run(TaggedBrand::unleft(Tagged(Err(41))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::left::<i32, i32, String>(re);
-		/// assert_eq!(
-		/// 	(result.run)(Tagged::<Result<String, i32>, Result<String, i32>>::new(Err(41))).0,
-		/// 	42
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Choice,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<i32, i32> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
+	Tagged::new(t.0 + 1)
+});
+// left(re).run(Tagged(Err(41))) = re.run(TaggedBrand::unleft(Tagged(Err(41))))
+//   = re.run(Tagged(41)) = Tagged(42)
+let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::left::<i32, i32, String>(re);
+assert_eq!(
+	(result.run)(Tagged::<Result<String, i32>, Result<String, i32>>::new(Err(41))).0,
+	42
+);"#
+		)]
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -464,32 +453,30 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Choice,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // right(re).run(Tagged(Ok(41))) = re.run(TaggedBrand::unright(Tagged(Ok(41))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::right::<i32, i32, String>(re);
-		/// assert_eq!((result.run)(Tagged::<Result<i32, String>, Result<i32, String>>::new(Ok(41))).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Choice,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<i32, i32> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
+	Tagged::new(t.0 + 1)
+});
+// right(re).run(Tagged(Ok(41))) = re.run(TaggedBrand::unright(Tagged(Ok(41))))
+//   = re.run(Tagged(41)) = Tagged(42)
+let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::right::<i32, i32, String>(re);
+assert_eq!((result.run)(Tagged::<Result<i32, String>, Result<i32, String>>::new(Ok(41))).0, 42);"#
+		)]
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
@@ -530,38 +517,36 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on the unwrapped types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
-		/// 		profunctor::Costrong,
-		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Rc<dyn Fn((i32, String)) -> (i32, String)> -> Rc<dyn Fn(i32) -> i32>
-		/// let re = Re::<RcFnBrand, RcBrand, i32, i32, (i32, String), (i32, String)>::new(
-		/// 	|f: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)>| {
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((x, String::new())).0)
-		/// 	},
-		/// );
-		/// // unfirst(re).run(g) = re.run(RcFnBrand::first(g))
-		/// //   where RcFnBrand::first(g)((x, s)) = (g(x), s)
-		/// //   so re.run(first(g))(x) = first(g)((x, "")).0 = g(x)
-		/// let result =
-		/// 	<ReBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unfirst::<i32, i32, String>(re);
-		/// let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
-		/// assert_eq!(((result.run)(add_one))(41), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::{
+		cloneable_fn::new as cloneable_fn_new,
+		profunctor::Costrong,
+	},
+	types::optics::{
+		Re,
+		ReBrand,
+	},
+};
+
+// re.run: Rc<dyn Fn((i32, String)) -> (i32, String)> -> Rc<dyn Fn(i32) -> i32>
+let re = Re::<RcFnBrand, RcBrand, i32, i32, (i32, String), (i32, String)>::new(
+	|f: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)>| {
+		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((x, String::new())).0)
+	},
+);
+// unfirst(re).run(g) = re.run(RcFnBrand::first(g))
+//   where RcFnBrand::first(g)((x, s)) = (g(x), s)
+//   so re.run(first(g))(x) = first(g)((x, "")).0 = g(x)
+let result =
+	<ReBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unfirst::<i32, i32, String>(re);
+let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
+assert_eq!(((result.run)(add_one))(41), 42);"#
+		)]
 		fn unfirst<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -583,38 +568,36 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on the unwrapped types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::{
-		/// 		cloneable_fn::new as cloneable_fn_new,
-		/// 		profunctor::Costrong,
-		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Rc<dyn Fn((String, i32)) -> (String, i32)> -> Rc<dyn Fn(i32) -> i32>
-		/// let re = Re::<RcFnBrand, RcBrand, i32, i32, (String, i32), (String, i32)>::new(
-		/// 	|f: std::rc::Rc<dyn Fn((String, i32)) -> (String, i32)>| {
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((String::new(), x)).1)
-		/// 	},
-		/// );
-		/// // unsecond(re).run(g) = re.run(RcFnBrand::second(g))
-		/// //   where RcFnBrand::second(g)((s, x)) = (s, g(x))
-		/// //   so re.run(second(g))(x) = second(g)(("", x)).1 = g(x)
-		/// let result =
-		/// 	<ReBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unsecond::<i32, i32, String>(re);
-		/// let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
-		/// assert_eq!(((result.run)(add_one))(41), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::{
+		cloneable_fn::new as cloneable_fn_new,
+		profunctor::Costrong,
+	},
+	types::optics::{
+		Re,
+		ReBrand,
+	},
+};
+
+// re.run: Rc<dyn Fn((String, i32)) -> (String, i32)> -> Rc<dyn Fn(i32) -> i32>
+let re = Re::<RcFnBrand, RcBrand, i32, i32, (String, i32), (String, i32)>::new(
+	|f: std::rc::Rc<dyn Fn((String, i32)) -> (String, i32)>| {
+		cloneable_fn_new::<RcFnBrand, _, _>(move |x: i32| f((String::new(), x)).1)
+	},
+);
+// unsecond(re).run(g) = re.run(RcFnBrand::second(g))
+//   where RcFnBrand::second(g)((s, x)) = (s, g(x))
+//   so re.run(second(g))(x) = second(g)(("", x)).1 = g(x)
+let result =
+	<ReBrand<RcFnBrand, RcBrand, i32, i32> as Costrong>::unsecond::<i32, i32, String>(re);
+let add_one = cloneable_fn_new::<RcFnBrand, i32, i32>(|x: i32| x + 1);
+assert_eq!(((result.run)(add_one))(41), 42);"#
+		)]
 		fn unsecond<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -654,32 +637,30 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on pair types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Strong,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // first(re).run(Tagged((41, "hi"))) = re.run(TaggedBrand::unfirst(Tagged((41, "hi"))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Strong>::first::<i32, i32, &str>(re);
-		/// assert_eq!((result.run)(Tagged::<(i32, &str), (i32, &str)>::new((41, "hi"))).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Strong,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<i32, i32> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
+	Tagged::new(t.0 + 1)
+});
+// first(re).run(Tagged((41, "hi"))) = re.run(TaggedBrand::unfirst(Tagged((41, "hi"))))
+//   = re.run(Tagged(41)) = Tagged(42)
+let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Strong>::first::<i32, i32, &str>(re);
+assert_eq!((result.run)(Tagged::<(i32, &str), (i32, &str)>::new((41, "hi"))).0, 42);"#
+		)]
 		fn first<'a, A: 'a, B: 'a, C>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
@@ -701,32 +682,30 @@ mod inner {
 		///
 		#[document_returns("A `Re` instance operating on pair types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::profunctor::Strong,
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
-		/// 	},
-		/// };
-		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // second(re).run(Tagged(("hi", 41))) = re.run(TaggedBrand::unsecond(Tagged(("hi", 41))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Strong>::second::<i32, i32, &str>(re);
-		/// assert_eq!((result.run)(Tagged::<(&str, i32), (&str, i32)>::new(("hi", 41))).0, 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::profunctor::Strong,
+	types::optics::{
+		Re,
+		ReBrand,
+		Tagged,
+		TaggedBrand,
+	},
+};
+
+// re.run: Tagged<i32, i32> -> Tagged<i32, i32>
+let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
+	Tagged::new(t.0 + 1)
+});
+// second(re).run(Tagged(("hi", 41))) = re.run(TaggedBrand::unsecond(Tagged(("hi", 41))))
+//   = re.run(Tagged(41)) = Tagged(42)
+let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Strong>::second::<i32, i32, &str>(re);
+assert_eq!((result.run)(Tagged::<(&str, i32), (&str, i32)>::new(("hi", 41))).0, 42);"#
+		)]
 		fn second<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {

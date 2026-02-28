@@ -20,6 +20,7 @@ mod inner {
 			types::optics::zip_with_of,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -69,6 +70,52 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
+	impl<'a, P, S, T, A, B> Clone for Grate<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+	{
+		#[document_signature]
+		///
+		#[document_returns("A new `Grate` instance that is a copy of the original.")]
+		///
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
+	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
+	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+	(f(get_x), f(get_y))
+});
+let cloned = grate.clone();
+assert_eq!(cloned.zip_with(|(a, b)| a + b, (1, 2), (3, 4)), (4, 6));"#
+		)]
+		fn clone(&self) -> Self {
+			Grate {
+				grate: self.grate.clone(),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The grate instance.")]
 	impl<'a, P, S, T, A, B> Grate<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -84,25 +131,23 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::Grate,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	// f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
-		/// 	(f(get_x), f(get_y))
-		/// });
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
+	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
+	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+	(f(get_x), f(get_y))
+});
+assert_eq!(grate.zip_with(|(a, b)| a + b, (1, 2), (3, 4)), (4, 6));"#
+		)]
 		pub fn new(
 			grate: impl Fn(
 				<FnBrand<P> as CloneableFn>::Of<
@@ -135,27 +180,25 @@ mod inner {
 			"The second structure."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::Grate,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
-		/// 	(f(get_x), f(get_y))
-		/// });
-		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
-		/// assert_eq!(result, (11, 22));
-		/// ```
 		#[document_returns("The combined structure.")]
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
+	let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
+	let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+	(f(get_x), f(get_y))
+});
+let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
+assert_eq!(result, (11, 22));"#
+		)]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> B + 'a,
@@ -195,32 +238,30 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 		},
-		/// 		types::optics::Grate,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
-		/// 		let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
-		/// 		(f(get_x), f(get_y))
-		/// 	},
-		/// );
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+		},
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		let get_x = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0);
+		let get_y = <RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1);
+		(f(get_x), f(get_y))
+	},
+);
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -278,32 +319,30 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 			profunctor::*,
-		/// 		},
-		/// 		types::optics::Grate,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 	)
-		/// });
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+			profunctor::*,
+		},
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
+	(
+		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	)
+});
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate<Q: Closed<FnBrand<P>>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -362,33 +401,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 			profunctor::*,
-		/// 		},
-		/// 		types::optics::Grate,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
-		/// 	(
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 	)
-		/// });
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
-		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+			profunctor::*,
+		},
+		types::optics::Grate,
+	},
+	std::rc::Rc,
+};
+
+let grate = Grate::<'_, RcBrand, (i32, i32), (i32, i32), i32, i32>::new(|f| {
+	(
+		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	)
+});
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
+	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -442,28 +479,27 @@ mod inner {
 		#[document_signature]
 		#[document_returns("The cloned grate instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
-		/// 		)
-		/// 	},
-		/// );
-		/// let cloned = grate.clone();
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		(
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		)
+	},
+);
+let cloned = grate.clone();
+assert_eq!(cloned.zip_with(|(a, b)| a + b, (1, 2), (3, 4)), (4, 6));"#
+		)]
 		fn clone(&self) -> Self {
 			GratePrime {
 				grate_fn: self.grate_fn.clone(),
@@ -490,27 +526,26 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
-		/// 		)
-		/// 	},
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		(
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		)
+	},
+);
+assert_eq!(grate.zip_with(|(a, b)| a + b, (1, 2), (3, 4)), (4, 6));"#
+		)]
 		pub fn new(
 			grate: impl Fn(
 				<FnBrand<P> as CloneableFn>::Of<
@@ -557,30 +592,28 @@ mod inner {
 			"The second structure."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::CloneableFn,
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
-		/// 		)
-		/// 	},
-		/// );
-		/// let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
-		/// assert_eq!(result, (11, 22));
-		/// ```
 		#[document_returns("The combined structure.")]
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::CloneableFn,
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		(
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		)
+	},
+);
+let result = grate.zip_with(|(a, b)| a + b, (1, 2), (10, 20));
+assert_eq!(result, (11, 22));"#
+		)]
 		pub fn zip_with(
 			&self,
 			f: impl Fn((A, A)) -> A + 'a,
@@ -614,33 +647,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 		},
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
-		/// 		)
-		/// 	},
-		/// );
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+		},
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		(
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		)
+	},
+);
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g = Optic::<RcFnBrand, _, _, _, _>::evaluate(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -694,33 +725,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 		},
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
-		/// 	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
-		/// 		(
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
-		/// 			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
-		/// 		)
-		/// 	},
-		/// );
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+		},
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(
+	|f: Rc<dyn Fn(Rc<dyn Fn(Rc<(i32, i32)>) -> i32>) -> i32>| {
+		(
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.0)),
+			f(<RcFnBrand as CloneableFn>::new(|s: Rc<(i32, i32)>| s.1)),
+		)
+	},
+);
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate<Q: Closed<FnBrand<P>>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -773,33 +802,31 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use {
-		/// 	fp_library::{
-		/// 		brands::*,
-		/// 		classes::{
-		/// 			CloneableFn,
-		/// 			optics::*,
-		/// 			profunctor::*,
-		/// 		},
-		/// 		types::optics::GratePrime,
-		/// 	},
-		/// 	std::rc::Rc,
-		/// };
-		///
-		/// let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
-		/// 	(
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		/// 	)
-		/// });
-		/// let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
-		/// let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
-		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
-		/// assert_eq!(g((10, 20)), (11, 21));
-		/// ```
+		#[document_examples(
+			r#"use {
+	fp_library::{
+		brands::*,
+		classes::{
+			CloneableFn,
+			optics::*,
+			profunctor::*,
+		},
+		types::optics::GratePrime,
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<'_, RcBrand, (i32, i32), i32>::new(|f| {
+	(
+		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	)
+});
+let f = Rc::new(|x: i32| x + 1) as Rc<dyn Fn(i32) -> i32>;
+let g: Rc<dyn Fn((i32, i32)) -> (i32, i32)> =
+	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&grate, f);
+assert_eq!(g((10, 20)), (11, 21));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),

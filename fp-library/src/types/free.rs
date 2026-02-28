@@ -79,6 +79,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_fields,
 			document_parameters,
 			document_returns,
@@ -174,16 +175,6 @@ mod inner {
 		"The result type."
 	)]
 	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	types::*,
-	/// };
-	///
-	/// let free = Free::<ThunkBrand, _>::pure(42);
-	/// ```
 	pub struct Free<F, A>(pub(crate) Option<FreeInner<F, A>>)
 	where
 		F: Functor + 'static,
@@ -214,6 +205,15 @@ mod inner {
 		/// let free = Free::<ThunkBrand, _>::pure(42);
 		/// ```
 		#[inline]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let free = Free::<ThunkBrand, _>::pure(42);
+assert_eq!(free.evaluate(), 42);"#
+		)]
 		pub fn pure(a: A) -> Self {
 			Free(Some(FreeInner::Pure(a)))
 		}
@@ -225,17 +225,16 @@ mod inner {
 		///
 		#[document_returns("A `Free` computation that performs the effect `fa`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let eval = Thunk::new(|| Free::pure(42));
-		/// let free = Free::<ThunkBrand, _>::wrap(eval);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let eval = Thunk::new(|| Free::pure(42));
+let free = Free::<ThunkBrand, _>::wrap(eval);
+assert_eq!(free.evaluate(), 42);"#
+		)]
 		pub fn wrap(
 			fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, Free<F, A>>)
 		) -> Self {
@@ -257,25 +256,23 @@ mod inner {
 		///
 		#[document_returns("A `Free` computation that performs the effect and returns the result.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// // Lift a simple computation
-		/// let thunk = Thunk::new(|| 42);
-		/// let free = Free::<ThunkBrand, _>::lift_f(thunk);
-		/// assert_eq!(free.evaluate(), 42);
-		///
-		/// // Build a computation from raw effects
-		/// let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
-		/// 	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
-		/// assert_eq!(computation.evaluate(), 25);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+// Lift a simple computation
+let thunk = Thunk::new(|| 42);
+let free = Free::<ThunkBrand, _>::lift_f(thunk);
+assert_eq!(free.evaluate(), 42);
+
+// Build a computation from raw effects
+let computation = Free::<ThunkBrand, _>::lift_f(Thunk::new(|| 10))
+	.bind(|x| Free::lift_f(Thunk::new(move || x * 2)))
+	.bind(|x| Free::lift_f(Thunk::new(move || x + 5)));
+assert_eq!(computation.evaluate(), 25);"#
+		)]
 		pub fn lift_f(fa: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'static, A>)) -> Self {
 			// Map the value to a pure Free, then wrap it
 			Free::wrap(F::map(Free::pure, fa))
@@ -290,16 +287,15 @@ mod inner {
 		///
 		#[document_returns("A new `Free` computation that chains `f` after this computation.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let free = Free::<ThunkBrand, _>::pure(42).bind(|x| Free::pure(x + 1));
+assert_eq!(free.evaluate(), 43);"#
+		)]
 		pub fn bind<B: 'static>(
 			mut self,
 			f: impl FnOnce(A) -> Free<F, B> + 'static,
@@ -353,6 +349,12 @@ mod inner {
 		#[document_returns(
 			"A `Free` computation where the result type has been erased to `Box<dyn Any>`."
 		)]
+		#[document_examples(
+			r#"use fp_library::{brands::*, types::*};
+let free = Free::<ThunkBrand, _>::pure(42);
+let erased = free.erase_type();
+assert!(erased.evaluate().is::<i32>());"#
+		)]
 		pub fn erase_type(mut self) -> Free<F, TypeErasedValue> {
 			let inner = self.0.take().expect("Free value already consumed");
 
@@ -378,6 +380,12 @@ mod inner {
 		/// Converts to boxed type-erased form.
 		#[document_signature]
 		#[document_returns("A boxed `Free` computation where the result type has been erased.")]
+		#[document_examples(
+			r#"use fp_library::{brands::*, types::*};
+let free = Free::<ThunkBrand, _>::pure(42);
+let boxed = free.boxed_erase_type();
+assert!(boxed.evaluate().is::<i32>());"#
+		)]
 		pub fn boxed_erase_type(self) -> Box<Free<F, TypeErasedValue>> {
 			Box::new(self.erase_type())
 		}
@@ -390,17 +398,15 @@ mod inner {
 		///
 		#[document_returns("The final result of the computation.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let free = Free::<ThunkBrand, _>::pure(42);
-		/// assert_eq!(free.evaluate(), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	types::*,
+};
+
+let free = Free::<ThunkBrand, _>::pure(42);
+assert_eq!(free.evaluate(), 42);"#
+		)]
 		pub fn evaluate(self) -> A
 		where
 			F: Evaluable, {
@@ -456,6 +462,13 @@ mod inner {
 		A: 'static,
 	{
 		#[document_signature]
+		#[document_examples(
+			r#"use fp_library::{brands::*, types::*};
+{
+		  let _free = Free::<ThunkBrand, _>::pure(42);
+} // drop called here
+assert!(true);"#
+		)]
 		fn drop(&mut self) {
 			// We take the inner value out.
 			let inner = self.0.take();
@@ -493,19 +506,17 @@ mod inner {
 		///
 		#[document_returns("The deferred free computation.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::Deferrable,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
-		/// assert_eq!(task.evaluate(), 42);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::Deferrable,
+	functions::*,
+	types::*,
+};
+
+let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
+assert_eq!(task.evaluate(), 42);"#
+		)]
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,

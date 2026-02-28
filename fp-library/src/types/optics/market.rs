@@ -18,6 +18,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -57,24 +58,22 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
-		/// 	types::optics::Market,
-		/// };
-		///
-		/// let market = Market::<RcFnBrand, i32, i32, String, String>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
-		/// 		s.parse::<i32>().map_err(|_| "error".to_string())
-		/// 	}),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
-		/// );
-		/// assert_eq!((market.preview)("123".to_string()), Ok(123));
-		/// assert_eq!((market.review)(456), "456".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	classes::cloneable_fn::new as cloneable_fn_new,
+	types::optics::Market,
+};
+
+let market = Market::<RcFnBrand, i32, i32, String, String>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
+		s.parse::<i32>().map_err(|_| "error".to_string())
+	}),
+	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
+);
+assert_eq!((market.preview)("123".to_string()), Ok(123));
+assert_eq!((market.review)(456), "456".to_string());"#
+		)]
 		pub fn new(
 			preview: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 			review: <FnBrand as CloneableFn>::Of<'a, B, T>,
@@ -130,20 +129,31 @@ mod inner {
 		///
 		#[document_returns("A transformed `Market` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Market is usually used internally by Prism optics
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		cloneable_fn::new as cloneable_fn_new,
+	},
+	types::optics::*,
+};
+
+// Market is usually used internally by Prism optics
+let market = Market::<RcFnBrand, i32, i32, String, String>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| {
+		s.parse::<i32>().map_err(|_| "error".to_string())
+	}),
+	cloneable_fn_new::<RcFnBrand, _, _>(|n: i32| n.to_string()),
+);
+let transformed = <MarketBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
+	|s: String| s,
+	|s: String| s,
+	market,
+);
+assert_eq!((transformed.preview)("123".to_string()), Ok(123));"#
+		)]
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,
@@ -186,20 +196,24 @@ mod inner {
 		///
 		#[document_returns("A transformed `Market` instance that operates on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Market is usually used internally by Prism optics
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		cloneable_fn::new as cloneable_fn_new,
+	},
+	types::optics::*,
+};
+
+let market = Market::<RcFnBrand, i32, i32, i32, i32>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+	cloneable_fn_new::<RcFnBrand, _, _>(|b| b),
+);
+let left_market = <MarketBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, i32>(market);
+assert_eq!((left_market.preview)(Err(42)), Ok(42));"#
+		)]
 		fn left<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, S>, Result<C, T>>)
@@ -229,20 +243,24 @@ mod inner {
 		///
 		#[document_returns("A transformed `Market` instance that operates on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// // Market is usually used internally by Prism optics
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		cloneable_fn::new as cloneable_fn_new,
+	},
+	types::optics::*,
+};
+
+let market = Market::<RcFnBrand, i32, i32, i32, i32>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+	cloneable_fn_new::<RcFnBrand, _, _>(|b| b),
+);
+let right_market = <MarketBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, i32>(market);
+assert_eq!((right_market.preview)(Ok(42)), Ok(42));"#
+		)]
 		fn right<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<S, C>, Result<T, C>>)

@@ -23,6 +23,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_fields,
 			document_parameters,
 			document_returns,
@@ -70,6 +71,12 @@ mod inner {
 		#[document_returns(
 			"A new `TryLazy` instance that shares the same underlying memoized result."
 		)]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+let cloned = memo.clone();
+assert_eq!(cloned.evaluate(), Ok(&42));"#
+		)]
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
@@ -92,14 +99,12 @@ mod inner {
 		///
 		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		pub fn evaluate(&self) -> Result<&A, &E> {
 			Config::try_evaluate(&self.0)
 		}
@@ -124,14 +129,12 @@ mod inner {
 		///
 		#[document_returns("A new `TryLazy` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Result<A, E> + 'a, {
@@ -150,6 +153,12 @@ mod inner {
 		///
 		#[document_returns(
 			"A new `TryLazy` instance that will evaluate the thunk on first access."
+		)]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let thunk = TryThunk::new(|| Ok::<i32, ()>(42));
+let memo = TryLazy::from(thunk);
+assert_eq!(memo.evaluate(), Ok(&42));"#
 		)]
 		fn from(eval: TryThunk<'a, A, E>) -> Self {
 			Self::new(move || eval.evaluate())
@@ -172,6 +181,12 @@ mod inner {
 		#[document_returns(
 			"A new `TryLazy` instance that will evaluate the trampoline on first access."
 		)]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let task = TryTrampoline::<_, ()>::ok(42);
+let memo: TryLazy<_, (), _> = TryLazy::from(task);
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		fn from(task: TryTrampoline<A, E>) -> Self {
 			Self::new(move || task.evaluate())
 		}
@@ -191,6 +206,12 @@ mod inner {
 		#[document_parameters("The thread-safe lazy value to convert.")]
 		///
 		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
+let memo: TryLazy<_, (), _> = TryLazy::from(lazy);
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		fn from(memo: Lazy<'a, A, ArcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -210,6 +231,12 @@ mod inner {
 		#[document_parameters("The lazy value to convert.")]
 		///
 		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
+		#[document_examples(
+			r#"use fp_library::types::*;
+let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+let memo: TryLazy<_, (), _> = TryLazy::from(lazy);
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		fn from(memo: Lazy<'a, A, RcLazyConfig>) -> Self {
 			Self::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -232,19 +259,17 @@ mod inner {
 		///
 		#[document_returns("A new `TryLazy` instance where panics are converted to `Err(String)`.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
-		/// 	if true {
-		/// 		panic!("oops")
-		/// 	}
-		/// 	42
-		/// });
-		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let memo = TryLazy::<_, String, RcLazyConfig>::catch_unwind(|| {
+	if true {
+		panic!("oops")
+	}
+	42
+});
+assert_eq!(memo.evaluate(), Err(&"oops".to_string()));"#
+		)]
 		pub fn catch_unwind<F>(f: F) -> Self
 		where
 			F: FnOnce() -> A + std::panic::UnwindSafe + 'a, {
@@ -281,14 +306,12 @@ mod inner {
 		///
 		#[document_returns("A new `TryLazy` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::types::*;
-		///
-		/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
-		/// assert_eq!(memo.evaluate(), Ok(&42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::types::*;
+
+let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
+assert_eq!(memo.evaluate(), Ok(&42));"#
+		)]
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Result<A, E> + Send + 'a, {
@@ -318,19 +341,17 @@ mod inner {
 		///
 		#[document_returns("A new `TryLazy` value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
-		/// assert_eq!(lazy.evaluate(), Ok(&42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::*,
+	functions::*,
+	types::*,
+};
+
+let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
+assert_eq!(lazy.evaluate(), Ok(&42));"#
+		)]
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
@@ -368,18 +389,16 @@ mod inner {
 		///
 		#[document_returns("A new `ArcTryLazy` value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	types::*,
-		/// };
-		///
-		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
-		/// assert_eq!(lazy.evaluate(), Ok(&42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::*,
+	types::*,
+};
+
+let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
+assert_eq!(lazy.evaluate(), Ok(&42));"#
+		)]
 		fn send_defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + Send + Sync + 'a,

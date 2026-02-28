@@ -26,6 +26,7 @@ mod inner {
 			},
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_signature,
 			document_type_parameters,
@@ -50,20 +51,17 @@ mod inner {
 	/// ### Returns
 	///
 	/// The focus value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::RcBrand,
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
-	/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::RcBrand,
+	classes::optics::*,
+	types::optics::*,
+};
+
+let l: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
+assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);"#
+	)]
 	pub fn optics_view<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -94,23 +92,20 @@ mod inner {
 	/// ### Returns
 	///
 	/// The updated structure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::RcBrand,
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-	/// assert_eq!(
-	/// 	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
-	/// 	(99, "hello".to_string())
-	/// );
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::RcBrand,
+	classes::optics::*,
+	types::optics::*,
+};
+
+let l: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+assert_eq!(
+	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
+	(99, "hello".to_string())
+);"#
+	)]
 	pub fn optics_set<'a, Q, O, S, A>(
 		optic: &O,
 		s: S,
@@ -148,23 +143,20 @@ mod inner {
 	/// ### Returns
 	///
 	/// The updated structure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::RcBrand,
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-	/// assert_eq!(
-	/// 	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
-	/// 	(84, "hello".to_string())
-	/// );
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::RcBrand,
+	classes::optics::*,
+	types::optics::*,
+};
+
+let l: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+assert_eq!(
+	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
+	(84, "hello".to_string())
+);"#
+	)]
 	pub fn optics_over<'a, Q, O, S, A, F>(
 		optic: &O,
 		s: S,
@@ -198,21 +190,18 @@ mod inner {
 	/// ### Returns
 	///
 	/// An `Option` containing the focus value if it exists.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::RcBrand,
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
-	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::RcBrand,
+	classes::optics::*,
+	types::optics::*,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
+assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
+assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);"#
+	)]
 	pub fn optics_preview<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -260,20 +249,17 @@ mod inner {
 	/// ### Returns
 	///
 	/// The structure containing the focus value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::RcBrand,
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-	/// assert_eq!(optics_review(&ok_prism, 42), Ok(42));
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::RcBrand,
+	classes::optics::*,
+	types::optics::*,
+};
+
+let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
+assert_eq!(optics_review(&ok_prism, 42), Ok(42));"#
+	)]
 	pub fn optics_review<'a, O, S, A>(
 		optic: &O,
 		a: A,
@@ -303,22 +289,19 @@ mod inner {
 	/// ### Returns
 	///
 	/// The focus value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::{
-	/// 		RcBrand,
-	/// 		RcFnBrand,
-	/// 	},
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::optics::*,
+	types::optics::*,
+};
+
+let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);"#
+	)]
 	pub fn optics_from<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -351,22 +334,19 @@ mod inner {
 	/// ### Returns
 	///
 	/// The structure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::{
-	/// 		RcBrand,
-	/// 		RcFnBrand,
-	/// 	},
-	/// 	classes::optics::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::optics::*,
+	types::optics::*,
+};
+
+let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));"#
+	)]
 	pub fn optics_to<'a, P, O, S, A>(
 		optic: &O,
 		a: A,
@@ -402,24 +382,21 @@ mod inner {
 	/// ### Returns
 	///
 	/// The transformed profunctor value.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use fp_library::{
-	/// 	brands::*,
-	/// 	classes::optics::*,
-	/// 	functions::*,
-	/// 	types::optics::*,
-	/// };
-	///
-	/// let l: LensPrime<RcBrand, (i32, String), i32> =
-	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-	///
-	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);
-	/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-	/// ```
+	#[document_examples(
+		r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let l: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+	)]
 	pub fn optics_eval<'a, P, O, S: 'a, T: 'a, A: 'a, B: 'a>(
 		optic: &O,
 		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -459,34 +436,31 @@ mod inner {
 	/// ### Returns
 	///
 	/// The combined structure.
-	///
-	/// ### Examples
-	///
-	/// ```
-	/// use {
-	/// 	fp_library::{
-	/// 		brands::{
-	/// 			RcBrand,
-	/// 			RcFnBrand,
-	/// 		},
-	/// 		classes::CloneableFn,
-	/// 		types::optics::{
-	/// 			GratePrime,
-	/// 			zip_with_of,
-	/// 		},
-	/// 	},
-	/// 	std::rc::Rc,
-	/// };
-	///
-	/// let grate = GratePrime::<RcBrand, (i32, i32), i32>::new(|f| {
-	/// 	(
-	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-	/// 	)
-	/// });
-	/// let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
-	/// assert_eq!(result, (11, 22));
-	/// ```
+	#[document_examples(
+		r#"use {
+	fp_library::{
+		brands::{
+			RcBrand,
+			RcFnBrand,
+		},
+		classes::CloneableFn,
+		types::optics::{
+			GratePrime,
+			zip_with_of,
+		},
+	},
+	std::rc::Rc,
+};
+
+let grate = GratePrime::<RcBrand, (i32, i32), i32>::new(|f| {
+	(
+		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	)
+});
+let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
+assert_eq!(result, (11, 22));"#
+	)]
 	pub fn zip_with_of<'a, P, O, S, T, A, B>(
 		optic: &O,
 		f: impl Fn((A, A)) -> B + 'a,

@@ -37,6 +37,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 		},
@@ -61,22 +62,20 @@ mod inner {
 			"A vector to prepend the value to."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::brands::VecBrand;
-		///
-		/// let head = 1;
-		/// let tail = vec![2, 3];
-		/// let new_vec = VecBrand::construct(head, tail);
-		/// assert_eq!(new_vec, vec![1, 2, 3]);
-		///
-		/// let empty_tail = vec![];
-		/// let single_element = VecBrand::construct(42, empty_tail);
-		/// assert_eq!(single_element, vec![42]);
-		/// ```
 		#[document_returns(
 			"A new vector consisting of the `head` element prepended to the `tail` vector."
+		)]
+		#[document_examples(
+			r#"use fp_library::brands::VecBrand;
+
+let head = 1;
+let tail = vec![2, 3];
+let new_vec = VecBrand::construct(head, tail);
+assert_eq!(new_vec, vec![1, 2, 3]);
+
+let empty_tail = vec![];
+let single_element = VecBrand::construct(42, empty_tail);
+assert_eq!(single_element, vec![42]);"#
 		)]
 		pub fn construct<A>(
 			head: A,
@@ -100,18 +99,16 @@ mod inner {
 			"An [`Option`] containing a tuple of the head element and the remaining tail vector, or [`None`] if the slice is empty."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::brands::VecBrand;
-		///
-		/// let vec = vec![1, 2, 3];
-		/// let deconstructed = VecBrand::deconstruct(&vec);
-		/// assert_eq!(deconstructed, Some((1, vec![2, 3])));
-		///
-		/// let empty: Vec<i32> = vec![];
-		/// assert_eq!(VecBrand::deconstruct(&empty), None);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::brands::VecBrand;
+
+let vec = vec![1, 2, 3];
+let deconstructed = VecBrand::deconstruct(&vec);
+assert_eq!(deconstructed, Some((1, vec![2, 3])));
+
+let empty: Vec<i32> = vec![];
+assert_eq!(VecBrand::deconstruct(&empty), None);"#
+		)]
 		pub fn deconstruct<A>(slice: &[A]) -> Option<(A, Vec<A>)>
 		where
 			A: Clone, {
@@ -139,16 +136,14 @@ mod inner {
 		///
 		#[document_returns("A new vector containing the results of applying the function.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);"#
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -179,21 +174,19 @@ mod inner {
 			"The second vector."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(
-		/// 	lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
-		/// 	vec![11, 21, 12, 22]
-		/// );
-		/// ```
 		#[document_returns(
 			"A new vector containing the results of applying the function to all pairs of elements."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+	vec![11, 21, 12, 22]
+);"#
 		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
@@ -221,16 +214,14 @@ mod inner {
 		///
 		#[document_returns("A vector containing the single value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(pure::<VecBrand, _>(5), vec![5]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+
+assert_eq!(pure::<VecBrand, _>(5), vec![5]);"#
+		)]
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			vec![a]
 		}
@@ -257,23 +248,21 @@ mod inner {
 			"The vector containing the values."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let funcs = vec![
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
-		/// ];
-		/// assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);
-		/// ```
 		#[document_returns(
 			"A new vector containing the results of applying each function to each value."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::*,
+	functions::*,
+};
+
+let funcs = vec![
+	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1),
+	cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),
+];
+assert_eq!(apply::<RcFnBrand, VecBrand, _, _>(funcs, vec![1, 2]), vec![2, 3, 2, 4]);"#
 		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
@@ -301,17 +290,15 @@ mod inner {
 			"The function to apply to each element, returning a vector."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
-		/// ```
 		#[document_returns("A new vector containing the flattened results.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+
+assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);"#
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -340,19 +327,17 @@ mod inner {
 		///
 		#[document_returns("The final accumulator value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]),
-		/// 	6
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]),
+	6
+);"#
+		)]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -383,20 +368,18 @@ mod inner {
 			"The vector to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]),
-		/// 	6
-		/// );
-		/// ```
 		#[document_returns("The final accumulator value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]),
+	6
+);"#
+		)]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -425,19 +408,17 @@ mod inner {
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
-		/// 	"123".to_string()
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+	"123".to_string()
+);"#
+		)]
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -469,23 +450,21 @@ mod inner {
 			"The vector to traverse."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(
-		/// 	traverse::<VecBrand, _, _, OptionBrand, _>(|x| Some(x * 2), vec![1, 2, 3]),
-		/// 	Some(vec![2, 4, 6])
-		/// );
-		/// ```
 		#[document_returns("The vector wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		OptionBrand,
+		VecBrand,
+	},
+	functions::*,
+};
+
+assert_eq!(
+	traverse::<VecBrand, _, _, OptionBrand, _>(|x| Some(x * 2), vec![1, 2, 3]),
+	Some(vec![2, 4, 6])
+);"#
+		)]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -522,19 +501,17 @@ mod inner {
 		///
 		#[document_returns("The vector wrapped in the applicative context.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
-		/// 	functions::*,
-		/// };
-		///
-		/// assert_eq!(sequence::<VecBrand, _, OptionBrand>(vec![Some(1), Some(2)]), Some(vec![1, 2]));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		OptionBrand,
+		VecBrand,
+	},
+	functions::*,
+};
+
+assert_eq!(sequence::<VecBrand, _, OptionBrand>(vec![Some(1), Some(2)]), Some(vec![1, 2]));"#
+		)]
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -566,13 +543,11 @@ mod inner {
 		///
 		#[document_returns("The concatenated vector.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::functions::*;
-		///
-		/// assert_eq!(append(vec![1, 2], vec![3, 4]), vec![1, 2, 3, 4]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::functions::*;
+
+assert_eq!(append(vec![1, 2], vec![3, 4]), vec![1, 2, 3, 4]);"#
+		)]
 		fn append(
 			a: Self,
 			b: Self,
@@ -590,13 +565,11 @@ mod inner {
 		///
 		#[document_returns("An empty vector.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::functions::*;
-		///
-		/// assert_eq!(empty::<Vec<i32>>(), vec![]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::functions::*;
+
+assert_eq!(empty::<Vec<i32>>(), vec![]);"#
+		)]
 		fn empty() -> Self {
 			Vec::new()
 		}
@@ -622,19 +595,17 @@ mod inner {
 			"The vector to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let v = vec![1, 2, 3];
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());
-		/// ```
 		#[document_returns("The combined monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let v = vec![1, 2, 3];
+let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+assert_eq!(par_fold_map::<ArcFnBrand, VecBrand, _, _>(f, v), "123".to_string());"#
+		)]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -667,18 +638,16 @@ mod inner {
 		///
 		#[document_returns("The flattened vector.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![Some(1), None, Some(2)];
-		/// let y = compact::<VecBrand, _>(x);
-		/// assert_eq!(y, vec![1, 2]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+
+let x = vec![Some(1), None, Some(2)];
+let y = compact::<VecBrand, _>(x);
+assert_eq!(y, vec![1, 2]);"#
+		)]
 		fn compact<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -703,19 +672,17 @@ mod inner {
 		///
 		#[document_returns("A pair of vectors.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![Ok(1), Err("error"), Ok(2)];
-		/// let (errs, oks) = separate::<VecBrand, _, _>(x);
-		/// assert_eq!(oks, vec![1, 2]);
-		/// assert_eq!(errs, vec!["error"]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = vec![Ok(1), Err("error"), Ok(2)];
+let (errs, oks) = separate::<VecBrand, _, _>(x);
+assert_eq!(oks, vec![1, 2]);
+assert_eq!(errs, vec!["error"]);"#
+		)]
 		fn separate<'a, E: 'a, O: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 		) -> (
@@ -752,20 +719,18 @@ mod inner {
 		///
 		#[document_returns("A pair of vectors.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
-		/// assert_eq!(oks, vec![2, 4]);
-		/// assert_eq!(errs, vec![1, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let (errs, oks) =
+	partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+assert_eq!(oks, vec![2, 4]);
+assert_eq!(errs, vec![1, 3]);"#
+		)]
 		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -801,19 +766,17 @@ mod inner {
 		///
 		#[document_returns("A pair of vectors.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
-		/// assert_eq!(satisfied, vec![2, 4]);
-		/// assert_eq!(not_satisfied, vec![1, 3]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
+assert_eq!(satisfied, vec![2, 4]);
+assert_eq!(not_satisfied, vec![1, 3]);"#
+		)]
 		fn partition<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -844,18 +807,16 @@ mod inner {
 		///
 		#[document_returns("The filtered and mapped vector.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
-		/// assert_eq!(y, vec![4, 8]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let y = filter_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
+assert_eq!(y, vec![4, 8]);"#
+		)]
 		fn filter_map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -880,18 +841,16 @@ mod inner {
 		///
 		#[document_returns("The filtered vector.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::VecBrand,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter::<VecBrand, _, _>(|a| a % 2 == 0, x);
-		/// assert_eq!(y, vec![2, 4]);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let y = filter::<VecBrand, _, _>(|a| a % 2 == 0, x);
+assert_eq!(y, vec![2, 4]);"#
+		)]
 		fn filter<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -921,21 +880,19 @@ mod inner {
 		///
 		#[document_returns("The partitioned vector wrapped in the applicative context.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(
-		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
-		/// 	x,
-		/// );
-		/// assert_eq!(y, Some((vec![1, 3], vec![2, 4])));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(
+	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
+	x,
+);
+assert_eq!(y, Some((vec![1, 3], vec![2, 4])));"#
+		)]
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -984,25 +941,23 @@ mod inner {
 			"The vector to filter and map."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		OptionBrand,
-		/// 		VecBrand,
-		/// 	},
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = vec![1, 2, 3, 4];
-		/// let y = wither::<VecBrand, OptionBrand, _, _, _>(
-		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
-		/// 	x,
-		/// );
-		/// assert_eq!(y, Some(vec![4, 8]));
-		/// ```
 		#[document_returns("The filtered and mapped vector wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		OptionBrand,
+		VecBrand,
+	},
+	functions::*,
+};
+
+let x = vec![1, 2, 3, 4];
+let y = wither::<VecBrand, OptionBrand, _, _, _>(
+	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
+	x,
+);
+assert_eq!(y, Some(vec![4, 8]));"#
+		)]
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

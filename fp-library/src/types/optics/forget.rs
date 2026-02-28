@@ -23,6 +23,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -71,18 +72,16 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Forget,
-		/// };
-		///
-		/// let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
-		/// // Access via the underlying function wrapper, which implements Deref
-		/// assert_eq!((forget.0)("hello".to_string()), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Forget,
+};
+
+let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
+// Access via the underlying function wrapper, which implements Deref
+assert_eq!((forget.0)("hello".to_string()), 5);"#
+		)]
 		pub fn new(f: impl Fn(A) -> R + 'a) -> Self {
 			Forget(<FnBrand<P> as CloneableFn>::new(f), PhantomData)
 		}
@@ -93,17 +92,15 @@ mod inner {
 		///
 		#[document_returns("The result of applying the underlying function to the input.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Forget,
-		/// };
-		///
-		/// let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
-		/// assert_eq!(forget.run("hello".to_string()), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Forget,
+};
+
+let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
+assert_eq!(forget.run("hello".to_string()), 5);"#
+		)]
 		pub fn run(
 			&self,
 			a: A,
@@ -129,18 +126,16 @@ mod inner {
 		#[document_signature]
 		#[document_returns("A new `Forget` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::Forget,
-		/// };
-		///
-		/// let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
-		/// let cloned = forget.clone();
-		/// assert_eq!(cloned.run("hello".to_string()), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::Forget,
+};
+
+let forget = Forget::<RcBrand, i32, String, i32>::new(|s: String| s.len() as i32);
+let cloned = forget.clone();
+assert_eq!(cloned.run("hello".to_string()), 5);"#
+		)]
 		fn clone(&self) -> Self {
 			Forget(self.0.clone(), PhantomData)
 		}
@@ -178,28 +173,26 @@ mod inner {
 		)]
 		#[document_returns("A transformed `Forget` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		profunctor::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let forget: Forget<RcBrand, usize, String, usize> = Forget::new(|s: String| s.len());
-		///
-		/// let transformed = <ForgetBrand<RcBrand, usize> as Profunctor>::dimap(
-		/// 	|s: &str| s.to_string(),
-		/// 	|s: usize| s,
-		/// 	forget,
-		/// );
-		/// assert_eq!(transformed.run("hello"), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		*,
+	},
+	types::optics::*,
+};
+
+let forget: Forget<RcBrand, usize, String, usize> = Forget::new(|s: String| s.len());
+
+let transformed = <ForgetBrand<RcBrand, usize> as Profunctor>::dimap(
+	|s: &str| s.to_string(),
+	|s: usize| s,
+	forget,
+);
+assert_eq!(transformed.run("hello"), 5);"#
+		)]
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			ab: FuncAB,
 			_cd: FuncCD,
@@ -226,24 +219,22 @@ mod inner {
 		#[document_parameters("The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on tuples.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		profunctor::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let forget: Forget<RcBrand, usize, String, usize> = Forget::new(|s: String| s.len());
-		///
-		/// let transformed = <ForgetBrand<RcBrand, usize> as Strong>::first::<String, usize, i32>(forget);
-		/// assert_eq!(transformed.run(("hello".to_string(), 42)), 5);
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		*,
+	},
+	types::optics::*,
+};
+
+let forget: Forget<RcBrand, usize, String, usize> = Forget::new(|s: String| s.len());
+
+let transformed = <ForgetBrand<RcBrand, usize> as Strong>::first::<String, usize, i32>(forget);
+assert_eq!(transformed.run(("hello".to_string(), 42)), 5);"#
+		)]
 		fn first<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
@@ -267,24 +258,22 @@ mod inner {
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on structures.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
-		///
-		/// // We use a manual implementation for the example to avoid complex trait bounds
-		/// let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| v.join(""));
-		/// assert_eq!(transformed.run(vec!["a".to_string(), "b".to_string()]), "ab".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		*,
+	},
+	types::optics::*,
+};
+
+let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
+
+// We use a manual implementation for the example to avoid complex trait bounds
+let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| v.join(""));
+assert_eq!(transformed.run(vec!["a".to_string(), "b".to_string()]), "ab".to_string());"#
+		)]
 		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
@@ -317,26 +306,24 @@ mod inner {
 		#[document_parameters("The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		profunctor::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
-		///
-		/// let transformed =
-		/// 	<ForgetBrand<RcBrand, String> as Choice>::left::<String, String, String>(forget);
-		/// assert_eq!(transformed.run(Err("hello".to_string())), "hello".to_string());
-		/// assert_eq!(transformed.run(Ok("world".to_string())), "".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		*,
+	},
+	types::optics::*,
+};
+
+let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
+
+let transformed =
+	<ForgetBrand<RcBrand, String> as Choice>::left::<String, String, String>(forget);
+assert_eq!(transformed.run(Err("hello".to_string())), "hello".to_string());
+assert_eq!(transformed.run(Ok("world".to_string())), "".to_string());"#
+		)]
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -359,26 +346,24 @@ mod inner {
 		#[document_parameters("The forget instance to transform.")]
 		#[document_returns("A transformed `Forget` instance that operates on `Result` types.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		profunctor::*,
-		/// 		*,
-		/// 	},
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
-		///
-		/// let transformed =
-		/// 	<ForgetBrand<RcBrand, String> as Choice>::right::<String, String, String>(forget);
-		/// assert_eq!(transformed.run(Ok("hello".to_string())), "hello".to_string());
-		/// assert_eq!(transformed.run(Err("world".to_string())), "".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		*,
+	},
+	types::optics::*,
+};
+
+let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x);
+
+let transformed =
+	<ForgetBrand<RcBrand, String> as Choice>::right::<String, String, String>(forget);
+assert_eq!(transformed.run(Ok("hello".to_string())), "hello".to_string());
+assert_eq!(transformed.run(Err("world".to_string())), "".to_string());"#
+		)]
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)

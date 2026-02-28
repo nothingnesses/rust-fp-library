@@ -21,6 +21,7 @@ mod inner {
 			types::optics::ForgetBrand,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -62,6 +63,45 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The affine traversal instance.")]
+	impl<'a, P, S, T, A, B> Clone for AffineTraversal<'a, P, S, T, A, B>
+	where
+		P: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+	{
+		#[document_signature]
+		///
+		#[document_returns("A new `AffineTraversal` instance that is a copy of the original.")]
+		///
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversal,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+let cloned = at.clone();
+assert_eq!(cloned.preview((42, "hi".to_string())), Ok(42));"#
+		)]
+		fn clone(&self) -> Self {
+			AffineTraversal {
+				to: self.to.clone(),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The affine traversal instance.")]
 	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversal<'a, P, S, T, A, B>
 	where
 		P: UnsizedCoercible,
@@ -74,23 +114,22 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::CloneableFn,
-		/// 	types::optics::AffineTraversal,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::new(|(x, s): (i32, String)| {
-		/// 		Ok((x, <RcFnBrand as CloneableFn>::new(move |b| (b, s.clone()))))
-		/// 	});
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::CloneableFn,
+	types::optics::AffineTraversal,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::new(|(x, s): (i32, String)| {
+		Ok((x, <RcFnBrand as CloneableFn>::new(move |b| (b, s.clone()))))
+	});
+assert_eq!(at.preview((42, "hi".to_string())), Ok(42));"#
+		)]
 		pub fn new(
 			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>), T>
 		) -> Self {
@@ -106,18 +145,16 @@ mod inner {
 		///
 		#[document_returns("A new `AffineTraversal` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversal,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.preview((42, "hi".to_string())), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversal,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+assert_eq!(at.preview((42, "hi".to_string())), Ok(42));"#
+		)]
 		pub fn from_preview_set(
 			preview: impl 'a + Fn(S) -> Result<A, T>,
 			set: impl 'a + Fn((S, B)) -> T,
@@ -153,18 +190,16 @@ mod inner {
 			"A result containing the focus value if it exists, or the original structure (possibly with changed type) if not."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversal,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.preview((42, "hi".to_string())), Ok(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversal,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+assert_eq!(at.preview((42, "hi".to_string())), Ok(42));"#
+		)]
 		pub fn preview(
 			&self,
 			s: S,
@@ -179,18 +214,16 @@ mod inner {
 		///
 		#[document_returns("The updated structure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversal,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, _)| Ok(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversal,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, _)| Ok(x), |((_, s), x)| (x, s));
+assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));"#
+		)]
 		pub fn set(
 			&self,
 			s: S,
@@ -227,29 +260,27 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as Optic<
-		/// 	RcFnBrand,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// >>::evaluate(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as Optic<
+	RcFnBrand,
+	_,
+	_,
+	_,
+	_,
+>>::evaluate(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -292,29 +323,27 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier =
-		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as AffineTraversalOptic<
-		/// 		(i32, String),
-		/// 		(i32, String),
-		/// 		i32,
-		/// 		i32,
-		/// 	>>::evaluate::<RcFnBrand>(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier =
+	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as AffineTraversalOptic<
+		(i32, String),
+		(i32, String),
+		i32,
+		i32,
+	>>::evaluate::<RcFnBrand>(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate<R: Strong + Choice>(
 			&self,
 			pab: Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -343,29 +372,27 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier =
-		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as TraversalOptic<
-		/// 		(i32, String),
-		/// 		(i32, String),
-		/// 		i32,
-		/// 		i32,
-		/// 	>>::evaluate::<RcFnBrand>(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier =
+	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as TraversalOptic<
+		(i32, String),
+		(i32, String),
+		i32,
+		i32,
+	>>::evaluate::<RcFnBrand>(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -393,26 +420,24 @@ mod inner {
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		///
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as FoldOptic<
-		/// 	(i32, String),
-		/// 	i32,
-		/// >>::evaluate::<String, RcBrand>(&at, f);
-		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+
+let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+let folded = <AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as FoldOptic<
+	(i32, String),
+	i32,
+>>::evaluate::<String, RcBrand>(&at, f);
+assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -443,30 +468,28 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
-		/// 	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier =
-		/// 	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as SetterOptic<
-		/// 		RcBrand,
-		/// 		_,
-		/// 		_,
-		/// 		_,
-		/// 		_,
-		/// 	>>::evaluate(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> =
+	AffineTraversal::from_preview_set(|(x, s): (i32, String)| Ok(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier =
+	<AffineTraversal<RcBrand, (i32, String), (i32, String), i32, i32> as SetterOptic<
+		RcBrand,
+		_,
+		_,
+		_,
+		_,
+	>>::evaluate(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -510,19 +533,17 @@ mod inner {
 		///
 		#[document_returns("A new `AffineTraversalPrime` instance that is a copy of the original.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// let cloned = at.clone();
-		/// assert_eq!(cloned.preview((42, "hi".to_string())), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+let cloned = at.clone();
+assert_eq!(cloned.preview((42, "hi".to_string())), Some(42));"#
+		)]
 		fn clone(&self) -> Self {
 			AffineTraversalPrime {
 				to: self.to.clone(),
@@ -549,23 +570,22 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
-		/// 	classes::CloneableFn,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::new(|(x, s): (i32, String)| {
-		/// 		Ok((x, <RcFnBrand as CloneableFn>::new(move |a| (a, s.clone()))))
-		/// 	});
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{
+		RcBrand,
+		RcFnBrand,
+	},
+	classes::CloneableFn,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::new(|(x, s): (i32, String)| {
+		Ok((x, <RcFnBrand as CloneableFn>::new(move |a| (a, s.clone()))))
+	});
+assert_eq!(at.preview((42, "hi".to_string())), Some(42));"#
+		)]
 		pub fn new(
 			to: impl 'a + Fn(S) -> Result<(A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>), S>
 		) -> Self {
@@ -581,18 +601,16 @@ mod inner {
 		///
 		#[document_returns("A new `AffineTraversalPrime` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.preview((42, "hi".to_string())), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+assert_eq!(at.preview((42, "hi".to_string())), Some(42));"#
+		)]
 		pub fn from_preview_set(
 			preview: impl 'a + Fn(S) -> Option<A>,
 			set: impl 'a + Fn((S, A)) -> S,
@@ -626,18 +644,16 @@ mod inner {
 		///
 		#[document_returns("The focus value if it exists, or `None` if not.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.preview((42, "hi".to_string())), Some(42));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+assert_eq!(at.preview((42, "hi".to_string())), Some(42));"#
+		)]
 		pub fn preview(
 			&self,
 			s: S,
@@ -652,18 +668,16 @@ mod inner {
 		///
 		#[document_returns("The updated structure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));"#
+		)]
 		pub fn set(
 			&self,
 			s: S,
@@ -682,18 +696,16 @@ mod inner {
 		///
 		#[document_returns("The updated structure.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcBrand,
-		/// 	types::optics::AffineTraversalPrime,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		/// assert_eq!(at.modify((21, "hi".to_string()), |x| x * 2), (42, "hi".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::AffineTraversalPrime,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+assert_eq!(at.modify((21, "hi".to_string()), |x| x * 2), (42, "hi".to_string()));"#
+		)]
 		pub fn modify(
 			&self,
 			s: S,
@@ -727,29 +739,27 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as Optic<
-		/// 	RcFnBrand,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// >>::evaluate(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as Optic<
+	RcFnBrand,
+	_,
+	_,
+	_,
+	_,
+>>::evaluate(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -788,28 +798,26 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as AffineTraversalOptic<
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// >>::evaluate::<RcFnBrand>(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as AffineTraversalOptic<
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+>>::evaluate::<RcFnBrand>(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate<R: Strong + Choice>(
 			&self,
 			pab: Apply!(<R as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -835,28 +843,26 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as TraversalOptic<
-		/// 	(i32, String),
-		/// 	(i32, String),
-		/// 	i32,
-		/// 	i32,
-		/// >>::evaluate::<RcFnBrand>(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as TraversalOptic<
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+>>::evaluate::<RcFnBrand>(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -885,26 +891,24 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		///
-		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-		/// let folded = <AffineTraversalPrime<RcBrand, (i32, String), i32> as FoldOptic<
-		/// 	(i32, String),
-		/// 	i32,
-		/// >>::evaluate::<String, RcBrand>(&at, f);
-		/// assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+
+let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+let folded = <AffineTraversalPrime<RcBrand, (i32, String), i32> as FoldOptic<
+	(i32, String),
+	i32,
+>>::evaluate::<String, RcBrand>(&at, f);
+assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());"#
+		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -932,29 +936,27 @@ mod inner {
 		///
 		#[document_returns("The transformed profunctor value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::optics::*,
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
-		/// 	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
-		///
-		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-		/// let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as SetterOptic<
-		/// 	RcBrand,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// 	_,
-		/// >>::evaluate(&at, f);
-		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+
+let at: AffineTraversalPrime<RcBrand, (i32, String), i32> =
+	AffineTraversalPrime::from_preview_set(|(x, _)| Some(x), |((_, s), x)| (x, s));
+
+let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+let modifier = <AffineTraversalPrime<RcBrand, (i32, String), i32> as SetterOptic<
+	RcBrand,
+	_,
+	_,
+	_,
+	_,
+>>::evaluate(&at, f);
+assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
+		)]
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),

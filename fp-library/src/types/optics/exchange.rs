@@ -15,6 +15,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 			document_type_parameters,
@@ -54,22 +55,20 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::cloneable_fn::new as cloneable_fn_new,
-		/// 	types::optics::Exchange,
-		/// };
-		///
-		/// let exchange = Exchange::<RcFnBrand, _, _, _, _>::new(
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
-		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
-		/// );
-		/// assert_eq!((exchange.get)("hello".to_string()), 5);
-		/// assert_eq!((exchange.set)(10), "10".to_string());
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcFnBrand,
+	classes::cloneable_fn::new as cloneable_fn_new,
+	types::optics::Exchange,
+};
+
+let exchange = Exchange::<RcFnBrand, _, _, _, _>::new(
+	cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
+	cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
+);
+assert_eq!((exchange.get)("hello".to_string()), 5);
+assert_eq!((exchange.set)(10), "10".to_string());"#
+		)]
 		pub fn new(
 			get: <FnBrand as CloneableFn>::Of<'a, S, A>,
 			set: <FnBrand as CloneableFn>::Of<'a, B, T>,
@@ -123,32 +122,31 @@ mod inner {
 		)]
 		#[document_returns("A transformed `Exchange` instance.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	classes::{
-		/// 		optics::*,
-		/// 		profunctor::*,
-		/// 		*,
-		/// 	},
-		/// 	functions::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let exchange: Exchange<RcFnBrand, usize, usize, String, String> =
-		/// 	Exchange::<RcFnBrand, _, _, _, _>::new(
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
-		/// 		cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
-		/// 	);
-		///
-		/// let transformed = <ExchangeBrand<RcFnBrand, usize, usize> as Profunctor>::dimap(
-		/// 	|s: &str| s.to_string(),
-		/// 	|s: String| s.len(),
-		/// 	exchange,
-		/// );
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::{
+		optics::*,
+		profunctor::*,
+		*,
+	},
+	functions::*,
+	types::optics::*,
+};
+
+let exchange: Exchange<RcFnBrand, usize, usize, String, String> =
+	Exchange::<RcFnBrand, _, _, _, _>::new(
+		cloneable_fn_new::<RcFnBrand, _, _>(|s: String| s.len()),
+		cloneable_fn_new::<RcFnBrand, _, _>(|n: usize| n.to_string()),
+	);
+
+let transformed = <ExchangeBrand<RcFnBrand, usize, usize> as Profunctor>::dimap(
+	|s: &str| s.to_string(),
+	|s: String| s.len(),
+	exchange,
+);
+assert_eq!((transformed.get)("hello"), 5);"#
+		)]
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,

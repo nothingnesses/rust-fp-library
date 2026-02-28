@@ -14,6 +14,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 		},
@@ -35,16 +36,14 @@ mod inner {
 		///
 		#[document_returns("The combined string.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::functions::*;
-		///
-		/// let s1 = "Hello, ".to_string();
-		/// let s2 = "World!".to_string();
-		/// let result = append::<_>(s1, s2);
-		/// assert_eq!(result, "Hello, World!");
-		/// ```
+		#[document_examples(
+			r#"use fp_library::functions::*;
+
+let s1 = "Hello, ".to_string();
+let s2 = "World!".to_string();
+let result = append::<_>(s1, s2);
+assert_eq!(result, "Hello, World!");"#
+		)]
 		fn append(
 			a: Self,
 			b: Self,
@@ -61,14 +60,12 @@ mod inner {
 		///
 		#[document_returns("The identity element.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::functions::*;
-		///
-		/// let empty_string = empty::<String>();
-		/// assert_eq!(empty_string, "");
-		/// ```
+		#[document_examples(
+			r#"use fp_library::functions::*;
+
+let empty_string = empty::<String>();
+assert_eq!(empty_string, "");"#
+		)]
 		fn empty() -> Self {
 			String::new()
 		}

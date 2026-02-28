@@ -28,6 +28,7 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::{
+			document_examples,
 			document_parameters,
 			document_returns,
 		},
@@ -62,18 +63,16 @@ mod inner {
 		///
 		#[document_returns("A new 1-tuple containing the result of applying the function.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _, _>(|i| i * 2, x);
-		/// assert_eq!(y, (10,));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = map::<Tuple1Brand, _, _, _>(|i| i * 2, x);
+assert_eq!(y, (10,));"#
+		)]
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -104,20 +103,18 @@ mod inner {
 			"The second tuple."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (1,);
-		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
-		/// assert_eq!(z, (3,));
-		/// ```
 		#[document_returns("A new 1-tuple containing the result of applying the function.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (1,);
+let y = (2,);
+let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
+assert_eq!(z, (3,));"#
+		)]
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -144,17 +141,15 @@ mod inner {
 		///
 		#[document_returns("A 1-tuple containing the value.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = pure::<Tuple1Brand, _>(5);
-		/// assert_eq!(x, (5,));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = pure::<Tuple1Brand, _>(5);
+assert_eq!(x, (5,));"#
+		)]
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			(a,)
 		}
@@ -181,20 +176,18 @@ mod inner {
 			"The tuple containing the value."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
-		/// let x = (5,);
-		/// let y = apply::<RcFnBrand, Tuple1Brand, _, _>(f, x);
-		/// assert_eq!(y, (10,));
-		/// ```
 		#[document_returns("A new 1-tuple containing the result of applying the function.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let f = (cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2),);
+let x = (5,);
+let y = apply::<RcFnBrand, Tuple1Brand, _, _>(f, x);
+assert_eq!(y, (10,));"#
+		)]
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -221,19 +214,17 @@ mod inner {
 			"The function to apply to the value inside the tuple."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = bind::<Tuple1Brand, _, _, _>(x, |i| (i * 2,));
-		/// assert_eq!(y, (10,));
-		/// ```
 		#[document_returns("The result of applying `f` to the value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = bind::<Tuple1Brand, _, _, _>(x, |i| (i * 2,));
+assert_eq!(y, (10,));"#
+		)]
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -264,19 +255,17 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(|a, b| a + b, 10, x);
-		/// assert_eq!(y, 15);
-		/// ```
 		#[document_returns("The final accumulator value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(|a, b| a + b, 10, x);
+assert_eq!(y, 15);"#
+		)]
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -307,19 +296,17 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(|b, a| b + a, 10, x);
-		/// assert_eq!(y, 15);
-		/// ```
 		#[document_returns("The final accumulator value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(|b, a| b + a, 10, x);
+assert_eq!(y, 15);"#
+		)]
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -349,19 +336,17 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|a: i32| a.to_string(), x);
-		/// assert_eq!(y, "5".to_string());
-		/// ```
 		#[document_returns("The monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|a: i32| a.to_string(), x);
+assert_eq!(y, "5".to_string());"#
+		)]
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -393,19 +378,17 @@ mod inner {
 			"The tuple to traverse."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (5,);
-		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
-		/// assert_eq!(y, Some((10,)));
-		/// ```
 		#[document_returns("The 1-tuple wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (5,);
+let y = traverse::<Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+assert_eq!(y, Some((10,)));"#
+		)]
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -431,18 +414,16 @@ mod inner {
 		///
 		#[document_returns("The 1-tuple wrapped in the applicative context.")]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (Some(5),);
-		/// let y = sequence::<Tuple1Brand, _, OptionBrand>(x);
-		/// assert_eq!(y, Some((5,)));
-		/// ```
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (Some(5),);
+let y = sequence::<Tuple1Brand, _, OptionBrand>(x);
+assert_eq!(y, Some((5,)));"#
+		)]
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -471,20 +452,18 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (1,);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-		/// let y = par_fold_map::<ArcFnBrand, Tuple1Brand, _, _>(f, x);
-		/// assert_eq!(y, "1".to_string());
-		/// ```
 		#[document_returns("The combined monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (1,);
+let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+let y = par_fold_map::<ArcFnBrand, Tuple1Brand, _, _>(f, x);
+assert_eq!(y, "1".to_string());"#
+		)]
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -514,20 +493,18 @@ mod inner {
 			"The tuple to fold."
 		)]
 		///
-		/// ### Examples
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// };
-		///
-		/// let x = (1,);
-		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-		/// let y = par_fold_right::<ArcFnBrand, Tuple1Brand, _, _>(f, 10, x);
-		/// assert_eq!(y, 11);
-		/// ```
 		#[document_returns("The final accumulator value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+let x = (1,);
+let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+let y = par_fold_right::<ArcFnBrand, Tuple1Brand, _, _>(f, 10, x);
+assert_eq!(y, 11);"#
+		)]
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
