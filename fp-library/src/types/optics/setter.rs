@@ -65,7 +65,6 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Setter` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -172,7 +171,6 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -222,7 +220,6 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -282,9 +279,7 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `SetterPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -383,7 +378,6 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -428,9 +422,7 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{

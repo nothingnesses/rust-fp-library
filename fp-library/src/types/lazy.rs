@@ -508,7 +508,6 @@ assert_eq!(*lazy.evaluate(), 42);"#
 	{
 		#[document_signature]
 		#[document_parameters("The trampoline to convert.")]
-		///
 		#[document_returns(
 			"A new `Lazy` instance that will evaluate the trampoline on first access."
 		)]

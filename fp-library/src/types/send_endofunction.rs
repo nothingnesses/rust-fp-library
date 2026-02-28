@@ -92,7 +92,6 @@ assert_eq!(f.0(5), 10);"#
 	#[document_parameters("The function to clone.")]
 	impl<'a, FnBrand: SendCloneableFn, A: 'a> Clone for SendEndofunction<'a, FnBrand, A> {
 		#[document_signature]
-		///
 		#[document_returns("A new `SendEndofunction` instance that is a copy of the original.")]
 		#[document_examples(r#"use fp_library::{brands::*, functions::*, types::*};
 let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));
@@ -115,7 +114,6 @@ assert_eq!(cloned.0(5), 10);"#)]
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
-		///
 		#[document_returns("The result of the formatting operation.")]
 		#[document_examples(r#"use fp_library::{brands::*, functions::*, types::*};
 let f = SendEndofunction::<ArcFnBrand, _>::new(send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2));

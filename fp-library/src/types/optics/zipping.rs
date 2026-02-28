@@ -87,7 +87,6 @@ assert_eq!((z.run)((1, 2)), 3);"#
 	impl<'a, FnBrand: CloneableFn, S: 'a, T: 'a> Clone for Zipping<'a, FnBrand, S, T> {
 		#[document_signature]
 		#[document_returns("A new `Zipping` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcFnBrand,

@@ -76,9 +76,7 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `Prism` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -210,7 +208,6 @@ assert_eq!(ok_prism.review(42.0), Some(42.0));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -266,9 +263,7 @@ assert_eq!(modifier(None), None);"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -313,9 +308,7 @@ assert_eq!(modifier(Some(21)), Some(42));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -359,9 +352,7 @@ assert_eq!(modifier(Some(21)), Some(42));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -407,7 +398,6 @@ assert_eq!(modifier(Some(21)), Some(42));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -451,7 +441,6 @@ assert_eq!(folded.run(Some(42)), "42".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -495,7 +484,6 @@ assert_eq!(modifier(Some(21)), Some(42));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -553,9 +541,7 @@ assert_eq!(reviewed.0, Some(42));"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `PrismPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -744,7 +730,6 @@ assert_eq!(ok_prism.modify(Err("error".to_string()), |x| x * 2), Err("error".to_
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -794,7 +779,6 @@ assert_eq!(modifier(Err("error".to_string())), Err("error".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -836,9 +820,7 @@ assert_eq!(modifier(Ok(21)), Ok(42));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -880,9 +862,7 @@ assert_eq!(modifier(Ok(21)), Ok(42));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -927,9 +907,7 @@ assert_eq!(modifier(Ok(21)), Ok(42));"#
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -969,9 +947,7 @@ assert_eq!(folded.run(Ok(42)), "42".to_string());"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use {
 	fp_library::{
@@ -1012,9 +988,7 @@ assert_eq!(modifier(Ok(21)), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

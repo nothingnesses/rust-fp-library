@@ -1426,7 +1426,6 @@ assert_eq!(list.len(), 1);"#
 		type Item = A;
 
 		#[document_signature]
-		///
 		#[document_returns("An iterator that consumes the list and yields its elements.")]
 		#[document_examples(
 			r#"use fp_library::types::cat_list::CatList;
@@ -1452,7 +1451,6 @@ assert_eq!(vec, vec![1, 2]);"#
 		type Item = A;
 
 		#[document_signature]
-		///
 		#[document_returns("The next element in the list, or `None` if the iterator is exhausted.")]
 		#[document_examples(
 			r#"use fp_library::types::cat_list::CatList;
@@ -1475,7 +1473,6 @@ assert_eq!(iter.next(), None);"#
 		#[document_signature]
 		#[document_type_parameters("The iterator type.")]
 		#[document_parameters("The iterator to collect from.")]
-		///
 		#[document_returns("A new `CatList` containing the elements from the iterator.")]
 		#[document_examples(
 			r#"use fp_library::types::cat_list::CatList;

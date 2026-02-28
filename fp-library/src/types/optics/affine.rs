@@ -72,9 +72,7 @@ mod inner {
 		B: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `AffineTraversal` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -257,9 +255,7 @@ assert_eq!(at.set((42, "hi".to_string()), 99), (99, "hi".to_string()));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -320,9 +316,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -369,9 +363,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -419,7 +411,6 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -465,9 +456,7 @@ assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -530,9 +519,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `AffineTraversalPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -736,9 +723,7 @@ assert_eq!(at.modify((21, "hi".to_string()), |x| x * 2), (42, "hi".to_string()))
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -795,9 +780,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -840,9 +823,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -888,9 +869,7 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -933,9 +912,7 @@ assert_eq!(folded.run((42, "hello".to_string())), "42".to_string());"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

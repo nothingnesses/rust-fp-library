@@ -70,7 +70,6 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Review` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -173,7 +172,6 @@ assert_eq!(r.review(42), Some(42));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -216,7 +214,6 @@ assert_eq!(reviewed.0, Some(42));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -271,9 +268,7 @@ assert_eq!(reviewed.0, Some(42));"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `ReviewPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -367,9 +362,7 @@ assert_eq!(r.review(42), Some(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -407,9 +400,7 @@ assert_eq!(reviewed.0, Some(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

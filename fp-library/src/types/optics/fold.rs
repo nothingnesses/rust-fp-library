@@ -42,9 +42,7 @@ mod inner {
 	#[document_parameters("The fold instance.")]
 	impl<F: Clone> Clone for IterableFoldFn<F> {
 		#[document_signature]
-		///
 		#[document_returns("A new `Fold` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::types::optics::IterableFoldFn;
 
@@ -71,13 +69,9 @@ assert_eq!(cloned.0(vec![1, 2]), vec![1, 2]);"#
 		I: IntoIterator<Item = A>,
 	{
 		#[document_signature]
-		///
 		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
-		///
 		#[document_parameters("The mapping function.", "The structure to fold.")]
-		///
 		#[document_returns("The combined monoid value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	classes::monoid::Monoid,
@@ -145,9 +139,7 @@ assert_eq!(result, "123".to_string());"#
 		B: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `Fold` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -271,9 +263,7 @@ assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -338,9 +328,7 @@ assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `FoldPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -453,9 +441,7 @@ assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

@@ -128,9 +128,7 @@ assert_eq!((re.run)(Tagged::new(41)).0, 42);"#
 		for Re<'a, InnerP, OuterP, S, T, A, B>
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `Re` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{

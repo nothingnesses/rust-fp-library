@@ -68,7 +68,6 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Getter` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -175,7 +174,6 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -237,9 +235,7 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		A: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `GetterPrime` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
@@ -338,7 +334,6 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -384,9 +379,7 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 			"The reference-counted pointer type."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -426,9 +419,7 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 			"The reference-counted pointer type for the Forget brand."
 		)]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

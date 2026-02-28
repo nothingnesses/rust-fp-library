@@ -103,7 +103,6 @@ assert_eq!(f.0(5), 10);"#
 		Apply!(<C as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>): Clone,
 	{
 		#[document_signature]
-		///
 		#[document_returns("A new `Endomorphism` instance that is a copy of the original.")]
 		#[document_examples(
 			r#"use fp_library::{brands::*, functions::*, types::*};
@@ -128,7 +127,6 @@ assert_eq!(cloned.0(5), 10);"#
 	{
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
-		///
 		#[document_returns("The result of the formatting operation.")]
 		#[document_examples(
 			r#"use fp_library::{brands::*, functions::*, types::*};

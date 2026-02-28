@@ -67,7 +67,6 @@ mod inner {
 		E: 'a,
 	{
 		#[document_signature]
-		///
 		#[document_returns(
 			"A new `TryLazy` instance that shares the same underlying memoized result."
 		)]
@@ -150,7 +149,6 @@ assert_eq!(memo.evaluate(), Ok(&42));"#
 	impl<'a, A, E> From<TryThunk<'a, A, E>> for TryLazy<'a, A, E, RcLazyConfig> {
 		#[document_signature]
 		#[document_parameters("The fallible thunk to convert.")]
-		///
 		#[document_returns(
 			"A new `TryLazy` instance that will evaluate the thunk on first access."
 		)]
@@ -177,7 +175,6 @@ assert_eq!(memo.evaluate(), Ok(&42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The fallible trampoline to convert.")]
-		///
 		#[document_returns(
 			"A new `TryLazy` instance that will evaluate the trampoline on first access."
 		)]
@@ -204,7 +201,6 @@ assert_eq!(memo.evaluate(), Ok(&42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The thread-safe lazy value to convert.")]
-		///
 		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
@@ -229,7 +225,6 @@ assert_eq!(memo.evaluate(), Ok(&42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		///
 		#[document_returns("A new `TryLazy` instance that wraps the lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;

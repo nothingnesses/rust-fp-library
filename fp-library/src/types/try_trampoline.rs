@@ -283,7 +283,6 @@ assert_eq!(task.evaluate(), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The trampoline computation to convert.")]
-		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the trampoline.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
@@ -309,7 +308,6 @@ assert_eq!(try_task.evaluate(), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
@@ -335,7 +333,6 @@ assert_eq!(try_task.evaluate(), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		///
 		#[document_returns("A new `TryTrampoline` instance that wraps the fallible lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;

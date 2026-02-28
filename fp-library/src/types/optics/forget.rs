@@ -125,7 +125,6 @@ assert_eq!(forget.run("hello".to_string()), 5);"#
 	{
 		#[document_signature]
 		#[document_returns("A new `Forget` instance that is a copy of the original.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,

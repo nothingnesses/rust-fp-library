@@ -316,9 +316,7 @@ assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	Apply,
@@ -394,7 +392,6 @@ assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	Apply,
@@ -475,7 +472,6 @@ assert_eq!(result.run(vec![1, 2]), "12".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	Apply,

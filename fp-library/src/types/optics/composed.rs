@@ -141,9 +141,7 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -201,9 +199,7 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
-		///
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -260,7 +256,6 @@ assert_eq!(modifier(21), 42);"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -320,7 +315,6 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -378,7 +372,6 @@ assert_eq!(modifier(Some(21)), Some(42));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -439,7 +432,6 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -499,7 +491,6 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -555,7 +546,6 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -619,7 +609,6 @@ assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -680,7 +669,6 @@ assert_eq!(modifier((21, "hi".to_string())), (42, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
@@ -738,7 +726,6 @@ assert_eq!(reviewed.0, Some(21));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		///
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,

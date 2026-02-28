@@ -316,7 +316,6 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
-		///
 		#[document_returns("A new `TryThunk` instance that wraps the lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
@@ -343,7 +342,6 @@ assert_eq!(thunk.evaluate(), Ok(42));"#
 	{
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
-		///
 		#[document_returns("A new `TryThunk` instance that wraps the fallible lazy value.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
@@ -364,7 +362,6 @@ assert_eq!(thunk.evaluate(), Ok(42));"#
 	impl<'a, A: 'a, E: 'a> From<Thunk<'a, A>> for TryThunk<'a, A, E> {
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
-		///
 		#[document_returns("A new `TryThunk` instance that wraps the thunk.")]
 		#[document_examples(
 			r#"use fp_library::types::*;
