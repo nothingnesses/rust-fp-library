@@ -84,10 +84,10 @@ mod composed;
 mod exchange;
 mod fold;
 mod forget;
+mod functions;
 mod getter;
 mod grate;
 mod grating;
-mod functions;
 mod iso;
 mod lens;
 mod market;
@@ -107,10 +107,10 @@ pub use {
 	exchange::*,
 	fold::*,
 	forget::*,
+	functions::*,
 	getter::*,
 	grate::*,
 	grating::*,
-	functions::*,
 	iso::*,
 	lens::*,
 	market::*,

@@ -16,7 +16,9 @@ mod inner {
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
+				Bifoldable,
 				Bifunctor,
+				Bitraversable,
 				CloneableFn,
 				Foldable,
 				Functor,
@@ -94,6 +96,242 @@ assert_eq!(bimap::<Tuple2Brand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), (2, 
 			F: Fn(A) -> B + 'a,
 			G: Fn(C) -> D + 'a, {
 			(f(p.0), g(p.1))
+		}
+	}
+
+	impl Bifoldable for Tuple2Brand {
+		/// Folds a tuple using two step functions, right-associatively.
+		///
+		/// Applies `f` to the first value and `g` to the second value,
+		/// folding `(a, b)` as `f(a, g(b, z))`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The accumulator type.",
+			"The type of the step function for the first element.",
+			"The type of the step function for the second element."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the first element.",
+			"The step function applied to the second element.",
+			"The initial accumulator.",
+			"The tuple to fold."
+		)]
+		///
+		#[document_returns("`f(a, g(b, z))`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_right::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		|a: i32, acc| acc - a,
+		|b: i32, acc| acc + b,
+		0,
+		(3, 5),
+	),
+	2
+);"#
+		)]
+		fn bi_fold_right<
+			'a,
+			FnBrand: CloneableFn + 'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C
+		where
+			FA: Fn(A, C) -> C + 'a,
+			FB: Fn(B, C) -> C + 'a, {
+			let (a, b) = p;
+			f(a, g(b, z))
+		}
+
+		/// Folds a tuple using two step functions, left-associatively.
+		///
+		/// Applies `f` to the first value and `g` to the second value,
+		/// folding `(a, b)` as `g(f(z, a), b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The accumulator type.",
+			"The type of the step function for the first element.",
+			"The type of the step function for the second element."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the first element.",
+			"The step function applied to the second element.",
+			"The initial accumulator.",
+			"The tuple to fold."
+		)]
+		///
+		#[document_returns("`g(f(z, a), b)`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_left::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		|acc, a: i32| acc - a,
+		|acc, b: i32| acc + b,
+		0,
+		(3, 5),
+	),
+	2
+);"#
+		)]
+		fn bi_fold_left<
+			'a,
+			FnBrand: CloneableFn + 'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C
+		where
+			FA: Fn(C, A) -> C + 'a,
+			FB: Fn(C, B) -> C + 'a, {
+			let (a, b) = p;
+			g(f(z, a), b)
+		}
+
+		/// Maps both elements of a tuple to a monoid and combines the results.
+		///
+		/// Computes `M::append(f(a), g(b))` for a tuple `(a, b)`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The monoid type.",
+			"The type of the mapping function for the first element.",
+			"The type of the mapping function for the second element."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping the first element to the monoid.",
+			"The function mapping the second element to the monoid.",
+			"The tuple to fold."
+		)]
+		///
+		#[document_returns("`M::append(f(a), g(b))`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_map::<RcFnBrand, Tuple2Brand, _, _, _, _, _>(
+		|a: i32| a.to_string(),
+		|b: i32| b.to_string(),
+		(3, 5),
+	),
+	"35".to_string()
+);"#
+		)]
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M, FA, FB>(
+			f: FA,
+			g: FB,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			FA: Fn(A) -> M + 'a,
+			FB: Fn(B) -> M + 'a, {
+			let (a, b) = p;
+			M::append(f(a), g(b))
+		}
+	}
+
+	impl Bitraversable for Tuple2Brand {
+		/// Traverses a tuple with two effectful functions.
+		///
+		/// Applies `f` to the first element and `g` to the second element,
+		/// combining the effects via `lift2`.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the first element.",
+			"The type of the second element.",
+			"The output type for the first element.",
+			"The output type for the second element.",
+			"The applicative context.",
+			"The type of the function for the first element.",
+			"The type of the function for the second element."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to the first element.",
+			"The function applied to the second element.",
+			"The tuple to traverse."
+		)]
+		///
+		#[document_returns("`lift2(|c, d| (c, d), f(a), g(b))`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_traverse::<Tuple2Brand, _, _, _, _, OptionBrand, _, _>(
+		|a: i32| Some(a + 1),
+		|b: i32| Some(b * 2),
+		(3, 5),
+	),
+	Some((4, 10))
+);"#
+		)]
+		fn bi_traverse<
+			'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
+			let (a, b) = p;
+			F::lift2(|c, d| (c, d), f(a), g(b))
 		}
 	}
 

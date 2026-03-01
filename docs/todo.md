@@ -1,7 +1,5 @@
 ### Tasks to do & ideas to look into
 
-* Add document_examples attribute macro.
-* Rename brands in fp-library/src/brands.rs to use "Fixed" instead of "With".
 * Some Optics abstractions are currently implemented with Rc usage hard-coded. These should be type-parameterized using fp-library/src/types/fn_brand.rs or fp-library/src/classes/unsized_coercible.rs (or whichever supertrait in its hierarchy is most suitable).
 * `Wander` type class (required for `Traversal`).
 * `Closed` type class (required for `Grate`).

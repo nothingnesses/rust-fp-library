@@ -16,7 +16,9 @@ mod inner {
 				Applicative,
 				ApplyFirst,
 				ApplySecond,
+				Bifoldable,
 				Bifunctor,
+				Bitraversable,
 				CloneableFn,
 				Foldable,
 				Functor,
@@ -108,6 +110,284 @@ assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(
 			match p {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
+			}
+		}
+	}
+
+	impl Bifoldable for ResultBrand {
+		/// Folds a result using two step functions, right-associatively.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type.",
+			"The type of the step function for the error.",
+			"The type of the step function for the success."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the error value.",
+			"The step function applied to the success value.",
+			"The initial accumulator.",
+			"The result to fold."
+		)]
+		///
+		#[document_returns("`f(a, z)` for `Err(a)`, or `g(b, z)` for `Ok(b)`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|e: i32, acc| acc - e,
+		|s: i32, acc| acc + s,
+		10,
+		Err(3),
+	),
+	7
+);
+assert_eq!(
+	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|e: i32, acc| acc - e,
+		|s: i32, acc| acc + s,
+		10,
+		Ok(5),
+	),
+	15
+);"#
+		)]
+		fn bi_fold_right<
+			'a,
+			FnBrand: CloneableFn + 'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C
+		where
+			FA: Fn(A, C) -> C + 'a,
+			FB: Fn(B, C) -> C + 'a, {
+			match p {
+				Err(a) => f(a, z),
+				Ok(b) => g(b, z),
+			}
+		}
+
+		/// Folds a result using two step functions, left-associatively.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The accumulator type.",
+			"The type of the step function for the error.",
+			"The type of the step function for the success."
+		)]
+		///
+		#[document_parameters(
+			"The step function applied to the error value.",
+			"The step function applied to the success value.",
+			"The initial accumulator.",
+			"The result to fold."
+		)]
+		///
+		#[document_returns("`f(z, a)` for `Err(a)`, or `g(z, b)` for `Ok(b)`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|acc, e: i32| acc - e,
+		|acc, s: i32| acc + s,
+		10,
+		Err(3),
+	),
+	7
+);
+assert_eq!(
+	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|acc, e: i32| acc - e,
+		|acc, s: i32| acc + s,
+		10,
+		Ok(5),
+	),
+	15
+);"#
+		)]
+		fn bi_fold_left<
+			'a,
+			FnBrand: CloneableFn + 'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			z: C,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> C
+		where
+			FA: Fn(C, A) -> C + 'a,
+			FB: Fn(C, B) -> C + 'a, {
+			match p {
+				Err(a) => f(z, a),
+				Ok(b) => g(z, b),
+			}
+		}
+
+		/// Maps a result's value to a monoid using two functions and returns the result.
+		///
+		/// Dispatches to `f` for `Err(a)` and `g` for `Ok(b)`, returning the monoid value.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The brand of the cloneable function to use.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The monoid type.",
+			"The type of the mapping function for the error.",
+			"The type of the mapping function for the success."
+		)]
+		///
+		#[document_parameters(
+			"The function mapping the error to the monoid.",
+			"The function mapping the success to the monoid.",
+			"The result to fold."
+		)]
+		///
+		#[document_returns("`f(a)` for `Err(a)`, or `g(b)` for `Ok(b)`.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|e: i32| e.to_string(),
+		|s: i32| s.to_string(),
+		Err::<i32, i32>(3),
+	),
+	"3".to_string()
+);
+assert_eq!(
+	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		|e: i32| e.to_string(),
+		|s: i32| s.to_string(),
+		Ok::<i32, i32>(5),
+	),
+	"5".to_string()
+);"#
+		)]
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M, FA, FB>(
+			f: FA,
+			g: FB,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> M
+		where
+			M: Monoid + 'a,
+			FA: Fn(A) -> M + 'a,
+			FB: Fn(B) -> M + 'a, {
+			match p {
+				Err(a) => f(a),
+				Ok(b) => g(b),
+			}
+		}
+	}
+
+	impl Bitraversable for ResultBrand {
+		/// Traverses a result with two effectful functions.
+		///
+		/// Dispatches to `f` for `Err(a)` values and `g` for `Ok(b)` values,
+		/// wrapping the result in the applicative context.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The error type (first position).",
+			"The success type (second position).",
+			"The output error type.",
+			"The output success type.",
+			"The applicative context.",
+			"The type of the function for the error.",
+			"The type of the function for the success."
+		)]
+		///
+		#[document_parameters(
+			"The function applied to the error value.",
+			"The function applied to the success value.",
+			"The result to traverse."
+		)]
+		///
+		#[document_returns(
+			"`f(a)` wrapped in context for `Err(a)`, or `g(b)` wrapped in context for `Ok(b)`."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	functions::*,
+};
+
+assert_eq!(
+	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		|e: i32| Some(e + 1),
+		|s: i32| Some(s * 2),
+		Err::<i32, i32>(3),
+	),
+	Some(Err(4))
+);
+assert_eq!(
+	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		|e: i32| Some(e + 1),
+		|s: i32| Some(s * 2),
+		Ok::<i32, i32>(5),
+	),
+	Some(Ok(10))
+);"#
+		)]
+		fn bi_traverse<
+			'a,
+			A: 'a + Clone,
+			B: 'a + Clone,
+			C: 'a + Clone,
+			D: 'a + Clone,
+			F: Applicative,
+			FA,
+			FB,
+		>(
+			f: FA,
+			g: FB,
+			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
+		where
+			FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
+			match p {
+				Err(a) => F::map(|c| Err(c), f(a)),
+				Ok(b) => F::map(|d| Ok(d), g(b)),
 			}
 		}
 	}
