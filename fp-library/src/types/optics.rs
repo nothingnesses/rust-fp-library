@@ -80,6 +80,7 @@
 //! ```
 
 mod affine;
+mod bazaar;
 mod composed;
 mod exchange;
 mod fold;
@@ -103,6 +104,7 @@ mod zipping;
 
 pub use {
 	affine::*,
+	bazaar::*,
 	composed::*,
 	exchange::*,
 	fold::*,
