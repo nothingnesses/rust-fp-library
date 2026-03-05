@@ -1,6 +1,7 @@
 //! Traits for optics.
 
 pub mod fold;
+pub mod indexed_traversal;
 pub mod traversal;
 
 use {
@@ -21,12 +22,14 @@ use {
 	},
 	fp_macros::{
 		document_parameters,
+		document_returns,
 		document_signature,
 		document_type_parameters,
 	},
 };
 pub use {
 	fold::*,
+	indexed_traversal::*,
 	traversal::*,
 };
 
@@ -405,6 +408,105 @@ pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
 	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 }
 
+/// An indexed lens optic.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The index type.",
+	"The source type of the structure.",
+	"The target type of the structure after an update.",
+	"The source type of the focus.",
+	"The target type of the focus after an update."
+)]
+pub trait IndexedLensOptic<'a, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a strong profunctor.
+	#[document_signature]
+	#[document_type_parameters("The profunctor type.")]
+	#[document_parameters("The indexed profunctor value to transform.")]
+	fn evaluate<P: Strong>(
+		&self,
+		pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// An indexed traversal optic.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The index type.",
+	"The source type of the structure.",
+	"The target type of the structure after an update.",
+	"The source type of the focus.",
+	"The target type of the focus after an update."
+)]
+pub trait IndexedTraversalOptic<'a, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with a wander profunctor.
+	#[document_signature]
+	#[document_type_parameters("The profunctor type.")]
+	#[document_parameters("The indexed profunctor value to transform.")]
+	fn evaluate<P: Wander>(
+		&self,
+		pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// An indexed getter optic.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The index type.",
+	"The source type of the structure.",
+	"The focus type."
+)]
+pub trait IndexedGetterOptic<'a, I: 'a, S: 'a, A: 'a> {
+	/// Evaluate the optic with the forget profunctor.
+	#[document_signature]
+	#[document_type_parameters(
+		"The return type of the forget profunctor.",
+		"The reference-counted pointer type."
+	)]
+	#[document_parameters("The indexed profunctor value to transform.")]
+	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+		&self,
+		pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+}
+
+/// An indexed fold optic.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The index type.",
+	"The source type of the structure.",
+	"The focus type."
+)]
+pub trait IndexedFoldOptic<'a, I: 'a, S: 'a, A: 'a> {
+	/// Evaluate the optic with the forget profunctor for any monoid.
+	#[document_signature]
+	#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
+	#[document_parameters("The indexed profunctor value to transform.")]
+	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+		&self,
+		pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
+	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+}
+
+/// An indexed setter optic.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The reference-counted pointer type.",
+	"The index type.",
+	"The source type of the structure.",
+	"The target type of the structure after an update.",
+	"The source type of the focus.",
+	"The target type of the focus after an update."
+)]
+pub trait IndexedSetterOptic<'a, P: UnsizedCoercible, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+	/// Evaluate the optic with the function profunctor.
+	#[document_signature]
+	#[document_parameters("The indexed profunctor value to transform.")]
+	fn evaluate(
+		&self,
+		pab: crate::types::optics::Indexed<'a, FnBrand<P>, I, A, B>,
+	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
 /// A grate optic.
 #[document_type_parameters(
 	"The lifetime of the values.",
@@ -482,4 +584,46 @@ pub trait ReviewOptic<'a, S: 'a, T: 'a, A: 'a, B: 'a> {
 		&self,
 		pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 	) -> Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// Helper trait for `optics_un_index`.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The profunctor type.",
+	"The index type.",
+	"The source type of the structure.",
+	"The target type of the structure.",
+	"The source type of the focus.",
+	"The target type of the focus."
+)]
+pub trait IndexedOpticAdapter<'a, P: Profunctor, I, S, T, A, B> {
+	/// Evaluate the optic with an indexed profunctor.
+	#[document_signature]
+	#[document_parameters("The indexed profunctor value.")]
+	#[document_returns("The transformed profunctor value.")]
+	fn evaluate_indexed(
+		&self,
+		pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+}
+
+/// Helper trait for `optics_as_index`.
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The profunctor type.",
+	"The index type.",
+	"The source type of the structure.",
+	"The target type of the structure.",
+	"The source type of the focus.",
+	"The target type of the focus."
+)]
+pub trait IndexedOpticAdapterDiscardsFocus<'a, P: Profunctor, I, S, T, A, B> {
+	/// Evaluate the optic with an indexed profunctor, discarding the focus.
+	#[document_signature]
+	#[document_parameters("The indexed profunctor value.")]
+	#[document_returns("The transformed profunctor value.")]
+	fn evaluate_indexed_discards_focus(
+		&self,
+		pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 }

@@ -33,8 +33,10 @@ pub mod deferrable;
 pub mod evaluable;
 pub mod filterable;
 pub mod foldable;
+pub mod foldable_with_index;
 pub mod function;
 pub mod functor;
+pub mod functor_with_index;
 pub mod lift;
 pub mod monad;
 pub mod monad_rec;
@@ -55,6 +57,7 @@ pub mod send_deferrable;
 pub mod send_ref_counted_pointer;
 pub mod send_unsized_coercible;
 pub mod traversable;
+pub mod traversable_with_index;
 pub mod unsized_coercible;
 pub mod witherable;
 

@@ -1,0 +1,214 @@
+//! Indexed getter optics.
+
+#[fp_macros::document_module]
+mod inner {
+	use {
+		crate::{
+			Apply,
+			brands::FnBrand,
+			classes::{
+				CloneableFn,
+				UnsizedCoercible,
+				optics::*,
+			},
+			kinds::*,
+			types::optics::{
+				ForgetBrand,
+				Indexed,
+			},
+		},
+		fp_macros::{
+			document_examples,
+			document_parameters,
+			document_returns,
+			document_type_parameters,
+		},
+	};
+
+	/// A polymorphic indexed getter.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	pub struct IndexedGetter<'a, P, I, S, A>
+	where
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a, {
+		/// Internal storage: S -> (I, A)
+		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (I, A)>),
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<'a, P, I, S, A> Clone for IndexedGetter<'a, P, I, S, A>
+	where
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a,
+	{
+		#[document_signature]
+		#[document_returns("A new `IndexedGetter` instance that is a copy of the original.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::IndexedGetter,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+let cloned = g.clone();
+assert_eq!(cloned.iview((42, "hi".to_string())), (0, 42));"#
+		)]
+		fn clone(&self) -> Self {
+			IndexedGetter {
+				to: self.to.clone(),
+			}
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetter<'a, P, I, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		/// Create a new indexed getter.
+		#[document_signature]
+		#[document_parameters("The getter function.")]
+		#[document_returns("A new `IndexedGetter` instance.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::IndexedGetter,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
+		)]
+		pub fn new(to: impl 'a + Fn(S) -> (I, A)) -> Self {
+			IndexedGetter {
+				to: <FnBrand<P> as CloneableFn>::new(to),
+			}
+		}
+
+		/// View the focus and its index.
+		#[document_signature]
+		#[document_parameters("The structure to view.")]
+		#[document_returns("The focus value and its index.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::RcBrand,
+	types::optics::IndexedGetter,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
+		)]
+		pub fn iview(
+			&self,
+			s: S,
+		) -> (I, A) {
+			(self.to)(s)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A> for IndexedGetter<'a, P, I, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	types::optics::*,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let pab = Indexed::new(f);
+let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&g, pab);
+assert_eq!(result.run((42, "hi".to_string())), 42);"#
+		)]
+		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			let to = self.to.clone();
+			crate::types::optics::Forget::<Q, R, S, S>::new(move |s: S| {
+				let pab_fn = pab.inner.0.clone();
+				pab_fn(to(s))
+			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A> for IndexedGetter<'a, P, I, S, A>
+	where
+		P: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	types::optics::*,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let pab = Indexed::new(f);
+let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&g, pab);
+assert_eq!(result.run((42, "hi".to_string())), 42);"#
+		)]
+		fn evaluate<
+			R: 'a + crate::classes::monoid::Monoid + 'static,
+			Q: UnsizedCoercible + 'static,
+		>(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			IndexedGetterOptic::evaluate(self, pab)
+		}
+	}
+
+	/// A monomorphic indexed getter.
+	pub type IndexedGetterPrime<'a, P, I, S, A> = IndexedGetter<'a, P, I, S, A>;
+}
+
+pub use inner::*;

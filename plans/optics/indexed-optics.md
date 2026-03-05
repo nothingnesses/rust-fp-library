@@ -26,9 +26,31 @@ Implement profunctor class instances for `IndexedBrand<PBrand, I>`:
 | Instance | Bound on PBrand | Key transformation |
 |----------|----------------|-------------------|
 | `Profunctor` | `Profunctor` | `dimap(f, g, Indexed(p)) = Indexed(dimap(\|(i,a)\| (i, f(a)), g, p))` — index untouched |
-| `Strong` | `Strong` | `first(Indexed(p)) = Indexed(lmap(\|(i,(a,c))\| ((i,a),c), first(p)))` — index stays with focused component |
-| `Choice` | `Choice` | `left(Indexed(p)) = Indexed(lmap(\|(i,r)\| match r { Err(a) => Err((i,a)), Ok(c) => Ok(c) }, left(p)))` — index follows chosen branch |
-| `Wander` | `Wander` | Wraps `TraversalFunc` with an adapter that threads the index to each element; requires `I: Clone` |
+| `Strong` | `Strong` | `first(Indexed(p)) = Indexed(dimap(\|(i,(a,c))\| ((i,a),c), id, P::first(p)))` — index stays with focused component |
+| `Choice` | `Choice` | `left(Indexed(p)) = Indexed(dimap(\|(i,r)\| match r { Err(a) => Err((i,a)), Ok(c) => Ok(c) }, id, P::left(p)))` — index follows chosen branch |
+| `Wander` | `Wander` | Wraps `TraversalFunc` with an `IWanderAdapter` that threads the index to each element; requires `I: Clone` |
+
+**`Strong` implementation note:** `Strong::second<'a, A, B, C>` takes `P::Of<A, B>` → `P::Of<(C, A), (C, B)>`. For `IndexedBrand`, `second` must use `P::second::<(I, A), B, C>(pab.inner)` (not `P::second::<C, (I, A), B>`) to match the turbofish parameter order of the underlying profunctor. Then `dimap` rearranges: contravariant `(I, (C, A))` → `(C, (I, A))`, covariant `(C, B)` → `(C, B)` (identity).
+
+**`Wander` implementation note:** The `IWanderAdapter` struct adapts a `TraversalFunc<'a, S, T, A, B>` into a `TraversalFunc<'a, (I, S), T, (I, A), B>`. Its `apply` method must exactly match the `TraversalFunc::apply` signature — use `Apply!` macro types (not shorthand `M::Of`), no extra lifetime parameters, and `crate::classes::applicative::Applicative` (not `crate::classes::monad::Applicative`):
+
+```rust
+impl TraversalFunc<'a, (I, S), T, (I, A), B> for IWanderAdapter<...> {
+    fn apply<M: Applicative>(
+        &self,
+        f: Box<dyn Fn((I, A)) -> Apply!(<M as Kind!(...)>::Of<'a, B>) + 'a>,
+        (i, s): (I, S),
+    ) -> Apply!(<M as Kind!(...)>::Of<'a, T>) {
+        let i_ref = i;
+        self.traversal.apply::<M>(
+            Box::new(move |a| f((i_ref.clone(), a))),
+            s,
+        )
+    }
+}
+```
+
+**Doc examples note:** All `#[document_examples]` must contain `assert` statements (enforced by the proc macro). The `Strong::first`/`second` examples must assert on tuples (e.g., `(26, 100)` / `(100, 26)`), not scalars. The `Wander` example should follow `FnBrand`'s pattern using a concrete `SingleTraversal` struct.
 
 **Register module:** Add `mod indexed;` + `pub use` to `fp-library/src/types/optics.rs`.
 
@@ -127,7 +149,7 @@ Wraps an indexed fold function. Follow the pattern of `Fold`/`FoldPrime`.
 **New files:** `fp-library/src/types/optics/indexed_getter.rs`, `fp-library/src/types/optics/indexed_setter.rs`
 
 - `IndexedGetter` stores `FnBrand<P>::Of<'a, S, (I, A)>`
-- `IndexedSetter` stores a function that takes an indexed modifier and applies it
+- `IndexedSetter` stores `over_fn: FnBrand<P>::Of<'a, (S, Box<dyn Fn(I, A) -> B + 'a>), T>` — the modifier is passed via `Box<dyn Fn>` (pointer-brand-agnostic), matching how non-indexed `Setter` bridges between storage brand `P` and evaluation brand `Q`. The `evaluate` method wraps the incoming `pab.inner: FnBrand<Q>::Of<(I, A), B>` into a `Box<dyn Fn(I, A) -> B>`, passes it to `self.over_fn`, and wraps the result in a fresh `FnBrand<Q>` closure via `<FnBrand<Q> as Function>::new(...)`
 
 ### Phase 4: Bridge Functions
 
@@ -146,6 +168,21 @@ Add user-facing operations. Internal names follow the `indexed_` prefix pattern 
 | `as_index(optic, pib)` | `optics_as_index` | Extract only the index, discarding the focus. |
 | `reindexed(f, optic)` | `optics_reindexed` | Remap index type via `f: I -> J`. |
 
+**`un_index` / `as_index` implementation note:** These return wrapper structs (`UnIndex`, `AsIndex`) that implement `Optic`. The `evaluate` method uses `P::dimap` to either discard the index (`|(_, a)| a`) or discard the focus (`|(i, _)| i`) before delegating to the inner indexed optic. These structs are internal to `functions.rs` and need helper adapter traits (`IndexedOpticAdapter`, `IndexedOpticAdapterDiscardsFocus`) to abstract over which indexed optic trait the inner optic implements. All `#[document_examples]` on these must contain assertions (proc macro requirement) — do not use placeholder comments.
+
+**`optics_reindexed` lifetime fix:** The `Reindexed` struct's `evaluate_indexed` method uses `P::dimap` with a closure that captures `self.f`. Since `P::dimap` requires closures to be `+ 'a` but `&self` only lives for the method call duration `'1`, capturing `&self.f` fails with `'1 must outlive 'a`. Fix: require `F: Clone` on the `Reindexed` struct's `IndexedOpticAdapter` impl, then clone `self.f` into the closure so it's owned:
+
+```rust
+fn evaluate_indexed(&self, pab: Indexed<'a, P, J, A, B>) -> ... {
+    let f = self.f.clone();  // owned F, satisfies 'a since F: Fn(I) -> J + 'a
+    let inner = pab.inner;
+    let dimapped = P::dimap(move |(i, a)| (f(i), a), |b| b, inner);
+    self.optic.evaluate_indexed(Indexed { inner: dimapped })
+}
+```
+
+Add `F: Clone + 'a` bound to both the impl block and the outer function's where clause.
+
 **Re-export** in `fp-library/src/functions.rs`.
 
 ### Phase 5: Composition
@@ -159,10 +196,12 @@ Indexed optics compose with regular optics. When a regular `Optic` (outer) is co
 impl IndexedLensOptic for Composed where O1: LensOptic, O2: IndexedLensOptic {
     fn evaluate<P: Strong>(&self, pab: Indexed<P, I, A, B>) -> P::Of<S, T> {
         let pmn = self.second.evaluate(pab);  // IndexedLensOptic -> P::Of<M, N>
-        LensOptic::evaluate::<P>(&self.first, pmn)  // LensOptic -> P::Of<S, T>
+        self.first.evaluate::<P>(pmn)  // LensOptic -> P::Of<S, T>  (turbofish required!)
     }
 }
 ```
+
+**Turbofish requirement:** In all indexed `Composed` impls, the call to `self.first.evaluate(pmn)` (where `O1` is a non-indexed optic like `LensOptic` or `TraversalOptic`) requires an explicit turbofish `::<P>` to help the compiler infer the profunctor type parameter. This is because `pmn` is `P::Of<M, N>` (an associated type projection), and the compiler can't reverse-map from the concrete type back to `P`. All five indexed `Composed` impls (`IndexedLensOptic`, `IndexedTraversalOptic`, `IndexedGetterOptic`, `IndexedFoldOptic`, `IndexedSetterOptic`) need this turbofish on the `self.first.evaluate` call.
 
 Add `Composed` implementations for:
 - `IndexedLensOptic` (O1: LensOptic, O2: IndexedLensOptic)

@@ -26,6 +26,9 @@ mod inner {
 				SendCloneableFn,
 				Traversable,
 				Witherable,
+				foldable_with_index::FoldableWithIndex,
+				functor_with_index::FunctorWithIndex,
+				traversable_with_index::TraversableWithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -448,6 +451,111 @@ assert_eq!(y, Some(Some(5)));"#
 			match ta {
 				Some(fa) => F::map(|a| Some(a), fa),
 				None => F::pure(None),
+			}
+		}
+	}
+
+	impl FunctorWithIndex<()> for OptionBrand {
+		/// Maps a function over the value in the option, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The type of the result of applying the function."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The option to map over."
+		)]
+		#[document_returns(
+			"A new option containing the result of applying the function, or `None`."
+		)]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::OptionBrand,
+	functions::*,
+};
+use fp_library::classes::functor_with_index::FunctorWithIndex;
+let x = Some(5);
+let y = <OptionBrand as FunctorWithIndex<()>>::map_with_index(|_, i| i * 2, x);
+assert_eq!(y, Some(10));"#
+		)]
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn((), A) -> B + 'a,
+			fa: Option<A>,
+		) -> Option<B> {
+			fa.map(|a| f((), a))
+		}
+	}
+
+	impl FoldableWithIndex<()> for OptionBrand {
+		/// Folds the option using a monoid, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index.",
+			"The option to fold."
+		)]
+		#[document_returns("The monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::OptionBrand,
+	functions::*,
+};
+use fp_library::classes::foldable_with_index::FoldableWithIndex;
+let x = Some(5);
+let y = <OptionBrand as FoldableWithIndex<()>>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+assert_eq!(y, "5".to_string());"#
+		)]
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn((), A) -> R + 'a,
+			fa: Option<A>,
+		) -> R {
+			match fa {
+				Some(a) => f((), a),
+				None => R::empty(),
+			}
+		}
+	}
+
+	impl TraversableWithIndex<()> for OptionBrand {
+		/// Traverses the option with an applicative function, providing the index `()`.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the value.",
+			"The type of the value inside the option.",
+			"The type of the result.",
+			"The applicative context."
+		)]
+		#[document_parameters(
+			"The function to apply to the value and its index, returning a value in an applicative context.",
+			"The option to traverse."
+		)]
+		#[document_returns("The option wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::OptionBrand,
+	functions::*,
+};
+use fp_library::classes::traversable_with_index::TraversableWithIndex;
+let x = Some(5);
+let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i32, OptionBrand>(
+	|_, i| Some(i * 2),
+	x
+);
+assert_eq!(y, Some(Some(10)));"#
+		)]
+		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn((), A) -> M::Of<'a, B> + 'a,
+			ta: Option<A>,
+		) -> M::Of<'a, Option<B>> {
+			match ta {
+				Some(a) => M::map(|b| Some(b), f((), a)),
+				None => M::pure(None),
 			}
 		}
 	}

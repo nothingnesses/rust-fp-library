@@ -1,0 +1,49 @@
+//! A `Traversable` with an additional index.
+
+use {
+	crate::classes::{
+		applicative::Applicative,
+		foldable_with_index::FoldableWithIndex,
+		functor_with_index::FunctorWithIndex,
+		traversable::Traversable,
+	},
+	fp_macros::{
+		document_parameters,
+		document_returns,
+		document_signature,
+		document_type_parameters,
+	},
+};
+
+#[fp_macros::document_module]
+mod inner {
+	use super::*;
+
+	/// A `Traversable` with an additional index.
+	///
+	/// A `TraversableWithIndex` is a `Traversable` that also allows you to access the
+	/// index of each element when traversing the structure.
+	#[fp_macros::document_type_parameters("The index type.")]
+	pub trait TraversableWithIndex<I>:
+		Traversable + FoldableWithIndex<I> + FunctorWithIndex<I> {
+		/// Traverse the structure with an effectful function, providing the index of each element.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The type of the elements.",
+			"The type of the result inside the applicative.",
+			"The applicative type."
+		)]
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The structure to traverse."
+		)]
+		#[document_returns("The structure of results inside the applicative.")]
+		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(I, A) -> M::Of<'a, B> + 'a,
+			ta: Self::Of<'a, A>,
+		) -> M::Of<'a, Self::Of<'a, B>>;
+	}
+}
+
+pub use inner::*;

@@ -32,6 +32,9 @@ mod inner {
 				SendCloneableFn,
 				Traversable,
 				Witherable,
+				foldable_with_index::FoldableWithIndex,
+				functor_with_index::FunctorWithIndex,
+				traversable_with_index::TraversableWithIndex,
 			},
 			impl_kind,
 			kinds::*,
@@ -527,6 +530,118 @@ assert_eq!(sequence::<VecBrand, _, OptionBrand>(vec![Some(1), Some(2)]), Some(ve
 					},
 					acc,
 					x,
+				)
+			})
+		}
+	}
+
+	impl FunctorWithIndex<usize> for VecBrand {
+		/// Maps a function over the vector, providing the index of each element.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The type of the elements in the resulting vector."
+		)]
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The vector to map over."
+		)]
+		#[document_returns("A new vector containing the results of applying the function.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+let v = vec![10, 20, 30];
+// Use `map_with_index` via the method on the trait, or a helper function if one existed.
+// Since there's no helper function in `functions.rs` yet, we use explicit syntax or call it via trait.
+use fp_library::classes::functor_with_index::FunctorWithIndex;
+let mapped = <VecBrand as FunctorWithIndex<usize>>::map_with_index(|i, x| x + i as i32, v);
+assert_eq!(mapped, vec![10, 21, 32]);"#
+		)]
+		fn map_with_index<'a, A: 'a, B: 'a>(
+			f: impl Fn(usize, A) -> B + 'a,
+			fa: Vec<A>,
+		) -> Vec<B> {
+			fa.into_iter().enumerate().map(|(i, a)| f(i, a)).collect()
+		}
+	}
+
+	impl FoldableWithIndex<usize> for VecBrand {
+		/// Folds the vector using a monoid, providing the index of each element.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The monoid type."
+		)]
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The vector to fold."
+		)]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::VecBrand,
+	functions::*,
+};
+use fp_library::classes::foldable_with_index::FoldableWithIndex;
+let v = vec![10, 20, 30];
+let s = <VecBrand as FoldableWithIndex<usize>>::fold_map_with_index(|i, x| format!("{}:{}", i, x), v);
+assert_eq!(s, "0:101:202:30");"#
+		)]
+		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
+			f: impl Fn(usize, A) -> R + 'a,
+			fa: Vec<A>,
+		) -> R {
+			fa.into_iter()
+				.enumerate()
+				.map(|(i, a)| f(i, a))
+				.fold(R::empty(), |acc, x| R::append(acc, x))
+		}
+	}
+
+	impl TraversableWithIndex<usize> for VecBrand {
+		/// Traverses the vector with an applicative function, providing the index of each element.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the elements.",
+			"The type of the elements in the vector.",
+			"The type of the elements in the resulting vector.",
+			"The applicative context."
+		)]
+		#[document_parameters(
+			"The function to apply to each element and its index, returning a value in an applicative context.",
+			"The vector to traverse."
+		)]
+		#[document_returns("The vector wrapped in the applicative context.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{VecBrand, OptionBrand},
+	functions::*,
+};
+use fp_library::classes::traversable_with_index::TraversableWithIndex;
+let v = vec![10, 20, 30];
+let t = <VecBrand as TraversableWithIndex<usize>>::traverse_with_index::<i32, i32, OptionBrand>(
+	|i, x| Some(x + i as i32),
+	v
+);
+assert_eq!(t, Some(vec![10, 21, 32]));"#
+		)]
+		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+			f: impl Fn(usize, A) -> M::Of<'a, B> + 'a,
+			ta: Vec<A>,
+		) -> M::Of<'a, Vec<B>> {
+			let len = ta.len();
+			ta.into_iter().enumerate().fold(M::pure(Vec::with_capacity(len)), |acc, (i, x)| {
+				M::lift2(
+					|mut v, b| {
+						v.push(b);
+						v
+					},
+					acc,
+					f(i, x),
 				)
 			})
 		}

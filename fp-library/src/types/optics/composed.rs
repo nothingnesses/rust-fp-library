@@ -844,5 +844,298 @@ assert_eq!(updated.address.street, "HIGH ST");"#
 	) -> Composed<'a, S, T, M, N, A, B, O1, O2> {
 		Composed::new(first, second)
 	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
+		IndexedLensOptic<'a, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: LensOptic<'a, S, T, M, N>,
+		O2: IndexedLensOptic<'a, I, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: IndexedLensPrime<RcBrand, usize, i32, i32> =
+	IndexedLensPrime::from_iview_set(|x| (0, x), |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = |(i, x): (usize, i32)| x + (i as i32);
+let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	IndexedLensPrime<RcBrand, usize, i32, i32>,
+> as IndexedLensOptic<usize, (i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&composed, indexed);
+assert_eq!(modifier((21, "hi".to_string())), (21, "hi".to_string()));"#
+		)]
+		fn evaluate<P: Strong>(
+			&self,
+			pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = self.second.evaluate(pab);
+			self.first.evaluate::<P>(pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
+		IndexedTraversalOptic<'a, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		O1: TraversalOptic<'a, S, T, M, N>,
+		O2: IndexedTraversalOptic<'a, I, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: IndexedLensPrime<RcBrand, usize, i32, i32> =
+	IndexedLensPrime::from_iview_set(|x| (0, x), |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = |(i, x): (usize, i32)| x + (i as i32);
+let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	IndexedLensPrime<RcBrand, usize, i32, i32>,
+> as IndexedTraversalOptic<usize, (i32, String), (i32, String), i32, i32>>::evaluate::<RcFnBrand>(&composed, indexed);
+assert_eq!(modifier((21, "hi".to_string())), (21, "hi".to_string()));"#
+		)]
+		fn evaluate<P: Wander>(
+			&self,
+			pab: crate::types::optics::Indexed<'a, P, I, A, B>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = self.second.evaluate(pab);
+			self.first.evaluate::<P>(pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type.",
+		"The intermediate type.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, I: 'a, S: 'a, A: 'a, M: 'a, O1, O2> IndexedGetterOptic<'a, I, S, A>
+		for Composed<'a, S, S, M, M, A, A, O1, O2>
+	where
+		O1: GetterOptic<'a, S, M>,
+		O2: IndexedGetterOptic<'a, I, M, A>,
+	{
+		#[document_signature]
+		#[document_type_parameters(
+			"The return type of the forget profunctor.",
+			"The reference-counted pointer type."
+		)]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+let l1: GetterPrime<RcBrand, (i32, String), i32> =
+	GetterPrime::new(|(x, _)| x);
+let l2: IndexedGetterPrime<RcBrand, usize, i32, i32> =
+	IndexedGetterPrime::new(|x| (0, x));
+let composed = Composed::new(l1, l2);
+let f = Forget::<RcBrand, (usize, i32), (usize, i32), (usize, i32)>::new(|ia| ia);
+let folded = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	GetterPrime<RcBrand, (i32, String), i32>,
+	IndexedGetterPrime<RcBrand, usize, i32, i32>,
+> as IndexedGetterOptic<usize, (i32, String), i32>>::evaluate::< (usize, i32), RcBrand >(&composed, Indexed::new(f));
+assert_eq!(folded.run((42, "hi".to_string())), (0, 42));"#
+		)]
+		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			let pmn = self.second.evaluate::<R, P>(pab);
+			self.first.evaluate::<R, P>(pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type of the structure.",
+		"The focus type.",
+		"The intermediate type.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, I: 'a, S: 'a, A: 'a, M: 'a, O1, O2> IndexedFoldOptic<'a, I, S, A>
+		for Composed<'a, S, S, M, M, A, A, O1, O2>
+	where
+		O1: FoldOptic<'a, S, M>,
+		O2: IndexedFoldOptic<'a, I, M, A>,
+	{
+		#[document_signature]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+let l1: GetterPrime<RcBrand, (i32, String), i32> =
+	GetterPrime::new(|(x, _)| x);
+let l2: IndexedGetterPrime<RcBrand, usize, i32, i32> =
+	IndexedGetterPrime::new(|x| (0, x));
+let composed = Composed::new(l1, l2);
+let f = Forget::<RcBrand, (usize, i32), (usize, i32), (usize, i32)>::new(|ia| ia);
+let folded = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	GetterPrime<RcBrand, (i32, String), i32>,
+	IndexedGetterPrime<RcBrand, usize, i32, i32>,
+> as IndexedFoldOptic<usize, (i32, String), i32>>::evaluate::< (usize, i32), RcBrand >(&composed, Indexed::new(f));
+assert_eq!(folded.run((42, "hi".to_string())), (0, 42));"#
+		)]
+		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+			&self,
+			pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			let pmn = self.second.evaluate::<R, P>(pab);
+			self.first.evaluate::<R, P>(pmn)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The reference-counted pointer type for the Setter brand.",
+		"The index type.",
+		"The source type of the outer structure.",
+		"The target type of the outer structure.",
+		"The source type of the intermediate structure.",
+		"The target type of the intermediate structure.",
+		"The source type of the focus.",
+		"The target type of the focus.",
+		"The first optic.",
+		"The second optic."
+	)]
+	#[document_parameters("The composed optic instance.")]
+	impl<'a, Q, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
+		IndexedSetterOptic<'a, Q, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
+	where
+		Q: UnsizedCoercible,
+		O1: SetterOptic<'a, Q, S, T, M, N>,
+		O2: IndexedSetterOptic<'a, Q, I, M, N, A, B>,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::*,
+	classes::optics::*,
+	functions::*,
+	types::optics::*,
+};
+let l1: LensPrime<RcBrand, (i32, String), i32> =
+	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+let l2: IndexedLensPrime<RcBrand, usize, i32, i32> =
+	IndexedLensPrime::from_iview_set(|x| (0, x), |(_, x)| x);
+let composed = Composed::new(l1, l2);
+let f = |(i, x): (usize, i32)| x + (i as i32);
+let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+let modifier = <Composed<
+	'_,
+	(i32, String),
+	(i32, String),
+	i32,
+	i32,
+	i32,
+	i32,
+	LensPrime<RcBrand, (i32, String), i32>,
+	IndexedLensPrime<RcBrand, usize, i32, i32>,
+> as IndexedSetterOptic<RcBrand, usize, (i32, String), (i32, String), i32, i32>>::evaluate(&composed, indexed);
+assert_eq!(modifier((21, "hi".to_string())), (21, "hi".to_string()));"#
+		)]
+		fn evaluate(
+			&self,
+			pab: crate::types::optics::Indexed<'a, FnBrand<Q>, I, A, B>,
+		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			let pmn = self.second.evaluate(pab);
+			self.first.evaluate(pmn)
+		}
+	}
 }
 pub use inner::*;

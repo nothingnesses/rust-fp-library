@@ -89,6 +89,12 @@ mod functions;
 mod getter;
 mod grate;
 mod grating;
+mod indexed;
+mod indexed_fold;
+mod indexed_getter;
+mod indexed_lens;
+mod indexed_setter;
+mod indexed_traversal;
 mod iso;
 mod lens;
 mod market;
@@ -113,6 +119,12 @@ pub use {
 	getter::*,
 	grate::*,
 	grating::*,
+	indexed::*,
+	indexed_fold::*,
+	indexed_getter::*,
+	indexed_lens::*,
+	indexed_setter::*,
+	indexed_traversal::*,
 	iso::*,
 	lens::*,
 	market::*,
