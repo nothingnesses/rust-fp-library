@@ -624,7 +624,6 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, T, A, B> for IndexedSetter<'a, P, I, S, T, A, B, F>
 	where
 		F: IndexedSetterFunc<'a, I, S, T, A, B> + Clone + 'a,
-		Q2: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -664,7 +663,6 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		for IndexedSetter<'a, P, I, S, T, A, B, F>
 	where
 		F: IndexedSetterFunc<'a, I, S, T, A, B> + Clone + 'a,
-		Q2: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -701,7 +699,6 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 
 		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, S, A, A> for IndexedSetterPrime<'a, P, I, S, A, F>
 	where
 		F: IndexedSetterFunc<'a, I, S, S, A, A> + Clone + 'a,
-		Q2: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -739,7 +736,6 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		for IndexedSetterPrime<'a, P, I, S, A, F>
 	where
 		F: IndexedSetterFunc<'a, I, S, S, A, A> + Clone + 'a,
-		Q2: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]

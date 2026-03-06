@@ -382,7 +382,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	functions::*,
 };
 let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
-let unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
 		fn evaluate_indexed(
@@ -432,7 +432,7 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	functions::*,
 };
 let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
-let unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]
 		fn evaluate_indexed_discards_focus(
@@ -648,7 +648,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	functions::*,
 };
 let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
-let unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
 		fn evaluate_indexed(
@@ -694,7 +694,7 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	functions::*,
 };
 let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
-let unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]
 		fn evaluate_indexed_discards_focus(

@@ -387,7 +387,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 			where
 				F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 			{
-				fn apply<'b, M: Applicative>(
+				fn apply<M: Applicative>(
 					&self,
 					f: Box<
 						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
@@ -776,7 +776,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 			where
 				F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 			{
-				fn apply<'b, M: Applicative>(
+				fn apply<M: Applicative>(
 					&self,
 					f: Box<
 						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, A>)

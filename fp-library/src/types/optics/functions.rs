@@ -952,7 +952,7 @@ assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&reindexed, (42, "hi".to_s
 
 	/// Internal traversal function for `positions`.
 	#[derive(Clone)]
-	pub struct PositionsTraversalFunc<F>(pub F);
+	pub struct PositionsTraversalFunc<F>(F);
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -974,12 +974,12 @@ assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&reindexed, (42, "hi".to_s
 		#[document_returns("The traversed structure wrapped in the applicative context.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{OptionBrand, VecBrand},
+	brands::{RcBrand, OptionBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let t = Traversal::<OptionBrand, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
-let p = PositionsTraversalFunc(t.traversal);
+let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
+let p = positions(t).traversal;
 let s = vec![10, 20, 30];
 let f = Box::new(|i: usize, a: i32| -> Option<i32> {
 	Some(a + i as i32)
