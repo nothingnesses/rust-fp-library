@@ -79,10 +79,7 @@ mod inner {
 		I: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The lifetime of the applicative context.",
-			"The applicative context."
-		)]
+		#[document_type_parameters("The applicative context.")]
 		#[document_parameters("The traversal function.", "The structure to traverse.")]
 		#[document_returns("The traversed structure wrapped in the applicative context.")]
 		#[document_examples(
@@ -107,7 +104,7 @@ let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand, _>(
 assert_eq!(result, Some(vec![10, 21, 32]));
 "#
 		)]
-		fn apply<'b, M: Applicative>(
+		fn apply<M: Applicative>(
 			&self,
 			f: Box<dyn Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a>,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
@@ -248,7 +245,7 @@ assert_eq!(v2, vec![10, 21, 32]);
 #[derive(Clone)]
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -302,7 +299,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -357,7 +354,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -438,7 +435,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -459,7 +456,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
-		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			IndexedTraversalOptic::evaluate(self, pab)
 		}
@@ -494,7 +491,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -517,6 +514,83 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 			&self,
 			pab: Indexed<'a, FnBrand<Q>, I, A, B>,
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
+			IndexedTraversalOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update.",
+		"The original pointer type.",
+		"The traversal function type."
+	)]
+	#[document_parameters("The indexed traversal instance.")]
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q, F>
+		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedTraversal<'a, Q, I, S, T, A, B, F>
+	where
+		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedTraversal::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
+let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, P, I, A, B>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			IndexedTraversalOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The index type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update.",
+		"The original pointer type.",
+		"The traversal function type."
+	)]
+	#[document_parameters("The indexed traversal instance.")]
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q, F>
+		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
+		for IndexedTraversal<'a, Q, I, S, T, A, B, F>
+	where
+		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedTraversal::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
+let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&as_index, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, P, I, A, B>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
 			IndexedTraversalOptic::evaluate(self, pab)
 		}
 	}
@@ -564,7 +638,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 #[derive(Clone)]
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -616,7 +690,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -669,7 +743,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -750,7 +824,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -771,7 +845,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
-		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			IndexedTraversalOptic::evaluate(self, pab)
 		}
@@ -804,7 +878,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 };
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<'b, M: Applicative>(
+	fn apply<M: Applicative>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
@@ -827,6 +901,79 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 			&self,
 			pab: Indexed<'a, FnBrand<Q>, I, A, A>,
 		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+			IndexedTraversalOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The index type.",
+		"The type of the structure.",
+		"The focus type.",
+		"The original pointer type.",
+		"The traversal function type."
+	)]
+	#[document_parameters("The indexed traversal instance.")]
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a, Q, F> IndexedOpticAdapter<'a, P, I, S, S, A, A>
+		for IndexedTraversalPrime<'a, Q, I, S, A, F>
+	where
+		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedTraversalPrime::<RcBrand, usize, Vec<i32>, i32, _>::traversed::<VecBrand>();
+let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, P, I, A, A>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
+			IndexedTraversalOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The profunctor type.",
+		"The index type.",
+		"The type of the structure.",
+		"The focus type.",
+		"The original pointer type.",
+		"The traversal function type."
+	)]
+	#[document_parameters("The indexed traversal instance.")]
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a, Q, F>
+		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A>
+		for IndexedTraversalPrime<'a, Q, I, S, A, F>
+	where
+		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedTraversalPrime::<RcBrand, usize, Vec<i32>, i32, _>::traversed::<VecBrand>();
+let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&as_index, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, P, I, A, A>,
+		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
 			IndexedTraversalOptic::evaluate(self, pab)
 		}
 	}

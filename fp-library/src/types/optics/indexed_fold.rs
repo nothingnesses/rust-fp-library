@@ -13,6 +13,7 @@ mod inner {
 			},
 			kinds::*,
 			types::optics::{
+				Forget,
 				ForgetBrand,
 				Indexed,
 			},
@@ -29,7 +30,7 @@ mod inner {
 	/// A trait for indexed fold functions.
 	pub trait IndexedFoldFunc<'a, I, S, A> {
 		/// Apply the indexed fold function.
-		fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn apply<R: 'a + Monoid + 'static>(
 			&self,
 			f: Box<dyn Fn(I, A) -> R + 'a>,
 			s: S,
@@ -81,7 +82,7 @@ mod inner {
 #[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -132,7 +133,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 };
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -176,7 +177,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		I: 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
+		#[document_type_parameters("The monoid type.")]
 		#[document_parameters("The fold function.", "The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
 		#[document_examples(
@@ -189,7 +190,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 assert_eq!(std::mem::size_of::<Folded<VecBrand>>(), 0);
 "#
 		)]
-		fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn apply<R: 'a + Monoid + 'static>(
 			&self,
 			f: Box<dyn Fn(I, A) -> R + 'a>,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
@@ -313,7 +314,7 @@ assert_eq!(s, "0:101:20".to_string());
 };
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -337,8 +338,108 @@ assert_eq!(result.run(vec![10, 20]), 31);
 			let fold_fn = self.fold_fn.clone();
 			crate::types::optics::Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.inner.0.clone();
-				fold_fn.apply::<R, Q>(Box::new(move |i, a| (pab_fn)((i, a))), s)
+				fold_fn.apply::<R>(Box::new(move |i, a| (pab_fn)((i, a))), s)
 			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The monoid type.",
+		"The original profunctor type.",
+		"The index type.",
+		"The source type.",
+		"The target type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The fold function type."
+	)]
+	#[document_parameters("The indexed fold instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + Monoid + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+		F,
+	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedFold<'a, P, I, S, T, A, B, F>
+	where
+		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
+let unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedFoldOptic::evaluate::<R, Q2>(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The monoid type.",
+		"The original profunctor type.",
+		"The index type.",
+		"The source type.",
+		"The target type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The fold function type."
+	)]
+	#[document_parameters("The indexed fold instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + Monoid + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+		F,
+	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedFold<'a, P, I, S, T, A, B, F>
+	where
+		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
+let unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedFoldOptic::evaluate::<R, Q2>(self, pab)
 		}
 	}
 
@@ -383,7 +484,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 #[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -432,7 +533,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 };
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -483,7 +584,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 };
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
-	fn apply<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+	fn apply<R: 'a + Monoid + 'static>(
 		&self,
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
@@ -507,8 +608,100 @@ assert_eq!(result.run(vec![10, 20]), 31);
 			let fold_fn = self.fold_fn.clone();
 			crate::types::optics::Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.inner.0.clone();
-				fold_fn.apply::<R, Q>(Box::new(move |i, a| (pab_fn)((i, a))), s)
+				fold_fn.apply::<R>(Box::new(move |i, a| (pab_fn)((i, a))), s)
 			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The monoid type.",
+		"The original profunctor type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type.",
+		"The fold function type."
+	)]
+	#[document_parameters("The indexed fold instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + Monoid + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a,
+		F,
+	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedFoldPrime<'a, P, I, S, A, F>
+	where
+		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
+let unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedFoldOptic::evaluate::<R, Q2>(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The monoid type.",
+		"The original profunctor type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type.",
+		"The fold function type."
+	)]
+	#[document_parameters("The indexed fold instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + Monoid + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a,
+		F,
+	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedFoldPrime<'a, P, I, S, A, F>
+	where
+		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
+let unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedFoldOptic::evaluate::<R, Q2>(self, pab)
 		}
 	}
 }

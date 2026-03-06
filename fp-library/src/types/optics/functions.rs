@@ -18,7 +18,6 @@ mod inner {
 					*,
 				},
 				semigroup::Semigroup,
-				traversable_with_index::TraversableWithIndex,
 			},
 			kinds::*,
 			types::optics::{
@@ -28,6 +27,7 @@ mod inner {
 				Indexed,
 				IndexedTraversal,
 				Tagged,
+				Traversal,
 				Zipping,
 				ZippingBrand,
 			},
@@ -950,124 +950,100 @@ assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&reindexed, (42, "hi".to_s
 		}
 	}
 
-	/// A wrapper struct for the `positions` function.
+	/// Internal traversal function for `positions`.
 	#[derive(Clone)]
-	pub struct Positions<Brand, A>(std::marker::PhantomData<(Brand, A)>);
+	pub struct PositionsTraversalFunc<F>(pub F);
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
-		"The index type.",
-		"The brand of the traversable structure.",
-		"The type of the elements in the structure."
+		"The source structure type.",
+		"The target structure type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The traversal function type."
 	)]
-	#[document_parameters("The positions struct.")]
-	impl<'a, I, Brand, A>
-		IndexedTraversalFunc<
-			'a,
-			I,
-			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
-			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, I>),
-			I,
-			I,
-		> for Positions<Brand, A>
+	#[document_parameters("The positions traversal function instance.")]
+	impl<'a, S: 'a, T: 'a, A: 'a, B: 'a, F> IndexedTraversalFunc<'a, usize, S, T, A, B>
+		for PositionsTraversalFunc<F>
 	where
-		Brand: TraversableWithIndex<I>,
-		A: 'a + Clone,
-		I: 'a + Clone,
+		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 	{
 		#[document_signature]
-		#[document_type_parameters(
-			"The lifetime of the applicative context.",
-			"The applicative context."
-		)]
+		#[document_type_parameters("The applicative context.")]
 		#[document_parameters("The traversal function.", "The structure to traverse.")]
 		#[document_returns("The traversed structure wrapped in the applicative context.")]
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{OptionBrand, VecBrand},
-	types::optics::functions::Positions,
-	classes::optics::indexed_traversal::IndexedTraversalFunc,
+	types::optics::*,
+	functions::*,
 };
-
-let positions = Positions::<VecBrand, usize>(std::marker::PhantomData);
+let t = Traversal::<OptionBrand, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
+let p = PositionsTraversalFunc(t.traversal);
 let s = vec![10, 20, 30];
-let f = Box::new(|i: usize, idx: usize| -> Option<usize> {
-	Some(idx)
+let f = Box::new(|i: usize, a: i32| -> Option<i32> {
+	Some(a + i as i32)
 });
-
-let result: Option<Vec<usize>> = IndexedTraversalFunc::apply::<OptionBrand, _>(
-	&positions,
-	f,
-	s
-);
-
-assert_eq!(result, Some(vec![0, 1, 2]));
+let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand, _>(&p, f, s);
+assert_eq!(result, Some(vec![10, 21, 32]));
 "#
 		)]
-		fn apply<'b, M: Applicative>(
+		fn apply<M: Applicative>(
 			&self,
-			f: Box<dyn Fn(I, I) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, I>) + 'a>,
-			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
-		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, I>)>)
-		{
-			// IMPORTANT: The turbofish `::<A, I, M>` is **required** here. Do not remove it.
-			//
-			// Root cause: The return type of this method contains a nested associated type
-			// projection: `<M as Kind>::Of<'a, <Brand as Kind>::Of<'a, I>>`. When the old
-			// trait solver (stable Rust) encounters this without explicit type annotations,
-			// it enters an infinite loop during type normalization — `cargo check` hangs
-			// indefinitely. This is not a recursion depth issue (`recursion_limit` has no
-			// effect); it is an infinite loop in the solver's normalization phase when it
-			// tries to resolve the inner projection `<Brand as Kind>::Of<'a, I>` inside the
-			// outer projection `<M as Kind>::Of<'a, _>` with both `M` and `Brand` being
-			// generic parameters.
-			//
-			// The turbofish explicitly provides the type parameters to `traverse_with_index`,
-			// preventing the solver from needing to infer them through the nested projection.
-			//
-			// The new trait solver (`-Znext-solver`) handles this correctly without hanging,
-			// but still requires the turbofish for type inference (E0283 without it).
-			Brand::traverse_with_index::<A, I, M>(Box::new(move |i: I, _a: A| f(i.clone(), i)), s)
+			f: Box<
+				dyn Fn(usize, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
+			>,
+			s: S,
+		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>) {
+			let counter = std::cell::Cell::new(0usize);
+			self.0.apply::<M>(
+				Box::new(move |a: A| {
+					let i = counter.get();
+					counter.set(i + 1);
+					f(i, a)
+				}),
+				s,
+			)
 		}
 	}
 
-	/// Create an indexed traversal that traverses the indices of a traversable structure.
+	/// Create an indexed traversal by decorating each focus of a traversal with its position.
 	#[document_signature]
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
-		"The index type.",
-		"The brand of the traversable structure.",
-		"The type of the elements in the structure."
+		"The source structure type.",
+		"The target structure type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The traversal function type."
 	)]
-	#[document_returns("A traversal over the indices.")]
+	#[document_returns("An indexed traversal over the positions.")]
 	#[document_examples(
 		r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = positions::<RcBrand, usize, VecBrand, i32>();
+let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
+let l = positions(t);
 let s = vec![10, 20, 30];
-let indices = optics_indexed_fold_map::<RcBrand, _, _, _, _, Vec<usize>, _>(&l, |_, i| vec![i], s);
-assert_eq!(indices, vec![0, 1, 2]);
+let result = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, s, |i, x| x + i as i32);
+assert_eq!(result, vec![10, 21, 32]);
 "#
 	)]
-	pub fn positions<'a, P, I, Brand, A>() -> IndexedTraversal<
-		'a,
-		P,
-		I,
-		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
-		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, I>),
-		I,
-		I,
-		Positions<Brand, A>,
-	>
+	pub fn positions<'a, P, S, T, A, B, F>(
+		traversal: Traversal<'a, P, S, T, A, B, F>
+	) -> IndexedTraversal<'a, P, usize, S, T, A, B, PositionsTraversalFunc<F>>
 	where
-		Brand: TraversableWithIndex<I>,
-		A: 'a + Clone,
-		I: 'a + Clone, {
-		IndexedTraversal::new(Positions(std::marker::PhantomData))
+		P: UnsizedCoercible,
+		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a, {
+		IndexedTraversal::new(PositionsTraversalFunc(traversal.traversal))
 	}
 }
+
 pub use inner::*;

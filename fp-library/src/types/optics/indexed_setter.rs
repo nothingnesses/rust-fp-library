@@ -349,11 +349,7 @@ impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter
 let l: IndexedSetterPrime<RcBrand, usize, Vec<i32>, i32, MySetter> =
 	IndexedSetterPrime::new(MySetter);
 let cloned = l.clone();
-let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
-let pab = Indexed::new(f);
-let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&cloned, pab);
-assert_eq!(result(vec![10, 20]), vec![10, 21]);
+assert_eq!(cloned.over(vec![10, 20], |i, x| x + (i as i32)), vec![10, 21]);
 "#
 		)]
 		fn clone(&self) -> Self {
@@ -394,11 +390,7 @@ impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter
 }
 let l: IndexedSetterPrime<RcBrand, usize, Vec<i32>, i32, MySetter> =
 	IndexedSetterPrime::new(MySetter);
-let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
-let pab = Indexed::new(f);
-let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
-assert_eq!(result(vec![10, 20]), vec![10, 21]);
+assert_eq!(l.over(vec![10, 20], |i, x| x + (i as i32)), vec![10, 21]);
 "#
 		)]
 		pub fn new(setter_fn: F) -> Self {
@@ -613,6 +605,160 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 				let pab_fn = pab.inner.clone();
 				setter_fn.apply(Box::new(move |i, a| pab_fn((i, a))), s)
 			})
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The pointer brand for the adapter.",
+		"The original pointer type.",
+		"The index type.",
+		"The source structure type.",
+		"The target structure type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The setter function type."
+	)]
+	#[document_parameters("The indexed setter instance.")]
+	impl<'a, Q2: UnsizedCoercible + 'static, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
+		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, T, A, B> for IndexedSetter<'a, P, I, S, T, A, B, F>
+	where
+		F: IndexedSetterFunc<'a, I, S, T, A, B> + Clone + 'a,
+		Q2: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{FnBrand, RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped::<VecBrand>();
+let unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, FnBrand<Q2>, I, A, B>,
+		) -> Apply!(<FnBrand<Q2> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
+			IndexedSetterOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The pointer brand for the adapter.",
+		"The original pointer type.",
+		"The index type.",
+		"The source structure type.",
+		"The target structure type.",
+		"The source focus type.",
+		"The target focus type.",
+		"The setter function type."
+	)]
+	#[document_parameters("The indexed setter instance.")]
+	impl<'a, Q2: UnsizedCoercible + 'static, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
+		IndexedOpticAdapterDiscardsFocus<'a, FnBrand<Q2>, I, S, T, A, B>
+		for IndexedSetter<'a, P, I, S, T, A, B, F>
+	where
+		F: IndexedSetterFunc<'a, I, S, T, A, B> + Clone + 'a,
+		Q2: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{FnBrand, RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped::<VecBrand>();
+let unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, FnBrand<Q2>, I, A, B>,
+		) -> Apply!(<FnBrand<Q2> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>) {
+			IndexedSetterOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The pointer brand for the adapter.",
+		"The original pointer type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type.",
+		"The setter function type."
+	)]
+	#[document_parameters("The indexed setter instance.")]
+	impl<'a, Q2: UnsizedCoercible + 'static, P: UnsizedCoercible, I: 'a, S: 'a, A: 'a, F>
+		IndexedOpticAdapter<'a, FnBrand<Q2>, I, S, S, A, A> for IndexedSetterPrime<'a, P, I, S, A, F>
+	where
+		F: IndexedSetterFunc<'a, I, S, S, A, A> + Clone + 'a,
+		Q2: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{FnBrand, RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped::<VecBrand>();
+let unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, FnBrand<Q2>, I, A, A>,
+		) -> Apply!(<FnBrand<Q2> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+			IndexedSetterOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The pointer brand for the adapter.",
+		"The original pointer type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type.",
+		"The setter function type."
+	)]
+	#[document_parameters("The indexed setter instance.")]
+	impl<'a, Q2: UnsizedCoercible + 'static, P: UnsizedCoercible, I: 'a, S: 'a, A: 'a, F>
+		IndexedOpticAdapterDiscardsFocus<'a, FnBrand<Q2>, I, S, S, A, A>
+		for IndexedSetterPrime<'a, P, I, S, A, F>
+	where
+		F: IndexedSetterFunc<'a, I, S, S, A, A> + Clone + 'a,
+		Q2: UnsizedCoercible,
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{FnBrand, RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped::<VecBrand>();
+let unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
+assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, FnBrand<Q2>, I, A, A>,
+		) -> Apply!(<FnBrand<Q2> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
+			IndexedSetterOptic::evaluate(self, pab)
 		}
 	}
 }

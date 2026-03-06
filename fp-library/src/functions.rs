@@ -36,7 +36,18 @@ fp_macros::generate_function_re_exports!("src/classes", {
 	"semigroupoid::compose": semigroupoid_compose,
 	"send_cloneable_fn::new": send_cloneable_fn_new,
 });
-pub use crate::types::optics::optics_compose;
+pub use crate::types::optics::{
+	optics_as_index,
+	optics_compose,
+	optics_indexed_fold_map,
+	optics_indexed_over,
+	optics_indexed_preview,
+	optics_indexed_set,
+	optics_indexed_view,
+	optics_reindexed,
+	optics_un_index,
+	positions,
+};
 
 /// Composes two functions.
 ///

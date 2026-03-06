@@ -13,6 +13,7 @@ mod inner {
 			},
 			kinds::*,
 			types::optics::{
+				Forget,
 				ForgetBrand,
 				Indexed,
 			},
@@ -204,6 +205,89 @@ assert_eq!(result.run((42, "hi".to_string())), 42);"#
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			IndexedGetterOptic::evaluate(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The result type.",
+		"The original pointer type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a,
+	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A> for IndexedGetter<'a, P, I, S, A>
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+let unindexed = optics_un_index::<ForgetBrand<RcBrand, i32>, _, _, _, _, _, _, _>(&g);
+assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 42);"#
+		)]
+		fn evaluate_indexed(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedGetterOptic::evaluate::<R, Q2>(self, pab)
+		}
+	}
+
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The result type brand.",
+		"The result type.",
+		"The original pointer type.",
+		"The index type.",
+		"The structure type.",
+		"The focus type."
+	)]
+	#[document_parameters("The indexed getter instance.")]
+	impl<
+		'a,
+		Q2: UnsizedCoercible + 'static,
+		R: 'a + 'static,
+		P: UnsizedCoercible,
+		I: 'a,
+		S: 'a,
+		A: 'a,
+	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedGetter<'a, P, I, S, A>
+	{
+		#[document_signature]
+		#[document_parameters("The indexed profunctor value.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples(
+			r#"use fp_library::{
+	brands::{RcBrand, VecBrand},
+	types::optics::*,
+	functions::*,
+};
+let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (10, x));
+let unindexed = optics_as_index::<ForgetBrand<RcBrand, usize>, _, _, _, _, _, _, _>(&g);
+assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 10);"#
+		)]
+		fn evaluate_indexed_discards_focus(
+			&self,
+			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
+		) -> Forget<'a, Q2, R, S, S> {
+			IndexedGetterOptic::evaluate::<R, Q2>(self, pab)
 		}
 	}
 
