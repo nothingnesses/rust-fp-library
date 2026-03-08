@@ -22,11 +22,6 @@ fn contains_assertion(code: &str) -> bool {
 	ASSERTION_MACROS.iter().any(|mac| code.contains(mac))
 }
 
-/// Check whether a code fence tag indicates a Rust code block.
-fn is_rust_code_tag(tag: &str) -> bool {
-	RUST_CODE_TAGS.iter().any(|t| *t == tag)
-}
-
 /// State machine for parsing doc comment code blocks.
 enum ParseState {
 	Normal,
@@ -66,9 +61,9 @@ fn extract_rust_code_blocks(doc_lines: &[String]) -> Vec<String> {
 
 		state = match state {
 			ParseState::Normal =>
-				if trimmed.starts_with("```") {
-					let tag = trimmed[3 ..].trim();
-					if is_rust_code_tag(tag) {
+				if let Some(stripped) = trimmed.strip_prefix("```") {
+					let tag = stripped.trim();
+					if RUST_CODE_TAGS.contains(&tag) {
 						ParseState::InRustBlock(Vec::new())
 					} else {
 						ParseState::InSkippedBlock
