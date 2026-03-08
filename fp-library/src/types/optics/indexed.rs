@@ -296,27 +296,19 @@ assert_eq!((transformed.inner)((10, Ok(32))), Ok(42));"#
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
 		#[document_examples(
 			r#"use fp_library::{
-	Apply,
-	Kind,
-	brands::RcFnBrand,
-	classes::{
-		applicative::Applicative,
-		profunctor::*,
-		optics::TraversalFunc,
-	},
-	types::optics::{Indexed, IndexedBrand},
+	brands::{RcBrand, RcFnBrand, VecBrand},
+	classes::{profunctor::*, optics::IndexedTraversalOptic},
+	types::optics::*,
+	functions::*,
 };
-// Example concept: wandering over a structure while preserving index
-struct SingleTraversal;
-impl<'a, A: 'a, B: 'a> TraversalFunc<'a, A, B, A, B> for SingleTraversal {
-    fn apply<M: Applicative>(&self, f: Box<dyn Fn(A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) + 'a>, s: A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) {
-        f(s)
-    }
-}
-let f = |(i, a): (usize, i32)| a + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Wander>::wander(SingleTraversal, indexed);
-assert_eq!((transformed.inner)((10, 32)), 42);"#
+// Use an indexed traversal over a Vec to demonstrate wandering with index
+let traversal: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
+let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
+let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
+let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+	IndexedTraversalOptic::evaluate::<RcFnBrand>(&traversal, pab);
+assert_eq!(result(vec![10, 20]), vec![10, 21]);"#
 		)]
 		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,

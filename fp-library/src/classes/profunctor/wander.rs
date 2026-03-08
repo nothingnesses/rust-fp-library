@@ -64,26 +64,32 @@ pub trait Wander: Strong + Choice {
 	/// 	brands::*,
 	/// 	classes::{
 	/// 		Applicative,
-	/// 		Traversable,
+	/// 		lift::Lift,
 	/// 		optics::traversal::TraversalFunc,
 	/// 		profunctor::*,
 	/// 	},
 	/// 	kinds::*,
 	/// };
 	///
+	/// #[derive(Clone)]
 	/// struct ListTraversal;
-	/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 	/// 	fn apply<M: Applicative>(
 	/// 		&self,
-	/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-	/// 		_s: Vec<A>,
+	/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+	/// 		s: Vec<A>,
 	/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-	/// 		unreachable!()
+	/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+	/// 			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
+	/// 		})
 	/// 	}
 	/// }
 	///
-	/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-	/// let _g = <RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, f);
+	/// let double = std::rc::Rc::new(|x: i32| x * 2) as std::rc::Rc<dyn Fn(i32) -> i32>;
+	/// let map_all: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+	/// 	<RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, double);
+	/// assert_eq!(map_all(vec![1, 2, 3]), vec![2, 4, 6]);
+	/// assert_eq!(map_all(vec![]), vec![]);
 	/// ```
 	fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 		traversal: TFunc,
@@ -122,26 +128,32 @@ pub trait Wander: Strong + Choice {
 /// 	brands::*,
 /// 	classes::{
 /// 		Applicative,
-/// 		Traversable,
+/// 		lift::Lift,
 /// 		optics::traversal::TraversalFunc,
 /// 		profunctor::*,
 /// 	},
 /// 	kinds::*,
 /// };
 ///
+/// #[derive(Clone)]
 /// struct ListTraversal;
-/// impl<'a, A: 'a> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
 /// 	fn apply<M: Applicative>(
 /// 		&self,
-/// 		_f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-/// 		_s: Vec<A>,
+/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+/// 		s: Vec<A>,
 /// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-/// 		unreachable!()
+/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+/// 			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
+/// 		})
 /// 	}
 /// }
 ///
-/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-/// let _g = wander::<RcFnBrand, Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, f);
+/// let double = std::rc::Rc::new(|x: i32| x * 2) as std::rc::Rc<dyn Fn(i32) -> i32>;
+/// let map_all: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+/// 	wander::<RcFnBrand, Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, double);
+/// assert_eq!(map_all(vec![1, 2, 3]), vec![2, 4, 6]);
+/// assert_eq!(map_all(vec![]), vec![]);
 /// ```
 pub fn wander<'a, Brand: Wander, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 	traversal: TFunc,

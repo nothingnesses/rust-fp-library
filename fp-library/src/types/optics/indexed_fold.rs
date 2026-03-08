@@ -80,7 +80,6 @@ mod inner {
 	types::optics::*,
 };
 #[derive(Clone)]
-#[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 	fn apply<R: 'a + Monoid + 'static>(
@@ -161,7 +160,7 @@ assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 
 	/// A wrapper struct for the `folded` constructor.
 	#[derive(Clone)]
-	pub struct Folded<Brand>(std::marker::PhantomData<Brand>);
+	pub struct Folded<Brand>(pub std::marker::PhantomData<Brand>);
 
 	#[document_type_parameters(
 		"The lifetime of the values.",
@@ -185,11 +184,14 @@ assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 		#[document_examples(
 			r#"use fp_library::{
 	brands::VecBrand,
-	types::optics::Folded,
-	types::optics::IndexedFoldFunc,
+	types::optics::{Folded, IndexedFoldFunc},
 };
-// Internal helper.
-assert_eq!(std::mem::size_of::<Folded<VecBrand>>(), 0);
+let folded = Folded::<VecBrand>(std::marker::PhantomData);
+let result: String = folded.apply(
+	Box::new(|i: usize, x: i32| format!("[{}]={}", i, x)),
+	vec![10, 20, 30],
+);
+assert_eq!(result, "[0]=10[1]=20[2]=30");
 "#
 		)]
 		fn apply<R: 'a + Monoid + 'static>(
@@ -230,10 +232,10 @@ assert_eq!(std::mem::size_of::<Folded<VecBrand>>(), 0);
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::IndexedFold,
+	types::optics::{IndexedFold, Folded},
 	functions::optics_indexed_fold_map,
 };
-let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _> =
+let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>> =
 	IndexedFold::folded();
 let v = vec![10, 20];
 let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| format!("{}:{}", i, x), v);
@@ -272,10 +274,10 @@ assert_eq!(s, "0:101:20".to_string());
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::IndexedFoldPrime,
+	types::optics::{IndexedFoldPrime, Folded},
 	functions::optics_indexed_fold_map,
 };
-let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, _> =
+let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>> =
 	IndexedFoldPrime::folded();
 let v = vec![10, 20];
 let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| format!("{}:{}", i, x), v);
@@ -381,10 +383,10 @@ assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::*,
+	types::optics::{*, Folded},
 	functions::*,
 };
-let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded();
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>>::folded();
 let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
@@ -431,10 +433,10 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::*,
+	types::optics::{*, Folded},
 	functions::*,
 };
-let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded();
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>>::folded();
 let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]
@@ -484,7 +486,6 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| 
 	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
-#[derive(Clone)]
 #[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
@@ -650,10 +651,10 @@ assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::*,
+	types::optics::{*, Folded},
 	functions::*,
 };
-let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded();
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>>::folded();
 let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
@@ -696,10 +697,10 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::*,
+	types::optics::{*, Folded},
 	functions::*,
 };
-let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded();
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>>::folded();
 let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]

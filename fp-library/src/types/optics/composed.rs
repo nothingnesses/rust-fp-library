@@ -998,7 +998,7 @@ let l1: GetterPrime<RcBrand, (i32, String), i32> =
 let l2: IndexedGetterPrime<RcBrand, usize, i32, i32> =
 	IndexedGetterPrime::new(|x| (0, x));
 let composed = Composed::new(l1, l2);
-let f = Forget::<RcBrand, (usize, i32), (usize, i32), (usize, i32)>::new(|ia| ia);
+let f = Forget::<RcBrand, (usize, i32), (usize, i32), i32>::new(|(i, x)| (i, x));
 let folded = <Composed<
 	'_,
 	(i32, String),
@@ -1054,7 +1054,7 @@ let l1: GetterPrime<RcBrand, (i32, String), i32> =
 let l2: IndexedGetterPrime<RcBrand, usize, i32, i32> =
 	IndexedGetterPrime::new(|x| (0, x));
 let composed = Composed::new(l1, l2);
-let f = Forget::<RcBrand, (usize, i32), (usize, i32), (usize, i32)>::new(|ia| ia);
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("{}:{}", i, x));
 let folded = <Composed<
 	'_,
 	(i32, String),
@@ -1065,8 +1065,8 @@ let folded = <Composed<
 	i32,
 	GetterPrime<RcBrand, (i32, String), i32>,
 	IndexedGetterPrime<RcBrand, usize, i32, i32>,
-> as IndexedFoldOptic<usize, (i32, String), i32>>::evaluate::< (usize, i32), RcBrand >(&composed, Indexed::new(f));
-assert_eq!(folded.run((42, "hi".to_string())), (0, 42));"#
+> as IndexedFoldOptic<usize, (i32, String), i32>>::evaluate::< String, RcBrand >(&composed, Indexed::new(f));
+assert_eq!(folded.run((42, "hi".to_string())), "0:42");"#
 		)]
 		fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
 			&self,
