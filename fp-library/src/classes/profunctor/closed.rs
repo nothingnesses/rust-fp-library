@@ -23,19 +23,22 @@ use {
 ///
 /// A `Closed` profunctor can be closed under exponentiation.
 ///
-/// The type parameter `FP` is the cloneable function brand used to wrap the
+/// The type parameter `FunctionBrand` is the cloneable function brand used to wrap the
 /// input and output functions produced by [`closed`](Self::closed). This
 /// allows callers to choose between `Rc`-backed and `Arc`-backed functions.
 ///
 /// ### Hierarchy Unification
 ///
 /// This trait inherits from [`Profunctor`].
-pub trait Closed<FP: CloneableFn>: Profunctor {
+pub trait Closed<FunctionBrand: CloneableFn>: Profunctor {
 	/// Lift a profunctor to operate on functions.
 	///
 	/// This method takes a profunctor `P A B` and returns
-	/// `P (FP(X, A)) (FP(X, B))`, where `FP(X, A)` is
-	/// the cloneable function type `X -> A` wrapped via `FP`.
+	/// `P (FunctionBrand(X, A)) (FunctionBrand(X, B))`, where `FunctionBrand(X, A)` is
+	/// the cloneable function type `X -> A` wrapped via `FunctionBrand`.
+	///
+	/// The `X: Clone` bound is required because implementations need to clone `X`
+	/// values inside nested closures.
 	#[document_signature]
 	///
 	#[document_type_parameters(
@@ -68,7 +71,7 @@ pub trait Closed<FP: CloneableFn>: Profunctor {
 	/// ```
 	fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FP as CloneableFn>::Of<'a, X, A>, <FP as CloneableFn>::Of<'a, X, B>>);
+	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>);
 }
 
 /// Lift a profunctor to operate on functions.
@@ -106,9 +109,16 @@ pub trait Closed<FP: CloneableFn>: Profunctor {
 /// let result = g(h);
 /// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 /// ```
-pub fn closed<'a, Brand: Closed<FP>, FP: CloneableFn, A: 'a, B: 'a, X: 'a + Clone>(
+pub fn closed<
+	'a,
+	Brand: Closed<FunctionBrand>,
+	FunctionBrand: CloneableFn,
+	A: 'a,
+	B: 'a,
+	X: 'a + Clone,
+>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FP as CloneableFn>::Of<'a, X, A>, <FP as CloneableFn>::Of<'a, X, B>>)
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>)
 {
 	Brand::closed::<A, B, X>(pab)
 }

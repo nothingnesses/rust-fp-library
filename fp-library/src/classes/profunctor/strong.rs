@@ -81,7 +81,7 @@ pub trait Strong: Profunctor {
 	/// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 	/// assert_eq!(g((10, 20)), (11, 20));
 	/// ```
-	fn first<'a, A: 'a, B: 'a, C>(
+	fn first<'a, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>);
 
@@ -156,7 +156,7 @@ pub trait Strong: Profunctor {
 /// let g = first::<RcFnBrand, _, _, i32>(std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>);
 /// assert_eq!(g((10, 20)), (11, 20));
 /// ```
-pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C>(
+pub fn first<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
 	Brand::first(pab)
