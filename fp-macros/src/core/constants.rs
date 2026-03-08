@@ -156,3 +156,9 @@ pub mod re_export {
 	/// The 'src' directory name
 	pub const SRC_DIR: &str = "src";
 }
+
+/// Constants related to documentation parsing and generation
+pub mod documentation {
+	/// Language tags that indicate Rust code blocks (validated for assertions).
+	pub const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
+}

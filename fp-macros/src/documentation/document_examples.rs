@@ -4,6 +4,7 @@ use {
 			Result as OurResult,
 			constants::{
 				attributes::DOCUMENT_EXAMPLES,
+				documentation::RUST_CODE_TAGS,
 				macros::ASSERTION_MACROS,
 			},
 		},
@@ -15,9 +16,6 @@ use {
 	proc_macro2::TokenStream,
 	quote::quote,
 };
-
-/// Language tags that indicate Rust code blocks (validated for assertions).
-const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
 
 /// Check whether `code` contains at least one assertion macro invocation.
 fn contains_assertion(code: &str) -> bool {
