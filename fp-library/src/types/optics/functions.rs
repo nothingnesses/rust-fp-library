@@ -59,17 +59,19 @@ mod inner {
 	/// ### Returns
 	///
 	/// The focus value.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	classes::optics::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
-assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let l: LensPrime<RcBrand, (i32, String), i32> =
+	/// 	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
+	/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
+	/// ```
 	pub fn optics_view<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -100,20 +102,22 @@ assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);"
 	/// ### Returns
 	///
 	/// The updated structure.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	classes::optics::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-assert_eq!(
-	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
-	(99, "hello".to_string())
-);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let l: LensPrime<RcBrand, (i32, String), i32> =
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
+	/// 	(99, "hello".to_string())
+	/// );
+	/// ```
 	pub fn optics_set<'a, Q, O, S, A>(
 		optic: &O,
 		s: S,
@@ -151,20 +155,22 @@ assert_eq!(
 	/// ### Returns
 	///
 	/// The updated structure.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	classes::optics::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-assert_eq!(
-	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
-	(84, "hello".to_string())
-);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let l: LensPrime<RcBrand, (i32, String), i32> =
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
+	/// 	(84, "hello".to_string())
+	/// );
+	/// ```
 	pub fn optics_over<'a, Q, O, S, A, F>(
 		optic: &O,
 		s: S,
@@ -198,18 +204,20 @@ assert_eq!(
 	/// ### Returns
 	///
 	/// An `Option` containing the focus value if it exists.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	classes::optics::*,
-	types::optics::*,
-};
-
-let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
-assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
+	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
+	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
+	/// ```
 	pub fn optics_preview<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -257,17 +265,19 @@ assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string()
 	/// ### Returns
 	///
 	/// The structure containing the focus value.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	classes::optics::*,
-	types::optics::*,
-};
-
-let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
-	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-assert_eq!(optics_review(&ok_prism, 42), Ok(42));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
+	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
+	/// assert_eq!(optics_review(&ok_prism, 42), Ok(42));
+	/// ```
 	pub fn optics_review<'a, O, S, A>(
 		optic: &O,
 		a: A,
@@ -297,19 +307,21 @@ assert_eq!(optics_review(&ok_prism, 42), Ok(42));"#
 	/// ### Returns
 	///
 	/// The focus value.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::{
-		RcBrand,
-		RcFnBrand,
-	},
-	classes::optics::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+	/// assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);
+	/// ```
 	pub fn optics_from<'a, P, O, S, A>(
 		optic: &O,
 		s: S,
@@ -342,19 +354,21 @@ assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);"#
 	/// ### Returns
 	///
 	/// The structure.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::{
-		RcBrand,
-		RcFnBrand,
-	},
-	classes::optics::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
+	/// 	classes::optics::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+	/// assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));
+	/// ```
 	pub fn optics_to<'a, P, O, S, A>(
 		optic: &O,
 		a: A,
@@ -390,21 +404,23 @@ assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));"#
 	/// ### Returns
 	///
 	/// The transformed profunctor value.
-	#[document_examples(
-		r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::optics::*,
+	/// 	functions::*,
+	/// 	types::optics::*,
+	/// };
+	///
+	/// let l: LensPrime<RcBrand, (i32, String), i32> =
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+	///
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);
+	/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+	/// ```
 	pub fn optics_eval<'a, P, O, S: 'a, T: 'a, A: 'a, B: 'a>(
 		optic: &O,
 		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -444,31 +460,33 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 	/// ### Returns
 	///
 	/// The combined structure.
-	#[document_examples(
-		r#"use {
-	fp_library::{
-		brands::{
-			RcBrand,
-			RcFnBrand,
-		},
-		classes::CloneableFn,
-		types::optics::{
-			GratePrime,
-			zip_with_of,
-		},
-	},
-	std::rc::Rc,
-};
-
-let grate = GratePrime::<RcBrand, (i32, i32), i32>::new(|f| {
-	(
-		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
-	)
-});
-let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
-assert_eq!(result, (11, 22));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use {
+	/// 	fp_library::{
+	/// 		brands::{
+	/// 			RcBrand,
+	/// 			RcFnBrand,
+	/// 		},
+	/// 		classes::CloneableFn,
+	/// 		types::optics::{
+	/// 			GratePrime,
+	/// 			zip_with_of,
+	/// 		},
+	/// 	},
+	/// 	std::rc::Rc,
+	/// };
+	///
+	/// let grate = GratePrime::<RcBrand, (i32, i32), i32>::new(|f| {
+	/// 	(
+	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.0) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
+	/// 	)
+	/// });
+	/// let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
+	/// assert_eq!(result, (11, 22));
+	/// ```
 	pub fn zip_with_of<'a, P, O, S, T, A, B>(
 		optic: &O,
 		f: impl Fn((A, A)) -> B + 'a,
@@ -500,15 +518,17 @@ assert_eq!(result, (11, 22));"#
 	)]
 	#[document_parameters("The indexed lens optic.", "The structure to view.")]
 	#[document_returns("The focus value and its index.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-};
-let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
-	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())), (0, 42));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::*,
+	/// };
+	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
+	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
+	/// assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())), (0, 42));
+	/// ```
 	pub fn optics_indexed_view<'a, P, O, I, S, A>(
 		optic: &O,
 		s: S,
@@ -539,18 +559,21 @@ assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string
 		"The function to apply to the focus."
 	)]
 	#[document_returns("The updated structure.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-};
-let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
-	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
-assert_eq!(
-	optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, (42, "hello".to_string()), |i, x| x + (i as i32)),
-	(52, "hello".to_string())
-);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::*,
+	/// };
+	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
+	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, (42, "hello".to_string()), |i, x| x
+	/// 		+ (i as i32)),
+	/// 	(52, "hello".to_string())
+	/// );
+	/// ```
 	pub fn optics_indexed_over<'a, Q, O, I, S, A, F>(
 		optic: &O,
 		s: S,
@@ -583,18 +606,20 @@ assert_eq!(
 		"The new focus value."
 	)]
 	#[document_returns("The updated structure.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-};
-let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
-	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-assert_eq!(
-	optics_indexed_set::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), 99),
-	(99, "hello".to_string())
-);"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::*,
+	/// };
+	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
+	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_indexed_set::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), 99),
+	/// 	(99, "hello".to_string())
+	/// );
+	/// ```
 	pub fn optics_indexed_set<'a, Q, O, I, S, A>(
 		optic: &O,
 		s: S,
@@ -621,15 +646,20 @@ assert_eq!(
 	)]
 	#[document_parameters("The indexed prism optic.", "The structure to preview.")]
 	#[document_returns("An `Option` containing the focus value and its index if it exists.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-};
-let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
-	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-assert_eq!(optics_indexed_preview::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())), Some((0, 42)));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::*,
+	/// };
+	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
+	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_indexed_preview::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())),
+	/// 	Some((0, 42))
+	/// );
+	/// ```
 	pub fn optics_indexed_preview<'a, P, O, I, S, A>(
 		optic: &O,
 		s: S,
@@ -679,15 +709,24 @@ assert_eq!(optics_indexed_preview::<RcBrand, _, _, _, _>(&l, (42, "hello".to_str
 		"The structure to fold."
 	)]
 	#[document_returns("The combined monoid value.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-};
-let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
-	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| format!("{}:{}", i, x), (42, "hi".to_string())), "0:42".to_string());"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::RcBrand,
+	/// 	types::optics::*,
+	/// };
+	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
+	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
+	/// assert_eq!(
+	/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+	/// 		&l,
+	/// 		|i, x| format!("{}:{}", i, x),
+	/// 		(42, "hi".to_string())
+	/// 	),
+	/// 	"0:42".to_string()
+	/// );
+	/// ```
 	pub fn optics_indexed_fold_map<'a, P, O, I, S, A, R, F>(
 		optic: &O,
 		f: F,
@@ -720,18 +759,28 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| 
 	)]
 	#[document_parameters("The indexed optic.")]
 	#[document_returns("A regular optic that ignores the index.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	functions::*,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s)));
-let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
+	/// 	functions::*,
+	/// 	types::optics::*,
+	/// };
+	/// let l = std::mem::ManuallyDrop::new(
+	/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+	/// 		|(x, _)| (0, x),
+	/// 		|((_, s), x)| (x, s),
+	/// 	),
+	/// );
+	/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
+	/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+	/// ```
 	pub fn optics_un_index<'a, P, O, I, S, T, A, B>(
 		optic: &'a O
 	) -> impl Optic<'a, P, S, T, A, B> + 'a
@@ -760,18 +809,28 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 			#[document_signature]
 			#[document_parameters("The profunctor value.")]
 			#[document_returns("The transformed profunctor value.")]
-			#[document_examples(
-				r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	functions::*,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s)));
-let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-			)]
+			#[document_examples]
+			///
+			/// ```
+			/// use fp_library::{
+			/// 	brands::{
+			/// 		RcBrand,
+			/// 		RcFnBrand,
+			/// 	},
+			/// 	functions::*,
+			/// 	types::optics::*,
+			/// };
+			/// let l = std::mem::ManuallyDrop::new(
+			/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+			/// 		|(x, _)| (0, x),
+			/// 		|((_, s), x)| (x, s),
+			/// 	),
+			/// );
+			/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+			/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
+			/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+			/// ```
 			fn evaluate(
 				&self,
 				pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -799,18 +858,28 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 	)]
 	#[document_parameters("The indexed optic.")]
 	#[document_returns("A regular optic that focuses on the index.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	functions::*,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s)));
-let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
-let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
-assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
+	/// 	functions::*,
+	/// 	types::optics::*,
+	/// };
+	/// let l = std::mem::ManuallyDrop::new(
+	/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+	/// 		|(x, _)| (10, x),
+	/// 		|((_, s), x)| (x, s),
+	/// 	),
+	/// );
+	/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
+	/// assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));
+	/// ```
 	pub fn optics_as_index<'a, P, O, I, S, T, A, B>(
 		optic: &'a O
 	) -> impl Optic<'a, P, S, T, I, B> + 'a
@@ -839,18 +908,28 @@ assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));"#
 			#[document_signature]
 			#[document_parameters("The profunctor value.")]
 			#[document_returns("The transformed profunctor value.")]
-			#[document_examples(
-				r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	functions::*,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s)));
-let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
-let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
-assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));"#
-			)]
+			#[document_examples]
+			///
+			/// ```
+			/// use fp_library::{
+			/// 	brands::{
+			/// 		RcBrand,
+			/// 		RcFnBrand,
+			/// 	},
+			/// 	functions::*,
+			/// 	types::optics::*,
+			/// };
+			/// let l = std::mem::ManuallyDrop::new(
+			/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+			/// 		|(x, _)| (10, x),
+			/// 		|((_, s), x)| (x, s),
+			/// 	),
+			/// );
+			/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+			/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
+			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
+			/// assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));
+			/// ```
 			fn evaluate(
 				&self,
 				pib: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, I, B>),
@@ -884,19 +963,34 @@ assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));"#
 	)]
 	#[document_parameters("The remapping function.", "The indexed optic.")]
 	#[document_returns("A reindexed optic.")]
-	#[document_examples(
-		r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	classes::optics::IndexedOpticAdapter,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s)));
-let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(|i: usize| format!("{}", i), &*l);
-let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32) as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
-let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
-let result: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)> = reindexed.evaluate_indexed(pab);
-assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		RcFnBrand,
+	/// 	},
+	/// 	classes::optics::IndexedOpticAdapter,
+	/// 	types::optics::*,
+	/// };
+	/// let l = std::mem::ManuallyDrop::new(
+	/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+	/// 		|(x, _)| (0, x),
+	/// 		|((_, s), x)| (x, s),
+	/// 	),
+	/// );
+	/// let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(
+	/// 	|i: usize| format!("{}", i),
+	/// 	&*l,
+	/// );
+	/// let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32)
+	/// 	as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
+	/// let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
+	/// let result: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)> =
+	/// 	reindexed.evaluate_indexed(pab);
+	/// assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));
+	/// ```
 	pub fn optics_reindexed<'a, P, O, I, J, S, T, A, B, F>(
 		f: F,
 		optic: &'a O,
@@ -932,19 +1026,34 @@ assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));"#
 			#[document_signature]
 			#[document_parameters("The indexed profunctor value.")]
 			#[document_returns("The transformed profunctor value.")]
-			#[document_examples(
-				r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand},
-	classes::optics::IndexedOpticAdapter,
-	types::optics::*,
-};
-let l = std::mem::ManuallyDrop::new(IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s)));
-let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(|i: usize| format!("{}", i), &*l);
-let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32) as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
-let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
-let result: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)> = reindexed.evaluate_indexed(pab);
-assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));"#
-			)]
+			#[document_examples]
+			///
+			/// ```
+			/// use fp_library::{
+			/// 	brands::{
+			/// 		RcBrand,
+			/// 		RcFnBrand,
+			/// 	},
+			/// 	classes::optics::IndexedOpticAdapter,
+			/// 	types::optics::*,
+			/// };
+			/// let l = std::mem::ManuallyDrop::new(
+			/// 	IndexedLensPrime::<RcBrand, usize, (i32, String), i32>::from_iview_set(
+			/// 		|(x, _)| (0, x),
+			/// 		|((_, s), x)| (x, s),
+			/// 	),
+			/// );
+			/// let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(
+			/// 	|i: usize| format!("{}", i),
+			/// 	&*l,
+			/// );
+			/// let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32)
+			/// 	as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
+			/// let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
+			/// let result: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)> =
+			/// 	reindexed.evaluate_indexed(pab);
+			/// assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));
+			/// ```
 			fn evaluate_indexed(
 				&self,
 				pab: Indexed<'a, P, J, A, B>,
@@ -986,45 +1095,54 @@ assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));"#
 		#[document_type_parameters("The applicative context.")]
 		#[document_parameters("The traversal function.", "The structure to traverse.")]
 		#[document_returns("The traversed structure wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	Apply,
-	brands::{RcBrand, OptionBrand},
-	classes::{
-		Applicative,
-		lift::Lift,
-		optics::{
-			IndexedTraversalFunc,
-			traversal::TraversalFunc,
-		},
-	},
-	kinds::*,
-	types::optics::*,
-	functions::*,
-};
-#[derive(Clone)]
-struct ListTraversal;
-impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		s: Vec<A>,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
-		})
-	}
-}
-let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-let p = positions(t).traversal;
-let s = vec![10, 20, 30];
-let f = Box::new(|i: usize, a: i32| -> Option<i32> {
-	Some(a + i as i32)
-});
-let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand>(&p, f, s);
-assert_eq!(result, Some(vec![10, 21, 32]));
-"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		RcBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		Applicative,
+		/// 		lift::Lift,
+		/// 		optics::{
+		/// 			IndexedTraversalFunc,
+		/// 			traversal::TraversalFunc,
+		/// 		},
+		/// 	},
+		/// 	functions::*,
+		/// 	kinds::*,
+		/// 	types::optics::*,
+		/// };
+		/// #[derive(Clone)]
+		/// struct ListTraversal;
+		/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+		/// 	fn apply<M: Applicative>(
+		/// 		&self,
+		/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+		/// 		s: Vec<A>,
+		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+		/// 			M::lift2(
+		/// 				|mut v: Vec<A>, x: A| {
+		/// 					v.push(x);
+		/// 					v
+		/// 				},
+		/// 				acc,
+		/// 				f(a),
+		/// 			)
+		/// 		})
+		/// 	}
+		/// }
+		/// let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+		/// let p = positions(t).traversal;
+		/// let s = vec![10, 20, 30];
+		/// let f = Box::new(|i: usize, a: i32| -> Option<i32> { Some(a + i as i32) });
+		/// let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand>(&p, f, s);
+		/// assert_eq!(result, Some(vec![10, 21, 32]));
+		/// ```
 		fn apply<M: Applicative>(
 			&self,
 			f: Box<
@@ -1033,8 +1151,7 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 			s: S,
 		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 		where
-			Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
-		{
+			Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
 			let counter = std::cell::Cell::new(0usize);
 			self.0.apply::<M>(
 				Box::new(move |a: A| {
@@ -1059,39 +1176,47 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 		"The traversal function type."
 	)]
 	#[document_returns("An indexed traversal over the positions.")]
-	#[document_examples(
-		r#"use fp_library::{
-	Apply,
-	brands::RcBrand,
-	classes::{
-		Applicative,
-		lift::Lift,
-		optics::traversal::TraversalFunc,
-	},
-	kinds::*,
-	types::optics::*,
-	functions::*,
-};
-#[derive(Clone)]
-struct ListTraversal;
-impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
-		s: Vec<A>,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
-		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
-		})
-	}
-}
-let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
-let l = positions(t);
-let s = vec![10, 20, 30];
-let result = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, s, |i, x| x + i as i32);
-assert_eq!(result, vec![10, 21, 32]);
-"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	Apply,
+	/// 	brands::RcBrand,
+	/// 	classes::{
+	/// 		Applicative,
+	/// 		lift::Lift,
+	/// 		optics::traversal::TraversalFunc,
+	/// 	},
+	/// 	functions::*,
+	/// 	kinds::*,
+	/// 	types::optics::*,
+	/// };
+	/// #[derive(Clone)]
+	/// struct ListTraversal;
+	/// impl<'a, A: 'a + Clone> TraversalFunc<'a, Vec<A>, Vec<A>, A, A> for ListTraversal {
+	/// 	fn apply<M: Applicative>(
+	/// 		&self,
+	/// 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, A>) + 'a>,
+	/// 		s: Vec<A>,
+	/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
+	/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+	/// 			M::lift2(
+	/// 				|mut v: Vec<A>, x: A| {
+	/// 					v.push(x);
+	/// 					v
+	/// 				},
+	/// 				acc,
+	/// 				f(a),
+	/// 			)
+	/// 		})
+	/// 	}
+	/// }
+	/// let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
+	/// let l = positions(t);
+	/// let s = vec![10, 20, 30];
+	/// let result = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, s, |i, x| x + i as i32);
+	/// assert_eq!(result, vec![10, 21, 32]);
+	/// ```
 	pub fn positions<'a, P, S, T, A, B, F>(
 		traversal: Traversal<'a, P, S, T, A, B, F>
 	) -> IndexedTraversal<'a, P, usize, S, T, A, B, PositionsTraversalFunc<F>>

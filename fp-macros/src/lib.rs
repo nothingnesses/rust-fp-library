@@ -726,51 +726,36 @@ pub fn document_returns(
 	}
 }
 
-/// Generates an Examples section in a function's documentation.
+/// Inserts a `### Examples` heading and validates doc comment code blocks.
 ///
-/// This macro adds a fenced code block under a `### Examples` heading.
-/// The provided string must contain at least one assertion macro invocation
-/// (e.g., `assert_eq!`, `assert!`, etc.).
+/// This attribute macro expands in-place to a `### Examples` heading. Example
+/// code is written as regular doc comments using fenced code blocks after the
+/// attribute. Every Rust code block must contain at least one assertion macro
+/// invocation (e.g., `assert_eq!`, `assert!`).
 ///
 /// ### Syntax
 ///
 /// ```ignore
-/// #[document_examples(r#"
-///     let result = add(1, 2);
-///     assert_eq!(result, 3);
-/// "#)]
+/// #[document_examples]
+/// ///
+/// /// ```
+/// /// let result = add(1, 2);
+/// /// assert_eq!(result, 3);
+/// /// ```
 /// pub fn add(x: i32, y: i32) -> i32 { ... }
 /// ```
 ///
 /// ### Generates
 ///
-/// A `### Examples` heading followed by a fenced code block containing the
-/// provided string.
-///
-/// ### Examples
-///
-/// ```ignore
-/// // Invocation
-/// #[document_examples(r#"
-///     let result = add(1, 2);
-///     assert_eq!(result, 3);
-/// "#)]
-/// pub fn add(x: i32, y: i32) -> i32 { x + y }
-///
-/// // Expanded code
-/// /// ### Examples
-/// ///
-/// /// ```
-/// ///     let result = add(1, 2);
-/// ///     assert_eq!(result, 3);
-/// /// ```
-/// pub fn add(x: i32, y: i32) -> i32 { x + y }
-/// ```
+/// A `### Examples` heading is inserted at the attribute's position. The code
+/// blocks in the doc comments are validated but not modified.
 ///
 /// ### Errors
 ///
-/// * No string argument is provided.
-/// * The string does not contain an assertion macro invocation.
+/// * Arguments are provided to the attribute.
+/// * No Rust code block is found in the doc comments.
+/// * A Rust code block does not contain an assertion macro invocation.
+/// * The attribute is applied more than once to the same function.
 #[proc_macro_attribute]
 pub fn document_examples(
 	attr: TokenStream,

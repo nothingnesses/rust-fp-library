@@ -60,8 +60,7 @@ where
 		s: S,
 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>)
 	where
-		Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>): Clone,
-	{
+		Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>): Clone, {
 		(**self).apply::<M>(f, s)
 	}
 }

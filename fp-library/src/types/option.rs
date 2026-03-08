@@ -65,16 +65,18 @@ mod inner {
 			"A new option containing the result of applying the function, or `None`."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
-assert_eq!(y, Some(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -106,17 +108,19 @@ assert_eq!(y, Some(10));"#
 		)]
 		///
 		#[document_returns("`Some(f(a, b))` if both options are `Some`, otherwise `None`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(1);
-let y = Some(2);
-let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
-assert_eq!(z, Some(3));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(1);
+		/// let y = Some(2);
+		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// assert_eq!(z, Some(3));
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -143,15 +147,17 @@ assert_eq!(z, Some(3));"#
 		///
 		#[document_returns("`Some(a)`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = pure::<OptionBrand, _>(5);
-assert_eq!(x, Some(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = pure::<OptionBrand, _>(5);
+		/// assert_eq!(x, Some(5));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Some(a)
 		}
@@ -179,18 +185,20 @@ assert_eq!(x, Some(5));"#
 		)]
 		///
 		#[document_returns("`Some(f(a))` if both are `Some`, otherwise `None`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let x = Some(5);
-let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
-assert_eq!(y, Some(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = Some(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let x = Some(5);
+		/// let y = apply::<RcFnBrand, OptionBrand, _, _>(f, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -223,16 +231,18 @@ assert_eq!(y, Some(10));"#
 		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Some`, otherwise `None`."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(5);
-let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
-assert_eq!(y, Some(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+		/// assert_eq!(y, Some(10));
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -261,16 +271,18 @@ assert_eq!(y, Some(10));"#
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Some(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
-assert_eq!(y, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// assert_eq!(y, 15);
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -305,16 +317,18 @@ assert_eq!(y, 15);"#
 		)]
 		///
 		#[document_returns("`f(initial, a)` if `fa` is `Some(a)`, otherwise `initial`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
-assert_eq!(y, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// assert_eq!(y, 15);
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -346,16 +360,18 @@ assert_eq!(y, 15);"#
 		///
 		#[document_returns("`func(a)` if `fa` is `Some(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
-assert_eq!(y, "5".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// assert_eq!(y, "5".to_string());
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -391,16 +407,18 @@ assert_eq!(y, "5".to_string());"#
 		)]
 		///
 		#[document_returns("The option wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(5);
-let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
-assert_eq!(y, Some(Some(10)));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// assert_eq!(y, Some(Some(10)));
+		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -432,16 +450,18 @@ assert_eq!(y, Some(Some(10)));"#
 		/// # Returns
 		///
 		/// The option wrapped in the applicative context.
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(Some(5));
-let y = sequence::<OptionBrand, _, OptionBrand>(x);
-assert_eq!(y, Some(Some(5)));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(Some(5));
+		/// let y = sequence::<OptionBrand, _, OptionBrand>(x);
+		/// assert_eq!(y, Some(Some(5)));
+		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -470,16 +490,18 @@ assert_eq!(y, Some(Some(5)));"#
 		#[document_returns(
 			"A new option containing the result of applying the function, or `None`."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-use fp_library::classes::functor_with_index::FunctorWithIndex;
-let x = Some(5);
-let y = <OptionBrand as FunctorWithIndex<()>>::map_with_index(|_, i| i * 2, x);
-assert_eq!(y, Some(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y = <OptionBrand as FunctorWithIndex<()>>::map_with_index(|_, i| i * 2, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
 			f: impl Fn((), A) -> B + 'a,
 			fa: Option<A>,
@@ -501,16 +523,19 @@ assert_eq!(y, Some(10));"#
 			"The option to fold."
 		)]
 		#[document_returns("The monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-use fp_library::classes::foldable_with_index::FoldableWithIndex;
-let x = Some(5);
-let y = <OptionBrand as FoldableWithIndex<()>>::fold_map_with_index(|_, i: i32| i.to_string(), x);
-assert_eq!(y, "5".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y =
+		/// 	<OptionBrand as FoldableWithIndex<()>>::fold_map_with_index(|_, i: i32| i.to_string(), x);
+		/// assert_eq!(y, "5".to_string());
+		/// ```
 		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
 			f: impl Fn((), A) -> R + 'a,
 			fa: Option<A>,
@@ -536,19 +561,21 @@ assert_eq!(y, "5".to_string());"#
 			"The option to traverse."
 		)]
 		#[document_returns("The option wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-use fp_library::classes::traversable_with_index::TraversableWithIndex;
-let x = Some(5);
-let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i32, OptionBrand>(
-	|_, i| Some(i * 2),
-	x
-);
-assert_eq!(y, Some(Some(10)));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	classes::traversable_with_index::TraversableWithIndex,
+		/// 	functions::*,
+		/// };
+		/// let x = Some(5);
+		/// let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i32, OptionBrand>(
+		/// 	|_, i| Some(i * 2),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, Some(Some(10)));
+		/// ```
 		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
 			f: impl Fn((), A) -> M::Of<'a, B> + 'a,
 			ta: Option<A>,
@@ -577,17 +604,19 @@ assert_eq!(y, Some(Some(10)));"#
 		///
 		#[document_returns("The combined monoid value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(1);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-let y = par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x);
-assert_eq!(y, "1".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(1);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// let y = par_fold_map::<ArcFnBrand, OptionBrand, _, _>(f, x);
+		/// assert_eq!(y, "1".to_string());
+		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -615,16 +644,18 @@ assert_eq!(y, "1".to_string());"#
 		///
 		#[document_returns("The flattened option.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(Some(5));
-let y = compact::<OptionBrand, _>(x);
-assert_eq!(y, Some(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(Some(5));
+		/// let y = compact::<OptionBrand, _>(x);
+		/// assert_eq!(y, Some(5));
+		/// ```
 		fn compact<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -649,17 +680,19 @@ assert_eq!(y, Some(5));"#
 		///
 		#[document_returns("A pair of options.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x: Option<Result<i32, &str>> = Some(Ok(5));
-let (errs, oks) = separate::<OptionBrand, _, _>(x);
-assert_eq!(oks, Some(5));
-assert_eq!(errs, None);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Option<Result<i32, &str>> = Some(Ok(5));
+		/// let (errs, oks) = separate::<OptionBrand, _, _>(x);
+		/// assert_eq!(oks, Some(5));
+		/// assert_eq!(errs, None);
+		/// ```
 		fn separate<'a, E: 'a, O: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
 		) -> (
@@ -692,18 +725,20 @@ assert_eq!(errs, None);"#
 		///
 		#[document_returns("A pair of options.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let (errs, oks) =
-	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
-assert_eq!(oks, Some(5));
-assert_eq!(errs, None);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let (errs, oks) =
+		/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// assert_eq!(oks, Some(5));
+		/// assert_eq!(errs, None);
+		/// ```
 		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -737,17 +772,19 @@ assert_eq!(errs, None);"#
 		///
 		#[document_returns("A pair of options.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
-assert_eq!(satisfied, Some(5));
-assert_eq!(not_satisfied, None);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+		/// assert_eq!(satisfied, Some(5));
+		/// assert_eq!(not_satisfied, None);
+		/// ```
 		fn partition<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -784,16 +821,18 @@ assert_eq!(not_satisfied, None);"#
 		///
 		#[document_returns("The filtered and mapped option.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(5);
-let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
-assert_eq!(y, Some(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// assert_eq!(y, Some(10));
+		/// ```
 		fn filter_map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -818,16 +857,18 @@ assert_eq!(y, Some(10));"#
 		///
 		#[document_returns("The filtered option.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::OptionBrand,
-	functions::*,
-};
-
-let x = Some(5);
-let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
-assert_eq!(y, Some(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::OptionBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+		/// assert_eq!(y, Some(5));
+		/// ```
 		fn filter<'a, A: 'a + Clone, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -859,19 +900,21 @@ assert_eq!(y, Some(5));"#
 		)]
 		///
 		#[document_returns("The partitioned option wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
-	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
-	x,
-);
-assert_eq!(y, Some((None, Some(5))));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
+		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, Some((None, Some(5))));
+		/// ```
 		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -918,19 +961,21 @@ assert_eq!(y, Some((None, Some(5))));"#
 		)]
 		///
 		#[document_returns("The filtered and mapped option wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let x = Some(5);
-let y = wither::<OptionBrand, OptionBrand, _, _, _>(
-	|a| Some(if a > 2 { Some(a * 2) } else { None }),
-	x,
-);
-assert_eq!(y, Some(Some(10)));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = Some(5);
+		/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
+		/// 	x,
+		/// );
+		/// assert_eq!(y, Some(Some(10)));
+		/// ```
 		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

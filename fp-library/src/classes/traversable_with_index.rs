@@ -45,8 +45,7 @@ mod inner {
 		) -> M::Of<'a, Self::Of<'a, B>>
 		where
 			Self::Of<'a, B>: Clone,
-			M::Of<'a, B>: Clone,
-		{
+			M::Of<'a, B>: Clone, {
 			Self::sequence::<B, M>(Self::map_with_index::<A, M::Of<'a, B>>(f, ta))
 		}
 	}

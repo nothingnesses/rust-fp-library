@@ -99,17 +99,19 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new pair containing the mapped values.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::bifunctor::*,
-	functions::*,
-	types::*,
-};
-
-let x = Pair(1, 5);
-assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(1, 5);
+		/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -154,15 +156,17 @@ assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2
 		#[document_returns(
 			"A new pair containing the result of applying the function to the second value."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -200,22 +204,24 @@ assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)),
 		#[document_returns(
 			"A new pair where the first values are combined using `Semigroup::append` and the second values are combined using `f`."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
-		|x, y| x + y,
-		Pair("a".to_string(), 1),
-		Pair("b".to_string(), 2)
-	),
-	Pair("ab".to_string(), 3)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 		|x, y| x + y,
+		/// 		Pair("a".to_string(), 1),
+		/// 		Pair("b".to_string(), 2)
+		/// 	),
+		/// 	Pair("ab".to_string(), 3)
+		/// );
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -246,15 +252,17 @@ assert_eq!(
 		///
 		#[document_returns("A pair containing the empty value of the first type and `a`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(pure::<PairFirstAppliedBrand<String>, _>(5), Pair("".to_string(), 5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(pure::<PairFirstAppliedBrand<String>, _>(5), Pair("".to_string(), 5));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Pair(Monoid::empty(), a)
 		}
@@ -291,19 +299,21 @@ assert_eq!(pure::<PairFirstAppliedBrand<String>, _>(5), Pair("".to_string(), 5))
 		#[document_returns(
 			"A new pair where the first values are combined and the function is applied to the second value."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let f = Pair("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(
-	apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, Pair("b".to_string(), 5)),
-	Pair("ab".to_string(), 10)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = Pair("a".to_string(), cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, Pair("b".to_string(), 5)),
+		/// 	Pair("ab".to_string(), 10)
+		/// );
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -333,21 +343,23 @@ assert_eq!(
 		///
 		#[document_returns("A new pair where the first values are combined.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
-		"b".to_string(),
-		x * 2
-	)),
-	Pair("ab".to_string(), 10)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
+		/// 		"b".to_string(),
+		/// 		x * 2
+		/// 	)),
+		/// 	Pair("ab".to_string(), 10)
+		/// );
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -379,22 +391,24 @@ assert_eq!(
 		///
 		#[document_returns("`func(a, initial)`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		|x, acc| x + acc,
-		0,
-		Pair((), 5)
-	),
-	5
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		Pair((), 5)
+		/// 	),
+		/// 	5
+		/// );
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -426,22 +440,24 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("`func(initial, a)`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		|acc, x| acc + x,
-		0,
-		Pair((), 5)
-	),
-	5
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		Pair((), 5)
+		/// 	),
+		/// 	5
+		/// );
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -470,21 +486,23 @@ assert_eq!(
 		///
 		#[document_returns("`func(a)`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		|x: i32| x.to_string(),
-		Pair((), 5)
-	),
-	"5".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Pair((), 5)
+		/// 	),
+		/// 	"5".to_string()
+		/// );
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -518,18 +536,20 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The pair wrapped in the applicative context.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	traverse::<PairFirstAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair((), 5)),
-	Some(Pair((), 10))
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	traverse::<PairFirstAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair((), 5)),
+		/// 	Some(Pair((), 10))
+		/// );
+		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -556,18 +576,20 @@ assert_eq!(
 		///
 		#[document_returns("The pair wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	sequence::<PairFirstAppliedBrand<()>, _, OptionBrand>(Pair((), Some(5))),
-	Some(Pair((), 5))
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	sequence::<PairFirstAppliedBrand<()>, _, OptionBrand>(Pair((), Some(5))),
+		/// 	Some(Pair((), 5))
+		/// );
+		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -599,20 +621,22 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let x = Pair("a".to_string(), 1);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-assert_eq!(
-	par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, x),
-	"1".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair("a".to_string(), 1);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, x),
+		/// 	"1".to_string()
+		/// );
+		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -643,17 +667,19 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let x = Pair("a".to_string(), 1);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 10, x), 11);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair("a".to_string(), 1);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 10, x), 11);
+		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -695,15 +721,17 @@ assert_eq!(par_fold_right::<ArcFnBrand, PairFirstAppliedBrand<String>, _, _>(f, 
 			"A new pair containing the result of applying the function to the first value."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -741,22 +769,24 @@ assert_eq!(map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1))
 		#[document_returns(
 			"A new pair where the first values are combined using `f` and the second values are combined using `Semigroup::append`."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
-		|x, y| x + y,
-		Pair(1, "a".to_string()),
-		Pair(2, "b".to_string())
-	),
-	Pair(3, "ab".to_string())
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 		|x, y| x + y,
+		/// 		Pair(1, "a".to_string()),
+		/// 		Pair(2, "b".to_string())
+		/// 	),
+		/// 	Pair(3, "ab".to_string())
+		/// );
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -787,15 +817,17 @@ assert_eq!(
 		///
 		#[document_returns("A pair containing `a` and the empty value of the second type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(pure::<PairSecondAppliedBrand<String>, _>(5), Pair(5, "".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(pure::<PairSecondAppliedBrand<String>, _>(5), Pair(5, "".to_string()));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Pair(a, Monoid::empty())
 		}
@@ -832,19 +864,21 @@ assert_eq!(pure::<PairSecondAppliedBrand<String>, _>(5), Pair(5, "".to_string())
 		#[document_returns(
 			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let f = Pair(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
-assert_eq!(
-	apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, Pair(5, "b".to_string())),
-	Pair(10, "ab".to_string())
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = Pair(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2), "a".to_string());
+		/// assert_eq!(
+		/// 	apply::<RcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, Pair(5, "b".to_string())),
+		/// 	Pair(10, "ab".to_string())
+		/// );
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -876,21 +910,23 @@ assert_eq!(
 			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
-		x * 2,
-		"b".to_string()
-	)),
-	Pair(10, "ab".to_string())
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
+		/// 		x * 2,
+		/// 		"b".to_string()
+		/// 	)),
+		/// 	Pair(10, "ab".to_string())
+		/// );
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -922,22 +958,24 @@ assert_eq!(
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
-		|x, acc| x + acc,
-		0,
-		Pair(5, ())
-	),
-	5
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 		|x, acc| x + acc,
+		/// 		0,
+		/// 		Pair(5, ())
+		/// 	),
+		/// 	5
+		/// );
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -966,22 +1004,24 @@ assert_eq!(
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
-		|acc, x| acc + x,
-		0,
-		Pair(5, ())
-	),
-	5
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 		|acc, x| acc + x,
+		/// 		0,
+		/// 		Pair(5, ())
+		/// 	),
+		/// 	5
+		/// );
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -1010,21 +1050,23 @@ assert_eq!(
 		///
 		#[document_returns("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
-		|x: i32| x.to_string(),
-		Pair(5, ())
-	),
-	"5".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 		|x: i32| x.to_string(),
+		/// 		Pair(5, ())
+		/// 	),
+		/// 	"5".to_string()
+		/// );
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1056,18 +1098,20 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	traverse::<PairSecondAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair(5, ())),
-	Some(Pair(10, ()))
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	traverse::<PairSecondAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair(5, ())),
+		/// 	Some(Pair(10, ()))
+		/// );
+		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1094,18 +1138,20 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-assert_eq!(
-	sequence::<PairSecondAppliedBrand<()>, _, OptionBrand>(Pair(Some(5), ())),
-	Some(Pair(5, ()))
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	sequence::<PairSecondAppliedBrand<()>, _, OptionBrand>(Pair(Some(5), ())),
+		/// 	Some(Pair(5, ()))
+		/// );
+		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -1137,20 +1183,22 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let x = Pair(1, "a".to_string());
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-assert_eq!(
-	par_fold_map::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, x),
-	"1".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(1, "a".to_string());
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, x),
+		/// 	"1".to_string()
+		/// );
+		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1181,17 +1229,19 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let x = Pair(1, "a".to_string());
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-assert_eq!(par_fold_right::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, 10, x), 11);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x = Pair(1, "a".to_string());
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, PairSecondAppliedBrand<String>, _, _>(f, 10, x), 11);
+		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

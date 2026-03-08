@@ -70,17 +70,19 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Lens` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Lens,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-let cloned = l.clone();
-assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let cloned = l.clone();
+		/// assert_eq!(cloned.view((42, "hi".to_string())), 42);
+		/// ```
 		fn clone(&self) -> Self {
 			Lens {
 				to: self.to.clone(),
@@ -109,21 +111,23 @@ assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		FnBrand,
-		RcBrand,
-		RcFnBrand,
-	},
-	classes::CloneableFn,
-	types::optics::Lens,
-};
-
-let l: Lens<RcBrand, i32, String, i32, String> =
-	Lens::new(|x| (x, <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
-assert_eq!(l.view(42), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		FnBrand,
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
+		/// 	classes::CloneableFn,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, String, i32, String> =
+		/// 	Lens::new(|x| (x, <FnBrand<RcBrand> as CloneableFn>::new(|s| s)));
+		/// assert_eq!(l.view(42), 42);
+		/// ```
 		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)) -> Self {
 			Lens {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -137,15 +141,17 @@ assert_eq!(l.view(42), 42);"#
 		///
 		#[document_returns("A new `Lens` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Lens,
-};
-
-let l: Lens<RcBrand, i32, String, i32, String> = Lens::from_view_set(|x| x, |(_, s)| s);
-assert_eq!(l.view(42), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, String, i32, String> = Lens::from_view_set(|x| x, |(_, s)| s);
+		/// assert_eq!(l.view(42), 42);
+		/// ```
 		pub fn from_view_set(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, B)) -> T,
@@ -174,15 +180,17 @@ assert_eq!(l.view(42), 42);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Lens,
-};
-
-let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
-assert_eq!(l.view(10), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
+		/// assert_eq!(l.view(10), 10);
+		/// ```
 		pub fn view(
 			&self,
 			s: S,
@@ -197,15 +205,17 @@ assert_eq!(l.view(10), 10);"#
 		///
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Lens,
-};
-
-let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
-assert_eq!(l.set(10, 20), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Lens,
+		/// };
+		///
+		/// let l: Lens<RcBrand, i32, i32, i32, i32> = Lens::from_view_set(|x| x, |(_, y)| y);
+		/// assert_eq!(l.set(10, 20), 20);
+		/// ```
 		pub fn set(
 			&self,
 			s: S,
@@ -237,25 +247,27 @@ assert_eq!(l.set(10, 20), 20);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -287,25 +299,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	LensOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Strong>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -332,25 +346,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -376,25 +392,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -421,21 +439,23 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = GetterOptic::evaluate(&l, f);
-assert_eq!(folded.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&l, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -460,21 +480,23 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-let folded = FoldOptic::evaluate(&l, f);
-assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+		/// let folded = FoldOptic::evaluate(&l, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -503,25 +525,27 @@ assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: Lens<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Lens::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -563,16 +587,18 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 	{
 		#[document_signature]
 		#[document_returns("A new `LensPrime` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
-let cloned = l.clone();
-assert_eq!(cloned.view(42), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
+		/// let cloned = l.clone();
+		/// assert_eq!(cloned.view(42), 42);
+		/// ```
 		fn clone(&self) -> Self {
 			LensPrime {
 				to: self.to.clone(),
@@ -599,20 +625,22 @@ assert_eq!(cloned.view(42), 42);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		RcBrand,
-		RcFnBrand,
-	},
-	classes::CloneableFn,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> =
-	LensPrime::new(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
-assert_eq!(l.view(42), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 	},
+		/// 	classes::CloneableFn,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> =
+		/// 	LensPrime::new(|x| (x, <RcFnBrand as CloneableFn>::new(|s| s)));
+		/// assert_eq!(l.view(42), 42);
+		/// ```
 		pub fn new(to: impl 'a + Fn(S) -> (A, <FnBrand<P> as CloneableFn>::Of<'a, A, S>)) -> Self {
 			LensPrime {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -626,15 +654,17 @@ assert_eq!(l.view(42), 42);"#
 		///
 		#[document_returns("A new `LensPrime` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
-assert_eq!(l.view(10), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
+		/// assert_eq!(l.view(10), 10);
+		/// ```
 		pub fn from_view_set(
 			view: impl 'a + Fn(S) -> A,
 			set: impl 'a + Fn((S, A)) -> S,
@@ -663,15 +693,17 @@ assert_eq!(l.view(10), 10);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
-assert_eq!(l.view(42), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
+		/// assert_eq!(l.view(42), 42);
+		/// ```
 		pub fn view(
 			&self,
 			s: S,
@@ -686,15 +718,17 @@ assert_eq!(l.view(42), 42);"#
 		///
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
-assert_eq!(l.set(10, 20), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
+		/// assert_eq!(l.set(10, 20), 20);
+		/// ```
 		pub fn set(
 			&self,
 			s: S,
@@ -710,15 +744,17 @@ assert_eq!(l.set(10, 20), 20);"#
 		///
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::LensPrime,
-};
-
-let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
-assert_eq!(l.over(10, |x| x + 1), 11);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::LensPrime,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, i32, i32> = LensPrime::from_view_set(|x: i32| x, |(_, y)| y);
+		/// assert_eq!(l.over(10, |x| x + 1), 11);
+		/// ```
 		pub fn over(
 			&self,
 			s: S,
@@ -749,25 +785,27 @@ assert_eq!(l.over(10, |x| x + 1), 11);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	Optic::<RcFnBrand, _, _, _, _>::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -799,25 +837,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -841,25 +881,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -886,21 +928,23 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = GetterOptic::evaluate(&l, f);
-assert_eq!(folded.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&l, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -925,21 +969,23 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-let folded = FoldOptic::evaluate(&l, f);
-assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+		/// let folded = FoldOptic::evaluate(&l, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -965,25 +1011,27 @@ assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1007,25 +1055,27 @@ assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let l: LensPrime<RcBrand, (i32, String), i32> =
-	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	LensOptic::evaluate::<RcFnBrand>(&l, f);
-assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let l: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	LensOptic::evaluate::<RcFnBrand>(&l, f);
+		/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
+		/// ```
 		fn evaluate<Q: Strong>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),

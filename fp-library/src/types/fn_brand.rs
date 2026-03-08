@@ -75,15 +75,17 @@ mod inner {
 		///
 		#[document_returns("The wrapped function.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-assert_eq!(f(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// assert_eq!(f(5), 10);
+		/// ```
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as Function>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
@@ -109,15 +111,17 @@ assert_eq!(f(5), 10);"#
 		///
 		#[document_returns("The wrapped cloneable function.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-assert_eq!(f(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// assert_eq!(f(5), 10);
+		/// ```
 		fn new<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> <Self as CloneableFn>::Of<'a, A, B> {
 			P::coerce_fn(f)
 		}
@@ -143,18 +147,20 @@ assert_eq!(f(5), 10);"#
 		)]
 		///
 		#[document_returns("The composed morphism (from B to D).")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
-assert_eq!(h(5), 12); // (5 + 1) * 2"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+		/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let h = semigroupoid_compose::<RcFnBrand, _, _, _>(f, g);
+		/// assert_eq!(h(5), 12); // (5 + 1) * 2
+		/// ```
 		fn compose<'a, B: 'a, C: 'a, D: 'a>(
 			f: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
 			g: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
@@ -174,15 +180,17 @@ assert_eq!(h(5), 12); // (5 + 1) * 2"#
 		///
 		#[document_returns("The identity morphism.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let id = category_identity::<RcFnBrand, i32>();
-assert_eq!(id(5), 5);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let id = category_identity::<RcFnBrand, i32>();
+		/// assert_eq!(id(5), 5);
+		/// ```
 		fn identity<'a, A>()
 		-> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, A>) {
 			P::coerce_fn(|a| a)
@@ -214,19 +222,21 @@ assert_eq!(id(5), 5);"#
 		)]
 		///
 		#[document_returns("A new profunctor instance with transformed input and output types.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-};
-
-let f = <RcFnBrand as Profunctor>::dimap(
-	|x: i32| x * 2,
-	|x: i32| x - 1,
-	std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>,
-);
-assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// };
+		///
+		/// let f = <RcFnBrand as Profunctor>::dimap(
+		/// 	|x: i32| x * 2,
+		/// 	|x: i32| x - 1,
+		/// 	std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>,
+		/// );
+		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
+		/// ```
 		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
@@ -258,16 +268,18 @@ assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20"#
 		///
 		#[document_returns("A new function that operates on pairs.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-};
-
-let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-let g = <RcFnBrand as Strong>::first::<i32, i32, i32>(f);
-assert_eq!(g((10, 20)), (11, 20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// };
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Strong>::first::<i32, i32, i32>(f);
+		/// assert_eq!(g((10, 20)), (11, 20));
+		/// ```
 		fn first<'a, A: 'a, B: 'a, C>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
@@ -294,17 +306,19 @@ assert_eq!(g((10, 20)), (11, 20));"#
 		///
 		#[document_returns("A new function that operates on Result types.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-};
-
-let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-let g = <RcFnBrand as Choice>::left::<i32, i32, String>(f);
-assert_eq!(g(Err(10)), Err(11));
-assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// };
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Choice>::left::<i32, i32, String>(f);
+		/// assert_eq!(g(Err(10)), Err(11));
+		/// assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));
+		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -337,18 +351,20 @@ assert_eq!(g(Ok("success".to_string())), Ok("success".to_string()));"#
 		///
 		#[document_returns("A new function that operates on functions.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-};
-
-let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-let g = <RcFnBrand as Closed<RcFnBrand>>::closed::<i32, i32, String>(f);
-let h = std::rc::Rc::new(|s: String| s.len() as i32) as std::rc::Rc<dyn Fn(String) -> i32>;
-let result = g(h);
-assert_eq!(result("hi".to_string()), 3);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// };
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Closed<RcFnBrand>>::closed::<i32, i32, String>(f);
+		/// let h = std::rc::Rc::new(|s: String| s.len() as i32) as std::rc::Rc<dyn Fn(String) -> i32>;
+		/// let result = g(h);
+		/// assert_eq!(result("hi".to_string()), 3);
+		/// ```
 		fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand<P> as CloneableFn>::Of<'a, X, A>, <FnBrand<P> as CloneableFn>::Of<'a, X, B>>)
@@ -378,34 +394,38 @@ assert_eq!(result("hi".to_string()), 3);"#
 		///
 		#[document_returns("A new function that operates on the structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	Apply,
-	brands::*,
-	classes::{
-		Applicative,
-		optics::traversal::TraversalFunc,
-		profunctor::*,
-	},
-	kinds::*,
-};
-
-// A traversal over a single value (identity traversal).
-struct SingleTraversal;
-impl<'a> TraversalFunc<'a, i32, i32, i32, i32> for SingleTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a>,
-		s: i32,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) {
-		f(s)
-	}
-}
-
-let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-let g = <RcFnBrand as Wander>::wander::<i32, i32, i32, i32, _>(SingleTraversal, f);
-assert_eq!(g(5), 6);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Applicative,
+		/// 		optics::traversal::TraversalFunc,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	kinds::*,
+		/// };
+		///
+		/// // A traversal over a single value (identity traversal).
+		/// struct SingleTraversal;
+		/// impl<'a> TraversalFunc<'a, i32, i32, i32, i32> for SingleTraversal {
+		/// 	fn apply<M: Applicative>(
+		/// 		&self,
+		/// 		f: Box<
+		/// 			dyn Fn(i32) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) + 'a,
+		/// 		>,
+		/// 		s: i32,
+		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, i32>) {
+		/// 		f(s)
+		/// 	}
+		/// }
+		///
+		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
+		/// let g = <RcFnBrand as Wander>::wander::<i32, i32, i32, i32, _>(SingleTraversal, f);
+		/// assert_eq!(g(5), 6);
+		/// ```
 		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
@@ -440,15 +460,17 @@ assert_eq!(g(5), 6);"#
 		///
 		#[document_returns("The wrapped thread-safe cloneable function.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
-assert_eq!(f(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x * 2);
+		/// assert_eq!(f(5), 10);
+		/// ```
 		fn send_cloneable_fn_new<'a, A: 'a, B: 'a>(
 			f: impl 'a + Fn(A) -> B + Send + Sync
 		) -> Self::SendOf<'a, A, B> {

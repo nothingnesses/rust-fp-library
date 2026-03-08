@@ -60,24 +60,28 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::Grating,
-};
-
-let grating =
-	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
-		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
-			f(get_x) + f(get_y)
-		},
-	));
-let result = (grating.run)(cloneable_fn_new::<RcFnBrand, _, _>(|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20))));
-assert_eq!(result, 30);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::Grating,
+		/// };
+		///
+		/// let grating =
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			f(get_x) + f(get_y)
+		/// 		},
+		/// 	));
+		/// let result = (grating.run)(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20)),
+		/// ));
+		/// assert_eq!(result, 30);
+		/// ```
 		pub fn new(
 			run: <FnBrand as CloneableFn>::Of<
 				'a,
@@ -135,34 +139,38 @@ assert_eq!(result, 30);"#
 		///
 		#[document_returns("A transformed `Grating` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		cloneable_fn::new as cloneable_fn_new,
-	},
-	types::optics::*,
-};
-
-// Grating is usually used internally by Grate optics
-let grating =
-	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
-		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
-			f(get_x) + f(get_y)
-		},
-	));
-let transformed = <GratingBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
-	|s: (i32, i32)| s,
-	|t: i32| t,
-	grating,
-);
-let result = (transformed.run)(cloneable_fn_new::<RcFnBrand, _, _>(|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20))));
-assert_eq!(result, 30);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// // Grating is usually used internally by Grate optics
+		/// let grating =
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			f(get_x) + f(get_y)
+		/// 		},
+		/// 	));
+		/// let transformed = <GratingBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
+		/// 	|s: (i32, i32)| s,
+		/// 	|t: i32| t,
+		/// 	grating,
+		/// );
+		/// let result = (transformed.run)(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|g: std::rc::Rc<dyn Fn((i32, i32)) -> i32>| g((10, 20)),
+		/// ));
+		/// assert_eq!(result, 30);
+		/// ```
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,
@@ -215,43 +223,45 @@ assert_eq!(result, 30);"#
 		///
 		#[document_returns("A transformed `Grating` instance that operates on functions.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		*,
-	},
-	functions::*,
-	types::optics::*,
-};
-
-let grating =
-	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
-		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
-			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
-			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
-			f(get_x) + f(get_y)
-		},
-	));
-
-let closed_grating = <GratingBrand<RcFnBrand, i32, i32> as Closed<RcFnBrand>>::closed::<
-	(i32, i32),
-	i32,
-	String,
->(grating);
-
-let run_closed = closed_grating.run;
-type GetterFn = std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn(String) -> (i32, i32)>) -> i32>;
-let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter: GetterFn| {
-	// getter: (String -> (i32, i32)) -> i32
-	// We provide a function that produces a pair from a string
-	getter(cloneable_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
-}));
-
-assert_eq!(result_fn("hello".to_string()), 5 + 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let grating =
+		/// 	Grating::<RcFnBrand, i32, i32, (i32, i32), i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 		|f: std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn((i32, i32)) -> i32>) -> i32>| {
+		/// 			let get_x = cloneable_fn_new::<RcFnBrand, _, _>(|(x, _)| x);
+		/// 			let get_y = cloneable_fn_new::<RcFnBrand, _, _>(|(_, y)| y);
+		/// 			f(get_x) + f(get_y)
+		/// 		},
+		/// 	));
+		///
+		/// let closed_grating = <GratingBrand<RcFnBrand, i32, i32> as Closed<RcFnBrand>>::closed::<
+		/// 	(i32, i32),
+		/// 	i32,
+		/// 	String,
+		/// >(grating);
+		///
+		/// let run_closed = closed_grating.run;
+		/// type GetterFn = std::rc::Rc<dyn Fn(std::rc::Rc<dyn Fn(String) -> (i32, i32)>) -> i32>;
+		/// let result_fn = run_closed(cloneable_fn_new::<RcFnBrand, _, _>(|getter: GetterFn| {
+		/// 	// getter: (String -> (i32, i32)) -> i32
+		/// 	// We provide a function that produces a pair from a string
+		/// 	getter(cloneable_fn_new::<RcFnBrand, _, _>(|s: String| (s.len() as i32, 10)))
+		/// }));
+		///
+		/// assert_eq!(result_fn("hello".to_string()), 5 + 10);
+		/// ```
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, X, S>, <FnBrand as CloneableFn>::Of<'a, X, T>>)

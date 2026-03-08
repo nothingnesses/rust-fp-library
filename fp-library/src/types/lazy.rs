@@ -71,12 +71,14 @@ mod inner {
 		/// ### Returns
 		///
 		/// A new lazy cell.
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A>;
 
 		/// Creates a new fallible lazy cell from an initializer.
@@ -93,12 +95,14 @@ assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
 		/// ### Returns
 		///
 		/// A new fallible lazy cell.
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_lazy_new<'a, A: 'a, E: 'a>(
 			f: Box<Self::TryThunk<'a, A, E>>
 		) -> Self::TryLazy<'a, A, E>;
@@ -117,12 +121,14 @@ assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 		/// ### Returns
 		///
 		/// A reference to the value.
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A;
 
 		/// Forces evaluation and returns a reference to the result.
@@ -140,12 +146,14 @@ assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
 		/// ### Returns
 		///
 		/// A result containing a reference to the value or error.
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
 			lazy: &'b Self::TryLazy<'a, A, E>
 		) -> Result<&'b A, &'b E>;
@@ -172,12 +180,14 @@ assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 		///
 		#[document_returns("A new lazy cell.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A> {
 			Rc::new(LazyCell::new(f))
 		}
@@ -195,12 +205,14 @@ assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
 		///
 		#[document_returns("A new fallible lazy cell.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_lazy_new<'a, A: 'a, E: 'a>(
 			f: Box<Self::TryThunk<'a, A, E>>
 		) -> Self::TryLazy<'a, A, E> {
@@ -220,12 +232,14 @@ assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 		///
 		#[document_returns("A reference to the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 			LazyCell::force(lazy)
 		}
@@ -244,12 +258,14 @@ assert_eq!(*RcLazyConfig::evaluate(&lazy), 42);"#
 		///
 		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = RcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
 			lazy: &'b Self::TryLazy<'a, A, E>
 		) -> Result<&'b A, &'b E> {
@@ -278,12 +294,14 @@ assert_eq!(RcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 		///
 		#[document_returns("A new lazy cell.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn lazy_new<'a, A: 'a>(f: Box<Self::Thunk<'a, A>>) -> Self::Lazy<'a, A> {
 			Arc::new(LazyLock::new(f))
 		}
@@ -301,12 +319,14 @@ assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);"#
 		///
 		#[document_returns("A new fallible lazy cell.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_lazy_new<'a, A: 'a, E: 'a>(
 			f: Box<Self::TryThunk<'a, A, E>>
 		) -> Self::TryLazy<'a, A, E> {
@@ -326,12 +346,14 @@ assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 		///
 		#[document_returns("A reference to the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
-assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = ArcLazyConfig::lazy_new(Box::new(|| 42));
+		/// assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);
+		/// ```
 		fn evaluate<'a, 'b, A: 'a>(lazy: &'b Self::Lazy<'a, A>) -> &'b A {
 			LazyLock::force(lazy)
 		}
@@ -350,12 +372,14 @@ assert_eq!(*ArcLazyConfig::evaluate(&lazy), 42);"#
 		///
 		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
-assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = ArcLazyConfig::try_lazy_new(Box::new(|| Ok::<i32, ()>(42)));
+		/// assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));
+		/// ```
 		fn try_evaluate<'a, 'b, A: 'a, E: 'a>(
 			lazy: &'b Self::TryLazy<'a, A, E>
 		) -> Result<&'b A, &'b E> {
@@ -396,18 +420,20 @@ assert_eq!(ArcLazyConfig::try_evaluate(&lazy), Ok(&42));"#
 	{
 		#[document_signature]
 		#[document_returns("A new `Lazy` instance that shares the same underlying memoized value.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let memo = Lazy::<_, RcLazyConfig>::new(|| 5);
-let shared = memo.clone();
-
-// First force computes and caches:
-let value = memo.evaluate();
-
-// Second force returns cached value (shared sees same result):
-assert_eq!(shared.evaluate(), value);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 5);
+		/// let shared = memo.clone();
+		///
+		/// // First force computes and caches:
+		/// let value = memo.evaluate();
+		///
+		/// // Second force returns cached value (shared sees same result):
+		/// assert_eq!(shared.evaluate(), value);
+		/// ```
 		fn clone(&self) -> Self {
 			Self(self.0.clone())
 		}
@@ -428,12 +454,14 @@ assert_eq!(shared.evaluate(), value);"#
 		///
 		#[document_returns("A reference to the memoized value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-assert_eq!(*memo.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
+		/// assert_eq!(*memo.evaluate(), 42);
+		/// ```
 		pub fn evaluate(&self) -> &A {
 			Config::evaluate(&self.0)
 		}
@@ -453,12 +481,14 @@ assert_eq!(*memo.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Lazy` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
-assert_eq!(*memo.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
+		/// assert_eq!(*memo.evaluate(), 42);
+		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> A + 'a, {
@@ -474,12 +504,14 @@ assert_eq!(*memo.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = Lazy::<_, RcLazyConfig>::pure(42);
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		pub fn pure(a: A) -> Self {
 			Lazy(RcLazyConfig::lazy_new(Box::new(move || a)))
 		}
@@ -490,12 +522,14 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
 		#[document_returns("A new `Lazy` instance that will evaluate the thunk on first access.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let thunk = Thunk::new(|| 42);
-let lazy = Lazy::from(thunk);
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = Thunk::new(|| 42);
+		/// let lazy = Lazy::from(thunk);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		fn from(eval: Thunk<'a, A>) -> Self {
 			Self::new(move || eval.evaluate())
 		}
@@ -511,12 +545,14 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		#[document_returns(
 			"A new `Lazy` instance that will evaluate the trampoline on first access."
 		)]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let task = Trampoline::pure(42);
-let lazy = Lazy::from(task);
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let task = Trampoline::pure(42);
+		/// let lazy = Lazy::from(task);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		fn from(task: Trampoline<A>) -> Self {
 			Self::new(move || task.evaluate())
 		}
@@ -536,12 +572,14 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Lazy` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> A + Send + 'a, {
@@ -558,12 +596,14 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Lazy` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let lazy = Lazy::<_, ArcLazyConfig>::pure(42);
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		pub fn pure(a: A) -> Self
 		where
 			A: Send, {
@@ -600,17 +640,19 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Lazy` value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let lazy = Lazy::<_, RcLazyConfig>::defer(|| RcLazy::pure(42));
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = Lazy::<_, RcLazyConfig>::defer(|| RcLazy::pure(42));
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
@@ -636,16 +678,18 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		///
 		#[document_returns("A new `ArcLazy` value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	types::*,
-};
-
-let lazy = ArcLazy::send_defer(|| ArcLazy::pure(42));
-assert_eq!(*lazy.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let lazy = ArcLazy::send_defer(|| ArcLazy::pure(42));
+		/// assert_eq!(*lazy.evaluate(), 42);
+		/// ```
 		fn send_defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + Send + Sync + 'a,
@@ -669,17 +713,19 @@ assert_eq!(*lazy.evaluate(), 42);"#
 		///
 		#[document_returns("A new memoized value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	types::*,
-};
-
-let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
-assert_eq!(*mapped.evaluate(), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
+		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
+		/// assert_eq!(*mapped.evaluate(), 20);
+		/// ```
 		fn ref_map<'a, A: 'a, B: 'a, F>(
 			f: F,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),

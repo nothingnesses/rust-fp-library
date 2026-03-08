@@ -86,19 +86,21 @@ mod inner {
 		)]
 		///
 		#[document_returns("A new result containing the mapped values.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::bifunctor::*,
-	functions::*,
-};
-
-let x: Result<i32, i32> = Ok(5);
-assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
-
-let y: Result<i32, i32> = Err(5);
-assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Result<i32, i32> = Ok(5);
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		///
+		/// let y: Result<i32, i32> = Err(5);
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -138,31 +140,33 @@ assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(
 		)]
 		///
 		#[document_returns("`f(a, z)` for `Err(a)`, or `g(b, z)` for `Ok(b)`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|e: i32, acc| acc - e,
-		|s: i32, acc| acc + s,
-		10,
-		Err(3),
-	),
-	7
-);
-assert_eq!(
-	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|e: i32, acc| acc - e,
-		|s: i32, acc| acc + s,
-		10,
-		Ok(5),
-	),
-	15
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|e: i32, acc| acc - e,
+		/// 		|s: i32, acc| acc + s,
+		/// 		10,
+		/// 		Err(3),
+		/// 	),
+		/// 	7
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|e: i32, acc| acc - e,
+		/// 		|s: i32, acc| acc + s,
+		/// 		10,
+		/// 		Ok(5),
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
 		fn bi_fold_right<
 			'a,
 			FnBrand: CloneableFn + 'a,
@@ -209,31 +213,33 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("`f(z, a)` for `Err(a)`, or `g(z, b)` for `Ok(b)`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|acc, e: i32| acc - e,
-		|acc, s: i32| acc + s,
-		10,
-		Err(3),
-	),
-	7
-);
-assert_eq!(
-	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|acc, e: i32| acc - e,
-		|acc, s: i32| acc + s,
-		10,
-		Ok(5),
-	),
-	15
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|acc, e: i32| acc - e,
+		/// 		|acc, s: i32| acc + s,
+		/// 		10,
+		/// 		Err(3),
+		/// 	),
+		/// 	7
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|acc, e: i32| acc - e,
+		/// 		|acc, s: i32| acc + s,
+		/// 		10,
+		/// 		Ok(5),
+		/// 	),
+		/// 	15
+		/// );
+		/// ```
 		fn bi_fold_left<
 			'a,
 			FnBrand: CloneableFn + 'a,
@@ -279,29 +285,31 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("`f(a)` for `Err(a)`, or `g(b)` for `Ok(b)`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|e: i32| e.to_string(),
-		|s: i32| s.to_string(),
-		Err::<i32, i32>(3),
-	),
-	"3".to_string()
-);
-assert_eq!(
-	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		|e: i32| e.to_string(),
-		|s: i32| s.to_string(),
-		Ok::<i32, i32>(5),
-	),
-	"5".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|e: i32| e.to_string(),
+		/// 		|s: i32| s.to_string(),
+		/// 		Err::<i32, i32>(3),
+		/// 	),
+		/// 	"3".to_string()
+		/// );
+		/// assert_eq!(
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 		|e: i32| e.to_string(),
+		/// 		|s: i32| s.to_string(),
+		/// 		Ok::<i32, i32>(5),
+		/// 	),
+		/// 	"5".to_string()
+		/// );
+		/// ```
 		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M, FA, FB>(
 			f: FA,
 			g: FB,
@@ -345,29 +353,31 @@ assert_eq!(
 		#[document_returns(
 			"`f(a)` wrapped in context for `Err(a)`, or `g(b)` wrapped in context for `Ok(b)`."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
-		|e: i32| Some(e + 1),
-		|s: i32| Some(s * 2),
-		Err::<i32, i32>(3),
-	),
-	Some(Err(4))
-);
-assert_eq!(
-	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
-		|e: i32| Some(e + 1),
-		|s: i32| Some(s * 2),
-		Ok::<i32, i32>(5),
-	),
-	Some(Ok(10))
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		|e: i32| Some(e + 1),
+		/// 		|s: i32| Some(s * 2),
+		/// 		Err::<i32, i32>(3),
+		/// 	),
+		/// 	Some(Err(4))
+		/// );
+		/// assert_eq!(
+		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 		|e: i32| Some(e + 1),
+		/// 		|s: i32| Some(s * 2),
+		/// 		Ok::<i32, i32>(5),
+		/// 	),
+		/// 	Some(Ok(10))
+		/// );
+		/// ```
 		fn bi_traverse<
 			'a,
 			A: 'a + Clone,
@@ -421,15 +431,17 @@ assert_eq!(
 			"A new result containing the result of applying the function, or the original error."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
-assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
+		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -464,29 +476,31 @@ assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), E
 		#[document_returns(
 			"`Ok(f(a, b))` if both results are `Ok`, otherwise the first error encountered."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
-	Ok(3)
-);
-assert_eq!(
-	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
-	Err(2)
-);
-assert_eq!(
-	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
-	Err(1)
-);
-assert_eq!(
-	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
-	Err(1)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	Ok(3)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	Err(2)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	Err(1)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	Err(1)
+		/// );
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -518,14 +532,16 @@ assert_eq!(
 		///
 		#[document_returns("`Ok(a)`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::ResultErrAppliedBrand,
-	functions::*,
-};
-
-assert_eq!(pure::<ResultErrAppliedBrand<()>, _>(5), Ok(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ResultErrAppliedBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(pure::<ResultErrAppliedBrand<()>, _>(5), Ok(5));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Ok(a)
 		}
@@ -557,23 +573,25 @@ assert_eq!(pure::<ResultErrAppliedBrand<()>, _>(5), Ok(5));"#
 		)]
 		///
 		#[document_returns("`Ok(f(a))` if both are `Ok`, otherwise the first error encountered.")]
-		#[document_examples(
-			r#"use fp_library::{
-	Apply,
-	Kind,
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let f: Result<_, ()> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
-let f: Result<_, i32> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
-
-let f_err: Result<_, i32> = Err(1);
-assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	Kind,
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<_, ()> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(f, Ok(5)), Ok(10));
+		/// let f: Result<_, i32> = Ok(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, Err(1)), Err(1));
+		///
+		/// let f_err: Result<_, i32> = Err(1);
+		/// assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)), Err(1));
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -608,16 +626,18 @@ assert_eq!(apply::<RcFnBrand, ResultErrAppliedBrand<i32>, i32, i32>(f_err, Ok(5)
 		#[document_returns(
 			"The result of applying `f` to the value if `ma` is `Ok`, otherwise the original error."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::ResultErrAppliedBrand,
-	functions::*,
-};
-
-assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
-assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
-assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ResultErrAppliedBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -647,25 +667,27 @@ assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
-	5
-);
-assert_eq!(
-	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
-		|x: i32, acc| x + acc,
-		0,
-		Err(1)
-	),
-	0
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
+		/// 	0
+		/// );
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -697,25 +719,27 @@ assert_eq!(
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Ok(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
-	5
-);
-assert_eq!(
-	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
-		|acc, x: i32| acc + x,
-		0,
-		Err(1)
-	),
-	0
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+		/// 		|acc, x: i32| acc + x,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
+		/// 	0
+		/// );
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -747,21 +771,23 @@ assert_eq!(
 		///
 		#[document_returns("`func(a)` if `fa` is `Ok(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
-	"5".to_string()
-);
-assert_eq!(
-	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
-	"".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	"5".to_string()
+		/// );
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
+		/// 	"".to_string()
+		/// );
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, F>(
 			func: F,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -796,28 +822,30 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		OptionBrand,
-		ResultErrAppliedBrand,
-	},
-	functions::*,
-};
-
-assert_eq!(
-	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
-	Some(Ok(10))
-);
-assert_eq!(
-	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
-	Some(Err(1))
-);
-assert_eq!(
-	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
-	None
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultErrAppliedBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
+		/// 	Some(Ok(10))
+		/// );
+		/// assert_eq!(
+		/// 	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
+		/// 	Some(Err(1))
+		/// );
+		/// assert_eq!(
+		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
+		/// 	None
+		/// );
+		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -846,22 +874,24 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		OptionBrand,
-		ResultErrAppliedBrand,
-	},
-	functions::*,
-};
-
-assert_eq!(sequence::<ResultErrAppliedBrand<()>, _, OptionBrand>(Ok(Some(5))), Some(Ok(5)));
-assert_eq!(
-	sequence::<ResultErrAppliedBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
-	Some(Err::<i32, i32>(1))
-);
-assert_eq!(sequence::<ResultErrAppliedBrand<()>, _, OptionBrand>(Ok(None::<i32>)), None);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultErrAppliedBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(sequence::<ResultErrAppliedBrand<()>, _, OptionBrand>(Ok(Some(5))), Some(Ok(5)));
+		/// assert_eq!(
+		/// 	sequence::<ResultErrAppliedBrand<i32>, i32, OptionBrand>(Err::<Option<i32>, _>(1)),
+		/// 	Some(Err::<i32, i32>(1))
+		/// );
+		/// assert_eq!(sequence::<ResultErrAppliedBrand<()>, _, OptionBrand>(Ok(None::<i32>)), None);
+		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -904,15 +934,17 @@ assert_eq!(sequence::<ResultErrAppliedBrand<()>, _, OptionBrand>(Ok(None::<i32>)
 			"A new result containing the mapped error, or the original success value."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
-assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -950,29 +982,31 @@ assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(
 		#[document_returns(
 			"`Err(f(a, b))` if both results are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
-	Err(3)
-);
-assert_eq!(
-	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
-	Ok(2)
-);
-assert_eq!(
-	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
-	Ok(1)
-);
-assert_eq!(
-	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
-	Ok(1)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	Err(3)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	Ok(2)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	Ok(1)
+		/// );
+		/// assert_eq!(
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	Ok(1)
+		/// );
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1004,14 +1038,16 @@ assert_eq!(
 		///
 		#[document_returns("`Err(a)`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::ResultOkAppliedBrand,
-	functions::*,
-};
-
-assert_eq!(pure::<ResultOkAppliedBrand<()>, _>(5), Err(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ResultOkAppliedBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(pure::<ResultOkAppliedBrand<()>, _>(5), Err(5));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Err(a)
 		}
@@ -1045,23 +1081,25 @@ assert_eq!(pure::<ResultOkAppliedBrand<()>, _>(5), Err(5));"#
 		#[document_returns(
 			"`Err(f(a))` if both are `Err`, otherwise the first success encountered."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	Apply,
-	Kind,
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let f: Result<(), _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
-let f: Result<i32, _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
-
-let f_ok: Result<i32, _> = Ok(1);
-assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	Kind,
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let f: Result<(), _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(f, Err(5)), Err(10));
+		/// let f: Result<i32, _> = Err(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, Ok(1)), Ok(1));
+		///
+		/// let f_ok: Result<i32, _> = Ok(1);
+		/// assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5)), Ok(1));
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1094,16 +1132,18 @@ assert_eq!(apply::<RcFnBrand, ResultOkAppliedBrand<i32>, i32, i32>(f_ok, Err(5))
 			"The result of applying `f` to the error if `ma` is `Err`, otherwise the original success."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::ResultOkAppliedBrand,
-	functions::*,
-};
-
-assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
-assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
-assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::ResultOkAppliedBrand,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -1136,29 +1176,31 @@ assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)
 		///
 		#[document_returns("`func(a, initial)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(
-		|x: i32, acc| x + acc,
-		0,
-		Err(1)
-	),
-	1
-);
-assert_eq!(
-	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(
-		|x: i32, acc| x + acc,
-		0,
-		Ok(())
-	),
-	0
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Err(1)
+		/// 	),
+		/// 	1
+		/// );
+		/// assert_eq!(
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(
+		/// 		|x: i32, acc| x + acc,
+		/// 		0,
+		/// 		Ok(())
+		/// 	),
+		/// 	0
+		/// );
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -1190,21 +1232,23 @@ assert_eq!(
 		///
 		#[document_returns("`func(initial, a)` if `fa` is `Err(a)`, otherwise `initial`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
-	5
-);
-assert_eq!(
-	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
-	0
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
+		/// 	5
+		/// );
+		/// assert_eq!(
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
+		/// 	0
+		/// );
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
 			func: F,
 			initial: B,
@@ -1236,21 +1280,23 @@ assert_eq!(
 		///
 		#[document_returns("`func(a)` if `fa` is `Err(a)`, otherwise `M::empty()`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-assert_eq!(
-	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
-	"5".to_string()
-);
-assert_eq!(
-	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
-	"".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	"5".to_string()
+		/// );
+		/// assert_eq!(
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	"".to_string()
+		/// );
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1285,28 +1331,30 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		OptionBrand,
-		ResultOkAppliedBrand,
-	},
-	functions::*,
-};
-
-assert_eq!(
-	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
-	Some(Err(10))
-);
-assert_eq!(
-	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
-	Some(Ok(1))
-);
-assert_eq!(
-	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
-	None
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultOkAppliedBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(
+		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
+		/// 	Some(Err(10))
+		/// );
+		/// assert_eq!(
+		/// 	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
+		/// 	Some(Ok(1))
+		/// );
+		/// assert_eq!(
+		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
+		/// 	None
+		/// );
+		/// ```
 		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
 			func: Func,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1335,22 +1383,24 @@ assert_eq!(
 		///
 		#[document_returns("The result wrapped in the applicative context.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{
-		OptionBrand,
-		ResultOkAppliedBrand,
-	},
-	functions::*,
-};
-
-assert_eq!(sequence::<ResultOkAppliedBrand<()>, _, OptionBrand>(Err(Some(5))), Some(Err(5)));
-assert_eq!(
-	sequence::<ResultOkAppliedBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
-	Some(Ok::<i32, i32>(1))
-);
-assert_eq!(sequence::<ResultOkAppliedBrand<()>, _, OptionBrand>(Err(None::<i32>)), None);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		ResultOkAppliedBrand,
+		/// 	},
+		/// 	functions::*,
+		/// };
+		///
+		/// assert_eq!(sequence::<ResultOkAppliedBrand<()>, _, OptionBrand>(Err(Some(5))), Some(Err(5)));
+		/// assert_eq!(
+		/// 	sequence::<ResultOkAppliedBrand<i32>, i32, OptionBrand>(Ok::<_, Option<i32>>(1)),
+		/// 	Some(Ok::<i32, i32>(1))
+		/// );
+		/// assert_eq!(sequence::<ResultOkAppliedBrand<()>, _, OptionBrand>(Err(None::<i32>)), None);
+		/// ```
 		fn sequence<'a, A: 'a + Clone, F: Applicative>(
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)>)
@@ -1384,27 +1434,29 @@ assert_eq!(sequence::<ResultOkAppliedBrand<()>, _, OptionBrand>(Err(None::<i32>)
 		)]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let x: Result<i32, ()> = Ok(5);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-assert_eq!(
-	par_fold_map::<ArcFnBrand, ResultErrAppliedBrand<()>, _, _>(f.clone(), x),
-	"5".to_string()
-);
-
-let x_err: Result<i32, i32> = Err(1);
-assert_eq!(
-	par_fold_map::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, x_err),
-	"".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Result<i32, ()> = Ok(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultErrAppliedBrand<()>, _, _>(f.clone(), x),
+		/// 	"5".to_string()
+		/// );
+		///
+		/// let x_err: Result<i32, i32> = Err(1);
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, x_err),
+		/// 	"".to_string()
+		/// );
+		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1438,20 +1490,22 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let x: Result<i32, ()> = Ok(5);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<()>, _, _>(f.clone(), 10, x), 15);
-
-let x_err: Result<i32, i32> = Err(1);
-assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, 10, x_err), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Result<i32, ()> = Ok(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<()>, _, _>(f.clone(), 10, x), 15);
+		///
+		/// let x_err: Result<i32, i32> = Err(1);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, 10, x_err), 10);
+		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,
@@ -1488,27 +1542,29 @@ assert_eq!(par_fold_right::<ArcFnBrand, ResultErrAppliedBrand<i32>, _, _>(f, 10,
 		)]
 		///
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let x: Result<(), i32> = Err(5);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
-assert_eq!(
-	par_fold_map::<ArcFnBrand, ResultOkAppliedBrand<()>, _, _>(f.clone(), x),
-	"5".to_string()
-);
-
-let x_ok: Result<i32, i32> = Ok(1);
-assert_eq!(
-	par_fold_map::<ArcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, x_ok),
-	"".to_string()
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: Result<(), i32> = Err(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|x: i32| x.to_string());
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultOkAppliedBrand<()>, _, _>(f.clone(), x),
+		/// 	"5".to_string()
+		/// );
+		///
+		/// let x_ok: Result<i32, i32> = Ok(1);
+		/// assert_eq!(
+		/// 	par_fold_map::<ArcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, x_ok),
+		/// 	"".to_string()
+		/// );
+		/// ```
 		fn par_fold_map<'a, FnBrand, A, M>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, A, M>,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -1542,20 +1598,22 @@ assert_eq!(
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let x: Result<(), i32> = Err(5);
-let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
-assert_eq!(par_fold_right::<ArcFnBrand, ResultOkAppliedBrand<()>, _, _>(f.clone(), 10, x), 15);
-
-let x_ok: Result<i32, i32> = Ok(1);
-assert_eq!(par_fold_right::<ArcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, 10, x_ok), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x: Result<(), i32> = Err(5);
+		/// let f = send_cloneable_fn_new::<ArcFnBrand, _, _>(|(a, b): (i32, i32)| a + b);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultOkAppliedBrand<()>, _, _>(f.clone(), 10, x), 15);
+		///
+		/// let x_ok: Result<i32, i32> = Ok(1);
+		/// assert_eq!(par_fold_right::<ArcFnBrand, ResultOkAppliedBrand<i32>, _, _>(f, 10, x_ok), 10);
+		/// ```
 		fn par_fold_right<'a, FnBrand, A, B>(
 			func: <FnBrand as SendCloneableFn>::SendOf<'a, (A, B), B>,
 			initial: B,

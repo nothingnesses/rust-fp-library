@@ -9,43 +9,137 @@ use {
 		},
 		support::{
 			ast::RustAst,
-			generate_documentation::{
-				find_insertion_index,
-				insert_doc_comments_batch,
-			},
+			generate_documentation::insert_doc_comment,
 		},
 	},
 	proc_macro2::TokenStream,
 	quote::quote,
 };
 
+/// Language tags that indicate Rust code blocks (validated for assertions).
+const RUST_CODE_TAGS: &[&str] = &["", "rust", "no_run", "rust,no_run"];
+
 /// Check whether `code` contains at least one assertion macro invocation.
 fn contains_assertion(code: &str) -> bool {
 	ASSERTION_MACROS.iter().any(|mac| code.contains(mac))
 }
 
+/// Check whether a code fence tag indicates a Rust code block.
+fn is_rust_code_tag(tag: &str) -> bool {
+	RUST_CODE_TAGS.iter().any(|t| *t == tag)
+}
+
+/// State machine for parsing doc comment code blocks.
+enum ParseState {
+	Normal,
+	InRustBlock(Vec<String>),
+	InSkippedBlock,
+}
+
+/// Extract the content of all `#[doc = "..."]` attributes.
+fn extract_doc_content(attrs: &[syn::Attribute]) -> Vec<String> {
+	attrs
+		.iter()
+		.filter_map(|attr| {
+			if let syn::Meta::NameValue(nv) = &attr.meta
+				&& nv.path.is_ident("doc")
+				&& let syn::Expr::Lit(lit) = &nv.value
+				&& let syn::Lit::Str(s) = &lit.lit
+			{
+				Some(s.value())
+			} else {
+				None
+			}
+		})
+		.collect()
+}
+
+/// Extract Rust code blocks from doc comment lines.
+///
+/// Each doc comment attribute (`#[doc = "..."]`) contributes one line.
+/// Code fences with tags in [`RUST_CODE_TAGS`] are collected; all other
+/// fenced blocks (e.g. `compile_fail`, `ignore`, `text`) are skipped.
+fn extract_rust_code_blocks(doc_lines: &[String]) -> Vec<String> {
+	let mut blocks = Vec::new();
+	let mut state = ParseState::Normal;
+
+	for line in doc_lines {
+		let trimmed = line.trim();
+
+		state = match state {
+			ParseState::Normal =>
+				if trimmed.starts_with("```") {
+					let tag = trimmed[3 ..].trim();
+					if is_rust_code_tag(tag) {
+						ParseState::InRustBlock(Vec::new())
+					} else {
+						ParseState::InSkippedBlock
+					}
+				} else {
+					ParseState::Normal
+				},
+			ParseState::InRustBlock(mut lines) =>
+				if trimmed == "```" {
+					blocks.push(lines.join("\n"));
+					ParseState::Normal
+				} else {
+					lines.push(line.clone());
+					ParseState::InRustBlock(lines)
+				},
+			ParseState::InSkippedBlock =>
+				if trimmed == "```" {
+					ParseState::Normal
+				} else {
+					ParseState::InSkippedBlock
+				},
+		};
+	}
+
+	blocks
+}
+
+/// Validate that every Rust code block contains at least one assertion.
+fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
+	if code_blocks.is_empty() {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!(
+				"#[{DOCUMENT_EXAMPLES}] requires at least one Rust code block in the doc comments (using ``` or ```rust fences)"
+			),
+		)
+		.into());
+	}
+
+	for (i, code) in code_blocks.iter().enumerate() {
+		if !contains_assertion(code) {
+			return Err(syn::Error::new(
+				proc_macro2::Span::call_site(),
+				format!(
+					"Code block {} in the doc comments for #[{DOCUMENT_EXAMPLES}] must contain at least one assertion macro (e.g., assert_eq!, assert!)",
+					i + 1,
+				),
+			)
+			.into());
+		}
+	}
+
+	Ok(())
+}
+
 /// Worker for the `document_examples` macro.
+///
+/// Expands `#[document_examples]` into a `### Examples` heading at the
+/// attribute's position and validates that every Rust code block in the
+/// item's doc comments contains at least one assertion macro invocation.
 pub fn document_examples_worker(
 	attr: TokenStream,
 	item: TokenStream,
 ) -> OurResult<TokenStream> {
-	// Error case 2: attribute argument must be a string literal.
-	let example_code: syn::LitStr = syn::parse2(attr).map_err(|e| {
-		syn::Error::new(
-			e.span(),
-			format!(
-				"#[{DOCUMENT_EXAMPLES}] requires a string argument; the string should show example code usage of the function"
-			),
-		)
-	})?;
-
-	// Error case 3: the string must contain an assertion macro invocation.
-	let code = example_code.value();
-	if !contains_assertion(&code) {
+	if !attr.is_empty() {
 		return Err(syn::Error::new(
-			example_code.span(),
+			proc_macro2::Span::call_site(),
 			format!(
-				"The example code provided in #[{DOCUMENT_EXAMPLES}] should contain assertions about the expected output of the function"
+				"#[{DOCUMENT_EXAMPLES}] does not accept arguments. Example code should be placed in doc comments after this attribute using fenced code blocks."
 			),
 		)
 		.into());
@@ -61,27 +155,27 @@ pub fn document_examples_worker(
 		.into());
 	}
 
-	process_document_examples_on_ast(&mut ast, &example_code);
-
-	Ok(quote!(#ast))
-}
-
-fn process_document_examples_on_ast(
-	ast: &mut RustAst,
-	example_code: &syn::LitStr,
-) {
-	let code = example_code.value();
-
-	let mut docs =
-		vec![(String::new(), "### Examples\n".to_string()), (String::new(), "```".to_string())];
-
-	for line in code.lines() {
-		docs.push((String::new(), line.to_string()));
+	// Check for duplicate #[document_examples]
+	let has_duplicate = ast.attributes().iter().any(|a| a.path().is_ident(DOCUMENT_EXAMPLES));
+	if has_duplicate {
+		return Err(syn::Error::new(
+			proc_macro2::Span::call_site(),
+			format!("#[{DOCUMENT_EXAMPLES}] should only be applied once per function"),
+		)
+		.into());
 	}
 
-	docs.push((String::new(), "```\n".to_string()));
+	// Extract and validate doc comment code blocks
+	let doc_content = extract_doc_content(ast.attributes());
+	let code_blocks = extract_rust_code_blocks(&doc_content);
+	validate_code_blocks(&code_blocks)?;
 
-	let attrs = ast.attributes();
-	let insert_idx = find_insertion_index(attrs, example_code.span());
-	insert_doc_comments_batch(attrs, docs, insert_idx);
+	// Insert ### Examples heading at the macro's position
+	insert_doc_comment(
+		ast.attributes(),
+		"### Examples\n".to_string(),
+		proc_macro2::Span::call_site(),
+	);
+
+	Ok(quote!(#ast))
 }

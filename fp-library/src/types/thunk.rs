@@ -105,12 +105,14 @@ mod inner {
 		///
 		#[document_returns("A new `Thunk` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let thunk = Thunk::new(|| 42);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let thunk = Thunk::new(|| 42);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> A + 'a, {
@@ -124,16 +126,18 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(42);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(42);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn pure(a: A) -> Self
 		where
 			A: 'a, {
@@ -149,16 +153,18 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Thunk` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let thunk = Thunk::defer(|| pure::<ThunkBrand, _>(42));
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Thunk<'a, A> + 'a, {
@@ -180,15 +186,17 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Thunk` instance representing the chained computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(21).bind(|x| pure::<ThunkBrand, _>(x * 2));
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn bind<B: 'a, F>(
 			self,
 			f: F,
@@ -214,15 +222,17 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("A new `Thunk` instance with the transformed result.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(21).map(|x| x * 2);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn map<B: 'a, F>(
 			self,
 			f: F,
@@ -237,15 +247,17 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(42);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(42);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		pub fn evaluate(self) -> A {
 			(self.0)()
 		}
@@ -264,12 +276,14 @@ assert_eq!(thunk.evaluate(), 42);"#
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A thunk that evaluates the lazy value.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let lazy = Lazy::<_, RcLazyConfig>::pure(42);
-let thunk = Thunk::from(lazy);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let thunk = Thunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		fn from(lazy: Lazy<'a, A, Config>) -> Self {
 			Thunk::new(move || lazy.evaluate().clone())
 		}
@@ -295,17 +309,19 @@ assert_eq!(thunk.evaluate(), 42);"#
 		///
 		#[document_returns("The deferred thunk.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::Deferrable,
-	functions::*,
-	types::*,
-};
-
-let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
-assert_eq!(task.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let task: Thunk<i32> = Deferrable::defer(|| Thunk::pure(42));
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
@@ -331,16 +347,18 @@ assert_eq!(task.evaluate(), 42);"#
 		)]
 		///
 		#[document_returns("A new `Thunk` instance with the transformed result.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(10);
-let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
-assert_eq!(mapped.evaluate(), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let mapped = map::<ThunkBrand, _, _, _>(|x| x * 2, thunk);
+		/// assert_eq!(mapped.evaluate(), 20);
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -364,16 +382,18 @@ assert_eq!(mapped.evaluate(), 20);"#
 		///
 		#[document_returns("A new `Thunk` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
-assert_eq!(thunk.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let thunk: Thunk<i32> = pure::<ThunkBrand, _>(42);
+		/// assert_eq!(thunk.evaluate(), 42);
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Thunk::pure(a)
 		}
@@ -400,17 +420,19 @@ assert_eq!(thunk.evaluate(), 42);"#
 		#[document_returns(
 			"A new `Thunk` instance containing the result of applying the function."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let eval1 = pure::<ThunkBrand, _>(10);
-let eval2 = pure::<ThunkBrand, _>(20);
-let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
-assert_eq!(result.evaluate(), 30);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let eval1 = pure::<ThunkBrand, _>(10);
+		/// let eval2 = pure::<ThunkBrand, _>(20);
+		/// let result = lift2::<ThunkBrand, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// assert_eq!(result.evaluate(), 30);
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -447,17 +469,19 @@ assert_eq!(result.evaluate(), 30);"#
 		#[document_returns(
 			"A new `Thunk` instance containing the result of applying the function."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let val = pure::<ThunkBrand, _>(21);
-let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
-assert_eq!(result.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let func = pure::<ThunkBrand, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let val = pure::<ThunkBrand, _>(21);
+		/// let result = apply::<RcFnBrand, ThunkBrand, _, _>(func, val);
+		/// assert_eq!(result.evaluate(), 42);
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -488,16 +512,18 @@ assert_eq!(result.evaluate(), 42);"#
 		)]
 		///
 		#[document_returns("A new `Thunk` instance representing the chained computation.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(10);
-let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
-assert_eq!(result.evaluate(), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let result = bind::<ThunkBrand, _, _, _>(thunk, |x| pure::<ThunkBrand, _>(x * 2));
+		/// assert_eq!(result.evaluate(), 20);
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -523,20 +549,22 @@ assert_eq!(result.evaluate(), 20);"#
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let result = tail_rec_m::<ThunkBrand, _, _, _>(
-	|x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
-	0,
-);
-assert_eq!(result.evaluate(), 1000);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
+		/// 	|x| pure::<ThunkBrand, _>(if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) }),
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), 1000);
+		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a, F>(
 			f: F,
 			a: A,
@@ -570,17 +598,19 @@ assert_eq!(result.evaluate(), 1000);"#
 		///
 		#[document_returns("The result of running the thunk.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let thunk = Thunk::new(|| 42);
-assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let thunk = Thunk::new(|| 42);
+		/// assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);
+		/// ```
 		fn evaluate<'a, A: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
 		) -> A {
@@ -607,16 +637,18 @@ assert_eq!(evaluate::<ThunkBrand, _>(thunk), 42);"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(10);
-let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let result = fold_right::<RcFnBrand, ThunkBrand, _, _, _>(|a, b| a + b, 5, thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -646,16 +678,18 @@ assert_eq!(result, 15);"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(10);
-let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let result = fold_left::<RcFnBrand, ThunkBrand, _, _, _>(|b, a| b + a, 5, thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -682,16 +716,18 @@ assert_eq!(result, 15);"#
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-};
-
-let thunk = pure::<ThunkBrand, _>(10);
-let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
-assert_eq!(result, "10");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let thunk = pure::<ThunkBrand, _>(10);
+		/// let result = fold_map::<RcFnBrand, ThunkBrand, _, _, _>(|a| a.to_string(), thunk);
+		/// assert_eq!(result, "10");
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -716,18 +752,20 @@ assert_eq!(result, "10");"#
 		///
 		#[document_returns("A new `Thunk` containing the combined result.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-};
-
-let t1 = pure::<ThunkBrand, _>("Hello".to_string());
-let t2 = pure::<ThunkBrand, _>(" World".to_string());
-let t3 = append::<_>(t1, t2);
-assert_eq!(t3.evaluate(), "Hello World");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let t1 = pure::<ThunkBrand, _>("Hello".to_string());
+		/// let t2 = pure::<ThunkBrand, _>(" World".to_string());
+		/// let t3 = append::<_>(t1, t2);
+		/// assert_eq!(t3.evaluate(), "Hello World");
+		/// ```
 		fn append(
 			a: Self,
 			b: Self,
@@ -746,15 +784,17 @@ assert_eq!(t3.evaluate(), "Hello World");"#
 		///
 		#[document_returns("A `Thunk` producing the identity value of `A`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::*,
-	types::*,
-};
-
-let t: Thunk<String> = Thunk::empty();
-assert_eq!(t.evaluate(), "");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let t: Thunk<String> = Thunk::empty();
+		/// assert_eq!(t.evaluate(), "");
+		/// ```
 		fn empty() -> Self {
 			Thunk::new(|| Monoid::empty())
 		}

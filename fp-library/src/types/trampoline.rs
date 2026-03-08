@@ -92,12 +92,14 @@ mod inner {
 		#[document_returns("A `Trampoline` that produces the value `a`.")]
 		///
 		#[inline]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let task = Trampoline::pure(42);
-assert_eq!(task.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::pure(42);
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
 		pub fn pure(a: A) -> Self {
 			Trampoline(Free::pure(a))
 		}
@@ -118,18 +120,20 @@ assert_eq!(task.evaluate(), 42);"#
 		#[document_returns("A `Trampoline` that executes `f` when run.")]
 		///
 		#[inline]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let task = Trampoline::new(|| {
-	// println!("Computing!");
-	1 + 1
-});
-
-// Nothing printed yet
-let result = task.evaluate(); // Prints "Computing!"
-assert_eq!(result, 2);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::new(|| {
+		/// 	// println!("Computing!");
+		/// 	1 + 1
+		/// });
+		///
+		/// // Nothing printed yet
+		/// let result = task.evaluate(); // Prints "Computing!"
+		/// assert_eq!(result, 2);
+		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> A + 'static, {
@@ -150,25 +154,27 @@ assert_eq!(result, 2);"#
 		#[document_returns("A `Trampoline` that defers the creation of the inner task.")]
 		///
 		#[inline]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-fn recursive_sum(
-	n: u64,
-	acc: u64,
-) -> Trampoline<u64> {
-	if n == 0 {
-		Trampoline::pure(acc)
-	} else {
-		// Defer construction to avoid stack growth
-		Trampoline::defer(move || recursive_sum(n - 1, acc + n))
-	}
-}
-
-// This works for n = 1_000_000 without stack overflow!
-let result = recursive_sum(1_000, 0).evaluate();
-assert_eq!(result, 500500);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// fn recursive_sum(
+		/// 	n: u64,
+		/// 	acc: u64,
+		/// ) -> Trampoline<u64> {
+		/// 	if n == 0 {
+		/// 		Trampoline::pure(acc)
+		/// 	} else {
+		/// 		// Defer construction to avoid stack growth
+		/// 		Trampoline::defer(move || recursive_sum(n - 1, acc + n))
+		/// 	}
+		/// }
+		///
+		/// // This works for n = 1_000_000 without stack overflow!
+		/// let result = recursive_sum(1_000, 0).evaluate();
+		/// assert_eq!(result, 500500);
+		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Trampoline<A> + 'static, {
@@ -191,16 +197,18 @@ assert_eq!(result, 500500);"#
 		#[document_returns("A new `Trampoline` that chains `f` after this task.")]
 		///
 		#[inline]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-// This is O(n), not O(n²)
-let mut task = Trampoline::pure(0);
-for i in 0 .. 100 {
-	task = task.bind(move |x| Trampoline::pure(x + i));
-}
-assert_eq!(task.evaluate(), 4950);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// // This is O(n), not O(n²)
+		/// let mut task = Trampoline::pure(0);
+		/// for i in 0 .. 100 {
+		/// 	task = task.bind(move |x| Trampoline::pure(x + i));
+		/// }
+		/// assert_eq!(task.evaluate(), 4950);
+		/// ```
 		pub fn bind<B: 'static + Send, F>(
 			self,
 			f: F,
@@ -223,12 +231,14 @@ assert_eq!(task.evaluate(), 4950);"#
 		#[document_returns("A new `Trampoline` with the transformed result.")]
 		///
 		#[inline]
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let task = Trampoline::pure(10).map(|x| x * 2);
-assert_eq!(task.evaluate(), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::pure(10).map(|x| x * 2);
+		/// assert_eq!(task.evaluate(), 20);
+		/// ```
 		pub fn map<B: 'static + Send, F>(
 			self,
 			f: F,
@@ -248,12 +258,14 @@ assert_eq!(task.evaluate(), 20);"#
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let task = Trampoline::new(|| 1 + 1);
-assert_eq!(task.evaluate(), 2);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let task = Trampoline::new(|| 1 + 1);
+		/// assert_eq!(task.evaluate(), 2);
+		/// ```
 		pub fn evaluate(self) -> A {
 			self.0.evaluate()
 		}
@@ -271,14 +283,16 @@ assert_eq!(task.evaluate(), 2);"#
 		///
 		#[document_returns("A new `Trampoline` producing the combined result.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let t1 = Trampoline::pure(10);
-let t2 = Trampoline::pure(20);
-let t3 = t1.lift2(t2, |a, b| a + b);
-assert_eq!(t3.evaluate(), 30);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1 = Trampoline::pure(10);
+		/// let t2 = Trampoline::pure(20);
+		/// let t3 = t1.lift2(t2, |a, b| a + b);
+		/// assert_eq!(t3.evaluate(), 30);
+		/// ```
 		pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
 			self,
 			other: Trampoline<B>,
@@ -300,14 +314,16 @@ assert_eq!(t3.evaluate(), 30);"#
 			"A new `Trampoline` that runs both tasks and returns the result of the second."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let t1 = Trampoline::pure(10);
-let t2 = Trampoline::pure(20);
-let t3 = t1.then(t2);
-assert_eq!(t3.evaluate(), 20);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let t1 = Trampoline::pure(10);
+		/// let t2 = Trampoline::pure(20);
+		/// let t3 = t1.then(t2);
+		/// assert_eq!(t3.evaluate(), 20);
+		/// ```
 		pub fn then<B: 'static + Send>(
 			self,
 			other: Trampoline<B>,
@@ -335,28 +351,30 @@ assert_eq!(t3.evaluate(), 20);"#
 		)]
 		///
 		#[document_returns("A `Trampoline` that performs the recursion.")]
-		#[document_examples(
-			r#"use fp_library::types::{
-	Step,
-	Trampoline,
-};
-
-// Fibonacci using tail recursion
-fn fib(n: u64) -> Trampoline<u64> {
-	Trampoline::tail_rec_m(
-		|(n, a, b)| {
-			if n == 0 {
-				Trampoline::pure(Step::Done(a))
-			} else {
-				Trampoline::pure(Step::Loop((n - 1, b, a + b)))
-			}
-		},
-		(n, 0u64, 1u64),
-	)
-}
-
-assert_eq!(fib(50).evaluate(), 12586269025);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::{
+		/// 	Step,
+		/// 	Trampoline,
+		/// };
+		///
+		/// // Fibonacci using tail recursion
+		/// fn fib(n: u64) -> Trampoline<u64> {
+		/// 	Trampoline::tail_rec_m(
+		/// 		|(n, a, b)| {
+		/// 			if n == 0 {
+		/// 				Trampoline::pure(Step::Done(a))
+		/// 			} else {
+		/// 				Trampoline::pure(Step::Loop((n - 1, b, a + b)))
+		/// 			}
+		/// 		},
+		/// 		(n, 0u64, 1u64),
+		/// 	)
+		/// }
+		///
+		/// assert_eq!(fib(50).evaluate(), 12586269025);
+		/// ```
 		pub fn tail_rec_m<S: 'static + Send, F>(
 			f: F,
 			initial: S,
@@ -395,38 +413,40 @@ assert_eq!(fib(50).evaluate(), 12586269025);"#
 		)]
 		///
 		#[document_returns("A `Trampoline` that performs the recursion.")]
-		#[document_examples(
-			r#"use {
-	fp_library::types::{
-		Step,
-		Trampoline,
-	},
-	std::sync::{
-		Arc,
-		atomic::{
-			AtomicUsize,
-			Ordering,
-		},
-	},
-};
-
-// Closure captures non-Clone state
-let counter = Arc::new(AtomicUsize::new(0));
-let counter_clone = Arc::clone(&counter);
-let task = Trampoline::arc_tail_rec_m(
-	move |n| {
-		counter_clone.fetch_add(1, Ordering::SeqCst);
-		if n == 0 {
-			Trampoline::pure(Step::Done(0))
-		} else {
-			Trampoline::pure(Step::Loop(n - 1))
-		}
-	},
-	100,
-);
-assert_eq!(task.evaluate(), 0);
-assert_eq!(counter.load(Ordering::SeqCst), 101);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::types::{
+		/// 		Step,
+		/// 		Trampoline,
+		/// 	},
+		/// 	std::sync::{
+		/// 		Arc,
+		/// 		atomic::{
+		/// 			AtomicUsize,
+		/// 			Ordering,
+		/// 		},
+		/// 	},
+		/// };
+		///
+		/// // Closure captures non-Clone state
+		/// let counter = Arc::new(AtomicUsize::new(0));
+		/// let counter_clone = Arc::clone(&counter);
+		/// let task = Trampoline::arc_tail_rec_m(
+		/// 	move |n| {
+		/// 		counter_clone.fetch_add(1, Ordering::SeqCst);
+		/// 		if n == 0 {
+		/// 			Trampoline::pure(Step::Done(0))
+		/// 		} else {
+		/// 			Trampoline::pure(Step::Loop(n - 1))
+		/// 		}
+		/// 	},
+		/// 	100,
+		/// );
+		/// assert_eq!(task.evaluate(), 0);
+		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
+		/// ```
 		pub fn arc_tail_rec_m<S: 'static + Send, F>(
 			f: F,
 			initial: S,
@@ -453,12 +473,14 @@ assert_eq!(counter.load(Ordering::SeqCst), 101);"#
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A trampoline that evaluates the lazy value.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let lazy = Lazy::<_, RcLazyConfig>::pure(42);
-let task = Trampoline::from(lazy);
-assert_eq!(task.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let task = Trampoline::from(lazy);
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
 		fn from(lazy: Lazy<'static, A, Config>) -> Self {
 			Trampoline::new(move || lazy.evaluate().clone())
 		}
@@ -475,17 +497,19 @@ assert_eq!(task.evaluate(), 42);"#
 		///
 		#[document_returns("The deferred trampoline.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::Deferrable,
-	functions::*,
-	types::*,
-};
-
-let task: Trampoline<i32> = Deferrable::defer(|| Trampoline::pure(42));
-assert_eq!(task.evaluate(), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let task: Trampoline<i32> = Deferrable::defer(|| Trampoline::pure(42));
+		/// assert_eq!(task.evaluate(), 42);
+		/// ```
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'static,

@@ -83,12 +83,14 @@ mod inner {
 		///
 		#[document_returns("A new `TryThunk` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::new(|| Ok(42));
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::new(|| Ok(42));
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn new<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Result<A, E> + 'a, {
@@ -102,12 +104,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn pure(a: A) -> Self
 		where
 			A: 'a, {
@@ -123,12 +127,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::defer(|| TryThunk::pure(42));
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> TryThunk<'a, A, E> + 'a, {
@@ -144,12 +150,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::ok(42);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn ok(a: A) -> Self
 		where
 			A: 'a, {
@@ -163,12 +171,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance containing the error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
-assert_eq!(try_thunk.evaluate(), Err("error"));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error");
+		/// assert_eq!(try_thunk.evaluate(), Err("error"));
+		/// ```
 		pub fn err(e: E) -> Self
 		where
 			E: 'a, {
@@ -187,12 +197,14 @@ assert_eq!(try_thunk.evaluate(), Err("error"));"#
 		///
 		#[document_returns("A new `TryThunk` instance representing the chained computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).bind(|x| TryThunk::pure(x * 2));
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn bind<B: 'a, F>(
 			self,
 			f: F,
@@ -217,12 +229,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance with the transformed result.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(21).map(|x| x * 2);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn map<B: 'a, Func>(
 			self,
 			func: Func,
@@ -244,12 +258,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("A new `TryThunk` instance with the transformed error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
-assert_eq!(try_thunk.evaluate(), Err(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, i32> = TryThunk::err(21).map_err(|x| x * 2);
+		/// assert_eq!(try_thunk.evaluate(), Err(42));
+		/// ```
 		pub fn map_err<E2: 'a, F>(
 			self,
 			f: F,
@@ -268,12 +284,14 @@ assert_eq!(try_thunk.evaluate(), Err(42));"#
 		///
 		#[document_returns("A new `TryThunk` that attempts to recover from failure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::pure(42));
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, &str> = TryThunk::err("error").catch(|_| TryThunk::pure(42));
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn catch<F>(
 			self,
 			f: F,
@@ -291,12 +309,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::*;
-
-let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		///
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::pure(42);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		pub fn evaluate(self) -> Result<A, E> {
 			(self.0)()
 		}
@@ -317,12 +337,14 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		#[document_signature]
 		#[document_parameters("The lazy value to convert.")]
 		#[document_returns("A new `TryThunk` instance that wraps the lazy value.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let lazy = Lazy::<_, RcLazyConfig>::pure(42);
-let thunk: TryThunk<i32, ()> = TryThunk::from(lazy);
-assert_eq!(thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = Lazy::<_, RcLazyConfig>::pure(42);
+		/// let thunk: TryThunk<i32, ()> = TryThunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
 		fn from(memo: Lazy<'a, A, Config>) -> Self {
 			TryThunk::new(move || Ok(memo.evaluate().clone()))
 		}
@@ -343,12 +365,14 @@ assert_eq!(thunk.evaluate(), Ok(42));"#
 		#[document_signature]
 		#[document_parameters("The fallible lazy value to convert.")]
 		#[document_returns("A new `TryThunk` instance that wraps the fallible lazy value.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let lazy = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
-let thunk = TryThunk::from(lazy);
-assert_eq!(thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let lazy = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
+		/// let thunk = TryThunk::from(lazy);
+		/// assert_eq!(thunk.evaluate(), Ok(42));
+		/// ```
 		fn from(memo: TryLazy<'a, A, E, Config>) -> Self {
 			TryThunk::new(move || memo.evaluate().cloned().map_err(Clone::clone))
 		}
@@ -363,12 +387,14 @@ assert_eq!(thunk.evaluate(), Ok(42));"#
 		#[document_signature]
 		#[document_parameters("The thunk to convert.")]
 		#[document_returns("A new `TryThunk` instance that wraps the thunk.")]
-		#[document_examples(
-			r#"use fp_library::types::*;
-let thunk = Thunk::new(|| 42);
-let try_thunk: TryThunk<i32, ()> = TryThunk::from(thunk);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::*;
+		/// let thunk = Thunk::new(|| 42);
+		/// let try_thunk: TryThunk<i32, ()> = TryThunk::from(thunk);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		fn from(eval: Thunk<'a, A>) -> Self {
 			TryThunk::new(move || Ok(eval.evaluate()))
 		}
@@ -393,17 +419,19 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		///
 		#[document_returns("The deferred try thunk.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::Deferrable,
-	functions::*,
-	types::*,
-};
-
-let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::pure(42));
-assert_eq!(task.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::Deferrable,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let task: TryThunk<i32, ()> = Deferrable::defer(|| TryThunk::pure(42));
+		/// assert_eq!(task.evaluate(), Ok(42));
+		/// ```
 		fn defer<F>(f: F) -> Self
 		where
 			F: FnOnce() -> Self + 'a,
@@ -437,17 +465,19 @@ assert_eq!(task.evaluate(), Ok(42));"#
 		)]
 		///
 		#[document_returns("A new `TryThunk` instance with the transformed result.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let mapped = map::<TryThunkErrAppliedBrand<()>, _, _, _>(|x| x * 2, try_thunk);
-assert_eq!(mapped.evaluate(), Ok(20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let mapped = map::<TryThunkErrAppliedBrand<()>, _, _, _>(|x| x * 2, try_thunk);
+		/// assert_eq!(mapped.evaluate(), Ok(20));
+		/// ```
 		fn map<'a, A: 'a, B: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -472,16 +502,18 @@ assert_eq!(mapped.evaluate(), Ok(20));"#
 		///
 		#[document_returns("A new `TryThunk` instance containing the value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(42);
-assert_eq!(try_thunk.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(42);
+		/// assert_eq!(try_thunk.evaluate(), Ok(42));
+		/// ```
 		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			TryThunk::pure(a)
 		}
@@ -509,18 +541,20 @@ assert_eq!(try_thunk.evaluate(), Ok(42));"#
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
-let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
-assert_eq!(result.evaluate(), Ok(30));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let eval1: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let eval2: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(20);
+		/// let result = lift2::<TryThunkErrAppliedBrand<()>, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// assert_eq!(result.evaluate(), Ok(30));
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -561,19 +595,21 @@ assert_eq!(result.evaluate(), Ok(30));"#
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let func: TryThunk<_, ()> =
-	pure::<TryThunkErrAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
-let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
-assert_eq!(result.evaluate(), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let func: TryThunk<_, ()> =
+		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let val: TryThunk<_, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(21);
+		/// let result = apply::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _>(func, val);
+		/// assert_eq!(result.evaluate(), Ok(42));
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -605,19 +641,21 @@ assert_eq!(result.evaluate(), Ok(42));"#
 		)]
 		///
 		#[document_returns("A new `TryThunk` instance representing the chained computation.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let result = bind::<TryThunkErrAppliedBrand<()>, _, _, _>(try_thunk, |x| {
-	pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
-});
-assert_eq!(result.evaluate(), Ok(20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let result = bind::<TryThunkErrAppliedBrand<()>, _, _, _>(try_thunk, |x| {
+		/// 	pure::<TryThunkErrAppliedBrand<()>, _>(x * 2)
+		/// });
+		/// assert_eq!(result.evaluate(), Ok(20));
+		/// ```
 		fn bind<'a, A: 'a, B: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			func: Func,
@@ -644,24 +682,26 @@ assert_eq!(result.evaluate(), Ok(20));"#
 		///
 		#[document_returns("The result of the computation.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let result = tail_rec_m::<TryThunkErrAppliedBrand<()>, _, _, _>(
-	|x| {
-		pure::<TryThunkErrAppliedBrand<()>, _>(
-			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
-		)
-	},
-	0,
-);
-assert_eq!(result.evaluate(), Ok(1000));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let result = tail_rec_m::<TryThunkErrAppliedBrand<()>, _, _, _>(
+		/// 	|x| {
+		/// 		pure::<TryThunkErrAppliedBrand<()>, _>(
+		/// 			if x < 1000 { Step::Loop(x + 1) } else { Step::Done(x) },
+		/// 		)
+		/// 	},
+		/// 	0,
+		/// );
+		/// assert_eq!(result.evaluate(), Ok(1000));
+		/// ```
 		fn tail_rec_m<'a, A: 'a, B: 'a, F>(
 			f: F,
 			a: A,
@@ -703,18 +743,20 @@ assert_eq!(result.evaluate(), Ok(1000));"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let result =
-	fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let result =
+		/// 	fold_right::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|a, b| a + b, 5, try_thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -747,18 +789,20 @@ assert_eq!(result, 15);"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let result =
-	fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let result =
+		/// 	fold_left::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -788,18 +832,20 @@ assert_eq!(result, 15);"#
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
-let result =
-	fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|a| a.to_string(), try_thunk);
-assert_eq!(result, "10");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(10);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, TryThunkErrAppliedBrand<()>, _, _, _>(|a| a.to_string(), try_thunk);
+		/// assert_eq!(result, "10");
+		/// ```
 		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
@@ -828,19 +874,21 @@ assert_eq!(result, "10");"#
 		///
 		#[document_returns("A new `TryThunk` containing the combined result.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::*,
-	functions::*,
-	types::*,
-};
-
-let t1: TryThunk<String, ()> = pure::<TryThunkErrAppliedBrand<()>, _>("Hello".to_string());
-let t2: TryThunk<String, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(" World".to_string());
-let t3 = append::<_>(t1, t2);
-assert_eq!(t3.evaluate(), Ok("Hello World".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let t1: TryThunk<String, ()> = pure::<TryThunkErrAppliedBrand<()>, _>("Hello".to_string());
+		/// let t2: TryThunk<String, ()> = pure::<TryThunkErrAppliedBrand<()>, _>(" World".to_string());
+		/// let t3 = append::<_>(t1, t2);
+		/// assert_eq!(t3.evaluate(), Ok("Hello World".to_string()));
+		/// ```
 		fn append(
 			a: Self,
 			b: Self,
@@ -864,15 +912,17 @@ assert_eq!(t3.evaluate(), Ok("Hello World".to_string()));"#
 		///
 		#[document_returns("A `TryThunk` producing the identity value of `A`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::*,
-	types::*,
-};
-
-let t: TryThunk<String, ()> = TryThunk::empty();
-assert_eq!(t.evaluate(), Ok("".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let t: TryThunk<String, ()> = TryThunk::empty();
+		/// assert_eq!(t.evaluate(), Ok("".to_string()));
+		/// ```
 		fn empty() -> Self {
 			TryThunk::new(|| Ok(Monoid::empty()))
 		}
@@ -913,26 +963,28 @@ assert_eq!(t.evaluate(), Ok("".to_string()));"#
 		)]
 		///
 		#[document_returns("A new `TryThunk` containing the mapped values.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::bifunctor::*,
-	functions::*,
-	types::*,
-};
-
-let x: TryThunk<i32, i32> = TryThunk::pure(5);
-assert_eq!(
-	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(),
-	Ok(10)
-);
-
-let y: TryThunk<i32, i32> = TryThunk::err(5);
-assert_eq!(
-	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(),
-	Err(6)
-);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::bifunctor::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let x: TryThunk<i32, i32> = TryThunk::pure(5);
+		/// assert_eq!(
+		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x).evaluate(),
+		/// 	Ok(10)
+		/// );
+		///
+		/// let y: TryThunk<i32, i32> = TryThunk::err(5);
+		/// assert_eq!(
+		/// 	bimap::<TryThunkBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y).evaluate(),
+		/// 	Err(6)
+		/// );
+		/// ```
 		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
 			f: F,
 			g: G,
@@ -971,17 +1023,19 @@ assert_eq!(
 		///
 		#[document_returns("A new `TryThunk` instance with the transformed error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let mapped = map::<TryThunkOkAppliedBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
-assert_eq!(mapped.evaluate(), Err(20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let mapped = map::<TryThunkOkAppliedBrand<i32>, _, _, _>(|x| x * 2, try_thunk);
+		/// assert_eq!(mapped.evaluate(), Err(20));
+		/// ```
 		fn map<'a, E: 'a, E2: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
@@ -1006,16 +1060,18 @@ assert_eq!(mapped.evaluate(), Err(20));"#
 		///
 		#[document_returns("A new `TryThunk` instance containing the value as an error.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(42);
-assert_eq!(try_thunk.evaluate(), Err(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(42);
+		/// assert_eq!(try_thunk.evaluate(), Err(42));
+		/// ```
 		fn pure<'a, E: 'a>(e: E) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>) {
 			TryThunk::err(e)
 		}
@@ -1043,18 +1099,20 @@ assert_eq!(try_thunk.evaluate(), Err(42));"#
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function to the errors."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
-let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
-assert_eq!(result.evaluate(), Err(30));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let eval1: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let eval2: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(20);
+		/// let result = lift2::<TryThunkOkAppliedBrand<i32>, _, _, _, _>(|a, b| a + b, eval1, eval2);
+		/// assert_eq!(result.evaluate(), Err(30));
+		/// ```
 		fn lift2<'a, E1, E2, E3, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
@@ -1099,19 +1157,21 @@ assert_eq!(result.evaluate(), Err(30));"#
 		#[document_returns(
 			"A new `TryThunk` instance containing the result of applying the function."
 		)]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let func: TryThunk<i32, _> =
-	pure::<TryThunkOkAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
-let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
-assert_eq!(result.evaluate(), Err(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let func: TryThunk<i32, _> =
+		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let val: TryThunk<i32, _> = pure::<TryThunkOkAppliedBrand<i32>, _>(21);
+		/// let result = apply::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _>(func, val);
+		/// assert_eq!(result.evaluate(), Err(42));
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, E1: 'a + Clone, E2: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, E1, E2>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
@@ -1142,19 +1202,21 @@ assert_eq!(result.evaluate(), Err(42));"#
 		)]
 		///
 		#[document_returns("A new `TryThunk` instance representing the chained computation.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let result = bind::<TryThunkOkAppliedBrand<i32>, _, _, _>(try_thunk, |x| {
-	pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
-});
-assert_eq!(result.evaluate(), Err(20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let result = bind::<TryThunkOkAppliedBrand<i32>, _, _, _>(try_thunk, |x| {
+		/// 	pure::<TryThunkOkAppliedBrand<i32>, _>(x * 2)
+		/// });
+		/// assert_eq!(result.evaluate(), Err(20));
+		/// ```
 		fn bind<'a, E1: 'a, E2: 'a, Func>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E1>),
 			func: Func,
@@ -1188,18 +1250,20 @@ assert_eq!(result.evaluate(), Err(20));"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let result =
-	fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let result =
+		/// 	fold_right::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|a, b| a + b, 5, try_thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_right<'a, FnBrand, E: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -1232,18 +1296,20 @@ assert_eq!(result, 15);"#
 		)]
 		///
 		#[document_returns("The final accumulator value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let result =
-	fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
-assert_eq!(result, 15);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let result =
+		/// 	fold_left::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|b, a| b + a, 5, try_thunk);
+		/// assert_eq!(result, 15);
+		/// ```
 		fn fold_left<'a, FnBrand, E: 'a, B: 'a, Func>(
 			func: Func,
 			initial: B,
@@ -1273,18 +1339,20 @@ assert_eq!(result, 15);"#
 		///
 		#[document_returns("The monoid value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
-let result =
-	fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|a| a.to_string(), try_thunk);
-assert_eq!(result, "10");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let try_thunk: TryThunk<i32, i32> = pure::<TryThunkOkAppliedBrand<i32>, _>(10);
+		/// let result =
+		/// 	fold_map::<RcFnBrand, TryThunkOkAppliedBrand<i32>, _, _, _>(|a| a.to_string(), try_thunk);
+		/// assert_eq!(result, "10");
+		/// ```
 		fn fold_map<'a, FnBrand, E: 'a, M, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),

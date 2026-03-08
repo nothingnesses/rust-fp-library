@@ -59,20 +59,22 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::cloneable_fn::new as cloneable_fn_new,
-	types::optics::Stall,
-};
-
-let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
-	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
-);
-assert_eq!((stall.get)((10, 20)), Ok(10));
-assert_eq!((stall.set)(((10, 20), 30)), (30, 20));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::cloneable_fn::new as cloneable_fn_new,
+		/// 	types::optics::Stall,
+		/// };
+		///
+		/// let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+		/// );
+		/// assert_eq!((stall.get)((10, 20)), Ok(10));
+		/// assert_eq!((stall.set)(((10, 20), 30)), (30, 20));
+		/// ```
 		pub fn new(
 			get: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 			set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
@@ -126,29 +128,31 @@ assert_eq!((stall.set)(((10, 20), 30)), (30, 20));"#
 		)]
 		#[document_returns("A transformed `Stall` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		cloneable_fn::new as cloneable_fn_new,
-	},
-	types::optics::*,
-};
-
-// Stall is usually used internally by AffineTraversal optics
-let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
-	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
-);
-let transformed = <StallBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
-	|s: (i32, i32)| s,
-	|t: (i32, i32)| t,
-	stall,
-);
-assert_eq!((transformed.get)((10, 20)), Ok(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// // Stall is usually used internally by AffineTraversal optics
+		/// let stall = Stall::<RcFnBrand, i32, i32, (i32, i32), (i32, i32)>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: (i32, i32)| Ok(s.0)),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(s, b): ((i32, i32), i32)| (b, s.1)),
+		/// );
+		/// let transformed = <StallBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
+		/// 	|s: (i32, i32)| s,
+		/// 	|t: (i32, i32)| t,
+		/// 	stall,
+		/// );
+		/// assert_eq!((transformed.get)((10, 20)), Ok(10));
+		/// ```
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,
@@ -190,24 +194,26 @@ assert_eq!((transformed.get)((10, 20)), Ok(10));"#
 		#[document_parameters("The stall instance to transform.")]
 		#[document_returns("A transformed `Stall` instance that operates on tuples.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		cloneable_fn::new as cloneable_fn_new,
-	},
-	types::optics::*,
-};
-
-let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
-	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
-);
-let lifted = <StallBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, String>(stall);
-assert_eq!((lifted.get)((10, "hi".to_string())), Ok(10));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
+		/// );
+		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, String>(stall);
+		/// assert_eq!((lifted.get)((10, "hi".to_string())), Ok(10));
+		/// ```
 		fn first<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (S, C), (T, C)>) {
@@ -240,24 +246,26 @@ assert_eq!((lifted.get)((10, "hi".to_string())), Ok(10));"#
 			"A transformed `Stall` instance that operates on the left component of a `Result`."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		cloneable_fn::new as cloneable_fn_new,
-	},
-	types::optics::*,
-};
-
-let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
-	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
-);
-let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, String>(stall);
-assert!((lifted.get)(Err(10)).is_ok());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| Ok(s)),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_s, b): (i32, i32)| b),
+		/// );
+		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, String>(stall);
+		/// assert!((lifted.get)(Err(10)).is_ok());
+		/// ```
 		fn left<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, S>, Result<C, T>>)
@@ -290,24 +298,26 @@ assert!((lifted.get)(Err(10)).is_ok());"#
 			"A transformed `Stall` instance that operates on the right component of a `Result`."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		cloneable_fn::new as cloneable_fn_new,
-	},
-	types::optics::*,
-};
-
-let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
-	cloneable_fn_new::<RcFnBrand, _, _>(|(_, b)| b),
-);
-let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, i32>(stall);
-assert_eq!((lifted.get)(Ok(42)), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		cloneable_fn::new as cloneable_fn_new,
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let stall = Stall::<RcFnBrand, i32, i32, i32, i32>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s| Ok(s)),
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|(_, b)| b),
+		/// );
+		/// let lifted = <StallBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, i32>(stall);
+		/// assert_eq!((lifted.get)(Ok(42)), Ok(42));
+		/// ```
 		fn right<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<S, C>, Result<T, C>>)

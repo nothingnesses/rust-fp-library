@@ -65,17 +65,19 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Setter` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Setter,
-};
-
-let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-let cloned = s.clone();
-assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Setter,
+		/// };
+		///
+		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let cloned = s.clone();
+		/// assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		fn clone(&self) -> Self {
 			Setter {
 				over_fn: self.over_fn.clone(),
@@ -107,16 +109,18 @@ assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Setter,
-};
-
-let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Setter,
+		/// };
+		///
+		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
 			Setter {
 				over_fn: <FnBrand<P> as CloneableFn>::new(over),
@@ -130,16 +134,18 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		///
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Setter,
-};
-
-let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Setter,
+		/// };
+		///
+		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		pub fn over(
 			&self,
 			s: S,
@@ -171,21 +177,23 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
+		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
@@ -220,25 +228,27 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
-	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let s: Setter<RcBrand, (i32, String), (i32, String), i32, i32> =
+		/// 	Setter::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
+		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, B>),
@@ -280,17 +290,19 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 	{
 		#[document_signature]
 		#[document_returns("A new `SetterPrime` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::SetterPrime,
-};
-
-let s: SetterPrime<RcBrand, (i32, String), i32> =
-	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-let cloned = s.clone();
-assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::SetterPrime,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// let cloned = s.clone();
+		/// assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		fn clone(&self) -> Self {
 			SetterPrime {
 				over_fn: self.over_fn.clone(),
@@ -318,16 +330,18 @@ assert_eq!(cloned.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::SetterPrime,
-};
-
-let s: SetterPrime<RcBrand, (i32, String), i32> =
-	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::SetterPrime,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
 			SetterPrime {
 				over_fn: <FnBrand<P> as CloneableFn>::new(over),
@@ -341,16 +355,18 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		///
 		#[document_returns("The updated structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::SetterPrime,
-};
-
-let s: SetterPrime<RcBrand, (i32, String), i32> =
-	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::SetterPrime,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		/// assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));
+		/// ```
 		pub fn over(
 			&self,
 			s: S,
@@ -378,21 +394,23 @@ assert_eq!(s.over((42, "hi".to_string()), |x| x + 1), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let s: SetterPrime<RcBrand, (i32, String), i32> =
-	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&s, f);
+		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
@@ -423,25 +441,27 @@ assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use {
-	fp_library::{
-		brands::*,
-		classes::optics::*,
-		functions::*,
-		types::optics::*,
-	},
-	std::rc::Rc,
-};
-
-let s: SetterPrime<RcBrand, (i32, String), i32> =
-	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
-
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
-assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use {
+		/// 	fp_library::{
+		/// 		brands::*,
+		/// 		classes::optics::*,
+		/// 		functions::*,
+		/// 		types::optics::*,
+		/// 	},
+		/// 	std::rc::Rc,
+		/// };
+		///
+		/// let s: SetterPrime<RcBrand, (i32, String), i32> =
+		/// 	SetterPrime::new(|(s, f): ((i32, String), Box<dyn Fn(i32) -> i32>)| (f(s.0), s.1));
+		///
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: Rc<dyn Fn((i32, String)) -> (i32, String)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&s, f);
+		/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),

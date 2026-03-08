@@ -43,13 +43,15 @@ mod inner {
 	impl<F: Clone> Clone for IterableFoldFn<F> {
 		#[document_signature]
 		#[document_returns("A new `Fold` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::types::optics::IterableFoldFn;
-
-let f = IterableFoldFn(|v: Vec<i32>| v);
-let cloned = f.clone();
-assert_eq!(cloned.0(vec![1, 2]), vec![1, 2]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::optics::IterableFoldFn;
+		///
+		/// let f = IterableFoldFn(|v: Vec<i32>| v);
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(vec![1, 2]), vec![1, 2]);
+		/// ```
 		fn clone(&self) -> Self {
 			IterableFoldFn(self.0.clone())
 		}
@@ -72,19 +74,21 @@ assert_eq!(cloned.0(vec![1, 2]), vec![1, 2]);"#
 		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
 		#[document_parameters("The mapping function.", "The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	classes::monoid::Monoid,
-	types::optics::{
-		FoldFunc,
-		IterableFoldFn,
-	},
-};
-
-let fold = IterableFoldFn(|v: Vec<i32>| v);
-let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
-assert_eq!(result, "123".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::monoid::Monoid,
+		/// 	types::optics::{
+		/// 		FoldFunc,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let fold = IterableFoldFn(|v: Vec<i32>| v);
+		/// let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
+		/// assert_eq!(result, "123".to_string());
+		/// ```
 		fn apply<R: Monoid, FArg: Fn(A) -> R + 'a>(
 			&self,
 			f: FArg,
@@ -140,20 +144,22 @@ assert_eq!(result, "123".to_string());"#
 	{
 		#[document_signature]
 		#[document_returns("A new `Fold` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		Fold,
-		IterableFoldFn,
-	},
-};
-
-let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
-	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
-let cloned = f.clone();
-assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);
+		/// ```
 		fn clone(&self) -> Self {
 			Fold {
 				fold_fn: self.fold_fn.clone(),
@@ -188,19 +194,21 @@ assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		Fold,
-		IterableFoldFn,
-	},
-};
-
-let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
-	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
-assert_eq!(f.to_vec(vec![1, 2]), vec![1, 2]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// assert_eq!(f.to_vec(vec![1, 2]), vec![1, 2]);
+		/// ```
 		pub fn new(fold_fn: F) -> Self {
 			Fold {
 				fold_fn,
@@ -215,19 +223,21 @@ assert_eq!(f.to_vec(vec![1, 2]), vec![1, 2]);"#
 		///
 		#[document_returns("A `Vec` containing all the focuses.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		Fold,
-		IterableFoldFn,
-	},
-};
-
-let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
-	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
-assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		Fold,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let f: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);
+		/// ```
 		pub fn to_vec(
 			&self,
 			s: S,
@@ -264,20 +274,22 @@ assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let f_optic: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
-	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
-let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
-assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let f_optic: Fold<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _> =
+		/// 	Fold::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
+		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
+		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),
@@ -329,19 +341,20 @@ assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
 	{
 		#[document_signature]
 		#[document_returns("A new `FoldPrime` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		FoldPrime,
-		IterableFoldFn,
-	},
-};
-let f: FoldPrime<RcBrand, Vec<i32>, i32, _> =
-	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
-let cloned = f.clone();
-assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);
+		/// ```
 		fn clone(&self) -> Self {
 			FoldPrime {
 				fold_fn: self.fold_fn.clone(),
@@ -372,18 +385,20 @@ assert_eq!(cloned.to_vec(vec![1, 2]), vec![1, 2]);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		FoldPrime,
-		IterableFoldFn,
-	},
-};
-
-let f: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
-assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);
+		/// ```
 		pub fn new(fold_fn: F) -> Self {
 			FoldPrime {
 				fold_fn,
@@ -398,18 +413,20 @@ assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
 		///
 		#[document_returns("A `Vec` containing all the focuses.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::{
-		FoldPrime,
-		IterableFoldFn,
-	},
-};
-
-let f: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
-assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::{
+		/// 		FoldPrime,
+		/// 		IterableFoldFn,
+		/// 	},
+		/// };
+		///
+		/// let f: FoldPrime<RcBrand, Vec<i32>, i32, _> = FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);
+		/// ```
 		pub fn to_vec(
 			&self,
 			s: S,
@@ -442,20 +459,22 @@ assert_eq!(f.to_vec(vec![1, 2, 3]), vec![1, 2, 3]);"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let f_optic: FoldPrime<RcBrand, Vec<i32>, i32, _> =
-	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
-let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
-assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let f_optic: FoldPrime<RcBrand, Vec<i32>, i32, _> =
+		/// 	FoldPrime::new(IterableFoldFn(|v: Vec<i32>| v));
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
+		/// let folded: Forget<RcBrand, String, Vec<i32>, Vec<i32>> = FoldOptic::evaluate(&f_optic, f);
+		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>),

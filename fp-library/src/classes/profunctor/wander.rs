@@ -80,7 +80,14 @@ pub trait Wander: Strong + Choice {
 	/// 		s: Vec<A>,
 	/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 	/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-	/// 			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
+	/// 			M::lift2(
+	/// 				|mut v: Vec<A>, x: A| {
+	/// 					v.push(x);
+	/// 					v
+	/// 				},
+	/// 				acc,
+	/// 				f(a),
+	/// 			)
 	/// 		})
 	/// 	}
 	/// }
@@ -144,7 +151,14 @@ pub trait Wander: Strong + Choice {
 /// 		s: Vec<A>,
 /// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<A>>) {
 /// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-/// 			M::lift2(|mut v: Vec<A>, x: A| { v.push(x); v }, acc, f(a))
+/// 			M::lift2(
+/// 				|mut v: Vec<A>, x: A| {
+/// 					v.push(x);
+/// 					v
+/// 				},
+/// 				acc,
+/// 				f(a),
+/// 			)
 /// 		})
 /// 	}
 /// }

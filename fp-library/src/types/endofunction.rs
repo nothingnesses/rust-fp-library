@@ -67,16 +67,18 @@ mod inner {
 		///
 		#[document_returns("A new `Endofunction`.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-assert_eq!(f.0(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		pub fn new(f: <FnBrand as CloneableFn>::Of<'a, A, A>) -> Self {
 			Self(f)
 		}
@@ -91,12 +93,18 @@ assert_eq!(f.0(5), 10);"#
 	impl<'a, FnBrand: CloneableFn, A: 'a> Clone for Endofunction<'a, FnBrand, A> {
 		#[document_signature]
 		#[document_returns("The cloned endofunction.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let cloned = f.clone();
-assert_eq!(cloned.0(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let cloned = f.clone();
+		/// assert_eq!(cloned.0(5), 10);
+		/// ```
 		fn clone(&self) -> Self {
 			Self::new(self.0.clone())
 		}
@@ -115,13 +123,19 @@ assert_eq!(cloned.0(5), 10);"#
 		#[document_signature]
 		#[document_parameters("The formatter to use.")]
 		#[document_returns("The result of the formatting operation.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-// Debug formatting is available when the inner function type implements Debug.
-// Verify the endofunction applies correctly:
-assert_eq!(f.0(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Debug formatting is available when the inner function type implements Debug.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn fmt(
 			&self,
 			fmt: &mut Formatter<'_>,
@@ -153,13 +167,19 @@ assert_eq!(f.0(5), 10);"#
 		#[document_signature]
 		#[document_type_parameters("The type of the hasher.")]
 		#[document_parameters("The hasher state to update.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-// Hash is available when the inner function type implements Hash.
-// Verify the endofunction applies correctly:
-assert_eq!(f.0(5), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Hash is available when the inner function type implements Hash.
+		/// // Verify the endofunction applies correctly:
+		/// assert_eq!(f.0(5), 10);
+		/// ```
 		fn hash<H: std::hash::Hasher>(
 			&self,
 			state: &mut H,
@@ -181,14 +201,20 @@ assert_eq!(f.0(5), 10);"#
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
 		#[document_returns("The ordering of the values.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-// Ord is available when the inner function type implements Ord.
-// Both produce the same output for the same input:
-assert_eq!(f.0(5), g.0(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // Ord is available when the inner function type implements Ord.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn cmp(
 			&self,
 			other: &Self,
@@ -210,14 +236,20 @@ assert_eq!(f.0(5), g.0(5));"#
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
 		#[document_returns("True if the values are equal, false otherwise.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-// PartialEq is available when the inner function type implements PartialEq.
-// Both produce the same output for the same input:
-assert_eq!(f.0(5), g.0(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialEq is available when the inner function type implements PartialEq.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn eq(
 			&self,
 			other: &Self,
@@ -239,14 +271,20 @@ assert_eq!(f.0(5), g.0(5));"#
 		#[document_signature]
 		#[document_parameters("The other function to compare to.")]
 		#[document_returns("An ordering if the values can be compared, none otherwise.")]
-		#[document_examples(
-			r#"use fp_library::{brands::*, functions::*, types::*};
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-// PartialOrd is available when the inner function type implements PartialOrd.
-// Both produce the same output for the same input:
-assert_eq!(f.0(5), g.0(5));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// // PartialOrd is available when the inner function type implements PartialOrd.
+		/// // Both produce the same output for the same input:
+		/// assert_eq!(f.0(5), g.0(5));
+		/// ```
 		fn partial_cmp(
 			&self,
 			other: &Self,
@@ -274,20 +312,22 @@ assert_eq!(f.0(5), g.0(5));"#
 		)]
 		///
 		#[document_returns("The composed function `a . b`.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
-let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
-
-// f(g(x)) = (x + 1) * 2
-let h = append::<_>(f, g);
-assert_eq!(h.0(5), 12);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let f = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2));
+		/// let g = Endofunction::<RcFnBrand, _>::new(cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1));
+		///
+		/// // f(g(x)) = (x + 1) * 2
+		/// let h = append::<_>(f, g);
+		/// assert_eq!(h.0(5), 12);
+		/// ```
 		fn append(
 			a: Self,
 			b: Self,
@@ -312,16 +352,18 @@ assert_eq!(h.0(5), 12);"#
 		///
 		#[document_returns("The identity endofunction.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::*,
-};
-
-let id = empty::<Endofunction<RcFnBrand, i32>>();
-assert_eq!(id.0(5), 5);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::*,
+		/// };
+		///
+		/// let id = empty::<Endofunction<RcFnBrand, i32>>();
+		/// assert_eq!(id.0(5), 5);
+		/// ```
 		fn empty() -> Self {
 			Self::new(<FnBrand as CloneableFn>::new(identity))
 		}

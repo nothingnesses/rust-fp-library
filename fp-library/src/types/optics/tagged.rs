@@ -50,12 +50,14 @@ mod inner {
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::types::optics::Tagged;
-
-let tagged = Tagged::<String, i32>::new(123);
-assert_eq!(tagged.0, 123);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::optics::Tagged;
+		///
+		/// let tagged = Tagged::<String, i32>::new(123);
+		/// assert_eq!(tagged.0, 123);
+		/// ```
 		pub fn new(b: B) -> Self {
 			Tagged(b, PhantomData)
 		}
@@ -92,25 +94,27 @@ assert_eq!(tagged.0, 123);"#
 		)]
 		#[document_returns("A transformed `Tagged` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		*,
-	},
-	types::optics::*,
-};
-
-let tagged: Tagged<String, usize> = Tagged::new(123);
-let transformed = <TaggedBrand as Profunctor>::dimap(
-	|s: &str| s.to_string(),
-	|n: usize| n.to_string(),
-	tagged,
-);
-assert_eq!(transformed.0, "123".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<String, usize> = Tagged::new(123);
+		/// let transformed = <TaggedBrand as Profunctor>::dimap(
+		/// 	|s: &str| s.to_string(),
+		/// 	|n: usize| n.to_string(),
+		/// 	tagged,
+		/// );
+		/// assert_eq!(transformed.0, "123".to_string());
+		/// ```
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			_ab: FuncAB,
 			cd: FuncCD,
@@ -138,21 +142,23 @@ assert_eq!(transformed.0, "123".to_string());"#
 			"A transformed `Tagged` instance that operates on the left component of a `Result`."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		*,
-	},
-	types::optics::*,
-};
-
-let tagged: Tagged<usize, usize> = Tagged::new(123);
-let transformed = <TaggedBrand as Choice>::left::<usize, usize, String>(tagged);
-assert_eq!(transformed.0, Err(123));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<usize, usize> = Tagged::new(123);
+		/// let transformed = <TaggedBrand as Choice>::left::<usize, usize, String>(tagged);
+		/// assert_eq!(transformed.0, Err(123));
+		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -174,21 +180,23 @@ assert_eq!(transformed.0, Err(123));"#
 			"A transformed `Tagged` instance that operates on the right component of a `Result`."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::{
-		optics::*,
-		profunctor::*,
-		*,
-	},
-	types::optics::*,
-};
-
-let tagged: Tagged<usize, usize> = Tagged::new(123);
-let transformed = <TaggedBrand as Choice>::right::<usize, usize, String>(tagged);
-assert_eq!(transformed.0, Ok(123));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<usize, usize> = Tagged::new(123);
+		/// let transformed = <TaggedBrand as Choice>::right::<usize, usize, String>(tagged);
+		/// assert_eq!(transformed.0, Ok(123));
+		/// ```
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
@@ -215,16 +223,18 @@ assert_eq!(transformed.0, Ok(123));"#
 		///
 		#[document_returns("A transformed `Tagged` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::profunctor::*,
-	types::optics::*,
-};
-
-let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
-let result = <TaggedBrand as Cochoice>::unleft::<i32, i32, String>(tagged);
-assert_eq!(result.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::profunctor::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
+		/// let result = <TaggedBrand as Cochoice>::unleft::<i32, i32, String>(tagged);
+		/// assert_eq!(result.0, 42);
+		/// ```
 		fn unleft<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -251,16 +261,18 @@ assert_eq!(result.0, 42);"#
 		///
 		#[document_returns("A transformed `Tagged` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::profunctor::*,
-	types::optics::*,
-};
-
-let tagged: Tagged<Result<i32, String>, Result<i32, String>> = Tagged::new(Ok(42));
-let result = <TaggedBrand as Cochoice>::unright::<i32, i32, String>(tagged);
-assert_eq!(result.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::profunctor::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<Result<i32, String>, Result<i32, String>> = Tagged::new(Ok(42));
+		/// let result = <TaggedBrand as Cochoice>::unright::<i32, i32, String>(tagged);
+		/// assert_eq!(result.0, 42);
+		/// ```
 		fn unright<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -289,16 +301,18 @@ assert_eq!(result.0, 42);"#
 		///
 		#[document_returns("A transformed `Tagged` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::profunctor::*,
-	types::optics::*,
-};
-
-let tagged: Tagged<(i32, String), (i32, String)> = Tagged::new((42, "hello".to_string()));
-let result = <TaggedBrand as Costrong>::unfirst::<i32, i32, String>(tagged);
-assert_eq!(result.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::profunctor::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<(i32, String), (i32, String)> = Tagged::new((42, "hello".to_string()));
+		/// let result = <TaggedBrand as Costrong>::unfirst::<i32, i32, String>(tagged);
+		/// assert_eq!(result.0, 42);
+		/// ```
 		fn unfirst<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
@@ -322,16 +336,18 @@ assert_eq!(result.0, 42);"#
 		///
 		#[document_returns("A transformed `Tagged` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	classes::profunctor::*,
-	types::optics::*,
-};
-
-let tagged: Tagged<(String, i32), (String, i32)> = Tagged::new(("hello".to_string(), 42));
-let result = <TaggedBrand as Costrong>::unsecond::<i32, i32, String>(tagged);
-assert_eq!(result.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::profunctor::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<(String, i32), (String, i32)> = Tagged::new(("hello".to_string(), 42));
+		/// let result = <TaggedBrand as Costrong>::unsecond::<i32, i32, String>(tagged);
+		/// assert_eq!(result.0, 42);
+		/// ```
 		fn unsecond<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {

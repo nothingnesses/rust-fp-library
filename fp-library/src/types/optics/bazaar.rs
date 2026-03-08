@@ -105,23 +105,25 @@ mod inner {
 		///
 		#[document_returns("A new `BazaarList` with the same foci but a transformed rebuild.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		BazaarList,
-		BazaarListBrand,
-	},
-};
-
-let bl = BazaarList::<RcFnBrand, i32, i32, i32> {
-	foci: vec![1, 2],
-	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs.iter().sum()),
-};
-let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _>(|t: i32| t * 10, bl);
-assert_eq!((mapped.rebuild)(vec![3, 4]), 70);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		BazaarList,
+		/// 		BazaarListBrand,
+		/// 	},
+		/// };
+		///
+		/// let bl = BazaarList::<RcFnBrand, i32, i32, i32> {
+		/// 	foci: vec![1, 2],
+		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs.iter().sum()),
+		/// };
+		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _>(|t: i32| t * 10, bl);
+		/// assert_eq!((mapped.rebuild)(vec![3, 4]), 70);
+		/// ```
 		fn map<'a, T: 'a, U: 'a, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
@@ -153,19 +155,21 @@ assert_eq!((mapped.rebuild)(vec![3, 4]), 70);"#
 		///
 		#[document_returns("A `BazaarList` with empty foci that ignores its input.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		BazaarList,
-		BazaarListBrand,
-	},
-};
-
-let bl = pure::<BazaarListBrand<RcFnBrand, i32, i32>, _>(42);
-assert_eq!((bl.rebuild)(vec![]), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		BazaarList,
+		/// 		BazaarListBrand,
+		/// 	},
+		/// };
+		///
+		/// let bl = pure::<BazaarListBrand<RcFnBrand, i32, i32>, _>(42);
+		/// assert_eq!((bl.rebuild)(vec![]), 42);
+		/// ```
 		fn pure<'a, T: 'a>(a: T) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>) {
 			let a = Rc::new(RefCell::new(Some(a)));
 			BazaarList {
@@ -209,30 +213,31 @@ assert_eq!((bl.rebuild)(vec![]), 42);"#
 			"A `BazaarList` with concatenated foci whose rebuild splits and delegates."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		BazaarList,
-		BazaarListBrand,
-	},
-};
-
-let bl1 = BazaarList::<RcFnBrand, i32, i32, i32> {
-	foci: vec![1],
-	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-};
-let bl2 = BazaarList::<RcFnBrand, i32, i32, i32> {
-	foci: vec![2],
-	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-};
-let combined = lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(
-	|a, b| a + b, bl1, bl2,
-);
-assert_eq!(combined.foci, vec![1, 2]);
-assert_eq!((combined.rebuild)(vec![10, 20]), 30);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		BazaarList,
+		/// 		BazaarListBrand,
+		/// 	},
+		/// };
+		///
+		/// let bl1 = BazaarList::<RcFnBrand, i32, i32, i32> {
+		/// 	foci: vec![1],
+		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// };
+		/// let bl2 = BazaarList::<RcFnBrand, i32, i32, i32> {
+		/// 	foci: vec![2],
+		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// };
+		/// let combined =
+		/// 	lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|a, b| a + b, bl1, bl2);
+		/// assert_eq!(combined.foci, vec![1, 2]);
+		/// assert_eq!((combined.rebuild)(vec![10, 20]), 30);
+		/// ```
 		fn lift2<'a, T, U, V, Func>(
 			func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
@@ -283,29 +288,31 @@ assert_eq!((combined.rebuild)(vec![10, 20]), 30);"#
 		///
 		#[document_returns("A `BazaarList` with the function applied.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		BazaarList,
-		BazaarListBrand,
-	},
-};
-
-let bl_f = BazaarList::<RcFnBrand, i32, i32, _> {
-	foci: vec![],
-	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|_: Vec<i32>| {
-		cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)
-	}),
-};
-let bl_a = BazaarList::<RcFnBrand, i32, i32, i32> {
-	foci: vec![5],
-	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-};
-let result = apply::<RcFnBrand, BazaarListBrand<RcFnBrand, i32, i32>, _, _>(bl_f, bl_a);
-assert_eq!((result.rebuild)(vec![7]), 14);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		BazaarList,
+		/// 		BazaarListBrand,
+		/// 	},
+		/// };
+		///
+		/// let bl_f = BazaarList::<RcFnBrand, i32, i32, _> {
+		/// 	foci: vec![],
+		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|_: Vec<i32>| {
+		/// 		cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2)
+		/// 	}),
+		/// };
+		/// let bl_a = BazaarList::<RcFnBrand, i32, i32, i32> {
+		/// 	foci: vec![5],
+		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// };
+		/// let result = apply::<RcFnBrand, BazaarListBrand<RcFnBrand, i32, i32>, _, _>(bl_f, bl_a);
+		/// assert_eq!((result.rebuild)(vec![7]), 14);
+		/// ```
 		fn apply<'a, FnB: 'a + CloneableFn, T: 'a + Clone, U: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, <FnB as CloneableFn>::Of<'a, T, U>>),
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
@@ -383,27 +390,29 @@ assert_eq!((result.rebuild)(vec![7]), 14);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let bl = (bazaar.run)(42);
-assert_eq!(bl.foci, vec![42]);
-assert_eq!((bl.rebuild)(vec![100]), 100);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let bl = (bazaar.run)(42);
+		/// assert_eq!(bl.foci, vec![42]);
+		/// assert_eq!((bl.rebuild)(vec![100]), 100);
+		/// ```
 		pub fn new(
 			run: <FnBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FnBrand, A, B, T>>
 		) -> Self {
@@ -438,35 +447,38 @@ assert_eq!((bl.rebuild)(vec![100]), 100);"#
 	///
 	#[document_returns("The target wrapped in the applicative context.")]
 	///
-	#[document_examples(
-		r#"use fp_library::{
-	brands::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarList,
-		run_bazaar,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, Vec<i32>, Vec<i32>>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: Vec<i32>| {
-		let len = s.len();
-		BazaarList {
-			foci: s,
-			rebuild: cloneable_fn_new::<RcFnBrand, _, _>(move |bs: Vec<i32>| {
-				bs.into_iter().take(len).collect()
-			}),
-		}
-	}),
-);
-let result = run_bazaar::<RcFnBrand, _, _, _, _, OptionBrand, _>(
-	|x: i32| Some(x + 1),
-	vec![1, 2, 3],
-	&bazaar,
-);
-assert_eq!(result, Some(vec![2, 3, 4]));"#
-	)]
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	functions::*,
+	/// 	types::optics::{
+	/// 		Bazaar,
+	/// 		BazaarList,
+	/// 		run_bazaar,
+	/// 	},
+	/// };
+	///
+	/// let bazaar =
+	/// 	Bazaar::<RcFnBrand, i32, i32, Vec<i32>, Vec<i32>>::new(
+	/// 		cloneable_fn_new::<RcFnBrand, _, _>(|s: Vec<i32>| {
+	/// 			let len = s.len();
+	/// 			BazaarList {
+	/// 				foci: s,
+	/// 				rebuild: cloneable_fn_new::<RcFnBrand, _, _>(move |bs: Vec<i32>| {
+	/// 					bs.into_iter().take(len).collect()
+	/// 				}),
+	/// 			}
+	/// 		}),
+	/// 	);
+	/// let result = run_bazaar::<RcFnBrand, _, _, _, _, OptionBrand, _>(
+	/// 	|x: i32| Some(x + 1),
+	/// 	vec![1, 2, 3],
+	/// 	&bazaar,
+	/// );
+	/// assert_eq!(result, Some(vec![2, 3, 4]));
+	/// ```
 	pub fn run_bazaar<'a, FnBrand, A, B, S, T, F, Handler>(
 		handler: Handler,
 		s: S,
@@ -540,33 +552,35 @@ assert_eq!(result, Some(vec![2, 3, 4]));"#
 		///
 		#[document_returns("A transformed `Bazaar` instance.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let dimapped = <BazaarBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
-	|s: String| s.parse::<i32>().unwrap(),
-	|t: i32| t.to_string(),
-	bazaar,
-);
-let bl = (dimapped.run)("42".to_string());
-assert_eq!(bl.foci, vec![42]);
-assert_eq!((bl.rebuild)(vec![100]), "100".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let dimapped = <BazaarBrand<RcFnBrand, i32, i32> as Profunctor>::dimap(
+		/// 	|s: String| s.parse::<i32>().unwrap(),
+		/// 	|t: i32| t.to_string(),
+		/// 	bazaar,
+		/// );
+		/// let bl = (dimapped.run)("42".to_string());
+		/// assert_eq!(bl.foci, vec![42]);
+		/// assert_eq!((bl.rebuild)(vec![100]), "100".to_string());
+		/// ```
 		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
 			st: FuncST,
 			uv: FuncUV,
@@ -611,29 +625,31 @@ assert_eq!((bl.rebuild)(vec![100]), "100".to_string());"#
 		///
 		#[document_returns("A `Bazaar` that operates on pairs.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, String>(bazaar);
-let bl = (lifted.run)((42, "hello".to_string()));
-assert_eq!(bl.foci, vec![42]);
-assert_eq!((bl.rebuild)(vec![100]), (100, "hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Strong>::first::<i32, i32, String>(bazaar);
+		/// let bl = (lifted.run)((42, "hello".to_string()));
+		/// assert_eq!(bl.foci, vec![42]);
+		/// assert_eq!((bl.rebuild)(vec![100]), (100, "hello".to_string()));
+		/// ```
 		fn first<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (S, C), (T, C)>) {
@@ -671,29 +687,31 @@ assert_eq!((bl.rebuild)(vec![100]), (100, "hello".to_string()));"#
 		///
 		#[document_returns("A `Bazaar` that operates on pairs.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Strong>::second::<i32, i32, String>(bazaar);
-let bl = (lifted.run)(("hello".to_string(), 42));
-assert_eq!(bl.foci, vec![42]);
-assert_eq!((bl.rebuild)(vec![100]), ("hello".to_string(), 100));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Strong>::second::<i32, i32, String>(bazaar);
+		/// let bl = (lifted.run)(("hello".to_string(), 42));
+		/// assert_eq!(bl.foci, vec![42]);
+		/// assert_eq!((bl.rebuild)(vec![100]), ("hello".to_string(), 100));
+		/// ```
 		fn second<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, S), (C, T)>) {
@@ -738,32 +756,34 @@ assert_eq!((bl.rebuild)(vec![100]), ("hello".to_string(), 100));"#
 		///
 		#[document_returns("A `Bazaar` that operates on `Result` types.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, String>(bazaar);
-let bl_err = (lifted.run)(Err(42));
-assert_eq!(bl_err.foci, vec![42]);
-assert_eq!((bl_err.rebuild)(vec![100]), Err(100));
-let bl_ok = (lifted.run)(Ok("hello".to_string()));
-assert_eq!(bl_ok.foci.len(), 0);
-assert_eq!((bl_ok.rebuild)(vec![]), Ok("hello".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Choice>::left::<i32, i32, String>(bazaar);
+		/// let bl_err = (lifted.run)(Err(42));
+		/// assert_eq!(bl_err.foci, vec![42]);
+		/// assert_eq!((bl_err.rebuild)(vec![100]), Err(100));
+		/// let bl_ok = (lifted.run)(Ok("hello".to_string()));
+		/// assert_eq!(bl_ok.foci.len(), 0);
+		/// assert_eq!((bl_ok.rebuild)(vec![]), Ok("hello".to_string()));
+		/// ```
 		fn left<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, S>, Result<C, T>>)
@@ -810,32 +830,34 @@ assert_eq!((bl_ok.rebuild)(vec![]), Ok("hello".to_string()));"#
 		///
 		#[document_returns("A `Bazaar` that operates on `Result` types.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::profunctor::*,
-	functions::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, String>(bazaar);
-let bl_ok = (lifted.run)(Ok(42));
-assert_eq!(bl_ok.foci, vec![42]);
-assert_eq!((bl_ok.rebuild)(vec![100]), Ok(100));
-let bl_err = (lifted.run)(Err("oops".to_string()));
-assert_eq!(bl_err.foci.len(), 0);
-assert_eq!((bl_err.rebuild)(vec![]), Err("oops".to_string()));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	functions::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
+		/// 	|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	},
+		/// ));
+		/// let lifted = <BazaarBrand<RcFnBrand, i32, i32> as Choice>::right::<i32, i32, String>(bazaar);
+		/// let bl_ok = (lifted.run)(Ok(42));
+		/// assert_eq!(bl_ok.foci, vec![42]);
+		/// assert_eq!((bl_ok.rebuild)(vec![100]), Ok(100));
+		/// let bl_err = (lifted.run)(Err("oops".to_string()));
+		/// assert_eq!(bl_err.foci.len(), 0);
+		/// assert_eq!((bl_err.rebuild)(vec![]), Err("oops".to_string()));
+		/// ```
 		fn right<'a, S: 'a, T: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<S, C>, Result<T, C>>)
@@ -873,7 +895,9 @@ assert_eq!((bl_err.rebuild)(vec![]), Err("oops".to_string()));"#
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static + Clone, B: 'static + Clone> Wander for BazaarBrand<FnBrand, A, B> {
+	impl<FnBrand: CloneableFn + 'static, A: 'static + Clone, B: 'static + Clone> Wander
+		for BazaarBrand<FnBrand, A, B>
+	{
 		/// Lifts the `Bazaar` profunctor through a traversal.
 		///
 		/// Corresponds to PureScript's `wander w (Bazaar f) = Bazaar (\pafb s -> w (f pafb) s)`.
@@ -893,64 +917,64 @@ assert_eq!((bl_err.rebuild)(vec![]), Err("oops".to_string()));"#
 		///
 		#[document_returns("A `Bazaar` that traverses the outer structure.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	Apply,
-	brands::*,
-	classes::{
-		Applicative,
-		optics::traversal::TraversalFunc,
-		profunctor::*,
-	},
-	functions::*,
-	kinds::*,
-	types::optics::{
-		Bazaar,
-		BazaarBrand,
-		BazaarList,
-	},
-};
-
-// A traversal over Vec elements
-#[derive(Clone)]
-struct VecTraversal;
-impl<'a, X: 'a + Clone> TraversalFunc<'a, Vec<X>, Vec<X>, X, X> for VecTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(X) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, X>) + 'a>,
-		s: Vec<X>,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<X>>) {
-		s.into_iter().fold(M::pure(vec![]), |acc, a| {
-			M::lift2(
-				|mut v: Vec<X>, x: X| {
-					v.push(x);
-					v
-				},
-				acc,
-				f(a),
-			)
-		})
-	}
-}
-
-// Identity bazaar: each element maps to itself
-let id_bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
-	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
-		foci: vec![s],
-		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
-	}),
-);
-let wandered = <BazaarBrand<RcFnBrand, i32, i32> as Wander>::wander::<
-	Vec<i32>,
-	Vec<i32>,
-	i32,
-	i32,
-	_,
->(VecTraversal, id_bazaar);
-let bl = (wandered.run)(vec![10, 20, 30]);
-assert_eq!(bl.foci, vec![10, 20, 30]);
-assert_eq!((bl.rebuild)(vec![1, 2, 3]), vec![1, 2, 3]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	Apply,
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		Applicative,
+		/// 		optics::traversal::TraversalFunc,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	functions::*,
+		/// 	kinds::*,
+		/// 	types::optics::{
+		/// 		Bazaar,
+		/// 		BazaarBrand,
+		/// 		BazaarList,
+		/// 	},
+		/// };
+		///
+		/// // A traversal over Vec elements
+		/// #[derive(Clone)]
+		/// struct VecTraversal;
+		/// impl<'a, X: 'a + Clone> TraversalFunc<'a, Vec<X>, Vec<X>, X, X> for VecTraversal {
+		/// 	fn apply<M: Applicative>(
+		/// 		&self,
+		/// 		f: Box<dyn Fn(X) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, X>) + 'a>,
+		/// 		s: Vec<X>,
+		/// 	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<X>>) {
+		/// 		s.into_iter().fold(M::pure(vec![]), |acc, a| {
+		/// 			M::lift2(
+		/// 				|mut v: Vec<X>, x: X| {
+		/// 					v.push(x);
+		/// 					v
+		/// 				},
+		/// 				acc,
+		/// 				f(a),
+		/// 			)
+		/// 		})
+		/// 	}
+		/// }
+		///
+		/// // Identity bazaar: each element maps to itself
+		/// let id_bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(
+		/// 	cloneable_fn_new::<RcFnBrand, _, _>(|s: i32| BazaarList {
+		/// 		foci: vec![s],
+		/// 		rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
+		/// 	}),
+		/// );
+		/// let wandered =
+		/// 	<BazaarBrand<RcFnBrand, i32, i32> as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(
+		/// 		VecTraversal,
+		/// 		id_bazaar,
+		/// 	);
+		/// let bl = (wandered.run)(vec![10, 20, 30]);
+		/// assert_eq!(bl.foci, vec![10, 20, 30]);
+		/// assert_eq!((bl.rebuild)(vec![1, 2, 3]), vec![1, 2, 3]);
+		/// ```
 		fn wander<'a, S: 'a, T: 'a, A2: 'a, B2: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A2, B2>),

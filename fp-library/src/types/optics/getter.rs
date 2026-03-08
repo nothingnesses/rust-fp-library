@@ -68,16 +68,18 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Getter` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Getter,
-};
-
-let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
-let cloned = g.clone();
-assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Getter,
+		/// };
+		///
+		/// let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
+		/// let cloned = g.clone();
+		/// assert_eq!(cloned.view((42, "hi".to_string())), 42);
+		/// ```
 		fn clone(&self) -> Self {
 			Getter {
 				view_fn: self.view_fn.clone(),
@@ -110,15 +112,17 @@ assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Getter,
-};
-
-let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
-assert_eq!(g.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Getter,
+		/// };
+		///
+		/// let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
+		/// assert_eq!(g.view((42, "hi".to_string())), 42);
+		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			Getter {
 				view_fn: <FnBrand<P> as CloneableFn>::new(view),
@@ -133,15 +137,17 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Getter,
-};
-
-let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
-assert_eq!(g.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Getter,
+		/// };
+		///
+		/// let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
+		/// assert_eq!(g.view((42, "hi".to_string())), 42);
+		/// ```
 		pub fn view(
 			&self,
 			s: S,
@@ -174,19 +180,21 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = Optic::<ForgetBrand<RcBrand, i32>, _, _, _, _>::evaluate(&g, f);
-assert_eq!(folded.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: Getter<RcBrand, (i32, String), (i32, String), i32, i32> = Getter::new(|(x, _)| x);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = Optic::<ForgetBrand<RcBrand, i32>, _, _, _, _>::evaluate(&g, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, B>),
@@ -236,16 +244,18 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 	{
 		#[document_signature]
 		#[document_returns("A new `GetterPrime` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::GetterPrime,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-let cloned = g.clone();
-assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::GetterPrime,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// let cloned = g.clone();
+		/// assert_eq!(cloned.view((42, "hi".to_string())), 42);
+		/// ```
 		fn clone(&self) -> Self {
 			GetterPrime {
 				view_fn: self.view_fn.clone(),
@@ -274,15 +284,17 @@ assert_eq!(cloned.view((42, "hi".to_string())), 42);"#
 		///
 		#[document_returns("A new instance of the type.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::GetterPrime,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-assert_eq!(g.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::GetterPrime,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// assert_eq!(g.view((42, "hi".to_string())), 42);
+		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			GetterPrime {
 				view_fn: <FnBrand<P> as CloneableFn>::new(view),
@@ -297,15 +309,17 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::GetterPrime,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-assert_eq!(g.view((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::GetterPrime,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// assert_eq!(g.view((42, "hi".to_string())), 42);
+		/// ```
 		pub fn view(
 			&self,
 			s: S,
@@ -334,19 +348,21 @@ assert_eq!(g.view((42, "hi".to_string())), 42);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = Optic::<ForgetBrand<RcBrand, i32>, _, _, _, _>::evaluate(&g, f);
-assert_eq!(folded.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = Optic::<ForgetBrand<RcBrand, i32>, _, _, _, _>::evaluate(&g, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
@@ -380,19 +396,21 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = GetterOptic::evaluate(&g, f);
-assert_eq!(folded.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&g, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, A>),
@@ -420,19 +438,21 @@ assert_eq!(folded.run((42, "hi".to_string())), 42);"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
-let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
-let folded: Forget<RcBrand, String, (i32, String), (i32, String)> = FoldOptic::evaluate(&g, f);
-assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let g: GetterPrime<RcBrand, (i32, String), i32> = GetterPrime::new(|(x, _)| x);
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
+		/// let folded: Forget<RcBrand, String, (i32, String), (i32, String)> = FoldOptic::evaluate(&g, f);
+		/// assert_eq!(folded.run((42, "hi".to_string())), "42".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),

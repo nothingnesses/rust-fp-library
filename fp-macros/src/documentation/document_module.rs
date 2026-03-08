@@ -462,7 +462,7 @@ fn validate_method_documentation(
 		warnings.push(syn::Error::new(
 			method.span(),
 			format!(
-				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function",
+				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
 			),
 		));
 	}
@@ -527,7 +527,7 @@ fn validate_fn_documentation(
 		warnings.push(syn::Error::new(
 			item_fn.span(),
 			format!(
-				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute; the attribute should contain a string showing example code usage of the function",
+				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
 			),
 		));
 	}

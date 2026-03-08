@@ -61,15 +61,17 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `IndexedGetter` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IndexedGetter,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let cloned = g.clone();
-assert_eq!(cloned.iview((42, "hi".to_string())), (0, 42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IndexedGetter,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// let cloned = g.clone();
+		/// assert_eq!(cloned.iview((42, "hi".to_string())), (0, 42));
+		/// ```
 		fn clone(&self) -> Self {
 			IndexedGetter {
 				to: self.to.clone(),
@@ -93,14 +95,16 @@ assert_eq!(cloned.iview((42, "hi".to_string())), (0, 42));"#
 		#[document_signature]
 		#[document_parameters("The getter function.")]
 		#[document_returns("A new `IndexedGetter` instance.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IndexedGetter,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IndexedGetter,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// assert_eq!(g.iview((42, "hi".to_string())), (0, 42));
+		/// ```
 		pub fn new(to: impl 'a + Fn(S) -> (I, A)) -> Self {
 			IndexedGetter {
 				to: <FnBrand<P> as CloneableFn>::new(to),
@@ -111,14 +115,16 @@ assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
 		#[document_signature]
 		#[document_parameters("The structure to view.")]
 		#[document_returns("The focus value and its index.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IndexedGetter,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IndexedGetter,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// assert_eq!(g.iview((42, "hi".to_string())), (0, 42));
+		/// ```
 		pub fn iview(
 			&self,
 			s: S,
@@ -143,18 +149,20 @@ assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
 		#[document_parameters("The indexed profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	types::optics::*,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
-let pab = Indexed::new(f);
-let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&g, pab);
-assert_eq!(result.run((42, "hi".to_string())), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	types::optics::*,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+		/// let pab = Indexed::new(f);
+		/// let result = IndexedGetterOptic::evaluate::<i32, RcBrand>(&g, pab);
+		/// assert_eq!(result.run((42, "hi".to_string())), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
@@ -184,18 +192,20 @@ assert_eq!(result.run((42, "hi".to_string())), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The indexed profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	types::optics::*,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
-let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&g, pab);
-assert_eq!(result.run((42, "hi".to_string())), "[0]=42");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	types::optics::*,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
+		/// let pab = Indexed::new(f);
+		/// let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&g, pab);
+		/// assert_eq!(result.run((42, "hi".to_string())), "[0]=42");
+		/// ```
 		fn evaluate<
 			R: 'a + crate::classes::monoid::Monoid + 'static,
 			Q: UnsizedCoercible + 'static,
@@ -231,16 +241,18 @@ assert_eq!(result.run((42, "hi".to_string())), "[0]=42");"#
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-	functions::*,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let result = optics_indexed_view::<RcBrand, _, _, _, _>(&g, (42, "hi".to_string()));
-assert_eq!(result, (0, 42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
+		/// let result = optics_indexed_view::<RcBrand, _, _, _, _>(&g, (42, "hi".to_string()));
+		/// assert_eq!(result, (0, 42));
+		/// ```
 		fn evaluate_indexed(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,
@@ -273,16 +285,22 @@ assert_eq!(result, (0, 42));"#
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::*,
-	functions::*,
-};
-let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (10, x));
-let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&g, |i, _| format!("{}", i), (42, "hi".to_string()));
-assert_eq!(result, "10");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (10, x));
+		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// 	&g,
+		/// 	|i, _| format!("{}", i),
+		/// 	(42, "hi".to_string()),
+		/// );
+		/// assert_eq!(result, "10");
+		/// ```
 		fn evaluate_indexed_discards_focus(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q2, R>, I, A, A>,

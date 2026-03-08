@@ -67,15 +67,17 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The underlying profunctor value.")]
 		#[document_returns("A new `Indexed` instance.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	types::optics::Indexed,
-};
-let f = |(i, a): (usize, i32)| a + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-assert_eq!((indexed.inner)((10, 32)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	types::optics::Indexed,
+		/// };
+		/// let f = |(i, a): (usize, i32)| a + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// assert_eq!((indexed.inner)((10, 32)), 42);
+		/// ```
 		pub fn new(
 			inner: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, (I, A), B>)
 		) -> Self {
@@ -114,21 +116,26 @@ assert_eq!((indexed.inner)((10, 32)), 42);"#
 			"The indexed profunctor instance."
 		)]
 		#[document_returns("A transformed `Indexed` instance.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::profunctor::*,
-	types::optics::{Indexed, IndexedBrand},
-};
-let f = |(i, a): (usize, i32)| a + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Profunctor>::dimap(
-	|a: i32| a * 2,
-	|b: i32| b - 1,
-	indexed,
-);
-assert_eq!((transformed.inner)((10, 16)), 41); // (10 + (16 * 2)) - 1 = 41"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::{
+		/// 		Indexed,
+		/// 		IndexedBrand,
+		/// 	},
+		/// };
+		/// let f = |(i, a): (usize, i32)| a + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// let transformed = <IndexedBrand<RcFnBrand, usize> as Profunctor>::dimap(
+		/// 	|a: i32| a * 2,
+		/// 	|b: i32| b - 1,
+		/// 	indexed,
+		/// );
+		/// assert_eq!((transformed.inner)((10, 16)), 41); // (10 + (16 * 2)) - 1 = 41
+		/// ```
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			ab: FuncAB,
 			cd: FuncCD,
@@ -152,17 +159,19 @@ assert_eq!((transformed.inner)((10, 16)), 41); // (10 + (16 * 2)) - 1 = 41"#
 		)]
 		#[document_parameters("The indexed profunctor instance to lift.")]
 		#[document_returns("A transformed `Indexed` instance that operates on pairs.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::profunctor::*,
-	types::optics::{Indexed, IndexedBrand},
-};
-let f = |(i, a): (usize, i32)| a + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Strong>::first::<i32, i32, i32>(indexed);
-assert_eq!((transformed.inner)((10, (16, 100))), (26, 100)); // (10 + 16) = 26, 100 threaded through"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::{Indexed, IndexedBrand},
+		/// };
+		/// let f = |(i, a): (usize, i32)| a + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// let transformed = <IndexedBrand<RcFnBrand, usize> as Strong>::first::<i32, i32, i32>(indexed);
+		/// assert_eq!((transformed.inner)((10, (16, 100))), (26, 100)); // (10 + 16) = 26, 100 threaded through
+		/// ```
 		fn first<'a, A: 'a, B: 'a, C>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
@@ -182,17 +191,19 @@ assert_eq!((transformed.inner)((10, (16, 100))), (26, 100)); // (10 + 16) = 26, 
 		)]
 		#[document_parameters("The indexed profunctor instance to lift.")]
 		#[document_returns("A transformed `Indexed` instance that operates on pairs.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::profunctor::*,
-	types::optics::{Indexed, IndexedBrand},
-};
-let f = |(i, b): (usize, i32)| b + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Strong>::second::<i32, i32, i32>(indexed);
-assert_eq!((transformed.inner)((10, (100, 16))), (100, 26)); // (10 + 16) = 26, 100 threaded through"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::{Indexed, IndexedBrand},
+		/// };
+		/// let f = |(i, b): (usize, i32)| b + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// let transformed = <IndexedBrand<RcFnBrand, usize> as Strong>::second::<i32, i32, i32>(indexed);
+		/// assert_eq!((transformed.inner)((10, (100, 16))), (100, 26)); // (10 + 16) = 26, 100 threaded through
+		/// ```
 		fn second<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {
@@ -215,17 +226,22 @@ assert_eq!((transformed.inner)((10, (100, 16))), (100, 26)); // (10 + 16) = 26, 
 		)]
 		#[document_parameters("The indexed profunctor instance to lift.")]
 		#[document_returns("A transformed `Indexed` instance that operates on `Result` types.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::profunctor::*,
-	types::optics::{Indexed, IndexedBrand},
-};
-let f = |(i, a): (usize, i32)| a + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Choice>::left::<i32, i32, i32>(indexed);
-assert_eq!((transformed.inner)((10, Err(32))), Err(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::{
+		/// 		Indexed,
+		/// 		IndexedBrand,
+		/// 	},
+		/// };
+		/// let f = |(i, a): (usize, i32)| a + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// let transformed = <IndexedBrand<RcFnBrand, usize> as Choice>::left::<i32, i32, i32>(indexed);
+		/// assert_eq!((transformed.inner)((10, Err(32))), Err(42));
+		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -252,17 +268,22 @@ assert_eq!((transformed.inner)((10, Err(32))), Err(42));"#
 		)]
 		#[document_parameters("The indexed profunctor instance to lift.")]
 		#[document_returns("A transformed `Indexed` instance that operates on `Result` types.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcFnBrand,
-	classes::profunctor::*,
-	types::optics::{Indexed, IndexedBrand},
-};
-let f = |(i, b): (usize, i32)| b + (i as i32);
-let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
-let transformed = <IndexedBrand<RcFnBrand, usize> as Choice>::right::<i32, i32, i32>(indexed);
-assert_eq!((transformed.inner)((10, Ok(32))), Ok(42));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::{
+		/// 		Indexed,
+		/// 		IndexedBrand,
+		/// 	},
+		/// };
+		/// let f = |(i, b): (usize, i32)| b + (i as i32);
+		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
+		/// let transformed = <IndexedBrand<RcFnBrand, usize> as Choice>::right::<i32, i32, i32>(indexed);
+		/// assert_eq!((transformed.inner)((10, Ok(32))), Ok(42));
+		/// ```
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
@@ -294,22 +315,39 @@ assert_eq!((transformed.inner)((10, Ok(32))), Ok(42));"#
 		)]
 		#[document_parameters("The traversal function.", "The indexed profunctor instance.")]
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::{RcBrand, RcFnBrand, VecBrand},
-	classes::{profunctor::*, optics::IndexedTraversalOptic},
-	types::optics::*,
-	functions::*,
-};
-// Use an indexed traversal over a Vec to demonstrate wandering with index
-let traversal: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
-	IndexedTraversal::traversed();
-let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
-let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
-let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedTraversalOptic::evaluate::<RcFnBrand>(&traversal, pab);
-assert_eq!(result(vec![10, 20]), vec![10, 21]);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		RcFnBrand,
+		/// 		VecBrand,
+		/// 	},
+		/// 	classes::{
+		/// 		optics::IndexedTraversalOptic,
+		/// 		profunctor::*,
+		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		/// // Use an indexed traversal over a Vec to demonstrate wandering with index
+		/// let traversal: IndexedTraversal<
+		/// 	RcBrand,
+		/// 	usize,
+		/// 	Vec<i32>,
+		/// 	Vec<i32>,
+		/// 	i32,
+		/// 	i32,
+		/// 	Traversed<VecBrand>,
+		/// > = IndexedTraversal::traversed();
+		/// let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32))
+		/// 	as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
+		/// let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
+		/// let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
+		/// 	IndexedTraversalOptic::evaluate::<RcFnBrand>(&traversal, pab);
+		/// assert_eq!(result(vec![10, 20]), vec![10, 21]);
+		/// ```
 		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
@@ -335,8 +373,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);"#
 					(i, s): (I, S),
 				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
 				where
-					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
-				{
+					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone, {
 					let i_clone = i.clone();
 					self.traversal.apply::<M>(Box::new(move |a| f((i_clone.clone(), a))), s)
 				}

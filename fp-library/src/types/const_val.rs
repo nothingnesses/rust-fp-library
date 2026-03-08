@@ -49,12 +49,14 @@ mod inner {
 		#[document_signature]
 		#[document_parameters("The value to store.")]
 		#[document_returns("A new `Const` instance.")]
-		#[document_examples(
-			r#"use fp_library::types::const_val::Const;
-
-let c: Const<i32, String> = Const::new(42);
-assert_eq!(c.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::const_val::Const;
+		///
+		/// let c: Const<i32, String> = Const::new(42);
+		/// assert_eq!(c.0, 42);
+		/// ```
 		pub fn new(r: R) -> Self {
 			Const(r, PhantomData)
 		}
@@ -83,13 +85,21 @@ assert_eq!(c.0, 42);"#
 			"The `Const` instance to map over."
 		)]
 		#[document_returns("A new `Const` instance with the same stored value.")]
-		#[document_examples(
-			r#"use fp_library::{classes::functor::Functor, types::const_val::{Const, ConstBrand}};
-
-let c: Const<i32, String> = Const::new(42);
-let mapped = ConstBrand::map(|s: String| s.len(), c);
-assert_eq!(mapped.0, 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::functor::Functor,
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c: Const<i32, String> = Const::new(42);
+		/// let mapped = ConstBrand::map(|s: String| s.len(), c);
+		/// assert_eq!(mapped.0, 42);
+		/// ```
 		fn map<'a, A: 'a, B: 'a, F>(
 			_f: F,
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
@@ -116,14 +126,22 @@ assert_eq!(mapped.0, 42);"#
 			"The second `Const` instance."
 		)]
 		#[document_returns("A new `Const` instance with the combined stored values.")]
-		#[document_examples(
-			r#"use fp_library::{classes::lift::Lift, types::const_val::{Const, ConstBrand}};
-
-let c1: Const<String, i32> = Const::new("Hello".to_string());
-let c2: Const<String, i32> = Const::new(" World".to_string());
-let lifted = ConstBrand::lift2(|a: i32, b: i32| a + b, c1, c2);
-assert_eq!(lifted.0, "Hello World");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::lift::Lift,
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, i32> = Const::new(" World".to_string());
+		/// let lifted = ConstBrand::lift2(|a: i32, b: i32| a + b, c1, c2);
+		/// assert_eq!(lifted.0, "Hello World");
+		/// ```
 		fn lift2<'a, A, B, C, Func>(
 			_func: Func,
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
@@ -152,12 +170,26 @@ assert_eq!(lifted.0, "Hello World");"#
 			"The `Const` instance containing a value."
 		)]
 		#[document_returns("A new `Const` instance with the combined stored values.")]
-		#[document_examples(r#"use fp_library::{brands::RcFnBrand, classes::{semiapplicative::Semiapplicative, cloneable_fn::CloneableFn}, types::const_val::{Const, ConstBrand}};
-
-let c1 = Const::<String, _>::new("Hello".to_string());
-let c2 = Const::<String, i32>::new(" World".to_string());
-let applied = ConstBrand::<String>::apply::<RcFnBrand, i32, i32>(c1, c2);
-assert_eq!(applied.0, "Hello World");"#)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcFnBrand,
+		/// 	classes::{
+		/// 		cloneable_fn::CloneableFn,
+		/// 		semiapplicative::Semiapplicative,
+		/// 	},
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c1 = Const::<String, _>::new("Hello".to_string());
+		/// let c2 = Const::<String, i32>::new(" World".to_string());
+		/// let applied = ConstBrand::<String>::apply::<RcFnBrand, i32, i32>(c1, c2);
+		/// assert_eq!(applied.0, "Hello World");
+		/// ```
 		fn apply<'a, FnBrand: 'a + CloneableFn, A: 'a + Clone, B: 'a>(
 			ff: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, A, B>>),
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
@@ -176,12 +208,22 @@ assert_eq!(applied.0, "Hello World");"#)]
 		)]
 		#[document_parameters("The first `Const` instance.", "The second `Const` instance.")]
 		#[document_returns("A new `Const` instance with the combined stored values.")]
-		#[document_examples(r#"use fp_library::{classes::apply_first::ApplyFirst, types::const_val::{Const, ConstBrand}};
-
-let c1: Const<String, i32> = Const::new("Hello".to_string());
-let c2: Const<String, i32> = Const::new(" World".to_string());
-let applied = ConstBrand::apply_first(c1, c2);
-assert_eq!(applied.0, "Hello World");"#)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::apply_first::ApplyFirst,
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, i32> = Const::new(" World".to_string());
+		/// let applied = ConstBrand::apply_first(c1, c2);
+		/// assert_eq!(applied.0, "Hello World");
+		/// ```
 		fn apply_first<'a, A: 'a, B: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>),
@@ -200,12 +242,22 @@ assert_eq!(applied.0, "Hello World");"#)]
 		)]
 		#[document_parameters("The first `Const` instance.", "The second `Const` instance.")]
 		#[document_returns("A new `Const` instance with the combined stored values.")]
-		#[document_examples(r#"use fp_library::{classes::apply_second::ApplySecond, types::const_val::{Const, ConstBrand}};
-
-let c1: Const<String, i32> = Const::new("Hello".to_string());
-let c2: Const<String, i32> = Const::new(" World".to_string());
-let applied = ConstBrand::apply_second(c1, c2);
-assert_eq!(applied.0, "Hello World");"#)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::apply_second::ApplySecond,
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
+		/// let c2: Const<String, i32> = Const::new(" World".to_string());
+		/// let applied = ConstBrand::apply_second(c1, c2);
+		/// assert_eq!(applied.0, "Hello World");
+		/// ```
 		fn apply_second<'a, A: 'a, B: 'a>(
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>),
@@ -220,12 +272,20 @@ assert_eq!(applied.0, "Hello World");"#)]
 		#[document_type_parameters("The lifetime of the values.", "The type to wrap (ignored).")]
 		#[document_parameters("The value to wrap (ignored).")]
 		#[document_returns("A new `Const` instance with the empty value of the stored type.")]
-		#[document_examples(
-			r#"use fp_library::{classes::pointed::Pointed, types::const_val::{Const, ConstBrand}};
-
-let c: Const<String, i32> = ConstBrand::pure(42);
-assert_eq!(c.0, "".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::pointed::Pointed,
+		/// 	types::const_val::{
+		/// 		Const,
+		/// 		ConstBrand,
+		/// 	},
+		/// };
+		///
+		/// let c: Const<String, i32> = ConstBrand::pure(42);
+		/// assert_eq!(c.0, "".to_string());
+		/// ```
 		fn pure<'a, A: 'a>(_a: A) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>) {
 			Const::new(R::empty())
 		}

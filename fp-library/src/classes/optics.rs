@@ -343,7 +343,7 @@ pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	/// The result monoid `R` must implement [`Clone`] because the fold is internally implemented
 	/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
 	/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
-	/// [`TraversalFunc::apply`](crate::classes::optics::traversal::TraversalFunc::apply) with
+	/// [`TraversalFunc::apply`] with
 	/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
 	/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
 	///
@@ -496,7 +496,7 @@ pub trait IndexedFoldOptic<'a, I: 'a, S: 'a, A: 'a> {
 	/// The result monoid `R` must implement [`Clone`] because the fold is internally implemented
 	/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
 	/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
-	/// [`IndexedTraversalFunc::apply`](crate::classes::optics::indexed_traversal::IndexedTraversalFunc::apply) with
+	/// [`IndexedTraversalFunc::apply`] with
 	/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
 	/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
 	fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(

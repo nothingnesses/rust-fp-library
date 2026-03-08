@@ -79,17 +79,19 @@ mod inner {
 	{
 		#[document_signature]
 		#[document_returns("A new `Iso` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Iso,
-};
-
-let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
-	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
-let cloned = string_chars.clone();
-assert_eq!(cloned.from("hi".to_string()), vec!['h', 'i']);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Iso,
+		/// };
+		///
+		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
+		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
+		/// let cloned = string_chars.clone();
+		/// assert_eq!(cloned.from("hi".to_string()), vec!['h', 'i']);
+		/// ```
 		fn clone(&self) -> Self {
 			Iso {
 				from: self.from.clone(),
@@ -120,17 +122,19 @@ assert_eq!(cloned.from("hi".to_string()), vec!['h', 'i']);"#
 		)]
 		///
 		#[document_returns("A new instance of the type.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Iso,
-};
-
-// Iso between String and Vec<char>
-let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
-	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
-assert_eq!(string_chars.from("hi".to_string()), vec!['h', 'i']);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Iso,
+		/// };
+		///
+		/// // Iso between String and Vec<char>
+		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
+		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
+		/// assert_eq!(string_chars.from("hi".to_string()), vec!['h', 'i']);
+		/// ```
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(B) -> T,
@@ -148,17 +152,19 @@ assert_eq!(string_chars.from("hi".to_string()), vec!['h', 'i']);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Iso,
-};
-
-let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
-	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
-let chars = string_chars.from("hello".to_string());
-assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Iso,
+		/// };
+		///
+		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
+		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
+		/// let chars = string_chars.from("hello".to_string());
+		/// assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);
+		/// ```
 		pub fn from(
 			&self,
 			s: S,
@@ -173,17 +179,19 @@ assert_eq!(chars, vec!['h', 'e', 'l', 'l', 'o']);"#
 		///
 		#[document_returns("The structure value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::Iso,
-};
-
-let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
-	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
-let s = string_chars.to(vec!['h', 'i']);
-assert_eq!(s, "hi");"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::Iso,
+		/// };
+		///
+		/// let string_chars: Iso<RcBrand, String, String, Vec<char>, Vec<char>> =
+		/// 	Iso::new(|s: String| s.chars().collect(), |v: Vec<char>| v.into_iter().collect());
+		/// let s = string_chars.to(vec!['h', 'i']);
+		/// assert_eq!(s, "hi");
+		/// ```
 		pub fn to(
 			&self,
 			b: B,
@@ -214,19 +222,21 @@ assert_eq!(s, "hi");"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -257,19 +267,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Profunctor>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -296,20 +308,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -337,20 +351,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Closed<FP>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -376,19 +392,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Strong>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -414,20 +432,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	PrismOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	PrismOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -453,20 +473,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	TraversalOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -493,19 +515,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = GetterOptic::evaluate(&iso, f);
-assert_eq!(folded.run((42,)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&iso, f);
+		/// assert_eq!(folded.run((42,)), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -530,19 +554,21 @@ assert_eq!(folded.run((42,)), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-let folded = FoldOptic::evaluate(&iso, f);
-assert_eq!(folded.run((42,)), "42".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+		/// let folded = FoldOptic::evaluate(&iso, f);
+		/// assert_eq!(folded.run((42,)), "42".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -570,20 +596,22 @@ assert_eq!(folded.run((42,)), "42".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -608,19 +636,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
-let f = Tagged::new(42);
-let reviewed = ReviewOptic::evaluate(&iso, f);
-assert_eq!(reviewed.0, (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: Iso<RcBrand, (i32,), (i32,), i32, i32> = Iso::new(|(x,)| x, |x| (x,));
+		/// let f = Tagged::new(42);
+		/// let reviewed = ReviewOptic::evaluate(&iso, f);
+		/// assert_eq!(reviewed.0, (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
@@ -664,16 +694,18 @@ assert_eq!(reviewed.0, (42,));"#
 	{
 		#[document_signature]
 		#[document_returns("A new `IsoPrime` instance that is a copy of the original.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IsoPrime,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let cloned = iso.clone();
-assert_eq!(cloned.from((42,)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IsoPrime,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let cloned = iso.clone();
+		/// assert_eq!(cloned.from((42,)), 42);
+		/// ```
 		fn clone(&self) -> Self {
 			IsoPrime {
 				from_fn: self.from_fn.clone(),
@@ -702,16 +734,18 @@ assert_eq!(cloned.from((42,)), 42);"#
 		)]
 		///
 		#[document_returns("A new instance of the type.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IsoPrime,
-};
-
-// Iso between a newtype and its inner value
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-assert_eq!(iso.from((10,)), 10);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IsoPrime,
+		/// };
+		///
+		/// // Iso between a newtype and its inner value
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// assert_eq!(iso.from((10,)), 10);
+		/// ```
 		pub fn new(
 			from: impl 'a + Fn(S) -> A,
 			to: impl 'a + Fn(A) -> S,
@@ -729,15 +763,17 @@ assert_eq!(iso.from((10,)), 10);"#
 		///
 		#[document_returns("The focus value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IsoPrime,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-assert_eq!(iso.from((42,)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IsoPrime,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// assert_eq!(iso.from((42,)), 42);
+		/// ```
 		pub fn from(
 			&self,
 			s: S,
@@ -752,15 +788,17 @@ assert_eq!(iso.from((42,)), 42);"#
 		///
 		#[document_returns("The structure value.")]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IsoPrime,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-assert_eq!(iso.to(42), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IsoPrime,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// assert_eq!(iso.to(42), (42,));
+		/// ```
 		pub fn to(
 			&self,
 			a: A,
@@ -775,17 +813,19 @@ assert_eq!(iso.to(42), (42,));"#
 			"A new `IsoPrime` instance with the forward and backward conversions swapped."
 		)]
 		///
-		#[document_examples(
-			r#"use fp_library::{
-	brands::RcBrand,
-	types::optics::IsoPrime,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let reversed = iso.reversed();
-assert_eq!(reversed.from(42), (42,));
-assert_eq!(reversed.to((42,)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::RcBrand,
+		/// 	types::optics::IsoPrime,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let reversed = iso.reversed();
+		/// assert_eq!(reversed.from(42), (42,));
+		/// assert_eq!(reversed.to((42,)), 42);
+		/// ```
 		pub fn reversed(&self) -> IsoPrime<'a, P, A, S> {
 			IsoPrime {
 				from_fn: self.to_fn.clone(),
@@ -813,19 +853,21 @@ assert_eq!(reversed.to((42,)), 42);"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier = Optic::<RcFnBrand, _, _, _, _>::evaluate(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -854,20 +896,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	AffineTraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Strong + Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -892,20 +936,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Closed<FP>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -929,19 +975,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = LensOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Strong>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -965,20 +1013,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	PrismOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	PrismOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Choice>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1002,20 +1052,22 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	TraversalOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	TraversalOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Wander>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1042,19 +1094,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		)]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
-let folded = GetterOptic::evaluate(&iso, f);
-assert_eq!(folded.run((42,)), 42);"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = Forget::<RcBrand, i32, i32, i32>::new(|x| x);
+		/// let folded = GetterOptic::evaluate(&iso, f);
+		/// assert_eq!(folded.run((42,)), 42);
+		/// ```
 		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1079,19 +1133,21 @@ assert_eq!(folded.run((42,)), 42);"#
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
-let folded = FoldOptic::evaluate(&iso, f);
-assert_eq!(folded.run((42,)), "42".to_string());"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = Forget::<RcBrand, String, i32, i32>::new(|x| x.to_string());
+		/// let folded = FoldOptic::evaluate(&iso, f);
+		/// assert_eq!(folded.run((42,)), "42".to_string());
+		/// ```
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1117,20 +1173,22 @@ assert_eq!(folded.run((42,)), "42".to_string());"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
-	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> =
+		/// 	SetterOptic::<RcBrand, _, _, _, _>::evaluate(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1153,19 +1211,21 @@ assert_eq!(modifier((41,)), (42,));"#
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = Tagged::new(42);
-let reviewed = ReviewOptic::evaluate(&iso, f);
-assert_eq!(reviewed.0, (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = Tagged::new(42);
+		/// let reviewed = ReviewOptic::evaluate(&iso, f);
+		/// assert_eq!(reviewed.0, (42,));
+		/// ```
 		fn evaluate(
 			&self,
 			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
@@ -1190,19 +1250,21 @@ assert_eq!(reviewed.0, (42,));"#
 		#[document_type_parameters("The profunctor type.")]
 		#[document_parameters("The profunctor value to transform.")]
 		#[document_returns("The transformed profunctor value.")]
-		#[document_examples(
-			r#"use fp_library::{
-	brands::*,
-	classes::optics::*,
-	functions::*,
-	types::optics::*,
-};
-
-let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
-assert_eq!(modifier((41,)), (42,));"#
-		)]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::*,
+		/// 	functions::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
+		/// assert_eq!(modifier((41,)), (42,));
+		/// ```
 		fn evaluate<Q: Profunctor>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
