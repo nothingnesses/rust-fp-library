@@ -20,12 +20,24 @@ use {
 	},
 };
 
+/// Check if an attribute path matches a given name.
+///
+/// Matches both simple idents (`#[document_signature]`) and qualified paths
+/// (`#[fp_macros::document_signature]`) by comparing the last path segment.
+pub(crate) fn attr_matches(
+	attr: &Attribute,
+	name: &str,
+) -> bool {
+	let path = attr.path();
+	path.is_ident(name) || path.segments.last().is_some_and(|seg| seg.ident == name)
+}
+
 /// Finds the index of the first attribute with the given name.
 pub fn find_attribute(
 	attrs: &[Attribute],
 	name: &str,
 ) -> Option<usize> {
-	attrs.iter().position(|attr| attr.path().is_ident(name))
+	attrs.iter().position(|attr| attr_matches(attr, name))
 }
 
 /// Checks if an attribute with the given name exists.
@@ -33,7 +45,7 @@ pub fn has_attribute(
 	attrs: &[Attribute],
 	name: &str,
 ) -> bool {
-	attrs.iter().any(|attr| attr.path().is_ident(name))
+	attrs.iter().any(|attr| attr_matches(attr, name))
 }
 
 /// Returns true if the attribute should be kept in generated code.

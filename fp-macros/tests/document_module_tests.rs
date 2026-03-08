@@ -108,7 +108,6 @@ mod test_collision {
 
 	#[fp_macros::document_module]
 	mod test_dyn_formatting {
-		use fp_macros::document_signature;
 		#[allow(dead_code)]
 		pub trait MyTrait {}
 
@@ -130,7 +129,6 @@ mod test_collision {
 
 #[document_module(no_validation)]
 mod test_erasure {
-	use fp_macros::document_signature;
 	#[allow(dead_code)]
 	pub struct Brand;
 	#[allow(dead_code)]
@@ -212,4 +210,107 @@ mod test_impl_level_document_parameters {
 #[test]
 fn test_impl_level_document_parameters_integration() {
 	// Compile-time test to ensure impl-level document_parameters works
+}
+
+// --- Trait support tests ---
+
+/// Trait with fully documented methods — no validation warnings expected.
+#[document_module]
+mod test_trait_fully_documented {
+	use fp_macros::{
+		document_examples,
+		document_parameters,
+		document_returns,
+	};
+
+	#[allow(dead_code)]
+	#[fp_macros::document_type_parameters("The element type.")]
+	#[document_parameters("The collection instance.")]
+	pub trait MyCollection<T> {
+		/// Returns the number of elements.
+		#[fp_macros::document_signature]
+		#[document_returns("The number of elements in the collection.")]
+		#[document_examples]
+		///
+		/// ```
+		/// // Example placeholder
+		/// assert!(true);
+		/// ```
+		fn len(&self) -> usize;
+
+		/// Adds an element.
+		#[fp_macros::document_signature]
+		#[fp_macros::document_type_parameters("The lifetime of the value.")]
+		#[document_parameters("The element to add.")]
+		#[document_returns("Whether the element was added.")]
+		#[document_examples]
+		///
+		/// ```
+		/// assert!(true);
+		/// ```
+		fn add<'a>(
+			&mut self,
+			item: T,
+		) -> bool;
+	}
+}
+
+/// Marker trait (no methods) — no validation warnings expected.
+#[document_module]
+mod test_marker_trait {
+	#[allow(dead_code)]
+	pub trait Marker {}
+}
+
+/// Module with both trait and impl — both validated/generated.
+#[document_module(no_validation)]
+mod test_trait_and_impl_together {
+	use fp_macros::document_parameters;
+
+	#[allow(dead_code)]
+	pub trait Greet {
+		#[document_signature]
+		fn greet(&self) -> String;
+	}
+
+	#[allow(dead_code)]
+	pub struct Greeter;
+
+	#[document_parameters("The greeter instance.")]
+	impl Greet for Greeter {
+		#[document_signature]
+		#[document_parameters]
+		fn greet(&self) -> String {
+			"hello".into()
+		}
+	}
+}
+
+/// Trait-level #[document_parameters] — receiver doc applied to methods.
+#[document_module(no_validation)]
+mod test_trait_level_document_parameters {
+	use fp_macros::document_parameters;
+
+	#[allow(dead_code)]
+	#[document_parameters("The stack instance.")]
+	pub trait Stack<T> {
+		#[document_parameters("The element to push.")]
+		fn push(
+			&mut self,
+			item: T,
+		);
+
+		#[document_parameters]
+		fn pop(&mut self) -> Option<T>;
+	}
+}
+
+#[test]
+fn test_trait_support_integration() {
+	// Compile-time test: trait support in document_module
+}
+
+#[test]
+fn test_trait_level_document_parameters_integration() {
+	// Compile-time test: trait-level #[document_parameters] with receiver doc
 }

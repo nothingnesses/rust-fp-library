@@ -25,8 +25,43 @@ mod inner {
 	};
 
 	/// A trait for indexed setter functions.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type of the structure.",
+		"The target type of the structure after an update.",
+		"The source type of the focus.",
+		"The target type of the focus after an update."
+	)]
+	#[document_parameters("The indexed setter instance.")]
 	pub trait IndexedSetterFunc<'a, I, S, T, A, B> {
 		/// Apply the indexed setter function.
+		#[fp_macros::document_signature]
+		#[document_parameters(
+			"The function to apply to each element and its index.",
+			"The source structure."
+		)]
+		#[document_returns("The updated structure.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::types::optics::IndexedSetterFunc;
+		///
+		/// struct MySetter;
+		/// impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
+		/// 	fn apply(
+		/// 		&self,
+		/// 		f: Box<dyn Fn(usize, i32) -> i32 + 'a>,
+		/// 		s: Vec<i32>,
+		/// 	) -> Vec<i32> {
+		/// 		s.into_iter().enumerate().map(|(i, x)| f(i, x)).collect()
+		/// 	}
+		/// }
+		///
+		/// let setter = MySetter;
+		/// let result = setter.apply(Box::new(|i, x| x + i as i32), vec![10, 20, 30]);
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
 		fn apply(
 			&self,
 			f: Box<dyn Fn(I, A) -> B + 'a>,

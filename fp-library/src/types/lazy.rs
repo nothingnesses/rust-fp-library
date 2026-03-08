@@ -25,7 +25,6 @@ mod inner {
 			document_fields,
 			document_parameters,
 			document_returns,
-			document_signature,
 			document_type_parameters,
 		},
 		std::{
@@ -68,9 +67,8 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
+		#[document_returns("A new lazy cell.")]
 		///
-		/// A new lazy cell.
 		#[document_examples]
 		///
 		/// ```
@@ -92,9 +90,8 @@ mod inner {
 		///
 		#[document_parameters("The initializer thunk.")]
 		///
-		/// ### Returns
+		#[document_returns("A new fallible lazy cell.")]
 		///
-		/// A new fallible lazy cell.
 		#[document_examples]
 		///
 		/// ```
@@ -118,9 +115,8 @@ mod inner {
 		///
 		#[document_parameters("The lazy cell to evaluate.")]
 		///
-		/// ### Returns
+		#[document_returns("A reference to the value.")]
 		///
-		/// A reference to the value.
 		#[document_examples]
 		///
 		/// ```
@@ -143,9 +139,8 @@ mod inner {
 		///
 		#[document_parameters("The fallible lazy cell to evaluate.")]
 		///
-		/// ### Returns
+		#[document_returns("A result containing a reference to the value or error.")]
 		///
-		/// A result containing a reference to the value or error.
 		#[document_examples]
 		///
 		/// ```

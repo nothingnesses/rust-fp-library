@@ -28,8 +28,46 @@ mod inner {
 	};
 
 	/// A trait for indexed fold functions.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The index type.",
+		"The source type.",
+		"The element type."
+	)]
+	#[document_parameters("The indexed fold instance.")]
 	pub trait IndexedFoldFunc<'a, I, S, A> {
 		/// Apply the indexed fold function.
+		#[document_signature]
+		#[document_type_parameters("The monoid type.")]
+		#[document_parameters("The fold function.", "The source value.")]
+		#[document_returns("The combined monoid value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	classes::{
+		/// 		monoid::Monoid,
+		/// 		semigroup::Semigroup,
+		/// 	},
+		/// 	types::optics::IndexedFoldFunc,
+		/// };
+		/// #[derive(Clone)]
+		/// struct MyFold;
+		/// impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
+		/// 	fn apply<R: 'a + Monoid + 'static>(
+		/// 		&self,
+		/// 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
+		/// 		s: Vec<i32>,
+		/// 	) -> R {
+		/// 		s.into_iter()
+		/// 			.enumerate()
+		/// 			.fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
+		/// 	}
+		/// }
+		/// let fold = MyFold;
+		/// let result: String = fold.apply(Box::new(|i, x| format!("[{}]={}", i, x)), vec![10, 20]);
+		/// assert_eq!(result, "[0]=10[1]=20");
+		/// ```
 		fn apply<R: 'a + Monoid + 'static>(
 			&self,
 			f: Box<dyn Fn(I, A) -> R + 'a>,

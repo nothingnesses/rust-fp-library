@@ -8,10 +8,9 @@ use {
 		traversable::Traversable,
 	},
 	fp_macros::{
+		document_examples,
 		document_parameters,
 		document_returns,
-		document_signature,
-		document_type_parameters,
 	},
 };
 
@@ -39,6 +38,23 @@ mod inner {
 			"The structure to traverse."
 		)]
 		#[document_returns("The structure of results inside the applicative.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::{
+		/// 		OptionBrand,
+		/// 		VecBrand,
+		/// 	},
+		/// 	classes::traversable_with_index::TraversableWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::traverse_with_index::<i32, i32, OptionBrand>(
+		/// 	|_i, x| if x > 0 { Some(x * 2) } else { None },
+		/// 	vec![1, 2, 3],
+		/// );
+		/// assert_eq!(result, Some(vec![2, 4, 6]));
+		/// ```
 		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
 			f: impl Fn(I, A) -> M::Of<'a, B> + 'a,
 			ta: Self::Of<'a, A>,

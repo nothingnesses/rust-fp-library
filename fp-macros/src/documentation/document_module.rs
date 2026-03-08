@@ -18,10 +18,14 @@ use {
 		},
 		resolution::get_context,
 		support::{
-			attributes::has_attribute,
+			attributes::{
+				attr_matches,
+				has_attribute,
+			},
 			method_utils::{
-				has_non_receiver_parameters,
 				impl_has_receiver_methods,
+				sig_has_non_receiver_parameters,
+				trait_has_receiver_methods,
 			},
 			parsing::{
 				parse_many,
@@ -35,6 +39,7 @@ use {
 	syn::{
 		Item,
 		ItemMod,
+		TraitItem,
 		parse::{
 			Parse,
 			ParseStream,
@@ -292,6 +297,10 @@ where
 		&mut self,
 		module: &mut ItemMod,
 	) {
+		// Strip nested #[document_module] attributes — the outer invocation
+		// handles them recursively, so leaving them would cause double-processing.
+		module.attrs.retain(|attr| !attr_matches(attr, DOCUMENT_MODULE));
+
 		if let Some((_, ref items)) = module.content {
 			if let Err(e) = (self.operation)(items, self.config) {
 				self.errors.push(e);
@@ -396,73 +405,122 @@ fn validate_doc_attr_order(
 }
 
 /// Validate that a method has appropriate documentation attributes.
-fn validate_method_documentation(
-	method: &syn::ImplItemFn,
+///
+/// This is the shared core that works with both `ImplItemFn` and `TraitItemFn`,
+/// since both expose the same `attrs`, `sig`, and `span()`.
+fn validate_method_documentation_core(
+	attrs: &[syn::Attribute],
+	sig: &syn::Signature,
+	span: proc_macro2::Span,
 	warnings: &mut ErrorCollector,
 ) {
-	let method_name = &method.sig.ident;
-	let method_generics = &method.sig.generics;
+	let method_name = &sig.ident;
 	let label = format!("Method `{method_name}`");
 
 	// Check for duplicate and out-of-order documentation attributes
-	validate_no_duplicate_doc_attrs(&method.attrs, method.span(), &label, warnings);
-	validate_doc_attr_order(&method.attrs, method.span(), &label, warnings);
+	validate_no_duplicate_doc_attrs(attrs, span, &label, warnings);
+	validate_doc_attr_order(attrs, span, &label, warnings);
 
 	// Check for document_signature
-	if !has_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
-		let warning = syn::Error::new(
-			method.span(),
+	if !has_attribute(attrs, DOCUMENT_SIGNATURE) {
+		warnings.push(syn::Error::new(
+			span,
 			format!("Method `{method_name}` should have #[{DOCUMENT_SIGNATURE}] attribute"),
-		);
-		warnings.push(warning);
+		));
 	}
 
 	// Check for document_type_parameters if method has type parameters
-	let has_type_params = !method_generics.params.is_empty();
-	let has_doc_type_params = has_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS);
+	let has_type_params = !sig.generics.params.is_empty();
+	let has_doc_type_params = has_attribute(attrs, DOCUMENT_TYPE_PARAMETERS);
 
 	if has_type_params && !has_doc_type_params {
-		let type_param_names: Vec<String> = get_all_parameters(method_generics);
-		let warning = syn::Error::new(
-			method.span(),
+		let type_param_names: Vec<String> = get_all_parameters(&sig.generics);
+		warnings.push(syn::Error::new(
+			span,
 			format!(
 				"Method `{method_name}` has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
 				type_param_names.join(", "),
 			),
-		);
-		warnings.push(warning);
+		));
 	}
 
 	// Check for document_parameters if method has non-receiver parameters
-	if has_non_receiver_parameters(method) && !has_attribute(&method.attrs, DOCUMENT_PARAMETERS) {
-		let warning = syn::Error::new(
-			method.span(),
+	if sig_has_non_receiver_parameters(sig) && !has_attribute(attrs, DOCUMENT_PARAMETERS) {
+		warnings.push(syn::Error::new(
+			span,
 			format!(
 				"Method `{method_name}` has parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
 			),
-		);
-		warnings.push(warning);
+		));
 	}
 
 	// Check for document_returns if method has a return type
-	if let syn::ReturnType::Type(..) = method.sig.output
-		&& !has_attribute(&method.attrs, DOCUMENT_RETURNS)
+	if let syn::ReturnType::Type(..) = sig.output
+		&& !has_attribute(attrs, DOCUMENT_RETURNS)
 	{
-		let warning = syn::Error::new(
-			method.span(),
+		warnings.push(syn::Error::new(
+			span,
 			format!(
 				"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURNS}] attribute",
 			),
-		);
-		warnings.push(warning);
+		));
 	}
 
 	// Check for document_examples (required on all methods)
-	if !has_attribute(&method.attrs, DOCUMENT_EXAMPLES) {
+	if !has_attribute(attrs, DOCUMENT_EXAMPLES) {
 		warnings.push(syn::Error::new(
-			method.span(),
+			span,
 			format!(
 				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
+			),
+		));
+	}
+}
+
+/// Validate that an impl method has appropriate documentation attributes.
+fn validate_method_documentation(
+	method: &syn::ImplItemFn,
+	warnings: &mut ErrorCollector,
+) {
+	validate_method_documentation_core(&method.attrs, &method.sig, method.span(), warnings);
+}
+
+/// Validate documentation attributes on a container (impl block or trait definition).
+///
+/// Checks for duplicate/misordered doc attrs, type parameter documentation,
+/// and receiver parameter documentation at the container level.
+fn validate_container_documentation(
+	attrs: &[syn::Attribute],
+	generics: &syn::Generics,
+	has_receiver_methods: bool,
+	span: proc_macro2::Span,
+	container_label: &str,
+	warnings: &mut ErrorCollector,
+) {
+	validate_no_duplicate_doc_attrs(attrs, span, container_label, warnings);
+	validate_doc_attr_order(attrs, span, container_label, warnings);
+
+	let has_type_params = !generics.params.is_empty();
+	let has_doc_type_params = has_attribute(attrs, DOCUMENT_TYPE_PARAMETERS);
+
+	// Warn if container has type parameters but no document_type_parameters
+	if has_type_params && !has_doc_type_params {
+		let type_param_names: Vec<String> = get_all_parameters(generics);
+		warnings.push(syn::Error::new(
+			span,
+			format!(
+				"{container_label} has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
+				type_param_names.join(", "),
+			),
+		));
+	}
+
+	// Warn if container has methods with receivers but no document_parameters
+	if has_receiver_methods && !has_attribute(attrs, DOCUMENT_PARAMETERS) {
+		warnings.push(syn::Error::new(
+			span,
+			format!(
+				"{container_label} contains methods with receiver parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
 			),
 		));
 	}
@@ -473,46 +531,41 @@ fn validate_impl_documentation(
 	item_impl: &syn::ItemImpl,
 	warnings: &mut ErrorCollector,
 ) {
-	// Check for duplicate and out-of-order documentation attributes on the impl block itself
-	validate_no_duplicate_doc_attrs(&item_impl.attrs, item_impl.span(), "Impl block", warnings);
-	validate_doc_attr_order(&item_impl.attrs, item_impl.span(), "Impl block", warnings);
-
-	let impl_generics = &item_impl.generics;
-	let has_type_params = !impl_generics.params.is_empty();
-	let has_doc_type_params = has_attribute(&item_impl.attrs, DOCUMENT_TYPE_PARAMETERS);
-
-	// Check if any methods have receivers
-	let has_methods_with_receivers = impl_has_receiver_methods(item_impl);
-
-	// Warn if impl has type parameters but no document_type_parameters
-	if has_type_params && !has_doc_type_params {
-		let type_param_names: Vec<String> = get_all_parameters(impl_generics);
-		let warning = syn::Error::new(
-			item_impl.span(),
-			format!(
-				"Impl block has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
-				type_param_names.join(", "),
-			),
-		);
-		warnings.push(warning);
-	}
-
-	// Warn if impl has methods with receivers but no document_parameters at impl level
-	// Note: This checks for impl-level document_parameters, which documents the receiver type
-	if has_methods_with_receivers && !has_attribute(&item_impl.attrs, DOCUMENT_PARAMETERS) {
-		let warning = syn::Error::new(
-			item_impl.span(),
-			format!(
-				"Impl block contains methods with receiver parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
-			),
-		);
-		warnings.push(warning);
-	}
+	validate_container_documentation(
+		&item_impl.attrs,
+		&item_impl.generics,
+		impl_has_receiver_methods(item_impl),
+		item_impl.span(),
+		"Impl block",
+		warnings,
+	);
 
 	// Validate each method in the impl block
 	for impl_item in &item_impl.items {
 		if let syn::ImplItem::Fn(method) = impl_item {
 			validate_method_documentation(method, warnings);
+		}
+	}
+}
+
+/// Validate that a trait definition has appropriate documentation attributes.
+fn validate_trait_documentation(
+	item_trait: &syn::ItemTrait,
+	warnings: &mut ErrorCollector,
+) {
+	validate_container_documentation(
+		&item_trait.attrs,
+		&item_trait.generics,
+		trait_has_receiver_methods(item_trait),
+		item_trait.span(),
+		"Trait",
+		warnings,
+	);
+
+	// Validate each method in the trait
+	for item in &item_trait.items {
+		if let TraitItem::Fn(method) = item {
+			validate_method_documentation_core(&method.attrs, &method.sig, method.span(), warnings);
 		}
 	}
 }
@@ -547,6 +600,7 @@ fn validate_documentation(items: &[Item]) -> Vec<syn::Error> {
 	for item in items {
 		match item {
 			Item::Impl(item_impl) => validate_impl_documentation(item_impl, &mut warnings),
+			Item::Trait(item_trait) => validate_trait_documentation(item_trait, &mut warnings),
 			Item::Fn(item_fn) => validate_fn_documentation(item_fn, &mut warnings),
 			_ => {}
 		}

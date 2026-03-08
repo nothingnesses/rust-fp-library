@@ -44,13 +44,38 @@ use {
 		ImplItem,
 		Item,
 		Result,
+		TraitItem,
 		parse_quote,
 		spanned::Spanned,
 		visit_mut::VisitMut,
 	},
 };
 
-/// Process the `#[document_signature]` attribute on a method.
+/// Generate a Hindley-Milner type signature and insert it as doc comments.
+///
+/// This is the shared core used by both impl method and trait method signature processing.
+fn insert_signature_docs(
+	attrs: &mut Vec<syn::Attribute>,
+	attr_pos: usize,
+	sig: &syn::Signature,
+	config: &Config,
+) {
+	let signature_data = generate_signature(sig, config);
+
+	let doc_comment = format!("`{signature_data}`");
+	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
+	attrs.insert(attr_pos, doc_attr);
+
+	// Add section header
+	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
+"#]);
+	attrs.insert(attr_pos, header_attr);
+}
+
+/// Process the `#[document_signature]` attribute on an impl method.
+///
+/// Performs Self-type substitution and generics merging before delegating
+/// to [`insert_signature_docs`] for the shared doc comment insertion.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn process_document_signature(
 	method: &mut syn::ImplItemFn,
@@ -98,37 +123,32 @@ pub(super) fn process_document_signature(
 		sig_config.self_type_name = Some(concrete_type_name);
 	}
 
-	let signature_data = generate_signature(&synthetic_sig, &sig_config);
-
-	let doc_comment = format!("`{signature_data}`");
-	let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-	method.attrs.insert(attr_pos, doc_attr);
-
-	// Add section header
-	let header_attr: syn::Attribute = parse_quote!(#[doc = r#"### Type Signature
-"#]);
-	method.attrs.insert(attr_pos, header_attr);
+	insert_signature_docs(&mut method.attrs, attr_pos, &synthetic_sig, &sig_config);
 }
 
-/// Process the `#[document_type_parameters]` attribute on a method.
-pub(super) fn process_document_type_parameters(
-	method: &mut syn::ImplItemFn,
+/// Process the `#[document_type_parameters]` attribute, shared core.
+///
+/// Works with any item that has `attrs` and generic parameters — methods (impl or trait),
+/// trait definitions, or any other generic item.
+fn process_type_parameters_core(
+	attrs: &mut Vec<syn::Attribute>,
+	generics: &syn::Generics,
+	item_label: &str,
 	attr_pos: usize,
 	errors: &mut ErrorCollector,
 ) {
-	let attr = method.attrs.remove(attr_pos);
+	let attr = attrs.remove(attr_pos);
 
-	// Get method-only generics (not including impl generics)
-	let method_param_names: Vec<String> = get_all_parameters(&method.sig.generics);
+	let param_names: Vec<String> = get_all_parameters(generics);
 
-	// Error if method has no type parameters - use collect_our_result
+	// Error if item has no type parameters - use collect_our_result
 	if errors
 		.collect_our_result(|| {
 			parsing::parse_has_documentable_items(
-				method_param_names.len(),
+				param_names.len(),
 				attr.span(),
 				DOCUMENT_TYPE_PARAMETERS,
-				&format!("method '{}' with no type parameters", method.sig.ident),
+				&format!("{item_label} with no type parameters"),
 			)
 		})
 		.is_none()
@@ -142,7 +162,7 @@ pub(super) fn process_document_type_parameters(
 		let entries: Vec<_> = args.entries.into_iter().collect();
 
 		if let Some(pairs) = errors.collect_our_result(|| {
-			parse_parameter_documentation_pairs(method_param_names, entries, attr.span())
+			parse_parameter_documentation_pairs(param_names, entries, attr.span())
 		}) {
 			let mut docs = Vec::new();
 			docs.push((
@@ -163,7 +183,7 @@ pub(super) fn process_document_type_parameters(
 			for (i, (name, desc)) in docs.into_iter().enumerate() {
 				let doc_comment = format_parameter_doc(&name, &desc);
 				let doc_attr: syn::Attribute = parse_quote!(#[doc = #doc_comment]);
-				method.attrs.insert(attr_pos + i, doc_attr);
+				attrs.insert(attr_pos + i, doc_attr);
 			}
 		}
 	} else {
@@ -173,6 +193,21 @@ pub(super) fn process_document_type_parameters(
 			format!("Failed to parse {DOCUMENT_TYPE_PARAMETERS} arguments"),
 		));
 	}
+}
+
+/// Process the `#[document_type_parameters]` attribute on an impl method.
+pub(super) fn process_document_type_parameters(
+	method: &mut syn::ImplItemFn,
+	attr_pos: usize,
+	errors: &mut ErrorCollector,
+) {
+	process_type_parameters_core(
+		&mut method.attrs,
+		&method.sig.generics,
+		&format!("method '{}'", method.sig.ident),
+		attr_pos,
+		errors,
+	);
 }
 
 /// Process method-level documentation (signatures and type parameters).
@@ -283,11 +318,63 @@ fn process_impl_block(
 	}
 }
 
+/// Process a trait method's documentation (signatures and type parameters).
+///
+/// Unlike impl methods, trait methods have no Self-type context, so signature
+/// generation uses the method signature directly without substitution.
+fn process_trait_method_documentation(
+	method: &mut syn::TraitItemFn,
+	config: &Config,
+	errors: &mut ErrorCollector,
+) {
+	// 1. Handle HM Signature — no Self substitution needed
+	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
+		method.attrs.remove(attr_pos);
+		insert_signature_docs(&mut method.attrs, attr_pos, &method.sig, config);
+	}
+
+	// 2. Handle Doc Type Params
+	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_TYPE_PARAMETERS) {
+		process_type_parameters_core(
+			&mut method.attrs,
+			&method.sig.generics,
+			&format!("method '{}'", method.sig.ident),
+			attr_pos,
+			errors,
+		);
+	}
+}
+
+/// Process a trait definition for documentation generation.
+fn process_trait_block(
+	item_trait: &mut syn::ItemTrait,
+	config: &Config,
+	errors: &mut ErrorCollector,
+) {
+	// Handle trait-level #[document_type_parameters]
+	if let Some(attr_pos) = find_attribute(&item_trait.attrs, DOCUMENT_TYPE_PARAMETERS) {
+		process_type_parameters_core(
+			&mut item_trait.attrs,
+			&item_trait.generics,
+			&format!("trait '{}'", item_trait.ident),
+			attr_pos,
+			errors,
+		);
+	}
+
+	// Process each method in the trait
+	for item in &mut item_trait.items {
+		if let TraitItem::Fn(method) = item {
+			process_trait_method_documentation(method, config, errors);
+		}
+	}
+}
+
 /// Generate documentation for all items.
 ///
-/// This is the main entry point for documentation generation. It processes each impl block
-/// in the provided items, generating documentation for type parameters, method signatures,
-/// and other attributes.
+/// This is the main entry point for documentation generation. It processes impl blocks
+/// and trait definitions in the provided items, generating documentation for type
+/// parameters, method signatures, and other attributes.
 pub(super) fn generate_documentation(
 	items: &mut [Item],
 	config: &Config,
@@ -295,8 +382,10 @@ pub(super) fn generate_documentation(
 	let mut errors = ErrorCollector::new();
 
 	for item in items {
-		if let Item::Impl(item_impl) = item {
-			process_impl_block(item_impl, config, &mut errors);
+		match item {
+			Item::Impl(item_impl) => process_impl_block(item_impl, config, &mut errors),
+			Item::Trait(item_trait) => process_trait_block(item_trait, config, &mut errors),
+			_ => {}
 		}
 	}
 

@@ -32,9 +32,6 @@ pub use {
 		is_phantom_data,
 		last_path_segment,
 	},
-	method_utils::{
-		has_receiver,
-		impl_has_receiver_methods,
-	},
+	method_utils::impl_has_receiver_methods,
 	type_visitor::TypeVisitor,
 };

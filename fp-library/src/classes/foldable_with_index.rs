@@ -28,6 +28,17 @@ mod inner {
 			"The structure to fold over."
 		)]
 		#[fp_macros::document_returns("The combined result.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::foldable_with_index::FoldableWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::fold_map_with_index(|i, x: i32| format!("{i}:{x}"), vec![10, 20, 30]);
+		/// assert_eq!(result, "0:101:202:30");
+		/// ```
 		fn fold_map_with_index<'a, A: 'a, R: Monoid>(
 			f: impl Fn(I, A) -> R + 'a,
 			fa: Self::Of<'a, A>,

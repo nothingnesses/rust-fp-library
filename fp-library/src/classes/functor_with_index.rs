@@ -24,6 +24,17 @@ mod inner {
 			"The structure to map over."
 		)]
 		#[fp_macros::document_returns("The mapped structure.")]
+		#[fp_macros::document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::VecBrand,
+		/// 	classes::functor_with_index::FunctorWithIndex,
+		/// };
+		///
+		/// let result = VecBrand::map_with_index(|i, x: i32| x + i as i32, vec![10, 20, 30]);
+		/// assert_eq!(result, vec![10, 21, 32]);
+		/// ```
 		fn map_with_index<'a, A: 'a, B: 'a>(
 			f: impl Fn(I, A) -> B + 'a,
 			fa: Self::Of<'a, A>,
