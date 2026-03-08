@@ -45,7 +45,9 @@ pub trait TraversalFunc<'a, S, T, A, B> {
 		&self,
 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>) + 'a>,
 		s: S,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>);
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>)
+	where
+		Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>): Clone;
 }
 
 impl<'a, S, T, A, B, TF> TraversalFunc<'a, S, T, A, B> for &TF
@@ -56,7 +58,10 @@ where
 		&self,
 		f: Box<dyn Fn(A) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>) + 'a>,
 		s: S,
-	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>) {
+	) -> Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>)
+	where
+		Apply!(<M as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>): Clone,
+	{
 		(**self).apply::<M>(f, s)
 	}
 }

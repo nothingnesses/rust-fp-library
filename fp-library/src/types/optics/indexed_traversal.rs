@@ -77,6 +77,7 @@ mod inner {
 		A: 'a + Clone,
 		B: 'a + Clone,
 		I: 'a,
+		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>): Clone,
 	{
 		#[document_signature]
 		#[document_type_parameters("The applicative context.")]
@@ -85,8 +86,7 @@ mod inner {
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{OptionBrand, VecBrand},
-	types::optics::indexed_traversal::Traversed,
-	classes::optics::indexed_traversal::IndexedTraversalFunc,
+	types::optics::*,
 };
 
 let traversal = Traversed::<VecBrand>(std::marker::PhantomData);
@@ -95,7 +95,7 @@ let f = Box::new(|i: usize, a: i32| -> Option<i32> {
 	Some(a + i as i32)
 });
 
-let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand, _>(
+let result: Option<Vec<i32>> = IndexedTraversalFunc::apply::<OptionBrand>(
 	&traversal,
 	f,
 	s
@@ -109,6 +109,8 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 			f: Box<dyn Fn(I, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a>,
 			s: Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>)>)
+		where
+			Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
 		{
 			// IMPORTANT: The turbofish `::<A, B, M>` is **required** here. Do not remove it.
 			//
@@ -155,6 +157,7 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 		A: 'a + Clone,
 		B: 'a + Clone,
 		I: 'a,
+		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>): Clone,
 	{
 		/// Create an indexed traversal from a `TraversableWithIndex`.
 		#[document_signature]
@@ -162,11 +165,11 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::IndexedTraversal,
+	types::optics::*,
 	functions::optics_indexed_fold_map,
 };
-let t: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _> =
-	IndexedTraversal::traversed::<VecBrand>();
+let t: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
 let v = vec![10, 20, 30];
 let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&t, |i, x| format!("{}:{}", i, x), v);
 assert_eq!(s, "0:101:202:30".to_string());
@@ -197,6 +200,7 @@ assert_eq!(s, "0:101:202:30".to_string());
 		Brand: TraversableWithIndex<I>,
 		A: 'a + Clone,
 		I: 'a,
+		Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>): Clone,
 	{
 		/// Create a monomorphic indexed traversal from a `TraversableWithIndex`.
 		#[document_signature]
@@ -204,11 +208,11 @@ assert_eq!(s, "0:101:202:30".to_string());
 		#[document_examples(
 			r#"use fp_library::{
 	brands::{RcBrand, VecBrand},
-	types::optics::IndexedTraversalPrime,
+	types::optics::*,
 	functions::optics_indexed_over,
 };
-let t: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, _> =
-	IndexedTraversalPrime::traversed::<VecBrand>();
+let t: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
 let v = vec![10, 20, 30];
 let v2 = optics_indexed_over::<RcBrand, _, _, _, _, _>(&t, v, |i, x| x + i as i32);
 assert_eq!(v2, vec![10, 21, 32]);
@@ -238,8 +242,10 @@ assert_eq!(v2, vec![10, 21, 32]);
 		#[document_returns("A new `IndexedTraversal` instance that is a copy of the original.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::RcBrand,
-	classes::applicative::Applicative,
+	Apply,
+	Kind,
+	brands::{RcBrand, RcFnBrand},
+	classes::{applicative::Applicative, optics::IndexedTraversalOptic},
 	types::optics::*,
 };
 #[derive(Clone)]
@@ -247,9 +253,9 @@ struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
 	fn apply<M: Applicative>(
 		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
+		f: Box<dyn Fn(usize, i32) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
+	) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
 		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
 			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
 		})
@@ -293,17 +299,20 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("A new `IndexedTraversal` instance.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::RcBrand,
-	classes::applicative::Applicative,
+	Apply,
+	Kind,
+	brands::{RcBrand, RcFnBrand},
+	classes::{applicative::Applicative, optics::IndexedTraversalOptic},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
 	fn apply<M: Applicative>(
 		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
+		f: Box<dyn Fn(usize, i32) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
+	) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
 		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
 			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
 		})
@@ -337,7 +346,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, F>
+	impl<'a, P, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, F>
 		IndexedTraversalOptic<'a, I, S, T, A, B> for IndexedTraversal<'a, P, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
@@ -348,24 +357,12 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, RcFnBrand, VecBrand},
+	classes::optics::IndexedTraversalOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyTraversal> =
-	IndexedTraversal::new(MyTraversal);
+let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
@@ -394,7 +391,10 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 							+ 'a,
 					>,
 					s: S,
-				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>) {
+				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
+				where
+					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
+				{
 					self.traversal.apply::<M>(Box::new(move |i, a| f((i, a))), s)
 				}
 			}
@@ -418,7 +418,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a, F> IndexedFoldOptic<'a, I, S, A>
+	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
 		for IndexedTraversal<'a, P, I, S, S, A, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
@@ -429,31 +429,19 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, VecBrand},
+	classes::optics::IndexedFoldOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyTraversal> =
-	IndexedTraversal::new(MyTraversal);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(_, x)| x.to_string());
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "1020".to_string());
 "#
 		)]
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -474,7 +462,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, Q, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, P, F>
+	impl<'a, Q, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, P, F>
 		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedTraversal<'a, P, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
@@ -485,28 +473,16 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, VecBrand},
+	classes::optics::IndexedSetterOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyTraversal> =
-	IndexedTraversal::new(MyTraversal);
+let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result(vec![10, 20]), vec![10, 21]);
 "#
 		)]
@@ -530,7 +506,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, Q, F>
 		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedTraversal<'a, Q, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
@@ -540,13 +516,14 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedTraversal::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
-let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
+let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -568,7 +545,7 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, Q, F>
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
 		for IndexedTraversal<'a, Q, I, S, T, A, B, F>
 	where
@@ -579,13 +556,14 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedTraversal::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::traversed::<VecBrand>();
-let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&as_index, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
+	IndexedTraversal::traversed();
+let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -631,8 +609,10 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&as_index, vec![10, 20], |i| i + 1
 		)]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::RcBrand,
-	classes::applicative::Applicative,
+	Apply,
+	Kind,
+	brands::{RcBrand, RcFnBrand},
+	classes::{applicative::Applicative, optics::IndexedTraversalOptic},
 	types::optics::*,
 };
 #[derive(Clone)]
@@ -640,9 +620,9 @@ struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
 	fn apply<M: Applicative>(
 		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
+		f: Box<dyn Fn(usize, i32) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
+	) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
 		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
 			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
 		})
@@ -684,17 +664,20 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("A new `IndexedTraversalPrime` instance.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::RcBrand,
-	classes::applicative::Applicative,
+	Apply,
+	Kind,
+	brands::{RcBrand, RcFnBrand},
+	classes::{applicative::Applicative, optics::IndexedTraversalOptic},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyTraversal;
 impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
 	fn apply<M: Applicative>(
 		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
+		f: Box<dyn Fn(usize, i32) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
 		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
+	) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
 		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
 			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
 		})
@@ -726,7 +709,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a, F> IndexedTraversalOptic<'a, I, S, S, A, A>
+	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedTraversalOptic<'a, I, S, S, A, A>
 		for IndexedTraversalPrime<'a, P, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
@@ -737,24 +720,12 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, RcFnBrand, VecBrand},
+	classes::optics::IndexedTraversalOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, MyTraversal> =
-	IndexedTraversalPrime::new(MyTraversal);
+let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
@@ -783,7 +754,10 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 							+ 'a,
 					>,
 					s: S,
-				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, S>) {
+				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, S>)
+				where
+					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, A>): Clone,
+				{
 					self.traversal.apply::<M>(Box::new(move |i, a| f((i, a))), s)
 				}
 			}
@@ -807,7 +781,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a, F> IndexedFoldOptic<'a, I, S, A>
+	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
 		for IndexedTraversalPrime<'a, P, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
@@ -818,31 +792,19 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, VecBrand},
+	classes::optics::IndexedFoldOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, MyTraversal> =
-	IndexedTraversalPrime::new(MyTraversal);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(_, x)| x.to_string());
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "1020".to_string());
 "#
 		)]
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Indexed<'a, ForgetBrand<Q, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>)
@@ -861,7 +823,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, Q, I: Clone + 'a, S: 'a, A: 'a, P, F> IndexedSetterOptic<'a, Q, I, S, S, A, A>
+	impl<'a, Q, I: Clone + 'a, S: 'a, A: 'a + Clone, P, F> IndexedSetterOptic<'a, Q, I, S, S, A, A>
 		for IndexedTraversalPrime<'a, P, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
@@ -872,28 +834,16 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::*,
-	classes::{applicative::Applicative, optics::*},
+	brands::{RcBrand, VecBrand},
+	classes::optics::IndexedSetterOptic,
 	types::optics::*,
 };
-struct MyTraversal;
-impl<'a> IndexedTraversalFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MyTraversal {
-	fn apply<M: Applicative>(
-		&self,
-		f: Box<dyn Fn(usize, i32) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, i32>) + 'a>,
-		s: Vec<i32>,
-	) -> fp_library::Apply!(<M as fp_library::kinds::Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, Vec<i32>>) {
-		s.into_iter().enumerate().fold(M::pure(vec![]), |acc, (i, x)| {
-			M::lift2(|mut v: Vec<i32>, y: i32| { v.push(y); v }, acc, f(i, x))
-		})
-	}
-}
-let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, MyTraversal> =
-	IndexedTraversalPrime::new(MyTraversal);
+let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result(vec![10, 20]), vec![10, 21]);
 "#
 		)]
@@ -915,7 +865,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a, Q, F> IndexedOpticAdapter<'a, P, I, S, S, A, A>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, Q, F> IndexedOpticAdapter<'a, P, I, S, S, A, A>
 		for IndexedTraversalPrime<'a, Q, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
@@ -925,13 +875,14 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedTraversalPrime::<RcBrand, usize, Vec<i32>, i32, _>::traversed::<VecBrand>();
-let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
+let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -951,7 +902,7 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a, Q, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, Q, F>
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A>
 		for IndexedTraversalPrime<'a, Q, I, S, A, F>
 	where
@@ -962,13 +913,14 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand, VecBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedTraversalPrime::<RcBrand, usize, Vec<i32>, i32, _>::traversed::<VecBrand>();
-let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&as_index, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
+	IndexedTraversalPrime::traversed();
+let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,

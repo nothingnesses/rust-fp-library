@@ -127,7 +127,7 @@ let transformed = <IndexedBrand<RcFnBrand, usize> as Profunctor>::dimap(
 	|b: i32| b - 1,
 	indexed,
 );
-assert_eq!((transformed.inner)((10, 16)), 25); // (10 + (16 * 2)) - 1 = 25"#
+assert_eq!((transformed.inner)((10, 16)), 41); // (10 + (16 * 2)) - 1 = 41"#
 		)]
 		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
 			ab: FuncAB,
@@ -296,14 +296,20 @@ assert_eq!((transformed.inner)((10, Ok(32))), Ok(42));"#
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
 		#[document_examples(
 			r#"use fp_library::{
+	Apply,
+	Kind,
 	brands::RcFnBrand,
-	classes::profunctor::*,
+	classes::{
+		applicative::Applicative,
+		profunctor::*,
+		optics::TraversalFunc,
+	},
 	types::optics::{Indexed, IndexedBrand},
 };
 // Example concept: wandering over a structure while preserving index
 struct SingleTraversal;
 impl<'a, A: 'a, B: 'a> TraversalFunc<'a, A, B, A, B> for SingleTraversal {
-    fn apply<'b, M: Applicative>(&self, f: Box<dyn Fn(A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) + 'a>, s: A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) {
+    fn apply<M: Applicative>(&self, f: Box<dyn Fn(A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) + 'a>, s: A) -> Apply!(<M as Kind!(type Of<'c, T: 'c>: 'c;)>::Of<'a, B>) {
         f(s)
     }
 }
@@ -312,7 +318,7 @@ let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
 let transformed = <IndexedBrand<RcFnBrand, usize> as Wander>::wander(SingleTraversal, indexed);
 assert_eq!((transformed.inner)((10, 32)), 42);"#
 		)]
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
@@ -328,14 +334,17 @@ assert_eq!((transformed.inner)((10, 32)), 42);"#
 			where
 				TFunc: TraversalFunc<'a, S, T, A, B> + 'a,
 			{
-				fn apply<'b, M: Applicative>(
+				fn apply<M: Applicative>(
 					&self,
 					f: Box<
 						dyn Fn((I, A)) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>)
 							+ 'a,
 					>,
 					(i, s): (I, S),
-				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>) {
+				) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
+				where
+					Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
+				{
 					let i_clone = i.clone();
 					self.traversal.apply::<M>(Box::new(move |a| f((i_clone.clone(), a))), s)
 				}

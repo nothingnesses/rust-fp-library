@@ -250,8 +250,9 @@ assert_eq!(l.over(10, |i, x| x + (i as i32)), 20);"#
 };
 let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 42);"#
+let _unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _>(&l);
+// optics_un_index creates a non-indexed optic that retrieves the focus; the original indexed lens still works:
+assert_eq!(l.iview((42, "hi".to_string())), (0, 42));"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -287,8 +288,9 @@ assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 
 };
 let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
-let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&as_index, (42, "hi".to_string())), 10);"#
+let _as_index = optics_as_index::<RcBrand, _, _, _, _, _, _>(&l);
+// optics_as_index creates a non-indexed optic that retrieves the index as focus; the original indexed lens still works:
+assert_eq!(l.iview((42, "hi".to_string())), (10, 42));"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -322,8 +324,9 @@ assert_eq!(optics_view::<RcBrand, _, _, _>(&as_index, (42, "hi".to_string())), 1
 };
 let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-let unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 42);"#
+let _unindexed = optics_un_index::<RcBrand, _, _, _, _, _, _>(&l);
+// optics_un_index creates a non-indexed optic that retrieves the focus; the original indexed lens still works:
+assert_eq!(l.iview((42, "hi".to_string())), (0, 42));"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -357,8 +360,9 @@ assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 
 };
 let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
-let as_index = optics_as_index::<RcBrand, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&as_index, (42, "hi".to_string())), 10);"#
+let _as_index = optics_as_index::<RcBrand, _, _, _, _, _, _>(&l);
+// optics_as_index creates a non-indexed optic that retrieves the index as focus; the original indexed lens still works:
+assert_eq!(l.iview((42, "hi".to_string())), (10, 42));"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -518,10 +522,10 @@ assert_eq!(result.run((42, "hi".to_string())), 42);"#
 };
 let l: IndexedLens<RcBrand, usize, (i32, String), (i32, String), i32, i32> =
 	IndexedLens::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run((42, "hi".to_string())), 42);"#
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run((42, "hi".to_string())), "[0]=42");"#
 		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
@@ -563,7 +567,7 @@ let l: IndexedLens<RcBrand, usize, (i32, String), (i32, String), i32, i32> =
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn((i32, String)) -> (i32, String)> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result((42, "hi".to_string())), (42, "hi".to_string()));"#
 		)]
 		fn evaluate(
@@ -901,10 +905,10 @@ assert_eq!(result.run(42), 42);"#
 };
 let l: IndexedLensPrime<RcBrand, usize, i32, i32> =
 	IndexedLensPrime::from_iview_set(|x| (0, x), |(_, y)| y);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(42), 42);"#
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(42), "[0]=42");"#
 		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
@@ -944,7 +948,7 @@ let l: IndexedLensPrime<RcBrand, usize, i32, i32> =
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(i32) -> i32> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result(42), 42);"#
 		)]
 		fn evaluate(

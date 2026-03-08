@@ -574,7 +574,7 @@ let folded = <Composed<
 > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
 assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());"#
 		)]
-		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -1068,7 +1068,7 @@ let folded = <Composed<
 > as IndexedFoldOptic<usize, (i32, String), i32>>::evaluate::< (usize, i32), RcBrand >(&composed, Indexed::new(f));
 assert_eq!(folded.run((42, "hi".to_string())), (0, 42));"#
 		)]
-		fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
 			&self,
 			pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
 		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)

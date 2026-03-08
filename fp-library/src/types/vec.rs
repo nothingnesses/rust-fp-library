@@ -629,7 +629,7 @@ let t = <VecBrand as TraversableWithIndex<usize>>::traverse_with_index::<i32, i3
 );
 assert_eq!(t, Some(vec![10, 21, 32]));"#
 		)]
-		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
 			f: impl Fn(usize, A) -> M::Of<'a, B> + 'a,
 			ta: Vec<A>,
 		) -> M::Of<'a, Vec<B>> {

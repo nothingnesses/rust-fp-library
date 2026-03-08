@@ -549,7 +549,7 @@ let y = <OptionBrand as TraversableWithIndex<()>>::traverse_with_index::<i32, i3
 );
 assert_eq!(y, Some(Some(10)));"#
 		)]
-		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
 			f: impl Fn((), A) -> M::Of<'a, B> + 'a,
 			ta: Option<A>,
 		) -> M::Of<'a, Option<B>> {

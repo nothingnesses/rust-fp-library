@@ -232,7 +232,7 @@ assert_eq!(
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 	{
 		/// Evaluates the traversal with a profunctor.
 		#[document_signature]
@@ -311,7 +311,7 @@ assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -383,7 +383,7 @@ assert_eq!(result(vec![1, 2]), vec![2, 3]);"#
 		P: UnsizedCoercible,
 		F: TraversalFunc<'a, S, S, A, A> + Clone + 'a,
 		S: 'a,
-		A: 'a,
+		A: 'a + Clone,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -439,7 +439,7 @@ let f = Forget::<RcBrand, String, i32, i32>::new(|x: i32| x.to_string());
 let result = FoldOptic::evaluate(&traversal, f);
 assert_eq!(result.run(vec![1, 2]), "12".to_string());"#
 		)]
-		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
 			&self,
 			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
@@ -467,7 +467,7 @@ assert_eq!(result.run(vec![1, 2]), "12".to_string());"#
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]

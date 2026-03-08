@@ -242,7 +242,7 @@ assert_eq!(transformed.run(("hello".to_string(), 42)), 5);"#
 	}
 
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Wander for ForgetBrand<P, R> {
+	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid + Clone> Wander for ForgetBrand<P, R> {
 		/// Lifts the `Forget` profunctor to operate on a structure using a traversal.
 		#[document_signature]
 		#[document_type_parameters(
@@ -273,7 +273,7 @@ let forget: Forget<RcBrand, String, String, String> = Forget::new(|x: String| x)
 let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| v.join(""));
 assert_eq!(transformed.run(vec!["a".to_string(), "b".to_string()]), "ab".to_string());"#
 		)]
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)

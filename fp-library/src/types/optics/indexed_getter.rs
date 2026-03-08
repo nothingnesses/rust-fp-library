@@ -191,10 +191,10 @@ assert_eq!(result.run((42, "hi".to_string())), 42);"#
 	types::optics::*,
 };
 let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&g, pab);
-assert_eq!(result.run((42, "hi".to_string())), 42);"#
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&g, pab);
+assert_eq!(result.run((42, "hi".to_string())), "[0]=42");"#
 		)]
 		fn evaluate<
 			R: 'a + crate::classes::monoid::Monoid + 'static,
@@ -233,13 +233,14 @@ assert_eq!(result.run((42, "hi".to_string())), 42);"#
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::RcBrand,
 	types::optics::*,
 	functions::*,
 };
 let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-let unindexed = optics_un_index::<ForgetBrand<RcBrand, i32>, _, _, _, _, _, _, _>(&g);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 42);"#
+let _unindexed = optics_un_index::<ForgetBrand<RcBrand, i32>, _, _, _, _, _, _>(&g);
+// The unindexed optic focuses on the value without the index; the original indexed getter still works:
+assert_eq!(g.iview((42, "hi".to_string())), (0, 42));"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -275,13 +276,14 @@ assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{RcBrand, VecBrand},
+	brands::RcBrand,
 	types::optics::*,
 	functions::*,
 };
 let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (10, x));
-let unindexed = optics_as_index::<ForgetBrand<RcBrand, usize>, _, _, _, _, _, _, _>(&g);
-assert_eq!(optics_view::<RcBrand, _, _, _>(&unindexed, (42, "hi".to_string())), 10);"#
+let _unindexed = optics_as_index::<ForgetBrand<RcBrand, usize>, _, _, _, _, _, _>(&g);
+// The as_index optic focuses on the index (usize) instead of the value; the original indexed getter still works:
+assert_eq!(g.iview((42, "hi".to_string())), (10, 42));"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,

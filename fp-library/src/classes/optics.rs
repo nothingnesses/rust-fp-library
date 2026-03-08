@@ -338,6 +338,15 @@ pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	///
 	#[document_parameters("The profunctor value to transform.")]
 	///
+	/// ### `R: Clone` Requirement
+	///
+	/// The result monoid `R` must implement [`Clone`] because the fold is internally implemented
+	/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
+	/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
+	/// [`TraversalFunc::apply`](crate::classes::optics::traversal::TraversalFunc::apply) with
+	/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
+	/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
+	///
 	/// ### Examples
 	///
 	/// ```
@@ -359,7 +368,7 @@ pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	/// >(&f_optic, f);
 	/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 	/// ```
-	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+	fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
 		&self,
 		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
@@ -481,7 +490,16 @@ pub trait IndexedFoldOptic<'a, I: 'a, S: 'a, A: 'a> {
 	#[document_signature]
 	#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
 	#[document_parameters("The indexed profunctor value to transform.")]
-	fn evaluate<R: 'a + Monoid + 'static, P: UnsizedCoercible + 'static>(
+	///
+	/// ### `R: Clone` Requirement
+	///
+	/// The result monoid `R` must implement [`Clone`] because the fold is internally implemented
+	/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
+	/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
+	/// [`IndexedTraversalFunc::apply`](crate::classes::optics::indexed_traversal::IndexedTraversalFunc::apply) with
+	/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
+	/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
+	fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
 		&self,
 		pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
 	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);

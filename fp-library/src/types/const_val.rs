@@ -36,7 +36,7 @@ mod inner {
 		"The stored type.",
 		"The ignored type."
 	)]
-	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct Const<'a, R, A>(pub R, pub PhantomData<&'a A>);
 
 	#[document_type_parameters(
@@ -232,3 +232,11 @@ assert_eq!(c.0, "".to_string());"#
 	}
 }
 pub use inner::*;
+
+// `A` is only `PhantomData<&'a A>` — always Clone/Copy — so we only need `R: Clone`/`R: Copy`.
+impl<'a, R: Clone, A> Clone for Const<'a, R, A> {
+	fn clone(&self) -> Self {
+		Const(self.0.clone(), std::marker::PhantomData)
+	}
+}
+impl<'a, R: Copy, A> Copy for Const<'a, R, A> {}

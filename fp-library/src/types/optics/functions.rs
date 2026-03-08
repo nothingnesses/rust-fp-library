@@ -218,7 +218,7 @@ assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string()
 		P: UnsizedCoercible + 'static,
 		O: FoldOptic<'a, S, A>,
 		S: 'a,
-		A: 'a + 'static, {
+		A: 'a + 'static + Clone, {
 		#[derive(Clone)]
 		struct First<A>(Option<A>);
 		impl<A> Semigroup for First<A> {
@@ -639,7 +639,7 @@ assert_eq!(optics_indexed_preview::<RcBrand, _, _, _, _>(&l, (42, "hello".to_str
 		O: IndexedFoldOptic<'a, I, S, A>,
 		I: 'a + Clone + 'static,
 		S: 'a,
-		A: 'a + 'static, {
+		A: 'a + 'static + Clone, {
 		#[derive(Clone)]
 		struct First<A>(Option<A>);
 		impl<A> Semigroup for First<A> {
@@ -699,7 +699,7 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| 
 		I: 'a,
 		S: 'a,
 		A: 'a,
-		R: Monoid + 'a + 'static,
+		R: Monoid + Clone + 'a + 'static,
 		F: Fn(I, A) -> R + 'a, {
 		let forget = Forget::new(move |(i, a)| f(i, a));
 		let result_forget = optic.evaluate::<R, P>(Indexed::new(forget));
@@ -994,7 +994,10 @@ assert_eq!(result, Some(vec![10, 21, 32]));
 				dyn Fn(usize, A) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>) + 'a,
 			>,
 			s: S,
-		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>) {
+		) -> Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, T>)
+		where
+			Apply!(<M as Kind!( type Of<'c, U: 'c>: 'c; )>::Of<'a, B>): Clone,
+		{
 			let counter = std::cell::Cell::new(0usize);
 			self.0.apply::<M>(
 				Box::new(move |a: A| {

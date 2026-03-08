@@ -76,9 +76,10 @@ mod inner {
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 #[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
@@ -87,16 +88,16 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyFold> =
 	IndexedFold::new(MyFold);
 let cloned = l.clone();
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&cloned, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&cloned, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		fn clone(&self) -> Self {
@@ -128,9 +129,10 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 	fn apply<R: 'a + Monoid + 'static>(
@@ -138,15 +140,15 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyFold> =
 	IndexedFold::new(MyFold);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		pub fn new(fold_fn: F) -> Self {
@@ -183,8 +185,8 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_examples(
 			r#"use fp_library::{
 	brands::VecBrand,
-	types::optics::indexed_fold::Folded,
-	classes::optics::indexed_fold::IndexedFoldFunc,
+	types::optics::Folded,
+	types::optics::IndexedFoldFunc,
 };
 // Internal helper.
 assert_eq!(std::mem::size_of::<Folded<VecBrand>>(), 0);
@@ -232,7 +234,7 @@ assert_eq!(std::mem::size_of::<Folded<VecBrand>>(), 0);
 	functions::optics_indexed_fold_map,
 };
 let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _> =
-	IndexedFold::folded::<VecBrand>();
+	IndexedFold::folded();
 let v = vec![10, 20];
 let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| format!("{}:{}", i, x), v);
 assert_eq!(s, "0:101:20".to_string());
@@ -274,7 +276,7 @@ assert_eq!(s, "0:101:20".to_string());
 	functions::optics_indexed_fold_map,
 };
 let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, _> =
-	IndexedFoldPrime::folded::<VecBrand>();
+	IndexedFoldPrime::folded();
 let v = vec![10, 20];
 let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, x| format!("{}:{}", i, x), v);
 assert_eq!(s, "0:101:20".to_string());
@@ -309,9 +311,10 @@ assert_eq!(s, "0:101:20".to_string());
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 	fn apply<R: 'a + Monoid + 'static>(
@@ -319,15 +322,15 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MyFold> =
 	IndexedFold::new(MyFold);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
@@ -359,7 +362,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	impl<
 		'a,
 		Q2: UnsizedCoercible + 'static,
-		R: 'a + Monoid + 'static,
+		R: 'a + Monoid + Clone + 'static,
 		P: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
@@ -381,8 +384,8 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
-let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded();
+let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
 		fn evaluate_indexed(
@@ -409,7 +412,7 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	impl<
 		'a,
 		Q2: UnsizedCoercible + 'static,
-		R: 'a + Monoid + 'static,
+		R: 'a + Monoid + Clone + 'static,
 		P: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
@@ -431,8 +434,8 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded::<VecBrand>();
-let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::folded();
+let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]
 		fn evaluate_indexed_discards_focus(
@@ -478,9 +481,10 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| 
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 #[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
@@ -489,16 +493,16 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, MyFold> =
 	IndexedFoldPrime::new(MyFold);
 let cloned = l.clone();
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&cloned, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&cloned, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		fn clone(&self) -> Self {
@@ -528,9 +532,10 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_examples(
 			r#"use fp_library::{
 	brands::RcBrand,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 	fn apply<R: 'a + Monoid + 'static>(
@@ -538,15 +543,15 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, MyFold> =
 	IndexedFoldPrime::new(MyFold);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		pub fn new(fold_fn: F) -> Self {
@@ -579,9 +584,10 @@ assert_eq!(result.run(vec![10, 20]), 31);
 		#[document_examples(
 			r#"use fp_library::{
 	brands::*,
-	classes::{monoid::Monoid, UnsizedCoercible},
+	classes::{monoid::Monoid, semigroup::Semigroup, IndexedFoldOptic, UnsizedCoercible},
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MyFold;
 impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 	fn apply<R: 'a + Monoid + 'static>(
@@ -589,15 +595,15 @@ impl<'a> IndexedFoldFunc<'a, usize, Vec<i32>, i32> for MyFold {
 		f: Box<dyn Fn(usize, i32) -> R + 'a>,
 		s: Vec<i32>,
 	) -> R {
-		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| acc.append(f(i, x)))
+		s.into_iter().enumerate().fold(R::empty(), |acc, (i, x)| Semigroup::append(acc, f(i, x)))
 	}
 }
 let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, MyFold> =
 	IndexedFoldPrime::new(MyFold);
-let f = Forget::<RcBrand, i32, (usize, i32), i32>::new(|(i, x)| x + (i as i32));
+let f = Forget::<RcBrand, String, (usize, i32), i32>::new(|(i, x)| format!("[{}]={}", i, x));
 let pab = Indexed::new(f);
-let result = IndexedFoldOptic::evaluate::<i32, RcBrand>(&l, pab);
-assert_eq!(result.run(vec![10, 20]), 31);
+let result = IndexedFoldOptic::evaluate::<String, RcBrand>(&l, pab);
+assert_eq!(result.run(vec![10, 20]), "[0]=10[1]=20");
 "#
 		)]
 		fn evaluate<R: 'a + Monoid + 'static, Q: UnsizedCoercible + 'static>(
@@ -627,7 +633,7 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	impl<
 		'a,
 		Q2: UnsizedCoercible + 'static,
-		R: 'a + Monoid + 'static,
+		R: 'a + Monoid + Clone + 'static,
 		P: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
@@ -647,8 +653,8 @@ assert_eq!(result.run(vec![10, 20]), 31);
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
-let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded();
+let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| x.to_string(), vec![1, 2]), "12");"#
 		)]
 		fn evaluate_indexed(
@@ -673,7 +679,7 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	impl<
 		'a,
 		Q2: UnsizedCoercible + 'static,
-		R: 'a + Monoid + 'static,
+		R: 'a + Monoid + Clone + 'static,
 		P: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
@@ -693,8 +699,8 @@ assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |_, x| 
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded::<VecBrand>();
-let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _, _>(&l);
+let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, _>::folded();
+let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 assert_eq!(optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(&l, |i, _| i.to_string(), vec![1, 2]), "01");"#
 		)]
 		fn evaluate_indexed_discards_focus(

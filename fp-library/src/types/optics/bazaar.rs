@@ -873,7 +873,7 @@ assert_eq!((bl_err.rebuild)(vec![]), Err("oops".to_string()));"#
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Wander for BazaarBrand<FnBrand, A, B> {
+	impl<FnBrand: CloneableFn + 'static, A: 'static + Clone, B: 'static + Clone> Wander for BazaarBrand<FnBrand, A, B> {
 		/// Lifts the `Bazaar` profunctor through a traversal.
 		///
 		/// Corresponds to PureScript's `wander w (Bazaar f) = Bazaar (\pafb s -> w (f pafb) s)`.
@@ -951,7 +951,7 @@ let bl = (wandered.run)(vec![10, 20, 30]);
 assert_eq!(bl.foci, vec![10, 20, 30]);
 assert_eq!((bl.rebuild)(vec![1, 2, 3]), vec![1, 2, 3]);"#
 		)]
-		fn wander<'a, S: 'a, T: 'a, A2: 'a, B2: 'a, TFunc>(
+		fn wander<'a, S: 'a, T: 'a, A2: 'a, B2: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A2, B2>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
@@ -967,3 +967,16 @@ assert_eq!((bl.rebuild)(vec![1, 2, 3]), vec![1, 2, 3]);"#
 	}
 }
 pub use inner::*;
+
+impl<'a, FB: crate::classes::cloneable_fn::CloneableFn + 'static, A: Clone + 'a, B: 'a, T: 'a> Clone
+	for BazaarList<'a, FB, A, B, T>
+where
+	<FB as crate::classes::cloneable_fn::CloneableFn>::Of<'a, Vec<B>, T>: Clone,
+{
+	fn clone(&self) -> Self {
+		BazaarList {
+			foci: self.foci.clone(),
+			rebuild: self.rebuild.clone(),
+		}
+	}
+}

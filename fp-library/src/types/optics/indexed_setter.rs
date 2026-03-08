@@ -67,8 +67,7 @@ mod inner {
 		#[document_examples(
 			r#"use fp_library::{
 	brands::VecBrand,
-	types::optics::indexed_setter::Mapped,
-	classes::optics::indexed_setter::IndexedSetterFunc,
+	types::optics::{Mapped, IndexedSetterFunc},
 };
 
 let mapper = Mapped::<VecBrand>(std::marker::PhantomData);
@@ -291,7 +290,7 @@ assert_eq!(l.set(vec![10, 20], 42), vec![42, 42]);
 	functions::optics_indexed_set,
 };
 let l: IndexedSetter<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _> =
-	IndexedSetter::mapped::<VecBrand>();
+	IndexedSetter::mapped();
 let v = vec![10, 20];
 let s = optics_indexed_set::<RcBrand, _, _, _, _>(&l, v, 99);
 assert_eq!(s, vec![99, 99]);
@@ -490,7 +489,7 @@ assert_eq!(l.set(vec![10, 20], 42), vec![42, 42]);
 	functions::optics_indexed_over,
 };
 let l: IndexedSetterPrime<RcBrand, usize, Vec<i32>, i32, _> =
-	IndexedSetterPrime::mapped::<VecBrand>();
+	IndexedSetterPrime::mapped();
 let v = vec![10, 20];
 let s = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, v, |i, x| x + i as i32);
 assert_eq!(s, vec![10, 21]);
@@ -527,6 +526,7 @@ assert_eq!(s, vec![10, 21]);
 	classes::optics::*,
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MySetter;
 impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 	fn apply(&self, f: Box<dyn Fn(usize, i32) -> i32 + 'a>, s: Vec<i32>) -> Vec<i32> {
@@ -538,7 +538,7 @@ let l: IndexedSetterPrime<RcBrand, usize, Vec<i32>, i32, MySetter> =
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result(vec![10, 20]), vec![10, 21]);
 "#
 		)]
@@ -581,6 +581,7 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 	classes::optics::*,
 	types::optics::*,
 };
+#[derive(Clone)]
 struct MySetter;
 impl<'a> IndexedSetterFunc<'a, usize, Vec<i32>, Vec<i32>, i32, i32> for MySetter {
 	fn apply(&self, f: Box<dyn Fn(usize, i32) -> i32 + 'a>, s: Vec<i32>) -> Vec<i32> {
@@ -592,7 +593,7 @@ let l: IndexedSetter<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, MySetter> =
 let f = std::rc::Rc::new(|(i, x): (usize, i32)| x + (i as i32)) as std::rc::Rc<dyn Fn((usize, i32)) -> i32>;
 let pab = Indexed::new(f);
 let result: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	IndexedSetterOptic::evaluate::<RcBrand>(&l, pab);
+	IndexedSetterOptic::evaluate(&l, pab);
 assert_eq!(result(vec![10, 20]), vec![10, 21]);
 "#
 		)]
@@ -630,13 +631,14 @@ assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{FnBrand, RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped::<VecBrand>();
-let unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped();
+let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+// optics_un_index creates a non-indexed optic; the original indexed setter still works:
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -669,13 +671,14 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{FnBrand, RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped::<VecBrand>();
-let unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, _>::mapped();
+let _unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+// optics_as_index creates a non-indexed optic with the index as focus; the original indexed setter still works:
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -705,13 +708,14 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{FnBrand, RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped::<VecBrand>();
-let unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1), vec![2, 3]);"#
+let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped();
+let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+// optics_un_index creates a non-indexed optic; the original indexed setter still works:
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed(
 			&self,
@@ -742,13 +746,14 @@ assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![1, 2], |x| x + 1)
 		#[document_returns("The transformed profunctor value.")]
 		#[document_examples(
 			r#"use fp_library::{
-	brands::{FnBrand, RcBrand, VecBrand},
+	brands::{FnBrand, RcBrand},
 	types::optics::*,
 	functions::*,
 };
-let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped::<VecBrand>();
-let unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _, _>(&l);
-assert_eq!(optics_over::<RcBrand, _, _, _, _>(&unindexed, vec![10, 20], |i| i + 1), vec![1, 2]);"#
+let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, _>::mapped();
+let _unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
+// optics_as_index creates a non-indexed optic with the index as focus; the original indexed setter still works:
+assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);"#
 		)]
 		fn evaluate_indexed_discards_focus(
 			&self,

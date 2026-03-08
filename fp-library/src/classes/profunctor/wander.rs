@@ -47,6 +47,15 @@ pub trait Wander: Strong + Choice {
 	///
 	/// A new profunctor instance that operates on the structure.
 	///
+	/// ### `B: Clone` Requirement
+	///
+	/// The focus replacement type `B` must implement [`Clone`] because traversal internally
+	/// uses [`sequence`](crate::classes::traversable::Traversable::sequence), which collects
+	/// applicative values via [`lift2`](crate::classes::lift::Lift::lift2). `lift2` requires
+	/// cloning the second applicative argument when combining results across multiple foci
+	/// (e.g., building `Vec<B>` from individual `M<B>` values). This propagates from
+	/// [`TraversalFunc::apply`]'s `M::Of<'a, B>: Clone` bound.
+	///
 	/// ### Examples
 	///
 	/// ```
@@ -76,7 +85,7 @@ pub trait Wander: Strong + Choice {
 	/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 	/// let _g = <RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, f);
 	/// ```
-	fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+	fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 		traversal: TFunc,
 		pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
@@ -134,7 +143,7 @@ pub trait Wander: Strong + Choice {
 /// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 /// let _g = wander::<RcFnBrand, Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, f);
 /// ```
-pub fn wander<'a, Brand: Wander, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+pub fn wander<'a, Brand: Wander, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 	traversal: TFunc,
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)

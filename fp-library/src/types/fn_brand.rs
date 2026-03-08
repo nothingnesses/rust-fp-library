@@ -406,7 +406,7 @@ let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
 let g = <RcFnBrand as Wander>::wander::<i32, i32, i32, i32, _>(SingleTraversal, f);
 assert_eq!(g(5), 6);"#
 		)]
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a, TFunc>(
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
 			traversal: TFunc,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)

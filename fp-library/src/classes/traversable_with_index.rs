@@ -39,10 +39,16 @@ mod inner {
 			"The structure to traverse."
 		)]
 		#[document_returns("The structure of results inside the applicative.")]
-		fn traverse_with_index<'a, A: 'a + Clone, B: 'a + Clone, M: Applicative>(
+		fn traverse_with_index<'a, A: 'a, B: 'a + Clone, M: Applicative>(
 			f: impl Fn(I, A) -> M::Of<'a, B> + 'a,
 			ta: Self::Of<'a, A>,
-		) -> M::Of<'a, Self::Of<'a, B>>;
+		) -> M::Of<'a, Self::Of<'a, B>>
+		where
+			Self::Of<'a, B>: Clone,
+			M::Of<'a, B>: Clone,
+		{
+			Self::sequence::<B, M>(Self::map_with_index::<A, M::Of<'a, B>>(f, ta))
+		}
 	}
 }
 
