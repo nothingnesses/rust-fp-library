@@ -79,6 +79,10 @@
 //! assert_eq!(updated.age, 31);
 //! ```
 
+// Smart-pointer function types (Rc<dyn Fn>/Arc<dyn Fn>) require wrapping closures
+// for deref-and-call; profunctor-encoded optics inherently produce deeply nested types.
+#![allow(clippy::redundant_closure, clippy::type_complexity)]
+
 mod affine;
 mod bazaar;
 mod composed;

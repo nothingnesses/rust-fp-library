@@ -776,6 +776,7 @@ mod inner {
 			let vec: Vec<_> = fa.into_iter().collect();
 			#[cfg(feature = "rayon")]
 			{
+				#[allow(clippy::redundant_closure)] // Required: Arc<dyn Fn> doesn't impl Fn
 				vec.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
 			}
 			#[cfg(not(feature = "rayon"))]

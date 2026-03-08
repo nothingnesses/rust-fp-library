@@ -773,6 +773,7 @@ mod inner {
 			M: Monoid + Send + Sync + 'a, {
 			#[cfg(feature = "rayon")]
 			{
+				#[allow(clippy::redundant_closure)] // Required: Arc<dyn Fn> doesn't impl Fn
 				fa.into_par_iter().map(|a| func(a)).reduce(M::empty, |acc, m| M::append(acc, m))
 			}
 			#[cfg(not(feature = "rayon"))]
