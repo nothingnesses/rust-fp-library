@@ -91,7 +91,11 @@ This means `Choice::left` acts on the `Err` variant and `Choice::right` acts on 
 
 PureScript's `Closed` uses bare function types `x -> a`. Rust cannot express this directly — closures must be wrapped in `Rc<dyn Fn>` or `Arc<dyn Fn>`. The Rust `Closed<FunctionBrand: CloneableFn>` trait takes an extra type parameter `FunctionBrand` to abstract over the function wrapping strategy.
 
-### 3.3 `Wander` and rank-2 types
+### 3.3 `fan_out` requires `A: Clone`
+
+PureScript's `fanout` duplicates the input with `\a -> Tuple a a`. Rust's move semantics require `A: Clone` to achieve this. The same justification applies as for `Closed::closed`'s `X: Clone`.
+
+### 3.4 `Wander` and rank-2 types
 
 PureScript's `wander` uses a rank-2 type `(forall f. Applicative f => ...)`. Rust lacks rank-2 polymorphism, so this is encoded via the `TraversalFunc` trait, which provides a concrete `apply` method that the `Wander` implementation calls with specific applicative functors.
 
@@ -116,18 +120,11 @@ PureScript's `wander` uses a rank-2 type `(forall f. Applicative f => ...)`. Rus
 | `unfirst` | `unfirst` | Identical |
 | `unsecond` | `unsecond` | Identical |
 | `wander` | `wander` | Identical |
-
-### 4.2 Present in PureScript only
-
-| Function | Class | Signature | Purpose |
-|----------|-------|-----------|---------|
-| `arr` | `Profunctor` | `Category p => Profunctor p => (a -> b) -> p a b` | Lift pure function into profunctor |
-| `splitStrong` (`***`) | `Strong` | `Semigroupoid p => Strong p => p a b -> p c d -> p (a,c) (b,d)` | Parallel product |
-| `fanout` (`&&&`) | `Strong` | `Semigroupoid p => Strong p => p a b -> p a c -> p a (b,c)` | Fan out |
-| `splitChoice` (`+++`) | `Choice` | `Semigroupoid p => Choice p => p a b -> p c d -> p (Either a c) (Either b d)` | Parallel sum |
-| `fanin` (`\|\|\|`) | `Choice` | `Semigroupoid p => Choice p => p a c -> p b c -> p (Either a b) c` | Fan in |
-
-These require `Semigroupoid`/`Category` constraints. Both traits exist in the Rust codebase (`classes/semigroupoid.rs` and `classes/category.rs`), so these combinators could be implemented.
+| `arr` | `arrow` | **Name difference**; free function with `Category + Profunctor` bounds |
+| `splitStrong` (`***`) | `split_strong` | snake_case; `Semigroupoid + Strong` bounds |
+| `fanout` (`&&&`) | `fan_out` | snake_case; `Semigroupoid + Strong` bounds; `A: Clone` (see §3.4) |
+| `splitChoice` (`+++`) | `split_choice` | snake_case; `Semigroupoid + Choice` bounds |
+| `fanin` (`\|\|\|`) | `fan_in` | snake_case; `Semigroupoid + Choice` bounds |
 
 ---
 
@@ -177,18 +174,10 @@ This is consistent within the profunctor module. However, the optics code uses `
 - `Result<C, A>` instead of `Either a c` (Rust lacks a standard `Either`)
 - `TFunc: TraversalFunc` instead of rank-2 types in `Wander`
 - `X: Clone` on `Closed::closed` (Rust needs explicit cloning in nested closures)
+- `A: Clone` on `fan_out` (same justification — Rust needs explicit cloning to duplicate input)
+- `arrow` is a free function with `Category + Profunctor` bounds (no `Arrow` trait)
 - `lmap`/`rmap` as trait methods instead of free functions
 
 ### Naming inconsistencies to consider
 
 1. **`Brand` in profunctor free functions vs `P` in optic traits** — different naming for profunctor type parameter (minor, both are clear from context)
-
-### Missing combinators
-
-These combinators exist in PureScript and could be implemented using the existing `Semigroupoid`/`Category` traits:
-
-1. `arr` (requires `Category + Profunctor`)
-2. `splitStrong` / `***` (requires `Semigroupoid + Strong`)
-3. `fanout` / `&&&` (requires `Semigroupoid + Strong`)
-4. `splitChoice` / `+++` (requires `Semigroupoid + Choice`)
-5. `fanin` / `|||` (requires `Semigroupoid + Choice`)

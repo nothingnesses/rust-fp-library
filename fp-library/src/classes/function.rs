@@ -13,7 +13,10 @@
 //! ```
 
 use {
-	super::arrow::Arrow,
+	super::{
+		category::Category,
+		profunctor::Strong,
+	},
 	fp_macros::{
 		document_parameters,
 		document_signature,
@@ -32,7 +35,7 @@ use {
 ///
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
-pub trait Function: Arrow {
+pub trait Function: Category + Strong {
 	/// The type of the function wrapper.
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)

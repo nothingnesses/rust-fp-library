@@ -21,7 +21,6 @@
 pub mod applicative;
 pub mod apply_first;
 pub mod apply_second;
-pub mod arrow;
 pub mod bifoldable;
 pub mod bifunctor;
 pub mod bitraversable;

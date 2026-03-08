@@ -20,7 +20,7 @@
 //! - **Type Classes:** A comprehensive collection of standard type classes including:
 //!   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
 //!   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-//!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Arrow`
+//!   - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`
 //!   - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
 //!   - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
 //!   - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
@@ -35,7 +35,7 @@
 //!   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
 //!   - **Laziness, Memoization & Stack Safety:** `Lazy`, `Thunk`, `Trampoline`, `Free`
 //!   - **Generic Containers:** `Identity`, `Pair`
-//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`, `Arrow`
+//!   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
 //!   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 //!
 //! ## How it Works

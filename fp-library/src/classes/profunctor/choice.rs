@@ -23,7 +23,10 @@
 use {
 	crate::{
 		Apply,
-		classes::profunctor::Profunctor,
+		classes::{
+			Semigroupoid,
+			profunctor::Profunctor,
+		},
 		kinds::*,
 	},
 	fp_macros::{
@@ -230,4 +233,107 @@ pub fn right<'a, Brand: Choice, A: 'a, B: 'a, C: 'a>(
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
 {
 	Brand::right(pab)
+}
+
+/// Compose a value acting on a sum from two values, each acting on one
+/// variant of the sum.
+///
+/// Equivalent to PureScript's `splitChoice` / `(+++)`.
+///
+/// Maps `l` over the `Err` variant and `r` over the `Ok` variant.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the choice profunctor.",
+	"The input type of the Err-side profunctor.",
+	"The output type of the Err-side profunctor.",
+	"The input type of the Ok-side profunctor.",
+	"The output type of the Ok-side profunctor."
+)]
+///
+#[document_parameters(
+	"The profunctor acting on the Err variant.",
+	"The profunctor acting on the Ok variant."
+)]
+///
+/// ### Returns
+///
+/// A new profunctor that maps `l` over `Err` and `r` over `Ok`.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::profunctor::*,
+/// 	functions::*,
+/// };
+///
+/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let h = split_choice::<RcFnBrand, _, _, _, _>(f, g);
+/// assert_eq!(h(Err(10)), Err(11));
+/// assert_eq!(h(Ok(10)), Ok(20));
+/// ```
+pub fn split_choice<'a, Brand: Semigroupoid + Choice, A: 'a, B: 'a, C: 'a, D: 'a>(
+	l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+	r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<D, B>>)
+{
+	Brand::compose(Brand::right(r), Brand::left(l))
+}
+
+/// Compose a value which eliminates a sum from two values, each eliminating
+/// one variant of the sum.
+///
+/// Equivalent to PureScript's `fanin` / `(|||)`.
+///
+/// Both profunctors must produce the same output type `C`. The result maps
+/// `Err(A)` through `l` and `Ok(B)` through `r`.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the choice profunctor.",
+	"The Err-side input type.",
+	"The Ok-side input type.",
+	"The shared output type."
+)]
+///
+#[document_parameters(
+	"The profunctor handling the Err variant.",
+	"The profunctor handling the Ok variant."
+)]
+///
+/// ### Returns
+///
+/// A new profunctor that eliminates the sum by routing each variant to
+/// the appropriate handler.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::profunctor::*,
+/// 	functions::*,
+/// };
+///
+/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let h = fan_in::<RcFnBrand, _, _, _>(f, g);
+/// assert_eq!(h(Err(10)), 11);
+/// assert_eq!(h(Ok(10)), 20);
+/// ```
+pub fn fan_in<'a, Brand: Semigroupoid + Choice, A: 'a, B: 'a, C: 'a>(
+	l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>),
+	r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<B, A>, C>) {
+	Brand::rmap(
+		|result: Result<C, C>| match result {
+			Ok(c) | Err(c) => c,
+		},
+		split_choice::<Brand, A, C, B, C>(l, r),
+	)
 }

@@ -21,7 +21,10 @@
 use {
 	crate::{
 		Apply,
-		classes::profunctor::Profunctor,
+		classes::{
+			Semigroupoid,
+			profunctor::Profunctor,
+		},
 		kinds::*,
 	},
 	fp_macros::{
@@ -198,4 +201,96 @@ pub fn second<'a, Brand: Strong, A: 'a, B: 'a, C: 'a>(
 	pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 ) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {
 	Brand::second(pab)
+}
+
+/// Compose a value acting on a pair from two values, each acting on one
+/// component of the pair.
+///
+/// Equivalent to PureScript's `splitStrong` / `(***)`.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the strong profunctor.",
+	"The input type of the first profunctor.",
+	"The output type of the first profunctor.",
+	"The input type of the second profunctor.",
+	"The output type of the second profunctor."
+)]
+///
+#[document_parameters(
+	"The profunctor acting on the first component.",
+	"The profunctor acting on the second component."
+)]
+///
+/// ### Returns
+///
+/// A new profunctor that maps the first component via `l` and the second via `r`.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::profunctor::*,
+/// 	functions::*,
+/// };
+///
+/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let h = split_strong::<RcFnBrand, _, _, _, _>(f, g);
+/// assert_eq!(h((10, 20)), (11, 40));
+/// ```
+pub fn split_strong<'a, Brand: Semigroupoid + Strong, A: 'a, B: 'a, C: 'a, D: 'a>(
+	l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+	r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, C, D>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, D)>) {
+	Brand::compose(Brand::second(r), Brand::first(l))
+}
+
+/// Compose a value which introduces a pair from two values, each introducing
+/// one side of the pair.
+///
+/// Equivalent to PureScript's `fanout` / `(&&&)`.
+///
+/// The `A: Clone` bound is required because Rust implementations need to clone
+/// the input value to feed it into both profunctors.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The lifetime of the values.",
+	"The brand of the strong profunctor.",
+	"The shared input type (must be Clone).",
+	"The output type of the first profunctor.",
+	"The output type of the second profunctor."
+)]
+///
+#[document_parameters(
+	"The profunctor producing the first component.",
+	"The profunctor producing the second component."
+)]
+///
+/// ### Returns
+///
+/// A new profunctor that feeds the input to both `l` and `r`, collecting results in a pair.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	classes::profunctor::*,
+/// 	functions::*,
+/// };
+///
+/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
+/// let g = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// let h = fan_out::<RcFnBrand, _, _, _>(f, g);
+/// assert_eq!(h(10), (11, 20));
+/// ```
+pub fn fan_out<'a, Brand: Semigroupoid + Strong, A: 'a + Clone, B: 'a, C: 'a>(
+	l: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
+	r: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>),
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, (B, C)>) {
+	Brand::lmap(|a: A| (a.clone(), a), split_strong::<Brand, A, B, A, C>(l, r))
 }

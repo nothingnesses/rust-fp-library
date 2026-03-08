@@ -28,6 +28,7 @@ use {
 			ProfunctorSecondAppliedBrand,
 		},
 		classes::{
+			Category,
 			Contravariant,
 			Functor,
 		},
@@ -373,6 +374,45 @@ pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncBC>(
 where
 	FuncBC: Fn(B) -> C + 'a, {
 	Brand::rmap(bc, pab)
+}
+
+/// Lifts a pure function into a profunctor context.
+///
+/// Given a type that is both a [`Category`] (providing `identity`) and a
+/// [`Profunctor`] (providing `rmap`), this function lifts a pure function
+/// `A -> B` into the profunctor as `rmap(f, identity())`.
+#[document_signature]
+///
+#[document_type_parameters(
+	"The lifetime of the function and its captured data.",
+	"The brand of the profunctor.",
+	"The input type.",
+	"The output type."
+)]
+///
+#[document_parameters("The closure to lift.")]
+///
+/// ### Returns
+///
+/// The lifted profunctor value.
+///
+/// ### Examples
+///
+/// ```
+/// use fp_library::{
+/// 	brands::*,
+/// 	functions::*,
+/// };
+///
+/// let f = arrow::<RcFnBrand, _, _>(|x: i32| x * 2);
+/// assert_eq!(f(5), 10);
+/// ```
+pub fn arrow<'a, Brand, A, B: 'a>(
+	f: impl 'a + Fn(A) -> B
+) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+where
+	Brand: Category + Profunctor, {
+	Brand::rmap(f, Brand::identity())
 }
 
 crate::impl_kind! {
