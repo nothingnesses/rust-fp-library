@@ -40,16 +40,16 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub struct IndexedLens<'a, P, I, S, T, A, B>
+	pub struct IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Internal storage: S -> ((I, A), B -> T)
-		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<P> as CloneableFn>::Of<'a, B, T>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)>),
 	}
 
 	#[document_type_parameters(
@@ -62,9 +62,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I, S, T, A, B> Clone for IndexedLens<'a, P, I, S, T, A, B>
+	impl<'a, PointerBrand, I, S, T, A, B> Clone for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -102,9 +102,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> IndexedLens<'a, P, I, S, T, A, B>
+	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
+		IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		/// Create a new polymorphic indexed lens.
 		#[document_signature]
@@ -126,10 +127,10 @@ mod inner {
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<P> as CloneableFn>::Of<'a, B, T>)
+			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)
 		) -> Self {
 			IndexedLens {
-				to: <FnBrand<P> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
 			}
 		}
 
@@ -154,16 +155,18 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let iview_brand = <FnBrand<P> as CloneableFn>::new(iview);
-			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+			let iview_brand = <FnBrand<PointerBrand> as CloneableFn>::new(iview);
+			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
 
 			IndexedLens {
-				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						iview_brand(s),
-						<FnBrand<P> as CloneableFn>::new(move |b| set_brand((s_clone.clone(), b))),
+						<FnBrand<PointerBrand> as CloneableFn>::new(move |b| {
+							set_brand((s_clone.clone(), b))
+						}),
 					)
 				}),
 			}
@@ -250,10 +253,10 @@ mod inner {
 		"The reference-counted pointer type for the lens."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P: Strong, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q>
-		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedLens<'a, Q, I, S, T, A, B>
+	impl<'a, P: Strong, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, PointerBrand>
+		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		Q: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -293,10 +296,11 @@ mod inner {
 		"The reference-counted pointer type for the lens."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P: Strong, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, Q>
-		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B> for IndexedLens<'a, Q, I, S, T, A, B>
+	impl<'a, P: Strong, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, PointerBrand>
+		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
+		for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		Q: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -338,10 +342,10 @@ mod inner {
 		"The optic type."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P: Strong, I: 'a, S: 'a, A: 'a, Q> IndexedOpticAdapter<'a, P, I, S, S, A, A>
-		for IndexedLensPrime<'a, Q, I, S, A>
+	impl<'a, P: Strong, I: 'a, S: 'a, A: 'a, PointerBrand> IndexedOpticAdapter<'a, P, I, S, S, A, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		Q: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -379,10 +383,11 @@ mod inner {
 		"The optic type."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P: Strong, I: 'a, S: 'a, A: 'a, Q>
-		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A> for IndexedLensPrime<'a, Q, I, S, A>
+	impl<'a, P: Strong, I: 'a, S: 'a, A: 'a, PointerBrand>
+		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		Q: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -425,10 +430,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> IndexedLensOptic<'a, I, S, T, A, B>
-		for IndexedLens<'a, P, I, S, T, A, B>
+	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> IndexedLensOptic<'a, I, S, T, A, B>
+		for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -458,7 +463,7 @@ mod inner {
 			let to = self.to.clone();
 			Q::dimap(
 				move |s: S| to(s),
-				move |(b, f): (B, <FnBrand<P> as CloneableFn>::Of<'a, B, T>)| f(b),
+				move |(b, f): (B, <FnBrand<PointerBrand> as CloneableFn>::Of<'a, B, T>)| f(b),
 				Q::first(pab.inner),
 			)
 		}
@@ -474,10 +479,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> IndexedTraversalOptic<'a, I, S, T, A, B>
-		for IndexedLens<'a, P, I, S, T, A, B>
+	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
+		IndexedTraversalOptic<'a, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -516,10 +521,10 @@ mod inner {
 		"The source type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
-		for IndexedLens<'a, P, I, S, S, A, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
+		for IndexedLens<'a, PointerBrand, I, S, S, A, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -557,9 +562,10 @@ mod inner {
 		"The source type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A> for IndexedLens<'a, P, I, S, S, A, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
+		for IndexedLens<'a, PointerBrand, I, S, S, A, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -600,10 +606,10 @@ mod inner {
 		"The reference-counted pointer type for the lens."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, Q, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, P> IndexedSetterOptic<'a, Q, I, S, T, A, B>
-		for IndexedLens<'a, P, I, S, T, A, B>
+	impl<'a, Q, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, PointerBrand>
+		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedLens<'a, PointerBrand, I, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 	{
 		#[document_signature]
@@ -642,13 +648,13 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct IndexedLensPrime<'a, P, I, S, A>
+	pub struct IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
-		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<P> as CloneableFn>::Of<'a, A, S>)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)>),
 	}
 
 	#[document_type_parameters(
@@ -659,9 +665,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I, S, A> Clone for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I, S, A> Clone for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -695,9 +701,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		/// Create a new monomorphic indexed lens.
 		#[document_signature]
@@ -719,10 +725,10 @@ mod inner {
 		/// assert_eq!(l.iview(42), (0, 42));
 		/// ```
 		pub fn new(
-			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<P> as CloneableFn>::Of<'a, A, S>)
+			to: impl 'a + Fn(S) -> ((I, A), <FnBrand<PointerBrand> as CloneableFn>::Of<'a, A, S>)
 		) -> Self {
 			IndexedLensPrime {
-				to: <FnBrand<P> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
 			}
 		}
 
@@ -747,16 +753,18 @@ mod inner {
 		) -> Self
 		where
 			S: Clone, {
-			let iview_brand = <FnBrand<P> as CloneableFn>::new(iview);
-			let set_brand = <FnBrand<P> as CloneableFn>::new(set);
+			let iview_brand = <FnBrand<PointerBrand> as CloneableFn>::new(iview);
+			let set_brand = <FnBrand<PointerBrand> as CloneableFn>::new(set);
 
 			IndexedLensPrime {
-				to: <FnBrand<P> as CloneableFn>::new(move |s: S| {
+				to: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| {
 					let s_clone = s.clone();
 					let set_brand = set_brand.clone();
 					(
 						iview_brand(s),
-						<FnBrand<P> as CloneableFn>::new(move |a| set_brand((s_clone.clone(), a))),
+						<FnBrand<PointerBrand> as CloneableFn>::new(move |a| {
+							set_brand((s_clone.clone(), a))
+						}),
 					)
 				}),
 			}
@@ -840,10 +848,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedLensOptic<'a, I, S, S, A, A>
-		for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedLensOptic<'a, I, S, S, A, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -869,7 +877,7 @@ mod inner {
 			&self,
 			pab: Indexed<'a, Q, I, A, A>,
 		) -> Apply!(<Q as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>) {
-			let l: IndexedLens<'a, P, I, S, S, A, A> = IndexedLens {
+			let l: IndexedLens<'a, PointerBrand, I, S, S, A, A> = IndexedLens {
 				to: self.to.clone(),
 			};
 			IndexedLensOptic::evaluate(&l, pab)
@@ -884,10 +892,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedTraversalOptic<'a, I, S, S, A, A>
-		for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedTraversalOptic<'a, I, S, S, A, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -926,10 +934,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
-		for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -967,9 +975,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A> for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -1008,10 +1017,10 @@ mod inner {
 		"The reference-counted pointer type for the lens."
 	)]
 	#[document_parameters("The indexed lens instance.")]
-	impl<'a, Q, I: 'a, S: 'a, A: 'a, P> IndexedSetterOptic<'a, Q, I, S, S, A, A>
-		for IndexedLensPrime<'a, P, I, S, A>
+	impl<'a, Q, I: 'a, S: 'a, A: 'a, PointerBrand> IndexedSetterOptic<'a, Q, I, S, S, A, A>
+		for IndexedLensPrime<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 	{
 		#[document_signature]

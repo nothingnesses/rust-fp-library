@@ -38,21 +38,21 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub struct Grate<'a, P, S, T, A, B>
+	pub struct Grate<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Grating function.
-		pub grate: <FnBrand<P> as CloneableFn>::Of<
+		pub grate: <FnBrand<PointerBrand> as CloneableFn>::Of<
 			'a,
-			<FnBrand<P> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneableFn>::Of<
 				'a,
-				<FnBrand<P> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<P as RefCountedPointer>::CloneableOf<'a, S>,
+					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
 				>,
 				B,
@@ -70,9 +70,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, T, A, B> Clone for Grate<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Clone for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -116,9 +116,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, T, A, B> Grate<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Grate<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -152,11 +152,11 @@ mod inner {
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<P> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					B,
@@ -165,9 +165,9 @@ mod inner {
 			+ 'a
 		) -> Self
 		where
-			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			Grate {
-				grate: <FnBrand<P> as CloneableFn>::new(grate),
+				grate: <FnBrand<PointerBrand> as CloneableFn>::new(grate),
 			}
 		}
 
@@ -210,8 +210,8 @@ mod inner {
 			s2: S,
 		) -> T
 		where
-			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
-			zip_with_of::<FnBrand<P>, _, S, T, A, B>(self, f, s1, s2)
+			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			zip_with_of::<FnBrand<PointerBrand>, _, S, T, A, B>(self, f, s1, s2)
 		}
 	}
 
@@ -225,15 +225,16 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, Q, P, S, T, A, B> Optic<'a, Q, S, T, A, B> for Grate<'a, P, S, T, A, B>
+	impl<'a, Q, PointerBrand, S, T, A, B> Optic<'a, Q, S, T, A, B>
+		for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		Q: Closed<FnBrand<P>>,
-		P: UnsizedCoercible,
+		Q: Closed<FnBrand<PointerBrand>>,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
@@ -276,26 +277,26 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <P as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<P> as CloneableFn>::new(
-						move |f: <FnBrand<P> as CloneableFn>::Of<
+					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					<FnBrand<PointerBrand> as CloneableFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 							'a,
-							<P as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>|
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<P> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					B,
 				>| {
-					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -312,12 +313,13 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, T, A, B> GrateOptic<'a, FnBrand<P>, S, T, A, B> for Grate<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> GrateOptic<'a, FnBrand<PointerBrand>, S, T, A, B>
+		for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -349,7 +351,7 @@ mod inner {
 		/// let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
 		/// ```
-		fn evaluate<Q: Closed<FnBrand<P>>>(
+		fn evaluate<Q: Closed<FnBrand<PointerBrand>>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
@@ -360,26 +362,26 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <P as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<P> as CloneableFn>::new(
-						move |f: <FnBrand<P> as CloneableFn>::Of<
+					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					<FnBrand<PointerBrand> as CloneableFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 							'a,
-							<P as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>|
 						      -> A { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<P> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					B,
 				>| {
-					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -396,12 +398,13 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, T, A, B> SetterOptic<'a, P, S, T, A, B> for Grate<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> SetterOptic<'a, PointerBrand, S, T, A, B>
+		for Grate<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -435,9 +438,12 @@ mod inner {
 		/// ```
 		fn evaluate(
 			&self,
-			pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-		) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			GrateOptic::<FnBrand<P>, S, T, A, B>::evaluate::<FnBrand<P>>(self, pab)
+			pab: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
+		{
+			GrateOptic::<FnBrand<PointerBrand>, S, T, A, B>::evaluate::<FnBrand<PointerBrand>>(
+				self, pab,
+			)
 		}
 	}
 
@@ -450,18 +456,18 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct GratePrime<'a, P, S, A>
+	pub struct GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) grate_fn: <FnBrand<P> as CloneableFn>::Of<
+		pub(crate) grate_fn: <FnBrand<PointerBrand> as CloneableFn>::Of<
 			'a,
-			<FnBrand<P> as CloneableFn>::Of<
+			<FnBrand<PointerBrand> as CloneableFn>::Of<
 				'a,
-				<FnBrand<P> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<P as RefCountedPointer>::CloneableOf<'a, S>,
+					<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 					A,
 				>,
 				A,
@@ -477,9 +483,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, A> Clone for GratePrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Clone for GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -521,9 +527,9 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	impl<'a, P, S, A> GratePrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -558,11 +564,11 @@ mod inner {
 		/// ```
 		pub fn new(
 			grate: impl Fn(
-				<FnBrand<P> as CloneableFn>::Of<
+				<FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					A,
@@ -571,9 +577,9 @@ mod inner {
 			+ 'a
 		) -> Self
 		where
-			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
 			GratePrime {
-				grate_fn: <FnBrand<P> as CloneableFn>::new(grate),
+				grate_fn: <FnBrand<PointerBrand> as CloneableFn>::new(grate),
 			}
 		}
 	}
@@ -585,9 +591,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, A> GratePrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -633,8 +639,8 @@ mod inner {
 			s2: S,
 		) -> S
 		where
-			<P as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
-			zip_with_of::<FnBrand<P>, _, S, S, A, A>(self, f, s1, s2)
+			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
+			zip_with_of::<FnBrand<PointerBrand>, _, S, S, A, A>(self, f, s1, s2)
 		}
 	}
 
@@ -646,13 +652,13 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, Q, P, S, A> Optic<'a, Q, S, S, A, A> for GratePrime<'a, P, S, A>
+	impl<'a, Q, PointerBrand, S, A> Optic<'a, Q, S, S, A, A> for GratePrime<'a, PointerBrand, S, A>
 	where
-		Q: Closed<FnBrand<P>>,
-		P: UnsizedCoercible,
+		Q: Closed<FnBrand<PointerBrand>>,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
 		#[document_signature]
@@ -694,25 +700,25 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <P as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<P> as CloneableFn>::new(
-						move |f: <FnBrand<P> as CloneableFn>::Of<
+					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					<FnBrand<PointerBrand> as CloneableFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 							'a,
-							<P as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<P> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					A,
 				>| {
-					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -727,12 +733,13 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, A> GrateOptic<'a, FnBrand<P>, S, S, A, A> for GratePrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> GrateOptic<'a, FnBrand<PointerBrand>, S, S, A, A>
+		for GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -765,7 +772,7 @@ mod inner {
 		/// let g = GrateOptic::<RcFnBrand, _, _, _, _>::evaluate::<RcFnBrand>(&grate, f);
 		/// assert_eq!(g((10, 20)), (11, 21));
 		/// ```
-		fn evaluate<Q: Closed<FnBrand<P>>>(
+		fn evaluate<Q: Closed<FnBrand<PointerBrand>>>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
@@ -773,25 +780,25 @@ mod inner {
 
 			Q::dimap(
 				move |s: S| {
-					let s_ptr = <P as RefCountedPointer>::cloneable_new(s);
-					<FnBrand<P> as CloneableFn>::new(
-						move |f: <FnBrand<P> as CloneableFn>::Of<
+					let s_ptr = <PointerBrand as RefCountedPointer>::cloneable_new(s);
+					<FnBrand<PointerBrand> as CloneableFn>::new(
+						move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 							'a,
-							<P as RefCountedPointer>::CloneableOf<'a, S>,
+							<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 							A,
 						>| { (f)(Clone::clone(&s_ptr)) },
 					)
 				},
-				move |f: <FnBrand<P> as CloneableFn>::Of<
+				move |f: <FnBrand<PointerBrand> as CloneableFn>::Of<
 					'a,
-					<FnBrand<P> as CloneableFn>::Of<
+					<FnBrand<PointerBrand> as CloneableFn>::Of<
 						'a,
-						<P as RefCountedPointer>::CloneableOf<'a, S>,
+						<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>,
 						A,
 					>,
 					A,
 				>| {
-					let f_brand = <FnBrand<P> as CloneableFn>::new(move |x| f(x));
+					let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |x| f(x));
 					grate(f_brand)
 				},
 				Q::closed(pab),
@@ -806,12 +813,13 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The grate instance.")]
-	impl<'a, P, S, A> SetterOptic<'a, P, S, S, A, A> for GratePrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> SetterOptic<'a, PointerBrand, S, S, A, A>
+		for GratePrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
-		<P as RefCountedPointer>::CloneableOf<'a, S>: Sized,
+		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -845,9 +853,12 @@ mod inner {
 		/// ```
 		fn evaluate(
 			&self,
-			pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-		) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			GrateOptic::<FnBrand<P>, S, S, A, A>::evaluate::<FnBrand<P>>(self, pab)
+			pab: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+		{
+			GrateOptic::<FnBrand<PointerBrand>, S, S, A, A>::evaluate::<FnBrand<PointerBrand>>(
+				self, pab,
+			)
 		}
 	}
 }

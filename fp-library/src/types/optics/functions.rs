@@ -72,16 +72,16 @@ mod inner {
 	/// 	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
 	/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
 	/// ```
-	pub fn optics_view<'a, P, O, S, A>(
+	pub fn optics_view<'a, PointerBrand, O, S, A>(
 		optic: &O,
 		s: S,
 	) -> A
 	where
-		P: UnsizedCoercible + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
 		O: GetterOptic<'a, S, A>,
 		S: 'a,
 		A: 'a + 'static, {
-		(optic.evaluate::<A, P>(Forget::new(|a| a)).0)(s)
+		(optic.evaluate::<A, PointerBrand>(Forget::new(|a| a)).0)(s)
 	}
 
 	/// Set the focus of a lens-like optic.
@@ -118,17 +118,17 @@ mod inner {
 	/// 	(99, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_set<'a, Q, O, S, A>(
+	pub fn optics_set<'a, PointerBrand, O, S, A>(
 		optic: &O,
 		s: S,
 		a: A,
 	) -> S
 	where
-		Q: UnsizedCoercible,
-		O: SetterOptic<'a, Q, S, S, A, A>,
+		PointerBrand: UnsizedCoercible,
+		O: SetterOptic<'a, PointerBrand, S, S, A, A>,
 		S: 'a,
 		A: 'a + Clone, {
-		let f = <FnBrand<Q> as Function>::new(move |_| a.clone());
+		let f = <FnBrand<PointerBrand> as Function>::new(move |_| a.clone());
 		(optic.evaluate(f))(s)
 	}
 
@@ -171,18 +171,18 @@ mod inner {
 	/// 	(84, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_over<'a, Q, O, S, A, F>(
+	pub fn optics_over<'a, PointerBrand, O, S, A, F>(
 		optic: &O,
 		s: S,
 		f: F,
 	) -> S
 	where
-		Q: UnsizedCoercible,
-		O: SetterOptic<'a, Q, S, S, A, A>,
+		PointerBrand: UnsizedCoercible,
+		O: SetterOptic<'a, PointerBrand, S, S, A, A>,
 		S: 'a,
 		A: 'a,
 		F: Fn(A) -> A + 'a, {
-		let f = <FnBrand<Q> as Function>::new(f);
+		let f = <FnBrand<PointerBrand> as Function>::new(f);
 		(optic.evaluate(f))(s)
 	}
 
@@ -218,12 +218,12 @@ mod inner {
 	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
 	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
 	/// ```
-	pub fn optics_preview<'a, P, O, S, A>(
+	pub fn optics_preview<'a, PointerBrand, O, S, A>(
 		optic: &O,
 		s: S,
 	) -> Option<A>
 	where
-		P: UnsizedCoercible + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
 		O: FoldOptic<'a, S, A>,
 		S: 'a,
 		A: 'a + 'static + Clone, {
@@ -244,7 +244,7 @@ mod inner {
 		}
 
 		let forget = Forget::new(|a| First(Some(a)));
-		let result_forget = optic.evaluate::<First<A>, P>(forget);
+		let result_forget = optic.evaluate::<First<A>, PointerBrand>(forget);
 		(result_forget.0)(s).0
 	}
 
@@ -322,18 +322,20 @@ mod inner {
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 	/// assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);
 	/// ```
-	pub fn optics_from<'a, P, O, S, A>(
+	pub fn optics_from<'a, FunctionBrand, O, S, A>(
 		optic: &O,
 		s: S,
 	) -> A
 	where
-		P: CloneableFn + 'static,
+		FunctionBrand: CloneableFn + 'static,
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
-		let exchange =
-			Exchange::new(<P as CloneableFn>::new(|a| a), <P as CloneableFn>::new(|a| a));
-		(optic.evaluate::<ExchangeBrand<P, A, A>>(exchange).get)(s)
+		let exchange = Exchange::new(
+			<FunctionBrand as CloneableFn>::new(|a| a),
+			<FunctionBrand as CloneableFn>::new(|a| a),
+		);
+		(optic.evaluate::<ExchangeBrand<FunctionBrand, A, A>>(exchange).get)(s)
 	}
 
 	/// Apply an isomorphism in the backward direction.
@@ -369,18 +371,20 @@ mod inner {
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
 	/// assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));
 	/// ```
-	pub fn optics_to<'a, P, O, S, A>(
+	pub fn optics_to<'a, FunctionBrand, O, S, A>(
 		optic: &O,
 		a: A,
 	) -> S
 	where
-		P: CloneableFn + 'static,
+		FunctionBrand: CloneableFn + 'static,
 		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
-		let exchange =
-			Exchange::new(<P as CloneableFn>::new(|a| a), <P as CloneableFn>::new(|a| a));
-		(optic.evaluate::<ExchangeBrand<P, A, A>>(exchange).set)(a)
+		let exchange = Exchange::new(
+			<FunctionBrand as CloneableFn>::new(|a| a),
+			<FunctionBrand as CloneableFn>::new(|a| a),
+		);
+		(optic.evaluate::<ExchangeBrand<FunctionBrand, A, A>>(exchange).set)(a)
 	}
 
 	/// Evaluate an optic with a profunctor.
@@ -487,22 +491,24 @@ mod inner {
 	/// let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
 	/// assert_eq!(result, (11, 22));
 	/// ```
-	pub fn zip_with_of<'a, P, O, S, T, A, B>(
+	pub fn zip_with_of<'a, FunctionBrand, O, S, T, A, B>(
 		optic: &O,
 		f: impl Fn((A, A)) -> B + 'a,
 		s1: S,
 		s2: S,
 	) -> T
 	where
-		P: CloneableFn + 'static,
-		O: GrateOptic<'a, P, S, T, A, B>,
+		FunctionBrand: CloneableFn + 'static,
+		O: GrateOptic<'a, FunctionBrand, S, T, A, B>,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
-		let zipping = Zipping::<P, A, B>::new(f);
-		let result: Zipping<'a, P, S, T> =
-			GrateOptic::<P, S, T, A, B>::evaluate::<ZippingBrand<P>>(optic, zipping);
+		let zipping = Zipping::<FunctionBrand, A, B>::new(f);
+		let result: Zipping<'a, FunctionBrand, S, T> =
+			GrateOptic::<FunctionBrand, S, T, A, B>::evaluate::<ZippingBrand<FunctionBrand>>(
+				optic, zipping,
+			);
 		(*result.run)((s1, s2))
 	}
 
@@ -529,17 +535,17 @@ mod inner {
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
 	/// assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())), (0, 42));
 	/// ```
-	pub fn optics_indexed_view<'a, P, O, I, S, A>(
+	pub fn optics_indexed_view<'a, PointerBrand, O, I, S, A>(
 		optic: &O,
 		s: S,
 	) -> (I, A)
 	where
-		P: UnsizedCoercible + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
 		O: IndexedGetterOptic<'a, I, S, A>,
 		I: 'a + 'static,
 		S: 'a,
 		A: 'a + 'static, {
-		(optic.evaluate::<(I, A), P>(Indexed::new(Forget::new(|ia| ia))).0)(s)
+		(optic.evaluate::<(I, A), PointerBrand>(Indexed::new(Forget::new(|ia| ia))).0)(s)
 	}
 
 	/// Modify the focus of an indexed lens-like optic using an indexed function.
@@ -574,19 +580,19 @@ mod inner {
 	/// 	(52, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_indexed_over<'a, Q, O, I, S, A, F>(
+	pub fn optics_indexed_over<'a, PointerBrand, O, I, S, A, F>(
 		optic: &O,
 		s: S,
 		f: F,
 	) -> S
 	where
-		Q: UnsizedCoercible,
-		O: IndexedSetterOptic<'a, Q, I, S, S, A, A>,
+		PointerBrand: UnsizedCoercible,
+		O: IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		I: 'a,
 		S: 'a,
 		A: 'a,
 		F: Fn(I, A) -> A + 'a, {
-		let f_brand = <FnBrand<Q> as CloneableFn>::new(move |(i, a)| f(i, a));
+		let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |(i, a)| f(i, a));
 		(optic.evaluate(Indexed::new(f_brand)))(s)
 	}
 
@@ -620,18 +626,18 @@ mod inner {
 	/// 	(99, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_indexed_set<'a, Q, O, I, S, A>(
+	pub fn optics_indexed_set<'a, PointerBrand, O, I, S, A>(
 		optic: &O,
 		s: S,
 		a: A,
 	) -> S
 	where
-		Q: UnsizedCoercible,
-		O: IndexedSetterOptic<'a, Q, I, S, S, A, A>,
+		PointerBrand: UnsizedCoercible,
+		O: IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		I: 'a,
 		S: 'a,
 		A: 'a + Clone, {
-		optics_indexed_over::<Q, _, _, _, _, _>(optic, s, move |_, _| a.clone())
+		optics_indexed_over::<PointerBrand, _, _, _, _, _>(optic, s, move |_, _| a.clone())
 	}
 
 	/// Preview the focus and its index of an indexed prism-like optic.
@@ -660,12 +666,12 @@ mod inner {
 	/// 	Some((0, 42))
 	/// );
 	/// ```
-	pub fn optics_indexed_preview<'a, P, O, I, S, A>(
+	pub fn optics_indexed_preview<'a, PointerBrand, O, I, S, A>(
 		optic: &O,
 		s: S,
 	) -> Option<(I, A)>
 	where
-		P: UnsizedCoercible + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
 		O: IndexedFoldOptic<'a, I, S, A>,
 		I: 'a + Clone + 'static,
 		S: 'a,
@@ -687,7 +693,7 @@ mod inner {
 		}
 
 		let forget = Forget::new(|ia| First(Some(ia)));
-		let result_forget = optic.evaluate::<First<(I, A)>, P>(Indexed::new(forget));
+		let result_forget = optic.evaluate::<First<(I, A)>, PointerBrand>(Indexed::new(forget));
 		(result_forget.0)(s).0
 	}
 
@@ -727,13 +733,13 @@ mod inner {
 	/// 	"0:42".to_string()
 	/// );
 	/// ```
-	pub fn optics_indexed_fold_map<'a, P, O, I, S, A, R, F>(
+	pub fn optics_indexed_fold_map<'a, PointerBrand, O, I, S, A, R, F>(
 		optic: &O,
 		f: F,
 		s: S,
 	) -> R
 	where
-		P: UnsizedCoercible + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
 		O: IndexedFoldOptic<'a, I, S, A>,
 		I: 'a,
 		S: 'a,
@@ -741,7 +747,7 @@ mod inner {
 		R: Monoid + Clone + 'a + 'static,
 		F: Fn(I, A) -> R + 'a, {
 		let forget = Forget::new(move |(i, a)| f(i, a));
-		let result_forget = optic.evaluate::<R, P>(Indexed::new(forget));
+		let result_forget = optic.evaluate::<R, PointerBrand>(Indexed::new(forget));
 		(result_forget.0)(s)
 	}
 
@@ -1217,11 +1223,11 @@ mod inner {
 	/// let result = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, s, |i, x| x + i as i32);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
-	pub fn positions<'a, P, S, T, A, B, F>(
-		traversal: Traversal<'a, P, S, T, A, B, F>
-	) -> IndexedTraversal<'a, P, usize, S, T, A, B, PositionsTraversalFunc<F>>
+	pub fn positions<'a, PointerBrand, S, T, A, B, F>(
+		traversal: Traversal<'a, PointerBrand, S, T, A, B, F>
+	) -> IndexedTraversal<'a, PointerBrand, usize, S, T, A, B, PositionsTraversalFunc<F>>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,

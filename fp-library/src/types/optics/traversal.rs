@@ -39,9 +39,9 @@ mod inner {
 		"The target type of the focus after an update.",
 		"The type of the traversal function."
 	)]
-	pub struct Traversal<'a, P, S, T, A, B, F>
+	pub struct Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + 'a,
 		S: 'a,
 		T: 'a,
@@ -51,7 +51,7 @@ mod inner {
 		///
 		/// In PureScript this is `(forall f. Applicative f => (a -> f b) -> s -> f t)`.
 		pub traversal: F,
-		pub(crate) _phantom: PhantomData<(&'a (S, T, A, B), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (S, T, A, B), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -63,9 +63,9 @@ mod inner {
 		"The target type of the focus after an update.",
 		"The type of the traversal function."
 	)]
-	impl<'a, P, S, T, A, B, F> Traversal<'a, P, S, T, A, B, F>
+	impl<'a, PointerBrand, S, T, A, B, F> Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + 'a,
 	{
 		/// Creates a new `Traversal` instance.
@@ -136,15 +136,15 @@ mod inner {
 		"The type of the focus.",
 		"The type of the traversal function."
 	)]
-	pub struct TraversalPrime<'a, P, S, A, F>
+	pub struct TraversalPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, S, A, A> + 'a,
 		S: 'a,
 		A: 'a, {
 		/// The traversal function.
 		pub traversal: F,
-		pub(crate) _phantom: PhantomData<(&'a (S, A), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (S, A), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -154,9 +154,9 @@ mod inner {
 		"The type of the focus.",
 		"The type of the traversal function."
 	)]
-	impl<'a, P, S, A, F> TraversalPrime<'a, P, S, A, F>
+	impl<'a, PointerBrand, S, A, F> TraversalPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, S, A, A> + 'a,
 	{
 		/// Creates a new `TraversalPrime` instance.
@@ -228,10 +228,11 @@ mod inner {
 		"The type of the traversal function."
 	)]
 	#[document_parameters("The traversal instance.")]
-	impl<'a, Q, P, S, T, A, B, F> Optic<'a, Q, S, T, A, B> for Traversal<'a, P, S, T, A, B, F>
+	impl<'a, Q, PointerBrand, S, T, A, B, F> Optic<'a, Q, S, T, A, B>
+		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
 		Q: Wander,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -310,9 +311,10 @@ mod inner {
 		"The type of the traversal function."
 	)]
 	#[document_parameters("The traversal instance.")]
-	impl<'a, P, S, T, A, B, F> TraversalOptic<'a, S, T, A, B> for Traversal<'a, P, S, T, A, B, F>
+	impl<'a, PointerBrand, S, T, A, B, F> TraversalOptic<'a, S, T, A, B>
+		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -386,9 +388,9 @@ mod inner {
 		"The type of the traversal function."
 	)]
 	#[document_parameters("The traversal instance.")]
-	impl<'a, P, S, A, F> FoldOptic<'a, S, A> for Traversal<'a, P, S, S, A, A, F>
+	impl<'a, PointerBrand, S, A, F> FoldOptic<'a, S, A> for Traversal<'a, PointerBrand, S, S, A, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: TraversalFunc<'a, S, S, A, A> + Clone + 'a,
 		S: 'a,
 		A: 'a + Clone,
@@ -469,9 +471,10 @@ mod inner {
 		"The type of the traversal function."
 	)]
 	#[document_parameters("The traversal instance.")]
-	impl<'a, Q, P, S, T, A, B, F> SetterOptic<'a, Q, S, T, A, B> for Traversal<'a, P, S, T, A, B, F>
+	impl<'a, Q, PointerBrand, S, T, A, B, F> SetterOptic<'a, Q, S, T, A, B>
+		for Traversal<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		F: TraversalFunc<'a, S, T, A, B> + Clone + 'a,
 		S: 'a,

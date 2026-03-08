@@ -217,7 +217,7 @@ PureScript implements `Closed Tagged` (`closed (Tagged b) = Tagged (const b)`). 
 | `Profunctor` (`dimap`, `lcmap`, `rmap`) | `Profunctor` (`dimap`, `lmap`, `rmap`) | **Complete** |
 | `Strong` (`first`, `second`) | `Strong` (`first`, `second`) | **Complete** |
 | `Choice` (`left`, `right`) | `Choice` (`left`, `right`) | **Complete** |
-| `Closed` (`closed`) | `Closed<FP>` (`closed`) | **Complete** — parameterized over function brand |
+| `Closed` (`closed`) | `Closed<FunctionBrand>` (`closed`) | **Complete** — parameterized over function brand |
 | `Wander` (`wander`) | `Wander` (`wander`) | **Complete** |
 | `Costrong` (`unfirst`, `unsecond`) | `Costrong` (`unfirst`, `unsecond`) | **Complete** |
 | `Cochoice` (`unleft`, `unright`) | `Cochoice` (`unleft`, `unright`) | **Complete** |
@@ -401,51 +401,7 @@ Without `Index` and `At`, users must manually construct affine traversals and le
 
 3. **No `Index`/`At` type classes** — This is the single largest usability gap. Without these, every container access requires manually constructing an optic.
 
-### 12.4 Type Parameter Ordering and Naming
-
-#### 12.4.1 `P` Naming Ambiguity
-
-The type parameter `P` is used for three semantically distinct roles:
-
-| Context | `P` means | Bound | Example |
-|---------|-----------|-------|---------|
-| `Optic<'a, P, S, T, A, B>` | Profunctor brand | `P: Profunctor` | `Optic::evaluate` |
-| `Lens<'a, P, S, T, A, B>` | Pointer brand (Rc vs Arc) | `P: UnsizedCoercible` | `Lens::new`, `Prism::new`, etc. |
-| `optics_from<'a, P, O, S, A>` | Cloneable function brand | `P: CloneableFn` | `optics_from`, `optics_to` |
-
-A user seeing `Lens<'a, P, ...>` alongside `Optic<'a, P, ...>` would reasonably assume the same kind of parameter. The bounds disambiguate at the definition site, but not at call sites where inference fills them in.
-
-**Approaches:**
-
-1. **Standardize on `Q` for pointer brands.** Profunctor stays `P`, pointer brand becomes `Q` everywhere, fn brand stays `FP`. Minimal diff. The `P`/`Q` distinction is sufficient when bounds are visible. This would change concrete optic structs (e.g. `Lens<'a, Q, S, T, A, B>`) and all free functions that currently use `P` for a pointer brand.
-
-2. **Use multi-letter names.** Profunctor stays `P`, pointer brand becomes `Ptr`, fn brand stays `FP`. More verbose but unambiguous at every call site. Unusual for Rust type parameter names, but the codebase already uses `FP` as a multi-letter parameter.
-
-3. **Rename the profunctor brand.** Since concrete optic structs (the most user-facing surface) use `P` for the pointer brand far more often than the `Optic` trait uses `P` for a profunctor, rename the profunctor parameter to `Prof`. This privileges the most common usage and only changes the base `Optic` trait and `optics_eval`.
-
-#### 12.4.2 `P` vs `Q` Inconsistency in Free Functions
-
-Free functions inconsistently use `P` and `Q` for the pointer brand:
-
-| Function | Letter | Bound | Role |
-|----------|--------|-------|------|
-| `optics_view<'a, P, O, S, A>` | `P` | `UnsizedCoercible` | pointer brand |
-| `optics_preview<'a, P, O, S, A>` | `P` | `UnsizedCoercible` | pointer brand |
-| `optics_set<'a, Q, O, S, A>` | `Q` | `UnsizedCoercible` | pointer brand |
-| `optics_over<'a, Q, O, S, A, F>` | `Q` | `UnsizedCoercible` | pointer brand |
-| `optics_from<'a, P, O, S, A>` | `P` | `CloneableFn` | fn brand |
-| `optics_eval<'a, P, O, S, T, A, B>` | `P` | `Profunctor` | profunctor brand |
-| `optics_indexed_view<'a, P, O, I, S, A>` | `P` | `UnsizedCoercible` | pointer brand |
-| `optics_indexed_over<'a, Q, O, I, S, A, F>` | `Q` | `UnsizedCoercible` | pointer brand |
-| `optics_indexed_set<'a, Q, O, I, S, A>` | `Q` | `UnsizedCoercible` | pointer brand |
-
-The split correlates with read-side (`P`) vs write-side (`Q`) functions, but this distinction has no semantic justification — both represent the same concept. This is compounded by `optics_eval` and `optics_from` reusing `P` for entirely different roles.
-
-**Approaches:**
-
-Whichever naming convention is adopted for the ambiguity issue (12.4.1) should be applied uniformly here. Any of the three approaches listed above would eliminate this inconsistency as a side effect.
-
-#### 12.4.3 Trait-Level vs Method-Level Brand Placement
+### 12.4 Trait-Level vs Method-Level Brand Placement
 
 The Rust-specific brand parameters (pointer brand, fn brand) are placed at the trait level in some optic traits but at the method level in others:
 
@@ -456,28 +412,28 @@ The Rust-specific brand parameters (pointer brand, fn brand) are placed at the t
 | `PrismOptic<'a, S, T, A, B>` | method | `evaluate<P: Choice>(...)` |
 | `AffineTraversalOptic<'a, S, T, A, B>` | method | `evaluate<P: Strong + Choice>(...)` |
 | `TraversalOptic<'a, S, T, A, B>` | method | `evaluate<P: Wander>(...)` |
-| `GetterOptic<'a, S, A>` | method | `evaluate<R, P: UnsizedCoercible>(...)` |
-| `FoldOptic<'a, S, A>` | method | `evaluate<R: Monoid, P: UnsizedCoercible>(...)` |
-| `SetterOptic<'a, P: UnsizedCoercible, S, T, A, B>` | trait | `evaluate(...)` |
-| `GrateOptic<'a, FP: CloneableFn, S, T, A, B>` | trait | `evaluate<Z: Profunctor>(...)` |
+| `GetterOptic<'a, S, A>` | method | `evaluate<R, PointerBrand: UnsizedCoercible>(...)` |
+| `FoldOptic<'a, S, A>` | method | `evaluate<R: Monoid, PointerBrand: UnsizedCoercible>(...)` |
+| `SetterOptic<'a, PointerBrand: UnsizedCoercible, S, T, A, B>` | trait | `evaluate(...)` |
+| `GrateOptic<'a, FunctionBrand: CloneableFn, S, T, A, B>` | trait | `evaluate<Z: Profunctor>(...)` |
 | `ReviewOptic<'a, S, T, A, B>` | neither | `evaluate(...)` (fixed to `TaggedBrand`) |
 
 The first group (`IsoOptic` through `TraversalOptic`) places the profunctor at method level — these traits express "this optic works with *any* profunctor satisfying the constraint", and the method-level parameter captures that universality.
 
-`GetterOptic` and `FoldOptic` also use method-level parameters, but for a *different* reason: they fix the profunctor to `ForgetBrand<P, R>` and expose `P` (pointer brand) and `R` (result/monoid type) as method parameters because different call sites may supply different `P` and `R` values for the same optic.
+`GetterOptic` and `FoldOptic` also use method-level parameters, but for a *different* reason: they fix the profunctor to `ForgetBrand<PointerBrand, R>` and expose `PointerBrand` and `R` (result/monoid type) as method parameters because different call sites may supply different `PointerBrand` and `R` values for the same optic.
 
-`SetterOptic` and `GrateOptic` place their brand at the trait level. For `SetterOptic`, this is because the setter is concretely tied to `FnBrand<P>` — the pointer brand `P` determines the implementation, so it's a fixed property of the optic instance rather than a call-site choice. `GrateOptic` similarly fixes the function brand.
+`SetterOptic` and `GrateOptic` place their brand at the trait level. For `SetterOptic`, this is because the setter is concretely tied to `FnBrand<PointerBrand>` — the pointer brand determines the implementation, so it's a fixed property of the optic instance rather than a call-site choice. `GrateOptic` similarly fixes the function brand.
 
 The rationale is sound (trait-level for fixed brands, method-level for universal quantification), but the observable effect is inconsistent downstream bounds:
 
 ```rust
 // Getter: no brand in trait position
-fn optics_view<P, O, S, A>(optic: &O, s: S) -> A
+fn optics_view<PointerBrand, O, S, A>(optic: &O, s: S) -> A
 where O: GetterOptic<'a, S, A> { ... }
 
 // Setter: brand in trait position
-fn optics_set<Q, O, S, A>(optic: &O, s: S, a: A) -> S
-where O: SetterOptic<'a, Q, S, S, A, A> { ... }
+fn optics_set<PointerBrand, O, S, A>(optic: &O, s: S, a: A) -> S
+where O: SetterOptic<'a, PointerBrand, S, S, A, A> { ... }
 ```
 
 A function constrained on *both* (e.g. a lens used as both getter and setter) must express the brand in two different structural positions. This also causes `GetterOptic` and `FoldOptic` to drop `T` and `B` from their trait parameters (since they only read), while `SetterOptic` keeps them — a further asymmetry, though one that is semantically justified.
@@ -496,10 +452,6 @@ A function constrained on *both* (e.g. a lens used as both getter and setter) mu
 | Grate operations | 5 functions | 1 (`zip_with_of`) | 20% |
 | Standard combinators | 10+ (`_1`, `_Just`, etc.) | 0 | 0% |
 | Indexed operations | 15+ functions | 8 functions | 53% |
-
-### 12.6 Naming Convention for Internal Profunctor Brand Parameters
-
-The internal profunctors consistently use the descriptive name `FnBrand` for their function brand parameter (`Exchange<'a, FnBrand: CloneableFn, A, B, S, T>`), while the `GrateOptic` trait uses `FP` and the `SetterOptic` trait uses plain `P`. These are three different names for the same concept across the codebase. Whichever convention is adopted for section 12.4.1 should also be applied here for consistency.
 
 ---
 

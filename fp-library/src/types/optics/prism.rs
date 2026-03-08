@@ -45,17 +45,17 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus after an update."
 	)]
-	pub struct Prism<'a, P, S, T, A, B>
+	pub struct Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Preview function: tries to extract the focus, returning the target structure T on failure.
-		pub preview: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, T>>),
+		pub preview: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, T>>),
 		/// Review function: constructs the structure from a focus value.
-		pub review: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
+		pub review: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
 	}
 
 	#[document_type_parameters(
@@ -67,9 +67,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S, T, A, B> Clone for Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Clone for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -107,9 +107,9 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		/// Create a new polymorphic prism.
 		#[document_signature]
@@ -135,8 +135,8 @@ mod inner {
 			review: impl 'a + Fn(B) -> T,
 		) -> Self {
 			Prism {
-				preview: <FnBrand<P> as CloneableFn>::new(preview),
-				review: <FnBrand<P> as CloneableFn>::new(review),
+				preview: <FnBrand<PointerBrand> as CloneableFn>::new(preview),
+				review: <FnBrand<PointerBrand> as CloneableFn>::new(review),
 			}
 		}
 
@@ -204,10 +204,11 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, Q, P, S, T, A, B> Optic<'a, Q, S, T, A, B> for Prism<'a, P, S, T, A, B>
+	impl<'a, Q, PointerBrand, S, T, A, B> Optic<'a, Q, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
 		Q: Choice,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -266,9 +267,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> PrismOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> PrismOptic<'a, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -312,10 +314,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
-		for Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> AffineTraversalOptic<'a, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -359,9 +361,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> TraversalOptic<'a, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -403,9 +406,9 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for Prism<'a, P, S, S, A, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for Prism<'a, PointerBrand, S, S, A, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -450,10 +453,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, Q, P, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
-		for Prism<'a, P, S, T, A, B>
+	impl<'a, Q, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> SetterOptic<'a, Q, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 	{
 		#[document_signature]
@@ -497,9 +500,10 @@ mod inner {
 		"The target type of the focus after an update."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S: 'a, T: 'a, A: 'a, B: 'a> ReviewOptic<'a, S, T, A, B> for Prism<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S: 'a, T: 'a, A: 'a, B: 'a> ReviewOptic<'a, S, T, A, B>
+		for Prism<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]
@@ -540,13 +544,13 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct PrismPrime<'a, P, S, A>
+	pub struct PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
-		pub(crate) preview_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, S>>),
-		pub(crate) review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
+		pub(crate) preview_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, Result<A, S>>),
+		pub(crate) review_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
 	}
 
 	#[document_type_parameters(
@@ -556,9 +560,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The prism instance.")]
-	impl<'a, P, S, A> Clone for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Clone for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -592,9 +596,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		/// Create a new monomorphic prism from preview and review functions without requiring `S: Clone`.
 		/// This uses a `Result<A, S>` which is closer to the true `Either` encoding.
@@ -621,8 +625,8 @@ mod inner {
 			review: impl 'a + Fn(A) -> S,
 		) -> Self {
 			PrismPrime {
-				preview_fn: <FnBrand<P> as CloneableFn>::new(preview),
-				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				preview_fn: <FnBrand<PointerBrand> as CloneableFn>::new(preview),
+				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
 			}
 		}
 
@@ -652,13 +656,13 @@ mod inner {
 		where
 			S: Clone, {
 			PrismPrime {
-				preview_fn: <FnBrand<P> as CloneableFn>::new(move |s: S| {
-					match preview(s.clone()) {
-						Some(a) => Ok(a),
-						None => Err(s),
-					}
+				preview_fn: <FnBrand<PointerBrand> as CloneableFn>::new(move |s: S| match preview(
+					s.clone(),
+				) {
+					Some(a) => Ok(a),
+					None => Err(s),
 				}),
-				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
 			}
 		}
 
@@ -745,7 +749,7 @@ mod inner {
 		}
 	}
 
-	// Optic implementation for PrismPrime<P, S, A>
+	// Optic implementation for PrismPrime<PointerBrand, S, A>
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
@@ -754,10 +758,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, Q, P, S, A> Optic<'a, Q, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, Q, PointerBrand, S, A> Optic<'a, Q, S, S, A, A> for PrismPrime<'a, PointerBrand, S, A>
 	where
 		Q: Choice,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -807,9 +811,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> PrismOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> PrismOptic<'a, S, S, A, A>
+		for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -851,9 +856,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> AffineTraversalOptic<'a, S, S, A, A>
+		for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -895,9 +901,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> TraversalOptic<'a, S, S, A, A>
+		for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -939,9 +946,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -984,9 +991,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, Q, P, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, Q, PointerBrand, S: 'a, A: 'a> SetterOptic<'a, Q, S, S, A, A>
+		for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 	{
 		#[document_signature]
@@ -1028,9 +1036,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The monomorphic prism instance.")]
-	impl<'a, P, S: 'a, A: 'a> ReviewOptic<'a, S, S, A, A> for PrismPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> ReviewOptic<'a, S, S, A, A>
+		for PrismPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_parameters("The profunctor value to transform.")]

@@ -43,12 +43,12 @@ mod inner {
 		"The target type of the focus after an update.",
 		"The traversal function type."
 	)]
-	pub struct IndexedTraversal<'a, P, I, S, T, A, B, F>
+	pub struct IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + 'a, {
 		/// The underlying indexed traversal function.
 		pub traversal: F,
-		pub(crate) _phantom: PhantomData<(&'a (I, S, T, A, B), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (I, S, T, A, B), PointerBrand)>,
 	}
 
 	/// A wrapper struct for the `traversed` constructor.
@@ -139,10 +139,10 @@ mod inner {
 		"The type of the elements in the structure.",
 		"The type of the elements in the result."
 	)]
-	impl<'a, P, I, Brand, A, B>
+	impl<'a, PointerBrand, I, Brand, A, B>
 		IndexedTraversal<
 			'a,
-			P,
+			PointerBrand,
 			I,
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, B>),
@@ -193,10 +193,10 @@ mod inner {
 		"The brand of the traversable structure.",
 		"The type of the elements in the structure."
 	)]
-	impl<'a, P, I, Brand, A>
+	impl<'a, PointerBrand, I, Brand, A>
 		IndexedTraversalPrime<
 			'a,
-			P,
+			PointerBrand,
 			I,
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 			A,
@@ -244,7 +244,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I, S, T, A, B, F> Clone for IndexedTraversal<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I, S, T, A, B, F> Clone
+		for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 	{
@@ -290,7 +291,7 @@ mod inner {
 		"The target type of the focus after an update.",
 		"The traversal function type."
 	)]
-	impl<'a, P, I, S, T, A, B, F> IndexedTraversal<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I, S, T, A, B, F> IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + 'a,
 	{
@@ -338,8 +339,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, F>
-		IndexedTraversalOptic<'a, I, S, T, A, B> for IndexedTraversal<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, F>
+		IndexedTraversalOptic<'a, I, S, T, A, B> for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 	{
@@ -415,8 +416,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
-		for IndexedTraversal<'a, P, I, S, S, A, A, F>
+	impl<'a, PointerBrand, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
+		for IndexedTraversal<'a, PointerBrand, I, S, S, A, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
@@ -463,8 +464,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, Q, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, P, F>
-		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedTraversal<'a, P, I, S, T, A, B, F>
+	impl<'a, Q, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, PointerBrand, F>
+		IndexedSetterOptic<'a, Q, I, S, T, A, B> for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 		Q: UnsizedCoercible,
@@ -512,8 +513,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, Q, F>
-		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedTraversal<'a, Q, I, S, T, A, B, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, PointerBrand, F>
+		IndexedOpticAdapter<'a, P, I, S, T, A, B> for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 	{
@@ -560,9 +561,9 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, Q, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, PointerBrand, F>
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
-		for IndexedTraversal<'a, Q, I, S, T, A, B, F>
+		for IndexedTraversal<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, T, A, B> + Clone + 'a,
 	{
@@ -606,12 +607,12 @@ mod inner {
 		"The type of the focus.",
 		"The traversal function type."
 	)]
-	pub struct IndexedTraversalPrime<'a, P, I, S, A, F>
+	pub struct IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + 'a, {
 		/// The underlying indexed traversal function.
 		pub traversal: F,
-		pub(crate) _phantom: PhantomData<(&'a (I, S, A), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (I, S, A), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -623,7 +624,7 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I, S, A, F> Clone for IndexedTraversalPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I, S, A, F> Clone for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
@@ -669,7 +670,7 @@ mod inner {
 		"The type of the focus.",
 		"The traversal function type."
 	)]
-	impl<'a, P, I, S, A, F> IndexedTraversalPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I, S, A, F> IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + 'a,
 	{
@@ -715,8 +716,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedTraversalOptic<'a, I, S, S, A, A>
-		for IndexedTraversalPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I: Clone + 'a, S: 'a, A: 'a + Clone, F>
+		IndexedTraversalOptic<'a, I, S, S, A, A> for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
@@ -792,8 +793,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
-		for IndexedTraversalPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I: Clone + 'a, S: 'a, A: 'a + Clone, F> IndexedFoldOptic<'a, I, S, A>
+		for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
@@ -838,8 +839,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, Q, I: Clone + 'a, S: 'a, A: 'a + Clone, P, F> IndexedSetterOptic<'a, Q, I, S, S, A, A>
-		for IndexedTraversalPrime<'a, P, I, S, A, F>
+	impl<'a, Q, I: Clone + 'a, S: 'a, A: 'a + Clone, PointerBrand, F>
+		IndexedSetterOptic<'a, Q, I, S, S, A, A> for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 		Q: UnsizedCoercible,
@@ -885,8 +886,8 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, Q, F>
-		IndexedOpticAdapter<'a, P, I, S, S, A, A> for IndexedTraversalPrime<'a, Q, I, S, A, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, PointerBrand, F>
+		IndexedOpticAdapter<'a, P, I, S, S, A, A> for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{
@@ -931,9 +932,9 @@ mod inner {
 		"The traversal function type."
 	)]
 	#[document_parameters("The indexed traversal instance.")]
-	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, Q, F>
+	impl<'a, P: Wander, I: Clone + 'a, S: 'a, A: 'a + Clone, PointerBrand, F>
 		IndexedOpticAdapterDiscardsFocus<'a, P, I, S, S, A, A>
-		for IndexedTraversalPrime<'a, Q, I, S, A, F>
+		for IndexedTraversalPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedTraversalFunc<'a, I, S, S, A, A> + Clone + 'a,
 	{

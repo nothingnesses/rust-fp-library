@@ -55,9 +55,17 @@ mod inner {
 		"The varying input type (contravariant position).",
 		"The varying output type (covariant position)."
 	)]
-	pub struct Re<'a, InnerP: Profunctor, OuterP: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
+	pub struct Re<
+		'a,
+		InnerP: Profunctor,
+		PointerBrand: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a,
+	> {
 		/// The wrapped function `InnerP::Of<B, A> -> InnerP::Of<T, S>`.
-		pub run: <FnBrand<OuterP> as CloneableFn>::Of<
+		pub run: <FnBrand<PointerBrand> as CloneableFn>::Of<
 			'a,
 			Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, B, A>),
 			Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, T, S>),
@@ -73,8 +81,8 @@ mod inner {
 		"The varying input type.",
 		"The varying output type."
 	)]
-	impl<'a, InnerP: Profunctor, OuterP: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a>
-		Re<'a, InnerP, OuterP, S, T, A, B>
+	impl<'a, InnerP: Profunctor, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a>
+		Re<'a, InnerP, PointerBrand, S, T, A, B>
 	{
 		/// Creates a new `Re` instance by wrapping a function.
 		#[document_signature]
@@ -111,7 +119,7 @@ mod inner {
 			) -> Apply!(<InnerP as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, T, S>)
 		) -> Self {
 			Re {
-				run: <FnBrand<OuterP> as CloneableFn>::new(f),
+				run: <FnBrand<PointerBrand> as CloneableFn>::new(f),
 			}
 		}
 	}
@@ -126,8 +134,8 @@ mod inner {
 		"The varying output type."
 	)]
 	#[document_parameters("The `Re` instance.")]
-	impl<'a, InnerP: Profunctor, OuterP: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> Clone
-		for Re<'a, InnerP, OuterP, S, T, A, B>
+	impl<'a, InnerP: Profunctor, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> Clone
+		for Re<'a, InnerP, PointerBrand, S, T, A, B>
 	{
 		#[document_signature]
 		#[document_returns("A new `Re` instance that is a copy of the original.")]
@@ -168,17 +176,17 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	pub struct ReBrand<InnerP, OuterP, S, T>(PhantomData<(InnerP, OuterP, S, T)>);
+	pub struct ReBrand<InnerP, PointerBrand, S, T>(PhantomData<(InnerP, PointerBrand, S, T)>);
 
 	impl_kind! {
 		impl<
 			InnerP: Profunctor + 'static,
-			OuterP: UnsizedCoercible + 'static,
+			PointerBrand: UnsizedCoercible + 'static,
 			S: 'static,
 			T: 'static,
-		> for ReBrand<InnerP, OuterP, S, T> {
+		> for ReBrand<InnerP, PointerBrand, S, T> {
 			#[document_default]
-			type Of<'a, A: 'a, B: 'a>: 'a = Re<'a, InnerP, OuterP, S, T, A, B>;
+			type Of<'a, A: 'a, B: 'a>: 'a = Re<'a, InnerP, PointerBrand, S, T, A, B>;
 		}
 	}
 
@@ -195,8 +203,12 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Profunctor + 'static, OuterP: UnsizedCoercible + 'static, S: 'static, T: 'static>
-		Profunctor for ReBrand<InnerP, OuterP, S, T>
+	impl<
+		InnerP: Profunctor + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
+		S: 'static,
+		T: 'static,
+	> Profunctor for ReBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Maps over both arguments of `Re`, swapping the roles of `f` and `g` on the inner profunctor.
 		#[document_signature]
@@ -257,8 +269,8 @@ mod inner {
 			FuncAB: Fn(A) -> B + 'a,
 			FuncCD: Fn(C) -> D + 'a, {
 			let r = pbc.run;
-			let ab = <FnBrand<OuterP> as CloneableFn>::new(ab);
-			let cd = <FnBrand<OuterP> as CloneableFn>::new(cd);
+			let ab = <FnBrand<PointerBrand> as CloneableFn>::new(ab);
+			let cd = <FnBrand<PointerBrand> as CloneableFn>::new(cd);
 			Re::new(move |pda| {
 				let ab = ab.clone();
 				let cd = cd.clone();
@@ -281,8 +293,8 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Choice + 'static, OuterP: UnsizedCoercible + 'static, S: 'static, T: 'static>
-		Cochoice for ReBrand<InnerP, OuterP, S, T>
+	impl<InnerP: Choice + 'static, PointerBrand: UnsizedCoercible + 'static, S: 'static, T: 'static>
+		Cochoice for ReBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Extracts from a `Re` that operates on `Result` types using `InnerP::left`.
 		#[document_signature]
@@ -395,8 +407,12 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Cochoice + 'static, OuterP: UnsizedCoercible + 'static, S: 'static, T: 'static>
-		Choice for ReBrand<InnerP, OuterP, S, T>
+	impl<
+		InnerP: Cochoice + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
+		S: 'static,
+		T: 'static,
+	> Choice for ReBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Lifts `Re` to operate on the `Err` variant of a `Result` using `InnerP::unleft`.
 		#[document_signature]
@@ -512,8 +528,8 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Strong + 'static, OuterP: UnsizedCoercible + 'static, S: 'static, T: 'static>
-		Costrong for ReBrand<InnerP, OuterP, S, T>
+	impl<InnerP: Strong + 'static, PointerBrand: UnsizedCoercible + 'static, S: 'static, T: 'static>
+		Costrong for ReBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Extracts from a `Re` that operates on the first component of a pair using `InnerP::first`.
 		#[document_signature]
@@ -636,8 +652,12 @@ mod inner {
 		"The fixed source type.",
 		"The fixed target type."
 	)]
-	impl<InnerP: Costrong + 'static, OuterP: UnsizedCoercible + 'static, S: 'static, T: 'static>
-		Strong for ReBrand<InnerP, OuterP, S, T>
+	impl<
+		InnerP: Costrong + 'static,
+		PointerBrand: UnsizedCoercible + 'static,
+		S: 'static,
+		T: 'static,
+	> Strong for ReBrand<InnerP, PointerBrand, S, T>
 	{
 		/// Lifts `Re` to operate on the first component of a pair using `InnerP::unfirst`.
 		#[document_signature]

@@ -39,15 +39,15 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus."
 	)]
-	pub struct Review<'a, P, S, T, A, B>
+	pub struct Review<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Function to construct a structure from a focus value.
-		pub review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
+		pub review_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, B, T>),
 		pub(crate) _phantom: PhantomData<&'a (S, A)>,
 	}
 
@@ -60,9 +60,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, T, A, B> Clone for Review<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Clone for Review<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -99,9 +99,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, T, A, B> Review<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Review<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -127,7 +127,7 @@ mod inner {
 		/// ```
 		pub fn new(review: impl 'a + Fn(B) -> T) -> Self {
 			Review {
-				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
 				_phantom: PhantomData,
 			}
 		}
@@ -167,9 +167,10 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, T, A, B> Optic<'a, TaggedBrand, S, T, A, B> for Review<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Optic<'a, TaggedBrand, S, T, A, B>
+		for Review<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -211,9 +212,10 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, T, A, B> ReviewOptic<'a, S, T, A, B> for Review<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> ReviewOptic<'a, S, T, A, B>
+		for Review<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -254,14 +256,14 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct ReviewPrime<'a, P, S, A>
+	pub struct ReviewPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
 		/// Function to construct a structure from a focus value.
-		pub review_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
-		pub(crate) _phantom: PhantomData<P>,
+		pub review_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, S>),
+		pub(crate) _phantom: PhantomData<PointerBrand>,
 	}
 
 	#[document_type_parameters(
@@ -271,9 +273,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, A> Clone for ReviewPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Clone for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -306,9 +308,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, A> ReviewPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> ReviewPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -332,7 +334,7 @@ mod inner {
 		/// ```
 		pub fn new(review: impl 'a + Fn(A) -> S) -> Self {
 			ReviewPrime {
-				review_fn: <FnBrand<P> as CloneableFn>::new(review),
+				review_fn: <FnBrand<PointerBrand> as CloneableFn>::new(review),
 				_phantom: PhantomData,
 			}
 		}
@@ -370,9 +372,10 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, A> Optic<'a, TaggedBrand, S, S, A, A> for ReviewPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Optic<'a, TaggedBrand, S, S, A, A>
+		for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -410,9 +413,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The review instance.")]
-	impl<'a, P, S, A> ReviewOptic<'a, S, S, A, A> for ReviewPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> ReviewOptic<'a, S, S, A, A> for ReviewPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{

@@ -37,15 +37,15 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus."
 	)]
-	pub struct Getter<'a, P, S, T, A, B>
+	pub struct Getter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Function to view the focus of the getter in a structure.
-		pub view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
+		pub view_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
 		pub(crate) _phantom: PhantomData<&'a (T, B)>,
 	}
 
@@ -58,9 +58,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, T, A, B> Clone for Getter<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Clone for Getter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -97,9 +97,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, T, A, B> Getter<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Getter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -125,7 +125,7 @@ mod inner {
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			Getter {
-				view_fn: <FnBrand<P> as CloneableFn>::new(view),
+				view_fn: <FnBrand<PointerBrand> as CloneableFn>::new(view),
 				_phantom: PhantomData,
 			}
 		}
@@ -167,9 +167,10 @@ mod inner {
 		"The reference-counted pointer type for the forget brand."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, T, A, B, R, Q> Optic<'a, ForgetBrand<Q, R>, S, T, A, B> for Getter<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B, R, Q> Optic<'a, ForgetBrand<Q, R>, S, T, A, B>
+		for Getter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible + 'static,
 		S: 'a,
 		T: 'a,
@@ -219,14 +220,14 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct GetterPrime<'a, P, S, A>
+	pub struct GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
 		/// Function to view the focus of the getter in a structure.
-		pub view_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
-		pub(crate) _phantom: PhantomData<P>,
+		pub view_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, A>),
+		pub(crate) _phantom: PhantomData<PointerBrand>,
 	}
 
 	#[document_type_parameters(
@@ -236,9 +237,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, A> Clone for GetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Clone for GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -271,9 +272,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, A> GetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -297,7 +298,7 @@ mod inner {
 		/// ```
 		pub fn new(view: impl 'a + Fn(S) -> A) -> Self {
 			GetterPrime {
-				view_fn: <FnBrand<P> as CloneableFn>::new(view),
+				view_fn: <FnBrand<PointerBrand> as CloneableFn>::new(view),
 				_phantom: PhantomData,
 			}
 		}
@@ -337,9 +338,10 @@ mod inner {
 		"The reference-counted pointer type for the forget brand."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S, A, R, Q> Optic<'a, ForgetBrand<Q, R>, S, S, A, A> for GetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A, R, Q> Optic<'a, ForgetBrand<Q, R>, S, S, A, A>
+		for GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible + 'static,
 		S: 'a,
 		A: 'a,
@@ -385,9 +387,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S: 'a, A: 'a> GetterOptic<'a, S, A> for GetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> GetterOptic<'a, S, A> for GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters(
@@ -427,9 +429,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The getter instance.")]
-	impl<'a, P, S: 'a, A: 'a> FoldOptic<'a, S, A> for GetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S: 'a, A: 'a> FoldOptic<'a, S, A> for GetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters(

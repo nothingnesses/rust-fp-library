@@ -36,11 +36,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Stall<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Stall<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
-		pub get: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 		/// Setter function.
-		pub set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
+		pub set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
 	}
 
 	#[document_type_parameters(
@@ -51,7 +51,9 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Stall<'a, FnBrand, A, B, S, T> {
+	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
+		Stall<'a, FunctionBrand, A, B, S, T>
+	{
 		/// Creates a new `Stall` instance.
 		#[document_signature]
 		///
@@ -76,8 +78,8 @@ mod inner {
 		/// assert_eq!((stall.set)(((10, 20), 30)), (30, 20));
 		/// ```
 		pub fn new(
-			get: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
-			set: <FnBrand as CloneableFn>::Of<'a, (S, B), T>,
+			get: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+			set: <FunctionBrand as CloneableFn>::Of<'a, (S, B), T>,
 		) -> Self {
 			Stall {
 				get,
@@ -92,12 +94,12 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	pub struct StallBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct StallBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for StallBrand<FnBrand, A, B> {
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for StallBrand<FunctionBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Stall<'a, FnBrand, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Stall<'a, FunctionBrand, A, B, S, T>;
 		}
 	}
 
@@ -106,8 +108,8 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
-		for StallBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for StallBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Stall` profunctor.
 		#[document_signature]
@@ -163,13 +165,15 @@ mod inner {
 			FuncUV: Fn(U) -> V + 'a, {
 			let get = puv.get;
 			let set = puv.set;
-			let st = <FnBrand as CloneableFn>::new(st);
-			let uv = <FnBrand as CloneableFn>::new(uv);
+			let st = <FunctionBrand as CloneableFn>::new(st);
+			let uv = <FunctionBrand as CloneableFn>::new(uv);
 			let st_2 = st.clone();
 			let uv_2 = uv.clone();
 			Stall::new(
-				<FnBrand as CloneableFn>::new(move |s: S| (*get)((*st)(s)).map_err(|u| (*uv)(u))),
-				<FnBrand as CloneableFn>::new(move |(s, b): (S, B)| {
+				<FunctionBrand as CloneableFn>::new(move |s: S| {
+					(*get)((*st)(s)).map_err(|u| (*uv)(u))
+				}),
+				<FunctionBrand as CloneableFn>::new(move |(s, b): (S, B)| {
 					(*uv_2)((*set)(((*st_2)(s), b)))
 				}),
 			)
@@ -181,7 +185,9 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong for StallBrand<FnBrand, A, B> {
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong
+		for StallBrand<FunctionBrand, A, B>
+	{
 		/// Lifts the `Stall` profunctor to operate on the first component of a tuple.
 		#[document_signature]
 		#[document_type_parameters(
@@ -220,8 +226,12 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FnBrand as CloneableFn>::new(move |(s, c): (S, C)| (*get)(s).map_err(|t| (t, c))),
-				<FnBrand as CloneableFn>::new(move |((s, c), b): ((S, C), B)| ((*set)((s, b)), c)),
+				<FunctionBrand as CloneableFn>::new(move |(s, c): (S, C)| {
+					(*get)(s).map_err(|t| (t, c))
+				}),
+				<FunctionBrand as CloneableFn>::new(move |((s, c), b): ((S, C), B)| {
+					((*set)((s, b)), c)
+				}),
 			)
 		}
 	}
@@ -231,7 +241,9 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the setter."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice for StallBrand<FnBrand, A, B> {
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice
+		for StallBrand<FunctionBrand, A, B>
+	{
 		/// Lifts the `Stall` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
 		#[document_type_parameters(
@@ -273,11 +285,11 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FnBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
+				<FunctionBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
 					Err(s) => (*get)(s).map_err(Err),
 					Ok(c) => Err(Ok(c)),
 				}),
-				<FnBrand as CloneableFn>::new(move |(r, b): (Result<C, S>, B)| match r {
+				<FunctionBrand as CloneableFn>::new(move |(r, b): (Result<C, S>, B)| match r {
 					Err(s) => Err((*set)((s, b))),
 					Ok(c) => Ok(c),
 				}),
@@ -325,11 +337,11 @@ mod inner {
 			let get = pab.get;
 			let set = pab.set;
 			Stall::new(
-				<FnBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
+				<FunctionBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
 					Ok(s) => (*get)(s).map_err(Ok),
 					Err(c) => Err(Err(c)),
 				}),
-				<FnBrand as CloneableFn>::new(move |(r, b): (Result<S, C>, B)| match r {
+				<FunctionBrand as CloneableFn>::new(move |(r, b): (Result<S, C>, B)| match r {
 					Ok(s) => Ok((*set)((s, b))),
 					Err(c) => Err(c),
 				}),

@@ -42,12 +42,12 @@ mod inner {
 		"The input type of the function.",
 		"The ignored type."
 	)]
-	pub struct Forget<'a, P, R, A, B>(
-		pub Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, R>),
+	pub struct Forget<'a, PointerBrand, R, A, B>(
+		pub Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, A, R>),
 		PhantomData<B>,
 	)
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		R: 'a,
 		A: 'a;
 
@@ -59,9 +59,9 @@ mod inner {
 		"The ignored type."
 	)]
 	#[document_parameters("The forget instance.")]
-	impl<'a, P, R, A, B> Forget<'a, P, R, A, B>
+	impl<'a, PointerBrand, R, A, B> Forget<'a, PointerBrand, R, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		R: 'a,
 		A: 'a,
 	{
@@ -85,7 +85,7 @@ mod inner {
 		/// assert_eq!((forget.0)("hello".to_string()), 5);
 		/// ```
 		pub fn new(f: impl Fn(A) -> R + 'a) -> Self {
-			Forget(<FnBrand<P> as CloneableFn>::new(f), PhantomData)
+			Forget(<FnBrand<PointerBrand> as CloneableFn>::new(f), PhantomData)
 		}
 
 		/// Runs the `Forget` profunctor on an input.
@@ -121,9 +121,9 @@ mod inner {
 		"The ignored type."
 	)]
 	#[document_parameters("The forget instance.")]
-	impl<'a, P, R, A, B> Clone for Forget<'a, P, R, A, B>
+	impl<'a, PointerBrand, R, A, B> Clone for Forget<'a, PointerBrand, R, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		R: 'a,
 		A: 'a,
 	{
@@ -148,17 +148,19 @@ mod inner {
 
 	/// Brand for the `Forget` profunctor.
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	pub struct ForgetBrand<P, R>(PhantomData<(P, R)>);
+	pub struct ForgetBrand<PointerBrand, R>(PhantomData<(PointerBrand, R)>);
 
 	impl_kind! {
-		impl<P: UnsizedCoercible + 'static, R: 'static> for ForgetBrand<P, R> {
+		impl<PointerBrand: UnsizedCoercible + 'static, R: 'static> for ForgetBrand<PointerBrand, R> {
 			#[document_default]
-			type Of<'a, A: 'a, B: 'a>: 'a = Forget<'a, P, R, A, B>;
+			type Of<'a, A: 'a, B: 'a>: 'a = Forget<'a, PointerBrand, R, A, B>;
 		}
 	}
 
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	impl<P: UnsizedCoercible + 'static, R: 'static> Profunctor for ForgetBrand<P, R> {
+	impl<PointerBrand: UnsizedCoercible + 'static, R: 'static> Profunctor
+		for ForgetBrand<PointerBrand, R>
+	{
 		/// Maps functions over the input and output of the `Forget` profunctor.
 		#[document_signature]
 		#[document_type_parameters(
@@ -213,7 +215,7 @@ mod inner {
 	}
 
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	impl<P: UnsizedCoercible + 'static, R: 'static> Strong for ForgetBrand<P, R> {
+	impl<PointerBrand: UnsizedCoercible + 'static, R: 'static> Strong for ForgetBrand<PointerBrand, R> {
 		/// Lifts the `Forget` profunctor to operate on the first component of a tuple.
 		#[document_signature]
 		#[document_type_parameters(
@@ -252,7 +254,9 @@ mod inner {
 	}
 
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid + Clone> Wander for ForgetBrand<P, R> {
+	impl<PointerBrand: UnsizedCoercible + 'static, R: 'static + Monoid + Clone> Wander
+		for ForgetBrand<PointerBrand, R>
+	{
 		/// Lifts the `Forget` profunctor to operate on a structure using a traversal.
 		#[document_signature]
 		#[document_type_parameters(
@@ -304,7 +308,9 @@ mod inner {
 	}
 
 	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	impl<P: UnsizedCoercible + 'static, R: 'static + Monoid> Choice for ForgetBrand<P, R> {
+	impl<PointerBrand: UnsizedCoercible + 'static, R: 'static + Monoid> Choice
+		for ForgetBrand<PointerBrand, R>
+	{
 		/// Lifts the `Forget` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
 		#[document_type_parameters(

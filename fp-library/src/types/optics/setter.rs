@@ -35,15 +35,15 @@ mod inner {
 		"The source type of the focus.",
 		"The target type of the focus."
 	)]
-	pub struct Setter<'a, P, S, T, A, B>
+	pub struct Setter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
 		B: 'a, {
 		/// Function to update the focus in a structure.
-		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> B + 'a>), T>),
+		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> B + 'a>), T>),
 	}
 
 	#[document_type_parameters(
@@ -55,9 +55,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, P, S, T, A, B> Clone for Setter<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Clone for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -94,9 +94,9 @@ mod inner {
 		"The target type of the focus."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, P, S, T, A, B> Setter<'a, P, S, T, A, B>
+	impl<'a, PointerBrand, S, T, A, B> Setter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -123,7 +123,7 @@ mod inner {
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> B + 'a>)) -> T) -> Self {
 			Setter {
-				over_fn: <FnBrand<P> as CloneableFn>::new(over),
+				over_fn: <FnBrand<PointerBrand> as CloneableFn>::new(over),
 			}
 		}
 
@@ -165,9 +165,10 @@ mod inner {
 		"The pointer brand for the function profunctor."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, Q, P, S, T, A, B> Optic<'a, FnBrand<Q>, S, T, A, B> for Setter<'a, P, S, T, A, B>
+	impl<'a, Q, PointerBrand, S, T, A, B> Optic<'a, FnBrand<Q>, S, T, A, B>
+		for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
@@ -216,9 +217,10 @@ mod inner {
 		"The pointer brand for the function profunctor."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, Q, P, S, T, A, B> SetterOptic<'a, Q, S, T, A, B> for Setter<'a, P, S, T, A, B>
+	impl<'a, Q, PointerBrand, S, T, A, B> SetterOptic<'a, Q, S, T, A, B>
+		for Setter<'a, PointerBrand, S, T, A, B>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a,
 		T: 'a,
@@ -266,13 +268,13 @@ mod inner {
 		"The type of the structure.",
 		"The type of the focus."
 	)]
-	pub struct SetterPrime<'a, P, S, A>
+	pub struct SetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a, {
 		/// Function to update the focus in a structure.
-		pub over_fn: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> A + 'a>), S>),
+		pub over_fn: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, (S, Box<dyn Fn(A) -> A + 'a>), S>),
 	}
 
 	#[document_type_parameters(
@@ -282,9 +284,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, P, S, A> Clone for SetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> Clone for SetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -317,9 +319,9 @@ mod inner {
 		"The type of the focus."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, P, S, A> SetterPrime<'a, P, S, A>
+	impl<'a, PointerBrand, S, A> SetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
 	{
@@ -344,7 +346,7 @@ mod inner {
 		/// ```
 		pub fn new(over: impl 'a + Fn((S, Box<dyn Fn(A) -> A + 'a>)) -> S) -> Self {
 			SetterPrime {
-				over_fn: <FnBrand<P> as CloneableFn>::new(over),
+				over_fn: <FnBrand<PointerBrand> as CloneableFn>::new(over),
 			}
 		}
 
@@ -384,9 +386,10 @@ mod inner {
 		"The pointer brand for the function profunctor."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, Q, P, S, A> Optic<'a, FnBrand<Q>, S, S, A, A> for SetterPrime<'a, P, S, A>
+	impl<'a, Q, PointerBrand, S, A> Optic<'a, FnBrand<Q>, S, S, A, A>
+		for SetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
@@ -431,9 +434,10 @@ mod inner {
 		"The pointer brand for the function profunctor."
 	)]
 	#[document_parameters("The setter instance.")]
-	impl<'a, Q, P, S, A> SetterOptic<'a, Q, S, S, A, A> for SetterPrime<'a, P, S, A>
+	impl<'a, Q, PointerBrand, S, A> SetterOptic<'a, Q, S, S, A, A>
+		for SetterPrime<'a, PointerBrand, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		Q: UnsizedCoercible,
 		S: 'a,
 		A: 'a,

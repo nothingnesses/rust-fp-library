@@ -48,12 +48,12 @@ mod inner {
 		"The target type of the focus.",
 		"The fold function type."
 	)]
-	pub struct IndexedFold<'a, P, I, S, T, A, B, F>
+	pub struct IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + 'a, {
 		/// The fold function.
 		pub fold_fn: F,
-		pub(crate) _phantom: PhantomData<(&'a (I, S, T, A, B), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (I, S, T, A, B), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -67,7 +67,7 @@ mod inner {
 		"The fold function type."
 	)]
 	#[document_parameters("The indexed fold instance.")]
-	impl<'a, P, I, S, T, A, B, F> Clone for IndexedFold<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I, S, T, A, B, F> Clone for IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{
@@ -125,7 +125,7 @@ mod inner {
 		"The target type of the focus.",
 		"The fold function type."
 	)]
-	impl<'a, P, I, S, T, A, B, F> IndexedFold<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I, S, T, A, B, F> IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + 'a,
 	{
@@ -228,10 +228,10 @@ mod inner {
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure."
 	)]
-	impl<'a, P, I, Brand, A>
+	impl<'a, PointerBrand, I, Brand, A>
 		IndexedFold<
 			'a,
-			P,
+			PointerBrand,
 			I,
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
@@ -283,10 +283,10 @@ mod inner {
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure."
 	)]
-	impl<'a, P, I, Brand, A>
+	impl<'a, PointerBrand, I, Brand, A>
 		IndexedFoldPrime<
 			'a,
-			P,
+			PointerBrand,
 			I,
 			Apply!(<Brand as Kind!( type Of<'c, T: 'c>: 'c; )>::Of<'a, A>),
 			A,
@@ -340,11 +340,11 @@ mod inner {
 		"The fold function type."
 	)]
 	#[document_parameters("The indexed fold instance.")]
-	impl<'a, P, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F> IndexedFoldOptic<'a, I, S, A>
-		for IndexedFold<'a, P, I, S, T, A, B, F>
+	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a, F> IndexedFoldOptic<'a, I, S, A>
+		for IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -413,7 +413,7 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -421,7 +421,7 @@ mod inner {
 		B: 'a,
 		F,
 	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
-		for IndexedFold<'a, P, I, S, T, A, B, F>
+		for IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{
@@ -478,7 +478,7 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -486,7 +486,7 @@ mod inner {
 		B: 'a,
 		F,
 	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
-		for IndexedFold<'a, P, I, S, T, A, B, F>
+		for IndexedFold<'a, PointerBrand, I, S, T, A, B, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{
@@ -535,12 +535,12 @@ mod inner {
 		"The type of the focus.",
 		"The fold function type."
 	)]
-	pub struct IndexedFoldPrime<'a, P, I, S, A, F>
+	pub struct IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + 'a, {
 		/// The fold function.
 		pub fold_fn: F,
-		pub(crate) _phantom: PhantomData<(&'a (I, S, A), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (I, S, A), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -552,7 +552,7 @@ mod inner {
 		"The fold function type."
 	)]
 	#[document_parameters("The indexed fold instance.")]
-	impl<'a, P, I, S, A, F> Clone for IndexedFoldPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I, S, A, F> Clone for IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{
@@ -607,7 +607,7 @@ mod inner {
 		"The type of the focus.",
 		"The fold function type."
 	)]
-	impl<'a, P, I, S, A, F> IndexedFoldPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I, S, A, F> IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + 'a,
 	{
@@ -664,11 +664,11 @@ mod inner {
 		"The fold function type."
 	)]
 	#[document_parameters("The indexed fold instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a, F> IndexedFoldOptic<'a, I, S, A>
-		for IndexedFoldPrime<'a, P, I, S, A, F>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a, F> IndexedFoldOptic<'a, I, S, A>
+		for IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -734,13 +734,13 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
 		F,
 	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
-		for IndexedFoldPrime<'a, P, I, S, A, F>
+		for IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{
@@ -795,13 +795,13 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + Monoid + Clone + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
 		F,
 	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
-		for IndexedFoldPrime<'a, P, I, S, A, F>
+		for IndexedFoldPrime<'a, PointerBrand, I, S, A, F>
 	where
 		F: IndexedFoldFunc<'a, I, S, A> + Clone + 'a,
 	{

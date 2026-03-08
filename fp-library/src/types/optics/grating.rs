@@ -35,11 +35,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Grating<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Grating<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Grating function.
-		pub run: <FnBrand as CloneableFn>::Of<
+		pub run: <FunctionBrand as CloneableFn>::Of<
 			'a,
-			<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, S, A>, B>,
+			<FunctionBrand as CloneableFn>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, S, A>, B>,
 			T,
 		>,
 	}
@@ -52,7 +52,9 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Grating<'a, FnBrand, A, B, S, T> {
+	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
+		Grating<'a, FunctionBrand, A, B, S, T>
+	{
 		/// Creates a new `Grating` instance.
 		#[document_signature]
 		///
@@ -83,9 +85,13 @@ mod inner {
 		/// assert_eq!(result, 30);
 		/// ```
 		pub fn new(
-			run: <FnBrand as CloneableFn>::Of<
+			run: <FunctionBrand as CloneableFn>::Of<
 				'a,
-				<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, S, A>, B>,
+				<FunctionBrand as CloneableFn>::Of<
+					'a,
+					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
+					B,
+				>,
 				T,
 			>
 		) -> Self {
@@ -101,12 +107,12 @@ mod inner {
 		"The type of the value produced by the inner function.",
 		"The type of the value consumed by the inner function."
 	)]
-	pub struct GratingBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct GratingBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for GratingBrand<FnBrand, A, B> {
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for GratingBrand<FunctionBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Grating<'a, FnBrand, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Grating<'a, FunctionBrand, A, B, S, T>;
 		}
 	}
 
@@ -115,8 +121,8 @@ mod inner {
 		"The type of the value produced by the inner function.",
 		"The type of the value consumed by the inner function."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
-		for GratingBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for GratingBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Grating` profunctor.
 		#[document_signature]
@@ -180,20 +186,20 @@ mod inner {
 			FuncST: Fn(S) -> T + 'a,
 			FuncUV: Fn(U) -> V + 'a, {
 			let run = puv.run;
-			let st = <FnBrand as CloneableFn>::new(st);
-			let uv = <FnBrand as CloneableFn>::new(uv);
-			Grating::<FnBrand, A, B, S, V>::new(<FnBrand as CloneableFn>::new(
-				move |f: <FnBrand as CloneableFn>::Of<
+			let st = <FunctionBrand as CloneableFn>::new(st);
+			let uv = <FunctionBrand as CloneableFn>::new(uv);
+			Grating::<FunctionBrand, A, B, S, V>::new(<FunctionBrand as CloneableFn>::new(
+				move |f: <FunctionBrand as CloneableFn>::Of<
 					'a,
-					<FnBrand as CloneableFn>::Of<'a, S, A>,
+					<FunctionBrand as CloneableFn>::Of<'a, S, A>,
 					B,
 				>| {
 					let st = st.clone();
 					let uv = uv.clone();
-					(*uv)((*run)(<FnBrand as CloneableFn>::new(
-						move |g: <FnBrand as CloneableFn>::Of<'a, T, A>| {
+					(*uv)((*run)(<FunctionBrand as CloneableFn>::new(
+						move |g: <FunctionBrand as CloneableFn>::Of<'a, T, A>| {
 							let st = st.clone();
-							f(<FnBrand as CloneableFn>::new(move |s| g((*st)(s))))
+							f(<FunctionBrand as CloneableFn>::new(move |s| g((*st)(s))))
 						},
 					)))
 				},
@@ -206,8 +212,8 @@ mod inner {
 		"The type of the value produced by the inner function.",
 		"The type of the value consumed by the inner function."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Closed<FnBrand>
-		for GratingBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Closed<FunctionBrand>
+		for GratingBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Grating` profunctor to operate on functions.
 		#[document_signature]
@@ -264,30 +270,34 @@ mod inner {
 		/// ```
 		fn closed<'a, S: 'a, T: 'a, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FnBrand as CloneableFn>::Of<'a, X, S>, <FnBrand as CloneableFn>::Of<'a, X, T>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, S>, <FunctionBrand as CloneableFn>::Of<'a, X, T>>)
 		{
 			let run = pab.run;
 			Grating::<
-				FnBrand,
+				FunctionBrand,
 				A,
 				B,
-				<FnBrand as CloneableFn>::Of<'a, X, S>,
-				<FnBrand as CloneableFn>::Of<'a, X, T>,
-			>::new(<FnBrand as CloneableFn>::new(
-				move |g: <FnBrand as CloneableFn>::Of<
+				<FunctionBrand as CloneableFn>::Of<'a, X, S>,
+				<FunctionBrand as CloneableFn>::Of<'a, X, T>,
+			>::new(<FunctionBrand as CloneableFn>::new(
+				move |g: <FunctionBrand as CloneableFn>::Of<
 					'a,
-					<FnBrand as CloneableFn>::Of<'a, <FnBrand as CloneableFn>::Of<'a, X, S>, A>,
+					<FunctionBrand as CloneableFn>::Of<
+						'a,
+						<FunctionBrand as CloneableFn>::Of<'a, X, S>,
+						A,
+					>,
 					B,
 				>| {
 					let run = run.clone();
-					<FnBrand as CloneableFn>::new(move |x: X| {
+					<FunctionBrand as CloneableFn>::new(move |x: X| {
 						let g = g.clone();
 						let x = x.clone();
-						(*run)(<FnBrand as CloneableFn>::new(
-							move |h: <FnBrand as CloneableFn>::Of<'a, S, A>| {
+						(*run)(<FunctionBrand as CloneableFn>::new(
+							move |h: <FunctionBrand as CloneableFn>::Of<'a, S, A>| {
 								let x = x.clone();
-								g(<FnBrand as CloneableFn>::new(
-									move |k: <FnBrand as CloneableFn>::Of<'a, X, S>| {
+								g(<FunctionBrand as CloneableFn>::new(
+									move |k: <FunctionBrand as CloneableFn>::Of<'a, X, S>| {
 										h(k(x.clone()))
 									},
 								))

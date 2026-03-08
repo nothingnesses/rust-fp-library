@@ -532,13 +532,13 @@ mod inner {
 		/// > as GetterOptic<(i32, String), i32>>::evaluate::<i32, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 		/// ```
-		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
 			&self,
-			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let pmn = GetterOptic::evaluate::<R, P>(&self.second, pab);
-			GetterOptic::evaluate::<R, P>(&self.first, pmn)
+			let pmn = GetterOptic::evaluate::<R, PointerBrand>(&self.second, pab);
+			GetterOptic::evaluate::<R, PointerBrand>(&self.first, pmn)
 		}
 	}
 
@@ -592,13 +592,13 @@ mod inner {
 		/// > as FoldOptic<Vec<i32>, i32>>::evaluate::<String, RcBrand>(&composed, f);
 		/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
 			&self,
-			pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+			pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let pmn = FoldOptic::evaluate::<R, P>(&self.second, pab);
-			FoldOptic::evaluate::<R, P>(&self.first, pmn)
+			let pmn = FoldOptic::evaluate::<R, PointerBrand>(&self.second, pab);
+			FoldOptic::evaluate::<R, PointerBrand>(&self.first, pmn)
 		}
 	}
 
@@ -615,12 +615,12 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, Q, S, T, M, N, A, B, O1, O2> SetterOptic<'a, Q, S, T, A, B>
+	impl<'a, PointerBrand, S, T, M, N, A, B, O1, O2> SetterOptic<'a, PointerBrand, S, T, A, B>
 		for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		Q: UnsizedCoercible,
-		O1: SetterOptic<'a, Q, S, T, M, N>,
-		O2: SetterOptic<'a, Q, M, N, A, B>,
+		PointerBrand: UnsizedCoercible,
+		O1: SetterOptic<'a, PointerBrand, S, T, M, N>,
+		O2: SetterOptic<'a, PointerBrand, M, N, A, B>,
 		M: 'a,
 		N: 'a,
 	{
@@ -659,8 +659,9 @@ mod inner {
 		/// ```
 		fn evaluate(
 			&self,
-			pab: Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			pab: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+		) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
+		{
 			let pmn = SetterOptic::evaluate(&self.second, pab);
 			SetterOptic::evaluate(&self.first, pmn)
 		}
@@ -738,11 +739,11 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, FP: CloneableFn, S, T, M, N, A, B, O1, O2> GrateOptic<'a, FP, S, T, A, B>
-		for Composed<'a, S, T, M, N, A, B, O1, O2>
+	impl<'a, FunctionBrand: CloneableFn, S, T, M, N, A, B, O1, O2>
+		GrateOptic<'a, FunctionBrand, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		O1: GrateOptic<'a, FP, S, T, M, N>,
-		O2: GrateOptic<'a, FP, M, N, A, B>,
+		O1: GrateOptic<'a, FunctionBrand, S, T, M, N>,
+		O2: GrateOptic<'a, FunctionBrand, M, N, A, B>,
 	{
 		#[document_signature]
 		#[document_type_parameters("The profunctor type.")]
@@ -777,12 +778,12 @@ mod inner {
 		/// > as Optic<RcFnBrand, _, _, _, _>>::evaluate(&composed, f);
 		/// assert_eq!(modifier((21, "test".to_string())), (42, "test".to_string()));
 		/// ```
-		fn evaluate<P: Closed<FP>>(
+		fn evaluate<P: Closed<FunctionBrand>>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			let pmn = GrateOptic::<FP, M, N, A, B>::evaluate::<P>(&self.second, pab);
-			GrateOptic::<FP, S, T, M, N>::evaluate::<P>(&self.first, pmn)
+			let pmn = GrateOptic::<FunctionBrand, M, N, A, B>::evaluate::<P>(&self.second, pab);
+			GrateOptic::<FunctionBrand, S, T, M, N>::evaluate::<P>(&self.first, pmn)
 		}
 	}
 
@@ -1049,13 +1050,13 @@ mod inner {
 		/// );
 		/// assert_eq!(folded.run((42, "hi".to_string())), (0, 42));
 		/// ```
-		fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
 			&self,
-			pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
-		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let pmn = self.second.evaluate::<R, P>(pab);
-			self.first.evaluate::<R, P>(pmn)
+			let pmn = self.second.evaluate::<R, PointerBrand>(pab);
+			self.first.evaluate::<R, PointerBrand>(pmn)
 		}
 	}
 
@@ -1108,13 +1109,13 @@ mod inner {
 		/// );
 		/// assert_eq!(folded.run((42, "hi".to_string())), "0:42");
 		/// ```
-		fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
+		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
 			&self,
-			pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
-		) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
+			pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
+		) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>)
 		{
-			let pmn = self.second.evaluate::<R, P>(pab);
-			self.first.evaluate::<R, P>(pmn)
+			let pmn = self.second.evaluate::<R, PointerBrand>(pab);
+			self.first.evaluate::<R, PointerBrand>(pmn)
 		}
 	}
 
@@ -1132,12 +1133,12 @@ mod inner {
 		"The second optic."
 	)]
 	#[document_parameters("The composed optic instance.")]
-	impl<'a, Q, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
-		IndexedSetterOptic<'a, Q, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
+	impl<'a, PointerBrand, I: 'a, S: 'a, T: 'a, M: 'a, N: 'a, A: 'a, B: 'a, O1, O2>
+		IndexedSetterOptic<'a, PointerBrand, I, S, T, A, B> for Composed<'a, S, T, M, N, A, B, O1, O2>
 	where
-		Q: UnsizedCoercible,
-		O1: SetterOptic<'a, Q, S, T, M, N>,
-		O2: IndexedSetterOptic<'a, Q, I, M, N, A, B>,
+		PointerBrand: UnsizedCoercible,
+		O1: SetterOptic<'a, PointerBrand, S, T, M, N>,
+		O2: IndexedSetterOptic<'a, PointerBrand, I, M, N, A, B>,
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value to transform.")]
@@ -1175,8 +1176,9 @@ mod inner {
 		/// ```
 		fn evaluate(
 			&self,
-			pab: crate::types::optics::Indexed<'a, FnBrand<Q>, I, A, B>,
-		) -> Apply!(<FnBrand<Q> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
+			pab: crate::types::optics::Indexed<'a, FnBrand<PointerBrand>, I, A, B>,
+		) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
+		{
 			let pmn = self.second.evaluate(pab);
 			self.first.evaluate(pmn)
 		}

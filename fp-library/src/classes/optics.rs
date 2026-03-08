@@ -318,10 +318,10 @@ pub trait GetterOptic<'a, S: 'a, A: 'a> {
 	/// 	>(&g, f);
 	/// assert_eq!(folded.run((42, "hi".to_string())), 42);
 	/// ```
-	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+	fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// A fold optic.
@@ -368,10 +368,10 @@ pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	/// >(&f_optic, f);
 	/// assert_eq!(folded.run(vec![1, 2, 3]), "123".to_string());
 	/// ```
-	fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
+	fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
 		&self,
-		pab: Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
+	) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// A setter optic.
@@ -383,7 +383,7 @@ pub trait FoldOptic<'a, S: 'a, A: 'a> {
 	"The source type of the focus.",
 	"The target type of the focus after an update."
 )]
-pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
+pub trait SetterOptic<'a, PointerBrand: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// Evaluate the optic with the function profunctor.
 	#[document_signature]
 	///
@@ -413,8 +413,8 @@ pub trait SetterOptic<'a, P: UnsizedCoercible, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// ```
 	fn evaluate(
 		&self,
-		pab: Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
-	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+		pab: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
+	) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 }
 
 /// An indexed lens optic.
@@ -472,10 +472,10 @@ pub trait IndexedGetterOptic<'a, I: 'a, S: 'a, A: 'a> {
 		"The reference-counted pointer type."
 	)]
 	#[document_parameters("The indexed profunctor value to transform.")]
-	fn evaluate<R: 'a + 'static, P: UnsizedCoercible + 'static>(
+	fn evaluate<R: 'a + 'static, PointerBrand: UnsizedCoercible + 'static>(
 		&self,
-		pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
+	) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// An indexed fold optic.
@@ -499,10 +499,10 @@ pub trait IndexedFoldOptic<'a, I: 'a, S: 'a, A: 'a> {
 	/// [`IndexedTraversalFunc::apply`] with
 	/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
 	/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
-	fn evaluate<R: 'a + Monoid + Clone + 'static, P: UnsizedCoercible + 'static>(
+	fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
 		&self,
-		pab: crate::types::optics::Indexed<'a, ForgetBrand<P, R>, I, A, A>,
-	) -> Apply!(<ForgetBrand<P, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
+		pab: crate::types::optics::Indexed<'a, ForgetBrand<PointerBrand, R>, I, A, A>,
+	) -> Apply!(<ForgetBrand<PointerBrand, R> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>);
 }
 
 /// An indexed setter optic.
@@ -515,14 +515,15 @@ pub trait IndexedFoldOptic<'a, I: 'a, S: 'a, A: 'a> {
 	"The source type of the focus.",
 	"The target type of the focus after an update."
 )]
-pub trait IndexedSetterOptic<'a, P: UnsizedCoercible, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a> {
+pub trait IndexedSetterOptic<'a, PointerBrand: UnsizedCoercible, I: 'a, S: 'a, T: 'a, A: 'a, B: 'a>
+{
 	/// Evaluate the optic with the function profunctor.
 	#[document_signature]
 	#[document_parameters("The indexed profunctor value to transform.")]
 	fn evaluate(
 		&self,
-		pab: crate::types::optics::Indexed<'a, FnBrand<P>, I, A, B>,
-	) -> Apply!(<FnBrand<P> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
+		pab: crate::types::optics::Indexed<'a, FnBrand<PointerBrand>, I, A, B>,
+	) -> Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);
 }
 
 /// A grate optic.
@@ -534,7 +535,7 @@ pub trait IndexedSetterOptic<'a, P: UnsizedCoercible, I: 'a, S: 'a, T: 'a, A: 'a
 	"The source type of the focus.",
 	"The target type of the focus after an update."
 )]
-pub trait GrateOptic<'a, FP: CloneableFn, S: 'a, T: 'a, A: 'a, B: 'a> {
+pub trait GrateOptic<'a, FunctionBrand: CloneableFn, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// Evaluate the optic with a closed profunctor.
 	#[document_signature]
 	///
@@ -558,7 +559,7 @@ pub trait GrateOptic<'a, FP: CloneableFn, S: 'a, T: 'a, A: 'a, B: 'a> {
 	/// assert_eq!(f(pair.0), 42);
 	/// assert_eq!(f(pair.1), 20);
 	/// ```
-	fn evaluate<P: Closed<FP>>(
+	fn evaluate<P: Closed<FunctionBrand>>(
 		&self,
 		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>);

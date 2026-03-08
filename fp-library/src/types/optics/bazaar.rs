@@ -46,7 +46,7 @@ mod inner {
 	};
 
 	/// Type alias to extract the pointer brand from a `CloneableFn` implementor.
-	type Ptr<FnBrand> = <FnBrand as CloneableFn>::PointerBrand;
+	type Ptr<FunctionBrand> = <FunctionBrand as CloneableFn>::PointerBrand;
 
 	// ── BazaarList ──────────────────────────────────────────────────────
 
@@ -62,11 +62,11 @@ mod inner {
 		"The type of replacement values used during reconstruction.",
 		"The result type after reconstruction."
 	)]
-	pub struct BazaarList<'a, FnBrand: CloneableFn, A: 'a, B: 'a, T: 'a> {
+	pub struct BazaarList<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, T: 'a> {
 		/// The list of focus values extracted from the source.
 		pub foci: Vec<A>,
 		/// A function that reconstructs the target from a list of replacement values.
-		pub rebuild: <FnBrand as CloneableFn>::Of<'a, Vec<B>, T>,
+		pub rebuild: <FunctionBrand as CloneableFn>::Of<'a, Vec<B>, T>,
 	}
 
 	/// Brand for the [`BazaarList`] applicative.
@@ -75,11 +75,11 @@ mod inner {
 		"The type of focus values extracted from the source.",
 		"The type of replacement values used during reconstruction."
 	)]
-	pub struct BazaarListBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct BazaarListBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarListBrand<FnBrand, A, B> {
-			type Of<'a, T: 'a>: 'a = BazaarList<'a, FnBrand, A, B, T>;
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarListBrand<FunctionBrand, A, B> {
+			type Of<'a, T: 'a>: 'a = BazaarList<'a, FunctionBrand, A, B, T>;
 		}
 	}
 
@@ -88,8 +88,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Functor
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Functor
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 		/// Maps a function over the result type of a `BazaarList`.
 		#[document_signature]
@@ -133,7 +133,9 @@ mod inner {
 			let rebuild = fa.rebuild;
 			BazaarList {
 				foci: fa.foci,
-				rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| func((*rebuild)(bs))),
+				rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+					func((*rebuild)(bs))
+				}),
 			}
 		}
 	}
@@ -143,8 +145,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Pointed
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Pointed
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 		/// Wraps a value in a `BazaarList` with no foci.
 		#[document_signature]
@@ -171,11 +173,11 @@ mod inner {
 		/// assert_eq!((bl.rebuild)(vec![]), 42);
 		/// ```
 		fn pure<'a, T: 'a>(a: T) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>) {
-			let a = Ptr::<FnBrand>::take_cell_new(a);
+			let a = Ptr::<FunctionBrand>::take_cell_new(a);
 			BazaarList {
 				foci: vec![],
-				rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-					Ptr::<FnBrand>::take_cell_take(&a)
+				rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+					Ptr::<FunctionBrand>::take_cell_take(&a)
 						.expect("BazaarList::pure rebuild called more than once")
 				}),
 			}
@@ -187,8 +189,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Lift
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Lift
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 		/// Lifts a binary function to combine two `BazaarList` values.
 		///
@@ -256,7 +258,7 @@ mod inner {
 			let rebuild_b = fb.rebuild;
 			BazaarList {
 				foci,
-				rebuild: <FnBrand as CloneableFn>::new(move |mut bs: Vec<B>| {
+				rebuild: <FunctionBrand as CloneableFn>::new(move |mut bs: Vec<B>| {
 					let right = bs.split_off(split_at);
 					func((*rebuild_a)(bs), (*rebuild_b)(right))
 				}),
@@ -269,8 +271,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Semiapplicative
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Semiapplicative
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 		/// Applies a `BazaarList` of functions to a `BazaarList` of values.
 		#[document_signature]
@@ -325,7 +327,7 @@ mod inner {
 			let rebuild_a = fa.rebuild;
 			BazaarList {
 				foci,
-				rebuild: <FnBrand as CloneableFn>::new(move |mut bs: Vec<B>| {
+				rebuild: <FunctionBrand as CloneableFn>::new(move |mut bs: Vec<B>| {
 					let right = bs.split_off(split_at);
 					(*rebuild_f)(bs)((*rebuild_a)(right))
 				}),
@@ -338,8 +340,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> ApplyFirst
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> ApplyFirst
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 	}
 	#[document_type_parameters(
@@ -347,8 +349,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> ApplySecond
-		for BazaarListBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> ApplySecond
+		for BazaarListBrand<FunctionBrand, A, B>
 	{
 	}
 
@@ -370,9 +372,9 @@ mod inner {
 		"The source type.",
 		"The target type."
 	)]
-	pub struct Bazaar<'a, FnBrand: CloneableFn + 'a, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Bazaar<'a, FunctionBrand: CloneableFn + 'a, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Decomposes a source into a [`BazaarList`] of foci and a rebuild function.
-		pub run: <FnBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FnBrand, A, B, T>>,
+		pub run: <FunctionBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>,
 	}
 
 	#[document_type_parameters(
@@ -383,7 +385,9 @@ mod inner {
 		"The source type.",
 		"The target type."
 	)]
-	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Bazaar<'a, FnBrand, A, B, S, T> {
+	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
+		Bazaar<'a, FunctionBrand, A, B, S, T>
+	{
 		/// Creates a new `Bazaar` instance.
 		#[document_signature]
 		///
@@ -415,7 +419,7 @@ mod inner {
 		/// assert_eq!((bl.rebuild)(vec![100]), 100);
 		/// ```
 		pub fn new(
-			run: <FnBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FnBrand, A, B, T>>
+			run: <FunctionBrand as CloneableFn>::Of<'a, S, BazaarList<'a, FunctionBrand, A, B, T>>
 		) -> Self {
 			Bazaar {
 				run,
@@ -480,13 +484,13 @@ mod inner {
 	/// );
 	/// assert_eq!(result, Some(vec![2, 3, 4]));
 	/// ```
-	pub fn run_bazaar<'a, FnBrand, A, B, S, T, F, Handler>(
+	pub fn run_bazaar<'a, FunctionBrand, A, B, S, T, F, Handler>(
 		handler: Handler,
 		s: S,
-		bazaar: &Bazaar<'a, FnBrand, A, B, S, T>,
+		bazaar: &Bazaar<'a, FunctionBrand, A, B, S, T>,
 	) -> Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>)
 	where
-		FnBrand: CloneableFn + 'static,
+		FunctionBrand: CloneableFn + 'static,
 		A: 'a + Clone,
 		B: 'a + Clone,
 		S: 'a,
@@ -513,12 +517,12 @@ mod inner {
 		"The type of focus values extracted from the source.",
 		"The type of replacement values used during reconstruction."
 	)]
-	pub struct BazaarBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct BazaarBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarBrand<FnBrand, A, B> {
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarBrand<FunctionBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Bazaar<'a, FnBrand, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Bazaar<'a, FunctionBrand, A, B, S, T>;
 		}
 	}
 
@@ -527,8 +531,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
-		for BazaarBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for BazaarBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Bazaar` profunctor.
 		///
@@ -591,14 +595,16 @@ mod inner {
 			FuncST: Fn(S) -> T + 'a,
 			FuncUV: Fn(U) -> V + 'a, {
 			let run = puv.run;
-			let uv = <FnBrand as CloneableFn>::new(uv);
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |s: S| {
+			let uv = <FunctionBrand as CloneableFn>::new(uv);
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |s: S| {
 				let bl = (*run)(st(s));
 				let rebuild = bl.rebuild;
 				let uv = uv.clone();
 				BazaarList {
 					foci: bl.foci,
-					rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| (*uv)((*rebuild)(bs))),
+					rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						(*uv)((*rebuild)(bs))
+					}),
 				}
 			}))
 		}
@@ -609,7 +615,9 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong for BazaarBrand<FnBrand, A, B> {
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Strong
+		for BazaarBrand<FunctionBrand, A, B>
+	{
 		/// Lifts the `Bazaar` profunctor to operate on the first component of a tuple.
 		///
 		/// Corresponds to PureScript's `first (Bazaar b) = Bazaar (\pafb (Tuple x y) -> flip Tuple y <$> b pafb x)`.
@@ -655,14 +663,14 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (S, C), (T, C)>) {
 			let run = pab.run;
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |(s, c): (S, C)| {
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |(s, c): (S, C)| {
 				let bl = (*run)(s);
 				let rebuild = bl.rebuild;
-				let c = Ptr::<FnBrand>::take_cell_new(c);
+				let c = Ptr::<FunctionBrand>::take_cell_new(c);
 				BazaarList {
 					foci: bl.foci,
-					rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
-						let c = Ptr::<FnBrand>::take_cell_take(&c)
+					rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						((*rebuild)(bs), c)
 					}),
@@ -715,14 +723,14 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, S), (C, T)>) {
 			let run = pab.run;
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |(c, s): (C, S)| {
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |(c, s): (C, S)| {
 				let bl = (*run)(s);
 				let rebuild = bl.rebuild;
-				let c = Ptr::<FnBrand>::take_cell_new(c);
+				let c = Ptr::<FunctionBrand>::take_cell_new(c);
 				BazaarList {
 					foci: bl.foci,
-					rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
-						let c = Ptr::<FnBrand>::take_cell_take(&c)
+					rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						let c = Ptr::<FunctionBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						(c, (*rebuild)(bs))
 					}),
@@ -736,7 +744,9 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice for BazaarBrand<FnBrand, A, B> {
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice
+		for BazaarBrand<FunctionBrand, A, B>
+	{
 		/// Lifts the `Bazaar` profunctor to operate on the `Err` variant of a `Result`.
 		///
 		/// Corresponds to PureScript's `left (Bazaar b) = Bazaar (\pafb e -> bitraverse (b pafb) pure e)`.
@@ -786,23 +796,23 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, S>, Result<C, T>>)
 		{
 			let run = pab.run;
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
 				Err(s) => {
 					let bl = (*run)(s);
 					let rebuild = bl.rebuild;
 					BazaarList {
 						foci: bl.foci,
-						rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
 							Err((*rebuild)(bs))
 						}),
 					}
 				}
 				Ok(c) => {
-					let c = Ptr::<FnBrand>::take_cell_new(c);
+					let c = Ptr::<FunctionBrand>::take_cell_new(c);
 					BazaarList {
 						foci: vec![],
-						rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-							Ok(Ptr::<FnBrand>::take_cell_take(&c)
+						rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+							Ok(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
 					}
@@ -859,23 +869,23 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<S, C>, Result<T, C>>)
 		{
 			let run = pab.run;
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
 				Ok(s) => {
 					let bl = (*run)(s);
 					let rebuild = bl.rebuild;
 					BazaarList {
 						foci: bl.foci,
-						rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
+						rebuild: <FunctionBrand as CloneableFn>::new(move |bs: Vec<B>| {
 							Ok((*rebuild)(bs))
 						}),
 					}
 				}
 				Err(c) => {
-					let c = Ptr::<FnBrand>::take_cell_new(c);
+					let c = Ptr::<FunctionBrand>::take_cell_new(c);
 					BazaarList {
 						foci: vec![],
-						rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-							Err(Ptr::<FnBrand>::take_cell_take(&c)
+						rebuild: <FunctionBrand as CloneableFn>::new(move |_: Vec<B>| {
+							Err(Ptr::<FunctionBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
 					}
@@ -889,8 +899,8 @@ mod inner {
 		"The focus type.",
 		"The replacement type."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static + Clone, B: 'static + Clone> Wander
-		for BazaarBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static + Clone, B: 'static + Clone> Wander
+		for BazaarBrand<FunctionBrand, A, B>
 	{
 		/// Lifts the `Bazaar` profunctor through a traversal.
 		///
@@ -976,10 +986,12 @@ mod inner {
 		where
 			TFunc: TraversalFunc<'a, S, T, A2, B2> + 'a, {
 			let run = pab.run;
-			Bazaar::new(<FnBrand as CloneableFn>::new(move |s: S| {
+			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |s: S| {
 				let run = run.clone();
-				traversal
-					.apply::<BazaarListBrand<FnBrand, A, B>>(Box::new(move |a2: A2| (*run)(a2)), s)
+				traversal.apply::<BazaarListBrand<FunctionBrand, A, B>>(
+					Box::new(move |a2: A2| (*run)(a2)),
+					s,
+				)
 			}))
 		}
 	}

@@ -35,11 +35,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Market<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Market<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Preview function: tries to extract the focus.
-		pub preview: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+		pub preview: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
 		/// Review function: constructs the structure.
-		pub review: <FnBrand as CloneableFn>::Of<'a, B, T>,
+		pub review: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
 	}
 
 	#[document_type_parameters(
@@ -50,7 +50,9 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Market<'a, FnBrand, A, B, S, T> {
+	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
+		Market<'a, FunctionBrand, A, B, S, T>
+	{
 		/// Creates a new `Market` instance.
 		#[document_signature]
 		///
@@ -77,8 +79,8 @@ mod inner {
 		/// assert_eq!((market.review)(456), "456".to_string());
 		/// ```
 		pub fn new(
-			preview: <FnBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
-			review: <FnBrand as CloneableFn>::Of<'a, B, T>,
+			preview: <FunctionBrand as CloneableFn>::Of<'a, S, Result<A, T>>,
+			review: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
 		) -> Self {
 			Market {
 				preview,
@@ -93,12 +95,12 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the review function."
 	)]
-	pub struct MarketBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct MarketBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for MarketBrand<FnBrand, A, B> {
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for MarketBrand<FunctionBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Market<'a, FnBrand, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Market<'a, FunctionBrand, A, B, S, T>;
 		}
 	}
 
@@ -107,8 +109,8 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the review function."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
-		for MarketBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for MarketBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Market` profunctor.
 		#[document_signature]
@@ -168,14 +170,14 @@ mod inner {
 			FuncUV: Fn(U) -> V + 'a, {
 			let preview = puv.preview;
 			let review = puv.review;
-			let st = <FnBrand as CloneableFn>::new(st);
-			let uv = <FnBrand as CloneableFn>::new(uv);
+			let st = <FunctionBrand as CloneableFn>::new(st);
+			let uv = <FunctionBrand as CloneableFn>::new(uv);
 			let uv_2 = uv.clone();
 			Market::new(
-				<FnBrand as CloneableFn>::new(move |s: S| {
+				<FunctionBrand as CloneableFn>::new(move |s: S| {
 					(*preview)((*st)(s)).map_err(|u| (*uv)(u))
 				}),
-				<FnBrand as CloneableFn>::new(move |b: B| (*uv_2)((*review)(b))),
+				<FunctionBrand as CloneableFn>::new(move |b: B| (*uv_2)((*review)(b))),
 			)
 		}
 	}
@@ -185,7 +187,9 @@ mod inner {
 		"The type of the value produced by the preview function.",
 		"The type of the value consumed by the review function."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice for MarketBrand<FnBrand, A, B> {
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Choice
+		for MarketBrand<FunctionBrand, A, B>
+	{
 		/// Lifts the `Market` profunctor to operate on the left component of a `Result`.
 		#[document_signature]
 		///
@@ -227,11 +231,11 @@ mod inner {
 			let preview = pab.preview;
 			let review = pab.review;
 			Market::new(
-				<FnBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
+				<FunctionBrand as CloneableFn>::new(move |r: Result<C, S>| match r {
 					Ok(c) => Err(Ok(c)),
 					Err(s) => (*preview)(s).map_err(Err),
 				}),
-				<FnBrand as CloneableFn>::new(move |b: B| Err((*review)(b))),
+				<FunctionBrand as CloneableFn>::new(move |b: B| Err((*review)(b))),
 			)
 		}
 
@@ -276,11 +280,11 @@ mod inner {
 			let preview = pab.preview;
 			let review = pab.review;
 			Market::new(
-				<FnBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
+				<FunctionBrand as CloneableFn>::new(move |r: Result<S, C>| match r {
 					Ok(s) => (*preview)(s).map_err(Ok),
 					Err(c) => Err(Err(c)),
 				}),
-				<FnBrand as CloneableFn>::new(move |b: B| Ok((*review)(b))),
+				<FunctionBrand as CloneableFn>::new(move |b: B| Ok((*review)(b))),
 			)
 		}
 	}

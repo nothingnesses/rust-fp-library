@@ -34,14 +34,14 @@ mod inner {
 		"The source type of the structure.",
 		"The focus type."
 	)]
-	pub struct IndexedGetter<'a, P, I, S, A>
+	pub struct IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
 		/// Internal storage: S -> (I, A)
-		pub(crate) to: Apply!(<FnBrand<P> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (I, A)>),
+		pub(crate) to: Apply!(<FnBrand<PointerBrand> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, (I, A)>),
 	}
 
 	#[document_type_parameters(
@@ -52,9 +52,9 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The indexed getter instance.")]
-	impl<'a, P, I, S, A> Clone for IndexedGetter<'a, P, I, S, A>
+	impl<'a, PointerBrand, I, S, A> Clone for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -87,9 +87,9 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The indexed getter instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetter<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		/// Create a new indexed getter.
 		#[document_signature]
@@ -107,7 +107,7 @@ mod inner {
 		/// ```
 		pub fn new(to: impl 'a + Fn(S) -> (I, A)) -> Self {
 			IndexedGetter {
-				to: <FnBrand<P> as CloneableFn>::new(to),
+				to: <FnBrand<PointerBrand> as CloneableFn>::new(to),
 			}
 		}
 
@@ -141,9 +141,10 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The indexed getter instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A> for IndexedGetter<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedGetterOptic<'a, I, S, A>
+		for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The result type.", "The reference-counted pointer type.")]
@@ -184,9 +185,10 @@ mod inner {
 		"The focus type."
 	)]
 	#[document_parameters("The indexed getter instance.")]
-	impl<'a, P, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A> for IndexedGetter<'a, P, I, S, A>
+	impl<'a, PointerBrand, I: 'a, S: 'a, A: 'a> IndexedFoldOptic<'a, I, S, A>
+		for IndexedGetter<'a, PointerBrand, I, S, A>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 	{
 		#[document_signature]
 		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
@@ -232,11 +234,12 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
-	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A> for IndexedGetter<'a, P, I, S, A>
+	> IndexedOpticAdapter<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
+		for IndexedGetter<'a, PointerBrand, I, S, A>
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -275,12 +278,12 @@ mod inner {
 		'a,
 		Q2: UnsizedCoercible + 'static,
 		R: 'a + 'static,
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		I: 'a,
 		S: 'a,
 		A: 'a,
 	> IndexedOpticAdapterDiscardsFocus<'a, ForgetBrand<Q2, R>, I, S, S, A, A>
-		for IndexedGetter<'a, P, I, S, A>
+		for IndexedGetter<'a, PointerBrand, I, S, A>
 	{
 		#[document_signature]
 		#[document_parameters("The indexed profunctor value.")]
@@ -310,7 +313,8 @@ mod inner {
 	}
 
 	/// A monomorphic indexed getter.
-	pub type IndexedGetterPrime<'a, P, I, S, A> = IndexedGetter<'a, P, I, S, A>;
+	pub type IndexedGetterPrime<'a, PointerBrand, I, S, A> =
+		IndexedGetter<'a, PointerBrand, I, S, A>;
 }
 
 pub use inner::*;

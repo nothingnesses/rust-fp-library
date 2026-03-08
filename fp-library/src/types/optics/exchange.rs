@@ -32,11 +32,11 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	pub struct Exchange<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
+	pub struct Exchange<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> {
 		/// Forward function.
-		pub get: <FnBrand as CloneableFn>::Of<'a, S, A>,
+		pub get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
 		/// Backward function.
-		pub set: <FnBrand as CloneableFn>::Of<'a, B, T>,
+		pub set: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
 	}
 
 	#[document_type_parameters(
@@ -47,7 +47,9 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure."
 	)]
-	impl<'a, FnBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a> Exchange<'a, FnBrand, A, B, S, T> {
+	impl<'a, FunctionBrand: CloneableFn, A: 'a, B: 'a, S: 'a, T: 'a>
+		Exchange<'a, FunctionBrand, A, B, S, T>
+	{
 		/// Creates a new `Exchange` instance.
 		#[document_signature]
 		///
@@ -72,8 +74,8 @@ mod inner {
 		/// assert_eq!((exchange.set)(10), "10".to_string());
 		/// ```
 		pub fn new(
-			get: <FnBrand as CloneableFn>::Of<'a, S, A>,
-			set: <FnBrand as CloneableFn>::Of<'a, B, T>,
+			get: <FunctionBrand as CloneableFn>::Of<'a, S, A>,
+			set: <FunctionBrand as CloneableFn>::Of<'a, B, T>,
 		) -> Self {
 			Exchange {
 				get,
@@ -88,12 +90,12 @@ mod inner {
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function."
 	)]
-	pub struct ExchangeBrand<FnBrand, A, B>(PhantomData<(FnBrand, A, B)>);
+	pub struct ExchangeBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
-		impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> for ExchangeBrand<FnBrand, A, B> {
+		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for ExchangeBrand<FunctionBrand, A, B> {
 			#[document_default]
-			type Of<'a, S: 'a, T: 'a>: 'a = Exchange<'a, FnBrand, A, B, S, T>;
+			type Of<'a, S: 'a, T: 'a>: 'a = Exchange<'a, FunctionBrand, A, B, S, T>;
 		}
 	}
 
@@ -102,8 +104,8 @@ mod inner {
 		"The type of the value produced by the forward function.",
 		"The type of the value consumed by the backward function."
 	)]
-	impl<FnBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
-		for ExchangeBrand<FnBrand, A, B>
+	impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> Profunctor
+		for ExchangeBrand<FunctionBrand, A, B>
 	{
 		/// Maps functions over the input and output of the `Exchange` profunctor.
 		#[document_signature]
@@ -161,11 +163,11 @@ mod inner {
 			FuncUV: Fn(U) -> V + 'a, {
 			let get = puv.get;
 			let set = puv.set;
-			let st = <FnBrand as CloneableFn>::new(st);
-			let uv = <FnBrand as CloneableFn>::new(uv);
+			let st = <FunctionBrand as CloneableFn>::new(st);
+			let uv = <FunctionBrand as CloneableFn>::new(uv);
 			Exchange::new(
-				<FnBrand as CloneableFn>::new(move |s: S| (*get)((*st)(s))),
-				<FnBrand as CloneableFn>::new(move |b: B| (*uv)((*set)(b))),
+				<FunctionBrand as CloneableFn>::new(move |s: S| (*get)((*st)(s))),
+				<FunctionBrand as CloneableFn>::new(move |b: B| (*uv)((*set)(b))),
 			)
 		}
 	}

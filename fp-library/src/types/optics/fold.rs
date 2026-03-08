@@ -110,9 +110,9 @@ mod inner {
 		"The target type of the focus.",
 		"The type of the fold function."
 	)]
-	pub struct Fold<'a, P, S, T, A, B, F>
+	pub struct Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
@@ -120,7 +120,7 @@ mod inner {
 		B: 'a, {
 		/// The fold function.
 		pub fold_fn: F,
-		pub(crate) _phantom: PhantomData<(&'a (S, T, A, B), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (S, T, A, B), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -133,9 +133,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B, F> Clone for Fold<'a, P, S, T, A, B, F>
+	impl<'a, PointerBrand, S, T, A, B, F> Clone for Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		T: 'a,
@@ -178,9 +178,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B, F> Fold<'a, P, S, T, A, B, F>
+	impl<'a, PointerBrand, S, T, A, B, F> Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		T: 'a,
@@ -258,9 +258,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, T, A, B, F> FoldOptic<'a, S, A> for Fold<'a, P, S, T, A, B, F>
+	impl<'a, PointerBrand, S, T, A, B, F> FoldOptic<'a, S, A> for Fold<'a, PointerBrand, S, T, A, B, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		T: 'a,
@@ -313,15 +313,15 @@ mod inner {
 		"The type of the focus.",
 		"The type of the fold function."
 	)]
-	pub struct FoldPrime<'a, P, S, A, F>
+	pub struct FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a, {
 		/// The fold function.
 		pub fold_fn: F,
-		pub(crate) _phantom: PhantomData<(&'a (S, A), P)>,
+		pub(crate) _phantom: PhantomData<(&'a (S, A), PointerBrand)>,
 	}
 
 	#[document_type_parameters(
@@ -332,9 +332,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A, F> Clone for FoldPrime<'a, P, S, A, F>
+	impl<'a, PointerBrand, S, A, F> Clone for FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A> + Clone,
 		S: 'a,
 		A: 'a,
@@ -371,9 +371,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A, F> FoldPrime<'a, P, S, A, F>
+	impl<'a, PointerBrand, S, A, F> FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A>,
 		S: 'a,
 		A: 'a,
@@ -445,9 +445,9 @@ mod inner {
 		"The type of the fold function."
 	)]
 	#[document_parameters("The fold instance.")]
-	impl<'a, P, S, A, F> FoldOptic<'a, S, A> for FoldPrime<'a, P, S, A, F>
+	impl<'a, PointerBrand, S, A, F> FoldOptic<'a, S, A> for FoldPrime<'a, PointerBrand, S, A, F>
 	where
-		P: UnsizedCoercible,
+		PointerBrand: UnsizedCoercible,
 		F: FoldFunc<'a, S, A> + Clone + 'a,
 		S: 'a,
 		A: 'a,
