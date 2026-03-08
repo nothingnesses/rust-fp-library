@@ -32,7 +32,10 @@ mod inner {
 			document_parameters,
 			document_returns,
 		},
-		std::sync::Arc,
+		std::sync::{
+			Arc,
+			Mutex,
+		},
 	};
 
 	impl Pointer for ArcBrand {
@@ -65,6 +68,7 @@ mod inner {
 
 	impl RefCountedPointer for ArcBrand {
 		type CloneableOf<'a, T: ?Sized + 'a> = Arc<T>;
+		type TakeCellOf<'a, T: 'a> = Arc<Mutex<Option<T>>>;
 
 		/// Wraps a sized value in an `Arc`.
 		#[document_signature]
@@ -115,6 +119,55 @@ mod inner {
 		/// ```
 		fn try_unwrap<'a, T: 'a>(ptr: Arc<T>) -> Result<T, Arc<T>> {
 			Arc::try_unwrap(ptr)
+		}
+
+		/// Creates a new take-cell containing the given value.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to store.")]
+		///
+		#[document_parameters("The value to store in the cell.")]
+		///
+		#[document_returns("A new `Arc<Mutex<Option<T>>>` containing the value.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = ArcBrand::take_cell_new(42);
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), Some(42));
+		/// ```
+		fn take_cell_new<'a, T: 'a>(value: T) -> Arc<Mutex<Option<T>>> {
+			Arc::new(Mutex::new(Some(value)))
+		}
+
+		/// Takes the value out of the cell, leaving `None` behind.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the stored value.")]
+		///
+		#[document_parameters("The cell to take the value from.")]
+		///
+		#[document_returns("`Some(value)` if the cell still contains a value, `None` otherwise.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::*,
+		/// };
+		///
+		/// let cell = ArcBrand::take_cell_new(42);
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), Some(42));
+		/// assert_eq!(ArcBrand::take_cell_take(&cell), None);
+		/// ```
+		fn take_cell_take<'a, T: 'a>(cell: &Arc<Mutex<Option<T>>>) -> Option<T> {
+			cell.lock().unwrap().take()
 		}
 	}
 

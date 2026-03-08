@@ -95,6 +95,7 @@ mod inner {
 	impl<P: UnsizedCoercible> CloneableFn for FnBrand<P> {
 		type Of<'a, A: 'a, B: 'a> =
 			Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>);
+		type PointerBrand = P;
 
 		/// Creates a new cloneable function wrapper.
 		///

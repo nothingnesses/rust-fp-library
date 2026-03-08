@@ -21,6 +21,7 @@ mod inner {
 				Functor,
 				Lift,
 				Pointed,
+				RefCountedPointer,
 				Semiapplicative,
 				Traversable,
 				optics::traversal::TraversalFunc,
@@ -41,12 +42,11 @@ mod inner {
 			document_signature,
 			document_type_parameters,
 		},
-		std::{
-			cell::RefCell,
-			marker::PhantomData,
-			rc::Rc,
-		},
+		std::marker::PhantomData,
 	};
+
+	/// Type alias to extract the pointer brand from a `CloneableFn` implementor.
+	type Ptr<FnBrand> = <FnBrand as CloneableFn>::PointerBrand;
 
 	// ── BazaarList ──────────────────────────────────────────────────────
 
@@ -171,11 +171,12 @@ mod inner {
 		/// assert_eq!((bl.rebuild)(vec![]), 42);
 		/// ```
 		fn pure<'a, T: 'a>(a: T) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>) {
-			let a = Rc::new(RefCell::new(Some(a)));
+			let a = Ptr::<FnBrand>::take_cell_new(a);
 			BazaarList {
 				foci: vec![],
 				rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-					a.borrow_mut().take().expect("BazaarList::pure rebuild called more than once")
+					Ptr::<FnBrand>::take_cell_take(&a)
+						.expect("BazaarList::pure rebuild called more than once")
 				}),
 			}
 		}
@@ -657,13 +658,11 @@ mod inner {
 			Bazaar::new(<FnBrand as CloneableFn>::new(move |(s, c): (S, C)| {
 				let bl = (*run)(s);
 				let rebuild = bl.rebuild;
-				let c = Rc::new(RefCell::new(Some(c)));
+				let c = Ptr::<FnBrand>::take_cell_new(c);
 				BazaarList {
 					foci: bl.foci,
 					rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
-						let c = c
-							.borrow_mut()
-							.take()
+						let c = Ptr::<FnBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						((*rebuild)(bs), c)
 					}),
@@ -719,13 +718,11 @@ mod inner {
 			Bazaar::new(<FnBrand as CloneableFn>::new(move |(c, s): (C, S)| {
 				let bl = (*run)(s);
 				let rebuild = bl.rebuild;
-				let c = Rc::new(RefCell::new(Some(c)));
+				let c = Ptr::<FnBrand>::take_cell_new(c);
 				BazaarList {
 					foci: bl.foci,
 					rebuild: <FnBrand as CloneableFn>::new(move |bs: Vec<B>| {
-						let c = c
-							.borrow_mut()
-							.take()
+						let c = Ptr::<FnBrand>::take_cell_take(&c)
 							.expect("BazaarList rebuild called more than once");
 						(c, (*rebuild)(bs))
 					}),
@@ -801,12 +798,11 @@ mod inner {
 					}
 				}
 				Ok(c) => {
-					let c = Rc::new(RefCell::new(Some(c)));
+					let c = Ptr::<FnBrand>::take_cell_new(c);
 					BazaarList {
 						foci: vec![],
 						rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-							Ok(c.borrow_mut()
-								.take()
+							Ok(Ptr::<FnBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
 					}
@@ -875,13 +871,11 @@ mod inner {
 					}
 				}
 				Err(c) => {
-					let c = Rc::new(RefCell::new(Some(c)));
+					let c = Ptr::<FnBrand>::take_cell_new(c);
 					BazaarList {
 						foci: vec![],
 						rebuild: <FnBrand as CloneableFn>::new(move |_: Vec<B>| {
-							Err(c
-								.borrow_mut()
-								.take()
+							Err(Ptr::<FnBrand>::take_cell_take(&c)
 								.expect("BazaarList rebuild called more than once"))
 						}),
 					}

@@ -13,7 +13,10 @@
 //! ```
 
 use {
-	super::function::Function,
+	super::{
+		RefCountedPointer,
+		function::Function,
+	},
 	fp_macros::{
 		document_parameters,
 		document_signature,
@@ -33,6 +36,12 @@ use {
 /// The lifetime `'a` ensures the function doesn't outlive referenced data,
 /// while generic types `A` and `B` represent the input and output types, respectively.
 pub trait CloneableFn: Function {
+	/// The pointer brand backing this function wrapper.
+	///
+	/// Each `CloneableFn` implementor is backed by exactly one reference-counted
+	/// pointer type. For [`FnBrand<P>`](crate::brands::FnBrand), this is `P`.
+	type PointerBrand: RefCountedPointer;
+
 	/// The type of the cloneable function wrapper.
 	///
 	/// This associated type represents the concrete type of the wrapper (e.g., `Rc<dyn Fn(A) -> B>`)
