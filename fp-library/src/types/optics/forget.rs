@@ -14,6 +14,7 @@ mod inner {
 				monoid::Monoid,
 				profunctor::{
 					Choice,
+					Cochoice,
 					Profunctor,
 					Strong,
 					Wander,
@@ -388,6 +389,99 @@ mod inner {
 				Ok(a) => (pab.0)(a),
 				Err(_) => R::empty(),
 			})
+		}
+	}
+
+	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
+	impl<PointerBrand: UnsizedCoercible + 'static, R: 'static> Cochoice
+		for ForgetBrand<PointerBrand, R>
+	{
+		/// Extracts a `Forget` profunctor from one operating on the left (Err) variant of a `Result`.
+		///
+		/// Given a `Forget` that operates on `Result<C, A>`, produces a `Forget` that operates
+		/// on `A` by wrapping the input in `Err` before applying the original function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the functions.",
+			"The input type of the resulting profunctor.",
+			"The output type of the resulting profunctor.",
+			"The type of the alternative (Ok) variant."
+		)]
+		///
+		#[document_parameters("The forget instance to extract from.")]
+		#[document_returns("A `Forget` profunctor operating on the unwrapped types.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let forget: Forget<RcBrand, String, Result<i32, String>, Result<i32, String>> =
+		/// 	Forget::new(|r: Result<i32, String>| match r {
+		/// 		Err(s) => s,
+		/// 		Ok(n) => n.to_string(),
+		/// 	});
+		///
+		/// let extracted =
+		/// 	<ForgetBrand<RcBrand, String> as Cochoice>::unleft::<String, String, i32>(forget);
+		/// assert_eq!(extracted.run("hello".to_string()), "hello".to_string());
+		/// ```
+		fn unleft<'a, A: 'a, B: 'a, C: 'a>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
+			Forget::new(move |a| (pab.0)(Err(a)))
+		}
+
+		/// Extracts a `Forget` profunctor from one operating on the right (Ok) variant of a `Result`.
+		///
+		/// Given a `Forget` that operates on `Result<A, C>`, produces a `Forget` that operates
+		/// on `A` by wrapping the input in `Ok` before applying the original function.
+		#[document_signature]
+		#[document_type_parameters(
+			"The lifetime of the functions.",
+			"The input type of the resulting profunctor.",
+			"The output type of the resulting profunctor.",
+			"The type of the alternative (Err) variant."
+		)]
+		///
+		#[document_parameters("The forget instance to extract from.")]
+		#[document_returns("A `Forget` profunctor operating on the unwrapped types.")]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::{
+		/// 		optics::*,
+		/// 		profunctor::*,
+		/// 		*,
+		/// 	},
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let forget: Forget<RcBrand, String, Result<String, i32>, Result<String, i32>> =
+		/// 	Forget::new(|r: Result<String, i32>| match r {
+		/// 		Ok(s) => s,
+		/// 		Err(n) => n.to_string(),
+		/// 	});
+		///
+		/// let extracted =
+		/// 	<ForgetBrand<RcBrand, String> as Cochoice>::unright::<String, String, i32>(forget);
+		/// assert_eq!(extracted.run("hello".to_string()), "hello".to_string());
+		/// ```
+		fn unright<'a, A: 'a, B: 'a, C: 'a>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
+			Forget::new(move |a| (pab.0)(Ok(a)))
 		}
 	}
 }

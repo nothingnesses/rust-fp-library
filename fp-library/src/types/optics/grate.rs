@@ -117,7 +117,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 	{
 		/// Creates a new `Grate` instance.
 		#[document_signature]
@@ -228,7 +228,7 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
@@ -314,6 +314,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
+		B: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
@@ -399,6 +400,7 @@ mod inner {
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
 		A: 'a,
+		B: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
@@ -590,7 +592,7 @@ mod inner {
 	where
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
+		A: 'a + Clone,
 	{
 		/// Zip two structures together using this grate and a combining function.
 		///
@@ -652,7 +654,7 @@ mod inner {
 		Q: Closed<FnBrand<PointerBrand>>,
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
+		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		/// Evaluates the grate with a profunctor.
@@ -733,7 +735,7 @@ mod inner {
 	where
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
+		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]
@@ -813,7 +815,7 @@ mod inner {
 	where
 		PointerBrand: UnsizedCoercible,
 		S: 'a,
-		A: 'a,
+		A: 'a + Clone,
 		<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized,
 	{
 		#[document_signature]

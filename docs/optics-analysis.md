@@ -190,8 +190,8 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 | `Shop a b` | `Shop` / `ShopBrand` | `Profunctor`, `Strong` | **Complete** |
 | `Market a b` | `Market` / `MarketBrand` | `Profunctor`, `Choice` | **Complete** |
 | `Stall a b` | `Stall` / `StallBrand` | `Profunctor`, `Strong`, `Choice` | **Complete** |
-| `Forget r` | `Forget` / `ForgetBrand` | `Profunctor`, `Strong`, `Choice`, `Wander` | **Missing `Cochoice`** |
-| `Tagged` | `Tagged` / `TaggedBrand` | `Profunctor`, `Choice`, `Cochoice`, `Costrong` | **Missing `Closed`** |
+| `Forget r` | `Forget` / `ForgetBrand` | `Profunctor`, `Strong`, `Choice`, `Wander`, `Cochoice` | **Complete** |
+| `Tagged` | `Tagged` / `TaggedBrand` | `Profunctor`, `Choice`, `Cochoice`, `Costrong`, `Closed` | **Complete** — `Closed` requires `B: Clone` (see §12.2) |
 | `Bazaar p a b` | `Bazaar` / `BazaarBrand` | `Profunctor`, `Strong`, `Choice`, `Wander` | **Complete** |
 | `Grating a b` | `Grating` / `GratingBrand` | `Profunctor`, `Closed` | **Complete** |
 | `Zipping` | `Zipping` / `ZippingBrand` | `Profunctor`, `Closed` | **Complete** |
@@ -200,13 +200,13 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 | `Focusing m s` | — | — | **Missing** — used for `zoom` in StateT |
 | `Star f` | — | — | **Missing** — the library uses `FnBrand<P>` instead, but `Star` would enable `traverseOf` |
 
-### Missing Profunctor Instance Details
+### Profunctor Instance Notes
 
-**`Forget`: Missing `Cochoice`**
-PureScript implements `Cochoice (Forget r)` when `Monoid r`. This enables `Forget` to work with the `Re` profunctor for reversed optics. Without this, operations like using `re` to turn a `Fold` into a `Review` are not possible.
+**`Forget`: `Cochoice` implemented**
+`Cochoice (Forget r)` is implemented without requiring `Monoid r` — `unleft` composes with the `Err` constructor and `unright` composes with the `Ok` constructor, matching PureScript's implementation (`unleft (Forget z) = Forget (z <<< Left)`). This enables `Forget` to work with the `Re` profunctor for reversed optics.
 
-**`Tagged`: Missing `Closed`**
-PureScript implements `Closed Tagged` (`closed (Tagged b) = Tagged (const b)`). This would enable `Tagged` to work with `Grate` operations, allowing `review` through grate-like optics.
+**`Tagged`: `Closed` implemented (with `B: Clone`)**
+`Closed Tagged` is implemented as `closed (Tagged b) = Tagged (const b)`. Because Rust requires producing owned `B` values from `Fn(X) -> B`, the `Closed` trait's `closed` method now requires `B: Clone`. This is a Rust-specific constraint not present in PureScript (which uses reference semantics). The `B: Clone` bound propagates to `Grate` evaluation and `GrateOptic` implementations, which is semantically appropriate — grate evaluation can duplicate the focus value across multiple positions.
 
 ---
 
@@ -377,11 +377,9 @@ Without `Index` and `At`, users must manually construct affine traversals and le
 
 **No correctness bugs identified.** All profunctor encodings, trait hierarchies, and optic evaluations are faithful to the PureScript reference. The profunctor laws are preserved in all implementations.
 
-### 12.2 Missing Profunctor Instances
+### 12.2 Missing Profunctor
 
-1. **`Forget`: Missing `Cochoice`** — prevents using `Forget` with `Re` for reversed fold/getter operations.
-2. **`Tagged`: Missing `Closed`** — prevents `Tagged` from working with `Grate` operations.
-3. **`Star` profunctor not implemented** — prevents `traverseOf`/`sequenceOf` style effectful traversals. The library uses `FnBrand<P>` for function abstraction but lacks the Kleisli-arrow profunctor.
+1. **`Star` profunctor not implemented** — prevents `traverseOf`/`sequenceOf` style effectful traversals. The library uses `FnBrand<P>` for function abstraction but lacks the Kleisli-arrow profunctor.
 
 ### 12.3 Architectural Gaps
 
@@ -468,19 +466,14 @@ The fold API is the most incomplete area. Implement these using `Forget` with ap
 5. **Filtering**: `filtered` (an optic that only matches elements satisfying a predicate).
 6. **Directional**: `foldrOf`, `foldlOf`.
 
-### Phase 3: Missing Profunctor Instances (Medium Impact / Low Complexity)
-
-1. **`Cochoice` for `Forget`**: Implement `unleft`/`unright` using monoid empty for the discarded branch.
-2. **`Closed` for `Tagged`**: Implement `closed` as `Tagged(const b)`.
-
-### Phase 4: `Index` / `At` Type Classes (High Impact / Medium Complexity)
+### Phase 3: `Index` / `At` Type Classes (High Impact / Medium Complexity)
 
 1. Define `Index` trait with `ix` method returning `AffineTraversal'`.
 2. Define `At` trait with `at` method returning `Lens' m (Option<b>)`.
 3. Implement for: `Vec`, `HashMap`, `BTreeMap`, `Option`, `Result`.
 4. Add `sans` helper (delete by key).
 
-### Phase 5: Effectful Traversal Support (Medium Impact / High Complexity)
+### Phase 4: Effectful Traversal Support (Medium Impact / High Complexity)
 
 Implementing `Star` profunctor would unlock:
 - `traverseOf` — effectful traversal
@@ -489,11 +482,11 @@ Implementing `Star` profunctor would unlock:
 
 This requires careful design around Rust's lack of higher-kinded types for the functor parameter.
 
-### Phase 6: Generic `re` Combinator (Low Impact / Low Complexity)
+### Phase 5: Generic `re` Combinator (Low Impact / Low Complexity)
 
-Expose a top-level `re(optic)` function that wraps optic evaluation through the `Re` profunctor. This requires `Cochoice` for `Forget` (Phase 3) to be maximally useful.
+Expose a top-level `re(optic)` function that wraps optic evaluation through the `Re` profunctor. `Cochoice` for `Forget` is now implemented, so this combinator can be maximally useful.
 
-### Phase 7: Derive Macros (High Impact / High Complexity)
+### Phase 6: Derive Macros (High Impact / High Complexity)
 
 `#[derive(Lens)]` and `#[derive(Prism)]` macros to auto-generate optics for struct fields and enum variants. This is the Rust equivalent of PureScript's `prop` record lens.
 
@@ -508,6 +501,5 @@ The indexed optics system is substantially implemented with the `Indexed` profun
 The primary maturity gaps are:
 1. **Combinator functions** — particularly the Fold API (4% coverage), Setter API (10% coverage), and standard combinators (0% coverage).
 2. **Container access** — `Index`/`At` type classes for ergonomic keyed/indexed access.
-3. **Two missing profunctor instances** — `Cochoice` for `Forget` and `Closed` for `Tagged`.
 
 The foundation is solid. The remaining work is predominantly additive (new functions and type class instances) rather than corrective.

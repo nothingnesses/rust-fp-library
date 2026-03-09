@@ -7,11 +7,15 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			classes::profunctor::{
-				Choice,
-				Cochoice,
-				Costrong,
-				Profunctor,
+			classes::{
+				CloneableFn,
+				profunctor::{
+					Choice,
+					Closed,
+					Cochoice,
+					Costrong,
+					Profunctor,
+				},
 			},
 			impl_kind,
 			kinds::*,
@@ -347,6 +351,51 @@ mod inner {
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
 			Tagged::new(pab.0.1)
+		}
+	}
+
+	#[document_type_parameters("The cloneable function brand.")]
+	impl<FunctionBrand: CloneableFn + 'static> Closed<FunctionBrand> for TaggedBrand {
+		/// Lifts the `Tagged` profunctor to operate on functions.
+		///
+		/// Given `Tagged(b)`, produces `Tagged(const b)` — a `Tagged` wrapping a constant
+		/// function that always returns `b`, ignoring its input.
+		#[document_signature]
+		///
+		#[document_type_parameters(
+			"The lifetime of the values.",
+			"The ignored input type of the resulting tagged.",
+			"The value type.",
+			"The input type of the functions."
+		)]
+		///
+		#[document_parameters("The tagged instance to transform.")]
+		///
+		#[document_returns(
+			"A `Tagged` instance wrapping a constant function that always returns the original value."
+		)]
+		///
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::profunctor::*,
+		/// 	types::optics::*,
+		/// };
+		///
+		/// let tagged: Tagged<i32, i32> = Tagged::new(42);
+		/// let closed_tagged = <TaggedBrand as Closed<RcFnBrand>>::closed::<i32, i32, String>(tagged);
+		/// // The inner value is a constant function that always returns 42
+		/// assert_eq!((closed_tagged.0)("anything".to_string()), 42);
+		/// assert_eq!((closed_tagged.0)("else".to_string()), 42);
+		/// ```
+		fn closed<'a, A: 'a, B: 'a + Clone, X: 'a + Clone>(
+			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>)
+		{
+			let b = pab.0;
+			Tagged::new(<FunctionBrand as CloneableFn>::new(move |_: X| b.clone()))
 		}
 	}
 }

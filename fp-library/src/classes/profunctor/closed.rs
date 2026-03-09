@@ -33,7 +33,10 @@ mod inner {
 		/// the cloneable function type `X -> A` wrapped via `FunctionBrand`.
 		///
 		/// The `X: Clone` bound is required because implementations need to clone `X`
-		/// values inside nested closures.
+		/// values inside nested closures. The `B: Clone` bound is required because
+		/// some profunctors (notably [`crate::types::optics::TaggedBrand`]) need to produce
+		/// `Fn(X) -> B` from a single `B` value, which requires cloning `B` on each
+		/// invocation.
 		#[document_signature]
 		///
 		#[document_type_parameters(
@@ -61,7 +64,7 @@ mod inner {
 		/// let result = g(h);
 		/// assert_eq!(result("hi".to_string()), 3); // len("hi") + 1 = 3
 		/// ```
-		fn closed<'a, A: 'a, B: 'a, X: 'a + Clone>(
+		fn closed<'a, A: 'a, B: 'a + Clone, X: 'a + Clone>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, <FunctionBrand as CloneableFn>::Of<'a, X, A>, <FunctionBrand as CloneableFn>::Of<'a, X, B>>);
 	}
@@ -103,7 +106,7 @@ mod inner {
 		Brand: Closed<FunctionBrand>,
 		FunctionBrand: CloneableFn,
 		A: 'a,
-		B: 'a,
+		B: 'a + Clone,
 		X: 'a + Clone,
 	>(
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
