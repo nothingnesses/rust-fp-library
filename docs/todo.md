@@ -1,12 +1,9 @@
 ### Tasks to do & ideas to look into
 
-* `Wander` type class (required for `Traversal`).
-* `Closed` type class (required for `Grate`).
+* Determine if it makes sense to have TaggedBrand, ForgetBrand, etc. where they currently are, or if it'd be better to have them in an optics submodule in brands.
 * Optics:
 	* Full parity with `purescript-profunctor-lenses`.
 	* Implement `Prism`, `Iso`, `Traversal`, `Grate`, `Fold`, `Getter`, `Setter`, `Review`.
-	* Implement internal profunctors: `Market`, `Shop`, `Forget`, `Exchange`, `Stall`, `Grating`, `Bazaar`.
-	* Indexed optics: `IndexedLens`, `IndexedTraversal`, `IndexedFold`, etc.
 	* `fp-macros`: `#[derive(Lens)]`, `#[derive(Prism)]`.
 * Algebraic effects/effect system to implement extensible effects
 	* [Eff](https://github.com/lexi-lambda/eff) [documentation](https://hasura.github.io/eff/Control-Effect.html)
