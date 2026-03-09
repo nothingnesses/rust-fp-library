@@ -19,7 +19,15 @@ mod inner {
 			brands::FnBrand,
 			classes::{
 				CloneableFn,
+				Monoid,
 				UnsizedCoercible,
+				optics::{
+					AffineTraversalOptic,
+					FoldOptic,
+					GetterOptic,
+					PrismOptic,
+					ReviewOptic,
+				},
 				profunctor::{
 					Choice,
 					Cochoice,
@@ -30,6 +38,10 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
+			types::optics::{
+				forget::ForgetBrand,
+				tagged::TaggedBrand,
+			},
 		},
 		fp_macros::*,
 		std::marker::PhantomData,
@@ -746,6 +758,296 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (C, A), (C, B)>) {
 			let r = pab.run;
 			Re::new(move |p| (*r)(InnerP::unsecond(p)))
+		}
+	}
+
+	/// A reversed optic, produced by the [`re`] combinator.
+	///
+	/// `ReversedOptic` wraps an inner optic and implements reversed optic traits by
+	/// evaluating the inner optic with `ReBrand<ConcreteP>` as the profunctor.
+	///
+	/// Corresponds to PureScript's `re :: Optic (Re p a b) s t a b -> Optic p b a t s`.
+	///
+	/// The reversed optic swaps the roles of source/target and focus types:
+	/// - An optic `S → T, A → B` becomes `B → A, T → S` (for review)
+	/// - A simple optic `S ↔ A` becomes `A ↔ S` (for getter/fold)
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand used by the `Re` profunctor.",
+		"The source type of the original optic.",
+		"The target type of the original optic.",
+		"The focus source type of the original optic.",
+		"The focus target type of the original optic.",
+		"The inner optic type."
+	)]
+	pub struct ReversedOptic<'a, PointerBrand, S, T, A, B, O>
+	where
+		PointerBrand: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a, {
+		inner: O,
+		_phantom: PhantomData<(&'a (), PointerBrand, S, T, A, B)>,
+	}
+
+	/// Reverses an optic using the `Re` profunctor.
+	///
+	/// Given an optic from `S → T` focusing on `A → B`, produces a reversed optic
+	/// that can be used as:
+	/// - A [`ReviewOptic`] from `B → A` focusing on `T → S` (when the inner optic
+	///   implements [`AffineTraversalOptic`])
+	/// - A [`GetterOptic`] from `A` to `S` (when the inner optic implements [`PrismOptic`]
+	///   with simple types `S = T, A = B`)
+	/// - A [`FoldOptic`] from `A` to `S` (same conditions as getter)
+	///
+	/// Corresponds to PureScript's `re t = unwrap (t (Re identity))`.
+	#[document_signature]
+	///
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand.",
+		"The source type of the original optic.",
+		"The target type of the original optic.",
+		"The focus source type of the original optic.",
+		"The focus target type of the original optic.",
+		"The inner optic type."
+	)]
+	///
+	#[document_parameters("The optic to reverse.")]
+	///
+	#[document_returns("A [`ReversedOptic`] wrapping the inner optic.")]
+	///
+	#[document_examples]
+	///
+	/// ```
+	/// use fp_library::{
+	/// 	brands::*,
+	/// 	classes::optics::ReviewOptic,
+	/// 	types::optics::{
+	/// 		PrismPrime,
+	/// 		Tagged,
+	/// 		re,
+	/// 	},
+	/// };
+	///
+	/// // Create a prism for Option<i32>
+	/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+	///
+	/// // Reverse it to get a ReviewOptic
+	/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
+	///
+	/// // Use ReviewOptic: given a Tagged<Option<i32>, Option<i32>>, produce Tagged<i32, i32>
+	/// let result = ReviewOptic::evaluate(&reversed, Tagged::new(Some(42)));
+	/// assert_eq!(result.0, 42);
+	/// ```
+	pub fn re<'a, PointerBrand, S, T, A, B, O>(
+		optic: O
+	) -> ReversedOptic<'a, PointerBrand, S, T, A, B, O>
+	where
+		PointerBrand: UnsizedCoercible,
+		S: 'a,
+		T: 'a,
+		A: 'a,
+		B: 'a, {
+		ReversedOptic {
+			inner: optic,
+			_phantom: PhantomData,
+		}
+	}
+
+	/// `ReviewOptic` for `ReversedOptic` — reversing any optic ≥ `AffineTraversal`.
+	///
+	/// `ReBrand<TaggedBrand>` has both `Strong` (from `TaggedBrand: Costrong`) and
+	/// `Choice` (from `TaggedBrand: Cochoice`), satisfying the `P: Strong + Choice`
+	/// bound required by [`AffineTraversalOptic::evaluate`].
+	///
+	/// This covers `Iso`, `Lens`, `Prism`, and `AffineTraversal` uniformly.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand.",
+		"The source type of the original optic.",
+		"The target type of the original optic.",
+		"The focus source type of the original optic.",
+		"The focus target type of the original optic.",
+		"The inner optic type."
+	)]
+	#[document_parameters("The reversed optic instance.")]
+	impl<'a, PointerBrand, S, T, A, B, O> ReviewOptic<'a, B, A, T, S>
+		for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
+	where
+		PointerBrand: UnsizedCoercible + 'static,
+		O: AffineTraversalOptic<'a, S, T, A, B>,
+		S: 'a + 'static,
+		T: 'a + 'static,
+		A: 'a + 'static,
+		B: 'a + 'static,
+	{
+		/// Evaluates the reversed optic with `Tagged`, producing a review in the reverse direction.
+		#[document_signature]
+		#[document_parameters("The tagged profunctor value.")]
+		#[document_returns("The transformed tagged profunctor value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::ReviewOptic,
+		/// 	types::optics::{
+		/// 		PrismPrime,
+		/// 		Tagged,
+		/// 		re,
+		/// 	},
+		/// };
+		///
+		/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+		/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
+		/// let result = ReviewOptic::evaluate(&reversed, Tagged::new(Some(42)));
+		/// assert_eq!(result.0, 42);
+		/// ```
+		fn evaluate(
+			&self,
+			pab: Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, T, S>),
+		) -> Apply!(<TaggedBrand as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, B, A>) {
+			// Re identity: Re<TaggedBrand, PB, A, B, A, B>
+			// wraps Tagged<B, A> -> Tagged<B, A> (identity)
+			let re_identity = Re::<TaggedBrand, PointerBrand, A, B, A, B>::new(|x| x);
+			// Evaluate inner optic with P = ReBrand<TaggedBrand, PB, A, B>
+			// Input: P::Of<A, B> = Re<TaggedBrand, PB, A, B, A, B> (our identity)
+			// Output: P::Of<S, T> = Re<TaggedBrand, PB, A, B, S, T>
+			let result =
+				self.inner.evaluate::<ReBrand<TaggedBrand, PointerBrand, A, B>>(re_identity);
+			// Re<TaggedBrand, PB, A, B, S, T> wraps Tagged<T, S> -> Tagged<B, A>
+			(result.run)(pab)
+		}
+	}
+
+	/// `GetterOptic` for `ReversedOptic` — reversing prism-like optics to getters.
+	///
+	/// `ReBrand<ForgetBrand<Q, R>>` has `Choice` (from `ForgetBrand: Cochoice`)
+	/// but NOT `Strong` (since `ForgetBrand` is not `Costrong`), so only
+	/// [`PrismOptic`]'s `P: Choice` bound can be satisfied.
+	///
+	/// This means `re(prism)` and `re(iso)` produce getters, but `re(lens)` does not.
+	/// This matches PureScript semantics.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand.",
+		"The source type of the original (simple) optic.",
+		"The focus type of the original (simple) optic.",
+		"The inner optic type."
+	)]
+	#[document_parameters("The reversed optic instance.")]
+	impl<'a, PointerBrand, S, A, O> GetterOptic<'a, A, S>
+		for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
+	where
+		PointerBrand: UnsizedCoercible + 'static,
+		O: PrismOptic<'a, S, S, A, A>,
+		S: 'a + 'static,
+		A: 'a + 'static,
+	{
+		/// Evaluates the reversed optic with `Forget`, producing a getter in the reverse direction.
+		#[document_signature]
+		#[document_type_parameters(
+			"The return type of the forget profunctor.",
+			"The reference-counted pointer type."
+		)]
+		#[document_parameters("The forget profunctor value.")]
+		#[document_returns("The transformed forget profunctor value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::GetterOptic,
+		/// 	types::optics::{
+		/// 		Forget,
+		/// 		PrismPrime,
+		/// 		re,
+		/// 	},
+		/// };
+		///
+		/// // re(prism) as a getter: given A, extract S via the prism's review
+		/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+		/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
+		/// let forget = Forget::<RcBrand, Option<i32>, Option<i32>, Option<i32>>::new(|o| o);
+		/// let result = GetterOptic::evaluate::<Option<i32>, RcBrand>(&reversed, forget);
+		/// assert_eq!(result.run(42), Some(42));
+		/// ```
+		fn evaluate<R: 'a + 'static, Q: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>),
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>)
+		{
+			// Re identity: Re<ForgetBrand<Q, R>, PB, A, A, A, A>
+			// wraps Forget<Q, R, A, A> -> Forget<Q, R, A, A> (identity)
+			let re_identity = Re::<ForgetBrand<Q, R>, PointerBrand, A, A, A, A>::new(|x| x);
+			// Evaluate inner optic with P = ReBrand<ForgetBrand<Q, R>, PB, A, A>
+			// Input: P::Of<A, A> = Re<ForgetBrand<Q, R>, PB, A, A, A, A> (our identity)
+			// Output: P::Of<S, S> = Re<ForgetBrand<Q, R>, PB, A, A, S, S>
+			let result =
+				self.inner.evaluate::<ReBrand<ForgetBrand<Q, R>, PointerBrand, A, A>>(re_identity);
+			// Re<ForgetBrand<Q, R>, PB, A, A, S, S> wraps Forget<Q, R, S, S> -> Forget<Q, R, A, A>
+			(result.run)(pab)
+		}
+	}
+
+	/// `FoldOptic` for `ReversedOptic` — reversing prism-like optics to folds.
+	///
+	/// Same as the [`GetterOptic`] implementation but with the additional `R: Monoid + Clone` bound
+	/// required by [`FoldOptic`].
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand.",
+		"The source type of the original (simple) optic.",
+		"The focus type of the original (simple) optic.",
+		"The inner optic type."
+	)]
+	#[document_parameters("The reversed optic instance.")]
+	impl<'a, PointerBrand, S, A, O> FoldOptic<'a, A, S>
+		for ReversedOptic<'a, PointerBrand, S, S, A, A, O>
+	where
+		PointerBrand: UnsizedCoercible + 'static,
+		O: PrismOptic<'a, S, S, A, A>,
+		S: 'a + 'static,
+		A: 'a + 'static,
+	{
+		/// Evaluates the reversed optic with `Forget` for a monoidal fold in the reverse direction.
+		#[document_signature]
+		#[document_type_parameters("The monoid type.", "The reference-counted pointer type.")]
+		#[document_parameters("The forget profunctor value.")]
+		#[document_returns("The transformed forget profunctor value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::FoldOptic,
+		/// 	types::optics::{
+		/// 		Forget,
+		/// 		PrismPrime,
+		/// 		re,
+		/// 	},
+		/// };
+		///
+		/// // re(prism) as a fold with String monoid
+		/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+		/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
+		/// let forget = Forget::<RcBrand, String, Option<i32>, Option<i32>>::new(|o: Option<i32>| {
+		/// 	format!("{:?}", o)
+		/// });
+		/// let result = FoldOptic::evaluate::<String, RcBrand>(&reversed, forget);
+		/// assert_eq!(result.run(42), "Some(42)");
+		/// ```
+		fn evaluate<R: 'a + Monoid + Clone + 'static, Q: UnsizedCoercible + 'static>(
+			&self,
+			pab: Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, S, S>),
+		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, A, A>)
+		{
+			let re_identity = Re::<ForgetBrand<Q, R>, PointerBrand, A, A, A, A>::new(|x| x);
+			let result =
+				self.inner.evaluate::<ReBrand<ForgetBrand<Q, R>, PointerBrand, A, A>>(re_identity);
+			(result.run)(pab)
 		}
 	}
 }
