@@ -27,11 +27,7 @@ mod inner {
 				UnsizedCoercible,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-		},
+		fp_macros::*,
 		std::sync::{
 			Arc,
 			Mutex,

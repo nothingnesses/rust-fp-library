@@ -12,34 +12,54 @@
 //! assert_eq!(x, Some(5));
 //! ```
 
-use {
-	crate::{
-		Apply,
-		kinds::*,
-	},
-	fp_macros::{
-		document_parameters,
-		document_signature,
-		document_type_parameters,
-	},
-};
+#[fp_macros::document_module]
+mod inner {
+	use {
+		crate::kinds::*,
+		fp_macros::*,
+	};
 
-/// A type class for contexts that can be initialized with a value.
-pub trait Pointed: Kind_cdc7cd43dac7585f {
+	/// A type class for contexts that can be initialized with a value.
+	pub trait Pointed: Kind_cdc7cd43dac7585f {
+		/// The value wrapped in the context.
+		///
+		/// This method wraps a value in a context.
+		#[document_signature]
+		///
+		#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+		///
+		#[document_parameters("The value to wrap.")]
+		///
+		#[document_returns("A new context containing the value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	functions::*,
+		/// };
+		///
+		/// let x = pure::<OptionBrand, _>(5);
+		/// assert_eq!(x, Some(5));
+		/// ```
+		fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	}
+
 	/// The value wrapped in the context.
 	///
-	/// This method wraps a value in a context.
+	/// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
 	#[document_signature]
 	///
-	#[document_type_parameters("The lifetime of the value.", "The type of the value to wrap.")]
+	#[document_type_parameters(
+		"The lifetime of the value.",
+		"The brand of the context.",
+		"The type of the value to wrap."
+	)]
 	///
 	#[document_parameters("The value to wrap.")]
 	///
-	/// ### Returns
-	///
-	/// A new context containing the value.
-	///
-	/// ### Examples
+	#[document_returns("A new context containing the value.")]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::{
@@ -50,39 +70,11 @@ pub trait Pointed: Kind_cdc7cd43dac7585f {
 	/// let x = pure::<OptionBrand, _>(5);
 	/// assert_eq!(x, Some(5));
 	/// ```
-	fn pure<'a, A: 'a>(a: A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>);
+	pub fn pure<'a, Brand: Pointed, A: 'a>(
+		a: A
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
+		Brand::pure(a)
+	}
 }
 
-/// The value wrapped in the context.
-///
-/// Free function version that dispatches to [the type class' associated function][`Pointed::pure`].
-#[document_signature]
-///
-#[document_type_parameters(
-	"The lifetime of the value.",
-	"The brand of the context.",
-	"The type of the value to wrap."
-)]
-///
-#[document_parameters("The value to wrap.")]
-///
-/// ### Returns
-///
-/// A new context containing the value.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::{
-/// 	brands::*,
-/// 	functions::*,
-/// };
-///
-/// let x = pure::<OptionBrand, _>(5);
-/// assert_eq!(x, Some(5));
-/// ```
-pub fn pure<'a, Brand: Pointed, A: 'a>(
-	a: A
-) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
-	Brand::pure(a)
-}
+pub use inner::*;

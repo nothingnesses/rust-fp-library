@@ -32,13 +32,7 @@ mod inner {
 				ZippingBrand,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-			document_signature,
-			document_type_parameters,
-		},
+		fp_macros::*,
 	};
 
 	/// View the focus of a lens-like optic.

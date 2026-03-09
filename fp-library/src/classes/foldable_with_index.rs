@@ -1,34 +1,32 @@
 //! A `Foldable` with an additional index.
 
-use crate::classes::{
-	foldable::Foldable,
-	monoid::Monoid,
-};
-
 #[fp_macros::document_module]
 mod inner {
-	use super::*;
+	use {
+		crate::classes::*,
+		fp_macros::*,
+	};
 
 	/// A `Foldable` with an additional index.
 	///
 	/// A `FoldableWithIndex` is a `Foldable` that also allows you to access the
 	/// index of each element when folding over the structure.
-	#[fp_macros::document_type_parameters("The index type.")]
+	#[document_type_parameters("The index type.")]
 	pub trait FoldableWithIndex<I>: Foldable {
 		/// Map each element of the structure to a monoid, and combine the results,
 		/// providing the index of each element.
-		#[fp_macros::document_signature]
-		#[fp_macros::document_type_parameters(
+		#[document_signature]
+		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the elements.",
 			"The monoid type."
 		)]
-		#[fp_macros::document_parameters(
+		#[document_parameters(
 			"The function to apply to each element and its index.",
 			"The structure to fold over."
 		)]
-		#[fp_macros::document_returns("The combined result.")]
-		#[fp_macros::document_examples]
+		#[document_returns("The combined result.")]
+		#[document_examples]
 		///
 		/// ```
 		/// use fp_library::{

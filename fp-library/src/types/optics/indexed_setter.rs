@@ -15,12 +15,7 @@ mod inner {
 			kinds::*,
 			types::optics::Indexed,
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 		std::marker::PhantomData,
 	};
 
@@ -36,7 +31,7 @@ mod inner {
 	#[document_parameters("The indexed setter instance.")]
 	pub trait IndexedSetterFunc<'a, I, S, T, A, B> {
 		/// Apply the indexed setter function.
-		#[fp_macros::document_signature]
+		#[document_signature]
 		#[document_parameters(
 			"The function to apply to each element and its index.",
 			"The source structure."

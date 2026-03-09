@@ -19,12 +19,7 @@ mod inner {
 			kinds::*,
 			types::optics::zip_with_of,
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 	};
 
 	/// A polymorphic grate.

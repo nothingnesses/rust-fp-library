@@ -78,13 +78,7 @@ mod inner {
 				Thunk,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_fields,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 		std::{
 			any::Any,
 			marker::PhantomData,

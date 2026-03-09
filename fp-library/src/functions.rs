@@ -20,11 +20,7 @@
 //! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
 //! ```
 
-use fp_macros::{
-	document_parameters,
-	document_signature,
-	document_type_parameters,
-};
+use fp_macros::*;
 // Auto-generate re-exports, passing in aliases for conflicting names.
 fp_macros::generate_function_re_exports!("src/classes", {
 	"category::identity": category_identity,

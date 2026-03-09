@@ -23,12 +23,7 @@ mod inner {
 				Indexed,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 		std::marker::PhantomData,
 	};
 

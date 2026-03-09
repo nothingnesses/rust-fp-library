@@ -32,13 +32,7 @@ mod inner {
 				Step,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_fields,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 	};
 
 	/// A deferred computation that produces a value of type `A`.

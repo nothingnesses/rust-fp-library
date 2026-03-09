@@ -26,12 +26,7 @@ mod inner {
 				TaggedBrand,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 	};
 
 	/// A polymorphic isomorphism where types can change.

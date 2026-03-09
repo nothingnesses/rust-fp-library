@@ -91,8 +91,8 @@ fn extract_rust_code_blocks(doc_lines: &[String]) -> Vec<String> {
 	blocks
 }
 
-/// Validate that every Rust code block contains at least one assertion.
-fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
+/// Validate that at least one Rust code block exists.
+fn validate_code_blocks_exist(code_blocks: &[String]) -> OurResult<()> {
 	if code_blocks.is_empty() {
 		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
@@ -102,6 +102,13 @@ fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
 		)
 		.into());
 	}
+
+	Ok(())
+}
+
+/// Validate that every Rust code block contains at least one assertion.
+fn validate_code_blocks(code_blocks: &[String]) -> OurResult<()> {
+	validate_code_blocks_exist(code_blocks)?;
 
 	for (i, code) in code_blocks.iter().enumerate() {
 		if !contains_assertion(code) {
@@ -140,20 +147,14 @@ pub fn document_examples_worker(
 
 	let mut ast = RustAst::parse(item).map_err(crate::core::Error::Parse)?;
 
-	if ast.signature().is_none() {
-		return Err(syn::Error::new_spanned(
-			ast,
-			format!("{DOCUMENT_EXAMPLES} can only be applied to functions"),
-		)
-		.into());
-	}
+	let is_function = ast.signature().is_some();
 
 	// Check for duplicate #[document_examples]
 	let has_duplicate = ast.attributes().iter().any(|a| a.path().is_ident(DOCUMENT_EXAMPLES));
 	if has_duplicate {
 		return Err(syn::Error::new(
 			proc_macro2::Span::call_site(),
-			format!("#[{DOCUMENT_EXAMPLES}] should only be applied once per function"),
+			format!("#[{DOCUMENT_EXAMPLES}] should only be applied once per item"),
 		)
 		.into());
 	}
@@ -161,7 +162,14 @@ pub fn document_examples_worker(
 	// Extract and validate doc comment code blocks
 	let doc_content = extract_doc_content(ast.attributes());
 	let code_blocks = extract_rust_code_blocks(&doc_content);
-	validate_code_blocks(&code_blocks)?;
+
+	if is_function {
+		// Functions require assertion macros in code blocks
+		validate_code_blocks(&code_blocks)?;
+	} else {
+		// Non-functions just need at least one code block
+		validate_code_blocks_exist(&code_blocks)?;
+	}
 
 	// Insert ### Examples heading at the macro's position
 	insert_doc_comment(

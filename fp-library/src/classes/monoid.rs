@@ -9,32 +9,47 @@
 //! assert_eq!(x, "".to_string());
 //! ```
 
-use {
-	super::semigroup::Semigroup,
-	fp_macros::{
-		document_signature,
-		document_type_parameters,
-	},
-};
+#[fp_macros::document_module]
+mod inner {
+	use {
+		crate::classes::*,
+		fp_macros::*,
+	};
 
-/// A type class for types that have an identity element and an associative binary operation.
-///
-/// ### Laws
-///
-/// `Monoid` instances must satisfy the identity laws:
-/// * Left Identity: `append(empty(), a) = a`.
-/// * Right Identity: `append(a, empty()) = a`.
-pub trait Monoid: Semigroup {
+	/// A type class for types that have an identity element and an associative binary operation.
+	///
+	/// ### Laws
+	///
+	/// `Monoid` instances must satisfy the identity laws:
+	/// * Left Identity: `append(empty(), a) = a`.
+	/// * Right Identity: `append(a, empty()) = a`.
+	pub trait Monoid: Semigroup {
+		/// The identity element.
+		///
+		/// This method returns the identity element of the monoid.
+		#[document_signature]
+		///
+		#[document_returns("The identity element.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::functions::*;
+		///
+		/// let x: String = empty();
+		/// assert_eq!(x, "".to_string());
+		/// ```
+		fn empty() -> Self;
+	}
+
 	/// The identity element.
 	///
-	/// This method returns the identity element of the monoid.
+	/// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
 	#[document_signature]
 	///
-	/// ### Returns
+	#[document_type_parameters("The type of the monoid.")]
 	///
-	/// The identity element.
-	///
-	/// ### Examples
+	#[document_returns("The identity element.")]
+	#[document_examples]
 	///
 	/// ```
 	/// use fp_library::functions::*;
@@ -42,28 +57,9 @@ pub trait Monoid: Semigroup {
 	/// let x: String = empty();
 	/// assert_eq!(x, "".to_string());
 	/// ```
-	fn empty() -> Self;
+	pub fn empty<M: Monoid>() -> M {
+		M::empty()
+	}
 }
 
-/// The identity element.
-///
-/// Free function version that dispatches to [the type class' associated function][`Monoid::empty`].
-#[document_signature]
-///
-#[document_type_parameters("The type of the monoid.")]
-///
-/// ### Returns
-///
-/// The identity element.
-///
-/// ### Examples
-///
-/// ```
-/// use fp_library::functions::*;
-///
-/// let x: String = empty();
-/// assert_eq!(x, "".to_string());
-/// ```
-pub fn empty<M: Monoid>() -> M {
-	M::empty()
-}
+pub use inner::*;

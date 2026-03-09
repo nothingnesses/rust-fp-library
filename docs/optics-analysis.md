@@ -221,16 +221,6 @@ PureScript implements `Closed Tagged` (`closed (Tagged b) = Tagged (const b)`). 
 | `Wander` (`wander`) | `Wander` (`wander`) | **Complete** |
 | `Costrong` (`unfirst`, `unsecond`) | `Costrong` (`unfirst`, `unsecond`) | **Complete** |
 | `Cochoice` (`unleft`, `unright`) | `Cochoice` (`unleft`, `unright`) | **Complete** |
-
-### Combinator Functions on Type Classes
-
-| PureScript | Rust | Status |
-|------------|------|--------|
-| `(***)` (splitStrong) | — | **Missing** |
-| `(&&&)` (fanout) | — | **Missing** |
-| `(+++)` (splitChoice) | — | **Missing** |
-| `(\|\|\|)` (fanin) | — | **Missing** |
-
 ---
 
 ## 5. Optic Subtyping Hierarchy

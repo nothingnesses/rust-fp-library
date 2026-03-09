@@ -22,13 +22,7 @@ mod inner {
 				TryTrampoline,
 			},
 		},
-		fp_macros::{
-			document_examples,
-			document_fields,
-			document_parameters,
-			document_returns,
-			document_type_parameters,
-		},
+		fp_macros::*,
 	};
 
 	/// A lazily-computed, memoized value that may fail.
