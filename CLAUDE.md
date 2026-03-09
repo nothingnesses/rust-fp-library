@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key Design Principle:** The library uses uncurried semantics with `impl Fn` for zero-cost abstractions. Functions like `map(f, fa)` use static dispatch and avoid heap allocation, unlike curried `map(f)(fa)` which requires boxing closures.
 
+## Running Commands
+
+All shell commands must be prefixed with `eval "$(direnv export bash 2>/dev/null)"; ` to ensure the correct Nix development environment is loaded. This applies to every command — building, testing, formatting, linting, benchmarking, etc.
+
 ## Development Commands
 
 ### Testing
@@ -298,6 +302,18 @@ nix develop
 ```
 
 The Nix shell provides the correct Rust toolchain and dependencies.
+
+### Ad-hoc Packages
+
+If a tool or package is not available in the development environment, use `nix shell` to access it without modifying the flake:
+
+```bash
+# Run a command with a package from nixpkgs
+nix shell nixpkgs#jq -c jq '.version' package.json
+
+# Interactive shell with a package
+nix shell nixpkgs#hyperfine
+```
 
 ## Important Constraints
 
