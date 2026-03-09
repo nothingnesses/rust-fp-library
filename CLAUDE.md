@@ -14,51 +14,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run all tests in the workspace
-cargo test --workspace
+eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace
 
 # Run tests for a specific package
-cargo test -p fp-library
-cargo test -p fp-macros
+eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library
+eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-macros
 
 # Run a specific test by name
-cargo test -p fp-library test_name
+eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library test_name
 
 # Run tests with all features enabled
-cargo test --workspace --all-features
+eval "$(direnv export bash 2>/dev/null)"; cargo test --workspace --all-features
 
 # Run property-based tests (QuickCheck)
-cargo test -p fp-library --test property
+eval "$(direnv export bash 2>/dev/null)"; cargo test -p fp-library --test property
 
 # Run doc tests
-cargo test --doc -p fp-library
+eval "$(direnv export bash 2>/dev/null)"; cargo test --doc -p fp-library
 ```
 
 ### Building
 
 ```bash
 # Build the workspace
-cargo build --workspace
+eval "$(direnv export bash 2>/dev/null)"; cargo build --workspace
 
 # Build with specific features
-cargo build -p fp-library --features rayon
-cargo build -p fp-library --features serde
-cargo build -p fp-library --all-features
+eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features rayon
+eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --features serde
+eval "$(direnv export bash 2>/dev/null)"; cargo build -p fp-library --all-features
 
 # Check without building
-cargo check --workspace
+eval "$(direnv export bash 2>/dev/null)"; cargo check --workspace
 ```
 
 ### Benchmarking
 
 ```bash
 # Run all benchmarks
-cargo bench -p fp-library
+eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library
 
 # List available benchmarks
-cargo bench -p fp-library --bench benchmarks -- --list
+eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- --list
 
 # Run specific benchmark (e.g., Vec)
-cargo bench -p fp-library --bench benchmarks -- Vec
+eval "$(direnv export bash 2>/dev/null)"; cargo bench -p fp-library --bench benchmarks -- Vec
 
 # Benchmark reports are generated in target/criterion/report/index.html
 ```
@@ -67,23 +67,23 @@ cargo bench -p fp-library --bench benchmarks -- Vec
 
 ```bash
 # Format code (uses rustfmt.toml configuration)
-cargo fmt --all
+eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all
 
 # Check formatting
-cargo fmt --all -- --check
+eval "$(direnv export bash 2>/dev/null)"; cargo fmt --all -- --check
 
 # Run clippy
-cargo clippy --workspace --all-features
+eval "$(direnv export bash 2>/dev/null)"; cargo clippy --workspace --all-features
 ```
 
 ### Documentation
 
 ```bash
 # Build and open documentation
-cargo doc --workspace --all-features --open
+eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --open
 
 # Check documentation
-cargo doc --workspace --all-features --no-deps
+eval "$(direnv export bash 2>/dev/null)"; cargo doc --workspace --all-features --no-deps
 ```
 
 ## Language Server & Code Intelligence
@@ -212,25 +212,21 @@ Functions must include:
 /// Comprehensive explanation.
 ///
 #[document_signature]
-///
 #[document_type_parameters(
 	"Description of first type parameter.",
 	"Description of second type parameter.",
 )]
-///
 #[document_parameters(
 	"Description of first parameter.",
 	"Description of second parameter.",
 )]
-///
-/// ### Returns
-///
-/// Description of returned value.
-///
-/// ### Examples
+#[document_returns(
+	"Description of returned value.",
+)]
+#[document_examples]
 ///
 /// ```
-/// // Code showing function usage and containing assertions.
+/// // Code showing function usage and containing assertions about expected outputs using assertion macros.
 /// ```
 ```
 
@@ -252,9 +248,8 @@ When creating commits:
 
 1. Define trait in `fp-library/src/classes/new_class.rs`
 2. Add free function wrapper in same file
-3. Re-export wrapper in `fp-library/src/functions.rs`
-4. Update `fp-library/src/classes.rs` to export the module
-5. Add documentation following the template above
+3. Update `fp-library/src/classes.rs` to export the module
+4. Add documentation following the template above
 
 ### Adding a Brand for a New Type
 
