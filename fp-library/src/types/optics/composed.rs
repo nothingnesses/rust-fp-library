@@ -225,7 +225,7 @@ mod inner {
 		/// > as IsoOptic<i32, i32, i32, i32>>::evaluate::<RcFnBrand>(&composed, f);
 		/// assert_eq!(modifier(21), 42);
 		/// ```
-		fn evaluate<P: Profunctor>(
+		fn evaluate<P: Profunctor + 'static>(
 			&self,
 			pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {

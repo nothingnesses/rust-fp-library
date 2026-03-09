@@ -15,7 +15,10 @@ mod inner {
 				optics::*,
 			},
 			kinds::*,
-			types::optics::ForgetBrand,
+			types::optics::{
+				Forget,
+				ForgetBrand,
+			},
 		},
 		fp_macros::*,
 		std::marker::PhantomData,
@@ -197,12 +200,7 @@ mod inner {
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, T>)
 		{
 			let view_fn = self.view_fn.clone();
-			use crate::classes::Profunctor;
-			ForgetBrand::<Q, R>::dimap(
-				move |s: S| view_fn(s),
-				|_b: B| unreachable!("Forget ignores the second function"),
-				pab,
-			)
+			Forget::new(move |s: S| pab.run(view_fn(s)))
 		}
 	}
 
@@ -366,12 +364,7 @@ mod inner {
 		) -> Apply!(<ForgetBrand<Q, R> as Kind!( type Of<'b, U: 'b, V: 'b>: 'b; )>::Of<'a, S, S>)
 		{
 			let view_fn = self.view_fn.clone();
-			use crate::classes::Profunctor;
-			ForgetBrand::<Q, R>::dimap(
-				move |s: S| view_fn(s),
-				|_a: A| unreachable!("Forget ignores the second function"),
-				pab,
-			)
+			Forget::new(move |s: S| pab.run(view_fn(s)))
 		}
 	}
 

@@ -22,9 +22,10 @@ mod inner {
 				Monoid,
 				UnsizedCoercible,
 				optics::{
-					AffineTraversalOptic,
 					FoldOptic,
 					GetterOptic,
+					IsoOptic,
+					LensOptic,
 					PrismOptic,
 					ReviewOptic,
 				},
@@ -439,30 +440,30 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
+		/// 	brands::RcBrand,
 		/// 	classes::profunctor::Choice,
 		/// 	types::optics::{
+		/// 		Forget,
+		/// 		ForgetBrand,
 		/// 		Re,
 		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // left(re).run(Tagged(Err(41))) = re.run(TaggedBrand::unleft(Tagged(Err(41))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::left::<i32, i32, String>(re);
-		/// assert_eq!(
-		/// 	(result.run)(Tagged::<Result<String, i32>, Result<String, i32>>::new(Err(41))).0,
-		/// 	42
+		/// // re wraps a getter transformer: (i32 -> i32) -> (i32 -> i32)
+		/// let re = Re::<ForgetBrand<RcBrand, i32>, RcBrand, i32, i32, i32, i32>::new(
+		/// 	|f: Forget<'_, RcBrand, i32, i32, i32>| Forget::new(move |x: i32| f.run(x) + 1),
 		/// );
+		/// // left(re).run(getter) = re.run(unleft(getter))
+		/// //   unleft wraps input in Err: unleft(|r| r.unwrap_err()) = identity
+		/// //   re.run(identity) = |x| x + 1
+		/// let result = <ReBrand<ForgetBrand<RcBrand, i32>, RcBrand, i32, i32> as Choice>::left::<
+		/// 	i32,
+		/// 	i32,
+		/// 	String,
+		/// >(re);
+		/// let transformed = (result.run)(Forget::new(|r: Result<String, i32>| r.unwrap_err()));
+		/// assert_eq!(transformed.run(41), 42);
 		/// ```
 		fn left<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
@@ -490,27 +491,30 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::{
-		/// 		RcBrand,
-		/// 		RcFnBrand,
-		/// 	},
+		/// 	brands::RcBrand,
 		/// 	classes::profunctor::Choice,
 		/// 	types::optics::{
+		/// 		Forget,
+		/// 		ForgetBrand,
 		/// 		Re,
 		/// 		ReBrand,
-		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
-		/// // re.run: Tagged<i32, i32> -> Tagged<i32, i32>
-		/// let re = Re::<TaggedBrand, RcBrand, i32, i32, i32, i32>::new(|t: Tagged<i32, i32>| {
-		/// 	Tagged::new(t.0 + 1)
-		/// });
-		/// // right(re).run(Tagged(Ok(41))) = re.run(TaggedBrand::unright(Tagged(Ok(41))))
-		/// //   = re.run(Tagged(41)) = Tagged(42)
-		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Choice>::right::<i32, i32, String>(re);
-		/// assert_eq!((result.run)(Tagged::<Result<i32, String>, Result<i32, String>>::new(Ok(41))).0, 42);
+		/// // re wraps a getter transformer: (i32 -> i32) -> (i32 -> i32)
+		/// let re = Re::<ForgetBrand<RcBrand, i32>, RcBrand, i32, i32, i32, i32>::new(
+		/// 	|f: Forget<'_, RcBrand, i32, i32, i32>| Forget::new(move |x: i32| f.run(x) + 1),
+		/// );
+		/// // right(re).run(getter) = re.run(unright(getter))
+		/// //   unright wraps input in Ok: unright(|r| r.unwrap()) = identity
+		/// //   re.run(identity) = |x| x + 1
+		/// let result = <ReBrand<ForgetBrand<RcBrand, i32>, RcBrand, i32, i32> as Choice>::right::<
+		/// 	i32,
+		/// 	i32,
+		/// 	String,
+		/// >(re);
+		/// let transformed = (result.run)(Forget::new(|r: Result<i32, String>| r.unwrap()));
+		/// assert_eq!(transformed.run(41), 42);
 		/// ```
 		fn right<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
@@ -706,7 +710,7 @@ mod inner {
 		/// let result = <ReBrand<TaggedBrand, RcBrand, i32, i32> as Strong>::first::<i32, i32, &str>(re);
 		/// assert_eq!((result.run)(Tagged::<(i32, &str), (i32, &str)>::new((41, "hi"))).0, 42);
 		/// ```
-		fn first<'a, A: 'a, B: 'a, C>(
+		fn first<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>)
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, (A, C), (B, C)>) {
 			let r = pab.run;
@@ -795,8 +799,9 @@ mod inner {
 	///
 	/// Given an optic from `S → T` focusing on `A → B`, produces a reversed optic
 	/// that can be used as:
+	/// - An [`IsoOptic`] from `B, A` to `T, S` (when the inner optic implements [`IsoOptic`])
 	/// - A [`ReviewOptic`] from `B → A` focusing on `T → S` (when the inner optic
-	///   implements [`AffineTraversalOptic`])
+	///   implements [`LensOptic`] — covers isos and lenses)
 	/// - A [`GetterOptic`] from `A` to `S` (when the inner optic implements [`PrismOptic`]
 	///   with simple types `S = T, A = B`)
 	/// - A [`FoldOptic`] from `A` to `S` (same conditions as getter)
@@ -825,20 +830,21 @@ mod inner {
 	/// 	brands::*,
 	/// 	classes::optics::ReviewOptic,
 	/// 	types::optics::{
-	/// 		PrismPrime,
+	/// 		LensPrime,
 	/// 		Tagged,
 	/// 		re,
 	/// 	},
 	/// };
 	///
-	/// // Create a prism for Option<i32>
-	/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
+	/// // Create a lens for (i32, String) focusing on the first element
+	/// let fst: LensPrime<RcBrand, (i32, String), i32> =
+	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	///
 	/// // Reverse it to get a ReviewOptic
-	/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
+	/// let reversed = re::<RcBrand, _, _, _, _, _>(fst);
 	///
-	/// // Use ReviewOptic: given a Tagged<Option<i32>, Option<i32>>, produce Tagged<i32, i32>
-	/// let result = ReviewOptic::evaluate(&reversed, Tagged::new(Some(42)));
+	/// // Use ReviewOptic: given a Tagged<(i32, String), (i32, String)>, produce Tagged<i32, i32>
+	/// let result = ReviewOptic::evaluate(&reversed, Tagged::new((42, "hello".to_string())));
 	/// assert_eq!(result.0, 42);
 	/// ```
 	pub fn re<'a, PointerBrand, S, T, A, B, O>(
@@ -856,13 +862,14 @@ mod inner {
 		}
 	}
 
-	/// `ReviewOptic` for `ReversedOptic` — reversing any optic ≥ `AffineTraversal`.
+	/// `ReviewOptic` for `ReversedOptic` — reversing any optic ≥ `Lens`.
 	///
-	/// `ReBrand<TaggedBrand>` has both `Strong` (from `TaggedBrand: Costrong`) and
-	/// `Choice` (from `TaggedBrand: Cochoice`), satisfying the `P: Strong + Choice`
-	/// bound required by [`AffineTraversalOptic::evaluate`].
+	/// `ReBrand<TaggedBrand>` has `Strong` (from `TaggedBrand: Costrong`),
+	/// satisfying the `P: Strong` bound required by [`LensOptic::evaluate`].
 	///
-	/// This covers `Iso`, `Lens`, `Prism`, and `AffineTraversal` uniformly.
+	/// This covers `Iso` and `Lens`, matching the PureScript semantics where
+	/// `Re Tagged` has `Strong` (from `Tagged: Costrong`) but not `Choice`
+	/// (since `Tagged` does not implement `Cochoice`).
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The cloneable function pointer brand.",
@@ -877,7 +884,7 @@ mod inner {
 		for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: AffineTraversalOptic<'a, S, T, A, B>,
+		O: LensOptic<'a, S, T, A, B>,
 		S: 'a + 'static,
 		T: 'a + 'static,
 		A: 'a + 'static,
@@ -894,15 +901,17 @@ mod inner {
 		/// 	brands::*,
 		/// 	classes::optics::ReviewOptic,
 		/// 	types::optics::{
-		/// 		PrismPrime,
+		/// 		LensPrime,
 		/// 		Tagged,
 		/// 		re,
 		/// 	},
 		/// };
 		///
-		/// let some_prism: PrismPrime<RcBrand, Option<i32>, i32> = PrismPrime::from_option(|o| o, Some);
-		/// let reversed = re::<RcBrand, _, _, _, _, _>(some_prism);
-		/// let result = ReviewOptic::evaluate(&reversed, Tagged::new(Some(42)));
+		/// // re(lens) as a review: given the source, extracts the focus.
+		/// let lens: LensPrime<RcBrand, (i32, String), i32> =
+		/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
+		/// let reversed = re::<RcBrand, _, _, _, _, _>(lens);
+		/// let result = ReviewOptic::evaluate(&reversed, Tagged::new((42, "hello".to_string())));
 		/// assert_eq!(result.0, 42);
 		/// ```
 		fn evaluate(
@@ -913,11 +922,79 @@ mod inner {
 			// wraps Tagged<B, A> -> Tagged<B, A> (identity)
 			let re_identity = Re::<TaggedBrand, PointerBrand, A, B, A, B>::new(|x| x);
 			// Evaluate inner optic with P = ReBrand<TaggedBrand, PB, A, B>
+			// ReBrand<TaggedBrand> has Strong (from TaggedBrand: Costrong),
+			// satisfying LensOptic's P: Strong bound.
 			// Input: P::Of<A, B> = Re<TaggedBrand, PB, A, B, A, B> (our identity)
 			// Output: P::Of<S, T> = Re<TaggedBrand, PB, A, B, S, T>
 			let result =
 				self.inner.evaluate::<ReBrand<TaggedBrand, PointerBrand, A, B>>(re_identity);
 			// Re<TaggedBrand, PB, A, B, S, T> wraps Tagged<T, S> -> Tagged<B, A>
+			(result.run)(pab)
+		}
+	}
+
+	/// `IsoOptic` for `ReversedOptic` — reversing an iso to an iso.
+	///
+	/// `ReBrand<P>` has `Profunctor` whenever `P: Profunctor`, which is all that
+	/// [`IsoOptic::evaluate`] requires. This means `re(iso)` is itself an iso,
+	/// matching the PureScript semantics where `re :: Iso s t a b -> Iso b a t s`.
+	#[document_type_parameters(
+		"The lifetime of the values.",
+		"The cloneable function pointer brand.",
+		"The source type of the original optic.",
+		"The target type of the original optic.",
+		"The focus source type of the original optic.",
+		"The focus target type of the original optic.",
+		"The inner optic type."
+	)]
+	#[document_parameters("The reversed optic instance.")]
+	impl<'a, PointerBrand, S, T, A, B, O> IsoOptic<'a, B, A, T, S>
+		for ReversedOptic<'a, PointerBrand, S, T, A, B, O>
+	where
+		PointerBrand: UnsizedCoercible + 'static,
+		O: IsoOptic<'a, S, T, A, B>,
+		S: 'a + 'static,
+		T: 'a + 'static,
+		A: 'a + 'static,
+		B: 'a + 'static,
+	{
+		/// Evaluates the reversed optic with any profunctor, producing an iso in the reverse direction.
+		#[document_signature]
+		#[document_type_parameters("The profunctor type.")]
+		#[document_parameters("The profunctor value to transform.")]
+		#[document_returns("The transformed profunctor value.")]
+		#[document_examples]
+		///
+		/// ```
+		/// use fp_library::{
+		/// 	brands::*,
+		/// 	classes::optics::IsoOptic,
+		/// 	functions::cloneable_fn_new,
+		/// 	types::optics::{
+		/// 		IsoPrime,
+		/// 		re,
+		/// 	},
+		/// };
+		///
+		/// // An iso between (i32,) and i32
+		/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
+		/// let reversed = re::<RcBrand, _, _, _, _, _>(iso);
+		/// // re(iso) is itself an iso from i32 to (i32,)
+		/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|(x,): (i32,)| (x * 2,));
+		/// let modifier = IsoOptic::evaluate::<RcFnBrand>(&reversed, f);
+		/// assert_eq!(modifier(21), 42);
+		/// ```
+		fn evaluate<P: Profunctor + 'static>(
+			&self,
+			pab: Apply!(<P as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, T, S>),
+		) -> Apply!(<P as Kind!( type Of<'b, X: 'b, Y: 'b>: 'b; )>::Of<'a, B, A>) {
+			// Re identity: Re<P, PB, A, B, A, B>
+			// wraps P::Of<B, A> -> P::Of<B, A> (identity)
+			let re_identity = Re::<P, PointerBrand, A, B, A, B>::new(|x| x);
+			// Evaluate inner iso with ReBrand<P, PB, A, B>
+			// IsoOptic::evaluate needs Profunctor, and ReBrand<P>: Profunctor when P: Profunctor ✓
+			let result = self.inner.evaluate::<ReBrand<P, PointerBrand, A, B>>(re_identity);
+			// Re<P, PB, A, B, S, T> wraps P::Of<T, S> -> P::Of<B, A>
 			(result.run)(pab)
 		}
 	}

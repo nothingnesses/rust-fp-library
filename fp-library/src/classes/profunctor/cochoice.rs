@@ -8,14 +8,19 @@
 //!
 //! ```
 //! use fp_library::{
+//! 	brands::RcBrand,
 //! 	classes::profunctor::*,
 //! 	types::optics::*,
 //! };
 //!
-//! // Tagged is a cochoice profunctor: it unwraps the Err variant
-//! let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
-//! let result = <TaggedBrand as Cochoice>::unleft::<i32, i32, String>(tagged);
-//! assert_eq!(result.0, 42);
+//! // Forget is a cochoice profunctor: unleft wraps input in Err
+//! let forget: Forget<RcBrand, i32, Result<String, i32>, Result<String, i32>> =
+//! 	Forget::new(|r: Result<String, i32>| match r {
+//! 		Err(n) => n,
+//! 		Ok(_) => 0,
+//! 	});
+//! let result = <ForgetBrand<RcBrand, i32> as Cochoice>::unleft::<i32, i32, String>(forget);
+//! assert_eq!(result.run(42), 42);
 //! ```
 
 #[fp_macros::document_module]
@@ -68,13 +73,18 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::RcBrand,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
-		/// let result = <TaggedBrand as Cochoice>::unleft::<i32, i32, String>(tagged);
-		/// assert_eq!(result.0, 42);
+		/// let forget: Forget<RcBrand, i32, Result<String, i32>, Result<String, i32>> =
+		/// 	Forget::new(|r: Result<String, i32>| match r {
+		/// 		Err(n) => n,
+		/// 		Ok(_) => 0,
+		/// 	});
+		/// let result = <ForgetBrand<RcBrand, i32> as Cochoice>::unleft::<i32, i32, String>(forget);
+		/// assert_eq!(result.run(42), 42);
 		/// ```
 		fn unleft<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -100,13 +110,18 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::RcBrand,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
 		///
-		/// let tagged: Tagged<Result<i32, String>, Result<i32, String>> = Tagged::new(Ok(42));
-		/// let result = <TaggedBrand as Cochoice>::unright::<i32, i32, String>(tagged);
-		/// assert_eq!(result.0, 42);
+		/// let forget: Forget<RcBrand, i32, Result<i32, String>, Result<i32, String>> =
+		/// 	Forget::new(|r: Result<i32, String>| match r {
+		/// 		Ok(n) => n,
+		/// 		Err(_) => 0,
+		/// 	});
+		/// let result = <ForgetBrand<RcBrand, i32> as Cochoice>::unright::<i32, i32, String>(forget);
+		/// assert_eq!(result.run(42), 42);
 		/// ```
 		fn unright<'a, A: 'a, B: 'a, C: 'a>(
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
@@ -145,13 +160,18 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
+	/// 	brands::RcBrand,
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };
 	///
-	/// let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
-	/// let result = unleft::<TaggedBrand, i32, i32, String>(tagged);
-	/// assert_eq!(result.0, 42);
+	/// let forget: Forget<RcBrand, i32, Result<String, i32>, Result<String, i32>> =
+	/// 	Forget::new(|r: Result<String, i32>| match r {
+	/// 		Err(n) => n,
+	/// 		Ok(_) => 0,
+	/// 	});
+	/// let result = unleft::<ForgetBrand<RcBrand, i32>, i32, i32, String>(forget);
+	/// assert_eq!(result.run(42), 42);
 	/// ```
 	pub fn unleft<'a, Brand: Cochoice, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
@@ -179,13 +199,18 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
+	/// 	brands::RcBrand,
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };
 	///
-	/// let tagged: Tagged<Result<i32, String>, Result<i32, String>> = Tagged::new(Ok(42));
-	/// let result = unright::<TaggedBrand, i32, i32, String>(tagged);
-	/// assert_eq!(result.0, 42);
+	/// let forget: Forget<RcBrand, i32, Result<i32, String>, Result<i32, String>> =
+	/// 	Forget::new(|r: Result<i32, String>| match r {
+	/// 		Ok(n) => n,
+	/// 		Err(_) => 0,
+	/// 	});
+	/// let result = unright::<ForgetBrand<RcBrand, i32>, i32, i32, String>(forget);
+	/// assert_eq!(result.run(42), 42);
 	/// ```
 	pub fn unright<'a, Brand: Cochoice, A: 'a, B: 'a, C: 'a>(
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)

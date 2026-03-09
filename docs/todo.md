@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Better name for Re and ReBrand
 * Determine if it makes sense to have TaggedBrand, ForgetBrand, etc. where they currently are, or if it'd be better to have them in an optics submodule in brands.
 * Optics:
 	* Full parity with `purescript-profunctor-lenses`.

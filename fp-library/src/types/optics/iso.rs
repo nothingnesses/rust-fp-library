@@ -278,7 +278,7 @@ mod inner {
 		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
-		fn evaluate<Q: Profunctor>(
+		fn evaluate<Q: Profunctor + 'static>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
@@ -324,7 +324,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -367,7 +367,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -408,7 +408,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -450,7 +450,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -492,7 +492,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, T, A, B>::evaluate(self, pab)
 		}
 	}
 
@@ -918,7 +918,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
@@ -959,7 +959,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
@@ -997,7 +997,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
@@ -1036,7 +1036,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
@@ -1076,7 +1076,7 @@ mod inner {
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {
-			IsoOptic::evaluate::<Q>(self, pab)
+			Optic::<Q, S, S, A, A>::evaluate(self, pab)
 		}
 	}
 
@@ -1271,7 +1271,7 @@ mod inner {
 		/// let modifier: std::rc::Rc<dyn Fn((i32,)) -> (i32,)> = IsoOptic::evaluate::<RcFnBrand>(&iso, f);
 		/// assert_eq!(modifier((41,)), (42,));
 		/// ```
-		fn evaluate<Q: Profunctor>(
+		fn evaluate<Q: Profunctor + 'static>(
 			&self,
 			pab: Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, A>),
 		) -> Apply!(<Q as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, S>) {

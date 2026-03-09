@@ -12,7 +12,6 @@ mod inner {
 				profunctor::{
 					Choice,
 					Closed,
-					Cochoice,
 					Costrong,
 					Profunctor,
 				},
@@ -201,84 +200,6 @@ mod inner {
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
 		{
 			Tagged::new(Ok(pab.0))
-		}
-	}
-
-	impl Cochoice for TaggedBrand {
-		/// Extracts the `Tagged` value from one operating on the left (Err) component of a `Result`.
-		///
-		/// Assuming the inner `Result<C, B>` is `Err(b)` (as produced by [`Choice::left`]),
-		/// this unwraps the `B` value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The input type of the resulting tagged.",
-			"The value type of the resulting tagged.",
-			"The type of the alternative (Ok) variant."
-		)]
-		///
-		#[document_parameters("The tagged instance to extract from.")]
-		///
-		#[document_returns("A transformed `Tagged` instance.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::profunctor::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let tagged: Tagged<Result<String, i32>, Result<String, i32>> = Tagged::new(Err(42));
-		/// let result = <TaggedBrand as Cochoice>::unleft::<i32, i32, String>(tagged);
-		/// assert_eq!(result.0, 42);
-		/// ```
-		fn unleft<'a, A: 'a, B: 'a, C: 'a>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<C, A>, Result<C, B>>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
-			match pab.0 {
-				Err(b) => Tagged::new(b),
-				Ok(_) => unreachable!("Cochoice::unleft on Tagged: value was Ok, expected Err"),
-			}
-		}
-
-		/// Extracts the `Tagged` value from one operating on the right (Ok) component of a `Result`.
-		///
-		/// Assuming the inner `Result<B, C>` is `Ok(b)` (as produced by [`Choice::right`]),
-		/// this unwraps the `B` value.
-		#[document_signature]
-		///
-		#[document_type_parameters(
-			"The lifetime of the values.",
-			"The input type of the resulting tagged.",
-			"The value type of the resulting tagged.",
-			"The type of the alternative (Err) variant."
-		)]
-		///
-		#[document_parameters("The tagged instance to extract from.")]
-		///
-		#[document_returns("A transformed `Tagged` instance.")]
-		///
-		#[document_examples]
-		///
-		/// ```
-		/// use fp_library::{
-		/// 	classes::profunctor::*,
-		/// 	types::optics::*,
-		/// };
-		///
-		/// let tagged: Tagged<Result<i32, String>, Result<i32, String>> = Tagged::new(Ok(42));
-		/// let result = <TaggedBrand as Cochoice>::unright::<i32, i32, String>(tagged);
-		/// assert_eq!(result.0, 42);
-		/// ```
-		fn unright<'a, A: 'a, B: 'a, C: 'a>(
-			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, Result<A, C>, Result<B, C>>)
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>) {
-			match pab.0 {
-				Ok(b) => Tagged::new(b),
-				Err(_) => unreachable!("Cochoice::unright on Tagged: value was Err, expected Ok"),
-			}
 		}
 	}
 
