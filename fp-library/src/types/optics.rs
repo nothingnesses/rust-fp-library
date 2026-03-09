@@ -106,7 +106,7 @@ mod iso;
 mod lens;
 mod market;
 mod prism;
-mod re;
+mod reverse;
 mod review;
 mod setter;
 mod shop;
@@ -136,7 +136,7 @@ pub use {
 	lens::*,
 	market::*,
 	prism::*,
-	re::*,
+	reverse::*,
 	review::*,
 	setter::*,
 	shop::*,

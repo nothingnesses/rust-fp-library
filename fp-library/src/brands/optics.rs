@@ -65,9 +65,9 @@ mod inner {
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	pub struct MarketBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
-	/// Brand for the [`Re`](crate::types::optics::Re) profunctor.
+	/// Brand for the [`Reverse`](crate::types::optics::Reverse) profunctor.
 	///
-	/// `ReBrand<InnerP, PointerBrand, S, T>` fixes the inner profunctor `InnerP` and the outer
+	/// `ReverseBrand<InnerP, PointerBrand, S, T>` fixes the inner profunctor `InnerP` and the outer
 	/// types `S` and `T`, leaving `A` and `B` free for kind application.
 	#[document_type_parameters(
 		"The inner profunctor brand whose instances are reversed.",
@@ -76,7 +76,7 @@ mod inner {
 		"The fixed target type."
 	)]
 	#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-	pub struct ReBrand<InnerP, PointerBrand, S, T>(PhantomData<(InnerP, PointerBrand, S, T)>);
+	pub struct ReverseBrand<InnerP, PointerBrand, S, T>(PhantomData<(InnerP, PointerBrand, S, T)>);
 
 	/// Brand for the [`Shop`](crate::types::optics::Shop) profunctor.
 	#[document_type_parameters(

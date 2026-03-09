@@ -1,6 +1,5 @@
 ### Tasks to do & ideas to look into
 
-* Better name for Re and ReBrand
 * Optics:
 	* Full parity with `purescript-profunctor-lenses`.
 	* Implement `Prism`, `Iso`, `Traversal`, `Grate`, `Fold`, `Getter`, `Setter`, `Review`.

@@ -47,7 +47,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 | Encoding | `dimap from to pab` | `Q::dimap(from, to, pab)` | Correct |
 | CPS extraction | `withIso :: AnIso -> ((s->a) -> (b->t) -> r) -> r` | — | **Missing** |
 | Clone/reconstruct | `cloneIso :: AnIso -> Iso` | — | **Missing** |
-| Reversal | `re :: Optic (Re p a b) s t a b -> Optic p b a t s` | `Iso::reversed()` (method) + `re()` free function | **Complete** — generic `re()` combinator implemented via `ReversedOptic` struct with `ReviewOptic` (for any optic ≥ `AffineTraversal`), `GetterOptic` and `FoldOptic` (for prism-like optics). `IsoOptic` not supported due to `ReBrand`'s `'static` constraints; `Iso::reversed()` covers that case. |
+| Reversal | `re :: Optic (Re p a b) s t a b -> Optic p b a t s` | `Iso::reversed()` (method) + `reverse()` free function | **Complete** — generic `reverse()` combinator implemented via `ReversedOptic` struct with `ReviewOptic` (for any optic ≥ `AffineTraversal`), `GetterOptic` and `FoldOptic` (for prism-like optics). `IsoOptic` not supported due to `ReverseBrand`'s `'static` constraints; `Iso::reversed()` covers that case. |
 | Utility isos | `non`, `curried`, `uncurried`, `flipped`, `coerced` | — | **Missing** |
 | Higher-order isos | `mapping`, `dimapping` | — | **Missing** |
 | Iso combinators | `au`, `auf`, `under` | — | **Missing** |
@@ -195,7 +195,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 | `Bazaar p a b` | `Bazaar` / `BazaarBrand` | `Profunctor`, `Strong`, `Choice`, `Wander` | **Complete** |
 | `Grating a b` | `Grating` / `GratingBrand` | `Profunctor`, `Closed` | **Complete** |
 | `Zipping` | `Zipping` / `ZippingBrand` | `Profunctor`, `Closed` | **Complete** |
-| `Re p s t` | `Re` / `ReBrand` | `Profunctor`, `Cochoice` (when `InnerP: Choice`), `Choice` (when `InnerP: Cochoice`), `Costrong` (when `InnerP: Strong`), `Strong` (when `InnerP: Costrong`) | **Complete** — Note: `ReBrand`'s `impl_kind!` requires `InnerP: 'static, PointerBrand: 'static, S: 'static, T: 'static` due to the `Kind` trait's universally quantified lifetime. This prevents `IsoOptic` implementation for reversed optics (see Phase 5). |
+| `Re p s t` | `Reverse` / `ReverseBrand` | `Profunctor`, `Cochoice` (when `InnerP: Choice`), `Choice` (when `InnerP: Cochoice`), `Costrong` (when `InnerP: Strong`), `Strong` (when `InnerP: Costrong`) | **Complete** — Note: `ReverseBrand`'s `impl_kind!` requires `InnerP: 'static, PointerBrand: 'static, S: 'static, T: 'static` due to the `Kind` trait's universally quantified lifetime. This prevents `IsoOptic` implementation for reversed optics (see Phase 5). |
 | `Indexed p i` | `Indexed` / `IndexedBrand` | `Profunctor`, `Strong`, `Choice`, `Wander` | **Complete** |
 | `Focusing m s` | — | — | **Missing** — used for `zoom` in StateT |
 | `Star f` | — | — | **Missing** — the library uses `FnBrand<P>` instead, but `Star` would enable `traverseOf` |
@@ -203,7 +203,7 @@ Rust cannot express rank-2 types or universally quantified type aliases. The lib
 ### Profunctor Instance Notes
 
 **`Forget`: `Cochoice` implemented**
-`Cochoice (Forget r)` is implemented without requiring `Monoid r` — `unleft` composes with the `Err` constructor and `unright` composes with the `Ok` constructor, matching PureScript's implementation (`unleft (Forget z) = Forget (z <<< Left)`). This enables `Forget` to work with the `Re` profunctor for reversed optics.
+`Cochoice (Forget r)` is implemented without requiring `Monoid r` — `unleft` composes with the `Err` constructor and `unright` composes with the `Ok` constructor, matching PureScript's implementation (`unleft (Forget z) = Forget (z <<< Left)`). This enables `Forget` to work with the `Reverse` profunctor for reversed optics.
 
 **`Tagged`: `Closed` implemented (with `B: Clone`)**
 `Closed Tagged` is implemented as `closed (Tagged b) = Tagged (const b)`. Because Rust requires producing owned `B` values from `Fn(X) -> B`, the `Closed` trait's `closed` method now requires `B: Clone`. This is a Rust-specific constraint not present in PureScript (which uses reference semantics). The `B: Clone` bound propagates to `Grate` evaluation and `GrateOptic` implementations, which is semantically appropriate — grate evaluation can duplicate the focus value across multiple positions.
@@ -383,7 +383,7 @@ Without `Index` and `At`, users must manually construct affine traversals and le
 
 ### 12.3 Architectural Gaps
 
-1. ~~**No top-level `re` combinator**~~ **Resolved** — The generic `re()` combinator is now implemented in `types/optics/re.rs` via `ReversedOptic`. It provides `ReviewOptic` for any optic ≥ `AffineTraversal`, and `GetterOptic`/`FoldOptic` for prism-like optics. `IsoOptic` is not supported due to `ReBrand`'s `'static` constraints; `Iso::reversed()` covers that case. See Phase 5 for design details.
+1. ~~**No top-level `re` combinator**~~ **Resolved** — The generic `reverse()` combinator is now implemented in `types/optics/reverse.rs` via `ReversedOptic`. It provides `ReviewOptic` for any optic ≥ `AffineTraversal`, and `GetterOptic`/`FoldOptic` for prism-like optics. `IsoOptic` is not supported due to `ReverseBrand`'s `'static` constraints; `Iso::reversed()` covers that case. See Phase 5 for design details.
 
 2. **No `clone*`/`with*` extraction functions** — PureScript provides `withLens`, `withPrism`, `withIso`, `withGrate`, `withAffineTraversal` for CPS-style extraction, and `cloneLens`, `clonePrism`, etc. for reconstructing polymorphic optics from concrete ones. None of these exist in Rust, though direct struct field access partially compensates.
 
@@ -482,15 +482,15 @@ Implementing `Star` profunctor would unlock:
 
 This requires careful design around Rust's lack of higher-kinded types for the functor parameter.
 
-### Phase 5: Generic `re` Combinator (Low Impact / Low Complexity)
+### Phase 5: Generic `reverse` Combinator (Low Impact / Low Complexity)
 
-Expose a top-level `re(optic)` function that wraps optic evaluation through the `Re` profunctor. `Cochoice` for `Forget` is now implemented, so this combinator can be maximally useful.
+Expose a top-level `reverse(optic)` function that wraps optic evaluation through the `Reverse` profunctor. `Cochoice` for `Forget` is now implemented, so this combinator can be maximally useful.
 
 #### 5.1 Design Overview
 
-In PureScript, `re` reverses an optic: `re t = unwrap (t (Re identity))`. The Rust equivalent creates a `ReversedOptic` wrapper struct that stores the original optic and implements reversed optic traits by evaluating the inner optic with `ReBrand<ConcreteP>` as the profunctor, where `ConcreteP` is the specific profunctor required by the output trait (e.g. `TaggedBrand` for `ReviewOptic`, `ForgetBrand` for `GetterOptic`/`FoldOptic`).
+In PureScript, `re` reverses an optic: `re t = unwrap (t (Re identity))`. The Rust equivalent creates a `ReversedOptic` wrapper struct that stores the original optic and implements reversed optic traits by evaluating the inner optic with `ReverseBrand<ConcreteP>` as the profunctor, where `ConcreteP` is the specific profunctor required by the output trait (e.g. `TaggedBrand` for `ReviewOptic`, `ForgetBrand` for `GetterOptic`/`FoldOptic`).
 
-**Target file:** `fp-library/src/types/optics/re.rs` (add after existing `Re` profunctor code, inside the `inner` module).
+**Target file:** `fp-library/src/types/optics/reverse.rs` (add after existing `Reverse` profunctor code, inside the `inner` module).
 
 #### 5.2 The `ReversedOptic` Struct
 
@@ -511,7 +511,7 @@ where
 And a free function:
 
 ```rust
-pub fn re<'a, PointerBrand, S, T, A, B, O>(
+pub fn reverse<'a, PointerBrand, S, T, A, B, O>(
     optic: O,
 ) -> ReversedOptic<'a, PointerBrand, S, T, A, B, O>
 where
@@ -527,7 +527,7 @@ where
 
 #### 5.3 Trait Implementations
 
-Three trait implementations are possible. Each follows the pattern: construct `Re::new(identity)`, evaluate the inner optic to get `Re<ConcreteP, ...>`, then unwrap the result.
+Three trait implementations are possible. Each follows the pattern: construct `Reverse::new(identity)`, evaluate the inner optic to get `Reverse<ConcreteP, ...>`, then unwrap the result.
 
 ##### 5.3.1 `ReviewOptic` — reversing any optic ≥ `AffineTraversal`
 
@@ -543,20 +543,20 @@ where
     B: 'a + 'static,
 {
     fn evaluate(&self, tagged_ba: Tagged<'a, T, S>) -> Tagged<'a, B, A> {
-        // 1. Create Re identity: Re<TaggedBrand, PB, B, A, B, A>
+        // 1. Create Reverse identity: Reverse<TaggedBrand, PB, B, A, B, A>
         // 2. Evaluate inner optic (AffineTraversalOptic needs P: Strong + Choice)
-        //    ReBrand<TaggedBrand, PB, B, A> has:
+        //    ReverseBrand<TaggedBrand, PB, B, A> has:
         //      - Strong (from TaggedBrand: Costrong ✓)
         //      - Choice (from TaggedBrand: Cochoice ✓)
-        //    So ReBrand<TaggedBrand> satisfies P: Strong + Choice ✓
-        // 3. Result: Re<TaggedBrand, PB, B, A, S, T>
+        //    So ReverseBrand<TaggedBrand> satisfies P: Strong + Choice ✓
+        // 3. Result: Reverse<TaggedBrand, PB, B, A, S, T>
         // 4. Unwrap to get Tagged<'a, B, A> (the reversed review)
         todo!()
     }
 }
 ```
 
-**Why `AffineTraversalOptic`:** `ReBrand<TaggedBrand>` has *both* `Strong` (from `TaggedBrand: Costrong`) and `Choice` (from `TaggedBrand: Cochoice`), so it satisfies `P: Strong + Choice` — the bound on `AffineTraversalOptic::evaluate`. This covers `Iso`, `Lens`, `Prism`, and `AffineTraversal` uniformly, since all of their concrete structs (including `Prime` variants) implement `AffineTraversalOptic`.
+**Why `AffineTraversalOptic`:** `ReverseBrand<TaggedBrand>` has *both* `Strong` (from `TaggedBrand: Costrong`) and `Choice` (from `TaggedBrand: Cochoice`), so it satisfies `P: Strong + Choice` — the bound on `AffineTraversalOptic::evaluate`. This covers `Iso`, `Lens`, `Prism`, and `AffineTraversal` uniformly, since all of their concrete structs (including `Prime` variants) implement `AffineTraversalOptic`.
 
 **Note on type parameter reversal:** `ReviewOptic<'a, B, A, T, S>` — the S/T and A/B positions are swapped compared to the inner optic's `<S, T, A, B>`. The reversed optic views through `B→A` instead of `A→B`, and operates on `T→S` instead of `S→T`.
 
@@ -575,12 +575,12 @@ where
         &self,
         forget_aa: Forget<PB2, R, A, A>,
     ) -> Forget<PB2, R, S, S> {
-        // 1. Create Re identity: Re<ForgetBrand<PB2, R>, PB, A, A, A, A>
+        // 1. Create Reverse identity: Reverse<ForgetBrand<PB2, R>, PB, A, A, A, A>
         // 2. Evaluate inner optic (PrismOptic needs P: Choice)
-        //    ReBrand<ForgetBrand<PB2, R>> has:
+        //    ReverseBrand<ForgetBrand<PB2, R>> has:
         //      - Choice (from ForgetBrand: Cochoice ✓)
-        //    So ReBrand<ForgetBrand> satisfies P: Choice ✓
-        // 3. Result: Re<ForgetBrand<PB2, R>, PB, A, A, S, S>
+        //    So ReverseBrand<ForgetBrand> satisfies P: Choice ✓
+        // 3. Result: Reverse<ForgetBrand<PB2, R>, PB, A, A, S, S>
         // 4. Unwrap to get Forget<PB2, R, S, S>
         todo!()
     }
@@ -588,8 +588,8 @@ where
 ```
 
 **Why `PrismOptic` (not `LensOptic` or `AffineTraversalOptic`):**
-1. `ForgetBrand` has `Cochoice` but NOT `Costrong` → `ReBrand<ForgetBrand>` has `Choice` but NOT `Strong` → cannot satisfy `P: Strong` (needed for `LensOptic`) or `P: Strong + Choice` (needed for `AffineTraversalOptic`).
-2. `GetterOptic::evaluate` introduces method-level generics `<R, PB2>` that the inner optic must quantify over universally. Only `PrismOptic::evaluate<P: Choice>` provides universal quantification over the profunctor — when `P` is instantiated to `ReBrand<ForgetBrand<PB2, R>>`, the `PB2` and `R` from the outer `GetterOptic` flow through correctly.
+1. `ForgetBrand` has `Cochoice` but NOT `Costrong` → `ReverseBrand<ForgetBrand>` has `Choice` but NOT `Strong` → cannot satisfy `P: Strong` (needed for `LensOptic`) or `P: Strong + Choice` (needed for `AffineTraversalOptic`).
+2. `GetterOptic::evaluate` introduces method-level generics `<R, PB2>` that the inner optic must quantify over universally. Only `PrismOptic::evaluate<P: Choice>` provides universal quantification over the profunctor — when `P` is instantiated to `ReverseBrand<ForgetBrand<PB2, R>>`, the `PB2` and `R` from the outer `GetterOptic` flow through correctly.
 
 **Why S=T, A=B (simple optic):** `GetterOptic<'a, A, S>` is inherently monomorphic (read-only), and `PrismOptic<'a, S, S, A, A>` with `S=T, A=B` is the simple variant. This matches PureScript where `re` on a `Prism'` produces a `Getter`.
 
@@ -616,28 +616,28 @@ where
 
 #### 5.4 Coverage Table
 
-| Inner Optic | `re()` produces | Reason |
+| Inner Optic | `reverse()` produces | Reason |
 |-------------|----------------|--------|
 | `Iso` / `IsoPrime` | `ReviewOptic` + `GetterOptic` + `FoldOptic` | Implements both `AffineTraversalOptic` and `PrismOptic` |
 | `Prism` / `PrismPrime` | `ReviewOptic` + `GetterOptic` + `FoldOptic` | Implements both `AffineTraversalOptic` and `PrismOptic` |
 | `Lens` / `LensPrime` | `ReviewOptic` only | Implements `AffineTraversalOptic` but NOT `PrismOptic` |
 | `AffineTraversal` / `AffineTraversalPrime` | `ReviewOptic` only | Same as Lens |
 
-**Asymmetry explanation:** `re(lens)` cannot produce `GetterOptic` because `ForgetBrand` lacks `Costrong`, so `ReBrand<ForgetBrand>` lacks `Strong`, and thus cannot satisfy `LensOptic`'s `P: Strong` bound. This matches PureScript semantics — `re` on a `Lens` only gives you a `Review`, not a `Getter`.
+**Asymmetry explanation:** `reverse(lens)` cannot produce `GetterOptic` because `ForgetBrand` lacks `Costrong`, so `ReverseBrand<ForgetBrand>` lacks `Strong`, and thus cannot satisfy `LensOptic`'s `P: Strong` bound. This matches PureScript semantics — `re` on a `Lens` only gives you a `Review`, not a `Getter`.
 
 #### 5.5 Constraints and Limitations
 
-1. **`'static` bounds on `ReBrand`:** `ReBrand`'s `impl_kind!` requires all type parameters to be `'static` (lines 176-186 of `re.rs`). This is fundamental to the `Kind` trait's universally quantified lifetime (`type Of<'a, A: 'a>: 'a`). Consequence: all `ReversedOptic` trait impls require `S: 'static, A: 'static` (and `T, B` when present).
+1. **`'static` bounds on `ReverseBrand`:** `ReverseBrand`'s `impl_kind!` requires all type parameters to be `'static` (lines 176-186 of `reverse.rs`). This is fundamental to the `Kind` trait's universally quantified lifetime (`type Of<'a, A: 'a>: 'a`). Consequence: all `ReversedOptic` trait impls require `S: 'static, A: 'static` (and `T, B` when present).
 
-2. **No `IsoOptic` for `ReversedOptic`:** `IsoOptic::evaluate` has `<P: Profunctor>` at method level with no `'static` bound on `P`. Since `ReBrand` requires `InnerP: 'static`, an arbitrary `P: Profunctor` cannot be used as the inner profunctor. `IsoPrime::reversed()` already covers the iso reversal case without this limitation.
+2. **No `IsoOptic` for `ReversedOptic`:** `IsoOptic::evaluate` has `<P: Profunctor>` at method level with no `'static` bound on `P`. Since `ReverseBrand` requires `InnerP: 'static`, an arbitrary `P: Profunctor` cannot be used as the inner profunctor. `IsoPrime::reversed()` already covers the iso reversal case without this limitation.
 
-3. **`PointerBrand` parameter in API:** `ReversedOptic` carries a `PointerBrand` parameter from the `Re` profunctor. This is required by the `FnBrand<PointerBrand>` abstraction used internally by `Re`.
+3. **`PointerBrand` parameter in API:** `ReversedOptic` carries a `PointerBrand` parameter from the `Reverse` profunctor. This is required by the `FnBrand<PointerBrand>` abstraction used internally by `Reverse`.
 
 4. **No overlapping impls:** `ReviewOptic` uses `AffineTraversalOptic` bound and `GetterOptic`/`FoldOptic` use `PrismOptic` bound. These are different output traits, so there is no coherence conflict.
 
 #### 5.6 Required Imports
 
-Add to `re.rs` imports:
+Add to `reverse.rs` imports:
 
 ```rust
 use crate::{
@@ -653,7 +653,7 @@ use crate::{
 
 #### 5.7 Re-exports
 
-Add `re` to the free function re-exports in `fp-library/src/types/optics/functions.rs` or `fp-library/src/functions.rs`, and ensure `ReversedOptic` is publicly visible from `fp-library/src/types/optics.rs`.
+Add `reverse` to the free function re-exports in `fp-library/src/types/optics/functions.rs` or `fp-library/src/functions.rs`, and ensure `ReversedOptic` is publicly visible from `fp-library/src/types/optics.rs`.
 
 ### Phase 6: Derive Macros (High Impact / High Complexity)
 
@@ -663,7 +663,7 @@ Add `re` to the free function re-exports in `fp-library/src/types/optics/functio
 
 ## 14. Conclusion
 
-The Rust `fp-library` optics implementation is **architecturally sound and mathematically correct**. All profunctor encodings faithfully reproduce the PureScript reference. The core optic types (Iso, Lens, Prism, AffineTraversal, Traversal, Grate, Fold, Getter, Setter, Review) and their internal profunctors (Exchange, Shop, Market, Stall, Bazaar, Grating, Forget, Tagged, Zipping, Re) are complete and correct.
+The Rust `fp-library` optics implementation is **architecturally sound and mathematically correct**. All profunctor encodings faithfully reproduce the PureScript reference. The core optic types (Iso, Lens, Prism, AffineTraversal, Traversal, Grate, Fold, Getter, Setter, Review) and their internal profunctors (Exchange, Shop, Market, Stall, Bazaar, Grating, Forget, Tagged, Zipping, Reverse) are complete and correct.
 
 The indexed optics system is substantially implemented with the `Indexed` profunctor, `IndexedLens`, `IndexedTraversal`, `IndexedFold`, `IndexedGetter`, and their associated traits and free functions — a significant achievement given the complexity of encoding indexed profunctors in Rust's type system.
 
