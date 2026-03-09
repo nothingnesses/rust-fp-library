@@ -64,7 +64,7 @@ mod inner {
 		I: IntoIterator<Item = A>,
 	{
 		#[document_signature]
-		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
+		#[document_type_parameters("The monoid type to fold into.")]
 		#[document_parameters("The mapping function.", "The structure to fold.")]
 		#[document_returns("The combined monoid value.")]
 		#[document_examples]
@@ -80,12 +80,12 @@ mod inner {
 		/// };
 		///
 		/// let fold = IterableFoldFn(|v: Vec<i32>| v);
-		/// let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
+		/// let result = fold.apply::<String>(|x| x.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123".to_string());
 		/// ```
-		fn apply<R: Monoid, FArg: Fn(A) -> R + 'a>(
+		fn apply<R: Monoid>(
 			&self,
-			f: FArg,
+			f: impl Fn(A) -> R + 'a,
 			s: S,
 		) -> R {
 			(self.0)(s).into_iter().fold(R::empty(), |r, a| R::append(r, f(a)))
@@ -247,7 +247,7 @@ mod inner {
 		) -> Vec<A>
 		where
 			A: Clone, {
-			self.fold_fn.apply::<Vec<A>, _>(|a| vec![a], s)
+			self.fold_fn.apply::<Vec<A>>(|a| vec![a], s)
 		}
 	}
 
@@ -304,7 +304,7 @@ mod inner {
 			let fold_fn = self.fold_fn.clone();
 			Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.0.clone();
-				fold_fn.apply::<R, _>(move |a| (pab_fn)(a), s)
+				fold_fn.apply::<R>(move |a| (pab_fn)(a), s)
 			})
 		}
 	}
@@ -448,7 +448,7 @@ mod inner {
 		) -> Vec<A>
 		where
 			A: Clone, {
-			self.fold_fn.apply::<Vec<A>, _>(|a| vec![a], s)
+			self.fold_fn.apply::<Vec<A>>(|a| vec![a], s)
 		}
 	}
 
@@ -501,7 +501,7 @@ mod inner {
 			let fold_fn = self.fold_fn.clone();
 			Forget::<Q, R, S, S>::new(move |s: S| {
 				let pab_fn = pab.0.clone();
-				fold_fn.apply::<R, _>(move |a| (pab_fn)(a), s)
+				fold_fn.apply::<R>(move |a| (pab_fn)(a), s)
 			})
 		}
 	}

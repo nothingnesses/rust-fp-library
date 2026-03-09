@@ -190,7 +190,7 @@
 //!
 //! let x = Some(5);
 //! // Map a function over the `Option` using the `Functor` type class
-//! let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+//! let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 //! assert_eq!(y, Some(10));
 //! ```
 //!

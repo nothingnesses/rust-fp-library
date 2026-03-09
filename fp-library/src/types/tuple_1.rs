@@ -51,8 +51,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the value.",
 			"The type of the value inside the tuple.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The tuple to map over.")]
@@ -68,15 +67,13 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = map::<Tuple1Brand, _, _, _>(|i| i * 2, x);
+		/// let y = map::<Tuple1Brand, _, _>(|i| i * 2, x);
 		/// assert_eq!(y, (10,));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			(func(fa.0),)
 		}
 	}
@@ -91,8 +88,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first tuple's value.",
 			"The type of the second tuple's value.",
-			"The return type of the function.",
-			"The type of the binary function."
+			"The return type of the function."
 		)]
 		///
 		#[document_parameters(
@@ -112,16 +108,15 @@ mod inner {
 		///
 		/// let x = (1,);
 		/// let y = (2,);
-		/// let z = lift2::<Tuple1Brand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<Tuple1Brand, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, (3,));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: 'a,
 			B: 'a,
 			C: 'a, {
@@ -209,8 +204,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters(
@@ -228,15 +222,13 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = bind::<Tuple1Brand, _, _, _>(x, |i| (i * 2,));
+		/// let y = bind::<Tuple1Brand, _, _>(x, |i| (i * 2,));
 		/// assert_eq!(y, (10,));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			func(ma.0)
 		}
 	}
@@ -251,8 +243,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -271,16 +262,15 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, Tuple1Brand, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.0, initial)
 		}
@@ -294,8 +284,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -314,16 +303,15 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, Tuple1Brand, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.0)
 		}
@@ -337,8 +325,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters(
@@ -356,16 +343,15 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, Tuple1Brand, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.0)
 		}
@@ -381,8 +367,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -400,15 +385,14 @@ mod inner {
 		/// };
 		///
 		/// let x = (5,);
-		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<Tuple1Brand, _, _, OptionBrand>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some((10,)));
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			F::map(|b| (b,), func(ta.0))
 		}
@@ -570,7 +554,7 @@ mod tests {
 	#[quickcheck]
 	fn functor_identity(x: i32) -> bool {
 		let x = (x,);
-		map::<Tuple1Brand, _, _, _>(identity, x) == x
+		map::<Tuple1Brand, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -579,8 +563,8 @@ mod tests {
 		let x = (x,);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<Tuple1Brand, _, _, _>(compose(f, g), x)
-			== map::<Tuple1Brand, _, _, _>(f, map::<Tuple1Brand, _, _, _>(g, x))
+		map::<Tuple1Brand, _, _>(compose(f, g), x)
+			== map::<Tuple1Brand, _, _>(f, map::<Tuple1Brand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -654,14 +638,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| (x.wrapping_mul(2),);
-		bind::<Tuple1Brand, _, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
+		bind::<Tuple1Brand, _, _>(pure::<Tuple1Brand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: i32) -> bool {
 		let m = (m,);
-		bind::<Tuple1Brand, _, _, _>(m, pure::<Tuple1Brand, _>) == m
+		bind::<Tuple1Brand, _, _>(m, pure::<Tuple1Brand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -670,8 +654,8 @@ mod tests {
 		let m = (m,);
 		let f = |x: i32| (x.wrapping_mul(2),);
 		let g = |x: i32| (x.wrapping_add(1),);
-		bind::<Tuple1Brand, _, _, _>(bind::<Tuple1Brand, _, _, _>(m, f), g)
-			== bind::<Tuple1Brand, _, _, _>(m, |x| bind::<Tuple1Brand, _, _, _>(f(x), g))
+		bind::<Tuple1Brand, _, _>(bind::<Tuple1Brand, _, _>(m, f), g)
+			== bind::<Tuple1Brand, _, _>(m, |x| bind::<Tuple1Brand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -679,20 +663,20 @@ mod tests {
 	/// Tests the `map` function.
 	#[test]
 	fn map_test() {
-		assert_eq!(map::<Tuple1Brand, _, _, _>(|x: i32| x + 1, (1,)), (2,));
+		assert_eq!(map::<Tuple1Brand, _, _>(|x: i32| x + 1, (1,)), (2,));
 	}
 
 	/// Tests the `bind` function.
 	#[test]
 	fn bind_test() {
-		assert_eq!(bind::<Tuple1Brand, _, _, _>((1,), |x| (x + 1,)), (2,));
+		assert_eq!(bind::<Tuple1Brand, _, _>((1,), |x| (x + 1,)), (2,));
 	}
 
 	/// Tests the `fold_right` function.
 	#[test]
 	fn fold_right_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, Tuple1Brand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, Tuple1Brand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				(1,)
@@ -705,7 +689,7 @@ mod tests {
 	#[test]
 	fn fold_left_test() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, Tuple1Brand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, Tuple1Brand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				(1,)
@@ -718,7 +702,7 @@ mod tests {
 	#[test]
 	fn traverse_test() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<Tuple1Brand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<Tuple1Brand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				(1,)
 			),

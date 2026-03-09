@@ -78,9 +78,7 @@ mod inner {
 			"The source type of the new structure.",
 			"The target type of the new structure.",
 			"The source type of the original structure.",
-			"The target type of the original structure.",
-			"The type of the function to apply to the input.",
-			"The type of the function to apply to the output."
+			"The target type of the original structure."
 		)]
 		///
 		#[document_parameters(
@@ -114,14 +112,11 @@ mod inner {
 		/// );
 		/// assert_eq!(transformed.0, "123".to_string());
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			_ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			_ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			Tagged::new(cd(pbc.0))
 		}
 	}

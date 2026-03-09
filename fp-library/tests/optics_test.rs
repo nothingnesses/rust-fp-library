@@ -108,7 +108,7 @@ fn test_composition() {
 fn test_profunctor_dimap() {
 	// Test that functions are profunctors
 	let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	let g = dimap::<RcFnBrand, _, _, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
+	let g = dimap::<RcFnBrand, _, _, _, _>(|x: i32| x * 2, |x: i32| x - 1, f);
 
 	assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 }

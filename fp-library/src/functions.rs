@@ -15,9 +15,9 @@
 //!
 //! let f = |x: i32| x + 1;
 //! let g = |x: i32| x * 2;
-//! let h = compose::<i32, i32, _, _, _>(f, g);
+//! let h = compose(f, g);
 //!
-//! assert_eq!(map::<OptionBrand, _, _, _>(h, Some(5)), Some(11));
+//! assert_eq!(map::<OptionBrand, _, _>(h, Some(5)), Some(11));
 //! ```
 
 use fp_macros::*;
@@ -54,9 +54,7 @@ pub use crate::types::optics::{
 #[document_type_parameters(
 	"The input type of the inner function `g`.",
 	"The output type of `g` and the input type of `f`.",
-	"The output type of the outer function `f`.",
-	"The type of the outer function.",
-	"The type of the inner function."
+	"The output type of the outer function `f`."
 )]
 ///
 #[document_parameters(
@@ -80,13 +78,10 @@ pub use crate::types::optics::{
 /// // 3 * 2 + 1 = 7
 /// assert_eq!(times_two_add_one(3), 7);
 /// ```
-pub fn compose<A, B, C, F, G>(
-	f: F,
-	g: G,
-) -> impl Fn(A) -> C
-where
-	F: Fn(B) -> C,
-	G: Fn(A) -> B, {
+pub fn compose<A, B, C>(
+	f: impl Fn(B) -> C,
+	g: impl Fn(A) -> B,
+) -> impl Fn(A) -> C {
 	move |a| f(g(a))
 }
 
@@ -132,8 +127,7 @@ pub fn constant<A: Clone, B>(
 #[document_type_parameters(
 	"The type of the first argument of the input function.",
 	"The type of the second argument of the input function.",
-	"The return type of the function.",
-	"The type of the input binary function."
+	"The return type of the function."
 )]
 ///
 #[document_parameters(
@@ -155,9 +149,7 @@ pub fn constant<A: Clone, B>(
 /// // 0 - 1 = -1
 /// assert_eq!(flip(subtract)(1, 0), -1);
 /// ```
-pub fn flip<A, B, C, F>(f: F) -> impl Fn(B, A) -> C
-where
-	F: Fn(A, B) -> C, {
+pub fn flip<A, B, C>(f: impl Fn(A, B) -> C) -> impl Fn(B, A) -> C {
 	move |b, a| f(a, b)
 }
 

@@ -9,7 +9,7 @@
 //! };
 //!
 //! let f = |x: i32| x > 5;
-//! let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
+//! let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _>(
 //! 	|s: String| s.len() as i32,
 //! 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 //! );
@@ -49,8 +49,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The original type consumed by the context.",
-			"The new type to consume.",
-			"The type of the contravariant function."
+			"The new type to consume."
 		)]
 		///
 		#[document_parameters(
@@ -68,19 +67,17 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x > 5;
-		/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
+		/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _>(
 		/// 	|s: String| s.len() as i32,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 		/// );
 		/// assert_eq!(is_long_int("123456".to_string()), true);
 		/// assert_eq!(is_long_int("123".to_string()), false);
 		/// ```
-		fn contramap<'a, A: 'a, B: 'a, Func>(
-			f: Func,
+		fn contramap<'a, A: 'a, B: 'a>(
+			f: impl Fn(B) -> A + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(B) -> A + 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
 	/// Maps a function contravariantly over the context.
@@ -92,8 +89,7 @@ mod inner {
 		"The lifetime of the values.",
 		"The brand of the contravariant functor.",
 		"The original type consumed by the context.",
-		"The new type to consume.",
-		"The type of the contravariant function."
+		"The new type to consume."
 	)]
 	///
 	#[document_parameters("The function to apply to the new input.", "The contravariant instance.")]
@@ -108,20 +104,18 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x > 5;
-	/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _, _>(
+	/// let is_long_int = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, bool>, _, _>(
 	/// 	|s: String| s.len() as i32,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> bool>,
 	/// );
 	/// assert_eq!(is_long_int("123456".to_string()), true);
 	/// assert_eq!(is_long_int("123".to_string()), false);
 	/// ```
-	pub fn contramap<'a, Brand: Contravariant, A: 'a, B: 'a, Func>(
-		f: Func,
+	pub fn contramap<'a, Brand: Contravariant, A: 'a, B: 'a>(
+		f: impl Fn(B) -> A + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(B) -> A + 'a, {
-		Brand::contramap::<A, B, Func>(f, fa)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		Brand::contramap(f, fa)
 	}
 }
 

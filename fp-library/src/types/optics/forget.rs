@@ -163,9 +163,7 @@ mod inner {
 			"The source type of the new structure.",
 			"The target type of the new structure.",
 			"The source type of the original structure.",
-			"The target type of the original structure.",
-			"The type of the function to apply to the input.",
-			"The type of the function to apply to the output."
+			"The target type of the original structure."
 		)]
 		///
 		#[document_parameters(
@@ -200,14 +198,11 @@ mod inner {
 		/// );
 		/// assert_eq!(transformed.run("hello"), 5);
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			ab: FuncAB,
-			_cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			ab: impl Fn(A) -> B + 'a,
+			_cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			Forget::new(move |a| (pbc.0)(ab(a)))
 		}
 	}
@@ -265,8 +260,7 @@ mod inner {
 			"The source type of the structure.",
 			"The target type of the structure.",
 			"The source type of the focus.",
-			"The target type of the focus.",
-			"The type of the traversal function."
+			"The target type of the focus."
 		)]
 		///
 		#[document_parameters("The traversal function.", "The forget instance to transform.")]
@@ -293,12 +287,10 @@ mod inner {
 		/// let transformed = Forget::<RcBrand, String, Vec<String>, Vec<String>>::new(|v| v.join(""));
 		/// assert_eq!(transformed.run(vec!["a".to_string(), "b".to_string()]), "ab".to_string());
 		/// ```
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
-			traversal: TFunc,
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone>(
+			traversal: impl crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		where
-			TFunc: crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 			use crate::types::const_val::ConstBrand;
 			Forget::new(move |s| {
 				let pab = pab.clone();

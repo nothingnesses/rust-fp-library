@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Result::<i32, i32>::Ok(5);
-//! let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
+//! let y = bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 //! assert_eq!(y, Ok(10));
 //! ```
 #[fp_macros::document_module]
@@ -56,9 +56,7 @@ mod inner {
 			"The type of the first value.",
 			"The type of the first result.",
 			"The type of the second value.",
-			"The type of the second result.",
-			"The type of the first function.",
-			"The type of the second function."
+			"The type of the second result."
 		)]
 		///
 		#[document_parameters(
@@ -79,17 +77,14 @@ mod inner {
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
+		/// let y = bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
-		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
-			f: F,
-			g: G,
+		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
-		where
-			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>);
 	}
 
 	/// Maps functions over the values in the bifunctor context.
@@ -103,9 +98,7 @@ mod inner {
 		"The type of the first value.",
 		"The type of the first result.",
 		"The type of the second value.",
-		"The type of the second result.",
-		"The type of the first function.",
-		"The type of the second function."
+		"The type of the second result."
 	)]
 	///
 	#[document_parameters(
@@ -126,18 +119,15 @@ mod inner {
 	/// };
 	///
 	/// let x = Result::<i32, i32>::Ok(5);
-	/// let y = bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x);
+	/// let y = bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x);
 	/// assert_eq!(y, Ok(10));
 	/// ```
-	pub fn bimap<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
-		f: F,
-		g: G,
+	pub fn bimap<'a, Brand: Bifunctor, A: 'a, B: 'a, C: 'a, D: 'a>(
+		f: impl Fn(A) -> B + 'a,
+		g: impl Fn(C) -> D + 'a,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
-	where
-		F: Fn(A) -> B + 'a,
-		G: Fn(C) -> D + 'a, {
-		Brand::bimap::<A, B, C, D, F, G>(f, g, p)
+	) -> Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
+		Brand::bimap(f, g, p)
 	}
 
 	impl_kind! {
@@ -157,8 +147,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The input type.",
-			"The output type.",
-			"The mapping function type."
+			"The output type."
 		)]
 		#[document_parameters("The function to apply.", "The bifunctor value to map over.")]
 		#[document_returns("The mapped bifunctor value.")]
@@ -171,15 +160,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Ok(5);
-		/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _, _>(|s| s * 2, x);
+		/// let y = map::<BifunctorFirstAppliedBrand<ResultBrand, i32>, _, _>(|s| s * 2, x);
 		/// assert_eq!(y, Ok(10));
 		/// ```
-		fn map<'a, B: 'a, C: 'a, Func>(
-			f: Func,
+		fn map<'a, B: 'a, C: 'a>(
+			f: impl Fn(B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-		where
-			Func: Fn(B) -> C + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			Brand::bimap(crate::functions::identity, f, fa)
 		}
 	}
@@ -201,8 +188,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The input type.",
-			"The output type.",
-			"The mapping function type."
+			"The output type."
 		)]
 		#[document_parameters("The function to apply.", "The bifunctor value to map over.")]
 		#[document_returns("The mapped bifunctor value.")]
@@ -215,15 +201,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Result::<i32, i32>::Err(5);
-		/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _, _>(|e| e * 2, x);
+		/// let y = map::<BifunctorSecondAppliedBrand<ResultBrand, i32>, _, _>(|e| e * 2, x);
 		/// assert_eq!(y, Err(10));
 		/// ```
-		fn map<'a, A: 'a, C: 'a, Func>(
-			f: Func,
+		fn map<'a, A: 'a, C: 'a>(
+			f: impl Fn(A) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-		where
-			Func: Fn(A) -> C + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			Brand::bimap(f, crate::functions::identity, fa)
 		}
 	}

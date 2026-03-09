@@ -120,8 +120,6 @@ mod inner {
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the initializer closure.")]
-		///
 		#[document_parameters("The closure that produces the result.")]
 		///
 		#[document_returns("A new `TryLazy` instance.")]
@@ -134,9 +132,7 @@ mod inner {
 		/// let memo = TryLazy::<_, _, RcLazyConfig>::new(|| Ok::<i32, ()>(42));
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Result<A, E> + 'a, {
+		pub fn new(f: impl FnOnce() -> Result<A, E> + 'a) -> Self {
 			TryLazy(RcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
@@ -256,8 +252,6 @@ mod inner {
 		/// Creates a `TryLazy` that catches unwinds (panics).
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the initializer closure.")]
-		///
 		#[document_parameters("The closure that might panic.")]
 		///
 		#[document_returns("A new `TryLazy` instance where panics are converted to `Err(String)`.")]
@@ -275,9 +269,7 @@ mod inner {
 		/// });
 		/// assert_eq!(memo.evaluate(), Err(&"oops".to_string()));
 		/// ```
-		pub fn catch_unwind<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + std::panic::UnwindSafe + 'a, {
+		pub fn catch_unwind(f: impl FnOnce() -> A + std::panic::UnwindSafe + 'a) -> Self {
 			Self::new(move || {
 				std::panic::catch_unwind(f).map_err(|e| {
 					if let Some(s) = e.downcast_ref::<&str>() {
@@ -305,8 +297,6 @@ mod inner {
 		/// Creates a new `TryLazy` that will run `f` on first access.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the initializer closure.")]
-		///
 		#[document_parameters("The closure that produces the result.")]
 		///
 		#[document_returns("A new `TryLazy` instance.")]
@@ -319,9 +309,7 @@ mod inner {
 		/// let memo = TryLazy::<_, _, ArcLazyConfig>::new(|| Ok::<i32, ()>(42));
 		/// assert_eq!(memo.evaluate(), Ok(&42));
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Result<A, E> + Send + 'a, {
+		pub fn new(f: impl FnOnce() -> Result<A, E> + Send + 'a) -> Self {
 			TryLazy(ArcLazyConfig::try_lazy_new(Box::new(f)))
 		}
 	}
@@ -342,8 +330,6 @@ mod inner {
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
 		#[document_returns("A new `TryLazy` value.")]
@@ -361,9 +347,8 @@ mod inner {
 		/// let lazy = TryLazy::<_, (), RcLazyConfig>::defer(|| RcTryLazy::new(|| Ok(42)));
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
 			Self: Sized, {
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 		}
@@ -392,8 +377,6 @@ mod inner {
 		/// The inner `TryLazy` is computed only when the outer `TryLazy` is evaluated.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
 		#[document_returns("A new `ArcTryLazy` value.")]
@@ -410,9 +393,8 @@ mod inner {
 		/// let lazy: ArcTryLazy<i32, ()> = ArcTryLazy::send_defer(|| ArcTryLazy::new(|| Ok(42)));
 		/// assert_eq!(lazy.evaluate(), Ok(&42));
 		/// ```
-		fn send_defer<F>(f: F) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
 		where
-			F: FnOnce() -> Self + Send + Sync + 'a,
 			Self: Sized, {
 			Self::new(move || f().evaluate().cloned().map_err(Clone::clone))
 		}

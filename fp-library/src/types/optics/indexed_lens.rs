@@ -315,7 +315,7 @@ mod inner {
 		/// };
 		/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 		/// 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
-		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 	&l,
 		/// 	|i, _| format!("{}", i),
 		/// 	(42, "hi".to_string()),
@@ -404,7 +404,7 @@ mod inner {
 		/// };
 		/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 		/// 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
-		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 	&l,
 		/// 	|i, _| format!("{}", i),
 		/// 	(42, "hi".to_string()),

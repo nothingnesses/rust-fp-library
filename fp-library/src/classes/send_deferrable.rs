@@ -24,8 +24,6 @@ mod inner {
 		/// Creates a deferred value from a thread-safe thunk.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("The function that produces the value.")]
 		///
 		#[document_returns("A deferred value.")]
@@ -41,9 +39,8 @@ mod inner {
 		/// let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
 		/// assert_eq!(*memo.evaluate(), 42);
 		/// ```
-		fn send_defer<F>(f: F) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
 		where
-			F: FnOnce() -> Self + Send + Sync + 'a,
 			Self: Sized;
 	}
 
@@ -54,8 +51,7 @@ mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the computation",
-		"The type of the deferred value.",
-		"The type of the thunk."
+		"The type of the deferred value."
 	)]
 	///
 	#[document_parameters("The function that produces the value.")]
@@ -73,10 +69,7 @@ mod inner {
 	/// let memo: ArcLazy<i32> = send_defer(|| ArcLazy::new(|| 42));
 	/// assert_eq!(*memo.evaluate(), 42);
 	/// ```
-	pub fn send_defer<'a, D, F>(f: F) -> D
-	where
-		D: SendDeferrable<'a>,
-		F: FnOnce() -> D + Send + Sync + 'a, {
+	pub fn send_defer<'a, D: SendDeferrable<'a>>(f: impl FnOnce() -> D + Send + Sync + 'a) -> D {
 		D::send_defer(f)
 	}
 }

@@ -10,7 +10,7 @@
 //!
 //! let x = Some(1);
 //! let y = Some(2);
-//! let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+//! let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
 //! assert_eq!(z, Some(3));
 //! ```
 
@@ -32,8 +32,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first value.",
 			"The type of the second value.",
-			"The type of the result.",
-			"The type of the binary function."
+			"The type of the result."
 		)]
 		///
 		#[document_parameters(
@@ -53,16 +52,15 @@ mod inner {
 		///
 		/// let x = Some(1);
 		/// let y = Some(2);
-		/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+		/// let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
 		/// assert_eq!(z, Some(3));
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a;
@@ -78,8 +76,7 @@ mod inner {
 		"The brand of the context.",
 		"The type of the first value.",
 		"The type of the second value.",
-		"The type of the result.",
-		"The type of the binary function."
+		"The type of the result."
 	)]
 	///
 	#[document_parameters(
@@ -99,20 +96,19 @@ mod inner {
 	///
 	/// let x = Some(1);
 	/// let y = Some(2);
-	/// let z = lift2::<OptionBrand, _, _, _, _>(|a, b| a + b, x, y);
+	/// let z = lift2::<OptionBrand, _, _, _>(|a, b| a + b, x, y);
 	/// assert_eq!(z, Some(3));
 	/// ```
-	pub fn lift2<'a, Brand: Lift, A, B, C, Func>(
-		func: Func,
+	pub fn lift2<'a, Brand: Lift, A, B, C>(
+		func: impl Fn(A, B) -> C + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		fb: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 	where
-		Func: Fn(A, B) -> C + 'a,
 		A: Clone + 'a,
 		B: Clone + 'a,
 		C: 'a, {
-		Brand::lift2::<A, B, C, Func>(func, fa, fb)
+		Brand::lift2(func, fa, fb)
 	}
 }
 

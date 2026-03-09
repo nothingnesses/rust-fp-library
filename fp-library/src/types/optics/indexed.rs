@@ -98,9 +98,7 @@ mod inner {
 			"The new input type.",
 			"The original input type.",
 			"The original output type.",
-			"The new output type.",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new output type."
 		)]
 		#[document_parameters(
 			"The contravariant function to apply to the input.",
@@ -128,14 +126,11 @@ mod inner {
 		/// );
 		/// assert_eq!((transformed.inner)((10, 16)), 41); // (10 + (16 * 2)) - 1 = 41
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			Indexed::new(P::dimap(move |(i, a)| (i, ab(a)), cd, pbc.inner))
 		}
 	}
@@ -304,8 +299,7 @@ mod inner {
 			"The source type of the structure.",
 			"The target type of the structure.",
 			"The source type of the focus.",
-			"The target type of the focus.",
-			"The type of the traversal function."
+			"The target type of the focus."
 		)]
 		#[document_parameters("The traversal function.", "The indexed profunctor instance.")]
 		#[document_returns("A transformed `Indexed` instance that operates on structures.")]
@@ -343,12 +337,10 @@ mod inner {
 		/// 	IndexedTraversalOptic::evaluate::<RcFnBrand>(&traversal, pab);
 		/// assert_eq!(result(vec![10, 20]), vec![10, 21]);
 		/// ```
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
-			traversal: TFunc,
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone>(
+			traversal: impl TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		where
-			TFunc: TraversalFunc<'a, S, T, A, B> + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 			struct IWanderAdapter<'a, I, S, T, A, B, TFunc> {
 				traversal: TFunc,
 				_phantom: PhantomData<&'a (I, S, T, A, B)>,

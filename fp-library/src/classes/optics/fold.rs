@@ -22,7 +22,7 @@ mod inner {
 		/// Apply the fold by mapping each focus to a monoid value and combining.
 		#[document_signature]
 		///
-		#[document_type_parameters("The monoid type to fold into.", "The mapping function type.")]
+		#[document_type_parameters("The monoid type to fold into.")]
 		///
 		#[document_parameters("The mapping function.", "The structure to fold.")]
 		///
@@ -40,12 +40,12 @@ mod inner {
 		/// };
 		///
 		/// let fold = IterableFoldFn(|v: Vec<i32>| v);
-		/// let result = fold.apply::<String, _>(|x| x.to_string(), vec![1, 2, 3]);
+		/// let result = fold.apply::<String>(|x| x.to_string(), vec![1, 2, 3]);
 		/// assert_eq!(result, "123".to_string());
 		/// ```
-		fn apply<R: Monoid, F: Fn(A) -> R + 'a>(
+		fn apply<R: Monoid>(
 			&self,
-			f: F,
+			f: impl Fn(A) -> R + 'a,
 			s: S,
 		) -> R;
 	}

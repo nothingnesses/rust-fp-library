@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+//! let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
 //! assert_eq!(y, 15);
 //! ```
 
@@ -47,8 +47,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -67,19 +66,18 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+		/// let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			let f = <FnBrand as CloneableFn>::new(move |(a, b)| func(a, b));
-			let m = Self::fold_map::<FnBrand, A, Endofunction<FnBrand, B>, _>(
+			let m = Self::fold_map::<FnBrand, A, Endofunction<FnBrand, B>>(
 				move |a: A| {
 					let f = f.clone();
 					Endofunction::<FnBrand, B>::new(<FnBrand as CloneableFn>::new(move |b| {
@@ -100,8 +98,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -120,19 +117,18 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+		/// let y = fold_left::<RcFnBrand, OptionBrand, _, _>(|b, a| b + a, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			let f = <FnBrand as CloneableFn>::new(move |(b, a)| func(b, a));
-			let m = Self::fold_right::<FnBrand, A, Endofunction<FnBrand, B>, _>(
+			let m = Self::fold_right::<FnBrand, A, Endofunction<FnBrand, B>>(
 				move |a: A, k: Endofunction<'a, FnBrand, B>| {
 					let f = f.clone();
 					// k is the "rest" of the computation.
@@ -161,8 +157,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters(
@@ -180,18 +175,17 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+		/// let y = fold_map::<RcFnBrand, OptionBrand, _, _>(|a: i32| a.to_string(), x);
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a + Clone, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
-			Self::fold_right::<FnBrand, A, M, _>(move |a, m| M::append(func(a), m), M::empty(), fa)
+			Self::fold_right::<FnBrand, A, M>(move |a, m| M::append(func(a), m), M::empty(), fa)
 		}
 	}
 
@@ -205,8 +199,7 @@ mod inner {
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
+		"The type of the accumulator."
 	)]
 	///
 	#[document_parameters(
@@ -225,18 +218,17 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = fold_right::<RcFnBrand, OptionBrand, _, _, _>(|a, b| a + b, 10, x);
+	/// let y = fold_right::<RcFnBrand, OptionBrand, _, _>(|a, b| a + b, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	pub fn fold_right<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a, Func>(
-		func: Func,
+	pub fn fold_right<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a>(
+		func: impl Fn(A, B) -> B + 'a,
 		initial: B,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		Func: Fn(A, B) -> B + 'a,
 		FnBrand: CloneableFn + 'a, {
-		Brand::fold_right::<FnBrand, A, B, Func>(func, initial, fa)
+		Brand::fold_right::<FnBrand, A, B>(func, initial, fa)
 	}
 
 	/// Folds the structure by applying a function from left to right.
@@ -249,8 +241,7 @@ mod inner {
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure.",
-		"The type of the accumulator.",
-		"The type of the folding function."
+		"The type of the accumulator."
 	)]
 	///
 	#[document_parameters(
@@ -269,18 +260,17 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = fold_left::<RcFnBrand, OptionBrand, _, _, _>(|b, a| b + a, 10, x);
+	/// let y = fold_left::<RcFnBrand, OptionBrand, _, _>(|b, a| b + a, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
-	pub fn fold_left<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a, Func>(
-		func: Func,
+	pub fn fold_left<'a, FnBrand, Brand: Foldable, A: 'a + Clone, B: 'a>(
+		func: impl Fn(B, A) -> B + 'a,
 		initial: B,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> B
 	where
-		Func: Fn(B, A) -> B + 'a,
 		FnBrand: CloneableFn + 'a, {
-		Brand::fold_left::<FnBrand, A, B, Func>(func, initial, fa)
+		Brand::fold_left::<FnBrand, A, B>(func, initial, fa)
 	}
 
 	/// Maps values to a monoid and combines them.
@@ -293,8 +283,7 @@ mod inner {
 		"The brand of the cloneable function to use.",
 		"The brand of the foldable structure.",
 		"The type of the elements in the structure.",
-		"The type of the monoid.",
-		"The type of the mapping function."
+		"The type of the monoid."
 	)]
 	///
 	#[document_parameters(
@@ -312,18 +301,17 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = fold_map::<RcFnBrand, OptionBrand, _, _, _>(|a: i32| a.to_string(), x);
+	/// let y = fold_map::<RcFnBrand, OptionBrand, _, _>(|a: i32| a.to_string(), x);
 	/// assert_eq!(y, "5".to_string());
 	/// ```
-	pub fn fold_map<'a, FnBrand, Brand: Foldable, A: 'a + Clone, M, Func>(
-		func: Func,
+	pub fn fold_map<'a, FnBrand, Brand: Foldable, A: 'a + Clone, M>(
+		func: impl Fn(A) -> M + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> M
 	where
 		M: Monoid + 'a,
-		Func: Fn(A) -> M + 'a,
 		FnBrand: CloneableFn + 'a, {
-		Brand::fold_map::<FnBrand, A, M, Func>(func, fa)
+		Brand::fold_map::<FnBrand, A, M>(func, fa)
 	}
 }
 

@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+//! let y = wither::<OptionBrand, OptionBrand, _, _>(
 //! 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 //! 	x,
 //! );
@@ -48,8 +48,7 @@ mod inner {
 			"The applicative context.",
 			"The type of the elements in the input structure.",
 			"The type of the error values.",
-			"The type of the success values.",
-			"The type of the function to apply."
+			"The type of the success values."
 		)]
 		///
 		#[document_parameters(
@@ -68,14 +67,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
-		/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
-		/// 	x,
-		/// );
+		/// let y =
+		/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 		/// assert_eq!(y, Some((None, Some(5))));
 		/// ```
-		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
-			func: Func,
+		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+			+ 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
@@ -85,13 +83,11 @@ mod inner {
 			),
 		>)
 		where
-			Func:
-				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 			M::map(
 				|res| Self::separate::<E, O>(res),
-				Self::traverse::<A, Result<O, E>, M, Func>(func, ta),
+				Self::traverse::<A, Result<O, E>, M>(func, ta),
 			)
 		}
 
@@ -104,8 +100,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
-			"The type of the elements in the output structure.",
-			"The type of the function to apply."
+			"The type of the elements in the output structure."
 		)]
 		///
 		#[document_parameters(
@@ -125,24 +120,23 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+		/// let y = wither::<OptionBrand, OptionBrand, _, _>(
 		/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
-		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-			func: Func,
+		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 			'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		>)
 		where
-			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
-			M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M, Func>(func, ta))
+			M::map(|opt| Self::compact(opt), Self::traverse::<A, Option<B>, M>(func, ta))
 		}
 	}
 
@@ -157,8 +151,7 @@ mod inner {
 		"The applicative context.",
 		"The type of the elements in the input structure.",
 		"The type of the error values.",
-		"The type of the success values.",
-		"The type of the function to apply."
+		"The type of the success values."
 	)]
 	///
 	#[document_parameters(
@@ -177,22 +170,12 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wilt::<OptionBrand, OptionBrand, _, _, _, _>(
-	/// 	|a| Some(if a > 2 { Ok(a) } else { Err(a) }),
-	/// 	x,
-	/// );
+	/// let y =
+	/// 	wilt::<OptionBrand, OptionBrand, _, _, _>(|a| Some(if a > 2 { Ok(a) } else { Err(a) }), x);
 	/// assert_eq!(y, Some((None, Some(5))));
 	/// ```
-	pub fn wilt<
-		'a,
-		F: Witherable,
-		M: Applicative,
-		A: 'a + Clone,
-		E: 'a + Clone,
-		O: 'a + Clone,
-		Func,
-	>(
-		func: Func,
+	pub fn wilt<'a, F: Witherable, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+		func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
@@ -202,10 +185,9 @@ mod inner {
 		),
 	>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
-		F::wilt::<M, A, E, O, Func>(func, ta)
+		F::wilt::<M, A, E, O>(func, ta)
 	}
 
 	/// Maps a function over a data structure and filters out [`None`] results in an applicative context.
@@ -218,8 +200,7 @@ mod inner {
 		"The brand of the witherable structure.",
 		"The applicative context.",
 		"The type of the elements in the input structure.",
-		"The type of the elements in the output structure.",
-		"The type of the function to apply."
+		"The type of the elements in the output structure."
 	)]
 	///
 	#[document_parameters(
@@ -239,24 +220,23 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = wither::<OptionBrand, OptionBrand, _, _, _>(
+	/// let y = wither::<OptionBrand, OptionBrand, _, _>(
 	/// 	|a| Some(if a > 2 { Some(a * 2) } else { None }),
 	/// 	x,
 	/// );
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	pub fn wither<'a, F: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-		func: Func,
+	pub fn wither<'a, F: Witherable, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+		func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 		ta: Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	>)
 	where
-		Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 		Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
-		F::wither::<M, A, B, Func>(func, ta)
+		F::wither::<M, A, B>(func, ta)
 	}
 }
 

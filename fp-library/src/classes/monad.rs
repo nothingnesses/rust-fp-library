@@ -10,7 +10,7 @@
 //!
 //! // Monad combines Pointed (pure) and Semimonad (bind)
 //! let x = pure::<OptionBrand, _>(5);
-//! let y = bind::<OptionBrand, _, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
+//! let y = bind::<OptionBrand, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -34,7 +34,7 @@ mod inner {
 	///
 	/// // Monad combines Pointed (pure) and Semimonad (bind)
 	/// let x = pure::<OptionBrand, _>(5);
-	/// let y = bind::<OptionBrand, _, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
+	/// let y = bind::<OptionBrand, _, _>(x, |i| pure::<OptionBrand, _>(i * 2));
 	/// assert_eq!(y, Some(10));
 	/// ```
 	pub trait Monad: Applicative + Semimonad {}

@@ -131,8 +131,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the vector.",
-			"The type of the elements in the resulting vector.",
-			"The type of the function to apply."
+			"The type of the elements in the resulting vector."
 		)]
 		///
 		#[document_parameters("The function to apply to each element.", "The vector to map over.")]
@@ -147,14 +146,12 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<VecBrand, _, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
+		/// assert_eq!(map::<VecBrand, _, _>(|x: i32| x * 2, vec![1, 2, 3]), vec![2, 4, 6]);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.into_iter().map(func).collect()
 		}
 	}
@@ -169,8 +166,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The type of the elements in the first vector.",
 			"The type of the elements in the second vector.",
-			"The type of the elements in the resulting vector.",
-			"The type of the binary function."
+			"The type of the elements in the resulting vector."
 		)]
 		///
 		#[document_parameters(
@@ -191,17 +187,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<VecBrand, _, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
+		/// 	lift2::<VecBrand, _, _, _>(|x, y| x + y, vec![1, 2], vec![10, 20]),
 		/// 	vec![11, 21, 12, 22]
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
@@ -292,8 +287,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the input vector.",
-			"The type of the elements in the output vector.",
-			"The type of the function to apply."
+			"The type of the elements in the output vector."
 		)]
 		///
 		#[document_parameters(
@@ -310,14 +304,12 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<VecBrand, _, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
+		/// assert_eq!(bind::<VecBrand, _, _>(vec![1, 2], |x| vec![x, x * 2]), vec![1, 2, 2, 4]);
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.into_iter().flat_map(func).collect()
 		}
 	}
@@ -332,8 +324,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The vector to fold.")]
@@ -348,18 +339,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, VecBrand, _, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]),
-		/// 	6
-		/// );
+		/// assert_eq!(fold_right::<RcFnBrand, VecBrand, _, _>(|x: i32, acc| x + acc, 0, vec![1, 2, 3]), 6);
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().rev().fold(initial, |acc, x| func(x, acc))
 		}
@@ -373,8 +360,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -392,18 +378,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, VecBrand, _, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]),
-		/// 	6
-		/// );
+		/// assert_eq!(fold_left::<RcFnBrand, VecBrand, _, _>(|acc, x: i32| acc + x, 0, vec![1, 2, 3]), 6);
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().fold(initial, func)
 		}
@@ -417,8 +399,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the vector.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters("The mapping function.", "The vector to fold.")]
@@ -434,17 +415,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, VecBrand, _, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
+		/// 	fold_map::<RcFnBrand, VecBrand, _, _>(|x: i32| x.to_string(), vec![1, 2, 3]),
 		/// 	"123".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			fa.into_iter().map(func).fold(M::empty(), |acc, x| M::append(acc, x))
 		}
@@ -460,8 +440,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -482,16 +461,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<VecBrand, _, _, OptionBrand, _>(|x| Some(x * 2), vec![1, 2, 3]),
+		/// 	traverse::<VecBrand, _, _, OptionBrand>(|x| Some(x * 2), vec![1, 2, 3]),
 		/// 	Some(vec![2, 4, 6])
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			let len = ta.len();
@@ -869,8 +847,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The type of the input value.",
 			"The type of the error value.",
-			"The type of the success value.",
-			"The type of the function to apply."
+			"The type of the success value."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
@@ -887,19 +864,17 @@ mod inner {
 		///
 		/// let x = vec![1, 2, 3, 4];
 		/// let (errs, oks) =
-		/// 	partition_map::<VecBrand, _, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, vec![2, 4]);
 		/// assert_eq!(errs, vec![1, 3]);
 		/// ```
-		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
-			func: Func,
+		fn partition_map<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(A) -> Result<O, E> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		)
-		where
-			Func: Fn(A) -> Result<O, E> + 'a, {
+		) {
 			let mut oks = Vec::new();
 			let mut errs = Vec::new();
 			for a in fa {
@@ -916,11 +891,7 @@ mod inner {
 		/// This method partitions a vector based on a predicate.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The lifetime of the elements.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The vector to partition.")]
 		///
@@ -935,19 +906,17 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(|a| a % 2 == 0, x);
+		/// let (not_satisfied, satisfied) = partition::<VecBrand, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(satisfied, vec![2, 4]);
 		/// assert_eq!(not_satisfied, vec![1, 3]);
 		/// ```
-		fn partition<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn partition<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		)
-		where
-			Func: Fn(A) -> bool + 'a, {
+		) {
 			let (satisfied, not_satisfied): (Vec<A>, Vec<A>) =
 				fa.into_iter().partition(|a| func(a.clone()));
 			(not_satisfied, satisfied)
@@ -961,8 +930,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the input value.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The vector to filter and map.")]
@@ -978,15 +946,13 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter_map::<VecBrand, _, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<VecBrand, _, _>(|a| if a % 2 == 0 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, vec![4, 8]);
 		/// ```
-		fn filter_map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Option<B> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Option<B> + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.into_iter().filter_map(func).collect()
 		}
 
@@ -995,11 +961,7 @@ mod inner {
 		/// This method filters a vector based on a predicate.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The lifetime of the elements.",
-			"The type of the elements.",
-			"The type of the predicate."
-		)]
+		#[document_type_parameters("The lifetime of the elements.", "The type of the elements.")]
 		///
 		#[document_parameters("The predicate.", "The vector to filter.")]
 		///
@@ -1014,15 +976,13 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = filter::<VecBrand, _, _>(|a| a % 2 == 0, x);
+		/// let y = filter::<VecBrand, _>(|a| a % 2 == 0, x);
 		/// assert_eq!(y, vec![2, 4]);
 		/// ```
-		fn filter<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn filter<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		where
-			Func: Fn(A) -> bool + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			fa.into_iter().filter(|a| func(a.clone())).collect()
 		}
 	}
@@ -1038,8 +998,7 @@ mod inner {
 			"The applicative context.",
 			"The type of the input value.",
 			"The type of the error value.",
-			"The type of the success value.",
-			"The type of the function to apply."
+			"The type of the success value."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The vector to partition.")]
@@ -1055,14 +1014,15 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wilt::<VecBrand, OptionBrand, _, _, _, _>(
+		/// let y = wilt::<VecBrand, OptionBrand, _, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Ok(a) } else { Err(a) }),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, Some((vec![1, 3], vec![2, 4])));
 		/// ```
-		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone, Func>(
-			func: Func,
+		fn wilt<'a, M: Applicative, A: 'a + Clone, E: 'a + Clone, O: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>)
+			+ 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
@@ -1072,8 +1032,6 @@ mod inner {
 		),
 	>)
 		where
-			Func:
-				Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Result<O, E>>): Clone, {
 			ta.into_iter().fold(M::pure((Vec::new(), Vec::new())), |acc, x| {
@@ -1100,8 +1058,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The applicative context.",
 			"The type of the elements in the input structure.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters(
@@ -1122,21 +1079,20 @@ mod inner {
 		/// };
 		///
 		/// let x = vec![1, 2, 3, 4];
-		/// let y = wither::<VecBrand, OptionBrand, _, _, _>(
+		/// let y = wither::<VecBrand, OptionBrand, _, _>(
 		/// 	|a| Some(if a % 2 == 0 { Some(a * 2) } else { None }),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, Some(vec![4, 8]));
 		/// ```
-		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone, Func>(
-			func: Func,
+		fn wither<'a, M: Applicative, A: 'a + Clone, B: 'a + Clone>(
+			func: impl Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<
 		'a,
 		Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 	>)
 		where
-			Func: Fn(A) -> Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone,
 			Apply!(<M as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Option<B>>): Clone, {
 			ta.into_iter().fold(M::pure(Vec::new()), |acc, x| {
@@ -1172,7 +1128,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Vec<i32>) -> bool {
-		map::<VecBrand, _, _, _>(identity, x.clone()) == x
+		map::<VecBrand, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1180,8 +1136,8 @@ mod tests {
 	fn functor_composition(x: Vec<i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<VecBrand, _, _, _>(compose(f, g), x.clone())
-			== map::<VecBrand, _, _, _>(f, map::<VecBrand, _, _, _>(g, x))
+		map::<VecBrand, _, _>(compose(f, g), x.clone())
+			== map::<VecBrand, _, _>(f, map::<VecBrand, _, _>(g, x))
 	}
 
 	// Applicative Laws
@@ -1292,13 +1248,13 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
-		bind::<VecBrand, _, _, _>(pure::<VecBrand, _>(a), f) == f(a)
+		bind::<VecBrand, _, _>(pure::<VecBrand, _>(a), f) == f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Vec<i32>) -> bool {
-		bind::<VecBrand, _, _, _>(m.clone(), pure::<VecBrand, _>) == m
+		bind::<VecBrand, _, _>(m.clone(), pure::<VecBrand, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1306,8 +1262,8 @@ mod tests {
 	fn monad_associativity(m: Vec<i32>) -> bool {
 		let f = |x: i32| vec![x.wrapping_mul(2)];
 		let g = |x: i32| vec![x.wrapping_add(1)];
-		bind::<VecBrand, _, _, _>(bind::<VecBrand, _, _, _>(m.clone(), f), g)
-			== bind::<VecBrand, _, _, _>(m, |x| bind::<VecBrand, _, _, _>(f(x), g))
+		bind::<VecBrand, _, _>(bind::<VecBrand, _, _>(m.clone(), f), g)
+			== bind::<VecBrand, _, _>(m, |x| bind::<VecBrand, _, _>(f(x), g))
 	}
 
 	// Edge Cases
@@ -1315,17 +1271,14 @@ mod tests {
 	/// Tests `map` on an empty vector.
 	#[test]
 	fn map_empty() {
-		assert_eq!(
-			map::<VecBrand, _, _, _>(|x: i32| x + 1, vec![] as Vec<i32>),
-			vec![] as Vec<i32>
-		);
+		assert_eq!(map::<VecBrand, _, _>(|x: i32| x + 1, vec![] as Vec<i32>), vec![] as Vec<i32>);
 	}
 
 	/// Tests `bind` on an empty vector.
 	#[test]
 	fn bind_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
+			bind::<VecBrand, _, _>(vec![] as Vec<i32>, |x: i32| vec![x + 1]),
 			vec![] as Vec<i32>
 		);
 	}
@@ -1334,7 +1287,7 @@ mod tests {
 	#[test]
 	fn bind_returning_empty() {
 		assert_eq!(
-			bind::<VecBrand, _, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
+			bind::<VecBrand, _, _>(vec![1, 2, 3], |_| vec![] as Vec<i32>),
 			vec![] as Vec<i32>
 		);
 	}
@@ -1343,7 +1296,7 @@ mod tests {
 	#[test]
 	fn fold_right_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, VecBrand, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, VecBrand, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				vec![]
@@ -1356,7 +1309,7 @@ mod tests {
 	#[test]
 	fn fold_left_empty() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, VecBrand, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, VecBrand, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				vec![]
@@ -1370,7 +1323,7 @@ mod tests {
 	fn traverse_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				vec![]
 			),
@@ -1383,7 +1336,7 @@ mod tests {
 	fn traverse_returning_empty() {
 		use crate::brands::OptionBrand;
 		assert_eq!(
-			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<VecBrand, _, _, OptionBrand>(
 				|_: i32| None::<i32>,
 				vec![1, 2, 3]
 			),
@@ -1442,13 +1395,13 @@ mod tests {
 	/// Tests `filterMap identity ≡ compact`.
 	#[quickcheck]
 	fn filterable_filter_map_identity(x: Vec<Option<i32>>) -> bool {
-		filter_map::<VecBrand, _, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
+		filter_map::<VecBrand, _, _>(identity, x.clone()) == compact::<VecBrand, _>(x)
 	}
 
 	/// Tests `filterMap Just ≡ identity`.
 	#[quickcheck]
 	fn filterable_filter_map_just(x: Vec<i32>) -> bool {
-		filter_map::<VecBrand, _, _, _>(Some, x.clone()) == x
+		filter_map::<VecBrand, _, _>(Some, x.clone()) == x
 	}
 
 	/// Tests `filterMap (l <=< r) ≡ filterMap l <<< filterMap r`.
@@ -1456,10 +1409,10 @@ mod tests {
 	fn filterable_filter_map_composition(x: Vec<i32>) -> bool {
 		let r = |i: i32| if i % 2 == 0 { Some(i) } else { None };
 		let l = |i: i32| if i > 5 { Some(i) } else { None };
-		let composed = |i| bind::<OptionBrand, _, _, _>(r(i), l);
+		let composed = |i| bind::<OptionBrand, _, _>(r(i), l);
 
-		filter_map::<VecBrand, _, _, _>(composed, x.clone())
-			== filter_map::<VecBrand, _, _, _>(l, filter_map::<VecBrand, _, _, _>(r, x))
+		filter_map::<VecBrand, _, _>(composed, x.clone())
+			== filter_map::<VecBrand, _, _>(l, filter_map::<VecBrand, _, _>(r, x))
 	}
 
 	/// Tests `filter ≡ filterMap <<< maybeBool`.
@@ -1468,26 +1421,26 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let maybe_bool = |i| if p(i) { Some(i) } else { None };
 
-		filter::<VecBrand, _, _>(p, x.clone()) == filter_map::<VecBrand, _, _, _>(maybe_bool, x)
+		filter::<VecBrand, _>(p, x.clone()) == filter_map::<VecBrand, _, _>(maybe_bool, x)
 	}
 
 	/// Tests `partitionMap identity ≡ separate`.
 	#[quickcheck]
 	fn filterable_partition_map_identity(x: Vec<Result<i32, i32>>) -> bool {
-		partition_map::<VecBrand, _, _, _, _>(identity, x.clone()) == separate::<VecBrand, _, _>(x)
+		partition_map::<VecBrand, _, _, _>(identity, x.clone()) == separate::<VecBrand, _, _>(x)
 	}
 
 	/// Tests `partitionMap Right ≡ identity` (on the right side).
 	#[quickcheck]
 	fn filterable_partition_map_right_identity(x: Vec<i32>) -> bool {
-		let (_, oks) = partition_map::<VecBrand, _, _, _, _>(Ok::<_, i32>, x.clone());
+		let (_, oks) = partition_map::<VecBrand, _, _, _>(Ok::<_, i32>, x.clone());
 		oks == x
 	}
 
 	/// Tests `partitionMap Left ≡ identity` (on the left side).
 	#[quickcheck]
 	fn filterable_partition_map_left_identity(x: Vec<i32>) -> bool {
-		let (errs, _) = partition_map::<VecBrand, _, _, _, _>(Err::<i32, _>, x.clone());
+		let (errs, _) = partition_map::<VecBrand, _, _, _>(Err::<i32, _>, x.clone());
 		errs == x
 	}
 
@@ -1497,8 +1450,8 @@ mod tests {
 		let p = |i: i32| i % 2 == 0;
 		let either_bool = |i| if p(i) { Ok(i) } else { Err(i) };
 
-		let (not_satisfied, satisfied) = partition::<VecBrand, _, _>(p, x.clone());
-		let (errs, oks) = partition_map::<VecBrand, _, _, _, _>(either_bool, x);
+		let (not_satisfied, satisfied) = partition::<VecBrand, _>(p, x.clone());
+		let (errs, oks) = partition_map::<VecBrand, _, _, _>(either_bool, x);
 
 		satisfied == oks && not_satisfied == errs
 	}
@@ -1508,7 +1461,7 @@ mod tests {
 	/// Tests `wither (pure <<< Just) ≡ pure`.
 	#[quickcheck]
 	fn witherable_identity(x: Vec<i32>) -> bool {
-		wither::<VecBrand, OptionBrand, _, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
+		wither::<VecBrand, OptionBrand, _, _>(|i| Some(Some(i)), x.clone()) == Some(x)
 	}
 
 	/// Tests `wilt p ≡ map separate <<< traverse p`.
@@ -1516,10 +1469,10 @@ mod tests {
 	fn witherable_wilt_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Ok(i) } else { Err(i) });
 
-		let lhs = wilt::<VecBrand, OptionBrand, _, _, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
+		let lhs = wilt::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
+		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
 			separate::<VecBrand, _, _>,
-			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
+			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);
 
 		lhs == rhs
@@ -1530,10 +1483,10 @@ mod tests {
 	fn witherable_wither_consistency(x: Vec<i32>) -> bool {
 		let p = |i: i32| Some(if i % 2 == 0 { Some(i) } else { None });
 
-		let lhs = wither::<VecBrand, OptionBrand, _, _, _>(p, x.clone());
-		let rhs = crate::classes::functor::map::<OptionBrand, _, _, _>(
+		let lhs = wither::<VecBrand, OptionBrand, _, _>(p, x.clone());
+		let rhs = crate::classes::functor::map::<OptionBrand, _, _>(
 			compact::<VecBrand, _>,
-			traverse::<VecBrand, _, _, OptionBrand, _>(p, x),
+			traverse::<VecBrand, _, _, OptionBrand>(p, x),
 		);
 
 		lhs == rhs
@@ -1573,7 +1526,7 @@ mod tests {
 	#[test]
 	fn partition_map_empty() {
 		let (errs, oks) =
-			partition_map::<VecBrand, i32, i32, i32, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
+			partition_map::<VecBrand, i32, i32, _>(|x: i32| Ok::<i32, i32>(x), vec![]);
 		assert_eq!(oks, vec![] as Vec<i32>);
 		assert_eq!(errs, vec![] as Vec<i32>);
 	}
@@ -1581,7 +1534,7 @@ mod tests {
 	/// Tests `partition` on an empty vector.
 	#[test]
 	fn partition_empty() {
-		let (not_satisfied, satisfied) = partition::<VecBrand, i32, _>(|x: i32| x > 0, vec![]);
+		let (not_satisfied, satisfied) = partition::<VecBrand, i32>(|x: i32| x > 0, vec![]);
 		assert_eq!(satisfied, vec![] as Vec<i32>);
 		assert_eq!(not_satisfied, vec![] as Vec<i32>);
 	}
@@ -1589,30 +1542,26 @@ mod tests {
 	/// Tests `filter_map` on an empty vector.
 	#[test]
 	fn filter_map_empty() {
-		assert_eq!(
-			filter_map::<VecBrand, i32, i32, _>(|x: i32| Some(x), vec![]),
-			vec![] as Vec<i32>
-		);
+		assert_eq!(filter_map::<VecBrand, i32, _>(|x: i32| Some(x), vec![]), vec![] as Vec<i32>);
 	}
 
 	/// Tests `filter` on an empty vector.
 	#[test]
 	fn filter_empty() {
-		assert_eq!(filter::<VecBrand, i32, _>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
+		assert_eq!(filter::<VecBrand, i32>(|x: i32| x > 0, vec![]), vec![] as Vec<i32>);
 	}
 
 	/// Tests `wilt` on an empty vector.
 	#[test]
 	fn wilt_empty() {
-		let res =
-			wilt::<VecBrand, OptionBrand, _, _, _, _>(|x: i32| Some(Ok::<i32, i32>(x)), vec![]);
+		let res = wilt::<VecBrand, OptionBrand, _, _, _>(|x: i32| Some(Ok::<i32, i32>(x)), vec![]);
 		assert_eq!(res, Some((vec![], vec![])));
 	}
 
 	/// Tests `wither` on an empty vector.
 	#[test]
 	fn wither_empty() {
-		let res = wither::<VecBrand, OptionBrand, _, _, _>(|x: i32| Some(Some(x)), vec![]);
+		let res = wither::<VecBrand, OptionBrand, _, _>(|x: i32| Some(Some(x)), vec![]);
 		assert_eq!(res, Some(vec![]));
 	}
 }

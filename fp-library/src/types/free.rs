@@ -509,8 +509,6 @@ mod inner {
 		/// This delegates to `Free::wrap` and `Thunk::new`.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("A thunk that produces the free computation.")]
 		///
 		#[document_returns("The deferred free computation.")]
@@ -528,9 +526,8 @@ mod inner {
 		/// let task: Free<ThunkBrand, i32> = Deferrable::defer(|| Free::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'static) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
 			Self: Sized, {
 			Self::wrap(Thunk::new(f))
 		}

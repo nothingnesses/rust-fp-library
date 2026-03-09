@@ -187,7 +187,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<RcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<RcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
 		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Rc<dyn 'a + Fn(A) -> B> {

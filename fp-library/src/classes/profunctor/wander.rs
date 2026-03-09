@@ -179,8 +179,7 @@ mod inner {
 			"The source type of the structure.",
 			"The target type of the structure.",
 			"The source type of the focus.",
-			"The target type of the focus.",
-			"The type of the traversal function."
+			"The target type of the focus."
 		)]
 		///
 		#[document_parameters("The traversal function.", "The profunctor instance.")]
@@ -232,16 +231,14 @@ mod inner {
 		///
 		/// let double = std::rc::Rc::new(|x: i32| x * 2) as std::rc::Rc<dyn Fn(i32) -> i32>;
 		/// let map_all: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-		/// 	<RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, double);
+		/// 	<RcFnBrand as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32>(ListTraversal, double);
 		/// assert_eq!(map_all(vec![1, 2, 3]), vec![2, 4, 6]);
 		/// assert_eq!(map_all(vec![]), vec![]);
 		/// ```
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
-			traversal: TFunc,
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone>(
+			traversal: impl TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		where
-			TFunc: TraversalFunc<'a, S, T, A, B> + 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>);
 	}
 
 	/// Lift a profunctor to operate on a traversable structure.
@@ -255,8 +252,7 @@ mod inner {
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus.",
-		"The type of the traversal function."
+		"The target type of the focus."
 	)]
 	///
 	#[document_parameters("The traversal function.", "The profunctor instance.")]
@@ -299,16 +295,14 @@ mod inner {
 	///
 	/// let double = std::rc::Rc::new(|x: i32| x * 2) as std::rc::Rc<dyn Fn(i32) -> i32>;
 	/// let map_all: std::rc::Rc<dyn Fn(Vec<i32>) -> Vec<i32>> =
-	/// 	wander::<RcFnBrand, Vec<i32>, Vec<i32>, i32, i32, _>(ListTraversal, double);
+	/// 	wander::<RcFnBrand, Vec<i32>, Vec<i32>, i32, i32>(ListTraversal, double);
 	/// assert_eq!(map_all(vec![1, 2, 3]), vec![2, 4, 6]);
 	/// assert_eq!(map_all(vec![]), vec![]);
 	/// ```
-	pub fn wander<'a, Brand: Wander, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
-		traversal: TFunc,
+	pub fn wander<'a, Brand: Wander, S: 'a, T: 'a, A: 'a, B: 'a + Clone>(
+		traversal: impl TraversalFunc<'a, S, T, A, B> + 'a,
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-	where
-		TFunc: TraversalFunc<'a, S, T, A, B> + 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 		Brand::wander(traversal, pab)
 	}
 }

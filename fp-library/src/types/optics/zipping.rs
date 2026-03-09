@@ -121,9 +121,7 @@ mod inner {
 			"The new input type.",
 			"The original input type.",
 			"The original output type.",
-			"The new output type.",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new output type."
 		)]
 		///
 		#[document_parameters(
@@ -150,14 +148,11 @@ mod inner {
 		/// let z2 = <ZippingBrand<RcFnBrand> as Profunctor>::dimap(|x: i32| x * 2, |y: i32| y + 1, z);
 		/// assert_eq!((z2.run)((3, 4)), 15); // (3*2 + 4*2) + 1 = 15
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			Zipping::new(move |(a1, a2)| cd((*pbc.run)((ab(a1), ab(a2)))))
 		}
 	}

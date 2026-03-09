@@ -33,7 +33,7 @@ fn prop_par_fold_map_equals_fold_map(xs: Vec<i32>) -> bool {
 	let f_par = <ArcFnBrand as SendCloneableFn>::send_cloneable_fn_new(|x: i32| Sum(x as i64));
 
 	// Foldable::fold_map takes (f, fa)
-	let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _, _>(f_seq, xs.clone());
+	let seq_res = VecBrand::fold_map::<ArcFnBrand, _, _>(f_seq, xs.clone());
 	let par_res = VecBrand::par_fold_map::<ArcFnBrand, _, _>(f_par, xs);
 
 	seq_res == par_res
@@ -52,7 +52,7 @@ fn prop_par_fold_right_equals_fold_right(xs: Vec<i32>) -> bool {
 	});
 	let init = 0;
 
-	let seq_res = VecBrand::fold_right::<ArcFnBrand, _, _, _>(f_seq, init, xs.clone());
+	let seq_res = VecBrand::fold_right::<ArcFnBrand, _, _>(f_seq, init, xs.clone());
 	let par_res = VecBrand::par_fold_right::<ArcFnBrand, _, _>(f_par, init, xs.clone());
 
 	if seq_res != par_res {

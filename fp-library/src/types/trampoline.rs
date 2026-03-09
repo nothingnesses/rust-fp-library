@@ -107,8 +107,6 @@ mod inner {
 		/// O(1) creation
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the closure.")]
-		///
 		#[document_parameters("The closure to execute.")]
 		///
 		#[document_returns("A `Trampoline` that executes `f` when run.")]
@@ -128,9 +126,7 @@ mod inner {
 		/// let result = task.evaluate(); // Prints "Computing!"
 		/// assert_eq!(result, 2);
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + 'static, {
+		pub fn new(f: impl FnOnce() -> A + 'static) -> Self {
 			Trampoline(Free::wrap(Thunk::new(move || Free::pure(f()))))
 		}
 
@@ -140,8 +136,6 @@ mod inner {
 		/// building a chain of `Trampoline`s directly (which grows the stack),
 		/// we defer the construction.
 		#[document_signature]
-		///
-		#[document_type_parameters("The type of the closure.")]
 		///
 		#[document_parameters("The closure that produces a `Trampoline`.")]
 		///
@@ -169,9 +163,7 @@ mod inner {
 		/// let result = recursive_sum(1_000, 0).evaluate();
 		/// assert_eq!(result, 500500);
 		/// ```
-		pub fn defer<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Trampoline<A> + 'static, {
+		pub fn defer(f: impl FnOnce() -> Trampoline<A> + 'static) -> Self {
 			Trampoline(Free::wrap(Thunk::new(move || f().0)))
 		}
 
@@ -181,10 +173,7 @@ mod inner {
 		/// left-associated chains don't degrade to O(n²).
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The type of the result of the new task.",
-			"The type of the binding function."
-		)]
+		#[document_type_parameters("The type of the result of the new task.")]
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
@@ -203,22 +192,17 @@ mod inner {
 		/// }
 		/// assert_eq!(task.evaluate(), 4950);
 		/// ```
-		pub fn bind<B: 'static + Send, F>(
+		pub fn bind<B: 'static + Send>(
 			self,
-			f: F,
-		) -> Trampoline<B>
-		where
-			F: FnOnce(A) -> Trampoline<B> + 'static, {
+			f: impl FnOnce(A) -> Trampoline<B> + 'static,
+		) -> Trampoline<B> {
 			Trampoline(self.0.bind(move |a| f(a).0))
 		}
 
 		/// Functor map: transforms the result without changing structure.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The type of the result of the mapping function.",
-			"The type of the mapping function."
-		)]
+		#[document_type_parameters("The type of the result of the mapping function.")]
 		///
 		#[document_parameters("The function to apply to the result of this task.")]
 		///
@@ -233,12 +217,10 @@ mod inner {
 		/// let task = Trampoline::pure(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), 20);
 		/// ```
-		pub fn map<B: 'static + Send, F>(
+		pub fn map<B: 'static + Send>(
 			self,
-			f: F,
-		) -> Trampoline<B>
-		where
-			F: FnOnce(A) -> B + 'static, {
+			f: impl FnOnce(A) -> B + 'static,
+		) -> Trampoline<B> {
 			self.bind(move |a| Trampoline::pure(f(a)))
 		}
 
@@ -269,8 +251,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The type of the second task's result.",
-			"The type of the combined result.",
-			"The type of the combining function."
+			"The type of the combined result."
 		)]
 		///
 		#[document_parameters("The second task.", "The function to combine the results.")]
@@ -287,13 +268,11 @@ mod inner {
 		/// let t3 = t1.lift2(t2, |a, b| a + b);
 		/// assert_eq!(t3.evaluate(), 30);
 		/// ```
-		pub fn lift2<B: 'static + Send, C: 'static + Send, F>(
+		pub fn lift2<B: 'static + Send, C: 'static + Send>(
 			self,
 			other: Trampoline<B>,
-			f: F,
-		) -> Trampoline<C>
-		where
-			F: FnOnce(A, B) -> C + 'static, {
+			f: impl FnOnce(A, B) -> C + 'static,
+		) -> Trampoline<C> {
 			self.bind(move |a| other.map(move |b| f(a, b)))
 		}
 
@@ -399,7 +378,7 @@ mod inner {
 		/// Use this when your closure captures non-Clone state.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the state.", "The type of the step function.")]
+		#[document_type_parameters("The type of the state.")]
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
@@ -441,12 +420,10 @@ mod inner {
 		/// assert_eq!(task.evaluate(), 0);
 		/// assert_eq!(counter.load(Ordering::SeqCst), 101);
 		/// ```
-		pub fn arc_tail_rec_m<S: 'static + Send, F>(
-			f: F,
+		pub fn arc_tail_rec_m<S: 'static + Send>(
+			f: impl Fn(S) -> Trampoline<Step<S, A>> + 'static,
 			initial: S,
-		) -> Self
-		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + 'static, {
+		) -> Self {
 			use std::sync::Arc;
 			let f = Arc::new(f);
 			let wrapper = move |s: S| {
@@ -485,8 +462,6 @@ mod inner {
 		/// Creates a `Trampoline` from a computation that produces it.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the closure.")]
-		///
 		#[document_parameters("A thunk that produces the trampoline.")]
 		///
 		#[document_returns("The deferred trampoline.")]
@@ -504,9 +479,8 @@ mod inner {
 		/// let task: Trampoline<i32> = Deferrable::defer(|| Trampoline::pure(42));
 		/// assert_eq!(task.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'static) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
 			Self: Sized, {
 			Trampoline::defer(f)
 		}

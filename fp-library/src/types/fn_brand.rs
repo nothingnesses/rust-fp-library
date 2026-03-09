@@ -207,9 +207,7 @@ mod inner {
 			"The new input type (contravariant position).",
 			"The original input type.",
 			"The original output type.",
-			"The new output type (covariant position).",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new output type (covariant position)."
 		)]
 		///
 		#[document_parameters(
@@ -234,14 +232,11 @@ mod inner {
 		/// );
 		/// assert_eq!(f(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
-		fn dimap<'a, A, B: 'a, C: 'a, D, FuncAB, FuncCD>(
-			ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A, B: 'a, C: 'a, D>(
+			ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			P::coerce_fn(move |a| cd(pbc(ab(a))))
 		}
 	}
@@ -383,8 +378,7 @@ mod inner {
 			"The source type of the structure.",
 			"The target type of the structure.",
 			"The source type of the focus.",
-			"The target type of the focus.",
-			"The type of the traversal function."
+			"The target type of the focus."
 		)]
 		///
 		#[document_parameters("The traversal function.", "The profunctor instance.")]
@@ -420,15 +414,13 @@ mod inner {
 		/// }
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g = <RcFnBrand as Wander>::wander::<i32, i32, i32, i32, _>(SingleTraversal, f);
+		/// let g = <RcFnBrand as Wander>::wander::<i32, i32, i32, i32>(SingleTraversal, f);
 		/// assert_eq!(g(5), 6);
 		/// ```
-		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone, TFunc>(
-			traversal: TFunc,
+		fn wander<'a, S: 'a, T: 'a, A: 'a, B: 'a + Clone>(
+			traversal: impl crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		where
-			TFunc: crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 			P::coerce_fn(move |s| {
 				let pab = pab.clone();
 				traversal

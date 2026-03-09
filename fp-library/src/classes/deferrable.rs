@@ -24,8 +24,6 @@ mod inner {
 		/// This function takes a thunk and creates a deferred value that will be computed using the thunk.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("A thunk that produces the value.")]
 		///
 		#[document_returns("The deferred value.")]
@@ -41,9 +39,8 @@ mod inner {
 		/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 		/// assert_eq!(eval.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
 			Self: Sized;
 	}
 
@@ -54,8 +51,7 @@ mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the computation",
-		"The type of the deferred value.",
-		"The type of the thunk."
+		"The type of the deferred value."
 	)]
 	///
 	#[document_parameters("A thunk that produces the value.")]
@@ -73,10 +69,7 @@ mod inner {
 	/// let eval: Thunk<i32> = defer(|| Thunk::new(|| 42));
 	/// assert_eq!(eval.evaluate(), 42);
 	/// ```
-	pub fn defer<'a, D, F>(f: F) -> D
-	where
-		D: Deferrable<'a>,
-		F: FnOnce() -> D + 'a, {
+	pub fn defer<'a, D: Deferrable<'a>>(f: impl FnOnce() -> D + 'a) -> D {
 		D::defer(f)
 	}
 }

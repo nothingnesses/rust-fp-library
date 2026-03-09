@@ -72,8 +72,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The input type.",
-			"The output type.",
-			"The function type."
+			"The output type."
 		)]
 		#[document_parameters(
 			"The function to map (ignored).",
@@ -95,12 +94,10 @@ mod inner {
 		/// let mapped = ConstBrand::map(|s: String| s.len(), c);
 		/// assert_eq!(mapped.0, 42);
 		/// ```
-		fn map<'a, A: 'a, B: 'a, F>(
-			_f: F,
+		fn map<'a, A: 'a, B: 'a>(
+			_f: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>)
-		where
-			F: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>) {
 			Const::new(fa.0)
 		}
 	}
@@ -112,8 +109,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The first input type.",
 			"The second input type.",
-			"The output type.",
-			"The function type."
+			"The output type."
 		)]
 		#[document_parameters(
 			"The function to lift (ignored).",
@@ -137,13 +133,12 @@ mod inner {
 		/// let lifted = ConstBrand::lift2(|a: i32, b: i32| a + b, c1, c2);
 		/// assert_eq!(lifted.0, "Hello World");
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			_func: Func,
+		fn lift2<'a, A, B, C>(
+			_func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'b, T: 'b>: 'b; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {

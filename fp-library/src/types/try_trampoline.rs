@@ -81,8 +81,6 @@ mod inner {
 		/// Creates a lazy `TryTrampoline` that may fail.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the closure.")]
-		///
 		#[document_parameters("The closure to execute.")]
 		///
 		#[document_returns("A `TryTrampoline` that executes `f` when run.")]
@@ -95,9 +93,7 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::new(|| Ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> Result<A, E> + 'static, {
+		pub fn new(f: impl FnOnce() -> Result<A, E> + 'static) -> Self {
 			TryTrampoline(Trampoline::new(f))
 		}
 
@@ -105,8 +101,6 @@ mod inner {
 		///
 		/// Use this for stack-safe recursion.
 		#[document_signature]
-		///
-		#[document_type_parameters("The type of the thunk.")]
 		///
 		#[document_parameters("A thunk that returns the next step.")]
 		///
@@ -142,19 +136,14 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::defer(|| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
-		pub fn defer<F>(f: F) -> Self
-		where
-			F: FnOnce() -> TryTrampoline<A, E> + 'static, {
+		pub fn defer(f: impl FnOnce() -> TryTrampoline<A, E> + 'static) -> Self {
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}
 
 		/// Maps over the success value.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-		"The type of the new success value.",
-		("F", "The type of the mapping function.")
-	)]
+		#[document_type_parameters("The type of the new success value.")]
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
@@ -168,22 +157,17 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).map(|x| x * 2);
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
-		pub fn map<B: 'static + Send, Func>(
+		pub fn map<B: 'static + Send>(
 			self,
-			func: Func,
-		) -> TryTrampoline<B, E>
-		where
-			Func: FnOnce(A) -> B + 'static, {
+			func: impl FnOnce(A) -> B + 'static,
+		) -> TryTrampoline<B, E> {
 			TryTrampoline(self.0.map(|result| result.map(func)))
 		}
 
 		/// Maps over the error value.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-		"The type of the new error value.",
-		("F", "The type of the mapping function.")
-	)]
+		#[document_type_parameters("The type of the new error value.")]
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
@@ -198,22 +182,17 @@ mod inner {
 		/// 	TryTrampoline::err("error".to_string()).map_err(|e| e.to_uppercase());
 		/// assert_eq!(task.evaluate(), Err("ERROR".to_string()));
 		/// ```
-		pub fn map_err<E2: 'static + Send, Func>(
+		pub fn map_err<E2: 'static + Send>(
 			self,
-			func: Func,
-		) -> TryTrampoline<A, E2>
-		where
-			Func: FnOnce(E) -> E2 + 'static, {
+			func: impl FnOnce(E) -> E2 + 'static,
+		) -> TryTrampoline<A, E2> {
 			TryTrampoline(self.0.map(|result| result.map_err(func)))
 		}
 
 		/// Chains fallible computations.
 		#[document_signature]
 		///
-		#[document_type_parameters(
-			"The type of the new success value.",
-			"The type of the binding function."
-		)]
+		#[document_type_parameters("The type of the new success value.")]
 		///
 		#[document_parameters("The function to apply to the success value.")]
 		///
@@ -227,12 +206,10 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = TryTrampoline::ok(10).bind(|x| TryTrampoline::ok(x * 2));
 		/// assert_eq!(task.evaluate(), Ok(20));
 		/// ```
-		pub fn bind<B: 'static + Send, F>(
+		pub fn bind<B: 'static + Send>(
 			self,
-			f: F,
-		) -> TryTrampoline<B, E>
-		where
-			F: FnOnce(A) -> TryTrampoline<B, E> + 'static, {
+			f: impl FnOnce(A) -> TryTrampoline<B, E> + 'static,
+		) -> TryTrampoline<B, E> {
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => f(a).0,
 				Err(e) => Trampoline::pure(Err(e)),
@@ -241,8 +218,6 @@ mod inner {
 
 		/// Recovers from an error.
 		#[document_signature]
-		///
-		#[document_type_parameters("The type of the recovery function.")]
 		///
 		#[document_parameters("The function to apply to the error value.")]
 		///
@@ -257,12 +232,10 @@ mod inner {
 		/// 	TryTrampoline::err("error".to_string()).catch(|_| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
-		pub fn catch<F>(
+		pub fn catch(
 			self,
-			f: F,
-		) -> Self
-		where
-			F: FnOnce(E) -> TryTrampoline<A, E> + 'static, {
+			f: impl FnOnce(E) -> TryTrampoline<A, E> + 'static,
+		) -> Self {
 			TryTrampoline(self.0.bind(|result| match result {
 				Ok(a) => Trampoline::pure(Ok(a)),
 				Err(e) => f(e).0,
@@ -372,8 +345,6 @@ mod inner {
 		/// Creates a value from a computation that produces the value.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("A thunk that produces the value.")]
 		///
 		#[document_returns("The deferred value.")]
@@ -391,9 +362,8 @@ mod inner {
 		/// let task: TryTrampoline<i32, String> = Deferrable::defer(|| TryTrampoline::ok(42));
 		/// assert_eq!(task.evaluate(), Ok(42));
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'static) -> Self
 		where
-			F: FnOnce() -> Self + 'static,
 			Self: Sized, {
 			TryTrampoline(Trampoline::defer(move || f().0))
 		}

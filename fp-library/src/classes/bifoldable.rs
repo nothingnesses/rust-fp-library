@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+//! let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
 //! 	|e: i32| e.to_string(),
 //! 	|s: i32| s.to_string(),
 //! 	x,
@@ -64,9 +64,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The type of the first-position elements.",
 			"The type of the second-position elements.",
-			"The type of the accumulator.",
-			"The type of the first step function.",
-			"The type of the second step function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -86,34 +84,19 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		/// 	|e, acc| acc - e,
-		/// 	|s, acc| acc + s,
-		/// 	10,
-		/// 	x,
-		/// );
+		/// let y =
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(|e, acc| acc - e, |s, acc| acc + s, 10, x);
 		/// assert_eq!(y, 7);
 		/// ```
-		fn bi_fold_right<
-			'a,
-			FnBrand: CloneableFn + 'a,
-			A: 'a + Clone,
-			B: 'a + Clone,
-			C: 'a,
-			FA,
-			FB,
-		>(
-			f: FA,
-			g: FB,
+		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(A, C) -> C + 'a,
+			g: impl Fn(B, C) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> C
-		where
-			FA: Fn(A, C) -> C + 'a,
-			FB: Fn(B, C) -> C + 'a, {
+		) -> C {
 			let f = <FnBrand as CloneableFn>::new(move |(a, c)| f(a, c));
 			let g = <FnBrand as CloneableFn>::new(move |(b, c)| g(b, c));
-			let endo = Self::bi_fold_map::<FnBrand, A, B, Endofunction<'a, FnBrand, C>, _, _>(
+			let endo = Self::bi_fold_map::<FnBrand, A, B, Endofunction<'a, FnBrand, C>>(
 				move |a: A| {
 					let f = f.clone();
 					Endofunction::<FnBrand, C>::new(<FnBrand as CloneableFn>::new(move |c| {
@@ -142,9 +125,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The type of the first-position elements.",
 			"The type of the second-position elements.",
-			"The type of the accumulator.",
-			"The type of the first step function.",
-			"The type of the second step function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -164,35 +145,20 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-		/// 	|acc, e| acc - e,
-		/// 	|acc, s| acc + s,
-		/// 	10,
-		/// 	x,
-		/// );
+		/// let y =
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(|acc, e| acc - e, |acc, s| acc + s, 10, x);
 		/// assert_eq!(y, 15);
 		/// ```
-		fn bi_fold_left<
-			'a,
-			FnBrand: CloneableFn + 'a,
-			A: 'a + Clone,
-			B: 'a + Clone,
-			C: 'a,
-			FA,
-			FB,
-		>(
-			f: FA,
-			g: FB,
+		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(C, A) -> C + 'a,
+			g: impl Fn(C, B) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> C
-		where
-			FA: Fn(C, A) -> C + 'a,
-			FB: Fn(C, B) -> C + 'a, {
+		) -> C {
 			let f = <FnBrand as CloneableFn>::new(move |(c, a)| f(c, a));
 			let g = <FnBrand as CloneableFn>::new(move |(c, b)| g(c, b));
 			let endo =
-				Self::bi_fold_right::<FnBrand, A, B, Endofunction<'a, FnBrand, C>, _, _>(
+				Self::bi_fold_right::<FnBrand, A, B, Endofunction<'a, FnBrand, C>>(
 					move |a: A, k: Endofunction<'a, FnBrand, C>| {
 						let f = f.clone();
 						let current = Endofunction::<FnBrand, C>::new(
@@ -225,9 +191,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The type of the first-position elements.",
 			"The type of the second-position elements.",
-			"The monoid type to fold into.",
-			"The type of the first mapping function.",
-			"The type of the second mapping function."
+			"The monoid type to fold into."
 		)]
 		///
 		#[document_parameters(
@@ -246,23 +210,21 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 	|e: i32| e.to_string(),
 		/// 	|s: i32| s.to_string(),
 		/// 	x,
 		/// );
 		/// assert_eq!(y, "5".to_string());
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M, FA, FB>(
-			f: FA,
-			g: FB,
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+			f: impl Fn(A) -> M + 'a,
+			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			FA: Fn(A) -> M + 'a,
-			FB: Fn(B) -> M + 'a, {
-			Self::bi_fold_right::<FnBrand, A, B, M, _, _>(
+			M: Monoid + 'a, {
+			Self::bi_fold_right::<FnBrand, A, B, M>(
 				move |a, m| M::append(f(a), m),
 				move |b, m| M::append(g(b), m),
 				M::empty(),
@@ -282,9 +244,7 @@ mod inner {
 		"The brand of the bifoldable structure.",
 		"The type of the first-position elements.",
 		"The type of the second-position elements.",
-		"The type of the accumulator.",
-		"The type of the first step function.",
-		"The type of the second step function."
+		"The type of the accumulator."
 	)]
 	///
 	#[document_parameters(
@@ -304,12 +264,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-	/// 	|e, acc| acc - e,
-	/// 	|s, acc| acc + s,
-	/// 	10,
-	/// 	x,
-	/// );
+	/// let y =
+	/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(|e, acc| acc - e, |s, acc| acc + s, 10, x);
 	/// assert_eq!(y, 7);
 	/// ```
 	pub fn bi_fold_right<
@@ -319,18 +275,13 @@ mod inner {
 		A: 'a + Clone,
 		B: 'a + Clone,
 		C: 'a,
-		FA,
-		FB,
 	>(
-		f: FA,
-		g: FB,
+		f: impl Fn(A, C) -> C + 'a,
+		g: impl Fn(B, C) -> C + 'a,
 		z: C,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-	) -> C
-	where
-		FA: Fn(A, C) -> C + 'a,
-		FB: Fn(B, C) -> C + 'a, {
-		Brand::bi_fold_right::<FnBrand, A, B, C, FA, FB>(f, g, z, p)
+	) -> C {
+		Brand::bi_fold_right::<FnBrand, A, B, C>(f, g, z, p)
 	}
 
 	/// Folds the bifoldable structure from left to right using two step functions.
@@ -344,9 +295,7 @@ mod inner {
 		"The brand of the bifoldable structure.",
 		"The type of the first-position elements.",
 		"The type of the second-position elements.",
-		"The type of the accumulator.",
-		"The type of the first step function.",
-		"The type of the second step function."
+		"The type of the accumulator."
 	)]
 	///
 	#[document_parameters(
@@ -366,12 +315,8 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
-	/// 	|acc, e| acc - e,
-	/// 	|acc, s| acc + s,
-	/// 	10,
-	/// 	x,
-	/// );
+	/// let y =
+	/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(|acc, e| acc - e, |acc, s| acc + s, 10, x);
 	/// assert_eq!(y, 15);
 	/// ```
 	pub fn bi_fold_left<
@@ -381,18 +326,13 @@ mod inner {
 		A: 'a + Clone,
 		B: 'a + Clone,
 		C: 'a,
-		FA,
-		FB,
 	>(
-		f: FA,
-		g: FB,
+		f: impl Fn(C, A) -> C + 'a,
+		g: impl Fn(C, B) -> C + 'a,
 		z: C,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-	) -> C
-	where
-		FA: Fn(C, A) -> C + 'a,
-		FB: Fn(C, B) -> C + 'a, {
-		Brand::bi_fold_left::<FnBrand, A, B, C, FA, FB>(f, g, z, p)
+	) -> C {
+		Brand::bi_fold_left::<FnBrand, A, B, C>(f, g, z, p)
 	}
 
 	/// Maps elements of both types to a monoid and combines the results.
@@ -406,9 +346,7 @@ mod inner {
 		"The brand of the bifoldable structure.",
 		"The type of the first-position elements.",
 		"The type of the second-position elements.",
-		"The monoid type to fold into.",
-		"The type of the first mapping function.",
-		"The type of the second mapping function."
+		"The monoid type to fold into."
 	)]
 	///
 	#[document_parameters(
@@ -427,7 +365,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+	/// let y = bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
 	/// 	|e: i32| e.to_string(),
 	/// 	|s: i32| s.to_string(),
 	/// 	x,
@@ -441,18 +379,14 @@ mod inner {
 		A: 'a + Clone,
 		B: 'a + Clone,
 		M,
-		FA,
-		FB,
 	>(
-		f: FA,
-		g: FB,
+		f: impl Fn(A) -> M + 'a,
+		g: impl Fn(B) -> M + 'a,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> M
 	where
-		M: Monoid + 'a,
-		FA: Fn(A) -> M + 'a,
-		FB: Fn(B) -> M + 'a, {
-		Brand::bi_fold_map::<FnBrand, A, B, M, FA, FB>(f, g, p)
+		M: Monoid + 'a, {
+		Brand::bi_fold_map::<FnBrand, A, B, M>(f, g, p)
 	}
 }
 

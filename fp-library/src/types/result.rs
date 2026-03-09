@@ -69,9 +69,7 @@ mod inner {
 			"The type of the error value.",
 			"The type of the mapped error value.",
 			"The type of the success value.",
-			"The type of the mapped success value.",
-			"The type of the function to apply to the error.",
-			"The type of the function to apply to the success."
+			"The type of the mapped success value."
 		)]
 		///
 		#[document_parameters(
@@ -91,19 +89,16 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Ok(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
 		///
 		/// let y: Result<i32, i32> = Err(5);
-		/// assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		/// assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
 		/// ```
-		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
-			f: F,
-			g: G,
+		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
-		where
-			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 			match p {
 				Ok(c) => Ok(g(c)),
 				Err(a) => Err(f(a)),
@@ -122,9 +117,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The error type (first position).",
 			"The success type (second position).",
-			"The accumulator type.",
-			"The type of the step function for the error.",
-			"The type of the step function for the success."
+			"The accumulator type."
 		)]
 		///
 		#[document_parameters(
@@ -144,7 +137,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|e: i32, acc| acc - e,
 		/// 		|s: i32, acc| acc + s,
 		/// 		10,
@@ -153,7 +146,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_right::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|e: i32, acc| acc - e,
 		/// 		|s: i32, acc| acc + s,
 		/// 		10,
@@ -162,23 +155,12 @@ mod inner {
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_right<
-			'a,
-			FnBrand: CloneableFn + 'a,
-			A: 'a + Clone,
-			B: 'a + Clone,
-			C: 'a,
-			FA,
-			FB,
-		>(
-			f: FA,
-			g: FB,
+		fn bi_fold_right<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(A, C) -> C + 'a,
+			g: impl Fn(B, C) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> C
-		where
-			FA: Fn(A, C) -> C + 'a,
-			FB: Fn(B, C) -> C + 'a, {
+		) -> C {
 			match p {
 				Err(a) => f(a, z),
 				Ok(b) => g(b, z),
@@ -195,9 +177,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The error type (first position).",
 			"The success type (second position).",
-			"The accumulator type.",
-			"The type of the step function for the error.",
-			"The type of the step function for the success."
+			"The accumulator type."
 		)]
 		///
 		#[document_parameters(
@@ -217,7 +197,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|acc, e: i32| acc - e,
 		/// 		|acc, s: i32| acc + s,
 		/// 		10,
@@ -226,7 +206,7 @@ mod inner {
 		/// 	7
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_left::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|acc, e: i32| acc - e,
 		/// 		|acc, s: i32| acc + s,
 		/// 		10,
@@ -235,23 +215,12 @@ mod inner {
 		/// 	15
 		/// );
 		/// ```
-		fn bi_fold_left<
-			'a,
-			FnBrand: CloneableFn + 'a,
-			A: 'a + Clone,
-			B: 'a + Clone,
-			C: 'a,
-			FA,
-			FB,
-		>(
-			f: FA,
-			g: FB,
+		fn bi_fold_left<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, C: 'a>(
+			f: impl Fn(C, A) -> C + 'a,
+			g: impl Fn(C, B) -> C + 'a,
 			z: C,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> C
-		where
-			FA: Fn(C, A) -> C + 'a,
-			FB: Fn(C, B) -> C + 'a, {
+		) -> C {
 			match p {
 				Err(a) => f(z, a),
 				Ok(b) => g(z, b),
@@ -268,9 +237,7 @@ mod inner {
 			"The brand of the cloneable function to use.",
 			"The error type (first position).",
 			"The success type (second position).",
-			"The monoid type.",
-			"The type of the mapping function for the error.",
-			"The type of the mapping function for the success."
+			"The monoid type."
 		)]
 		///
 		#[document_parameters(
@@ -289,7 +256,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|e: i32| e.to_string(),
 		/// 		|s: i32| s.to_string(),
 		/// 		Err::<i32, i32>(3),
@@ -297,7 +264,7 @@ mod inner {
 		/// 	"3".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _, _, _>(
+		/// 	bi_fold_map::<RcFnBrand, ResultBrand, _, _, _>(
 		/// 		|e: i32| e.to_string(),
 		/// 		|s: i32| s.to_string(),
 		/// 		Ok::<i32, i32>(5),
@@ -305,15 +272,13 @@ mod inner {
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M, FA, FB>(
-			f: FA,
-			g: FB,
+		fn bi_fold_map<'a, FnBrand: CloneableFn + 'a, A: 'a + Clone, B: 'a + Clone, M>(
+			f: impl Fn(A) -> M + 'a,
+			g: impl Fn(B) -> M + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> M
 		where
-			M: Monoid + 'a,
-			FA: Fn(A) -> M + 'a,
-			FB: Fn(B) -> M + 'a, {
+			M: Monoid + 'a, {
 			match p {
 				Err(a) => f(a),
 				Ok(b) => g(b),
@@ -334,9 +299,7 @@ mod inner {
 			"The success type (second position).",
 			"The output error type.",
 			"The output success type.",
-			"The applicative context.",
-			"The type of the function for the error.",
-			"The type of the function for the success."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -357,7 +320,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
 		/// 		|e: i32| Some(e + 1),
 		/// 		|s: i32| Some(s * 2),
 		/// 		Err::<i32, i32>(3),
@@ -365,7 +328,7 @@ mod inner {
 		/// 	Some(Err(4))
 		/// );
 		/// assert_eq!(
-		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// 	bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
 		/// 		|e: i32| Some(e + 1),
 		/// 		|s: i32| Some(s * 2),
 		/// 		Ok::<i32, i32>(5),
@@ -380,16 +343,12 @@ mod inner {
 			C: 'a + Clone,
 			D: 'a + Clone,
 			F: Applicative,
-			FA,
-			FB,
 		>(
-			f: FA,
-			g: FB,
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
-		where
-			FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-			FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
+		{
 			match p {
 				Err(a) => F::map(|c| Err(c), f(a)),
 				Ok(b) => F::map(|d| Ok(d), g(b)),
@@ -416,8 +375,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the value inside the result.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The result to map over.")]
@@ -434,15 +392,13 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
-		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(1)), Err(1));
+		/// assert_eq!(map::<ResultErrAppliedBrand<()>, _, _>(|x: i32| x * 2, Ok(5)), Ok(10));
+		/// assert_eq!(map::<ResultErrAppliedBrand<i32>, _, _>(|x: i32| x * 2, Err(1)), Err(1));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			fa.map(func)
 		}
 	}
@@ -458,8 +414,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first value.",
 			"The type of the second value.",
-			"The type of the result.",
-			"The type of the binary function."
+			"The type of the result."
 		)]
 		///
 		#[document_parameters(
@@ -480,29 +435,28 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<()>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
 		/// 	Err(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
 		/// 	Err(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
 		/// 	Err(1)
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
@@ -609,8 +563,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters(
@@ -629,16 +582,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
-		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<()>, _, _>(Ok(5), |x| Ok(x * 2)), Ok(10));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Ok(5), |_| Err::<i32, _>(1)), Err(1));
+		/// assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Err(1), |x: i32| Ok(x * 2)), Err(1));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			ma.and_then(func)
 		}
 	}
@@ -654,8 +605,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -671,25 +621,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x, acc| x + acc, 0, Ok(5)),
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, Ok(5)),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
-		/// 		|x: i32, acc| x + acc,
-		/// 		0,
-		/// 		Err(1)
-		/// 	),
+		/// 	fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
 		/// 	0
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(a, initial),
@@ -706,8 +651,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -723,25 +667,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|acc, x| acc + x, 0, Ok(5)),
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, Ok(5)),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
-		/// 		|acc, x: i32| acc + x,
-		/// 		0,
-		/// 		Err(1)
-		/// 	),
+		/// 	fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|acc, x: i32| acc + x, 0, Err(1)),
 		/// 	0
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(initial, a),
@@ -758,8 +697,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
@@ -775,21 +713,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Ok(5)),
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<()>, _, _>(|x: i32| x.to_string(), Ok(5)),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Err(1)),
+		/// 	fold_map::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(|x: i32| x.to_string(), Err(1)),
 		/// 	"".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, F>(
-			func: F,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			F: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Ok(a) => func(a),
@@ -809,8 +746,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
@@ -829,24 +765,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Ok(5)),
+		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Ok(5)),
 		/// 	Some(Ok(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Err(1)),
+		/// 	traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Err(1)),
 		/// 	Some(Err(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Ok(5)),
+		/// 	traverse::<ResultErrAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Ok(5)),
 		/// 	None
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			match ta {
 				Ok(a) => F::map(|b| Ok(b), func(a)),
@@ -919,8 +854,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the error value inside the result.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters("The function to apply to the error.", "The result to map over.")]
@@ -937,15 +871,13 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Err(5)), Err(10));
-		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _>(|x: i32| x * 2, Err(5)), Err(10));
+		/// assert_eq!(map::<ResultOkAppliedBrand<i32>, _, _>(|x: i32| x * 2, Ok(1)), Ok(1));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match fa {
 				Ok(t) => Ok(t),
 				Err(e) => Err(func(e)),
@@ -964,8 +896,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first error value.",
 			"The type of the second error value.",
-			"The type of the result error value.",
-			"The type of the binary function."
+			"The type of the result error value."
 		)]
 		///
 		#[document_parameters(
@@ -986,29 +917,28 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Err(2)),
 		/// 	Err(3)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Err(1), Ok(2)),
 		/// 	Ok(2)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Err(2)),
 		/// 	Ok(1)
 		/// );
 		/// assert_eq!(
-		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
+		/// 	lift2::<ResultOkAppliedBrand<i32>, _, _, _>(|x: i32, y: i32| x + y, Ok(1), Ok(2)),
 		/// 	Ok(1)
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
@@ -1117,8 +1047,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
@@ -1135,16 +1064,14 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _, _>(Err(5), |x| Err(x * 2)), Err(10));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
-		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<()>, _, _>(Err(5), |x| Err(x * 2)), Err(10));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _>(Err(5), |_| Ok::<_, i32>(1)), Ok(1));
+		/// assert_eq!(bind::<ResultOkAppliedBrand<i32>, _, _>(Ok(1), |x: i32| Err(x * 2)), Ok(1));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			match ma {
 				Ok(t) => Ok(t),
 				Err(e) => func(e),
@@ -1163,8 +1090,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -1180,29 +1106,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(
-		/// 		|x: i32, acc| x + acc,
-		/// 		0,
-		/// 		Err(1)
-		/// 	),
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|x: i32, acc| x + acc, 0, Err(1)),
 		/// 	1
 		/// );
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(
-		/// 		|x: i32, acc| x + acc,
-		/// 		0,
-		/// 		Ok(())
-		/// 	),
+		/// 	fold_right::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|x: i32, acc| x + acc, 0, Ok(())),
 		/// 	0
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(e, initial),
@@ -1219,8 +1136,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -1236,21 +1152,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|acc, x: i32| acc + x, 0, Err(5)),
 		/// 	5
 		/// );
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
+		/// 	fold_left::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|acc, x: i32| acc + x, 0, Ok(1)),
 		/// 	0
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(initial, e),
@@ -1267,8 +1182,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
@@ -1284,21 +1198,20 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _, _>(|x: i32| x.to_string(), Err(5)),
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<()>, _, _>(|x: i32| x.to_string(), Err(5)),
 		/// 	"5".to_string()
 		/// );
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _, _>(|x: i32| x.to_string(), Ok(1)),
+		/// 	fold_map::<RcFnBrand, ResultOkAppliedBrand<i32>, _, _>(|x: i32| x.to_string(), Ok(1)),
 		/// 	"".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			match fa {
 				Err(e) => func(e),
@@ -1318,8 +1231,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
@@ -1338,24 +1250,23 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Err(5)),
+		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Err(5)),
 		/// 	Some(Err(10))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand, _>(|x: i32| Some(x * 2), Ok(1)),
+		/// 	traverse::<ResultOkAppliedBrand<i32>, _, _, OptionBrand>(|x: i32| Some(x * 2), Ok(1)),
 		/// 	Some(Ok(1))
 		/// );
 		/// assert_eq!(
-		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand, _>(|_| None::<i32>, Err(5)),
+		/// 	traverse::<ResultOkAppliedBrand<()>, _, _, OptionBrand>(|_| None::<i32>, Err(5)),
 		/// 	None
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			match ta {
 				Err(e) => F::map(|b| Err(b), func(e)),
@@ -1647,10 +1558,10 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x: Result<i32, i32> = Ok(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
+		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, x), Ok(10));
 
 		let y: Result<i32, i32> = Err(5);
-		assert_eq!(bimap::<ResultBrand, _, _, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
+		assert_eq!(bimap::<ResultBrand, _, _, _, _>(|e| e + 1, |s| s * 2, y), Err(6));
 	}
 
 	// Bifunctor Laws
@@ -1658,7 +1569,7 @@ mod tests {
 	/// Tests the identity law for Bifunctor.
 	#[quickcheck]
 	fn bifunctor_identity(x: Result<i32, i32>) -> bool {
-		bimap::<ResultBrand, _, _, _, _, _, _>(identity, identity, x) == x
+		bimap::<ResultBrand, _, _, _, _>(identity, identity, x) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -1669,12 +1580,8 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<ResultBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<ResultBrand, _, _, _, _, _, _>(
-				f,
-				h,
-				bimap::<ResultBrand, _, _, _, _, _, _>(g, i, x),
-			)
+		bimap::<ResultBrand, _, _, _, _>(compose(f, g), compose(h, i), x)
+			== bimap::<ResultBrand, _, _, _, _>(f, h, bimap::<ResultBrand, _, _, _, _>(g, i, x))
 	}
 
 	// Functor Laws
@@ -1682,7 +1589,7 @@ mod tests {
 	/// Tests the identity law for Functor.
 	#[quickcheck]
 	fn functor_identity(x: Result<i32, i32>) -> bool {
-		map::<ResultErrAppliedBrand<i32>, _, _, _>(identity, x) == x
+		map::<ResultErrAppliedBrand<i32>, _, _>(identity, x) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1690,10 +1597,10 @@ mod tests {
 	fn functor_composition(x: Result<i32, i32>) -> bool {
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<ResultErrAppliedBrand<i32>, _, _, _>(compose(f, g), x)
-			== map::<ResultErrAppliedBrand<i32>, _, _, _>(
+		map::<ResultErrAppliedBrand<i32>, _, _>(compose(f, g), x)
+			== map::<ResultErrAppliedBrand<i32>, _, _>(
 				f,
-				map::<ResultErrAppliedBrand<i32>, _, _, _>(g, x),
+				map::<ResultErrAppliedBrand<i32>, _, _>(g, x),
 			)
 	}
 
@@ -1787,14 +1694,14 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(pure::<ResultErrAppliedBrand<i32>, _>(a), f)
+		bind::<ResultErrAppliedBrand<i32>, _, _>(pure::<ResultErrAppliedBrand<i32>, _>(a), f)
 			== f(a)
 	}
 
 	/// Tests the right identity law for Monad.
 	#[quickcheck]
 	fn monad_right_identity(m: Result<i32, i32>) -> bool {
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, pure::<ResultErrAppliedBrand<i32>, _>) == m
+		bind::<ResultErrAppliedBrand<i32>, _, _>(m, pure::<ResultErrAppliedBrand<i32>, _>) == m
 	}
 
 	/// Tests the associativity law for Monad.
@@ -1802,12 +1709,10 @@ mod tests {
 	fn monad_associativity(m: Result<i32, i32>) -> bool {
 		let f = |x: i32| -> Result<i32, i32> { Err(x.wrapping_mul(2)) };
 		let g = |x: i32| -> Result<i32, i32> { Err(x.wrapping_add(1)) };
-		bind::<ResultErrAppliedBrand<i32>, _, _, _>(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, f),
-			g,
-		) == bind::<ResultErrAppliedBrand<i32>, _, _, _>(m, |x| {
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(f(x), g)
-		})
+		bind::<ResultErrAppliedBrand<i32>, _, _>(bind::<ResultErrAppliedBrand<i32>, _, _>(m, f), g)
+			== bind::<ResultErrAppliedBrand<i32>, _, _>(m, |x| {
+				bind::<ResultErrAppliedBrand<i32>, _, _>(f(x), g)
+			})
 	}
 
 	// Edge Cases
@@ -1816,7 +1721,7 @@ mod tests {
 	#[test]
 	fn map_err() {
 		assert_eq!(
-			map::<ResultErrAppliedBrand<i32>, _, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
+			map::<ResultErrAppliedBrand<i32>, _, _>(|x: i32| x + 1, Err::<i32, i32>(1)),
 			Err(1)
 		);
 	}
@@ -1825,7 +1730,7 @@ mod tests {
 	#[test]
 	fn bind_err() {
 		assert_eq!(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
+			bind::<ResultErrAppliedBrand<i32>, _, _>(Err::<i32, i32>(1), |x: i32| Ok(x + 1)),
 			Err(1)
 		);
 	}
@@ -1833,17 +1738,14 @@ mod tests {
 	/// Tests `bind` returning `Err`.
 	#[test]
 	fn bind_returning_err() {
-		assert_eq!(
-			bind::<ResultErrAppliedBrand<i32>, _, _, _>(Ok(1), |_| Err::<i32, i32>(2)),
-			Err(2)
-		);
+		assert_eq!(bind::<ResultErrAppliedBrand<i32>, _, _>(Ok(1), |_| Err::<i32, i32>(2)), Err(2));
 	}
 
 	/// Tests `fold_right` on `Err`.
 	#[test]
 	fn fold_right_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+			crate::classes::foldable::fold_right::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 				|x: i32, acc| x + acc,
 				0,
 				Err(1)
@@ -1856,7 +1758,7 @@ mod tests {
 	#[test]
 	fn fold_left_err() {
 		assert_eq!(
-			crate::classes::foldable::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _, _>(
+			crate::classes::foldable::fold_left::<RcFnBrand, ResultErrAppliedBrand<i32>, _, _>(
 				|acc, x: i32| acc + x,
 				0,
 				Err(1)
@@ -1869,7 +1771,7 @@ mod tests {
 	#[test]
 	fn traverse_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(
 				|x: i32| Some(x + 1),
 				Err(1)
 			),
@@ -1881,7 +1783,7 @@ mod tests {
 	#[test]
 	fn traverse_returning_err() {
 		assert_eq!(
-			crate::classes::traversable::traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand, _>(
+			crate::classes::traversable::traverse::<ResultErrAppliedBrand<i32>, _, _, OptionBrand>(
 				|_: i32| None::<i32>,
 				Ok(1)
 			),

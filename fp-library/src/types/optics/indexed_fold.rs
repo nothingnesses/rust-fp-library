@@ -307,7 +307,7 @@ mod inner {
 		/// let l: IndexedFold<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>> =
 		/// 	IndexedFold::folded();
 		/// let v = vec![10, 20];
-		/// let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 	&l,
 		/// 	|i, x| format!("{}:{}", i, x),
 		/// 	v,
@@ -361,7 +361,7 @@ mod inner {
 		/// let l: IndexedFoldPrime<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>> =
 		/// 	IndexedFoldPrime::folded();
 		/// let v = vec![10, 20];
-		/// let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 	&l,
 		/// 	|i, x| format!("{}:{}", i, x),
 		/// 	v,
@@ -493,7 +493,7 @@ mod inner {
 		/// let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>>::folded();
 		/// let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 		/// assert_eq!(
-		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 		&l,
 		/// 		|_, x| x.to_string(),
 		/// 		vec![1, 2]
@@ -559,7 +559,7 @@ mod inner {
 		/// let l = IndexedFold::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Folded<VecBrand>>::folded();
 		/// let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 		/// assert_eq!(
-		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 		&l,
 		/// 		|i, _| i.to_string(),
 		/// 		vec![1, 2]
@@ -823,7 +823,7 @@ mod inner {
 		/// let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>>::folded();
 		/// let _unindexed = optics_un_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 		/// assert_eq!(
-		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 		&l,
 		/// 		|_, x| x.to_string(),
 		/// 		vec![1, 2]
@@ -885,7 +885,7 @@ mod inner {
 		/// let l = IndexedFoldPrime::<RcBrand, usize, Vec<i32>, i32, Folded<VecBrand>>::folded();
 		/// let _unindexed = optics_as_index::<ForgetBrand<RcBrand, String>, _, _, _, _, _, _>(&l);
 		/// assert_eq!(
-		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 		/// 		&l,
 		/// 		|i, _| i.to_string(),
 		/// 		vec![1, 2]

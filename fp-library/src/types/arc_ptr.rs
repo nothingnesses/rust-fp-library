@@ -217,7 +217,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
 		fn coerce_fn<'a, A: 'a, B: 'a>(f: impl 'a + Fn(A) -> B) -> Arc<dyn 'a + Fn(A) -> B> {
@@ -247,7 +247,7 @@ mod inner {
 		/// 	functions::*,
 		/// };
 		///
-		/// let f = coerce_send_fn::<ArcBrand, _, _, _>(|x: i32| x + 1);
+		/// let f = coerce_send_fn::<ArcBrand, _, _>(|x: i32| x + 1);
 		/// assert_eq!(f(1), 2);
 		/// ```
 		fn coerce_send_fn<'a, A: 'a, B: 'a>(

@@ -107,9 +107,7 @@ mod inner {
 			"The source type of the new structure.",
 			"The target type of the new structure.",
 			"The source type of the original structure.",
-			"The target type of the original structure.",
-			"The type of the function to apply to the input.",
-			"The type of the function to apply to the output."
+			"The target type of the original structure."
 		)]
 		///
 		#[document_parameters(
@@ -150,14 +148,11 @@ mod inner {
 		/// );
 		/// assert_eq!((transformed.preview)("123".to_string()), Ok(123));
 		/// ```
-		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
-			st: FuncST,
-			uv: FuncUV,
+		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a>(
+			st: impl Fn(S) -> T + 'a,
+			uv: impl Fn(U) -> V + 'a,
 			puv: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, T, U>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
-		where
-			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>) {
 			let preview = puv.preview;
 			let review = puv.review;
 			let st = <FunctionBrand as CloneableFn>::new(st);

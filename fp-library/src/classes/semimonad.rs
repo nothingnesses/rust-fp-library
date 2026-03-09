@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+//! let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
 //! assert_eq!(y, Some(10));
 //! ```
 
@@ -34,8 +34,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the computations.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters(
@@ -53,15 +52,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+		/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a;
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
 	/// Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -73,8 +70,7 @@ mod inner {
 		"The lifetime of the computations.",
 		"The brand of the semimonad.",
 		"The type of the result of the first computation.",
-		"The type of the result of the second computation.",
-		"The type of the function to apply."
+		"The type of the result of the second computation."
 	)]
 	///
 	#[document_parameters(
@@ -92,16 +88,14 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = bind::<OptionBrand, _, _, _>(x, |i| Some(i * 2));
+	/// let y = bind::<OptionBrand, _, _>(x, |i| Some(i * 2));
 	/// assert_eq!(y, Some(10));
 	/// ```
-	pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a, Func>(
+	pub fn bind<'a, Brand: Semimonad, A: 'a, B: 'a>(
 		ma: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		f: Func,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
-		Brand::bind::<A, B, Func>(ma, f)
+		f: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		Brand::bind(ma, f)
 	}
 }
 

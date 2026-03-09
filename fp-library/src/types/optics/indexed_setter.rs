@@ -605,7 +605,7 @@ mod inner {
 		/// let l: IndexedSetterPrime<RcBrand, usize, Vec<i32>, i32, Mapped<VecBrand>> =
 		/// 	IndexedSetterPrime::mapped();
 		/// let v = vec![10, 20];
-		/// let s = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, v, |i, x| x + i as i32);
+		/// let s = optics_indexed_over::<RcBrand, _, _, _, _>(&l, v, |i, x| x + i as i32);
 		/// assert_eq!(s, vec![10, 21]);
 		/// ```
 		pub fn mapped() -> Self {
@@ -780,7 +780,7 @@ mod inner {
 		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
 		/// // optics_un_index creates a non-indexed optic; the original indexed setter still works:
 		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
+		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
 		/// 	vec![2, 3]
 		/// );
 		/// ```
@@ -825,7 +825,7 @@ mod inner {
 		/// let l = IndexedSetter::<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Mapped<VecBrand>>::mapped();
 		/// let _unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
 		/// // optics_as_index creates a non-indexed optic with the index as focus; the original indexed setter still works:
-		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -874,7 +874,7 @@ mod inner {
 		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
 		/// // optics_un_index creates a non-indexed optic; the original indexed setter still works:
 		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
+		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
 		/// 	vec![2, 3]
 		/// );
 		/// ```
@@ -917,7 +917,7 @@ mod inner {
 		/// let l = IndexedSetterPrime::<RcBrand, usize, Vec<i32>, i32, Mapped<VecBrand>>::mapped();
 		/// let _unindexed = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
 		/// // optics_as_index creates a non-indexed optic with the index as focus; the original indexed setter still works:
-		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed_discards_focus(
 			&self,

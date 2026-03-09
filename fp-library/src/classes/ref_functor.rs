@@ -10,7 +10,7 @@
 //! };
 //!
 //! let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-//! let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
+//! let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| *x * 2, memo);
 //! assert_eq!(*mapped.evaluate(), 20);
 //! ```
 
@@ -32,8 +32,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the value(s) inside the functor.",
-			"The type of the result(s) of applying the function.",
-			"The type of the function to apply."
+			"The type of the result(s) of applying the function."
 		)]
 		///
 		#[document_parameters(
@@ -57,12 +56,10 @@ mod inner {
 		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
-		fn ref_map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn ref_map<'a, A: 'a, B: 'a>(
+			func: impl FnOnce(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: FnOnce(&A) -> B + 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
 	/// Maps a function over the values in the functor context, where the function takes a reference.
@@ -74,8 +71,7 @@ mod inner {
 		"The lifetime of the values.",
 		"The brand of the functor.",
 		"The type of the value(s) inside the functor.",
-		"The type of the result(s) of applying the function.",
-		"The type of the function to apply."
+		"The type of the result(s) of applying the function."
 	)]
 	///
 	#[document_parameters(
@@ -94,16 +90,14 @@ mod inner {
 	/// };
 	///
 	/// let memo = Lazy::<_, RcLazyConfig>::new(|| 10);
-	/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _, _>(|x: &i32| *x * 2, memo);
+	/// let mapped = ref_map::<LazyBrand<RcLazyConfig>, _, _>(|x: &i32| *x * 2, memo);
 	/// assert_eq!(*mapped.evaluate(), 20);
 	/// ```
-	pub fn ref_map<'a, Brand: RefFunctor, A: 'a, B: 'a, Func>(
-		func: Func,
+	pub fn ref_map<'a, Brand: RefFunctor, A: 'a, B: 'a>(
+		func: impl FnOnce(&A) -> B + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: FnOnce(&A) -> B + 'a, {
-		Brand::ref_map::<A, B, Func>(func, fa)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		Brand::ref_map(func, fa)
 	}
 }
 

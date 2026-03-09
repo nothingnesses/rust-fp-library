@@ -14,6 +14,16 @@ fn map<A, B, Func: Fn(A) -> B>(f: Func, fa: Option<A>) -> Option<B>
 
 Both are universally quantified (the caller chooses the concrete type). The difference is whether the type parameter is **named** and **visible** in the signature.
 
+This applies to any trait bound used as a function parameter, not just `Fn`/`FnMut`/`FnOnce`:
+
+```rust
+fn print(x: impl Display)
+fn sum(iter: impl Iterator<Item = i32>) -> i32
+fn read_from(source: impl Read) -> Vec<u8>
+```
+
+The deciding factor is always: does the caller need to **name**, **relate**, or **reuse** the type? If not, `impl Trait` is simpler. Closure parameters are the most common case in this codebase, but the guidelines apply uniformly.
+
 ## Correspondence to PureScript/Haskell
 
 PureScript's Functor:

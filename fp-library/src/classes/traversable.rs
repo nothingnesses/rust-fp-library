@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+//! let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
 //! assert_eq!(y, Some(Some(10)));
 //! ```
 
@@ -42,8 +42,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -61,21 +60,19 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+		/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
 		/// assert_eq!(y, Some(Some(10)));
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			Self::sequence::<B, F>(Self::map::<
 				A,
 				Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-				Func,
 			>(func, ta))
 		}
 
@@ -113,7 +110,7 @@ mod inner {
 		where
 			Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>): Clone, {
-			Self::traverse::<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A, F, _>(
+			Self::traverse::<Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>), A, F>(
 				identity, ta,
 			)
 		}
@@ -129,8 +126,7 @@ mod inner {
 		"The brand of the traversable structure.",
 		"The type of the elements in the traversable structure.",
 		"The type of the elements in the resulting traversable structure.",
-		"The applicative context.",
-		"The type of the function to apply."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -148,18 +144,17 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = traverse::<OptionBrand, _, _, OptionBrand, _>(|a| Some(a * 2), x);
+	/// let y = traverse::<OptionBrand, _, _, OptionBrand>(|a| Some(a * 2), x);
 	/// assert_eq!(y, Some(Some(10)));
 	/// ```
-	pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-		func: Func,
+	pub fn traverse<'a, Brand: Traversable, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+		func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		ta: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 	where
-		Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone,
 		Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
-		Brand::traverse::<A, B, F, Func>(func, ta)
+		Brand::traverse::<A, B, F>(func, ta)
 	}
 
 	/// Evaluate each computation in a [`Traversable`] structure and accumulate the results into an [`Applicative`] context.

@@ -12,7 +12,7 @@
 //!
 //! // Function is a profunctor
 //! let f = |x: i32| x + 1;
-//! let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+//! let g = dimap::<RcFnBrand, _, _, _, _>(
 //! 	|x: i32| x * 2,
 //! 	|x: i32| x - 1,
 //! 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
@@ -83,9 +83,7 @@ mod inner {
 			"The new input type (contravariant position).",
 			"The original input type.",
 			"The original output type.",
-			"The new output type (covariant position).",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new output type (covariant position)."
 		)]
 		///
 		#[document_parameters(
@@ -105,21 +103,18 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x + 1;
-		/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+		/// let g = dimap::<RcFnBrand, _, _, _, _>(
 		/// 	|x: i32| x * 2,
 		/// 	|x: i32| x - 1,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>);
 
 		/// Maps contravariantly over the first argument.
 		///
@@ -130,8 +125,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The new input type.",
 			"The original input type.",
-			"The output type.",
-			"The type of the contravariant function."
+			"The output type."
 		)]
 		///
 		#[document_parameters(
@@ -150,18 +144,16 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x + 1;
-		/// let g = lmap::<RcFnBrand, _, _, _, _>(
+		/// let g = lmap::<RcFnBrand, _, _, _>(
 		/// 	|x: i32| x * 2,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 		/// ```
-		fn lmap<'a, A: 'a, B: 'a, C: 'a, FuncAB>(
-			ab: FuncAB,
+		fn lmap<'a, A: 'a, B: 'a, C: 'a>(
+			ab: impl Fn(A) -> B + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
-		where
-			FuncAB: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
 			Self::dimap(ab, crate::functions::identity, pbc)
 		}
 
@@ -174,8 +166,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The input type.",
 			"The original output type.",
-			"The new output type.",
-			"The type of the covariant function."
+			"The new output type."
 		)]
 		///
 		#[document_parameters(
@@ -194,18 +185,16 @@ mod inner {
 		/// };
 		///
 		/// let f = |x: i32| x + 1;
-		/// let g = rmap::<RcFnBrand, _, _, _, _>(
+		/// let g = rmap::<RcFnBrand, _, _, _>(
 		/// 	|x: i32| x * 2,
 		/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 		/// );
 		/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 		/// ```
-		fn rmap<'a, A: 'a, B: 'a, C: 'a, FuncBC>(
-			bc: FuncBC,
+		fn rmap<'a, A: 'a, B: 'a, C: 'a>(
+			bc: impl Fn(B) -> C + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
-		where
-			FuncBC: Fn(B) -> C + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
 			Self::dimap(crate::functions::identity, bc, pab)
 		}
 	}
@@ -221,9 +210,7 @@ mod inner {
 		"The new input type (contravariant position).",
 		"The original input type.",
 		"The original output type.",
-		"The new output type (covariant position).",
-		"The type of the contravariant function.",
-		"The type of the covariant function."
+		"The new output type (covariant position)."
 	)]
 	///
 	#[document_parameters(
@@ -243,21 +230,18 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = dimap::<RcFnBrand, _, _, _, _, _, _>(
+	/// let g = dimap::<RcFnBrand, _, _, _, _>(
 	/// 	|x: i32| x * 2,
 	/// 	|x: i32| x - 1,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 	/// );
 	/// assert_eq!(g(10), 20); // (10 * 2) + 1 - 1 = 20
 	/// ```
-	pub fn dimap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-		ab: FuncAB,
-		cd: FuncCD,
+	pub fn dimap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, D: 'a>(
+		ab: impl Fn(A) -> B + 'a,
+		cd: impl Fn(C) -> D + 'a,
 		pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-	where
-		FuncAB: Fn(A) -> B + 'a,
-		FuncCD: Fn(C) -> D + 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 		Brand::dimap(ab, cd, pbc)
 	}
 
@@ -271,8 +255,7 @@ mod inner {
 		"The brand of the profunctor.",
 		"The new input type.",
 		"The original input type.",
-		"The output type.",
-		"The type of the contravariant function."
+		"The output type."
 	)]
 	///
 	#[document_parameters(
@@ -291,18 +274,16 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = lmap::<RcFnBrand, _, _, _, _>(
+	/// let g = lmap::<RcFnBrand, _, _, _>(
 	/// 	|x: i32| x * 2,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 	/// );
 	/// assert_eq!(g(10), 21); // (10 * 2) + 1 = 21
 	/// ```
-	pub fn lmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncAB>(
-		ab: FuncAB,
+	pub fn lmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
+		ab: impl Fn(A) -> B + 'a,
 		pbc: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
-	where
-		FuncAB: Fn(A) -> B + 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
 		Brand::lmap(ab, pbc)
 	}
 
@@ -316,8 +297,7 @@ mod inner {
 		"The brand of the profunctor.",
 		"The input type.",
 		"The original output type.",
-		"The new output type.",
-		"The type of the covariant function."
+		"The new output type."
 	)]
 	///
 	#[document_parameters(
@@ -336,18 +316,16 @@ mod inner {
 	/// };
 	///
 	/// let f = |x: i32| x + 1;
-	/// let g = rmap::<RcFnBrand, _, _, _, _>(
+	/// let g = rmap::<RcFnBrand, _, _, _>(
 	/// 	|x: i32| x * 2,
 	/// 	std::rc::Rc::new(f) as std::rc::Rc<dyn Fn(i32) -> i32>,
 	/// );
 	/// assert_eq!(g(10), 22); // (10 + 1) * 2 = 22
 	/// ```
-	pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a, FuncBC>(
-		bc: FuncBC,
+	pub fn rmap<'a, Brand: Profunctor, A: 'a, B: 'a, C: 'a>(
+		bc: impl Fn(B) -> C + 'a,
 		pab: Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>)
-	where
-		FuncBC: Fn(B) -> C + 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, C>) {
 		Brand::rmap(bc, pab)
 	}
 
@@ -403,8 +381,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The input type.",
-			"The output type.",
-			"The mapping function type."
+			"The output type."
 		)]
 		#[document_parameters("The function to apply.", "The profunctor value to map over.")]
 		#[document_returns("The mapped profunctor value.")]
@@ -417,15 +394,13 @@ mod inner {
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _, _>(|x: i32| x * 2, f);
+		/// let g = map::<ProfunctorFirstAppliedBrand<RcFnBrand, i32>, _, _>(|x: i32| x * 2, f);
 		/// assert_eq!(g(5), 12); // (5 + 1) * 2
 		/// ```
-		fn map<'a, B: 'a, C: 'a, Func>(
-			f: Func,
+		fn map<'a, B: 'a, C: 'a>(
+			f: impl Fn(B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-		where
-			Func: Fn(B) -> C + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			Brand::rmap(f, fa)
 		}
 	}
@@ -446,8 +421,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The input type.",
-			"The output type.",
-			"The mapping function type."
+			"The output type."
 		)]
 		#[document_parameters("The function to apply.", "The profunctor value to contramap over.")]
 		#[document_returns("The contramapped profunctor value.")]
@@ -460,15 +434,13 @@ mod inner {
 		/// };
 		///
 		/// let f = std::rc::Rc::new(|x: i32| x + 1) as std::rc::Rc<dyn Fn(i32) -> i32>;
-		/// let g = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _, _>(|x: i32| x * 2, f);
+		/// let g = contramap::<ProfunctorSecondAppliedBrand<RcFnBrand, i32>, _, _>(|x: i32| x * 2, f);
 		/// assert_eq!(g(5), 11); // (5 * 2) + 1
 		/// ```
-		fn contramap<'a, A: 'a, C: 'a, Func>(
-			f: Func,
+		fn contramap<'a, A: 'a, C: 'a>(
+			f: impl Fn(C) -> A + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
-		where
-			Func: Fn(C) -> A + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) {
 			Brand::lmap(f, fa)
 		}
 	}

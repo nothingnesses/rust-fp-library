@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x = Some(5);
-//! let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+//! let y = filter::<OptionBrand, _>(|a| a > 2, x);
 //! assert_eq!(y, Some(5));
 //! ```
 
@@ -49,8 +49,7 @@ mod inner {
 			"The lifetime of the elements.",
 			"The type of the elements in the input structure.",
 			"The type of the error values.",
-			"The type of the success values.",
-			"The type of the function to apply."
+			"The type of the success values."
 		)]
 		///
 		#[document_parameters(
@@ -71,20 +70,18 @@ mod inner {
 		///
 		/// let x = Some(5);
 		/// let (errs, oks) =
-		/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+		/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 		/// assert_eq!(oks, Some(5));
 		/// assert_eq!(errs, None);
 		/// ```
-		fn partition_map<'a, A: 'a, E: 'a, O: 'a, Func>(
-			func: Func,
+		fn partition_map<'a, A: 'a, E: 'a, O: 'a>(
+			func: impl Fn(A) -> Result<O, E> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-		)
-		where
-			Func: Fn(A) -> Result<O, E> + 'a, {
-			Self::separate::<E, O>(Self::map::<A, Result<O, E>, Func>(func, fa))
+		) {
+			Self::separate::<E, O>(Self::map::<A, Result<O, E>>(func, fa))
 		}
 
 		/// Partitions a data structure based on a predicate.
@@ -98,8 +95,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
-			"The type of the elements in the structure.",
-			"The type of the predicate function."
+			"The type of the elements in the structure."
 		)]
 		///
 		#[document_parameters("The predicate function.", "The data structure to partition.")]
@@ -116,19 +112,17 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+		/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
 		/// assert_eq!(satisfied, Some(5));
 		/// assert_eq!(not_satisfied, None);
 		/// ```
-		fn partition<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn partition<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> (
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		)
-		where
-			Func: Fn(A) -> bool + 'a, {
+		) {
 			Self::partition_map(move |a| if func(a.clone()) { Ok(a) } else { Err(a) }, fa)
 		}
 
@@ -142,8 +136,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the elements.",
 			"The type of the elements in the input structure.",
-			"The type of the elements in the output structure.",
-			"The type of the function to apply."
+			"The type of the elements in the output structure."
 		)]
 		#[document_parameters(
 			"The function to apply to each element, returning an [`Option`].",
@@ -161,16 +154,14 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+		/// let y = filter_map::<OptionBrand, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 		/// assert_eq!(y, Some(10));
 		/// ```
-		fn filter_map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn filter_map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Option<B> + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Option<B> + 'a, {
-			Self::compact::<B>(Self::map::<A, Option<B>, Func>(func, fa))
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+			Self::compact::<B>(Self::map::<A, Option<B>>(func, fa))
 		}
 
 		/// Filters a data structure based on a predicate.
@@ -180,8 +171,7 @@ mod inner {
 		///
 		#[document_type_parameters(
 			"The lifetime of the elements.",
-			"The type of the elements in the structure.",
-			"The type of the predicate function."
+			"The type of the elements in the structure."
 		)]
 		///
 		#[document_parameters("The predicate function.", "The data structure to filter.")]
@@ -198,15 +188,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Some(5);
-		/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+		/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
 		/// assert_eq!(y, Some(5));
 		/// ```
-		fn filter<'a, A: 'a + Clone, Func>(
-			func: Func,
+		fn filter<'a, A: 'a + Clone>(
+			func: impl Fn(A) -> bool + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-		where
-			Func: Fn(A) -> bool + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 			Self::filter_map(move |a| if func(a.clone()) { Some(a) } else { None }, fa)
 		}
 	}
@@ -221,8 +209,7 @@ mod inner {
 		"The brand of the filterable structure.",
 		"The type of the elements in the input structure.",
 		"The type of the error values.",
-		"The type of the success values.",
-		"The type of the function to apply."
+		"The type of the success values."
 	)]
 	///
 	#[document_parameters(
@@ -243,20 +230,18 @@ mod inner {
 	///
 	/// let x = Some(5);
 	/// let (errs, oks) =
-	/// 	partition_map::<OptionBrand, _, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
+	/// 	partition_map::<OptionBrand, _, _, _>(|a| if a > 2 { Ok(a) } else { Err(a) }, x);
 	/// assert_eq!(oks, Some(5));
 	/// assert_eq!(errs, None);
 	/// ```
-	pub fn partition_map<'a, Brand: Filterable, A: 'a, E: 'a, O: 'a, Func>(
-		func: Func,
+	pub fn partition_map<'a, Brand: Filterable, A: 'a, E: 'a, O: 'a>(
+		func: impl Fn(A) -> Result<O, E> + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, E>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, O>),
-	)
-	where
-		Func: Fn(A) -> Result<O, E> + 'a, {
-		Brand::partition_map::<A, E, O, Func>(func, fa)
+	) {
+		Brand::partition_map(func, fa)
 	}
 
 	/// Partitions a data structure based on a predicate.
@@ -269,8 +254,7 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the filterable structure.",
-		"The type of the elements in the structure.",
-		"The type of the predicate function."
+		"The type of the elements in the structure."
 	)]
 	///
 	#[document_parameters("The predicate function.", "The data structure to partition.")]
@@ -287,19 +271,17 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _, _>(|a| a > 2, x);
+	/// let (not_satisfied, satisfied) = partition::<OptionBrand, _>(|a| a > 2, x);
 	/// assert_eq!(satisfied, Some(5));
 	/// assert_eq!(not_satisfied, None);
 	/// ```
-	pub fn partition<'a, Brand: Filterable, A: 'a + Clone, Func>(
-		func: Func,
+	pub fn partition<'a, Brand: Filterable, A: 'a + Clone>(
+		func: impl Fn(A) -> bool + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 	) -> (
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	)
-	where
-		Func: Fn(A) -> bool + 'a, {
+	) {
 		Brand::partition(func, fa)
 	}
 
@@ -312,8 +294,7 @@ mod inner {
 		"The lifetime of the elements.",
 		"The brand of the filterable structure.",
 		"The type of the elements in the input structure.",
-		"The type of the elements in the output structure.",
-		"The type of the function to apply."
+		"The type of the elements in the output structure."
 	)]
 	///
 	#[document_parameters(
@@ -333,16 +314,14 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = filter_map::<OptionBrand, _, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
+	/// let y = filter_map::<OptionBrand, _, _>(|a| if a > 2 { Some(a * 2) } else { None }, x);
 	/// assert_eq!(y, Some(10));
 	/// ```
-	pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a, Func>(
-		func: Func,
+	pub fn filter_map<'a, Brand: Filterable, A: 'a, B: 'a>(
+		func: impl Fn(A) -> Option<B> + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> Option<B> + 'a, {
-		Brand::filter_map::<A, B, Func>(func, fa)
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
+		Brand::filter_map(func, fa)
 	}
 
 	/// Filters a data structure based on a predicate.
@@ -353,8 +332,7 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the elements.",
 		"The brand of the filterable structure.",
-		"The type of the elements in the structure.",
-		"The type of the predicate function."
+		"The type of the elements in the structure."
 	)]
 	///
 	#[document_parameters("The predicate function.", "The data structure to filter.")]
@@ -371,15 +349,13 @@ mod inner {
 	/// };
 	///
 	/// let x = Some(5);
-	/// let y = filter::<OptionBrand, _, _>(|a| a > 2, x);
+	/// let y = filter::<OptionBrand, _>(|a| a > 2, x);
 	/// assert_eq!(y, Some(5));
 	/// ```
-	pub fn filter<'a, Brand: Filterable, A: 'a + Clone, Func>(
-		func: Func,
+	pub fn filter<'a, Brand: Filterable, A: 'a + Clone>(
+		func: impl Fn(A) -> bool + 'a,
 		fa: Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>)
-	where
-		Func: Fn(A) -> bool + 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>) {
 		Brand::filter(func, fa)
 	}
 }

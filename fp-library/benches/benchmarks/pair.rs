@@ -56,7 +56,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				map::<PairFirstAppliedBrand<String>, _, _, _>(
+				map::<PairFirstAppliedBrand<String>, _, _>(
 					|x| x * 2,
 					std::hint::black_box(val.clone()),
 				)
@@ -76,7 +76,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _>(
+				fold_right::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					|x, acc| x + acc,
 					0,
 					std::hint::black_box(val.clone()),
@@ -97,7 +97,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _, _>(
+				fold_left::<RcFnBrand, PairFirstAppliedBrand<String>, _, _>(
 					|acc, x| acc + x,
 					0,
 					std::hint::black_box(val.clone()),
@@ -118,7 +118,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				traverse::<PairFirstAppliedBrand<String>, _, _, OptionBrand, _>(
+				traverse::<PairFirstAppliedBrand<String>, _, _, OptionBrand>(
 					|x| Some(x * 2),
 					std::hint::black_box(val.clone()),
 				)
@@ -164,7 +164,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				bind::<PairFirstAppliedBrand<String>, _, _, _>(
+				bind::<PairFirstAppliedBrand<String>, _, _>(
 					std::hint::black_box(val.clone()),
 					|x| Pair("second".to_string(), x * 2),
 				)
@@ -186,7 +186,7 @@ pub fn bench_pair(c: &mut Criterion) {
 		});
 		group.bench_with_input(BenchmarkId::new("fp", input_desc), &input_desc, |b, &_| {
 			b.iter(|| {
-				lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+				lift2::<PairFirstAppliedBrand<String>, _, _, _>(
 					|x, y| x + y,
 					std::hint::black_box(val.clone()),
 					std::hint::black_box(val2.clone()),

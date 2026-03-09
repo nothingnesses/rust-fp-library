@@ -85,8 +85,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The original result type.",
-			"The new result type.",
-			"The type of the mapping function."
+			"The new result type."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The bazaar list to map over.")]
@@ -109,15 +108,13 @@ mod inner {
 		/// 	foci: vec![1, 2],
 		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs.iter().sum()),
 		/// };
-		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _>(|t: i32| t * 10, bl);
+		/// let mapped = map::<BazaarListBrand<RcFnBrand, i32, i32>, _, _>(|t: i32| t * 10, bl);
 		/// assert_eq!((mapped.rebuild)(vec![3, 4]), 70);
 		/// ```
-		fn map<'a, T: 'a, U: 'a, Func>(
-			func: Func,
+		fn map<'a, T: 'a, U: 'a>(
+			func: impl Fn(T) -> U + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, U>)
-		where
-			Func: Fn(T) -> U + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, U>) {
 			let rebuild = fa.rebuild;
 			BazaarList {
 				foci: fa.foci,
@@ -190,8 +187,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The result type of the first `BazaarList`.",
 			"The result type of the second `BazaarList`.",
-			"The combined result type.",
-			"The type of the combining function."
+			"The combined result type."
 		)]
 		///
 		#[document_parameters(
@@ -224,18 +220,16 @@ mod inner {
 		/// 	foci: vec![2],
 		/// 	rebuild: cloneable_fn_new::<RcFnBrand, _, _>(|bs: Vec<i32>| bs[0]),
 		/// };
-		/// let combined =
-		/// 	lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _, _>(|a, b| a + b, bl1, bl2);
+		/// let combined = lift2::<BazaarListBrand<RcFnBrand, i32, i32>, _, _, _>(|a, b| a + b, bl1, bl2);
 		/// assert_eq!(combined.foci, vec![1, 2]);
 		/// assert_eq!((combined.rebuild)(vec![10, 20]), 30);
 		/// ```
-		fn lift2<'a, T, U, V, Func>(
-			func: Func,
+		fn lift2<'a, T, U, V>(
+			func: impl Fn(T, U) -> V + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, T>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, U>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, V>)
 		where
-			Func: Fn(T, U) -> V + 'a,
 			T: Clone + 'a,
 			U: Clone + 'a,
 			V: 'a, {
@@ -427,8 +421,7 @@ mod inner {
 		"The type of replacement values.",
 		"The source type.",
 		"The target type.",
-		"The applicative context.",
-		"The type of the handler function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -463,15 +456,15 @@ mod inner {
 	/// 			}
 	/// 		}),
 	/// 	);
-	/// let result = run_bazaar::<RcFnBrand, _, _, _, _, OptionBrand, _>(
+	/// let result = run_bazaar::<RcFnBrand, _, _, _, _, OptionBrand>(
 	/// 	|x: i32| Some(x + 1),
 	/// 	vec![1, 2, 3],
 	/// 	&bazaar,
 	/// );
 	/// assert_eq!(result, Some(vec![2, 3, 4]));
 	/// ```
-	pub fn run_bazaar<'a, FunctionBrand, A, B, S, T, F, Handler>(
-		handler: Handler,
+	pub fn run_bazaar<'a, FunctionBrand, A, B, S, T, F>(
+		handler: impl Fn(A) -> Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>) + 'a,
 		s: S,
 		bazaar: &Bazaar<'a, FunctionBrand, A, B, S, T>,
 	) -> Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>)
@@ -482,7 +475,6 @@ mod inner {
 		S: 'a,
 		T: 'a,
 		F: crate::classes::Applicative,
-		Handler: Fn(A) -> Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>) + 'a,
 		Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, B>): Clone,
 		Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, Vec<B>>): Clone,
 		Apply!(<F as Kind!( type Of<'b, U: 'b>: 'b; )>::Of<'a, T>): Clone, {
@@ -522,9 +514,7 @@ mod inner {
 			"The new source type.",
 			"The original source type.",
 			"The original target type.",
-			"The new target type.",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new target type."
 		)]
 		///
 		#[document_parameters(
@@ -563,14 +553,11 @@ mod inner {
 		/// assert_eq!(bl.foci, vec![42]);
 		/// assert_eq!((bl.rebuild)(vec![100]), "100".to_string());
 		/// ```
-		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a, FuncST, FuncUV>(
-			st: FuncST,
-			uv: FuncUV,
+		fn dimap<'a, S: 'a, T: 'a, U: 'a, V: 'a>(
+			st: impl Fn(S) -> T + 'a,
+			uv: impl Fn(U) -> V + 'a,
 			puv: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, T, U>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>)
-		where
-			FuncST: Fn(S) -> T + 'a,
-			FuncUV: Fn(U) -> V + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, V>) {
 			let run = puv.run;
 			let uv = <FunctionBrand as CloneableFn>::new(uv);
 			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |s: S| {
@@ -886,8 +873,7 @@ mod inner {
 			"The outer source type.",
 			"The outer target type.",
 			"The inner source type (focus of the traversal).",
-			"The inner target type.",
-			"The type of the traversal function."
+			"The inner target type."
 		)]
 		///
 		#[document_parameters("The traversal function.", "The bazaar instance to compose with.")]
@@ -943,7 +929,7 @@ mod inner {
 		/// 	}),
 		/// );
 		/// let wandered =
-		/// 	<BazaarBrand<RcFnBrand, i32, i32> as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32, _>(
+		/// 	<BazaarBrand<RcFnBrand, i32, i32> as Wander>::wander::<Vec<i32>, Vec<i32>, i32, i32>(
 		/// 		VecTraversal,
 		/// 		id_bazaar,
 		/// 	);
@@ -951,12 +937,10 @@ mod inner {
 		/// assert_eq!(bl.foci, vec![10, 20, 30]);
 		/// assert_eq!((bl.rebuild)(vec![1, 2, 3]), vec![1, 2, 3]);
 		/// ```
-		fn wander<'a, S: 'a, T: 'a, A2: 'a, B2: 'a + Clone, TFunc>(
-			traversal: TFunc,
+		fn wander<'a, S: 'a, T: 'a, A2: 'a, B2: 'a + Clone>(
+			traversal: impl TraversalFunc<'a, S, T, A2, B2> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A2, B2>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>)
-		where
-			TFunc: TraversalFunc<'a, S, T, A2, B2> + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
 			let run = pab.run;
 			Bazaar::new(<FunctionBrand as CloneableFn>::new(move |s: S| {
 				let run = run.clone();

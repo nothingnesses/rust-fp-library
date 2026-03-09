@@ -464,8 +464,6 @@ mod inner {
 		/// Creates a new Lazy that will run `f` on first access.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the initializer closure.")]
-		///
 		#[document_parameters("The closure that produces the value.")]
 		///
 		#[document_returns("A new `Lazy` instance.")]
@@ -478,9 +476,7 @@ mod inner {
 		/// let memo = Lazy::<_, RcLazyConfig>::new(|| 42);
 		/// assert_eq!(*memo.evaluate(), 42);
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + 'a, {
+		pub fn new(f: impl FnOnce() -> A + 'a) -> Self {
 			Lazy(RcLazyConfig::lazy_new(Box::new(f)))
 		}
 
@@ -555,8 +551,6 @@ mod inner {
 		/// Creates a new Lazy that will run `f` on first access.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the initializer closure.")]
-		///
 		#[document_parameters("The closure that produces the value.")]
 		///
 		#[document_returns("A new `Lazy` instance.")]
@@ -569,9 +563,7 @@ mod inner {
 		/// let lazy = Lazy::<_, ArcLazyConfig>::new(|| 42);
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		pub fn new<F>(f: F) -> Self
-		where
-			F: FnOnce() -> A + Send + 'a, {
+		pub fn new(f: impl FnOnce() -> A + Send + 'a) -> Self {
 			Lazy(ArcLazyConfig::lazy_new(Box::new(f)))
 		}
 
@@ -623,8 +615,6 @@ mod inner {
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the thunk.")]
-		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
 		#[document_returns("A new `Lazy` value.")]
@@ -642,9 +632,8 @@ mod inner {
 		/// let lazy = Lazy::<_, RcLazyConfig>::defer(|| RcLazy::pure(42));
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		fn defer<F>(f: F) -> Self
+		fn defer(f: impl FnOnce() -> Self + 'a) -> Self
 		where
-			F: FnOnce() -> Self + 'a,
 			Self: Sized, {
 			RcLazy::new(move || f().evaluate().clone())
 		}
@@ -660,8 +649,6 @@ mod inner {
 		/// This flattens the nested structure: instead of `ArcLazy<ArcLazy<A>>`, we get `ArcLazy<A>`.
 		/// The inner `Lazy` is computed only when the outer `Lazy` is evaluated.
 		#[document_signature]
-		///
-		#[document_type_parameters("The type of the thunk.")]
 		///
 		#[document_parameters("The thunk that produces the lazy value.")]
 		///
@@ -679,9 +666,8 @@ mod inner {
 		/// let lazy = ArcLazy::send_defer(|| ArcLazy::pure(42));
 		/// assert_eq!(*lazy.evaluate(), 42);
 		/// ```
-		fn send_defer<F>(f: F) -> Self
+		fn send_defer(f: impl FnOnce() -> Self + Send + Sync + 'a) -> Self
 		where
-			F: FnOnce() -> Self + Send + Sync + 'a,
 			Self: Sized, {
 			ArcLazy::new(move || f().evaluate().clone())
 		}
@@ -694,8 +680,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the value.",
-			"The type of the result.",
-			"The type of the function."
+			"The type of the result."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The memoized value.")]
@@ -715,12 +700,10 @@ mod inner {
 		/// let mapped = LazyBrand::<RcLazyConfig>::ref_map(|x: &i32| *x * 2, memo);
 		/// assert_eq!(*mapped.evaluate(), 20);
 		/// ```
-		fn ref_map<'a, A: 'a, B: 'a, F>(
-			f: F,
+		fn ref_map<'a, A: 'a, B: 'a>(
+			f: impl FnOnce(&A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			F: FnOnce(&A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			let fa = fa.clone();
 			let init: Box<dyn FnOnce() -> B + 'a> = Box::new(move || f(fa.evaluate()));
 			Lazy(RcLazyConfig::lazy_new(init))

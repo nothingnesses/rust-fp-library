@@ -214,9 +214,7 @@ mod inner {
 			"The new contravariant type.",
 			"The original contravariant type.",
 			"The original covariant type.",
-			"The new covariant type.",
-			"The type of the contravariant function.",
-			"The type of the covariant function."
+			"The new covariant type."
 		)]
 		///
 		#[document_parameters(
@@ -257,14 +255,11 @@ mod inner {
 		/// );
 		/// assert_eq!((transformed.run)(Tagged::new(5)).0, 10);
 		/// ```
-		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, FuncAB, FuncCD>(
-			ab: FuncAB,
-			cd: FuncCD,
+		fn dimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			ab: impl Fn(A) -> B + 'a,
+			cd: impl Fn(C) -> D + 'a,
 			pbc: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, B, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>)
-		where
-			FuncAB: Fn(A) -> B + 'a,
-			FuncCD: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, D>) {
 			let r = pbc.run;
 			let ab = <FnBrand<PointerBrand> as CloneableFn>::new(ab);
 			let cd = <FnBrand<PointerBrand> as CloneableFn>::new(cd);

@@ -143,8 +143,7 @@ mod inner {
 		"The pointer brand for the function.",
 		"The optic type.",
 		"The type of the structure.",
-		"The type of the focus.",
-		"The type of the modification function."
+		"The type of the focus."
 	)]
 	///
 	#[document_parameters(
@@ -171,21 +170,20 @@ mod inner {
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
 	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
+	/// 	optics_over::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
 	/// 	(84, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_over<'a, PointerBrand, O, S, A, F>(
+	pub fn optics_over<'a, PointerBrand, O, S, A>(
 		optic: &O,
 		s: S,
-		f: F,
+		f: impl Fn(A) -> A + 'a,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
 		O: SetterOptic<'a, PointerBrand, S, S, A, A>,
 		S: 'a,
-		A: 'a,
-		F: Fn(A) -> A + 'a, {
+		A: 'a, {
 		let f = <FnBrand<PointerBrand> as Function>::new(f);
 		(optic.evaluate(f))(s)
 	}
@@ -575,8 +573,7 @@ mod inner {
 		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
-		"The type of the focus.",
-		"The type of the modification function."
+		"The type of the focus."
 	)]
 	#[document_parameters(
 		"The indexed lens optic.",
@@ -597,23 +594,22 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, (42, "hello".to_string()), |i, x| x
+	/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |i, x| x
 	/// 		+ (i as i32)),
 	/// 	(52, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_indexed_over<'a, PointerBrand, O, I, S, A, F>(
+	pub fn optics_indexed_over<'a, PointerBrand, O, I, S, A>(
 		optic: &O,
 		s: S,
-		f: F,
+		f: impl Fn(I, A) -> A + 'a,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
 		O: IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		I: 'a,
 		S: 'a,
-		A: 'a,
-		F: Fn(I, A) -> A + 'a, {
+		A: 'a, {
 		let f_brand = <FnBrand<PointerBrand> as CloneableFn>::new(move |(i, a)| f(i, a));
 		(optic.evaluate(Indexed::new(f_brand)))(s)
 	}
@@ -662,7 +658,7 @@ mod inner {
 		I: 'a,
 		S: 'a,
 		A: 'a + Clone, {
-		optics_indexed_over::<PointerBrand, _, _, _, _, _>(optic, s, move |_, _| a.clone())
+		optics_indexed_over::<PointerBrand, _, _, _, _>(optic, s, move |_, _| a.clone())
 	}
 
 	/// Preview the focus and its index of an indexed prism-like optic.
@@ -734,8 +730,7 @@ mod inner {
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus.",
-		"The monoid type to fold into.",
-		"The type of the mapping function."
+		"The monoid type to fold into."
 	)]
 	#[document_parameters(
 		"The indexed fold optic.",
@@ -756,7 +751,7 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String, _>(
+	/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
 	/// 		&l,
 	/// 		|i, x| format!("{}:{}", i, x),
 	/// 		(42, "hi".to_string())
@@ -764,9 +759,9 @@ mod inner {
 	/// 	"0:42".to_string()
 	/// );
 	/// ```
-	pub fn optics_indexed_fold_map<'a, PointerBrand, O, I, S, A, R, F>(
+	pub fn optics_indexed_fold_map<'a, PointerBrand, O, I, S, A, R>(
 		optic: &O,
-		f: F,
+		f: impl Fn(I, A) -> R + 'a,
 		s: S,
 	) -> R
 	where
@@ -775,8 +770,7 @@ mod inner {
 		I: 'a,
 		S: 'a,
 		A: 'a,
-		R: Monoid + Clone + 'a + 'static,
-		F: Fn(I, A) -> R + 'a, {
+		R: Monoid + Clone + 'a + 'static, {
 		let forget = Forget::new(move |(i, a)| f(i, a));
 		let result_forget = optic.evaluate::<R, PointerBrand>(Indexed::new(forget));
 		(result_forget.0)(s)
@@ -1261,7 +1255,7 @@ mod inner {
 	/// let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 	/// let l = positions(t);
 	/// let s = vec![10, 20, 30];
-	/// let result = optics_indexed_over::<RcBrand, _, _, _, _, _>(&l, s, |i, x| x + i as i32);
+	/// let result = optics_indexed_over::<RcBrand, _, _, _, _>(&l, s, |i, x| x + i as i32);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
 	pub fn positions<'a, PointerBrand, S, T, A, B, F>(

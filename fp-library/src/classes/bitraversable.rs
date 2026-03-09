@@ -9,7 +9,7 @@
 //! };
 //!
 //! let x: Result<i32, i32> = Ok(5);
-//! let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+//! let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
 //! 	|e: i32| Some(e + 1),
 //! 	|s: i32| Some(s * 2),
 //! 	x,
@@ -59,9 +59,7 @@ mod inner {
 			"The type of the second-position elements.",
 			"The output type for first-position elements.",
 			"The output type for second-position elements.",
-			"The applicative context.",
-			"The type of the first function.",
-			"The type of the second function."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -80,7 +78,7 @@ mod inner {
 		/// };
 		///
 		/// let x: Result<i32, i32> = Err(3);
-		/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+		/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
 		/// 	|e: i32| Some(e + 1),
 		/// 	|s: i32| Some(s * 2),
 		/// 	x,
@@ -94,16 +92,11 @@ mod inner {
 			C: 'a + Clone,
 			D: 'a + Clone,
 			F: Applicative,
-			FA,
-			FB,
 		>(
-			f: FA,
-			g: FB,
+			f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+			g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
-		where
-			FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-			FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a;
+		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>);
 
 		/// Sequences a bitraversable structure containing applicative values.
 		///
@@ -145,8 +138,6 @@ mod inner {
 				A,
 				B,
 				F,
-				_,
-				_,
 			>(identity, identity, ta)
 		}
 	}
@@ -163,9 +154,7 @@ mod inner {
 		"The type of the second-position elements.",
 		"The output type for first-position elements.",
 		"The output type for second-position elements.",
-		"The applicative context.",
-		"The type of the first function.",
-		"The type of the second function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -184,7 +173,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// let y = bi_traverse::<ResultBrand, _, _, _, _, OptionBrand>(
 	/// 	|e: i32| Some(e + 1),
 	/// 	|s: i32| Some(s * 2),
 	/// 	x,
@@ -199,17 +188,13 @@ mod inner {
 		C: 'a + Clone,
 		D: 'a + Clone,
 		F: Applicative,
-		FA,
-		FB,
 	>(
-		f: FA,
-		g: FB,
+		f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+		g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
-	where
-		FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-		FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
-		Brand::bi_traverse::<A, B, C, D, F, FA, FB>(f, g, p)
+	{
+		Brand::bi_traverse::<A, B, C, D, F>(f, g, p)
 	}
 
 	/// Sequences a bitraversable structure containing applicative values.
@@ -260,8 +245,7 @@ mod inner {
 		"The type of the first-position elements.",
 		"The type of the second-position elements (unchanged).",
 		"The output type for first-position elements.",
-		"The applicative context.",
-		"The type of the function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -279,7 +263,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = traverse_left::<ResultBrand, _, _, _, OptionBrand, _>(|e: i32| Some(e + 1), x);
+	/// let y = traverse_left::<ResultBrand, _, _, _, OptionBrand>(|e: i32| Some(e + 1), x);
 	/// assert_eq!(y, Some(Err(4)));
 	/// ```
 	pub fn traverse_left<
@@ -289,14 +273,12 @@ mod inner {
 		B: 'a + Clone,
 		C: 'a + Clone,
 		F: Applicative,
-		FA,
 	>(
-		f: FA,
+		f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, B>)>)
-	where
-		FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a, {
-		Brand::bi_traverse::<A, B, C, B, F, FA, _>(f, |b| F::pure(b), p)
+	{
+		Brand::bi_traverse::<A, B, C, B, F>(f, |b| F::pure(b), p)
 	}
 
 	/// Traverses only the second-position elements, leaving first-position elements unchanged via `pure`.
@@ -310,8 +292,7 @@ mod inner {
 		"The type of the first-position elements (unchanged).",
 		"The type of the second-position elements.",
 		"The output type for second-position elements.",
-		"The applicative context.",
-		"The type of the function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -329,7 +310,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = traverse_right::<ResultBrand, _, _, _, OptionBrand, _>(|s: i32| Some(s * 2), x);
+	/// let y = traverse_right::<ResultBrand, _, _, _, OptionBrand>(|s: i32| Some(s * 2), x);
 	/// assert_eq!(y, Some(Ok(10)));
 	/// ```
 	pub fn traverse_right<
@@ -339,14 +320,12 @@ mod inner {
 		B: 'a + Clone,
 		D: 'a + Clone,
 		F: Applicative,
-		FB,
 	>(
-		g: FB,
+		g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, D>)>)
-	where
-		FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
-		Brand::bi_traverse::<A, B, A, D, F, _, FB>(|a| F::pure(a), g, p)
+	{
+		Brand::bi_traverse::<A, B, A, D, F>(|a| F::pure(a), g, p)
 	}
 
 	/// Traverses the bitraversable structure with arguments flipped.
@@ -361,9 +340,7 @@ mod inner {
 		"The type of the second-position elements.",
 		"The output type for first-position elements.",
 		"The output type for second-position elements.",
-		"The applicative context.",
-		"The type of the first function.",
-		"The type of the second function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -382,7 +359,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = bi_for::<ResultBrand, _, _, _, _, OptionBrand, _, _>(
+	/// let y = bi_for::<ResultBrand, _, _, _, _, OptionBrand>(
 	/// 	x,
 	/// 	|e: i32| Some(e + 1),
 	/// 	|s: i32| Some(s * 2),
@@ -397,17 +374,13 @@ mod inner {
 		C: 'a + Clone,
 		D: 'a + Clone,
 		F: Applicative,
-		FA,
-		FB,
 	>(
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		f: FA,
-		g: FB,
+		f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
+		g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, D>)>)
-	where
-		FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
-		FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
-		Brand::bi_traverse::<A, B, C, D, F, FA, FB>(f, g, p)
+	{
+		Brand::bi_traverse::<A, B, C, D, F>(f, g, p)
 	}
 
 	/// Traverses only the first-position elements with arguments flipped.
@@ -421,8 +394,7 @@ mod inner {
 		"The type of the first-position elements.",
 		"The type of the second-position elements (unchanged).",
 		"The output type for first-position elements.",
-		"The applicative context.",
-		"The type of the function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -440,7 +412,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Err(3);
-	/// let y = for_left::<ResultBrand, _, _, _, OptionBrand, _>(x, |e: i32| Some(e + 1));
+	/// let y = for_left::<ResultBrand, _, _, _, OptionBrand>(x, |e: i32| Some(e + 1));
 	/// assert_eq!(y, Some(Err(4)));
 	/// ```
 	pub fn for_left<
@@ -450,14 +422,12 @@ mod inner {
 		B: 'a + Clone,
 		C: 'a + Clone,
 		F: Applicative,
-		FA,
 	>(
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		f: FA,
+		f: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, C, B>)>)
-	where
-		FA: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>) + 'a, {
-		Brand::bi_traverse::<A, B, C, B, F, FA, _>(f, |b| F::pure(b), p)
+	{
+		Brand::bi_traverse::<A, B, C, B, F>(f, |b| F::pure(b), p)
 	}
 
 	/// Traverses only the second-position elements with arguments flipped.
@@ -471,8 +441,7 @@ mod inner {
 		"The type of the first-position elements (unchanged).",
 		"The type of the second-position elements.",
 		"The output type for second-position elements.",
-		"The applicative context.",
-		"The type of the function."
+		"The applicative context."
 	)]
 	///
 	#[document_parameters(
@@ -490,7 +459,7 @@ mod inner {
 	/// };
 	///
 	/// let x: Result<i32, i32> = Ok(5);
-	/// let y = for_right::<ResultBrand, _, _, _, OptionBrand, _>(x, |s: i32| Some(s * 2));
+	/// let y = for_right::<ResultBrand, _, _, _, OptionBrand>(x, |s: i32| Some(s * 2));
 	/// assert_eq!(y, Some(Ok(10)));
 	/// ```
 	pub fn for_right<
@@ -500,14 +469,12 @@ mod inner {
 		B: 'a + Clone,
 		D: 'a + Clone,
 		F: Applicative,
-		FB,
 	>(
 		p: Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, B>),
-		g: FB,
+		g: impl Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a,
 	) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Brand as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, D>)>)
-	where
-		FB: Fn(B) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, D>) + 'a, {
-		Brand::bi_traverse::<A, B, A, D, F, _, FB>(|a| F::pure(a), g, p)
+	{
+		Brand::bi_traverse::<A, B, A, D, F>(|a| F::pure(a), g, p)
 	}
 }
 

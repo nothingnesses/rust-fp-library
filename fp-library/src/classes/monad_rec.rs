@@ -12,7 +12,7 @@
 //!
 //! // A tail-recursive function to calculate factorial
 //! fn factorial(n: u64) -> Thunk<'static, u64> {
-//! 	tail_rec_m::<ThunkBrand, _, _, _>(
+//! 	tail_rec_m::<ThunkBrand, _, _>(
 //! 		|(n, acc)| {
 //! 			if n == 0 {
 //! 				Thunk::pure(Step::Done(acc))
@@ -63,8 +63,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the computation.",
 			"The type of the initial value and loop state.",
-			"The type of the result.",
-			"The type of the step function."
+			"The type of the result."
 		)]
 		///
 		#[document_parameters("The step function.", "The initial value.")]
@@ -79,7 +78,7 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
+		/// let result = tail_rec_m::<ThunkBrand, _, _>(
 		/// 	|n| {
 		/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
 		/// 	},
@@ -88,14 +87,12 @@ mod inner {
 		///
 		/// assert_eq!(result.evaluate(), 10);
 		/// ```
-		fn tail_rec_m<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn tail_rec_m<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+			+ Clone
+			+ 'a,
 			initial: A,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-				+ Clone
-				+ 'a;
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>);
 	}
 
 	/// Performs tail-recursive monadic computation.
@@ -107,8 +104,7 @@ mod inner {
 		"The lifetime of the computation.",
 		"The brand of the monad.",
 		"The type of the initial value and loop state.",
-		"The type of the result.",
-		"The type of the step function."
+		"The type of the result."
 	)]
 	///
 	#[document_parameters("The step function.", "The initial value.")]
@@ -123,7 +119,7 @@ mod inner {
 	/// 	types::*,
 	/// };
 	///
-	/// let result = tail_rec_m::<ThunkBrand, _, _, _>(
+	/// let result = tail_rec_m::<ThunkBrand, _, _>(
 	/// 	|n| {
 	/// 		if n < 10 { Thunk::pure(Step::Loop(n + 1)) } else { Thunk::pure(Step::Done(n)) }
 	/// 	},
@@ -132,14 +128,12 @@ mod inner {
 	///
 	/// assert_eq!(result.evaluate(), 10);
 	/// ```
-	pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a, Func>(
-		func: Func,
+	pub fn tail_rec_m<'a, Brand: MonadRec, A: 'a, B: 'a>(
+		func: impl Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
+		+ Clone
+		+ 'a,
 		initial: A,
-	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-	where
-		Func: Fn(A) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Step<A, B>>)
-			+ Clone
-			+ 'a, {
+	) -> Apply!(<Brand as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 		Brand::tail_rec_m(func, initial)
 	}
 }

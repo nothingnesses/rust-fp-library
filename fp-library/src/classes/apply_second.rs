@@ -60,7 +60,7 @@ mod inner {
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
-			Self::lift2::<A, B, B, _>(|_, b| b, fa, fb)
+			Self::lift2::<A, B, B>(|_, b| b, fa, fb)
 		}
 	}
 

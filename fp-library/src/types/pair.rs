@@ -81,9 +81,7 @@ mod inner {
 			"The type of the first value.",
 			"The type of the mapped first value.",
 			"The type of the second value.",
-			"The type of the mapped second value.",
-			"The type of the function to apply to the first value.",
-			"The type of the function to apply to the second value."
+			"The type of the mapped second value."
 		)]
 		///
 		#[document_parameters(
@@ -104,16 +102,13 @@ mod inner {
 		/// };
 		///
 		/// let x = Pair(1, 5);
-		/// assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+		/// assert_eq!(bimap::<PairBrand, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
 		/// ```
-		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a, F, G>(
-			f: F,
-			g: G,
+		fn bimap<'a, A: 'a, B: 'a, C: 'a, D: 'a>(
+			f: impl Fn(A) -> B + 'a,
+			g: impl Fn(C) -> D + 'a,
 			p: Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, A, C>),
-		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>)
-		where
-			F: Fn(A) -> B + 'a,
-			G: Fn(C) -> D + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, A: 'a, B: 'a>: 'a; )>::Of<'a, B, D>) {
 			let Pair(a, c) = p;
 			Pair(f(a), g(c))
 		}
@@ -138,8 +133,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the second value.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters(
@@ -159,14 +153,12 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
+		/// assert_eq!(map::<PairFirstAppliedBrand<_>, _, _>(|x: i32| x * 2, Pair(1, 5)), Pair(1, 10));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Pair(fa.0, func(fa.1))
 		}
 	}
@@ -185,8 +177,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first second value.",
 			"The type of the second second value.",
-			"The type of the result second value.",
-			"The type of the binary function."
+			"The type of the result second value."
 		)]
 		///
 		#[document_parameters(
@@ -208,7 +199,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<PairFirstAppliedBrand<String>, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair("a".to_string(), 1),
 		/// 		Pair("b".to_string(), 2)
@@ -216,13 +207,12 @@ mod inner {
 		/// 	Pair("ab".to_string(), 3)
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
@@ -329,8 +319,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters("The first pair.", "The function to apply to the second value.")]
@@ -347,19 +336,17 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairFirstAppliedBrand<String>, _, _, _>(Pair("a".to_string(), 5), |x| Pair(
+		/// 	bind::<PairFirstAppliedBrand<String>, _, _>(Pair("a".to_string(), 5), |x| Pair(
 		/// 		"b".to_string(),
 		/// 		x * 2
 		/// 	)),
 		/// 	Pair("ab".to_string(), 10)
 		/// );
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			let Pair(first, second) = ma;
 			let Pair(next_first, next_second) = func(second);
 			Pair(Semigroup::append(first, next_first), next_second)
@@ -377,8 +364,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The pair to fold.")]
@@ -395,21 +381,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		/// 		|x, acc| x + acc,
-		/// 		0,
-		/// 		Pair((), 5)
-		/// 	),
+		/// 	fold_right::<RcFnBrand, PairFirstAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, Pair((), 5)),
 		/// 	5
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.1, initial)
 		}
@@ -423,8 +404,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters(
@@ -444,21 +424,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		/// 		|acc, x| acc + x,
-		/// 		0,
-		/// 		Pair((), 5)
-		/// 	),
+		/// 	fold_left::<RcFnBrand, PairFirstAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, Pair((), 5)),
 		/// 	5
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			Func: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.1)
 		}
@@ -472,8 +447,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters("The mapping function.", "The pair to fold.")]
@@ -490,20 +464,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _, _>(
-		/// 		|x: i32| x.to_string(),
-		/// 		Pair((), 5)
-		/// 	),
+		/// 	fold_map::<RcFnBrand, PairFirstAppliedBrand<()>, _, _>(|x: i32| x.to_string(), Pair((), 5)),
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.1)
 		}
@@ -520,8 +490,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters(
@@ -540,16 +509,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<PairFirstAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair((), 5)),
+		/// 	traverse::<PairFirstAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Pair((), 5)),
 		/// 	Some(Pair((), 10))
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			let Pair(first, second) = ta;
 			F::map(move |b| Pair(first.clone(), b), func(second))
@@ -705,8 +673,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the first value.",
-			"The type of the result of applying the function.",
-			"The type of the function to apply."
+			"The type of the result of applying the function."
 		)]
 		///
 		#[document_parameters("The function to apply to the first value.", "The pair to map over.")]
@@ -724,14 +691,12 @@ mod inner {
 		/// 	types::*,
 		/// };
 		///
-		/// assert_eq!(map::<PairSecondAppliedBrand<_>, _, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
+		/// assert_eq!(map::<PairSecondAppliedBrand<_>, _, _>(|x: i32| x * 2, Pair(5, 1)), Pair(10, 1));
 		/// ```
-		fn map<'a, A: 'a, B: 'a, Func>(
-			func: Func,
+		fn map<'a, A: 'a, B: 'a>(
+			func: impl Fn(A) -> B + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> B + 'a, {
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			Pair(func(fa.0), fa.1)
 		}
 	}
@@ -750,8 +715,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the first first value.",
 			"The type of the second first value.",
-			"The type of the result first value.",
-			"The type of the binary function."
+			"The type of the result first value."
 		)]
 		///
 		#[document_parameters(
@@ -773,7 +737,7 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _, _>(
+		/// 	lift2::<PairSecondAppliedBrand<String>, _, _, _>(
 		/// 		|x, y| x + y,
 		/// 		Pair(1, "a".to_string()),
 		/// 		Pair(2, "b".to_string())
@@ -781,13 +745,12 @@ mod inner {
 		/// 	Pair(3, "ab".to_string())
 		/// );
 		/// ```
-		fn lift2<'a, A, B, C, Func>(
-			func: Func,
+		fn lift2<'a, A, B, C>(
+			func: impl Fn(A, B) -> C + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 			fb: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, C>)
 		where
-			Func: Fn(A, B) -> C + 'a,
 			A: Clone + 'a,
 			B: Clone + 'a,
 			C: 'a, {
@@ -894,8 +857,7 @@ mod inner {
 		#[document_type_parameters(
 			"The lifetime of the values.",
 			"The type of the result of the first computation.",
-			"The type of the result of the second computation.",
-			"The type of the function to apply."
+			"The type of the result of the second computation."
 		)]
 		///
 		#[document_parameters("The first result.", "The function to apply to the error value.")]
@@ -914,19 +876,17 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	bind::<PairSecondAppliedBrand<String>, _, _, _>(Pair(5, "a".to_string()), |x| Pair(
+		/// 	bind::<PairSecondAppliedBrand<String>, _, _>(Pair(5, "a".to_string()), |x| Pair(
 		/// 		x * 2,
 		/// 		"b".to_string()
 		/// 	)),
 		/// 	Pair(10, "ab".to_string())
 		/// );
 		/// ```
-		fn bind<'a, A: 'a, B: 'a, Func>(
+		fn bind<'a, A: 'a, B: 'a>(
 			ma: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
-			func: Func,
-		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)
-		where
-			Func: Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a, {
+			func: impl Fn(A) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
+		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) {
 			let Pair(first, second) = ma;
 			let Pair(next_first, next_second) = func(first);
 			Pair(next_first, Semigroup::append(second, next_second))
@@ -944,8 +904,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -962,21 +921,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
-		/// 		|x, acc| x + acc,
-		/// 		0,
-		/// 		Pair(5, ())
-		/// 	),
+		/// 	fold_right::<RcFnBrand, PairSecondAppliedBrand<()>, _, _>(|x, acc| x + acc, 0, Pair(5, ())),
 		/// 	5
 		/// );
 		/// ```
-		fn fold_right<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_right<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(A, B) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(A, B) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.0, initial)
 		}
@@ -990,8 +944,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the accumulator.",
-			"The type of the folding function."
+			"The type of the accumulator."
 		)]
 		///
 		#[document_parameters("The folding function.", "The initial value.", "The result to fold.")]
@@ -1008,21 +961,16 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
-		/// 		|acc, x| acc + x,
-		/// 		0,
-		/// 		Pair(5, ())
-		/// 	),
+		/// 	fold_left::<RcFnBrand, PairSecondAppliedBrand<()>, _, _>(|acc, x| acc + x, 0, Pair(5, ())),
 		/// 	5
 		/// );
 		/// ```
-		fn fold_left<'a, FnBrand, A: 'a, B: 'a, F>(
-			func: F,
+		fn fold_left<'a, FnBrand, A: 'a + Clone, B: 'a>(
+			func: impl Fn(B, A) -> B + 'a,
 			initial: B,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> B
 		where
-			F: Fn(B, A) -> B + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(initial, fa.0)
 		}
@@ -1036,8 +984,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The brand of the cloneable function to use.",
 			"The type of the elements in the structure.",
-			"The type of the monoid.",
-			"The type of the mapping function."
+			"The type of the monoid."
 		)]
 		///
 		#[document_parameters("The mapping function.", "The result to fold.")]
@@ -1054,20 +1001,19 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _, _>(
+		/// 	fold_map::<RcFnBrand, PairSecondAppliedBrand<()>, _, _>(
 		/// 		|x: i32| x.to_string(),
 		/// 		Pair(5, ())
 		/// 	),
 		/// 	"5".to_string()
 		/// );
 		/// ```
-		fn fold_map<'a, FnBrand, A: 'a, M, Func>(
-			func: Func,
+		fn fold_map<'a, FnBrand, A: 'a + Clone, M>(
+			func: impl Fn(A) -> M + 'a,
 			fa: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> M
 		where
 			M: Monoid + 'a,
-			Func: Fn(A) -> M + 'a,
 			FnBrand: CloneableFn + 'a, {
 			func(fa.0)
 		}
@@ -1084,8 +1030,7 @@ mod inner {
 			"The lifetime of the values.",
 			"The type of the elements in the traversable structure.",
 			"The type of the elements in the resulting traversable structure.",
-			"The applicative context.",
-			"The type of the function to apply."
+			"The applicative context."
 		)]
 		///
 		#[document_parameters("The function to apply.", "The result to traverse.")]
@@ -1102,16 +1047,15 @@ mod inner {
 		/// };
 		///
 		/// assert_eq!(
-		/// 	traverse::<PairSecondAppliedBrand<()>, _, _, OptionBrand, _>(|x| Some(x * 2), Pair(5, ())),
+		/// 	traverse::<PairSecondAppliedBrand<()>, _, _, OptionBrand>(|x| Some(x * 2), Pair(5, ())),
 		/// 	Some(Pair(10, ()))
 		/// );
 		/// ```
-		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative, Func>(
-			func: Func,
+		fn traverse<'a, A: 'a + Clone, B: 'a + Clone, F: Applicative>(
+			func: impl Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			ta: Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, A>),
 		) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>)>)
 		where
-			Func: Fn(A) -> Apply!(<F as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>) + 'a,
 			Apply!(<Self as Kind!( type Of<'a, T: 'a>: 'a; )>::Of<'a, B>): Clone, {
 			let Pair(first, second) = ta;
 			F::map(move |b| Pair(b, second.clone()), func(first))
@@ -1272,7 +1216,7 @@ mod tests {
 	#[test]
 	fn test_bimap() {
 		let x = Pair(1, 5);
-		assert_eq!(bimap::<PairBrand, _, _, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
+		assert_eq!(bimap::<PairBrand, _, _, _, _>(|a| a + 1, |b| b * 2, x), Pair(2, 10));
 	}
 
 	// Bifunctor Laws
@@ -1284,7 +1228,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		bimap::<PairBrand, _, _, _, _, _, _>(identity, identity, x.clone()) == x
+		bimap::<PairBrand, _, _, _, _>(identity, identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Bifunctor.
@@ -1299,12 +1243,8 @@ mod tests {
 		let h = |x: i32| x.wrapping_sub(1);
 		let i = |x: i32| if x == 0 { 0 } else { x.wrapping_div(2) };
 
-		bimap::<PairBrand, _, _, _, _, _, _>(compose(f, g), compose(h, i), x)
-			== bimap::<PairBrand, _, _, _, _, _, _>(
-				f,
-				h,
-				bimap::<PairBrand, _, _, _, _, _, _>(g, i, x),
-			)
+		bimap::<PairBrand, _, _, _, _>(compose(f, g), compose(h, i), x)
+			== bimap::<PairBrand, _, _, _, _>(f, h, bimap::<PairBrand, _, _, _, _>(g, i, x))
 	}
 
 	// Functor Laws
@@ -1316,7 +1256,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let x = Pair(first, second);
-		map::<PairFirstAppliedBrand<String>, _, _, _>(identity, x.clone()) == x
+		map::<PairFirstAppliedBrand<String>, _, _>(identity, x.clone()) == x
 	}
 
 	/// Tests the composition law for Functor.
@@ -1328,10 +1268,10 @@ mod tests {
 		let x = Pair(first, second);
 		let f = |x: i32| x.wrapping_add(1);
 		let g = |x: i32| x.wrapping_mul(2);
-		map::<PairFirstAppliedBrand<String>, _, _, _>(compose(f, g), x.clone())
-			== map::<PairFirstAppliedBrand<String>, _, _, _>(
+		map::<PairFirstAppliedBrand<String>, _, _>(compose(f, g), x.clone())
+			== map::<PairFirstAppliedBrand<String>, _, _>(
 				f,
-				map::<PairFirstAppliedBrand<String>, _, _, _>(g, x),
+				map::<PairFirstAppliedBrand<String>, _, _>(g, x),
 			)
 	}
 
@@ -1429,10 +1369,8 @@ mod tests {
 	#[quickcheck]
 	fn monad_left_identity(a: i32) -> bool {
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
-			pure::<PairFirstAppliedBrand<String>, _>(a),
-			f,
-		) == f(a)
+		bind::<PairFirstAppliedBrand<String>, _, _>(pure::<PairFirstAppliedBrand<String>, _>(a), f)
+			== f(a)
 	}
 
 	/// Tests the right identity law for Monad.
@@ -1442,7 +1380,7 @@ mod tests {
 		second: i32,
 	) -> bool {
 		let m = Pair(first, second);
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
+		bind::<PairFirstAppliedBrand<String>, _, _>(
 			m.clone(),
 			pure::<PairFirstAppliedBrand<String>, _>,
 		) == m
@@ -1457,11 +1395,11 @@ mod tests {
 		let m = Pair(first, second);
 		let f = |x: i32| Pair("f".to_string(), x.wrapping_mul(2));
 		let g = |x: i32| Pair("g".to_string(), x.wrapping_add(1));
-		bind::<PairFirstAppliedBrand<String>, _, _, _>(
-			bind::<PairFirstAppliedBrand<String>, _, _, _>(m.clone(), f),
+		bind::<PairFirstAppliedBrand<String>, _, _>(
+			bind::<PairFirstAppliedBrand<String>, _, _>(m.clone(), f),
 			g,
-		) == bind::<PairFirstAppliedBrand<String>, _, _, _>(m, |x| {
-			bind::<PairFirstAppliedBrand<String>, _, _, _>(f(x), g)
+		) == bind::<PairFirstAppliedBrand<String>, _, _>(m, |x| {
+			bind::<PairFirstAppliedBrand<String>, _, _>(f(x), g)
 		})
 	}
 
