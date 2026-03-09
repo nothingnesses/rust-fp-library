@@ -96,6 +96,7 @@
                 pkgs.bacon
                 pkgs.rust-analyzer
                 pkgs.just
+                pkgs.python3
                 # For criterion.rs
                 pkgs.gnuplot
               ];
