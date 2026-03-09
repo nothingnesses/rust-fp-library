@@ -7,16 +7,14 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				UnsizedCoercible,
 				monoid::Monoid,
 				optics::*,
 			},
 			kinds::*,
-			types::optics::{
-				Forget,
-				ForgetBrand,
-			},
+			types::optics::Forget,
 		},
 		fp_macros::*,
 		std::marker::PhantomData,
@@ -73,6 +71,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::monoid::Monoid,
 		/// 	types::optics::{
 		/// 		FoldFunc,
@@ -143,7 +142,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		Fold,
 		/// 		IterableFoldFn,
@@ -193,7 +195,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		Fold,
 		/// 		IterableFoldFn,
@@ -222,7 +227,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		Fold,
 		/// 		IterableFoldFn,
@@ -273,7 +281,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,
@@ -340,7 +351,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		FoldPrime,
 		/// 		IterableFoldFn,
@@ -384,7 +398,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		FoldPrime,
 		/// 		IterableFoldFn,
@@ -412,7 +429,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		FoldPrime,
 		/// 		IterableFoldFn,
@@ -458,7 +478,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	functions::*,
 		/// 	types::optics::*,

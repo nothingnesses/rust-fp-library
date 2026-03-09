@@ -5,7 +5,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
+			brands::{
+				FnBrand,
+				optics::*,
+			},
 			classes::{
 				CloneableFn,
 				Function,
@@ -22,14 +25,12 @@ mod inner {
 			kinds::*,
 			types::optics::{
 				Exchange,
-				ExchangeBrand,
 				Forget,
 				Indexed,
 				IndexedTraversal,
 				Tagged,
 				Traversal,
 				Zipping,
-				ZippingBrand,
 			},
 		},
 		fp_macros::*,
@@ -57,7 +58,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
@@ -100,7 +104,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
@@ -153,7 +160,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
@@ -202,7 +212,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
@@ -263,7 +276,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
 	/// };
@@ -308,6 +324,7 @@ mod inner {
 	/// 	brands::{
 	/// 		RcBrand,
 	/// 		RcFnBrand,
+	/// 		optics::*,
 	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
@@ -357,6 +374,7 @@ mod inner {
 	/// 	brands::{
 	/// 		RcBrand,
 	/// 		RcFnBrand,
+	/// 		optics::*,
 	/// 	},
 	/// 	classes::optics::*,
 	/// 	types::optics::*,
@@ -406,7 +424,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::*,
+	/// 	brands::{
+	/// 		optics::*,
+	/// 		*,
+	/// 	},
 	/// 	classes::optics::*,
 	/// 	functions::*,
 	/// 	types::optics::*,
@@ -466,6 +487,7 @@ mod inner {
 	/// 		brands::{
 	/// 			RcBrand,
 	/// 			RcFnBrand,
+	/// 			optics::*,
 	/// 		},
 	/// 		classes::CloneableFn,
 	/// 		types::optics::{
@@ -522,7 +544,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
@@ -563,7 +588,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
@@ -610,7 +638,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
@@ -650,7 +681,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
@@ -713,7 +747,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	types::optics::*,
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
@@ -766,6 +803,7 @@ mod inner {
 	/// 	brands::{
 	/// 		RcBrand,
 	/// 		RcFnBrand,
+	/// 		optics::*,
 	/// 	},
 	/// 	functions::*,
 	/// 	types::optics::*,
@@ -816,6 +854,7 @@ mod inner {
 			/// 	brands::{
 			/// 		RcBrand,
 			/// 		RcFnBrand,
+			/// 		optics::*,
 			/// 	},
 			/// 	functions::*,
 			/// 	types::optics::*,
@@ -865,6 +904,7 @@ mod inner {
 	/// 	brands::{
 	/// 		RcBrand,
 	/// 		RcFnBrand,
+	/// 		optics::*,
 	/// 	},
 	/// 	functions::*,
 	/// 	types::optics::*,
@@ -915,6 +955,7 @@ mod inner {
 			/// 	brands::{
 			/// 		RcBrand,
 			/// 		RcFnBrand,
+			/// 		optics::*,
 			/// 	},
 			/// 	functions::*,
 			/// 	types::optics::*,
@@ -970,6 +1011,7 @@ mod inner {
 	/// 	brands::{
 	/// 		RcBrand,
 	/// 		RcFnBrand,
+	/// 		optics::*,
 	/// 	},
 	/// 	classes::optics::IndexedOpticAdapter,
 	/// 	types::optics::*,
@@ -1033,6 +1075,7 @@ mod inner {
 			/// 	brands::{
 			/// 		RcBrand,
 			/// 		RcFnBrand,
+			/// 		optics::*,
 			/// 	},
 			/// 	classes::optics::IndexedOpticAdapter,
 			/// 	types::optics::*,
@@ -1103,6 +1146,7 @@ mod inner {
 		/// 	brands::{
 		/// 		OptionBrand,
 		/// 		RcBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
 		/// 		Applicative,
@@ -1181,7 +1225,10 @@ mod inner {
 	/// ```
 	/// use fp_library::{
 	/// 	Apply,
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::{
 	/// 		Applicative,
 	/// 		lift::Lift,

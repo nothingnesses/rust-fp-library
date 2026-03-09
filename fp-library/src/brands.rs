@@ -24,6 +24,8 @@ use {
 	std::marker::PhantomData,
 };
 
+pub mod optics;
+
 /// Brand for [`Arc`](std::sync::Arc) atomic reference-counted pointer.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArcBrand;

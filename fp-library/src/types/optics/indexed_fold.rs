@@ -5,6 +5,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				UnsizedCoercible,
 				foldable_with_index::FoldableWithIndex,
@@ -14,7 +15,6 @@ mod inner {
 			kinds::*,
 			types::optics::{
 				Forget,
-				ForgetBrand,
 				Indexed,
 			},
 		},
@@ -110,7 +110,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -170,7 +173,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -234,7 +240,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::VecBrand,
+		/// 	brands::{
+		/// 		VecBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		Folded,
 		/// 		IndexedFoldFunc,
@@ -287,6 +296,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::optics_indexed_fold_map,
 		/// 	types::optics::{
@@ -340,6 +350,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::optics_indexed_fold_map,
 		/// 	types::optics::{
@@ -387,7 +398,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -468,6 +482,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{
@@ -533,6 +548,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{
@@ -595,7 +611,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -652,7 +671,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -711,7 +733,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		IndexedFoldOptic,
 		/// 		UnsizedCoercible,
@@ -787,6 +812,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{
@@ -848,6 +874,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{

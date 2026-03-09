@@ -98,7 +98,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::VecBrand,
+		/// 	brands::{
+		/// 		VecBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::{
 		/// 		IndexedSetterFunc,
 		/// 		Mapped,
@@ -162,7 +165,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// #[derive(Clone)]
@@ -212,7 +218,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -244,7 +253,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -277,7 +289,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -340,6 +355,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::optics_indexed_set,
 		/// 	types::optics::{
@@ -394,7 +410,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// #[derive(Clone)]
@@ -442,7 +461,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -474,7 +496,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -507,7 +532,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	types::optics::*,
 		/// };
 		/// struct MySetter;
@@ -566,6 +594,7 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::optics_indexed_over,
 		/// 	types::optics::{
@@ -608,7 +637,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	types::optics::*,
 		/// };
@@ -668,7 +700,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	types::optics::*,
 		/// };
@@ -732,6 +767,7 @@ mod inner {
 		/// 		FnBrand,
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{
@@ -782,6 +818,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{FnBrand, RcBrand, VecBrand},
+		/// 	brands::optics::*,
 		/// 	types::optics::{*, Mapped},
 		/// 	functions::*,
 		/// };
@@ -825,6 +862,7 @@ mod inner {
 		/// 		FnBrand,
 		/// 		RcBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::{
@@ -872,6 +910,7 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	brands::{FnBrand, RcBrand, VecBrand},
+		/// 	brands::optics::*,
 		/// 	types::optics::{*, Mapped},
 		/// 	functions::*,
 		/// };

@@ -16,7 +16,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
+			brands::{
+				FnBrand,
+				optics::*,
+			},
 			classes::{
 				CloneableFn,
 				Monoid,
@@ -39,10 +42,6 @@ mod inner {
 			},
 			impl_kind,
 			kinds::*,
-			types::optics::{
-				forget::ForgetBrand,
-				tagged::TaggedBrand,
-			},
 		},
 		fp_macros::*,
 		std::marker::PhantomData,
@@ -106,11 +105,11 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	types::optics::{
 		/// 		Re,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -154,11 +153,11 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	types::optics::{
 		/// 		Re,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -173,18 +172,6 @@ mod inner {
 			}
 		}
 	}
-
-	/// Brand for the `Re` profunctor.
-	///
-	/// `ReBrand<InnerP, OuterP, S, T>` fixes the inner profunctor `InnerP` and the outer
-	/// types `S` and `T`, leaving `A` and `B` free for kind application.
-	#[document_type_parameters(
-		"The inner profunctor brand whose instances are reversed.",
-		"The outer cloneable function pointer brand for wrapping the `run` function.",
-		"The fixed source type.",
-		"The fixed target type."
-	)]
-	pub struct ReBrand<InnerP, PointerBrand, S, T>(PhantomData<(InnerP, PointerBrand, S, T)>);
 
 	impl_kind! {
 		impl<
@@ -244,13 +231,12 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::profunctor::Profunctor,
 		/// 	types::optics::{
 		/// 		Re,
-		/// 		ReBrand,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -325,13 +311,12 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::profunctor::Cochoice,
 		/// 	types::optics::{
 		/// 		Re,
-		/// 		ReBrand,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -373,13 +358,12 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::profunctor::Cochoice,
 		/// 	types::optics::{
 		/// 		Re,
-		/// 		ReBrand,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -440,13 +424,14 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::profunctor::Choice,
 		/// 	types::optics::{
 		/// 		Forget,
-		/// 		ForgetBrand,
 		/// 		Re,
-		/// 		ReBrand,
 		/// 	},
 		/// };
 		///
@@ -491,13 +476,14 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::profunctor::Choice,
 		/// 	types::optics::{
 		/// 		Forget,
-		/// 		ForgetBrand,
 		/// 		Re,
-		/// 		ReBrand,
 		/// 	},
 		/// };
 		///
@@ -563,15 +549,13 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
 		/// 		cloneable_fn::new as cloneable_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 	},
+		/// 	types::optics::Re,
 		/// };
 		///
 		/// // re.run: Rc<dyn Fn((i32, String)) -> (i32, String)> -> Rc<dyn Fn(i32) -> i32>
@@ -616,15 +600,13 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
 		/// 		cloneable_fn::new as cloneable_fn_new,
 		/// 		profunctor::Costrong,
 		/// 	},
-		/// 	types::optics::{
-		/// 		Re,
-		/// 		ReBrand,
-		/// 	},
+		/// 	types::optics::Re,
 		/// };
 		///
 		/// // re.run: Rc<dyn Fn((String, i32)) -> (String, i32)> -> Rc<dyn Fn(i32) -> i32>
@@ -691,13 +673,12 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::profunctor::Strong,
 		/// 	types::optics::{
 		/// 		Re,
-		/// 		ReBrand,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -738,13 +719,12 @@ mod inner {
 		/// 	brands::{
 		/// 		RcBrand,
 		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::profunctor::Strong,
 		/// 	types::optics::{
 		/// 		Re,
-		/// 		ReBrand,
 		/// 		Tagged,
-		/// 		TaggedBrand,
 		/// 	},
 		/// };
 		///
@@ -827,7 +807,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::*,
+	/// 	brands::{
+	/// 		optics::*,
+	/// 		*,
+	/// 	},
 	/// 	classes::optics::ReviewOptic,
 	/// 	types::optics::{
 	/// 		LensPrime,
@@ -898,7 +881,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::ReviewOptic,
 		/// 	types::optics::{
 		/// 		LensPrime,
@@ -967,7 +953,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::IsoOptic,
 		/// 	functions::cloneable_fn_new,
 		/// 	types::optics::{
@@ -1035,7 +1024,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::GetterOptic,
 		/// 	types::optics::{
 		/// 		Forget,
@@ -1098,7 +1090,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::FoldOptic,
 		/// 	types::optics::{
 		/// 		Forget,

@@ -8,6 +8,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				CloneableFn,
 				profunctor::{
@@ -19,7 +20,6 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::*,
-		std::marker::PhantomData,
 	};
 
 	/// The `Zipping` profunctor.
@@ -103,10 +103,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Zipping` profunctor.
-	#[document_type_parameters("The cloneable function brand.")]
-	pub struct ZippingBrand<FunctionBrand>(PhantomData<FunctionBrand>);
-
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static> for ZippingBrand<FunctionBrand> {
 			#[document_default]
@@ -141,12 +137,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::profunctor::Profunctor,
-		/// 	types::optics::{
-		/// 		Zipping,
-		/// 		ZippingBrand,
+		/// 	brands::{
+		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
+		/// 	classes::profunctor::Profunctor,
+		/// 	types::optics::Zipping,
 		/// };
 		///
 		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);
@@ -191,7 +187,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		RcFnBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::{
 		/// 		CloneableFn,
 		/// 		profunctor::{
@@ -199,10 +198,7 @@ mod inner {
 		/// 			Profunctor,
 		/// 		},
 		/// 	},
-		/// 	types::optics::{
-		/// 		Zipping,
-		/// 		ZippingBrand,
-		/// 	},
+		/// 	types::optics::Zipping,
 		/// };
 		///
 		/// let z = Zipping::<RcFnBrand, i32, i32>::new(|(a, b)| a + b);

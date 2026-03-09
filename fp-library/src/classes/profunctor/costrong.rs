@@ -8,6 +8,7 @@
 //!
 //! ```
 //! use fp_library::{
+//! 	brands::optics::*,
 //! 	classes::profunctor::*,
 //! 	types::optics::*,
 //! };
@@ -60,6 +61,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -92,6 +94,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -127,6 +130,7 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
+	/// 	brands::optics::*,
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };
@@ -161,6 +165,7 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
+	/// 	brands::optics::*,
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };

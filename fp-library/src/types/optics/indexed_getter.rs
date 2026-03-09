@@ -5,7 +5,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
+			brands::{
+				FnBrand,
+				optics::*,
+			},
 			classes::{
 				CloneableFn,
 				UnsizedCoercible,
@@ -14,7 +17,6 @@ mod inner {
 			kinds::*,
 			types::optics::{
 				Forget,
-				ForgetBrand,
 				Indexed,
 			},
 		},
@@ -149,7 +151,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	types::optics::*,
 		/// };
@@ -193,7 +198,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::optics::*,
 		/// 	types::optics::*,
 		/// };
@@ -243,7 +251,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };
@@ -287,7 +298,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	functions::*,
 		/// 	types::optics::*,
 		/// };

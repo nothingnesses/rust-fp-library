@@ -7,6 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				applicative::Applicative,
 				profunctor::{
@@ -82,10 +83,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Indexed` profunctor wrapper.
-	#[document_type_parameters("The underlying profunctor brand.", "The index type.")]
-	pub struct IndexedBrand<P, I>(PhantomData<(P, I)>);
-
 	impl_kind! {
 		impl<P: Profunctor + 'static, I: 'static> for IndexedBrand<P, I> {
 			#[document_default]
@@ -115,12 +112,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::profunctor::*,
-		/// 	types::optics::{
-		/// 		Indexed,
-		/// 		IndexedBrand,
+		/// 	brands::{
+		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
+		/// 	classes::profunctor::*,
+		/// 	types::optics::Indexed,
 		/// };
 		/// let f = |(i, a): (usize, i32)| a + (i as i32);
 		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
@@ -160,7 +157,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
 		/// 	classes::profunctor::*,
-		/// 	types::optics::{Indexed, IndexedBrand},
+		/// 	brands::optics::*,
+		/// 	types::optics::Indexed,
 		/// };
 		/// let f = |(i, a): (usize, i32)| a + (i as i32);
 		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
@@ -192,7 +190,8 @@ mod inner {
 		/// use fp_library::{
 		/// 	brands::RcFnBrand,
 		/// 	classes::profunctor::*,
-		/// 	types::optics::{Indexed, IndexedBrand},
+		/// 	brands::optics::*,
+		/// 	types::optics::Indexed,
 		/// };
 		/// let f = |(i, b): (usize, i32)| b + (i as i32);
 		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
@@ -225,12 +224,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::profunctor::*,
-		/// 	types::optics::{
-		/// 		Indexed,
-		/// 		IndexedBrand,
+		/// 	brands::{
+		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
+		/// 	classes::profunctor::*,
+		/// 	types::optics::Indexed,
 		/// };
 		/// let f = |(i, a): (usize, i32)| a + (i as i32);
 		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
@@ -267,12 +266,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
-		/// 	classes::profunctor::*,
-		/// 	types::optics::{
-		/// 		Indexed,
-		/// 		IndexedBrand,
+		/// 	brands::{
+		/// 		RcFnBrand,
+		/// 		optics::*,
 		/// 	},
+		/// 	classes::profunctor::*,
+		/// 	types::optics::Indexed,
 		/// };
 		/// let f = |(i, b): (usize, i32)| b + (i as i32);
 		/// let indexed = Indexed::<RcFnBrand, usize, i32, i32>::new(std::rc::Rc::new(f));
@@ -318,6 +317,7 @@ mod inner {
 		/// 		RcBrand,
 		/// 		RcFnBrand,
 		/// 		VecBrand,
+		/// 		optics::*,
 		/// 	},
 		/// 	classes::{
 		/// 		optics::IndexedTraversalOptic,

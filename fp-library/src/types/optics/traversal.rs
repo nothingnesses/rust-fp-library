@@ -8,7 +8,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
+			brands::{
+				FnBrand,
+				optics::*,
+			},
 			classes::{
 				UnsizedCoercible,
 				monoid::Monoid,
@@ -16,7 +19,6 @@ mod inner {
 				profunctor::Wander,
 			},
 			kinds::*,
-			types::optics::ForgetBrand,
 		},
 		fp_macros::*,
 		std::marker::PhantomData,
@@ -402,7 +404,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	Apply,
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		Applicative,
 		/// 		lift::Lift,

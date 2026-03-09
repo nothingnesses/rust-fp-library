@@ -34,7 +34,7 @@ mod inner {
 		///
 		/// The `X: Clone` bound is required because implementations need to clone `X`
 		/// values inside nested closures. The `B: Clone` bound is required because
-		/// some profunctors (notably [`crate::types::optics::TaggedBrand`]) need to produce
+		/// some profunctors (notably [`crate::brands::optics::TaggedBrand`]) need to produce
 		/// `Fn(X) -> B` from a single `B` value, which requires cloning `B` on each
 		/// invocation.
 		#[document_signature]

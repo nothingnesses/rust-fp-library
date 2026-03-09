@@ -7,6 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				CloneableFn,
 				profunctor::{
@@ -61,9 +62,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Tagged` profunctor.
-	pub struct TaggedBrand;
-
 	impl_kind! {
 		impl for TaggedBrand {
 			#[document_default]
@@ -96,7 +94,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -144,7 +145,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -182,7 +186,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -225,6 +232,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -260,6 +268,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -300,7 +309,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };

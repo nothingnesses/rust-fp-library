@@ -31,6 +31,7 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::optics::*,
 		/// 	classes::monoid::Monoid,
 		/// 	types::optics::{
 		/// 		FoldFunc,

@@ -7,6 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				CloneableFn,
 				Profunctor,
@@ -15,7 +16,6 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::*,
-		std::marker::PhantomData,
 	};
 
 	/// The `Exchange` profunctor.
@@ -79,14 +79,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Exchange` profunctor.
-	#[document_type_parameters(
-		"The cloneable function brand.",
-		"The type of the value produced by the forward function.",
-		"The type of the value consumed by the backward function."
-	)]
-	pub struct ExchangeBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
-
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for ExchangeBrand<FunctionBrand, A, B> {
 			#[document_default]
@@ -125,7 +117,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,

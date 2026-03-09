@@ -47,7 +47,10 @@
 //!
 //! ```
 //! use fp_library::{
-//! 	brands::*,
+//! 	brands::{
+//! 		optics::*,
+//! 		*,
+//! 	},
 //! 	functions::*,
 //! 	types::optics::*,
 //! };

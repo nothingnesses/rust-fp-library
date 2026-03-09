@@ -8,7 +8,10 @@
 //!
 //! ```
 //! use fp_library::{
-//! 	brands::RcBrand,
+//! 	brands::{
+//! 		RcBrand,
+//! 		optics::*,
+//! 	},
 //! 	classes::profunctor::*,
 //! 	types::optics::*,
 //! };
@@ -73,7 +76,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -110,7 +116,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcBrand,
+		/// 	brands::{
+		/// 		RcBrand,
+		/// 		optics::*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	types::optics::*,
 		/// };
@@ -160,7 +169,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };
@@ -199,7 +211,10 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::RcBrand,
+	/// 	brands::{
+	/// 		RcBrand,
+	/// 		optics::*,
+	/// 	},
 	/// 	classes::profunctor::*,
 	/// 	types::optics::*,
 	/// };

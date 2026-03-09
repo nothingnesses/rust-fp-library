@@ -13,7 +13,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::VecBrand,
+			brands::{
+				VecBrand,
+				optics::*,
+			},
 			classes::{
 				ApplyFirst,
 				ApplySecond,
@@ -36,7 +39,6 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::*,
-		std::marker::PhantomData,
 	};
 
 	/// Type alias to extract the pointer brand from a `CloneableFn` implementor.
@@ -62,14 +64,6 @@ mod inner {
 		/// A function that reconstructs the target from a list of replacement values.
 		pub rebuild: <FunctionBrand as CloneableFn>::Of<'a, Vec<B>, T>,
 	}
-
-	/// Brand for the [`BazaarList`] applicative.
-	#[document_type_parameters(
-		"The cloneable function brand.",
-		"The type of focus values extracted from the source.",
-		"The type of replacement values used during reconstruction."
-	)]
-	pub struct BazaarListBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
 
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarListBrand<FunctionBrand, A, B> {
@@ -103,12 +97,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		BazaarList,
-		/// 		BazaarListBrand,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
 		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bl = BazaarList::<RcFnBrand, i32, i32, i32> {
@@ -155,12 +149,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		BazaarList,
-		/// 		BazaarListBrand,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
 		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bl = pure::<BazaarListBrand<RcFnBrand, i32, i32>, _>(42);
@@ -214,12 +208,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		BazaarList,
-		/// 		BazaarListBrand,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
 		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bl1 = BazaarList::<RcFnBrand, i32, i32, i32> {
@@ -289,12 +283,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		BazaarList,
-		/// 		BazaarListBrand,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
 		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bl_f = BazaarList::<RcFnBrand, i32, i32, _> {
@@ -393,13 +387,12 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
-		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
 		/// 	},
+		/// 	functions::*,
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -450,13 +443,12 @@ mod inner {
 	///
 	/// ```
 	/// use fp_library::{
-	/// 	brands::*,
-	/// 	functions::*,
-	/// 	types::optics::{
-	/// 		Bazaar,
-	/// 		BazaarList,
-	/// 		run_bazaar,
+	/// 	brands::{
+	/// 		optics::*,
+	/// 		*,
 	/// 	},
+	/// 	functions::*,
+	/// 	types::optics::*,
 	/// };
 	///
 	/// let bazaar =
@@ -505,14 +497,6 @@ mod inner {
 
 	// ── BazaarBrand ─────────────────────────────────────────────────────
 
-	/// Brand for the [`Bazaar`] profunctor.
-	#[document_type_parameters(
-		"The cloneable function brand.",
-		"The type of focus values extracted from the source.",
-		"The type of replacement values used during reconstruction."
-	)]
-	pub struct BazaarBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
-
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for BazaarBrand<FunctionBrand, A, B> {
 			#[document_default]
@@ -555,14 +539,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -632,14 +615,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -692,14 +674,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -761,14 +742,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -834,14 +814,13 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::profunctor::*,
 		/// 	functions::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// let bazaar = Bazaar::<RcFnBrand, i32, i32, i32, i32>::new(cloneable_fn_new::<RcFnBrand, _, _>(
@@ -920,7 +899,10 @@ mod inner {
 		/// ```
 		/// use fp_library::{
 		/// 	Apply,
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		Applicative,
 		/// 		optics::traversal::TraversalFunc,
@@ -928,11 +910,7 @@ mod inner {
 		/// 	},
 		/// 	functions::*,
 		/// 	kinds::*,
-		/// 	types::optics::{
-		/// 		Bazaar,
-		/// 		BazaarBrand,
-		/// 		BazaarList,
-		/// 	},
+		/// 	types::optics::*,
 		/// };
 		///
 		/// // A traversal over Vec elements

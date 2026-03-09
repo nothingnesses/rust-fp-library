@@ -7,7 +7,10 @@ mod inner {
 	use {
 		crate::{
 			Apply,
-			brands::FnBrand,
+			brands::{
+				FnBrand,
+				optics::*,
+			},
 			classes::{
 				CloneableFn,
 				UnsizedCoercible,
@@ -142,10 +145,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Forget` profunctor.
-	#[document_type_parameters("The pointer brand.", "The return type of the function.")]
-	pub struct ForgetBrand<PointerBrand, R>(PhantomData<(PointerBrand, R)>);
-
 	impl_kind! {
 		impl<PointerBrand: UnsizedCoercible + 'static, R: 'static> for ForgetBrand<PointerBrand, R> {
 			#[document_default]
@@ -180,7 +179,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -228,7 +230,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -271,7 +276,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		*,
@@ -323,7 +331,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -365,7 +376,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -415,7 +429,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
@@ -459,7 +476,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,

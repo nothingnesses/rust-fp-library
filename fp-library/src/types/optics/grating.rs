@@ -7,6 +7,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::optics::*,
 			classes::{
 				CloneableFn,
 				profunctor::{
@@ -18,7 +19,6 @@ mod inner {
 			kinds::*,
 		},
 		fp_macros::*,
-		std::marker::PhantomData,
 	};
 
 	/// The `Grating` profunctor.
@@ -96,14 +96,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Grating` profunctor.
-	#[document_type_parameters(
-		"The cloneable function brand.",
-		"The type of the value produced by the inner function.",
-		"The type of the value consumed by the inner function."
-	)]
-	pub struct GratingBrand<FunctionBrand, A, B>(PhantomData<(FunctionBrand, A, B)>);
-
 	impl_kind! {
 		impl<FunctionBrand: CloneableFn + 'static, A: 'static, B: 'static> for GratingBrand<FunctionBrand, A, B> {
 			#[document_default]
@@ -144,7 +136,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		cloneable_fn::new as cloneable_fn_new,
 		/// 		optics::*,
@@ -228,7 +223,10 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::*,
+		/// 	brands::{
+		/// 		optics::*,
+		/// 		*,
+		/// 	},
 		/// 	classes::{
 		/// 		optics::*,
 		/// 		profunctor::*,
