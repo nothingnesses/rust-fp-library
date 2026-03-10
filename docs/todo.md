@@ -1,5 +1,6 @@
 ### Tasks to do & ideas to look into
 
+* Determine what to do about `.expect(` in the codebase. Are there any other sources of panics? Modify document_module to detect these?
 * Optics:
 	* Full parity with `purescript-profunctor-lenses`.
 	* Implement `Prism`, `Iso`, `Traversal`, `Grate`, `Fold`, `Getter`, `Setter`, `Review`.
