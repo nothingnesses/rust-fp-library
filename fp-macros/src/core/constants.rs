@@ -112,6 +112,8 @@ pub mod attributes {
 	pub const DOCUMENT_FIELDS: &str = "document_fields";
 	/// Attribute for module documentation
 	pub const DOCUMENT_MODULE: &str = "document_module";
+	/// Attribute to suppress the `impl Trait` lint for named generics
+	pub const ALLOW_NAMED_GENERICS: &str = "allow_named_generics";
 	/// List of documentation-specific attributes
 	pub const DOCUMENT_SPECIFIC_ATTRS: &[&str] = &[
 		DOCUMENT_DEFAULT,
@@ -123,6 +125,7 @@ pub mod attributes {
 		DOCUMENT_EXAMPLES,
 		DOCUMENT_FIELDS,
 		DOCUMENT_MODULE,
+		ALLOW_NAMED_GENERICS,
 	];
 	/// The required order for documentation attributes on a method or impl item.
 	/// Any subset of these attributes must appear in this order.

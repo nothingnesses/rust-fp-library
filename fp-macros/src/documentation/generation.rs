@@ -4,6 +4,7 @@ use {
 		core::{
 			config::Config,
 			constants::attributes::{
+				ALLOW_NAMED_GENERICS,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
 				DOCUMENT_USE,
@@ -223,6 +224,9 @@ fn process_method_documentation(
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
+	// Strip #[allow_named_generics] — consumed during lint pass, must not remain in output
+	method.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
+
 	let method_document_use = method.attrs.find_value_or_collect(DOCUMENT_USE, errors);
 	let document_use = method_document_use.or_else(|| impl_document_use.map(String::from));
 

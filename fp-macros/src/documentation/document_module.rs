@@ -1,11 +1,16 @@
 use {
 	super::generation::generate_documentation,
 	crate::{
-		analysis::get_all_parameters,
+		analysis::{
+			get_all_parameters,
+			impl_trait_lint::find_impl_trait_candidates,
+		},
 		core::{
 			Result as OurResult,
+			WarningEmitter,
 			config::Config,
 			constants::attributes::{
+				ALLOW_NAMED_GENERICS,
 				DOCUMENT_ATTR_ORDER,
 				DOCUMENT_EXAMPLES,
 				DOCUMENT_MODULE,
@@ -197,13 +202,12 @@ pub fn document_module_worker(
 
 	// Pass 1.5: Validation (emit warnings for missing documentation attributes)
 	let warning_tokens: Vec<TokenStream> = if validation_mode != ValidationMode::Off {
-		let warnings = validate_documentation(&items);
-
-		// Also recursively validate nested modules
-		let nested_warnings = validate_nested_modules(&items);
-
-		// Convert errors to compile-time errors
-		warnings.into_iter().chain(nested_warnings).map(|e| e.to_compile_error()).collect()
+		let mut emitter = WarningEmitter::new();
+		validate_documentation(&items, &mut emitter);
+		validate_nested_modules(&items, &mut emitter);
+		lint_impl_trait(&items, &mut emitter);
+		lint_impl_trait_nested(&items, &mut emitter);
+		emitter.into_tokens()
 	} else {
 		Vec::new()
 	};
@@ -343,17 +347,17 @@ fn validate_no_duplicate_doc_attrs(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,
 	item_label: &str,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	for name in DOCUMENT_ATTR_ORDER {
 		let count = attrs.iter().filter(|a| a.path().is_ident(name)).count();
 		if count > 1 {
-			warnings.push(syn::Error::new(
+			warnings.warn(
 				item_span,
 				format!(
 					"{item_label} has `#[{name}]` applied {count} times; it may only appear once",
 				),
-			));
+			);
 		}
 	}
 }
@@ -365,7 +369,7 @@ fn validate_doc_attr_order(
 	attrs: &[syn::Attribute],
 	item_span: proc_macro2::Span,
 	item_label: &str,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	// Collect the index of the first occurrence of each ordered attribute.
 	let positions: Vec<Option<usize>> = DOCUMENT_ATTR_ORDER
@@ -380,7 +384,7 @@ fn validate_doc_attr_order(
 			if let (Some(pos_i), Some(pos_j)) = (positions[i], positions[j])
 				&& pos_i > pos_j
 			{
-				warnings.push(syn::Error::new(
+				warnings.warn(
 					item_span,
 					format!(
 						"{item_label} has `#[{}]` before `#[{}]`, but the required order is: {}",
@@ -396,7 +400,7 @@ fn validate_doc_attr_order(
 							.collect::<Vec<_>>()
 							.join(" → "),
 					),
-				));
+				);
 				// Report at most one ordering violation per item to avoid noise.
 				return;
 			}
@@ -412,7 +416,7 @@ fn validate_method_documentation_core(
 	attrs: &[syn::Attribute],
 	sig: &syn::Signature,
 	span: proc_macro2::Span,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	let method_name = &sig.ident;
 	let label = format!("Method `{method_name}`");
@@ -423,10 +427,10 @@ fn validate_method_documentation_core(
 
 	// Check for document_signature
 	if !has_attribute(attrs, DOCUMENT_SIGNATURE) {
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!("Method `{method_name}` should have #[{DOCUMENT_SIGNATURE}] attribute"),
-		));
+		);
 	}
 
 	// Check for document_type_parameters if method has type parameters
@@ -435,52 +439,52 @@ fn validate_method_documentation_core(
 
 	if has_type_params && !has_doc_type_params {
 		let type_param_names: Vec<String> = get_all_parameters(&sig.generics);
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"Method `{method_name}` has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
 				type_param_names.join(", "),
 			),
-		));
+		);
 	}
 
 	// Check for document_parameters if method has non-receiver parameters
 	if sig_has_non_receiver_parameters(sig) && !has_attribute(attrs, DOCUMENT_PARAMETERS) {
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"Method `{method_name}` has parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
 			),
-		));
+		);
 	}
 
 	// Check for document_returns if method has a return type
 	if let syn::ReturnType::Type(..) = sig.output
 		&& !has_attribute(attrs, DOCUMENT_RETURNS)
 	{
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"Method `{method_name}` has a return type but no #[{DOCUMENT_RETURNS}] attribute",
 			),
-		));
+		);
 	}
 
 	// Check for document_examples (required on all methods)
 	if !has_attribute(attrs, DOCUMENT_EXAMPLES) {
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"Method `{method_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
 			),
-		));
+		);
 	}
 }
 
 /// Validate that an impl method has appropriate documentation attributes.
 fn validate_method_documentation(
 	method: &syn::ImplItemFn,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	validate_method_documentation_core(&method.attrs, &method.sig, method.span(), warnings);
 }
@@ -495,7 +499,7 @@ fn validate_container_documentation(
 	has_receiver_methods: bool,
 	span: proc_macro2::Span,
 	container_label: &str,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	validate_no_duplicate_doc_attrs(attrs, span, container_label, warnings);
 	validate_doc_attr_order(attrs, span, container_label, warnings);
@@ -506,30 +510,30 @@ fn validate_container_documentation(
 	// Warn if container has type parameters but no document_type_parameters
 	if has_type_params && !has_doc_type_params {
 		let type_param_names: Vec<String> = get_all_parameters(generics);
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"{container_label} has type parameters <{}> but no #[{DOCUMENT_TYPE_PARAMETERS}] attribute",
 				type_param_names.join(", "),
 			),
-		));
+		);
 	}
 
 	// Warn if container has methods with receivers but no document_parameters
 	if has_receiver_methods && !has_attribute(attrs, DOCUMENT_PARAMETERS) {
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			span,
 			format!(
 				"{container_label} contains methods with receiver parameters but no #[{DOCUMENT_PARAMETERS}] attribute",
 			),
-		));
+		);
 	}
 }
 
 /// Validate that an impl block has appropriate documentation attributes.
 fn validate_impl_documentation(
 	item_impl: &syn::ItemImpl,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	validate_container_documentation(
 		&item_impl.attrs,
@@ -551,7 +555,7 @@ fn validate_impl_documentation(
 /// Validate that a trait definition has appropriate documentation attributes.
 fn validate_trait_documentation(
 	item_trait: &syn::ItemTrait,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	validate_container_documentation(
 		&item_trait.attrs,
@@ -573,16 +577,16 @@ fn validate_trait_documentation(
 /// Validate that a free function has a `document_examples` attribute.
 fn validate_fn_documentation(
 	item_fn: &syn::ItemFn,
-	warnings: &mut ErrorCollector,
+	warnings: &mut WarningEmitter,
 ) {
 	let fn_name = &item_fn.sig.ident;
 	if !has_attribute(&item_fn.attrs, DOCUMENT_EXAMPLES) {
-		warnings.push(syn::Error::new(
+		warnings.warn(
 			item_fn.span(),
 			format!(
 				"Function `{fn_name}` should have a #[{DOCUMENT_EXAMPLES}] attribute with example code in doc comments using fenced code blocks",
 			),
-		));
+		);
 	}
 }
 
@@ -591,39 +595,97 @@ fn validate_fn_documentation(
 /// This function checks that impl blocks, their methods, and free functions have
 /// appropriate documentation attributes based on their characteristics (type
 /// parameters, parameters, etc.).
-///
-/// Returns a list of warnings (as syn::Error objects) that can be emitted
-/// or collected for reporting.
-fn validate_documentation(items: &[Item]) -> Vec<syn::Error> {
-	let mut warnings = ErrorCollector::new();
-
+fn validate_documentation(
+	items: &[Item],
+	emitter: &mut WarningEmitter,
+) {
 	for item in items {
 		match item {
-			Item::Impl(item_impl) => validate_impl_documentation(item_impl, &mut warnings),
-			Item::Trait(item_trait) => validate_trait_documentation(item_trait, &mut warnings),
-			Item::Fn(item_fn) => validate_fn_documentation(item_fn, &mut warnings),
+			Item::Impl(item_impl) => validate_impl_documentation(item_impl, emitter),
+			Item::Trait(item_trait) => validate_trait_documentation(item_trait, emitter),
+			Item::Fn(item_fn) => validate_fn_documentation(item_fn, emitter),
 			_ => {}
 		}
 	}
-
-	warnings.into_errors()
 }
 
 /// Recursively validate all nested modules and collect warnings.
-fn validate_nested_modules(items: &[Item]) -> Vec<syn::Error> {
-	let mut warnings = Vec::new();
-
+fn validate_nested_modules(
+	items: &[Item],
+	emitter: &mut WarningEmitter,
+) {
 	for item in items {
 		if let Item::Mod(module) = item
 			&& let Some((_, ref nested_items)) = module.content
 		{
 			// Validate this module's items
-			warnings.extend(validate_documentation(nested_items));
+			validate_documentation(nested_items, emitter);
 
 			// Recursively validate nested modules
-			warnings.extend(validate_nested_modules(nested_items));
+			validate_nested_modules(nested_items, emitter);
 		}
 	}
+}
 
-	warnings
+/// Emit a warning for each candidate found in a function signature.
+fn lint_sig_impl_trait(
+	attrs: &[syn::Attribute],
+	sig: &syn::Signature,
+	emitter: &mut WarningEmitter,
+) {
+	if has_attribute(attrs, ALLOW_NAMED_GENERICS) {
+		return;
+	}
+
+	for candidate in find_impl_trait_candidates(sig) {
+		emitter.warn(
+			candidate.param_span,
+			format!(
+				"Type parameter `{}` could use `impl {}` instead of a named generic",
+				candidate.param_name, candidate.bounds_display,
+			),
+		);
+	}
+}
+
+/// Lint all impl blocks, traits, and free functions for `impl Trait` candidates.
+fn lint_impl_trait(
+	items: &[Item],
+	emitter: &mut WarningEmitter,
+) {
+	for item in items {
+		match item {
+			Item::Impl(item_impl) =>
+				for impl_item in &item_impl.items {
+					if let syn::ImplItem::Fn(method) = impl_item {
+						lint_sig_impl_trait(&method.attrs, &method.sig, emitter);
+					}
+				},
+			Item::Trait(item_trait) =>
+				for trait_item in &item_trait.items {
+					if let TraitItem::Fn(method) = trait_item {
+						lint_sig_impl_trait(&method.attrs, &method.sig, emitter);
+					}
+				},
+			Item::Fn(item_fn) => {
+				lint_sig_impl_trait(&item_fn.attrs, &item_fn.sig, emitter);
+			}
+			_ => {}
+		}
+	}
+}
+
+/// Recursively lint nested modules for `impl Trait` candidates.
+fn lint_impl_trait_nested(
+	items: &[Item],
+	emitter: &mut WarningEmitter,
+) {
+	for item in items {
+		if let Item::Mod(module) = item
+			&& let Some((_, ref nested_items)) = module.content
+		{
+			lint_impl_trait(nested_items, emitter);
+			lint_impl_trait_nested(nested_items, emitter);
+		}
+	}
 }

@@ -7,10 +7,14 @@
 pub mod config;
 pub mod constants;
 pub mod error_handling;
+pub mod warning_emitter;
 
 // Re-export commonly used types
-pub use error_handling::{
-	Error,
-	Result,
-	ToCompileError,
+pub use {
+	error_handling::{
+		Error,
+		Result,
+		ToCompileError,
+	},
+	warning_emitter::WarningEmitter,
 };

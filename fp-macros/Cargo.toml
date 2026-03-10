@@ -13,6 +13,7 @@ workspace = "../"
 proc-macro = true
 
 [dependencies]
+proc-macro-warning = "1"
 proc-macro2 = {version = "1.0", features = ["span-locations"]}
 quote = "1.0"
 rapidhash = "4.2"
