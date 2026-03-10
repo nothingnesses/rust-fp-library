@@ -655,12 +655,16 @@ fn lint_impl_trait(
 ) {
 	for item in items {
 		match item {
-			Item::Impl(item_impl) =>
-				for impl_item in &item_impl.items {
-					if let syn::ImplItem::Fn(method) = impl_item {
-						lint_sig_impl_trait(&method.attrs, &method.sig, emitter);
+			Item::Impl(item_impl) => {
+				// Skip trait implementations — their signatures are dictated by the trait
+				if item_impl.trait_.is_none() {
+					for impl_item in &item_impl.items {
+						if let syn::ImplItem::Fn(method) = impl_item {
+							lint_sig_impl_trait(&method.attrs, &method.sig, emitter);
+						}
 					}
-				},
+				}
+			}
 			Item::Trait(item_trait) =>
 				for trait_item in &item_trait.items {
 					if let TraitItem::Fn(method) = trait_item {

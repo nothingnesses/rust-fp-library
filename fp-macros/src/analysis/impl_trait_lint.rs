@@ -43,9 +43,8 @@ pub fn find_impl_trait_candidates(sig: &Signature) -> Vec<ImplTraitCandidate> {
 			continue;
 		}
 
-		// 2. Appears exactly once in parameter types (skip receivers).
-		let param_count = count_param_positions(sig, &name);
-		if param_count != 1 {
+		// 2. Appears exactly once in a top-level parameter position (where impl Trait is valid).
+		if !appears_once_at_top_level(sig, &name) {
 			continue;
 		}
 
@@ -96,23 +95,40 @@ fn has_trait_bounds(bounds: &[&TypeParamBound]) -> bool {
 	bounds.iter().any(|b| matches!(b, TypeParamBound::Trait(_)))
 }
 
-/// Count how many distinct parameter positions contain the type parameter.
-/// Skips receiver parameters (`self`, `&self`, `&mut self`).
-fn count_param_positions(
+/// Check if the type parameter appears in exactly one parameter at a top-level position
+/// where `impl Trait` substitution would be syntactically valid.
+///
+/// `impl Trait` can only appear as the entire type of a function parameter (or behind
+/// `&`/`&mut`). It cannot be nested inside generic types like `Option<F>` or `Apply!(...)`.
+fn appears_once_at_top_level(
 	sig: &Signature,
 	name: &str,
-) -> usize {
-	sig.inputs
+) -> bool {
+	let matching: Vec<_> = sig
+		.inputs
 		.iter()
-		.filter(|arg| matches!(arg, syn::FnArg::Typed(_)))
-		.filter(|arg| {
-			if let syn::FnArg::Typed(pat_type) = arg {
-				contains_type_param(&pat_type.ty, name)
-			} else {
-				false
-			}
-		})
-		.count()
+		.filter_map(|arg| if let syn::FnArg::Typed(pat_type) = arg { Some(pat_type) } else { None })
+		.filter(|pat_type| contains_type_param(&pat_type.ty, name))
+		.collect();
+
+	matching.len() == 1 && is_top_level_type_param(&matching[0].ty, name)
+}
+
+/// Check if a type IS the named type parameter at the top level.
+///
+/// Returns true for positions where `impl Trait` substitution is syntactically valid:
+/// `F`, `&F`, `&mut F`, `(F)`.
+fn is_top_level_type_param(
+	ty: &Type,
+	name: &str,
+) -> bool {
+	match ty {
+		Type::Path(type_path) => type_path.qself.is_none() && type_path.path.is_ident(name),
+		Type::Reference(type_ref) => is_top_level_type_param(&type_ref.elem, name),
+		Type::Paren(type_paren) => is_top_level_type_param(&type_paren.elem, name),
+		Type::Group(type_group) => is_top_level_type_param(&type_group.elem, name),
+		_ => false,
+	}
 }
 
 /// Check if a type parameter appears in the return type.
@@ -246,8 +262,11 @@ pub fn contains_type_param(
 			false
 		}
 		Type::Macro(type_macro) => {
-			// Parse Apply! macros and recurse into their type arguments
-			if let Some((_brand, args)) = get_apply_macro_parameters(type_macro) {
+			// Parse Apply! macros and recurse into brand AND type arguments
+			if let Some((brand, args)) = get_apply_macro_parameters(type_macro) {
+				if contains_type_param(&brand, name) {
+					return true;
+				}
 				for arg_ty in &args {
 					if contains_type_param(arg_ty, name) {
 						return true;
@@ -588,5 +607,80 @@ mod tests {
 		// A is cross-referenced by B's where-clause bound
 		let names: Vec<&str> = candidates.iter().map(|c| c.param_name.as_str()).collect();
 		assert!(!names.contains(&"A"));
+	}
+
+	// =========================================================================
+	// is_top_level_type_param tests
+	// =========================================================================
+
+	#[test]
+	fn test_top_level_bare_ident() {
+		let ty: Type = parse_str("F").unwrap();
+		assert!(is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_top_level_reference() {
+		let ty: Type = parse_str("&F").unwrap();
+		assert!(is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_top_level_mut_reference() {
+		let ty: Type = parse_str("&mut F").unwrap();
+		assert!(is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_not_top_level_in_option() {
+		let ty: Type = parse_str("Option<F>").unwrap();
+		assert!(!is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_not_top_level_in_vec() {
+		let ty: Type = parse_str("Vec<F>").unwrap();
+		assert!(!is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_not_top_level_in_tuple() {
+		let ty: Type = parse_str("(A, F)").unwrap();
+		assert!(!is_top_level_type_param(&ty, "F"));
+	}
+
+	#[test]
+	fn test_not_top_level_in_associated_type() {
+		let ty: Type = parse_str("<F as Trait>::Assoc").unwrap();
+		assert!(!is_top_level_type_param(&ty, "F"));
+	}
+
+	// =========================================================================
+	// appears_once_at_top_level integration tests
+	// =========================================================================
+
+	#[test]
+	fn test_nested_param_not_candidate() {
+		// F only appears nested in Option<F>, not at top level → not a candidate
+		let sig = parse_sig("fn foo<F: Clone>(x: Option<F>)");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert!(candidates.is_empty());
+	}
+
+	#[test]
+	fn test_reference_param_is_candidate() {
+		// F appears as &F → top-level, valid for impl Trait
+		let sig = parse_sig("fn foo<F: Clone>(x: &F)");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert_eq!(candidates.len(), 1);
+		assert_eq!(candidates[0].param_name, "F");
+	}
+
+	#[test]
+	fn test_associated_type_projection_not_candidate() {
+		// F only appears in <F as Trait>::Assoc position → not top-level
+		let sig = parse_sig("fn foo<F: Iterator>(x: <F as Iterator>::Item)");
+		let candidates = find_impl_trait_candidates(&sig);
+		assert!(candidates.is_empty());
 	}
 }
