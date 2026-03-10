@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.10.0] - 2026-03-10
+
+### Added
+- **Profunctor Optics System**: Full profunctor-encoded optics library with type-safe composition:
+  - **Optic types**: `Lens`/`LensPrime`, `Prism`/`PrismPrime`, `Iso`/`IsoPrime`, `AffineTraversal`/`AffineTraversalPrime`, `Traversal`/`TraversalPrime`, `Fold`/`FoldPrime`, `Getter`/`GetterPrime`, `Setter`/`SetterPrime`, `Grate`/`GratePrime`, `Review`/`ReviewPrime`.
+  - **Indexed optics**: `IndexedLens`/`IndexedLensPrime`, `IndexedTraversal`/`IndexedTraversalPrime`, `IndexedFold`/`IndexedFoldPrime`, `IndexedGetter`/`IndexedGetterPrime`, `IndexedSetter`/`IndexedSetterPrime`.
+  - **Composed optic**: Type-safe composition of any two compatible optics via `Composed`.
+  - **Rank-2 optic traits**: `IsoOptic`, `LensOptic`, `PrismOptic`, `AffineTraversalOptic`, `TraversalOptic`, `GetterOptic`, `FoldOptic`, `SetterOptic`, `GrateOptic`, `ReviewOptic`, plus indexed variants.
+  - **Internal profunctors**: `Exchange`, `Market`, `Forget`, `Shop`, `Stall`, `Tagged`, `Grating`, `Zipping`, `Reverse`, `Bazaar`, `Indexed`.
+  - **Optics helper functions**: `optics_view`, `optics_set`, `optics_over`, `optics_preview`, `optics_review`, `optics_compose`, and indexed variants (`optics_indexed_view`, `optics_indexed_fold_map`, etc.).
+  - **`FoldFunc` trait**: Non-allocating fold evaluation, replacing the `Vec`-based intermediate collection in `Fold`.
+  - **`TraversalFunc`** and **`IndexedTraversalFunc`** traits for traversal internals.
+- **Profunctor Type Classes**:
+  - `Profunctor` with `dimap`, `lmap`, `rmap`.
+  - `Strong` (product lifting), `Choice` (sum lifting).
+  - `Costrong`, `Cochoice` (dual profunctor operations).
+  - `Closed` (exponentiation), parameterized over `CloneableFn` brand.
+  - `Wander` (traversal lifting).
+- **New Type Classes**:
+  - `Arrow` for lifting pure functions into profunctors.
+  - `Bifoldable` and `Bitraversable` for two-argument type constructors.
+  - `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex` for index-carrying operations.
+  - `Contravariant` for contravariant functors.
+- **`Bazaar`** type for characterizing traversals internally.
+- **`TakeCell`** abstraction added to `RefCountedPointer` for single-use extraction.
+- **`Zipping`** profunctor for `Grate` zip operations.
+- **Clippy configuration**: Workspace-level warnings for panicky code (`unwrap_used`, `expect_used`, `indexing_slicing`, `panic`, `todo`, `unimplemented`, `unreachable`).
+
+### Changed
+- **Brand Renames (API Breaking)**: Partially-applied brands renamed to use "Applied" convention:
+  - `PairWithFirstBrand` -> `PairFirstAppliedBrand`, `PairWithSecondBrand` -> `PairSecondAppliedBrand`.
+  - `ResultWithErrBrand` -> `ResultErrAppliedBrand`, `ResultWithOkBrand` -> `ResultOkAppliedBrand`.
+  - `StepWithLoopBrand` -> `StepLoopAppliedBrand`, `StepWithDoneBrand` -> `StepDoneAppliedBrand`.
+  - `TryThunkWithErrBrand` -> `TryThunkErrAppliedBrand`, `TryThunkWithOkBrand` -> `TryThunkOkAppliedBrand`.
+  - `Tuple2WithFirstBrand` -> `Tuple2FirstAppliedBrand`, `Tuple2WithSecondBrand` -> `Tuple2SecondAppliedBrand`.
+- **`impl Trait` Migration (API Breaking)**: Function/closure type parameters that appear only once in a signature now use `impl Trait` instead of named generics. This reduces generic arity on free functions across all type class traits (e.g., `map`, `bind`, `fold_right`, `compose`, `flip`). Call sites using explicit turbofish syntax need fewer type arguments.
+- **`Re` renamed to `Reverse`**, `re` to `reverse`.
+- **`helpers` module renamed to `functions`**.
+- **Optics module restructured**: Optics traits moved to `classes/optics/`, optics brands moved to `brands/optics/`.
+- **Optics constructors cleaned up**: Legacy `new` constructors removed from `Lens`, `LensPrime`, `AffineTraversal`, `AffineTraversalPrime`, `PrismPrime`. Convenience constructors (`from_view_set`, `from_preview_set`, `from_option`) added for `Clone` types.
+- **Unnecessary `Clone` bounds removed** from `Lens`, `Prism`, `AffineTraversal`, and `Grate` operations.
+- **`Forget` profunctor parameterized** over pointer brand for cloneability, fixing runtime panics when using Traversals as Folds.
+- **`Closed` trait generalized** to accept a `CloneableFn` brand parameter instead of hardcoded `Box`.
+- **Documentation**: All `classes/` modules wrapped with `#[document_module]` for automated validation and generation.
+
+### Fixed
+- Runtime panic when using Traversals as Folds (Forget profunctor now cloneable via `FnBrand`).
+- Indexed optics composition and evaluation issues.
+- Unnecessary `S: Clone` bound on `PrismPrime` trait implementations.
+
 ## [0.9.0] - 2026-02-13
 
 ### Added
