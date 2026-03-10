@@ -13,7 +13,7 @@ This document outlines the steps for releasing new versions of `fp-library` and 
 All changes should be merged into `main` via Pull Requests before a release is cut.
 
 - **Squash and Merge**: This is the preferred method to keep the `main` branch history clean and linear.
-- **CI Checks**: Ensure all Continuous Integration checks (tests, clippy, formatting) pass before merging.
+- **CI Checks**: All CI checks (tests, clippy, formatting, cargo-deny) must pass before merging. See `.github/workflows/ci.yml`.
 - **Conventional Commits**: Encouraged for PR titles/squash commits to simplify changelog generation (e.g., `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.).
 
 ## Release Steps
@@ -28,10 +28,47 @@ Follow [Semantic Versioning](https://semver.org/), with the following policy for
 
 ### 2. Update Changelogs
 
-Update `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable):
+Update `fp-library/CHANGELOG.md` and `fp-macros/CHANGELOG.md` (if applicable).
+
+#### Determining changelog content
+
+For each package being released, determine what has changed since the last release:
+
+1.  **Find the latest tag for the package:**
+
+    ```bash
+    # For fp-library
+    git tag --list 'fp-library-v*' --sort=-version:refname | head -1
+
+    # For fp-macros
+    git tag --list 'fp-macros-v*' --sort=-version:refname | head -1
+    ```
+
+2.  **Review the diff between the tag and the current state:**
+
+    ```bash
+    # View commits since the last release
+    git log fp-library-vX.Y.Z..HEAD -- fp-library/
+
+    # View the full diff for detailed inspection
+    git diff fp-library-vX.Y.Z..HEAD -- fp-library/
+    ```
+
+    Replace the tag with the appropriate one for `fp-macros` when reviewing that package.
+
+3.  **Categorize the changes** into the appropriate changelog headers:
+
+    - **Added** - New features, new modules, new type class implementations.
+    - **Changed** - Modifications to existing APIs, behavior changes, refactors that affect the public interface.
+    - **Removed** - Removed features, deprecated items that have been deleted.
+    - **Fixed** - Bug fixes.
+
+    Use the commit messages (especially conventional commit prefixes like `feat:`, `fix:`, `refactor:`) as a guide, but always verify against the actual diff to ensure nothing is missed or mischaracterized.
+
+#### Writing the changelog entry
 
 1.  Rename the `[Unreleased]` section to the new version number and date (e.g., `[0.3.0] - 2026-01-16`).
-2.  Ensure all notable changes are listed under appropriate headers (Added, Changed, Removed, Fixed).
+2.  List all notable changes under the appropriate headers (Added, Changed, Removed, Fixed).
 3.  Create a new empty `[Unreleased]` section at the top.
 
 ### 3. Update Cargo.toml
@@ -90,31 +127,39 @@ cargo doc --open
     git tag fp-macros-vA.B.C
     ```
 
-### 6. Publish
+### 6. Push and Publish
 
-**Order matters:** If `fp-macros` was updated, it must be published first because `fp-library` depends on it.
+Push the commit and tags to trigger the automated release workflow:
 
-1.  **Publish fp-macros** (if updated):
+```bash
+git push origin main
+git push origin --tags
+```
 
-    ```bash
-    cargo publish -p fp-macros
-    ```
+The release workflow (`.github/workflows/release.yml`) will automatically:
 
-    _Wait a few moments for crates.io to index the new version._
+1.  Run the full test/clippy/doc validation suite.
+2.  Publish `fp-macros` to crates.io (if an `fp-macros-v*` tag was pushed).
+3.  Publish `fp-library` to crates.io (if an `fp-library-v*` tag was pushed).
+4.  Create a GitHub Release with auto-generated notes.
 
-2.  **Publish fp-library**:
+**Order matters when both crates are released together:** Push the `fp-macros` tag first and wait for its publish job to succeed before pushing the `fp-library` tag, since `fp-library` depends on `fp-macros`.
 
-    ```bash
-    cargo publish -p fp-library
-    ```
+> **Note:** The release workflow requires a `CARGO_REGISTRY_TOKEN` secret configured in the repository settings.
 
-3.  **Push to Remote**:
-    ```bash
-    git push origin main
-    git push origin --tags
-    ```
+#### Manual publishing (fallback)
+
+If the automated workflow fails or you need to publish manually:
+
+```bash
+# Publish fp-macros first (if updated)
+cargo publish -p fp-macros
+# Wait for crates.io to index it
+cargo publish -p fp-library
+```
 
 ## Post-Release
 
+- Verify the release workflow succeeded in the GitHub Actions tab.
 - Verify the new version is available on [crates.io](https://crates.io/crates/fp-library).
 - Verify documentation is updated on [docs.rs](https://docs.rs/fp-library).
