@@ -376,7 +376,7 @@ mod inner {
 		/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
 		/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
 		/// [`TraversalFunc::apply`] with
-		/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
+		/// [`ConstBrand<R>`](crate::brands::ConstBrand) as the applicative, and that
 		/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
 		#[document_examples]
 		///
@@ -636,7 +636,7 @@ mod inner {
 		/// via [`Wander`] with the [`Forget`](crate::types::optics::Forget) profunctor, which stores
 		/// `R` inside [`Const`](crate::types::const_val::Const). The traversal applies
 		/// [`IndexedTraversalFunc::apply`](crate::classes::optics::IndexedTraversalFunc::apply) with
-		/// [`ConstBrand<R>`](crate::types::const_val::ConstBrand) as the applicative, and that
+		/// [`ConstBrand<R>`](crate::brands::ConstBrand) as the applicative, and that
 		/// requires `Const<R, B>: Clone`, which in turn requires `R: Clone`.
 		fn evaluate<R: 'a + Monoid + Clone + 'static, PointerBrand: UnsizedCoercible + 'static>(
 			&self,

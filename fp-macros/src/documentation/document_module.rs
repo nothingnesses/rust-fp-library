@@ -18,6 +18,7 @@ use {
 				DOCUMENT_RETURNS,
 				DOCUMENT_SIGNATURE,
 				DOCUMENT_TYPE_PARAMETERS,
+				NO_VALIDATION,
 			},
 			error_handling::ErrorCollector,
 		},
@@ -89,10 +90,10 @@ fn parse_validation_mode(attr: TokenStream) -> syn::Result<ValidationMode> {
 
 	let attr_str = attr.to_string();
 	match attr_str.trim() {
-		"no_validation" => Ok(ValidationMode::Off),
+		NO_VALIDATION => Ok(ValidationMode::Off),
 		_ => Err(syn::Error::new(
 			attr.span(),
-			format!("Unknown validation mode '{attr_str}'. Valid option: 'no_validation'"),
+			format!("Unknown validation mode '{attr_str}'. Valid option: '{NO_VALIDATION}'"),
 		)),
 	}
 }

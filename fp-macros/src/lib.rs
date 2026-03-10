@@ -468,6 +468,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
 ///
 /// // Expanded code
+/// /// ### Type Signature
 /// /// `forall f a b. Functor f => (a -> b, f a) -> f b`
 /// pub fn map<F: Functor, A, B>(f: impl Fn(A) -> B, fa: F::Of<A>) -> F::Of<B> { ... }
 /// ```
@@ -478,6 +479,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 /// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
 ///
 /// // Expanded code
+/// /// ### Type Signature
 /// /// `iterator -> i32`
 /// pub fn foo(x: impl Iterator<Item = String>) -> i32 { ... }
 /// ```
@@ -491,6 +493,7 @@ pub fn generate_trait_re_exports(input: TokenStream) -> TokenStream {
 ///
 /// // Expanded code
 /// trait Functor {
+///     /// ### Type Signature
 ///     /// `forall self a b. Functor self => (a -> b, self a) -> self b`
 ///     fn map<A, B>(f: impl Fn(A) -> B, fa: Self::Of<A>) -> Self::Of<B>;
 /// }
@@ -568,6 +571,7 @@ pub fn document_signature(
 /// pub fn map<T, ERR>(...) { ... }
 ///
 /// // Expanded code
+/// /// ### Type Parameters
 /// /// * `T`: The type of the elements.
 /// /// * `E`: The error type.
 /// pub fn map<T, ERR>(...) { ... }
@@ -640,6 +644,7 @@ pub fn document_type_parameters(
 /// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
 ///
 /// // Expanded code
+/// /// ### Parameters
 /// /// * `x`: The first input value.
 /// /// * `y`: The second input value.
 /// pub fn foo(x: i32) -> impl Fn(i32) -> i32 { ... }
@@ -655,6 +660,7 @@ pub fn document_type_parameters(
 ///
 /// // Expanded code
 /// impl<A> MyList<A> {
+///     /// ### Parameters
 ///     /// * `&mut self`: The list instance
 ///     /// * `item`: The element to push
 ///     pub fn push(&mut self, item: A) { ... }
@@ -839,6 +845,7 @@ pub fn document_examples(
 /// }
 ///
 /// // Expanded code
+/// /// ### Fields
 /// /// * `x`: The x coordinate
 /// /// * `y`: The y coordinate
 /// pub struct Point {
@@ -857,6 +864,7 @@ pub fn document_examples(
 /// );
 ///
 /// // Expanded code
+/// /// ### Fields
 /// /// * `0`: The wrapped morphism
 /// pub struct Endomorphism<'a, C, A>(
 ///     pub Apply!(<C as Kind!(type Of<'a, T, U>;)>::Of<'a, A, A>),
@@ -965,13 +973,13 @@ pub fn document_fields(
 /// ### Validation
 ///
 /// By default, `document_module` validates that impl blocks and methods have appropriate
-/// documentation attributes and emits compile-time errors for missing documentation.
+/// documentation attributes and emits compile-time warnings for missing documentation.
 ///
 /// To disable validation, use `#[document_module(no_validation)]`.
 ///
 /// #### Validation Rules
 ///
-/// An impl block should have:
+/// An impl block or trait definition should have:
 /// * `#[document_type_parameters]` if it has type parameters
 /// * `#[document_parameters]` if it contains methods with receiver parameters (self, &self, &mut self)
 ///
@@ -979,6 +987,21 @@ pub fn document_fields(
 /// * `#[document_signature]` - always recommended for documenting the Hindley-Milner signature
 /// * `#[document_type_parameters]` if it has type parameters
 /// * `#[document_parameters]` if it has non-receiver parameters
+/// * `#[document_returns]` if it has a return type
+/// * `#[document_examples]` - always recommended
+///
+/// A free function should have:
+/// * `#[document_examples]` - always recommended
+///
+/// Documentation attributes must not be duplicated and must appear in canonical order:
+/// `#[document_signature]` → `#[document_type_parameters]` → `#[document_parameters]` →
+/// `#[document_returns]` → `#[document_examples]`.
+///
+/// Additionally, a lint warns when a named generic type parameter could be replaced with
+/// `impl Trait` (i.e., it has trait bounds, appears in exactly one parameter position, does
+/// not appear in the return type, and is not cross-referenced by other type parameters).
+/// This lint skips trait implementations. Suppress it on individual functions or methods
+/// with `#[allow_named_generics]`.
 ///
 /// #### Examples of Validation
 ///
@@ -992,6 +1015,9 @@ pub fn document_fields(
 ///     // but no #[document_parameters] attribute
 ///     impl MyType {
 ///         // WARNING: Method should have #[document_signature] attribute
+///         // WARNING: Method has parameters but no #[document_parameters] attribute
+///         // WARNING: Method has a return type but no #[document_returns] attribute
+///         // WARNING: Method should have a #[document_examples] attribute
 ///         pub fn process(&self, x: i32) -> i32 { x }
 ///     }
 /// }
@@ -1007,6 +1033,14 @@ pub fn document_fields(
 ///     impl MyType {
 ///         #[document_signature]
 ///         #[document_parameters("The input value")]
+///         #[document_returns("The input value unchanged.")]
+///         #[document_examples]
+///         ///
+///         /// ```
+///         /// # use my_crate::MyType;
+///         /// let t = MyType;
+///         /// assert_eq!(t.process(42), 42);
+///         /// ```
 ///         pub fn process(&self, x: i32) -> i32 { x }
 ///     }
 /// }
@@ -1067,6 +1101,7 @@ pub fn document_fields(
 ///     // ... generated Kind implementations ...
 ///
 ///     impl Functor for MyBrand {
+///         /// ### Type Signature
 ///         /// `forall a b. (a -> b, MyType a) -> MyType b`
 ///         fn map<'a, A: 'a, B: 'a, Func>(
 ///             f: Func,
