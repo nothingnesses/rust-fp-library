@@ -217,14 +217,14 @@ fn type_is_ident(
 /// Recursively check if a type contains a reference to the named type parameter.
 ///
 /// Walks through all `syn::Type` variants including:
-/// - `Type::Path` — checks ident and recurses into generic args
-/// - `Type::Macro` — parses `Apply!` macros and recurses into args
-/// - `Type::Reference` — recurses into element
-/// - `Type::Tuple` — recurses into each element
-/// - `Type::ImplTrait` / `Type::TraitObject` — recurses into bounds
-/// - `Type::BareFn` — recurses into inputs and output
-/// - `Type::Array` / `Type::Slice` — recurses into element
-/// - `Type::Paren` / `Type::Group` — recurses into inner type
+/// - `Type::Path` - checks ident and recurses into generic args
+/// - `Type::Macro` - parses `Apply!` macros and recurses into args
+/// - `Type::Reference` - recurses into element
+/// - `Type::Tuple` - recurses into each element
+/// - `Type::ImplTrait` / `Type::TraitObject` - recurses into bounds
+/// - `Type::BareFn` - recurses into inputs and output
+/// - `Type::Array` / `Type::Slice` - recurses into element
+/// - `Type::Paren` / `Type::Group` - recurses into inner type
 pub fn contains_type_param(
 	ty: &Type,
 	name: &str,

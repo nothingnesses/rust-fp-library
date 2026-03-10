@@ -785,7 +785,7 @@ mod inner {
 	/// that can be used as:
 	/// - An [`IsoOptic`] from `B, A` to `T, S` (when the inner optic implements [`IsoOptic`])
 	/// - A [`ReviewOptic`] from `B → A` focusing on `T → S` (when the inner optic
-	///   implements [`LensOptic`] — covers isos and lenses)
+	///   implements [`LensOptic`] - covers isos and lenses)
 	/// - A [`GetterOptic`] from `A` to `S` (when the inner optic implements [`PrismOptic`]
 	///   with simple types `S = T, A = B`)
 	/// - A [`FoldOptic`] from `A` to `S` (same conditions as getter)
@@ -849,7 +849,7 @@ mod inner {
 		}
 	}
 
-	/// `ReviewOptic` for `ReversedOptic` — reversing any optic ≥ `Lens`.
+	/// `ReviewOptic` for `ReversedOptic` - reversing any optic ≥ `Lens`.
 	///
 	/// `ReverseBrand<TaggedBrand>` has `Strong` (from `TaggedBrand: Costrong`),
 	/// satisfying the `P: Strong` bound required by [`LensOptic::evaluate`].
@@ -923,7 +923,7 @@ mod inner {
 		}
 	}
 
-	/// `IsoOptic` for `ReversedOptic` — reversing an iso to an iso.
+	/// `IsoOptic` for `ReversedOptic` - reversing an iso to an iso.
 	///
 	/// `ReverseBrand<P>` has `Profunctor` whenever `P: Profunctor`, which is all that
 	/// [`IsoOptic::evaluate`] requires. This means `reverse(iso)` is itself an iso,
@@ -992,7 +992,7 @@ mod inner {
 		}
 	}
 
-	/// `GetterOptic` for `ReversedOptic` — reversing prism-like optics to getters.
+	/// `GetterOptic` for `ReversedOptic` - reversing prism-like optics to getters.
 	///
 	/// `ReverseBrand<ForgetBrand<Q, R>>` has `Choice` (from `ForgetBrand: Cochoice`)
 	/// but NOT `Strong` (since `ForgetBrand` is not `Costrong`), so only
@@ -1066,7 +1066,7 @@ mod inner {
 		}
 	}
 
-	/// `FoldOptic` for `ReversedOptic` — reversing prism-like optics to folds.
+	/// `FoldOptic` for `ReversedOptic` - reversing prism-like optics to folds.
 	///
 	/// Same as the [`GetterOptic`] implementation but with the additional `R: Monoid + Clone` bound
 	/// required by [`FoldOptic`].

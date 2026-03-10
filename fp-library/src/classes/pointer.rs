@@ -30,7 +30,7 @@ mod inner {
 	/// Base type class for heap-allocated pointers.
 	///
 	/// This is the minimal abstraction: any type that can wrap a value and
-	/// dereference to it. Does NOT require Clone — that's added by subtraits.
+	/// dereference to it. Does NOT require Clone - that's added by subtraits.
 	///
 	/// By explicitly requiring that the type parameter `T` outlives the application lifetime `'a`,
 	/// we provide the compiler with the necessary guarantees to handle trait objects

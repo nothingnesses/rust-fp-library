@@ -111,7 +111,7 @@ mod inner {
 			// Root cause: The return type of this method contains a nested associated type
 			// projection: `<M as Kind>::Of<'a, <Brand as Kind>::Of<'a, B>>`. When the old
 			// trait solver (stable Rust) encounters this without explicit type annotations,
-			// it enters an infinite loop during type normalization — `cargo check` hangs
+			// it enters an infinite loop during type normalization - `cargo check` hangs
 			// indefinitely. This is not a recursion depth issue (`recursion_limit` has no
 			// effect); it is an infinite loop in the solver's normalization phase when it
 			// tries to resolve the inner projection `<Brand as Kind>::Of<'a, B>` inside the

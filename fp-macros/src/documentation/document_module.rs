@@ -301,7 +301,7 @@ where
 		&mut self,
 		module: &mut ItemMod,
 	) {
-		// Strip nested #[document_module] attributes — the outer invocation
+		// Strip nested #[document_module] attributes - the outer invocation
 		// handles them recursively, so leaving them would cause double-processing.
 		module.attrs.retain(|attr| !attr_matches(attr, DOCUMENT_MODULE));
 
@@ -658,7 +658,7 @@ fn lint_impl_trait(
 	for item in items {
 		match item {
 			Item::Impl(item_impl) => {
-				// Skip trait implementations — their signatures are dictated by the trait
+				// Skip trait implementations - their signatures are dictated by the trait
 				if item_impl.trait_.is_none() {
 					for impl_item in &item_impl.items {
 						if let syn::ImplItem::Fn(method) = impl_item {

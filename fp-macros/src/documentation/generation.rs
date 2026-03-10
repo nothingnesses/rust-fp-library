@@ -129,7 +129,7 @@ pub(super) fn process_document_signature(
 
 /// Process the `#[document_type_parameters]` attribute, shared core.
 ///
-/// Works with any item that has `attrs` and generic parameters — methods (impl or trait),
+/// Works with any item that has `attrs` and generic parameters - methods (impl or trait),
 /// trait definitions, or any other generic item.
 fn process_type_parameters_core(
 	attrs: &mut Vec<syn::Attribute>,
@@ -224,7 +224,7 @@ fn process_method_documentation(
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
-	// Strip #[allow_named_generics] — consumed during lint pass, must not remain in output
+	// Strip #[allow_named_generics] - consumed during lint pass, must not remain in output
 	method.attrs.retain(|attr| !attr.path().is_ident(ALLOW_NAMED_GENERICS));
 
 	let method_document_use = method.attrs.find_value_or_collect(DOCUMENT_USE, errors);
@@ -331,7 +331,7 @@ fn process_trait_method_documentation(
 	config: &Config,
 	errors: &mut ErrorCollector,
 ) {
-	// 1. Handle HM Signature — no Self substitution needed
+	// 1. Handle HM Signature - no Self substitution needed
 	if let Some(attr_pos) = find_attribute(&method.attrs, DOCUMENT_SIGNATURE) {
 		method.attrs.remove(attr_pos);
 		insert_signature_docs(&mut method.attrs, attr_pos, &method.sig, config);

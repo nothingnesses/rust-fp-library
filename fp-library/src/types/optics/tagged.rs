@@ -283,7 +283,7 @@ mod inner {
 	impl<FunctionBrand: CloneableFn + 'static> Closed<FunctionBrand> for TaggedBrand {
 		/// Lifts the `Tagged` profunctor to operate on functions.
 		///
-		/// Given `Tagged(b)`, produces `Tagged(const b)` — a `Tagged` wrapping a constant
+		/// Given `Tagged(b)`, produces `Tagged(const b)` - a `Tagged` wrapping a constant
 		/// function that always returns `b`, ignoring its input.
 		#[document_signature]
 		///

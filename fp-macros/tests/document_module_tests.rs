@@ -214,7 +214,7 @@ fn test_impl_level_document_parameters_integration() {
 
 // --- Trait support tests ---
 
-/// Trait with fully documented methods — no validation warnings expected.
+/// Trait with fully documented methods - no validation warnings expected.
 #[document_module]
 mod test_trait_fully_documented {
 	use fp_macros::{
@@ -255,14 +255,14 @@ mod test_trait_fully_documented {
 	}
 }
 
-/// Marker trait (no methods) — no validation warnings expected.
+/// Marker trait (no methods) - no validation warnings expected.
 #[document_module]
 mod test_marker_trait {
 	#[allow(dead_code)]
 	pub trait Marker {}
 }
 
-/// Module with both trait and impl — both validated/generated.
+/// Module with both trait and impl - both validated/generated.
 #[document_module(no_validation)]
 mod test_trait_and_impl_together {
 	use fp_macros::document_parameters;
@@ -286,7 +286,7 @@ mod test_trait_and_impl_together {
 	}
 }
 
-/// Trait-level #[document_parameters] — receiver doc applied to methods.
+/// Trait-level #[document_parameters] - receiver doc applied to methods.
 #[document_module(no_validation)]
 mod test_trait_level_document_parameters {
 	use fp_macros::document_parameters;

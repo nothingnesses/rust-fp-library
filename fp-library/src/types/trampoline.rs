@@ -40,7 +40,7 @@ mod inner {
 	///
 	/// # Requirements
 	///
-	/// - `A: 'static + Send` — Required due to type erasure via [`Box<dyn Any>`].
+	/// - `A: 'static + Send` - Required due to type erasure via [`Box<dyn Any>`].
 	///
 	/// # Guarantees
 	///
@@ -100,7 +100,7 @@ mod inner {
 
 		/// Creates a lazy `Trampoline` that computes `f` on first evaluation.
 		///
-		/// `Trampoline` does NOT memoize — each `evaluate()`
+		/// `Trampoline` does NOT memoize - each `evaluate()`
 		/// re-evaluates. Use [`Lazy`] for caching.
 		///
 		/// # Complexity

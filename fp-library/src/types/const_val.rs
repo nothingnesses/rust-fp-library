@@ -283,7 +283,7 @@ mod inner {
 }
 pub use inner::*;
 
-// `A` is only `PhantomData<&'a A>` — always Clone/Copy — so we only need `R: Clone`/`R: Copy`.
+// `A` is only `PhantomData<&'a A>` - always Clone/Copy - so we only need `R: Clone`/`R: Copy`.
 impl<'a, R: Clone, A> Clone for Const<'a, R, A> {
 	fn clone(&self) -> Self {
 		Const(self.0.clone(), std::marker::PhantomData)
