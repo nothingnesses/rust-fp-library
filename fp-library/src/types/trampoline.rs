@@ -316,7 +316,7 @@ mod inner {
 		/// which wraps the closure in `Arc` internally.
 		#[document_signature]
 		///
-		#[document_type_parameters("The type of the state.", "The type of the step function.")]
+		#[document_type_parameters("The type of the state.")]
 		///
 		#[document_parameters(
 			"The function that performs one step of the recursion.",
@@ -348,12 +348,10 @@ mod inner {
 		///
 		/// assert_eq!(fib(50).evaluate(), 12586269025);
 		/// ```
-		pub fn tail_rec_m<S: 'static + Send, F>(
-			f: F,
+		pub fn tail_rec_m<S: 'static + Send>(
+			f: impl Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static,
 			initial: S,
-		) -> Self
-		where
-			F: Fn(S) -> Trampoline<Step<S, A>> + Clone + 'static, {
+		) -> Self {
 			// Use defer to ensure each step is trampolined.
 			fn go<A: 'static + Send, B: 'static + Send, F>(
 				f: F,

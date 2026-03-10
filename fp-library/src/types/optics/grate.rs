@@ -206,7 +206,7 @@ mod inner {
 		) -> T
 		where
 			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
-			zip_with_of::<FnBrand<PointerBrand>, _, S, T, A, B>(self, f, s1, s2)
+			zip_with_of::<FnBrand<PointerBrand>, S, T, A, B>(self, f, s1, s2)
 		}
 	}
 
@@ -637,7 +637,7 @@ mod inner {
 		) -> S
 		where
 			<PointerBrand as RefCountedPointer>::CloneableOf<'a, S>: Sized, {
-			zip_with_of::<FnBrand<PointerBrand>, _, S, S, A, A>(self, f, s1, s2)
+			zip_with_of::<FnBrand<PointerBrand>, S, S, A, A>(self, f, s1, s2)
 		}
 	}
 

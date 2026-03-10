@@ -44,7 +44,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -68,15 +67,14 @@ mod inner {
 	///
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
 	/// 	LensPrime::from_view_set(|(x, _)| x, |(_, x)| (x, "".to_string()));
-	/// assert_eq!(optics_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), 42);
+	/// assert_eq!(optics_view::<RcBrand, _, _>(&l, (42, "hello".to_string())), 42);
 	/// ```
-	pub fn optics_view<'a, PointerBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_view<'a, PointerBrand, S, A>(
+		optic: &impl GetterOptic<'a, S, A>,
 		s: S,
 	) -> A
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: GetterOptic<'a, S, A>,
 		S: 'a,
 		A: 'a + 'static, {
 		(optic.evaluate::<A, PointerBrand>(Forget::new(|a| a)).0)(s)
@@ -90,7 +88,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -115,18 +112,17 @@ mod inner {
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
 	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
+	/// 	optics_set::<RcBrand, _, _>(&l, (42, "hello".to_string()), 99),
 	/// 	(99, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_set<'a, PointerBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_set<'a, PointerBrand, S, A>(
+		optic: &impl SetterOptic<'a, PointerBrand, S, S, A, A>,
 		s: S,
 		a: A,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
-		O: SetterOptic<'a, PointerBrand, S, S, A, A>,
 		S: 'a,
 		A: 'a + Clone, {
 		let f = <FnBrand<PointerBrand> as Function>::new(move |_| a.clone());
@@ -141,7 +137,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -170,18 +165,17 @@ mod inner {
 	/// let l: LensPrime<RcBrand, (i32, String), i32> =
 	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_over::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
+	/// 	optics_over::<RcBrand, _, _>(&l, (42, "hello".to_string()), |x| x * 2),
 	/// 	(84, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_over<'a, PointerBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_over<'a, PointerBrand, S, A>(
+		optic: &impl SetterOptic<'a, PointerBrand, S, S, A, A>,
 		s: S,
 		f: impl Fn(A) -> A + 'a,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
-		O: SetterOptic<'a, PointerBrand, S, S, A, A>,
 		S: 'a,
 		A: 'a, {
 		let f = <FnBrand<PointerBrand> as Function>::new(f);
@@ -196,7 +190,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -220,16 +213,15 @@ mod inner {
 	///
 	/// let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
-	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
-	/// assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
+	/// assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Ok(42)), Some(42));
+	/// assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Err("error".to_string())), None);
 	/// ```
-	pub fn optics_preview<'a, PointerBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_preview<'a, PointerBrand, S, A>(
+		optic: &impl FoldOptic<'a, S, A>,
 		s: S,
 	) -> Option<A>
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: FoldOptic<'a, S, A>,
 		S: 'a,
 		A: 'a + 'static + Clone, {
 		#[derive(Clone)]
@@ -260,7 +252,6 @@ mod inner {
 	///
 	#[document_type_parameters(
 		"The lifetime of the values.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -286,12 +277,11 @@ mod inner {
 	/// 	PrismPrime::new(|r: Result<i32, String>| r.map_err(|e| Err(e)), |x| Ok(x));
 	/// assert_eq!(optics_review(&ok_prism, 42), Ok(42));
 	/// ```
-	pub fn optics_review<'a, O, S, A>(
-		optic: &O,
+	pub fn optics_review<'a, S, A>(
+		optic: &impl ReviewOptic<'a, S, S, A, A>,
 		a: A,
 	) -> S
 	where
-		O: ReviewOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a, {
 		(optic.evaluate(Tagged::new(a))).0
@@ -305,7 +295,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The cloneable function brand.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -329,15 +318,14 @@ mod inner {
 	/// };
 	///
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_from::<RcFnBrand, _, _, _>(&iso, (42,)), 42);
+	/// assert_eq!(optics_from::<RcFnBrand, _, _>(&iso, (42,)), 42);
 	/// ```
-	pub fn optics_from<'a, FunctionBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_from<'a, FunctionBrand, S, A>(
+		optic: &impl IsoOptic<'a, S, S, A, A>,
 		s: S,
 	) -> A
 	where
 		FunctionBrand: CloneableFn + 'static,
-		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
 		let exchange = Exchange::new(
@@ -355,7 +343,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The cloneable function brand.",
-		"The optic type.",
 		"The type of the structure.",
 		"The type of the focus."
 	)]
@@ -379,15 +366,14 @@ mod inner {
 	/// };
 	///
 	/// let iso: IsoPrime<RcBrand, (i32,), i32> = IsoPrime::new(|(x,)| x, |x| (x,));
-	/// assert_eq!(optics_to::<RcFnBrand, _, _, _>(&iso, 42), (42,));
+	/// assert_eq!(optics_to::<RcFnBrand, _, _>(&iso, 42), (42,));
 	/// ```
-	pub fn optics_to<'a, FunctionBrand, O, S, A>(
-		optic: &O,
+	pub fn optics_to<'a, FunctionBrand, S, A>(
+		optic: &impl IsoOptic<'a, S, S, A, A>,
 		a: A,
 	) -> S
 	where
 		FunctionBrand: CloneableFn + 'static,
-		O: IsoOptic<'a, S, S, A, A>,
 		S: 'a,
 		A: 'a + 'static, {
 		let exchange = Exchange::new(
@@ -406,7 +392,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
-		"The optic type.",
 		"The type of the structure.",
 		"The target type after update.",
 		"The type of the focus.",
@@ -435,16 +420,15 @@ mod inner {
 	/// 	LensPrime::from_view_set(|(x, _)| x, |((_, s), x)| (x, s));
 	///
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x * 2);
-	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&l, f);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _>(&l, f);
 	/// assert_eq!(modifier((21, "hello".to_string())), (42, "hello".to_string()));
 	/// ```
-	pub fn optics_eval<'a, P, O, S: 'a, T: 'a, A: 'a, B: 'a>(
-		optic: &O,
+	pub fn optics_eval<'a, P, S: 'a, T: 'a, A: 'a, B: 'a>(
+		optic: &impl Optic<'a, P, S, T, A, B>,
 		pab: Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, A, B>),
 	) -> Apply!(<P as Kind!( type Of<'b, T: 'b, U: 'b>: 'b; )>::Of<'a, S, T>)
 	where
-		P: Profunctor,
-		O: Optic<'a, P, S, T, A, B>, {
+		P: Profunctor, {
 		optic.evaluate(pab)
 	}
 
@@ -460,7 +444,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The cloneable function brand for `Zipping`.",
-		"The optic type.",
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
@@ -502,18 +485,17 @@ mod inner {
 	/// 		f(Rc::new(|s: Rc<(i32, i32)>| s.1) as Rc<dyn Fn(Rc<(i32, i32)>) -> i32>),
 	/// 	)
 	/// });
-	/// let result = zip_with_of::<RcFnBrand, _, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
+	/// let result = zip_with_of::<RcFnBrand, _, _, _, _>(&grate, |(a, b)| a + b, (1, 2), (10, 20));
 	/// assert_eq!(result, (11, 22));
 	/// ```
-	pub fn zip_with_of<'a, FunctionBrand, O, S, T, A, B>(
-		optic: &O,
+	pub fn zip_with_of<'a, FunctionBrand, S, T, A, B>(
+		optic: &impl GrateOptic<'a, FunctionBrand, S, T, A, B>,
 		f: impl Fn((A, A)) -> B + 'a,
 		s1: S,
 		s2: S,
 	) -> T
 	where
 		FunctionBrand: CloneableFn + 'static,
-		O: GrateOptic<'a, FunctionBrand, S, T, A, B>,
 		S: 'a,
 		T: 'a,
 		A: 'a,
@@ -531,7 +513,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -550,15 +531,14 @@ mod inner {
 	/// };
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
-	/// assert_eq!(optics_indexed_view::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())), (0, 42));
+	/// assert_eq!(optics_indexed_view::<RcBrand, _, _, _>(&l, (42, "hello".to_string())), (0, 42));
 	/// ```
-	pub fn optics_indexed_view<'a, PointerBrand, O, I, S, A>(
-		optic: &O,
+	pub fn optics_indexed_view<'a, PointerBrand, I, S, A>(
+		optic: &impl IndexedGetterOptic<'a, I, S, A>,
 		s: S,
 	) -> (I, A)
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: IndexedGetterOptic<'a, I, S, A>,
 		I: 'a + 'static,
 		S: 'a,
 		A: 'a + 'static, {
@@ -570,7 +550,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -594,19 +573,18 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (10, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), |i, x| x
+	/// 	optics_indexed_over::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), |i, x| x
 	/// 		+ (i as i32)),
 	/// 	(52, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_indexed_over<'a, PointerBrand, O, I, S, A>(
-		optic: &O,
+	pub fn optics_indexed_over<'a, PointerBrand, I, S, A>(
+		optic: &impl IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		s: S,
 		f: impl Fn(I, A) -> A + 'a,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
-		O: IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		I: 'a,
 		S: 'a,
 		A: 'a, {
@@ -619,7 +597,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -643,22 +620,21 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_set::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string()), 99),
+	/// 	optics_indexed_set::<RcBrand, _, _, _>(&l, (42, "hello".to_string()), 99),
 	/// 	(99, "hello".to_string())
 	/// );
 	/// ```
-	pub fn optics_indexed_set<'a, PointerBrand, O, I, S, A>(
-		optic: &O,
+	pub fn optics_indexed_set<'a, PointerBrand, I, S, A>(
+		optic: &impl IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		s: S,
 		a: A,
 	) -> S
 	where
 		PointerBrand: UnsizedCoercible,
-		O: IndexedSetterOptic<'a, PointerBrand, I, S, S, A, A>,
 		I: 'a,
 		S: 'a,
 		A: 'a + Clone, {
-		optics_indexed_over::<PointerBrand, _, _, _, _>(optic, s, move |_, _| a.clone())
+		optics_indexed_over::<PointerBrand, _, _, _>(optic, s, move |_, _| a.clone())
 	}
 
 	/// Preview the focus and its index of an indexed prism-like optic.
@@ -666,7 +642,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus."
@@ -686,17 +661,16 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_preview::<RcBrand, _, _, _, _>(&l, (42, "hello".to_string())),
+	/// 	optics_indexed_preview::<RcBrand, _, _, _>(&l, (42, "hello".to_string())),
 	/// 	Some((0, 42))
 	/// );
 	/// ```
-	pub fn optics_indexed_preview<'a, PointerBrand, O, I, S, A>(
-		optic: &O,
+	pub fn optics_indexed_preview<'a, PointerBrand, I, S, A>(
+		optic: &impl IndexedFoldOptic<'a, I, S, A>,
 		s: S,
 	) -> Option<(I, A)>
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: IndexedFoldOptic<'a, I, S, A>,
 		I: 'a + Clone + 'static,
 		S: 'a,
 		A: 'a + 'static + Clone, {
@@ -726,7 +700,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The pointer brand for the function.",
-		"The optic type.",
 		"The index type.",
 		"The type of the structure.",
 		"The type of the focus.",
@@ -751,7 +724,7 @@ mod inner {
 	/// let l: IndexedLensPrime<RcBrand, usize, (i32, String), i32> =
 	/// 	IndexedLensPrime::from_iview_set(|(x, _)| (0, x), |((_, s), x)| (x, s));
 	/// assert_eq!(
-	/// 	optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
+	/// 	optics_indexed_fold_map::<RcBrand, _, _, _, String>(
 	/// 		&l,
 	/// 		|i, x| format!("{}:{}", i, x),
 	/// 		(42, "hi".to_string())
@@ -759,14 +732,13 @@ mod inner {
 	/// 	"0:42".to_string()
 	/// );
 	/// ```
-	pub fn optics_indexed_fold_map<'a, PointerBrand, O, I, S, A, R>(
-		optic: &O,
+	pub fn optics_indexed_fold_map<'a, PointerBrand, I, S, A, R>(
+		optic: &impl IndexedFoldOptic<'a, I, S, A>,
 		f: impl Fn(I, A) -> R + 'a,
 		s: S,
 	) -> R
 	where
 		PointerBrand: UnsizedCoercible + 'static,
-		O: IndexedFoldOptic<'a, I, S, A>,
 		I: 'a,
 		S: 'a,
 		A: 'a,
@@ -781,7 +753,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
-		"The optic type.",
 		"The index type.",
 		"The source type of the structure.",
 		"The target type of the structure.",
@@ -808,17 +779,16 @@ mod inner {
 	/// 		|((_, s), x)| (x, s),
 	/// 	),
 	/// );
-	/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+	/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _>(&*l);
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _>(&unindexed, f);
 	/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 	/// ```
-	pub fn optics_un_index<'a, P, O, I, S, T, A, B>(
-		optic: &'a O
+	pub fn optics_un_index<'a, P, I, S, T, A, B>(
+		optic: &'a impl IndexedOpticAdapter<'a, P, I, S, T, A, B>
 	) -> impl Optic<'a, P, S, T, A, B> + 'a
 	where
 		P: Profunctor + 'static,
-		O: IndexedOpticAdapter<'a, P, I, S, T, A, B>,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -859,9 +829,9 @@ mod inner {
 			/// 		|((_, s), x)| (x, s),
 			/// 	),
 			/// );
-			/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+			/// let unindexed = optics_un_index::<RcFnBrand, _, _, _, _, _>(&*l);
 			/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|x: i32| x + 1);
-			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&unindexed, f);
+			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _>(&unindexed, f);
 			/// assert_eq!(modifier((42, "hi".to_string())), (43, "hi".to_string()));
 			/// ```
 			fn evaluate(
@@ -882,7 +852,6 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
-		"The optic type.",
 		"The index type.",
 		"The source type of the structure.",
 		"The target type of the structure.",
@@ -909,17 +878,16 @@ mod inner {
 	/// 		|((_, s), x)| (x, s),
 	/// 	),
 	/// );
-	/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+	/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _>(&*l);
 	/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
-	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
+	/// let modifier = optics_eval::<RcFnBrand, _, _, _, _>(&as_index, f);
 	/// assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));
 	/// ```
-	pub fn optics_as_index<'a, P, O, I, S, T, A, B>(
-		optic: &'a O
+	pub fn optics_as_index<'a, P, I, S, T, A, B>(
+		optic: &'a impl IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>
 	) -> impl Optic<'a, P, S, T, I, B> + 'a
 	where
 		P: Profunctor + 'static,
-		O: IndexedOpticAdapterDiscardsFocus<'a, P, I, S, T, A, B>,
 		I: 'a,
 		S: 'a,
 		T: 'a,
@@ -960,9 +928,9 @@ mod inner {
 			/// 		|((_, s), x)| (x, s),
 			/// 	),
 			/// );
-			/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _, _>(&*l);
+			/// let as_index = optics_as_index::<RcFnBrand, _, _, _, _, _>(&*l);
 			/// let f = cloneable_fn_new::<RcFnBrand, _, _>(|i: usize| i as i32 + 1);
-			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _, _>(&as_index, f);
+			/// let modifier = optics_eval::<RcFnBrand, _, _, _, _>(&as_index, f);
 			/// assert_eq!(modifier((42, "hi".to_string())), (11, "hi".to_string()));
 			/// ```
 			fn evaluate(
@@ -987,14 +955,12 @@ mod inner {
 	#[document_type_parameters(
 		"The lifetime of the values.",
 		"The profunctor type.",
-		"The optic type.",
 		"The original index type.",
 		"The new index type.",
 		"The source type of the structure.",
 		"The target type of the structure.",
 		"The source type of the focus.",
-		"The target type of the focus.",
-		"The remapping function type."
+		"The target type of the focus."
 	)]
 	#[document_parameters("The remapping function.", "The indexed optic.")]
 	#[document_returns("A reindexed optic.")]
@@ -1016,10 +982,8 @@ mod inner {
 	/// 		|((_, s), x)| (x, s),
 	/// 	),
 	/// );
-	/// let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(
-	/// 	|i: usize| format!("{}", i),
-	/// 	&*l,
-	/// );
+	/// let reindexed =
+	/// 	optics_reindexed::<RcFnBrand, _, String, _, _, _, _>(|i: usize| format!("{}", i), &*l);
 	/// let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32)
 	/// 	as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
 	/// let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
@@ -1027,20 +991,18 @@ mod inner {
 	/// 	reindexed.evaluate_indexed(pab);
 	/// assert_eq!(result((42, "hi".to_string())), (43, "hi".to_string()));
 	/// ```
-	pub fn optics_reindexed<'a, P, O, I, J, S, T, A, B, F>(
-		f: F,
-		optic: &'a O,
+	pub fn optics_reindexed<'a, P, I, J, S, T, A, B>(
+		f: impl Fn(I) -> J + Clone + 'a,
+		optic: &'a impl IndexedOpticAdapter<'a, P, I, S, T, A, B>,
 	) -> impl IndexedOpticAdapter<'a, P, J, S, T, A, B> + 'a
 	where
 		P: Profunctor + 'static,
-		O: IndexedOpticAdapter<'a, P, I, S, T, A, B>,
 		I: 'a,
 		J: 'a,
 		S: 'a,
 		T: 'a,
 		A: 'a,
-		B: 'a,
-		F: Fn(I) -> J + Clone + 'a, {
+		B: 'a, {
 		struct Reindexed<'a, P, O, I, J, S, T, A, B, F> {
 			f: F,
 			optic: &'a O,
@@ -1080,10 +1042,8 @@ mod inner {
 			/// 		|((_, s), x)| (x, s),
 			/// 	),
 			/// );
-			/// let reindexed = optics_reindexed::<RcFnBrand, _, _, String, _, _, _, _, _>(
-			/// 	|i: usize| format!("{}", i),
-			/// 	&*l,
-			/// );
+			/// let reindexed =
+			/// 	optics_reindexed::<RcFnBrand, _, String, _, _, _, _>(|i: usize| format!("{}", i), &*l);
 			/// let f = std::rc::Rc::new(|(i, x): (String, i32)| x + i.len() as i32)
 			/// 	as std::rc::Rc<dyn Fn((String, i32)) -> i32>;
 			/// let pab = Indexed::<RcFnBrand, _, _, _>::new(f);
@@ -1255,7 +1215,7 @@ mod inner {
 	/// let t = Traversal::<RcBrand, Vec<i32>, Vec<i32>, i32, i32, _>::new(ListTraversal);
 	/// let l = positions(t);
 	/// let s = vec![10, 20, 30];
-	/// let result = optics_indexed_over::<RcBrand, _, _, _, _>(&l, s, |i, x| x + i as i32);
+	/// let result = optics_indexed_over::<RcBrand, _, _, _>(&l, s, |i, x| x + i as i32);
 	/// assert_eq!(result, vec![10, 21, 32]);
 	/// ```
 	pub fn positions<'a, PointerBrand, S, T, A, B, F>(

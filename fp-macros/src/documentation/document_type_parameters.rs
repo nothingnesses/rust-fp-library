@@ -111,7 +111,7 @@ mod doc_type_params_tests {
 
 		let output = document_type_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(error.contains("Expected 2 description arguments"));
+		assert!(error.contains("Expected exactly 2 description arguments"));
 		assert!(error.contains("found 1"));
 	}
 

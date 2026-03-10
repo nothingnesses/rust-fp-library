@@ -224,7 +224,7 @@ mod tests {
 		let result = document_fields_worker(attr, item);
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Expected 2 description arguments"));
+		assert!(error.contains("Expected exactly 2 description arguments"));
 		assert!(error.contains("found 1"));
 	}
 

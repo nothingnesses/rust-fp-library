@@ -171,11 +171,8 @@ mod inner {
 		/// let t: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversal::traversed();
 		/// let v = vec![10, 20, 30];
-		/// let s = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
-		/// 	&t,
-		/// 	|i, x| format!("{}:{}", i, x),
-		/// 	v,
-		/// );
+		/// let s =
+		/// 	optics_indexed_fold_map::<RcBrand, _, _, _, String>(&t, |i, x| format!("{}:{}", i, x), v);
 		/// assert_eq!(s, "0:101:202:30".to_string());
 		/// ```
 		pub fn traversed() -> Self {
@@ -223,7 +220,7 @@ mod inner {
 		/// let t: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversalPrime::traversed();
 		/// let v = vec![10, 20, 30];
-		/// let v2 = optics_indexed_over::<RcBrand, _, _, _, _>(&t, v, |i, x| x + i as i32);
+		/// let v2 = optics_indexed_over::<RcBrand, _, _, _>(&t, v, |i, x| x + i as i32);
 		/// assert_eq!(v2, vec![10, 21, 32]);
 		/// ```
 		pub fn traversed() -> Self {
@@ -539,11 +536,8 @@ mod inner {
 		/// };
 		/// let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversal::traversed();
-		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
-		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
-		/// 	vec![2, 3]
-		/// );
+		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _>(&l);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed(
 			&self,
@@ -589,11 +583,8 @@ mod inner {
 		/// };
 		/// let l: IndexedTraversal<RcBrand, usize, Vec<i32>, Vec<i32>, i32, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversal::traversed();
-		/// let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
-		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
-		/// 	vec![2, 3]
-		/// );
+		/// let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _>(&l);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed_discards_focus(
 			&self,
@@ -919,11 +910,8 @@ mod inner {
 		/// };
 		/// let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversalPrime::traversed();
-		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
-		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
-		/// 	vec![2, 3]
-		/// );
+		/// let _unindexed = optics_un_index::<FnBrand<RcBrand>, _, _, _, _, _>(&l);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed(
 			&self,
@@ -967,11 +955,8 @@ mod inner {
 		/// };
 		/// let l: IndexedTraversalPrime<RcBrand, usize, Vec<i32>, i32, Traversed<VecBrand>> =
 		/// 	IndexedTraversalPrime::traversed();
-		/// let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _, _>(&l);
-		/// assert_eq!(
-		/// 	optics_indexed_over::<RcBrand, _, _, _, _>(&l, vec![1, 2], |_i, x| x + 1),
-		/// 	vec![2, 3]
-		/// );
+		/// let _as_index = optics_as_index::<FnBrand<RcBrand>, _, _, _, _, _>(&l);
+		/// assert_eq!(optics_indexed_over::<RcBrand, _, _, _>(&l, vec![1, 2], |_i, x| x + 1), vec![2, 3]);
 		/// ```
 		fn evaluate_indexed_discards_focus(
 			&self,

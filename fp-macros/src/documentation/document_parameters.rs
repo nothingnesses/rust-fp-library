@@ -385,9 +385,9 @@ mod tests {
 
 		let output = document_parameters_worker(attr, item).unwrap_err();
 		let error = output.to_string();
-		assert!(
-			error.contains("Expected 2 description arguments (one for each parameter), found 1")
-		);
+		assert!(error.contains(
+			"Expected exactly 2 description arguments (one for each parameter), found 1"
+		));
 	}
 
 	#[test]

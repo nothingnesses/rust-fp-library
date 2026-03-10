@@ -216,7 +216,7 @@ fn process_impl_type_parameter_documentation(
 					errors.push(Error::new(
 						attr.span(),
 						format!(
-							"Expected {} description arguments for impl generics, found {}.",
+							"Expected exactly {} description arguments for impl generics, found {}.",
 							targets.len(),
 							entries.len()
 						),

@@ -259,7 +259,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (0, x));
-		/// let result = optics_indexed_view::<RcBrand, _, _, _, _>(&g, (42, "hi".to_string()));
+		/// let result = optics_indexed_view::<RcBrand, _, _, _>(&g, (42, "hi".to_string()));
 		/// assert_eq!(result, (0, 42));
 		/// ```
 		fn evaluate_indexed(
@@ -306,7 +306,7 @@ mod inner {
 		/// 	types::optics::*,
 		/// };
 		/// let g: IndexedGetter<RcBrand, usize, (i32, String), i32> = IndexedGetter::new(|(x, _)| (10, x));
-		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, _, String>(
+		/// let result = optics_indexed_fold_map::<RcBrand, _, _, _, String>(
 		/// 	&g,
 		/// 	|i, _| format!("{}", i),
 		/// 	(42, "hi".to_string()),

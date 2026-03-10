@@ -279,7 +279,7 @@ fn test_polymorphic_view_composed() {
 
 	// Now we can use optics_view on a Composed optic!
 	// This was not possible before Approach 4.
-	let street = optics_view::<RcBrand, _, _, _>(&user_street, user);
+	let street = optics_view::<RcBrand, _, _>(&user_street, user);
 	assert_eq!(street, "High St");
 }
 
@@ -315,7 +315,7 @@ fn test_polymorphic_set_composed() {
 		},
 	};
 
-	let updated = optics_set::<RcBrand, _, _, _>(&user_street, user, "Main St".to_string());
+	let updated = optics_set::<RcBrand, _, _>(&user_street, user, "Main St".to_string());
 	assert_eq!(updated.address.street, "Main St");
 }
 
@@ -324,8 +324,8 @@ fn test_polymorphic_preview_prism() {
 	let ok_prism: PrismPrime<RcBrand, Result<i32, String>, i32> =
 		PrismPrime::from_option(|r: Result<i32, String>| r.ok(), |x| Ok(x));
 
-	assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Ok(42)), Some(42));
-	assert_eq!(optics_preview::<RcBrand, _, _, _>(&ok_prism, Err("error".to_string())), None);
+	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Ok(42)), Some(42));
+	assert_eq!(optics_preview::<RcBrand, _, _>(&ok_prism, Err("error".to_string())), None);
 }
 
 #[test]
@@ -361,6 +361,6 @@ fn test_polymorphic_preview_composed_lens_prism() {
 		},
 	};
 
-	let street = optics_preview::<RcBrand, _, _, _>(&user_street, user);
+	let street = optics_preview::<RcBrand, _, _>(&user_street, user);
 	assert_eq!(street, Some("High St".to_string()));
 }

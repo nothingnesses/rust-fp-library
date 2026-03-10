@@ -123,7 +123,7 @@ pub fn parse_entry_count(
 		return Err(Error::Parse(syn::Error::new(
 			span,
 			format!(
-				"Expected {expected} description arguments (one for each {context}), found {provided}. All {context}s must be documented."
+				"Expected exactly {expected} description arguments (one for each {context}), found {provided}. All {context}s must be documented."
 			),
 		)));
 	}
@@ -442,7 +442,7 @@ mod tests {
 		let result = parse_entry_count(3, 2, Span::call_site(), "field");
 		assert!(result.is_err());
 		let error = result.unwrap_err().to_string();
-		assert!(error.contains("Expected 3"));
+		assert!(error.contains("Expected exactly 3"));
 		assert!(error.contains("found 2"));
 	}
 
