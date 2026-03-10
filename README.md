@@ -12,22 +12,33 @@ A functional programming library for Rust featuring your favourite higher-kinded
 - **Macros:** Procedural macros (`trait_kind!`, `impl_kind!`, `Apply!`) to simplify HKT boilerplate and type application.
 - **Type Classes:** A comprehensive collection of standard type classes including:
   - **Core:** `Functor`, `Applicative`, `Monad`, `Semigroup`, `Monoid`, `Foldable`, `Traversable`
+  - **Bifunctors:** `Bifunctor`, `Bifoldable`, `Bitraversable`
   - **Collections:** `Compactable`, `Filterable`, `Witherable`
-  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`
-  - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`
-  - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Defer`, `SendDefer`
-  - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
-- **Optics:** Composable data accessors for elegant field access and updates:
-  - **Lens:** Fully polymorphic focus (S -> T, A -> B) - Matches PureScript `Lens`
-  - **LensPrime:** Monomorphic focus on a field (S -> S, A -> A) - Matches PureScript `Lens'`
-  - **Prism:** Focus on a variant within a sum type
-  - Based on profunctor encoding for type-safe composition
+  - **Indexed:** `FunctorWithIndex`, `FoldableWithIndex`, `TraversableWithIndex`
+  - **Category Theory:** `Category`, `Semigroupoid`, `Profunctor`, `Strong`, `Choice`, `Closed`, `Cochoice`, `Costrong`, `Wander`
+  - **Utilities:** `Pointed`, `Lift`, `ApplyFirst`, `ApplySecond`, `Semiapplicative`, `Semimonad`, `Contravariant`, `Evaluable`
+  - **Advanced/Internal:** `MonadRec`, `RefFunctor`, `Deferrable`, `SendDeferrable`
+  - **Function & Pointer Abstractions:** `Function`, `CloneableFn`, `SendCloneableFn`, `UnsizedCoercible`, `SendUnsizedCoercible`, `ParFoldable`, `Pointer`, `RefCountedPointer`, `SendRefCountedPointer`
+- **Optics:** Composable data accessors using profunctor encoding (port of PureScript's `purescript-profunctor-lenses`):
+  - **Iso / IsoPrime:** Isomorphism between two types
+  - **Lens / LensPrime:** Focus on a field within a product type
+  - **Prism / PrismPrime:** Focus on a variant within a sum type
+  - **AffineTraversal / AffineTraversalPrime:** Optional focusing (combines Lens + Prism)
+  - **Traversal / TraversalPrime:** Focus on multiple values
+  - **Getter / GetterPrime:** Read-only access
+  - **Setter / SetterPrime:** Write-only modification
+  - **Fold / FoldPrime:** Collecting multiple values (read-only)
+  - **Review / ReviewPrime:** Constructing values
+  - **Grate / GratePrime:** Closed/zipping optics
+  - **Indexed variants:** `IndexedLens`, `IndexedTraversal`, `IndexedGetter`, `IndexedFold`, `IndexedSetter`
+  - **Composition:** `Composed` struct and `optics_compose` for zero-cost optic composition
 - **Helper Functions:** Standard FP utilities:
   - `compose`, `constant`, `flip`, `identity`
 - **Data Types:** Implementations for standard and custom types:
   - **Standard Library:** `Option`, `Result`, `Vec`, `String`
-  - **Laziness, Memoization & Stack Safety:** `Lazy`, `Thunk`, `Trampoline`, `Free`
-  - **Generic Containers:** `Identity`, `Pair`
+  - **Laziness, Memoization & Stack Safety:** `Lazy` (`RcLazy`, `ArcLazy`), `Thunk`, `Trampoline`, `Free`
+  - **Fallible Variants:** `TryLazy` (`RcTryLazy`, `ArcTryLazy`), `TryThunk`, `TryTrampoline`
+  - **Generic Containers:** `Identity`, `Pair`, `Step`, `CatList`
   - **Function Wrappers:** `Endofunction`, `Endomorphism`, `SendEndofunction`
   - **Marker Types:** `RcBrand`, `ArcBrand`, `FnBrand`
 
@@ -47,7 +58,7 @@ Add `fp-library` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fp-library = "0.9"
+fp-library = "0.11"
 ```
 
 ### Crate Features
@@ -62,10 +73,10 @@ To enable features:
 ```toml
 [dependencies]
 # Single feature
-fp-library = { version = "0.10", features = ["rayon"] }
+fp-library = { version = "0.11", features = ["rayon"] }
 
 # Multiple features
-fp-library = { version = "0.10", features = ["rayon", "serde"] }
+fp-library = { version = "0.11", features = ["rayon", "serde"] }
 ```
 
 ### Example: Using `Functor` with `Option`
@@ -76,7 +87,7 @@ use fp_library::{brands::*, functions::*};
 fn main() {
 	let x = Some(5);
 	// Map a function over the `Option` using the `Functor` type class
-	let y = map::<OptionBrand, _, _, _>(|i| i * 2, x);
+	let y = map::<OptionBrand, _, _>(|i| i * 2, x);
 	assert_eq!(y, Some(10));
 }
 ```
@@ -143,7 +154,7 @@ Rust is an eagerly evaluated language. To enable functional patterns like deferr
 Unlike lazy languages (e.g., Haskell) where the runtime handles everything, Rust requires us to choose our trade-offs:
 
 1. **`Thunk` vs `Trampoline`**: `Thunk` is faster and supports borrowing (`&'a T`). Its `tail_rec_m` is stack-safe, but deep `bind` chains will overflow the stack. `Trampoline` guarantees stack safety for all operations via a trampoline (the `Free` monad) but requires types to be `'static` and `Send`. A key distinction is that `Thunk` implements `Functor`, `Applicative`, and `Monad` directly, making it suitable for generic programming, while `Trampoline` does not.
-2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_—they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
+2. **Computation vs Caching**: `Thunk` and `Trampoline` describe _computations_: they re-run every time you call `.evaluate()`. If you have an expensive operation (like a DB call), convert it to a `Lazy` to cache the result.
 
 #### Workflow Example: Expression Evaluator
 

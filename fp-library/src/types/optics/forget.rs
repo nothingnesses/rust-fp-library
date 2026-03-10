@@ -291,7 +291,7 @@ mod inner {
 			traversal: impl crate::classes::optics::traversal::TraversalFunc<'a, S, T, A, B> + 'a,
 			pab: Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, A, B>),
 		) -> Apply!(<Self as Kind!( type Of<'a, T: 'a, U: 'a>: 'a; )>::Of<'a, S, T>) {
-			use crate::types::const_val::ConstBrand;
+			use crate::brands::ConstBrand;
 			Forget::new(move |s| {
 				let pab = pab.clone();
 				(traversal.apply::<ConstBrand<R>>(

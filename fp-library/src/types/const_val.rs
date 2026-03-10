@@ -5,6 +5,7 @@ mod inner {
 	use {
 		crate::{
 			Apply,
+			brands::ConstBrand,
 			classes::{
 				apply_first::ApplyFirst,
 				apply_second::ApplySecond,
@@ -57,9 +58,6 @@ mod inner {
 		}
 	}
 
-	/// Brand for the `Const` functor.
-	pub struct ConstBrand<R>(PhantomData<R>);
-
 	impl_kind! {
 		impl<R: 'static> for ConstBrand<R> {
 			type Of<'a, A: 'a>: 'a = Const<'a, R, A>;
@@ -83,11 +81,9 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::ConstBrand,
 		/// 	classes::functor::Functor,
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c: Const<i32, String> = Const::new(42);
@@ -121,11 +117,9 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::ConstBrand,
 		/// 	classes::lift::Lift,
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
@@ -164,15 +158,15 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
-		/// 	brands::RcFnBrand,
+		/// 	brands::{
+		/// 		ConstBrand,
+		/// 		RcFnBrand,
+		/// 	},
 		/// 	classes::{
 		/// 		cloneable_fn::CloneableFn,
 		/// 		semiapplicative::Semiapplicative,
 		/// 	},
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c1 = Const::<String, _>::new("Hello".to_string());
@@ -202,11 +196,9 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::ConstBrand,
 		/// 	classes::apply_first::ApplyFirst,
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
@@ -236,11 +228,9 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::ConstBrand,
 		/// 	classes::apply_second::ApplySecond,
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c1: Const<String, i32> = Const::new("Hello".to_string());
@@ -266,11 +256,9 @@ mod inner {
 		///
 		/// ```
 		/// use fp_library::{
+		/// 	brands::ConstBrand,
 		/// 	classes::pointed::Pointed,
-		/// 	types::const_val::{
-		/// 		Const,
-		/// 		ConstBrand,
-		/// 	},
+		/// 	types::const_val::Const,
 		/// };
 		///
 		/// let c: Const<String, i32> = ConstBrand::pure(42);

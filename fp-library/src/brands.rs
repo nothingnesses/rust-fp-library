@@ -75,6 +75,10 @@ pub struct BifunctorSecondAppliedBrand<Brand, B>(PhantomData<(Brand, B)>);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CatListBrand;
 
+/// Brand for the [`Const`](crate::types::const_val::Const) functor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstBrand<R>(PhantomData<R>);
+
 /// Generic function brand parameterized by reference-counted pointer choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FnBrand<PtrBrand: RefCountedPointer>(PhantomData<PtrBrand>);

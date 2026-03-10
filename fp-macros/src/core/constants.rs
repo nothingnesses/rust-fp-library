@@ -114,6 +114,8 @@ pub mod attributes {
 	pub const DOCUMENT_MODULE: &str = "document_module";
 	/// Attribute to suppress the `impl Trait` lint for named generics
 	pub const ALLOW_NAMED_GENERICS: &str = "allow_named_generics";
+	/// Argument to disable validation in `document_module`
+	pub const NO_VALIDATION: &str = "no_validation";
 	/// List of documentation-specific attributes
 	pub const DOCUMENT_SPECIFIC_ATTRS: &[&str] = &[
 		DOCUMENT_DEFAULT,
