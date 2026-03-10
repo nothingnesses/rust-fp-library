@@ -197,12 +197,120 @@ Add to `DOCUMENT_SPECIFIC_ATTRS` array so it's stripped from output.
 | File | Change |
 |---|---|
 | [Cargo.toml](fp-macros/Cargo.toml) | Add `proc-macro-warning` dependency |
-| [warning_emitter.rs](fp-macros/src/core/warning_emitter.rs) | **New:** shared warning emission |
-| [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) | **New:** detection logic + unit tests |
+| [warning_emitter.rs](fp-macros/src/core/warning_emitter.rs) | **New:** shared warning emission + unit tests |
+| [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) | **New:** detection logic + unit tests (7b, 7c, 7f) |
 | [document_module.rs](fp-macros/src/documentation/document_module.rs) | Refactor validation to warnings, add lint integration |
+| [document_module_validation_tests.rs](fp-macros/tests/document_module_validation_tests.rs) | Extend: integration tests for warnings + suppression (7d, 7e) |
 | [analysis.rs](fp-macros/src/analysis.rs) | Register new module |
 | [constants.rs](fp-macros/src/core/constants.rs) | Add `ALLOW_NAMED_GENERICS` |
 | [patterns.rs](fp-macros/src/analysis/patterns.rs) | Reuse: `get_apply_macro_parameters` |
+
+## Step 7: Tests
+
+### 7a. Unit Tests for `WarningEmitter`
+
+**File:** [warning_emitter.rs](fp-macros/src/core/warning_emitter.rs) — inline `#[cfg(test)] mod tests`
+
+Follow the existing inline test pattern (see `document_fields.rs`, `canonicalizer.rs`).
+
+| Test | Description |
+|---|---|
+| `test_new_is_empty` | `WarningEmitter::new()` starts with `is_empty() == true` |
+| `test_warn_makes_nonempty` | After one `warn()` call, `is_empty() == false` |
+| `test_into_tokens_empty` | `into_tokens()` on a fresh emitter returns an empty `Vec` |
+| `test_into_tokens_count` | After N `warn()` calls, `into_tokens()` returns exactly N token streams |
+| `test_unique_names` | Call `warn()` multiple times, verify each generated token stream contains a distinct `_fp_macros_warning_` identifier (parse the output and check for uniqueness) |
+
+### 7b. Unit Tests for `contains_type_param`
+
+**File:** [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) — inline `#[cfg(test)] mod tests`
+
+Use `syn::parse_str::<syn::Type>(...)` to create test inputs.
+
+| Test | Description |
+|---|---|
+| `test_simple_path` | `contains_type_param(parse("F"), "F")` → `true` |
+| `test_simple_path_mismatch` | `contains_type_param(parse("F"), "G")` → `false` |
+| `test_nested_in_generic` | `contains_type_param(parse("Option<F>"), "F")` → `true` |
+| `test_deeply_nested` | `contains_type_param(parse("Vec<Option<F>>"), "F")` → `true` |
+| `test_reference` | `contains_type_param(parse("&F"), "F")` → `true` |
+| `test_mutable_reference` | `contains_type_param(parse("&mut F"), "F")` → `true` |
+| `test_tuple` | `contains_type_param(parse("(A, F, B)"), "F")` → `true` |
+| `test_tuple_absent` | `contains_type_param(parse("(A, B)"), "F")` → `false` |
+| `test_bare_fn` | `contains_type_param(parse("fn(F) -> B"), "F")` → `true` |
+| `test_bare_fn_return` | `contains_type_param(parse("fn(A) -> F"), "F")` → `true` |
+| `test_impl_trait_bound` | `contains_type_param(parse("impl Iterator<Item = F>"), "F")` → `true` |
+| `test_dyn_trait_bound` | `contains_type_param(parse("dyn Fn(F) -> B"), "F")` → `true` |
+| `test_array` | `contains_type_param(parse("[F; 3]"), "F")` → `true` |
+| `test_slice` | `contains_type_param(parse("[F]"), "F")` → `true` |
+| `test_no_match_in_complex` | `contains_type_param(parse("Vec<Option<&str>>"), "F")` → `false` |
+
+### 7c. Unit Tests for `find_impl_trait_candidates`
+
+**File:** [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) — same inline test module
+
+Use `syn::parse_str::<syn::Signature>(...)` or `parse_quote!` to create function signatures.
+
+**Should produce candidates:**
+
+| Test | Input Signature | Expected Candidate |
+|---|---|---|
+| `test_basic_fn_bound` | `fn new<F>(f: F) where F: FnOnce() -> A + 'a` | `F` with bounds `FnOnce() -> A + 'a` |
+| `test_inline_bounds` | `fn apply<F: Fn(A) -> B>(f: F, a: A) -> B` | `F` with bounds `Fn(A) -> B` |
+| `test_multiple_candidates` | `fn foo<F: Fn(A), G: Fn(B)>(f: F, g: G)` | Both `F` and `G` |
+| `test_mixed_where_and_inline` | `fn bar<B: 'static, F>(self, f: F) -> Out where F: FnOnce(A) -> B + 'static` | `F` (not `B`, `B` is in return-position via `Out` indirection — but `B` has no trait bounds beyond lifetime, which the plan says to skip) |
+| `test_lifetime_only_bound_skipped` | `fn baz<B: 'static>(x: B) -> B` | No candidates (`B` only has lifetime bound, and appears in return type) |
+
+**Should NOT produce candidates:**
+
+| Test | Input Signature | Reason |
+|---|---|---|
+| `test_in_return_type` | `fn identity<T: Clone>(x: T) -> T` | `T` appears in return type |
+| `test_multiple_param_positions` | `fn combine<T: Semigroup>(a: T, b: T) -> T` | `T` appears in 2+ parameter positions |
+| `test_no_trait_bounds` | `fn wrap<T>(x: T) -> Box<T>` | `T` has no trait bounds |
+| `test_cross_referenced` | `fn foo<F, G: Fn(F)>(f: F, g: G)` | `F` is cross-referenced by `G`'s bound |
+| `test_only_lifetime_bounds` | `fn bar<T: 'a>(x: T)` | `T` has only lifetime bounds |
+| `test_self_receiver_ignored` | `fn method<F: Fn()>(&self, f: F, f2: F)` | `F` appears in 2 parameter positions (self is skipped, but `f` and `f2` both use `F`) |
+
+### 7d. Integration Tests for Warning Emission
+
+**File:** [document_module_validation_tests.rs](fp-macros/tests/document_module_validation_tests.rs) — extend the existing validation test file
+
+These tests verify the full pipeline from `#[document_module]` through to warning token generation. Since warnings via `#[deprecated]` don't fail compilation, these are **compile-pass** tests — their purpose is to verify the code compiles successfully with warnings (no `compile_error!`).
+
+| Test | Description |
+|---|---|
+| `test_impl_trait_lint_compiles_with_named_generic` | A `#[document_module]` block with a fully-documented function using a named generic that could be `impl Trait`. Verifies compilation succeeds (warning is emitted but doesn't block). |
+| `test_impl_trait_lint_suppressed` | Same as above but with `#[allow_named_generics]` on the function. Verifies compilation succeeds and the attribute is stripped from output. |
+| `test_validation_warnings_dont_block_compilation` | A `#[document_module]` block with intentionally missing doc attributes. Verifies it compiles (warnings, not errors). This is the key regression test for the error→warning migration. |
+| `test_no_validation_mode_skips_lint` | A `#[document_module(no_validation)]` block with named generics. Verifies no warnings are emitted (lint is also skipped when validation is off). |
+
+### 7e. Suppression Attribute Tests
+
+**File:** [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) — inline tests
+
+The detection function `find_impl_trait_candidates` operates on `syn::Signature` only and is attribute-unaware. Suppression is handled at the integration layer (Step 5). So suppression tests belong in the integration tests (7d above).
+
+Additionally, verify the attribute is properly stripped:
+
+**File:** [document_module_validation_tests.rs](fp-macros/tests/document_module_validation_tests.rs)
+
+| Test | Description |
+|---|---|
+| `test_allow_named_generics_stripped` | A function with `#[allow_named_generics]` inside `#[document_module]`. Verify the output compiles and the attribute doesn't remain in the expanded code (which would cause an "unknown attribute" error). |
+
+### 7f. Edge Case Tests
+
+**File:** [impl_trait_lint.rs](fp-macros/src/analysis/impl_trait_lint.rs) — inline tests
+
+| Test | Description |
+|---|---|
+| `test_no_generics` | `fn foo(x: i32) -> i32` — no candidates, no panic |
+| `test_empty_where_clause` | Signature with an empty where clause — no candidates |
+| `test_self_receiver_not_counted` | `fn method<F: Fn()>(&self, f: F)` — self is not counted as a parameter position for `F`, so `F` appears once → candidate |
+| `test_generic_in_apply_macro` | Signature with a parameter of type `Apply!(Brand, F)` — `F` is detected inside the macro via `get_apply_macro_parameters` |
+| `test_multiple_bounds_displayed` | `fn foo<F: Clone + Send + Fn()>(f: F)` — candidate's `bounds_display` includes all bounds |
+| `test_where_clause_cross_ref` | `fn foo<A: Clone, B>(a: A, b: B) where B: From<A>` — `A` is cross-referenced by `B`'s where-clause bound, so `A` is not a candidate |
 
 ## Verification
 
