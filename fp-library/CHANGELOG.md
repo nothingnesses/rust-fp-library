@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-03-10
+
+### Changed
+- **`ConstBrand` Location (API Breaking)**: Moved `ConstBrand` from `types::const_val` to the `brands` module, consistent with all other brand types. Import path changed from `fp_library::types::const_val::ConstBrand` to `fp_library::brands::ConstBrand`.
+- Updated feature listings in `lib.rs` and `README.md` to accurately reflect all type classes, optics, and data types in the codebase.
+- Expanded optics module documentation: complete comparison table with all optic types, corrected struct type parameter names (`P` → `PointerBrand`), and comprehensive module organization listing.
+
+### Fixed
+- Incorrect turbofish arity for `map` in README (4 type parameters → 3).
+- Outdated dependency version in README (`0.9` → `0.10`).
+- Doc examples for `Const` type class implementations updated to use correct `ConstBrand` import path from `brands`.
+
 ## [0.10.0] - 2026-03-10
 
 ### Added
